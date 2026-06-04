@@ -10,3 +10,6 @@ tests/output/
 
 # 用户自定义持仓
 data/portfolio.json
+
+# 数据缓存
+.cache/

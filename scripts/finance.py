@@ -8,13 +8,13 @@
 """
 import sys
 import json
-from common import http_get, EAST_MONEY_FIELDS, normalize_finance_code, err
+from common import http_get_cached, EAST_MONEY_FIELDS, normalize_finance_code, err
 
 URL = "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code={code}"
 
 def fetch(code: str) -> list:
     """返回最近 4 季的财务数据。"""
-    raw = http_get(URL.format(code=code))
+    raw = http_get_cached(URL.format(code=code))
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:

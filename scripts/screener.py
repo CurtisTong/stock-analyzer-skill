@@ -10,6 +10,7 @@ A 股多因子选股器。
 import argparse
 import json
 import statistics
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from common import (
@@ -101,12 +102,125 @@ def latest_finance(code):
     return records[0] if records else {}
 
 
+def ema(prices, period):
+    """计算指数移动平均。"""
+    if len(prices) < period:
+        return statistics.mean(prices) if prices else 0
+    k = 2 / (period + 1)
+    result = statistics.mean(prices[:period])
+    for p in prices[period:]:
+        result = p * k + result * (1 - k)
+    return result
+
+
+def macd_features(closes):
+    """计算 MACD: DIF, DEA, MACD 柱。返回 (dif, dea, macd_bar, signal)。
+    signal: 1=金叉上穿, -1=死叉下穿, 0=无信号。"""
+    if len(closes) < 34:
+        return None
+    ema12 = ema(closes, 12)
+    ema26 = ema(closes, 26)
+    dif = ema12 - ema26
+
+    # 计算过去 ~9 日的近似 DEA 序列来检测交叉
+    difs = []
+    for i in range(26, len(closes) + 1):
+        e12 = ema(closes[:i], 12)
+        e26 = ema(closes[:i], 26)
+        difs.append(e12 - e26)
+    if len(difs) < 10:
+        return None
+    dea = ema(difs, 9)
+    prev_dif = ema(closes[:-1], 12) - ema(closes[:-1], 26)
+    prev_dea_vals = difs[:-1]
+    prev_dea = ema(prev_dea_vals, 9) if len(prev_dea_vals) >= 9 else dea
+    macd_bar = (dif - dea) * 2
+
+    signal = 0
+    if prev_dif <= prev_dea and dif > dea:
+        signal = 1   # 金叉
+    elif prev_dif >= prev_dea and dif < dea:
+        signal = -1  # 死叉
+
+    return {"dif": dif, "dea": dea, "macd_bar": macd_bar, "signal": signal}
+
+
+def rsi_features(closes, period=14):
+    """计算 RSI。"""
+    if len(closes) < period + 1:
+        return {"rsi": 50, "signal": 0}
+    gains = []
+    losses = []
+    for i in range(-period, 0):
+        chg = closes[i] - closes[i - 1]
+        if chg >= 0:
+            gains.append(chg)
+            losses.append(0)
+        else:
+            gains.append(0)
+            losses.append(-chg)
+    avg_gain = statistics.mean(gains)
+    avg_loss = statistics.mean(losses)
+    if avg_loss == 0:
+        rsi = 100
+    else:
+        rs = avg_gain / avg_loss
+        rsi = 100 - 100 / (1 + rs)
+
+    signal = 0
+    if rsi < 30:
+        signal = 1   # 超卖
+    elif rsi > 70:
+        signal = -1  # 超买
+
+    return {"rsi": rsi, "signal": signal}
+
+
+def volume_price_features(closes, volumes):
+    """量价关系分析。返回 (vol_price_signal, description)。
+    signal: 1=配合良好, 0=中性, -1=背离警报。"""
+    if len(closes) < 6 or len(volumes) < 6:
+        return {"signal": 0, "desc": "数据不足"}
+
+    # 近 5 日对比前 5 日
+    mid = len(closes) // 2
+    recent_close = closes[-mid:]
+    prev_close = closes[:mid]
+    recent_vol = volumes[-mid:]
+    prev_vol = volumes[:mid]
+
+    price_chg = statistics.mean(recent_close) / max(statistics.mean(prev_close), 0.01) - 1
+    vol_chg = statistics.mean(recent_vol) / max(statistics.mean(prev_vol), 0.01) - 1
+
+    # 近 3 日 vs 整体
+    last3_close = closes[-3:]
+    last3_vol = volumes[-3:]
+    avg_close = statistics.mean(closes)
+    avg_vol = statistics.mean(volumes)
+
+    price_up = statistics.mean(last3_close) > avg_close
+    vol_up = statistics.mean(last3_vol) > avg_vol
+
+    if price_up and vol_up:
+        return {"signal": 1, "desc": "放量上涨-资金介入"}
+    elif not price_up and not vol_up:
+        return {"signal": 1, "desc": "缩量下跌-抛压减轻"}
+    elif price_up and not vol_up:
+        return {"signal": -1, "desc": "缩量上涨-量价背离"}
+    elif not price_up and vol_up:
+        return {"signal": -1, "desc": "放量下跌-主力出货"}
+    return {"signal": 0, "desc": "量价中性"}
+
+
 def daily_features(code):
     records = fetch_kline(normalize_quote_code(code), 240, 30)
     closes = [to_float(r.get("close")) for r in records if to_float(r.get("close")) > 0]
     volumes = [to_float(r.get("volume")) for r in records if to_float(r.get("volume")) > 0]
     if len(closes) < 10:
-        return {"trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1}
+        return {
+            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1,
+            "macd_signal": 0, "rsi": 50, "rsi_signal": 0, "vol_price_signal": 0,
+        }
 
     last = closes[-1]
     ma10 = statistics.mean(closes[-10:])
@@ -121,12 +235,30 @@ def daily_features(code):
         trend = 1
     elif last < ma10 < ma20:
         trend = -1
+
+    # MACD
+    macd = macd_features(closes) or {"signal": 0}
+    macd_signal = macd.get("signal", 0)
+
+    # RSI
+    rsi = rsi_features(closes)
+    rsi_val = rsi["rsi"]
+    rsi_signal = rsi["signal"]
+
+    # 量价关系
+    vp = volume_price_features(closes, volumes)
+    vol_price_signal = vp["signal"]
+
     return {
         "trend": trend,
         "ret20": ret20,
         "ma10": ma10,
         "ma20": ma20,
         "volume_ratio": volume_ratio,
+        "macd_signal": macd_signal,
+        "rsi": round(rsi_val, 1),
+        "rsi_signal": rsi_signal,
+        "vol_price_signal": vol_price_signal,
     }
 
 
@@ -184,11 +316,37 @@ def momentum_score(features, quote):
     change_pct = to_float(quote.get("change_pct"))
 
     score = 45 if features["trend"] > 0 else 22 if features["trend"] == 0 else 8
-    score += clamp((ret20 + 8) / 25 * 28)
-    score += clamp((volume_ratio - 0.6) / 1.4 * 16)
-    score += clamp(turnover / 6 * 8)
+    score += clamp((ret20 + 8) / 25 * 22)
+    score += clamp((volume_ratio - 0.6) / 1.4 * 12)
+    score += clamp(turnover / 6 * 6)
+
+    # MACD 金叉加分，死叉扣分
+    macd_signal = features.get("macd_signal", 0)
+    if macd_signal > 0:
+        score += 10
+    elif macd_signal < 0:
+        score -= 8
+
+    # RSI 合理区间加分，过度区域扣分
+    rsi = features.get("rsi", 50)
+    if 30 <= rsi <= 70:
+        score += 5
+    elif rsi > 80:
+        score -= 6
+    elif rsi < 20:
+        score -= 4
+
+    # 量价配合加分
+    vol_price_signal = features.get("vol_price_signal", 0)
+    if vol_price_signal > 0:
+        score += 8
+    elif vol_price_signal < 0:
+        score -= 10
+
+    # 涨跌停附近扣分（保留原逻辑但降低权重）
     if abs(change_pct) >= 9.5:
         score -= 12
+
     return clamp(score)
 
 
@@ -211,21 +369,72 @@ def liquidity_score(quote):
 def hard_filter(quote, fin, args):
     reasons = []
     name = quote.get("name", "")
-    if "ST" in name.upper() or "*ST" in name.upper():
+    bd = board_type(quote.get("code", ""))
+
+    # ST 检测：A 股 ST 标记在名称开头，用前缀匹配而非子串匹配
+    upper_name = name.upper()
+    if upper_name.startswith("ST") or upper_name.startswith("*ST"):
         reasons.append("ST风险")
-    if to_float(quote.get("amount")) < args.min_amount:
-        reasons.append(f"成交额<{args.min_amount:.0f}万")
-    if to_float(quote.get("total_cap")) < args.min_cap:
-        reasons.append(f"市值<{args.min_cap:.0f}亿")
+
+    # 板块差异化阈值：主板 10%，科创/创业板 20%，北交所 30% 涨跌停
+    board_min_amount = {
+        "主板": args.min_amount,
+        "创业板": args.min_amount * 0.7,
+        "科创板": args.min_amount * 0.7,
+        "北交所": args.min_amount * 1.5,
+    }
+    board_min_cap = {
+        "主板": args.min_cap,
+        "创业板": args.min_cap * 0.6,
+        "科创板": args.min_cap * 0.6,
+        "北交所": args.min_cap * 0.4,
+    }
+    min_amt = board_min_amount.get(bd, args.min_amount)
+    min_cap = board_min_cap.get(bd, args.min_cap)
+
+    if to_float(quote.get("amount")) < min_amt:
+        reasons.append(f"成交额<{min_amt:.0f}万")
+    if to_float(quote.get("total_cap")) < min_cap:
+        reasons.append(f"市值<{min_cap:.0f}亿")
+
+    change_pct = abs(to_float(quote.get("change_pct")))
+    # 涨跌停过滤：T+1 下当日无法交易
+    limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}
+    limit = limit_ratio.get(bd, 9.5)
+    if change_pct >= limit:
+        reasons.append("涨跌停限制")
+
     if args.exclude_loss and to_float(fin.get("EPSJB")) <= 0:
         reasons.append("EPS<=0")
     return reasons
 
 
-def analyze_code(quote, strategy, args):
+def prefetch_finance_all(codes):
+    """并发拉取所有股票的财务数据。"""
+    results = {}
+
+    def _fetch_one(code):
+        return code, fetch_finance(normalize_finance_code(code))
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(_fetch_one, c): c for c in codes}
+        for future in as_completed(futures):
+            try:
+                code, data = future.result()
+                results[code] = data
+            except Exception:
+                results[futures[future]] = []
+    return results
+
+
+def analyze_code(quote, strategy, args, finance_cache=None):
     code = quote["code"]
     quote_code = normalize_quote_code(code)
-    fin = latest_finance(quote_code)
+    if finance_cache is not None:
+        records = finance_cache.get(quote_code, [])
+        fin = records[0] if records else {}
+    else:
+        fin = latest_finance(quote_code)
     features = daily_features(quote_code)
     rejected = hard_filter(quote, fin, args)
 
@@ -254,6 +463,9 @@ def analyze_code(quote, strategy, args):
         "profit_growth": fin.get("PARENTNETPROFITTZ", "-"),
         "ret20": round(features["ret20"], 1),
         "trend": "上升" if features["trend"] > 0 else "下降" if features["trend"] < 0 else "震荡",
+        "rsi": features.get("rsi", 50),
+        "macd_signal": features.get("macd_signal", 0),
+        "vol_price": "配合" if features.get("vol_price_signal", 0) > 0 else "背离" if features.get("vol_price_signal", 0) < 0 else "中性",
         "rejected": rejected,
     }
 
@@ -266,14 +478,16 @@ def render(rows, strategy, top):
     print(f"策略: {STRATEGIES[strategy]['label']} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
-    print("排名 | 代码 | 名称 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | 20日% | 趋势")
-    print("-" * 116)
+    header = "排名 | 代码 | 名称 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
+    print(header)
+    print("-" * len(header))
     for idx, r in enumerate(accepted[:top], 1):
+        macd_icon = "↑" if r.get("macd_signal", 0) > 0 else "↓" if r.get("macd_signal", 0) < 0 else "→"
         print(
             f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r['board']:<4} | "
             f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
             f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
-            f"{str(r['roe'])[:6]:>6} | {r['ret20']:>5} | {r['trend']}"
+            f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
         )
 
     if rejected:
@@ -297,7 +511,8 @@ def main():
 
     codes = load_universe(args.sector, args.codes.split(",") if args.codes else None)
     quotes = fetch_batch(codes)
-    rows = [analyze_code(q, args.strategy, args) for q in quotes]
+    finance_cache = prefetch_finance_all(codes)
+    rows = [analyze_code(q, args.strategy, args, finance_cache) for q in quotes]
     rows.sort(key=lambda r: r["score"], reverse=True)
 
     if args.json:

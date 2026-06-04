@@ -3,14 +3,58 @@
 公共工具：编码转换、HTTP 请求、字段映射、ETF 代码表。
 被 quote.py / finance.py / kline.py / announcements.py 复用。
 """
+import hashlib
+import os
 import sys
 import json
+import time
 import urllib.request
 import urllib.error
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PACKAGE_ROOT / "data"
+CACHE_DIR = PACKAGE_ROOT / ".cache"
+
+# ---------- 磁盘缓存 ----------
+
+def _ensure_cache_dir():
+    CACHE_DIR.mkdir(exist_ok=True)
+
+
+def cache_get(key: str, ttl_seconds: int = 21600) -> bytes | None:
+    """读取缓存，TTL 超时返回 None。默认 6 小时。"""
+    _ensure_cache_dir()
+    cache_file = CACHE_DIR / f"{key}.cache"
+    if not cache_file.exists():
+        return None
+    if time.time() - cache_file.stat().st_mtime > ttl_seconds:
+        cache_file.unlink(missing_ok=True)
+        return None
+    return cache_file.read_bytes()
+
+
+def cache_set(key: str, data: bytes):
+    """写入缓存。"""
+    _ensure_cache_dir()
+    cache_file = CACHE_DIR / f"{key}.cache"
+    cache_file.write_bytes(data)
+
+
+def cache_key(url: str) -> str:
+    """用 URL 的 SHA256 生成缓存键。"""
+    return hashlib.sha256(url.encode()).hexdigest()[:32]
+
+
+def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
+    """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。"""
+    key = cache_key(url)
+    cached = cache_get(key, ttl)
+    if cached is not None:
+        return cached
+    data = http_get(url, timeout)
+    cache_set(key, data)
+    return data
 
 # ---------- HTTP ----------
 
