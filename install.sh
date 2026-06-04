@@ -10,7 +10,7 @@ GLOBAL_SKILLS="$HOME/.claude/skills"
 LOCAL_SKILLS="$PKG_ROOT/.claude/skills"
 CODEX_SKILLS="$PKG_ROOT/.agents/skills"
 
-SKILLS=(stock market sector portfolio financial-analyst investment-researcher)
+SKILLS=(stock market sector portfolio screener financial-analyst investment-researcher)
 
 echo "==> 注册 symlink 到 $GLOBAL_SKILLS/"
 for s in "${SKILLS[@]}"; do
@@ -54,4 +54,4 @@ for s in "${SKILLS[@]}"; do
   fi
 done
 echo
-echo "✓ 安装完成。重新启动 Claude Code 即可识别 6 个 slash command。"
+echo "✓ 安装完成。重新启动 Claude Code 即可识别 7 个 slash command。"
