@@ -1,6 +1,6 @@
 # stock-analyzer-skill
 
-独立的 Claude Code skill 包，提供 6 个股票分析相关 skill + 完整方法论 + 工具脚本。
+独立的股票分析 skill 包，提供 6 个股票分析相关 skill + 完整方法论 + 工具脚本。当前同时保留 Codex 可发现的 `.agents/skills/` 和 Claude Code 可安装的 `.claude/skills/` 两套入口。
 
 ## 包含的 Skill
 
@@ -20,7 +20,14 @@ stock-analyzer-skill/
 ├── README.md                       # 本文件
 ├── methodology.md                  # 完整投资方法论（5层框架、8人圆桌、凯利公式等）
 ├── install.sh                      # 一键注册到 ~/.claude/skills/
-├── .claude/skills/                 # 6 个 skill 源
+├── .agents/skills/                 # Codex workspace skill 源
+│   ├── stock/SKILL.md
+│   ├── market/SKILL.md
+│   ├── sector/SKILL.md
+│   ├── portfolio/SKILL.md
+│   ├── financial-analyst/SKILL.md
+│   └── investment-researcher/SKILL.md
+├── .claude/skills/                 # Claude Code skill 源（与 .agents 同步）
 │   ├── stock/SKILL.md
 │   ├── market/SKILL.md
 │   ├── sector/SKILL.md
@@ -48,7 +55,9 @@ cd ~/Documents/curtis/stock-analyzer-skill
 ./install.sh
 ```
 
-`install.sh` 会在 `~/.claude/skills/stock-analyzer/` 下创建 6 个 symlink，指向本包的 `.claude/skills/` 目录。重新启动 Claude Code 即可识别。
+`install.sh` 会在 `~/.claude/skills/` 下创建 6 个扁平 symlink，指向本包的 `.claude/skills/` 目录。重新启动 Claude Code 即可识别。
+
+Codex 会从 workspace 的 `.agents/skills/` 读取 skill；如需修改 skill，保持 `.agents/skills/` 与 `.claude/skills/` 内容一致。
 
 ## 验证
 
@@ -118,7 +127,7 @@ cp data/portfolio_example.json data/portfolio.json
 
 ## 解耦特性
 
-✅ **零项目依赖**：不引用任何项目内文件（`src/`、`data_provider/`、`AGENTS.md` 等）
+✅ **零项目依赖**：不引用任何业务项目内文件（`src/`、`data_provider/`、`AGENTS.md` 等）
 ✅ **零外部 Python 库**：只用 stdlib（`urllib` + `json` + `pathlib`）
 ✅ **单源真理**：方法论、数据、脚本各自集中在一处
 ✅ **可移植**：可打包为 git 仓库或 npm 包分发
@@ -126,7 +135,7 @@ cp data/portfolio_example.json data/portfolio.json
 ## 卸载
 
 ```bash
-rm -rf ~/.claude/skills/stock-analyzer
+rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.claude/skills/portfolio ~/.claude/skills/financial-analyst ~/.claude/skills/investment-researcher
 ```
 
 ## 已知限制

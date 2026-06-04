@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 测试输出
+tests/output/
+*.log
+
+# 用户自定义持仓
+data/portfolio.json
