@@ -132,6 +132,11 @@ cp data/portfolio_example.json data/portfolio.json
 ✅ **单源真理**：方法论、数据、脚本各自集中在一处
 ✅ **可移植**：可打包为 git 仓库或 npm 包分发
 
+## 贡献与 Git 规范
+
+提交信息、分支命名、Tag 版本号等约定详见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+一句话：标题与正文使用中文，type 沿用 Conventional Commits（`feat` / `fix` / `docs` / `refactor` / `chore` 等），分支统一 `<type>/<短描述>` 格式。
+
 ## 卸载
 
 ```bash

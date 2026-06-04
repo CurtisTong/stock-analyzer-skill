@@ -8,7 +8,7 @@
 """
 import sys
 import json
-from common import http_get, EAST_MONEY_FIELDS, err
+from common import http_get, EAST_MONEY_FIELDS, normalize_finance_code, err
 
 URL = "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code={code}"
 
@@ -59,8 +59,9 @@ def main():
 
     all_results = {}
     for code in codes:
-        records = fetch(code)
-        all_results[code] = records
+        normalized = normalize_finance_code(code)
+        records = fetch(normalized)
+        all_results[normalized] = records
 
     if json_mode:
         print(json.dumps(all_results, ensure_ascii=False, indent=2))

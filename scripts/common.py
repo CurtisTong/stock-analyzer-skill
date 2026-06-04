@@ -111,6 +111,48 @@ def split_codes(arg: str) -> list:
         return [line.strip() for line in Path(arg[1:]).read_text().splitlines() if line.strip()]
     return [c.strip() for c in arg.split(",") if c.strip()]
 
+def plain_code(code: str) -> str:
+    """返回 6 位证券代码。"""
+    c = code.strip().lower()
+    if c.startswith(("sh", "sz", "bj")):
+        c = c[2:]
+    return c.upper()
+
+def infer_exchange(code: str) -> str:
+    """按 A 股代码段推断交易所前缀。"""
+    c = plain_code(code)
+    if c.startswith(("60", "68", "51", "56", "58")):
+        return "sh"
+    if c.startswith(("00", "30", "15", "16", "18")):
+        return "sz"
+    if c.startswith(("43", "83", "87", "88", "92")):
+        return "bj"
+    return code.strip()[:2].lower() if code.strip()[:2].lower() in {"sh", "sz", "bj"} else ""
+
+def normalize_quote_code(code: str) -> str:
+    """归一化为腾讯/新浪使用的小写交易所前缀代码。"""
+    c = plain_code(code)
+    market = infer_exchange(code)
+    return f"{market}{c}" if market else code.strip().lower()
+
+def normalize_finance_code(code: str) -> str:
+    """归一化为东财财务接口使用的大写交易所前缀代码。"""
+    q = normalize_quote_code(code)
+    return q[:2].upper() + q[2:] if len(q) >= 8 else q.upper()
+
+def board_type(code: str) -> str:
+    """粗分 A 股板块，用于风险提示和涨跌幅判断。"""
+    c = plain_code(code)
+    if c.startswith("688"):
+        return "科创板"
+    if c.startswith(("300", "301")):
+        return "创业板"
+    if c.startswith(("43", "83", "87", "88", "92")):
+        return "北交所"
+    if c.startswith(("60", "00")):
+        return "主板"
+    return "其他"
+
 def batchify(items: list, size: int = 15):
     """将列表按 size 分批。腾讯单次 ≤15。"""
     for i in range(0, len(items), size):

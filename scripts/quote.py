@@ -9,7 +9,7 @@
 """
 import sys
 import json
-from common import http_get, decode_gbk, parse_tencent_line, split_codes, batchify, err
+from common import http_get, decode_gbk, parse_tencent_line, split_codes, batchify, normalize_quote_code, err
 
 URL = "https://qt.gtimg.cn/q={codes}"
 
@@ -35,7 +35,7 @@ def main():
     json_mode = "-j" in args
     args = [a for a in args if a != "-j"]
 
-    codes = split_codes(args[0])
+    codes = [normalize_quote_code(c) for c in split_codes(args[0])]
     if not codes:
         err("未提供代码")
 

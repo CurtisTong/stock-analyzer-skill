@@ -12,7 +12,7 @@
 """
 import sys
 import json
-from common import http_get, err
+from common import http_get, normalize_quote_code, err
 
 URL = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={symbol}&scale={scale}&ma=no&datalen={datalen}"
 
@@ -37,7 +37,7 @@ def main():
     args = [a for a in args if a != "-j"]
     if not args:
         err("用法: kline.py <symbol> [scale=240] [datalen=30] [-j]")
-    symbol = args[0]
+    symbol = normalize_quote_code(args[0])
     scale = int(args[1]) if len(args) > 1 else 240
     datalen = int(args[2]) if len(args) > 2 else 30
 
