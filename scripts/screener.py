@@ -26,6 +26,9 @@ from common import (
 from finance import fetch as fetch_finance
 from kline import fetch as fetch_kline
 from quote import fetch_batch
+from technical.core import ema
+from technical.macd import macd_full as macd_features
+from technical.rsi import rsi_features
 
 # ---------- 行业差异化阈值 ----------
 
@@ -175,80 +178,6 @@ def _try_fetch_from_mapping(sector: str) -> list[str]:
 def latest_finance(code):
     records = fetch_finance(normalize_finance_code(code))
     return records[0] if records else {}
-
-
-def ema(prices, period):
-    """计算指数移动平均。"""
-    if len(prices) < period:
-        return statistics.mean(prices) if prices else 0
-    k = 2 / (period + 1)
-    result = statistics.mean(prices[:period])
-    for p in prices[period:]:
-        result = p * k + result * (1 - k)
-    return result
-
-
-def macd_features(closes):
-    """计算 MACD: DIF, DEA, MACD 柱。返回 (dif, dea, macd_bar, signal)。
-    signal: 1=金叉上穿, -1=死叉下穿, 0=无信号。"""
-    if len(closes) < 34:
-        return None
-    ema12 = ema(closes, 12)
-    ema26 = ema(closes, 26)
-    dif = ema12 - ema26
-
-    # 计算过去 ~9 日的近似 DEA 序列来检测交叉
-    difs = []
-    for i in range(26, len(closes) + 1):
-        e12 = ema(closes[:i], 12)
-        e26 = ema(closes[:i], 26)
-        difs.append(e12 - e26)
-    if len(difs) < 10:
-        return None
-    dea = ema(difs, 9)
-    prev_dif = ema(closes[:-1], 12) - ema(closes[:-1], 26)
-    prev_dea_vals = difs[:-1]
-    prev_dea = ema(prev_dea_vals, 9) if len(prev_dea_vals) >= 9 else dea
-    macd_bar = (dif - dea) * 2
-
-    signal = 0
-    if prev_dif <= prev_dea and dif > dea:
-        signal = 1   # 金叉
-    elif prev_dif >= prev_dea and dif < dea:
-        signal = -1  # 死叉
-
-    return {"dif": dif, "dea": dea, "macd_bar": macd_bar, "signal": signal}
-
-
-def rsi_features(closes, period=14):
-    """计算 RSI。"""
-    if len(closes) < period + 1:
-        return {"rsi": 50, "signal": 0}
-    gains = []
-    losses = []
-    for i in range(-period, 0):
-        chg = closes[i] - closes[i - 1]
-        if chg >= 0:
-            gains.append(chg)
-            losses.append(0)
-        else:
-            gains.append(0)
-            losses.append(-chg)
-    avg_gain = statistics.mean(gains)
-    avg_loss = statistics.mean(losses)
-    if avg_loss == 0:
-        rsi = 100
-    else:
-        rs = avg_gain / avg_loss
-        rsi = 100 - 100 / (1 + rs)
-
-    signal = 0
-    if rsi < 30:
-        signal = 1   # 超卖
-    elif rsi > 70:
-        signal = -1  # 超买
-
-    return {"rsi": rsi, "signal": signal}
 
 
 def volume_price_features(closes, volumes):

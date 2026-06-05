@@ -8,15 +8,12 @@ import pytest
 
 from screener import (
     STRATEGIES,
-    ema,
     hard_filter,
     latest_finance,
     load_universe,
     liquidity_score,
-    macd_features,
     momentum_score,
     quality_score,
-    rsi_features,
     valuation_score,
     volume_price_features,
     daily_features,
@@ -25,6 +22,9 @@ from screener import (
     get_industry_threshold,
     load_industry_thresholds,
 )
+from technical.core import ema
+from technical.macd import macd_full as macd_features
+from technical.rsi import rsi_features
 
 # 为方便测试 hard_filter 构造 args 对象
 def _make_args(**kwargs):
@@ -107,7 +107,7 @@ class TestMacdFeatures:
         closes = [10 + i * 0.1 for i in range(50)]
         result = macd_features(closes)
         assert result is not None
-        assert set(result.keys()) == {"dif", "dea", "macd_bar", "signal"}
+        assert {"dif", "dea", "macd_bar", "signal"}.issubset(set(result.keys()))
 
     def test_signal_is_valid(self):
         closes = [10 + i * 0.1 for i in range(50)]
