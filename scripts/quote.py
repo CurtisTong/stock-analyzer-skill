@@ -11,7 +11,7 @@
 """
 import sys
 import json
-from common import split_codes, batchify, normalize_quote_code, parallel_map, err
+from common import split_codes, batchify, normalize_quote_code, parallel_map, err, DataError
 from data import get_quote, get_quotes
 
 
@@ -63,4 +63,7 @@ def main():
         print(f"{r['code']:<10} {r['name']:<10} {r['price']:>8} {r['change_pct']:>7} {r['pe']:>7} {r['turnover']:>6} {r['total_cap']:>8}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DataError as e:
+        sys.exit(1)

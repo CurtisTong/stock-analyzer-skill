@@ -10,7 +10,7 @@ K 线数据查询（多数据源自动切换）。
 """
 import sys
 import json
-from common import normalize_quote_code, err
+from common import normalize_quote_code, err, DataError
 from data import get_kline
 
 
@@ -56,4 +56,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DataError as e:
+        sys.exit(1)

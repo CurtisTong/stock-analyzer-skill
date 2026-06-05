@@ -73,7 +73,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
     ma_score = ma_base * type_w["ma"] * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
     score += clamp(ma_score, 0, 30)
 
-    # 2. MACD 15 分
+    # 2. MACD 15 分（上限 20 分，下限 0 分）
     macd_signal = macd.get("signal", 0)
     bar_trend = macd.get("bar_trend", "")
     divergence = macd.get("divergence", "")
@@ -89,7 +89,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
         macd_score += 8 * adj.get("divergence_bottom", 1.0)
     elif divergence == "顶背离(看跌)":
         macd_score -= 8 * adj.get("overbought", 1.0)
-    score += clamp(macd_score, -5, 25)
+    score += clamp(macd_score, 0, 20)
 
     # 3. KDJ 15 分
     kdj_weight = 5 if kdj.get("钝化") else 15
@@ -154,9 +154,10 @@ def composite_score(features, stock_type="普通股", market_state=None):
             pattern_score = max(pattern_score, 13)
         if any(b in ptype for b in bearish_patterns):
             pattern_score = min(pattern_score, 3)
-    score += pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0)
+    score += clamp(pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25)
 
-    # 8. 缠论加分项
+    # 8. 缠论加分项（上限 15 分）
+    chan_bonus = 0
     chan_data = features.get("chan_theory") or {}
     if chan_data.get("valid"):
         maidain = chan_data.get("maidian", {})
@@ -164,16 +165,18 @@ def composite_score(features, stock_type="普通股", market_state=None):
         for bp in buy_points:
             bpt = bp.get("type", "")
             if bpt == "一买":
-                score += 10 * adj.get("buy_point_1", 1.0)
+                chan_bonus += 10 * adj.get("buy_point_1", 1.0)
             elif bpt == "二买":
-                score += 5
+                chan_bonus += 5
             elif bpt == "三买":
-                score += 8 * adj.get("buy_point_3", 1.0)
+                chan_bonus += 8 * adj.get("buy_point_3", 1.0)
         beichi = chan_data.get("beichi", {})
         if beichi.get("summary", "").startswith("检测到底背驰"):
-            score += 8 * adj.get("divergence_bottom", 1.0)
+            chan_bonus += 8 * adj.get("divergence_bottom", 1.0)
+    score += clamp(chan_bonus, 0, 15)
 
-    # 9. 本土战法加分
+    # 9. 本土战法加分（上限 10 分）
+    local_bonus = 0
     local_patterns_data = features.get("local_patterns") or {}
     for lp in local_patterns_data.get("patterns", []):
         pname = lp.get("name", "")
@@ -193,7 +196,8 @@ def composite_score(features, stock_type="普通股", market_state=None):
             bonus = 5
         if pconf == "高":
             bonus *= 1.2
-        score += bonus
+        local_bonus += bonus
+    score += clamp(local_bonus, 0, 10)
 
     score = clamp(score, 0, 100)
 

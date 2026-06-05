@@ -8,7 +8,7 @@
 """
 import sys
 import json
-from common import http_get, err, cache_key_for_stock, cache_get, cache_set
+from common import http_get, err, DataError, cache_key_for_stock, cache_get, cache_set
 
 ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=10&page_index=1&ann_type=A&stock_list={code}&f_node=0"
 REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&code={code}"
@@ -102,4 +102,7 @@ def main():
             print(render_announcements(data))
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DataError as e:
+        sys.exit(1)

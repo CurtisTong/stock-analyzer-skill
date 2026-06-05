@@ -10,7 +10,7 @@
 """
 import sys
 import json
-from common import normalize_finance_code, parallel_map, err
+from common import normalize_finance_code, parallel_map, err, DataError
 from data import get_finance
 
 
@@ -86,4 +86,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DataError as e:
+        sys.exit(1)

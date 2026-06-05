@@ -32,7 +32,7 @@ MAPPING_FILE = os.path.join(PROJECT_ROOT, "data", "sector_mapping.json")
 POOL_FILE = os.path.join(PROJECT_ROOT, "data", "sector_stocks.json")
 
 API_BASE = "https://push2.eastmoney.com/api/qt/clist/get"
-API_TOKEN = "bd1d9ddb04089700cf9c27f6f7426281"
+API_TOKEN = os.environ.get("EASTMONEY_API_TOKEN", "bd1d9ddb04089700cf9c27f6f7426281")
 FIELDS = "f12,f14,f2,f3,f6,f8,f9,f20"  # code,name,price,chg%,amount,turnover,pe,cap
 
 # 硬过滤阈值

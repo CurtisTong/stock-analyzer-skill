@@ -8,6 +8,7 @@ import os
 import random
 import sys
 import json
+import threading
 import time
 import urllib.request
 import urllib.error
@@ -292,8 +293,9 @@ def clamp(value, low=0.0, high=100.0):
 
 
 def err(msg: str):
+    """抛出 DataError 异常（替代原来的 sys.exit）。"""
     print(f"❌ {msg}", file=sys.stderr)
-    sys.exit(1)
+    raise DataError(msg)
 
 
 def parallel_map(fn, items, max_workers=8, timeout=60):
@@ -325,6 +327,10 @@ class DataParseError(Exception):
     """数据解析失败"""
     pass
 
+class DataError(Exception):
+    """通用数据错误，用于替代 err() 的 sys.exit。"""
+    pass
+
 
 # ---------- 熔断器 ----------
 
@@ -336,7 +342,7 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"  # 试探
 
 class CircuitBreaker:
-    """简单熔断器：连续失败 N 次后熔断，超时后半开试探。"""
+    """线程安全的熔断器：连续失败 N 次后熔断，超时后半开试探。"""
 
     def __init__(self, name: str, failure_threshold: int = 5,
                  recovery_timeout: int = 60, half_open_max: int = 1):
@@ -345,59 +351,66 @@ class CircuitBreaker:
         self.recovery_timeout = recovery_timeout
         self.half_open_max = half_open_max
 
+        self._lock = threading.Lock()
         self.state = CircuitState.CLOSED
         self.failure_count = 0
         self.last_failure_time = 0
         self.half_open_success = 0
 
     def can_execute(self) -> bool:
-        """判断是否允许请求。"""
-        if self.state == CircuitState.CLOSED:
-            return True
-        if self.state == CircuitState.OPEN:
-            if time.time() - self.last_failure_time >= self.recovery_timeout:
-                self.state = CircuitState.HALF_OPEN
-                self.half_open_success = 0
+        """判断是否允许请求（线程安全）。"""
+        with self._lock:
+            if self.state == CircuitState.CLOSED:
+                return True
+            if self.state == CircuitState.OPEN:
+                if time.time() - self.last_failure_time >= self.recovery_timeout:
+                    self.state = CircuitState.HALF_OPEN
+                    self.half_open_success = 0
+                    return True
+                return False
+            if self.state == CircuitState.HALF_OPEN:
                 return True
             return False
-        if self.state == CircuitState.HALF_OPEN:
-            return True
-        return False
 
     def record_success(self):
-        """记录成功。"""
-        if self.state == CircuitState.HALF_OPEN:
-            self.half_open_success += 1
-            if self.half_open_success >= self.half_open_max:
-                self.state = CircuitState.CLOSED
+        """记录成功（线程安全）。"""
+        with self._lock:
+            if self.state == CircuitState.HALF_OPEN:
+                self.half_open_success += 1
+                if self.half_open_success >= self.half_open_max:
+                    self.state = CircuitState.CLOSED
+                    self.failure_count = 0
+            elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
-        elif self.state == CircuitState.CLOSED:
-            self.failure_count = 0
 
     def record_failure(self):
-        """记录失败。"""
-        self.failure_count += 1
-        self.last_failure_time = time.time()
-        if self.state == CircuitState.HALF_OPEN:
-            self.state = CircuitState.OPEN
-        elif self.failure_count >= self.failure_threshold:
-            self.state = CircuitState.OPEN
+        """记录失败（线程安全）。"""
+        with self._lock:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
+            if self.state == CircuitState.HALF_OPEN:
+                self.state = CircuitState.OPEN
+            elif self.failure_count >= self.failure_threshold:
+                self.state = CircuitState.OPEN
 
     def reset(self):
-        """重置熔断器。"""
-        self.state = CircuitState.CLOSED
-        self.failure_count = 0
-        self.last_failure_time = 0
+        """重置熔断器（线程安全）。"""
+        with self._lock:
+            self.state = CircuitState.CLOSED
+            self.failure_count = 0
+            self.last_failure_time = 0
 
 
-# 全局熔断器实例
+# 全局熔断器实例（线程安全）
 _circuit_breakers = {}
+_circuit_breakers_lock = threading.Lock()
 
 def get_circuit_breaker(name: str, **kwargs) -> CircuitBreaker:
-    """获取或创建熔断器实例。"""
-    if name not in _circuit_breakers:
-        _circuit_breakers[name] = CircuitBreaker(name, **kwargs)
-    return _circuit_breakers[name]
+    """获取或创建熔断器实例（线程安全）。"""
+    with _circuit_breakers_lock:
+        if name not in _circuit_breakers:
+            _circuit_breakers[name] = CircuitBreaker(name, **kwargs)
+        return _circuit_breakers[name]
 
 
 # ---------- 数据源抽象基类 ----------

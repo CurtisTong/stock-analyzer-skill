@@ -1,0 +1,121 @@
+{
+  "_description": "行业差异化阈值表。按申万一级行业分组，定义各行业的基本面和估值阈值。",
+  "_usage": "screener.py 和 technical/scoring.py 按行业选择阈值，避免一刀切误判。",
+
+  "金融": {
+    "roe_min": 10,
+    "roe_excellent": 15,
+    "gross_margin_min": 0,
+    "debt_ratio_max": 90,
+    "pe_undervalued": 8,
+    "pe_reasonable": 12,
+    "pe_expensive": 18,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 1.5,
+    "notes": "银行/保险 ROE 天然 10-15%，负债率 90%+ 属正常，用资本充足率替代负债率"
+  },
+
+  "消费": {
+    "roe_min": 15,
+    "roe_excellent": 25,
+    "gross_margin_min": 30,
+    "debt_ratio_max": 50,
+    "pe_undervalued": 15,
+    "pe_reasonable": 25,
+    "pe_expensive": 40,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 1.5,
+    "notes": "白酒/食品 ROE 天然高，毛利率 60%+ 常见，估值享受溢价"
+  },
+
+  "科技": {
+    "roe_min": 10,
+    "roe_excellent": 20,
+    "gross_margin_min": 20,
+    "debt_ratio_max": 60,
+    "pe_undervalued": 20,
+    "pe_reasonable": 40,
+    "pe_expensive": 60,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 2.0,
+    "notes": "科技股 PE 30-50 常态，高研发投入导致短期 ROE 偏低，不能用传统标准"
+  },
+
+  "周期": {
+    "roe_min": 8,
+    "roe_excellent": 15,
+    "gross_margin_min": 10,
+    "debt_ratio_max": 65,
+    "pe_undervalued": 8,
+    "pe_reasonable": 15,
+    "pe_expensive": 25,
+    "peg_undervalued": 0.5,
+    "peg_reasonable": 1.0,
+    "notes": "周期股用 3 年均值 ROE，单年高增速往往是周期顶部信号"
+  },
+
+  "医药": {
+    "roe_min": 12,
+    "roe_excellent": 20,
+    "gross_margin_min": 40,
+    "debt_ratio_max": 45,
+    "pe_undervalued": 15,
+    "pe_reasonable": 30,
+    "pe_expensive": 50,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 1.8,
+    "notes": "创新药高 PE 合理，仿制药/中药估值较低，需区分细分赛道"
+  },
+
+  "制造": {
+    "roe_min": 12,
+    "roe_excellent": 18,
+    "gross_margin_min": 15,
+    "debt_ratio_max": 60,
+    "pe_undervalued": 12,
+    "pe_reasonable": 22,
+    "pe_expensive": 35,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 1.5,
+    "notes": "制造业分化大，高端制造（新能源/半导体）估值高于传统制造"
+  },
+
+  "地产": {
+    "roe_min": 8,
+    "roe_excellent": 15,
+    "gross_margin_min": 15,
+    "debt_ratio_max": 80,
+    "pe_undervalued": 5,
+    "pe_reasonable": 10,
+    "pe_expensive": 15,
+    "peg_undervalued": 0.5,
+    "peg_reasonable": 1.0,
+    "notes": "地产用净负债率<100% 替代资产负债率，PE 天然低"
+  },
+
+  "能源": {
+    "roe_min": 10,
+    "roe_excellent": 18,
+    "gross_margin_min": 15,
+    "debt_ratio_max": 55,
+    "pe_undervalued": 6,
+    "pe_reasonable": 12,
+    "pe_expensive": 20,
+    "peg_undervalued": 0.5,
+    "peg_reasonable": 1.0,
+    "notes": "煤炭/石油周期性强，高分红低估值是常态"
+  },
+
+  "默认": {
+    "roe_min": 12,
+    "roe_excellent": 18,
+    "gross_margin_min": 20,
+    "debt_ratio_max": 60,
+    "pe_undervalued": 15,
+    "pe_reasonable": 25,
+    "pe_expensive": 40,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 1.5,
+    "notes": "未匹配行业的默认阈值"
+  }
+}

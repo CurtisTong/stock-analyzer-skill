@@ -10,6 +10,7 @@ A 股多因子选股器。
 import argparse
 import json
 import statistics
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -25,6 +26,59 @@ from common import (
 from finance import fetch as fetch_finance
 from kline import fetch as fetch_kline
 from quote import fetch_batch
+
+# ---------- 行业差异化阈值 ----------
+
+_industry_thresholds = None
+
+def load_industry_thresholds():
+    """加载行业差异化阈值表。"""
+    global _industry_thresholds
+    if _industry_thresholds is None:
+        path = DATA_DIR / "industry_thresholds.json"
+        if path.exists():
+            _industry_thresholds = json.loads(path.read_text(encoding="utf-8"))
+        else:
+            _industry_thresholds = {}
+    return _industry_thresholds
+
+
+def infer_industry(name: str, code: str = "") -> str:
+    """根据股票名称和代码推断行业分类。"""
+    name = name.upper()
+    # 金融：银行、保险、证券、信托
+    if any(kw in name for kw in ["银行", "保险", "证券", "信托", "金融", "资管"]):
+        return "金融"
+    # 地产
+    if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利", "碧桂园"]):
+        return "地产"
+    # 医药
+    if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗", "器械", "基因"]):
+        return "医药"
+    # 科技
+    if any(kw in name for kw in ["科技", "软件", "信息", "智能", "芯片", "半导体", "电子", "通信", "计算"]):
+        return "科技"
+    # 消费
+    if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒", "茅台", "五粮液", "海天", "伊利"]):
+        return "消费"
+    # 能源
+    if any(kw in name for kw in ["石油", "煤炭", "天然气", "能源", "石化", "燃气"]):
+        return "能源"
+    # 周期
+    if any(kw in name for kw in ["钢铁", "有色", "铜", "铝", "锌", "黄金", "矿业", "化工", "化纤", "水泥"]):
+        return "周期"
+    # 制造
+    if any(kw in name for kw in ["汽车", "机械", "制造", "装备", "新能源", "电池", "光伏", "风电", "家电"]):
+        return "制造"
+    return "默认"
+
+
+def get_industry_threshold(industry: str, key: str, default=None):
+    """获取行业特定阈值。"""
+    thresholds = load_industry_thresholds()
+    industry_cfg = thresholds.get(industry, thresholds.get("默认", {}))
+    return industry_cfg.get(key, default)
+
 
 STRATEGIES = {
     "balanced": {
@@ -283,7 +337,8 @@ def daily_features(code):
     }
 
 
-def quality_score(fin):
+def quality_score(fin, industry="默认"):
+    """质量因子评分（行业差异化）。"""
     roe = to_float(fin.get("ROEJQ"))
     profit_growth = to_float(fin.get("PARENTNETPROFITTZ"))
     revenue_growth = to_float(fin.get("TOTALOPERATEREVETZ"))
@@ -292,40 +347,66 @@ def quality_score(fin):
     eps = to_float(fin.get("EPSJB"))
     cashflow = to_float(fin.get("MGJYXJJE"))
 
+    # 行业差异化 ROE 基准
+    roe_excellent = get_industry_threshold(industry, "roe_excellent", 20)
+    gross_margin_min = get_industry_threshold(industry, "gross_margin_min", 20)
+    debt_max = get_industry_threshold(industry, "debt_ratio_max", 60)
+
     score = 0
-    score += clamp(roe / 20 * 28)
+    # ROE：相对于行业优秀值评分
+    score += clamp(roe / roe_excellent * 28)
     score += clamp(profit_growth / 40 * 22)
     score += clamp(revenue_growth / 30 * 16)
-    score += clamp(gross_margin / 40 * 16)
-    score += clamp((70 - debt) / 70 * 12)
+    # 毛利率：相对于行业最低值评分
+    if gross_margin_min > 0:
+        score += clamp(gross_margin / (gross_margin_min * 2) * 16)
+    else:
+        score += clamp(gross_margin / 40 * 16)
+    # 负债率：相对于行业上限评分
+    score += clamp((debt_max + 10 - debt) / (debt_max + 10) * 12)
     if eps > 0 and cashflow > 0:
         score += clamp((cashflow / eps) * 6, 0, 6)
     return clamp(score)
 
 
-def valuation_score(quote, fin):
+def valuation_score(quote, fin, industry="默认"):
+    """估值因子评分（行业差异化）。"""
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
     growth = max(to_float(fin.get("PARENTNETPROFITTZ")), 0)
+
+    # 行业差异化 PE 阈值
+    pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)
+    pe_reasonable = get_industry_threshold(industry, "pe_reasonable", 25)
+    pe_expensive = get_industry_threshold(industry, "pe_expensive", 40)
+    peg_undervalued = get_industry_threshold(industry, "peg_undervalued", 0.8)
+    peg_reasonable = get_industry_threshold(industry, "peg_reasonable", 1.5)
+
     score = 0
-    if 0 < pe <= 15:
+    # PE 评分（行业差异化）
+    if 0 < pe <= pe_undervalued:
         score += 38
-    elif 15 < pe <= 30:
-        score += 38 - (pe - 15) / 15 * 18
-    elif 30 < pe <= 60:
-        score += 14 - (pe - 30) / 30 * 10
+    elif pe_undervalued < pe <= pe_reasonable:
+        score += 38 - (pe - pe_undervalued) / (pe_reasonable - pe_undervalued) * 18
+    elif pe_reasonable < pe <= pe_expensive:
+        score += 20 - (pe - pe_reasonable) / (pe_expensive - pe_reasonable) * 10
+
+    # PB 评分
     if 0 < pb <= 2:
         score += 24
     elif 2 < pb <= 5:
         score += 24 - (pb - 2) / 3 * 14
+
+    # PEG 评分（行业差异化）
     if pe > 0 and growth > 0:
         peg = pe / growth
-        if peg <= 0.8:
+        if peg <= peg_undervalued:
             score += 28
-        elif peg <= 1.5:
+        elif peg <= peg_reasonable:
             score += 22
-        elif peg <= 2.5:
+        elif peg <= peg_reasonable * 1.5:
             score += 12
+
     score += clamp(to_float(fin.get("ROEJQ")) / 20 * 10)
     return clamp(score)
 
@@ -372,12 +453,22 @@ def momentum_score(features, quote):
 
 
 def liquidity_score(quote):
-    amount = to_float(quote.get("amount"))
-    cap = to_float(quote.get("total_cap"))
+    """流动性因子评分（板块差异化）。"""
+    amount = to_float(quote.get("amount"))  # 成交额（万元）
+    cap = to_float(quote.get("total_cap"))  # 总市值（亿元）
     turnover = to_float(quote.get("turnover"))
+    bd = board_type(quote.get("code", ""))
+
+    # 板块差异化满分阈值
+    # 主板：成交额 5 亿满分，市值 150 亿满分
+    # 创业板/科创板：成交额 2 亿满分，市值 60 亿满分
+    # 北交所：成交额 0.5 亿满分，市值 20 亿满分
+    amount_max = {"主板": 50000, "创业板": 20000, "科创板": 20000, "北交所": 5000}.get(bd, 50000)
+    cap_max = {"主板": 150, "创业板": 60, "科创板": 60, "北交所": 20}.get(bd, 150)
+
     score = 0
-    score += clamp(amount / 120000 * 42)
-    score += clamp(cap / 300 * 28)
+    score += clamp(amount / amount_max * 42)
+    score += clamp(cap / cap_max * 28)
     if 0.5 <= turnover <= 8:
         score += 24
     elif 8 < turnover <= 15:
@@ -459,9 +550,12 @@ def analyze_code(quote, strategy, args, finance_cache=None):
     features = daily_features(quote_code)
     rejected = hard_filter(quote, fin, args)
 
+    # 推断行业，获取行业差异化阈值
+    industry = infer_industry(quote.get("name", ""), quote_code)
+
     parts = {
-        "quality": quality_score(fin),
-        "valuation": valuation_score(quote, fin),
+        "quality": quality_score(fin, industry),
+        "valuation": valuation_score(quote, fin, industry),
         "momentum": momentum_score(features, quote),
         "liquidity": liquidity_score(quote),
     }
@@ -471,6 +565,7 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "code": quote_code,
         "name": quote.get("name", ""),
         "board": board_type(quote_code),
+        "industry": industry,
         "score": round(total, 1),
         "quality": round(parts["quality"], 1),
         "valuation": round(parts["valuation"], 1),
@@ -499,13 +594,13 @@ def render(rows, strategy, top):
     print(f"策略: {STRATEGIES[strategy]['label']} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
-    header = "排名 | 代码 | 名称 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
+    header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(accepted[:top], 1):
         macd_icon = "↑" if r.get("macd_signal", 0) > 0 else "↓" if r.get("macd_signal", 0) < 0 else "→"
         print(
-            f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r['board']:<4} | "
+            f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
             f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
             f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
             f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
