@@ -1,81 +1,25 @@
 #!/usr/bin/env python3
 """
-腾讯实时行情查询。
+实时行情查询（多数据源自动切换）。
+数据源: 腾讯 → 东方财富 → 新浪 → efinance → akshare → tushare → 通达信
 用法:
   quote.py sh600989                       # 单只，表格输出
   quote.py sh600989,sz000807,sh518880     # 批量（≤15/批）
   quote.py @codes.txt                     # 从文件读代码
   quote.py -j sh600989                    # JSON 输出
+  quote.py --sources                      # 显示可用数据源
 """
 import sys
 import json
-from common import (http_get, decode_gbk, parse_tencent_line, parse_sina_quote_line,
-                    split_codes, batchify, normalize_quote_code, parallel_map, err,
-                    cache_key_for_stock, cache_get, cache_set, BaseFetcher, DataFetcherManager)
-
-TENCENT_URL = "https://qt.gtimg.cn/q={codes}"
-SINA_URL = "https://hq.sinajs.cn/list={codes}"
-
-
-# ---------- 数据源策略 ----------
-
-class TencentQuoteFetcher(BaseFetcher):
-    """腾讯行情数据源。"""
-
-    def __init__(self):
-        super().__init__("tencent_quote", priority=10)
-
-    def fetch(self, code: str, **kwargs) -> dict | None:
-        url = TENCENT_URL.format(codes=code)
-        raw = http_get(url)
-        text = decode_gbk(raw)
-        for line in text.strip().split(";"):
-            line = line.strip()
-            if not line:
-                continue
-            rec = parse_tencent_line(line)
-            if rec:
-                return rec
-        return None
-
-
-class SinaQuoteFetcher(BaseFetcher):
-    """新浪行情数据源。"""
-
-    def __init__(self):
-        super().__init__("sina_quote", priority=5)
-
-    def fetch(self, code: str, **kwargs) -> dict | None:
-        import urllib.request
-        url = SINA_URL.format(codes=code)
-        req = urllib.request.Request(url, headers={
-            "Referer": "https://finance.sina.com.cn",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        })
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            raw = resp.read()
-        text = raw.decode("gbk", errors="replace")
-        for line in text.strip().split("\n"):
-            line = line.strip()
-            if not line:
-                continue
-            rec = parse_sina_quote_line(line)
-            if rec:
-                return rec
-        return None
-
-
-# 策略管理器
-quote_manager = DataFetcherManager([
-    TencentQuoteFetcher(),
-    SinaQuoteFetcher(),
-])
-
-
+from common import (split_codes, batchify, normalize_quote_code, parallel_map, err,
+                    cache_key_for_stock, cache_get, cache_set)
+from fetchers import get_quote_manager, get_quote_fetchers
 
 
 def fetch_batch(codes: list, use_cache: bool = True) -> list:
     """批量获取行情，支持缓存和自动故障切换。"""
+    manager = get_quote_manager()
+
     if use_cache:
         cached_results = []
         uncached_codes = []
@@ -100,7 +44,7 @@ def fetch_batch(codes: list, use_cache: bool = True) -> list:
     # 使用策略管理器获取数据
     results = []
     for code in codes_to_fetch:
-        rec = quote_manager.fetch(code)
+        rec = manager.fetch(code)
         if rec:
             results.append(rec)
 
@@ -112,12 +56,22 @@ def fetch_batch(codes: list, use_cache: bool = True) -> list:
 
     return cached_results + results
 
+
 def main():
     if len(sys.argv) < 2:
-        err("用法: quote.py <代码|@文件> [-j]")
+        err("用法: quote.py <代码|@文件> [-j] [--sources]")
     args = sys.argv[1:]
+
+    # 显示可用数据源
+    if "--sources" in args:
+        fetchers = get_quote_fetchers()
+        print("可用行情数据源:")
+        for f in fetchers:
+            print(f"  - {f.name} (优先级 {f.priority})")
+        return
+
     json_mode = "-j" in args
-    args = [a for a in args if a != "-j"]
+    args = [a for a in args if a not in ("-j", "--sources")]
 
     codes = [normalize_quote_code(c) for c in split_codes(args[0])]
     if not codes:
@@ -125,20 +79,17 @@ def main():
 
     batches = list(batchify(codes, 15))
     if len(batches) > 1:
-        # 多批次：并发执行
         results = parallel_map(lambda b: fetch_batch(b, use_cache=True), batches, max_workers=4, timeout=30)
         all_records = []
         for batch in batches:
             all_records.extend(results.get(batch, []))
     else:
-        # 单批次
         all_records = fetch_batch(batches[0])
 
     if json_mode:
         print(json.dumps(all_records, ensure_ascii=False, indent=2))
         return
 
-    # 表格输出
     if not all_records:
         print("(无数据)")
         return
