@@ -7,9 +7,14 @@
 ```
 stock-analyzer-skill/
 ├── README.md                       # 项目说明
+├── CONTRIBUTING.md                 # 贡献规范
 ├── workflow.md                     # 8 个 skill 的协作流程
 ├── methodology.md                  # 完整投资方法论
 ├── install.sh                      # 一键注册到 ~/.claude/skills/
+├── experts/                        # 8 位专家深度档案
+│   ├── README.md
+│   ├── buffett.md / lynch.md / soros.md / duan_yongping.md
+│   └── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md
 ├── .agents/skills/                 # Codex workspace skill 源
 │   ├── stock/SKILL.md
 │   ├── market/SKILL.md
@@ -45,9 +50,11 @@ stock-analyzer-skill/
 
 提供通用工具函数：
 
-- GBK 编码转换
-- HTTP 请求封装
-- 字段映射配置
+- GBK 编码转换与腾讯行情字段解析
+- HTTP 请求封装（含磁盘缓存，TTL 6 小时）
+- 代码标准化（sh/sz 前缀推断、交易所识别、板块类型判断）
+- 批量分组工具（batchify，每批 ≤15 只）
+- 字段映射配置（腾讯/东财/新浪）
 
 ### quote.py - 腾讯实时行情
 

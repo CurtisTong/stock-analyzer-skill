@@ -38,10 +38,12 @@
 ### debate 模式（专家辩论）
 
 ```
-/stock sh600989 debate
+/stock sh600989 debate         # 全模式：8人圆桌（长线4+短线4）
+/stock sh600989 debate 长线    # 仅长线4人（巴菲特/林奇/索罗斯/段永平）
+/stock sh600989 debate 短线    # 仅短线4人（徐翔/赵老哥/养家/作手新一）
 ```
 
-返回：五层分析 + 8人圆桌多空辩论 + 最终折中方案。
+返回：五层分析 + 专家圆桌多空辩论 + 最终折中方案。长线/短线子模式仅调用对应组别专家。
 
 ## 大盘复盘 (/market)
 
@@ -91,13 +93,14 @@
 
 返回：核心标的横向对比。
 
-### stock 模式（板块内个股筛选）
+### stock 模式（板块内个股深度分析）
 
 ```
-/sector 资源 stock
+/sector 资源 stock               # 板块内筛选
+/sector 医药 stock 恒瑞医药      # 板块内指定个股深度分析
 ```
 
-返回：板块内个股筛选。
+返回：板块内个股筛选或指定个股的五层分析（含板块内横向对比）。
 
 ## 持仓管理 (/portfolio)
 
@@ -167,23 +170,31 @@ cp data/portfolio_example.json data/portfolio.json
 
 ## 纯技术分析 (/technical)
 
-命令格式：`/technical <代码> [quick|full]`
+命令格式：`/technical <代码> [--quick] [--classify]`
 
-### quick 模式
+### 快速模式
 
 ```
-/technical sh600989 quick
+/technical sh600989 --quick
 ```
 
 返回：趋势、量价、支撑阻力、技术触发和失效条件。
 
-### full 模式
+### 完整模式（默认）
 
 ```
-/technical sh600989 full
+/technical sh600989
 ```
 
 返回：完整技术分析（均线/MACD/KDJ/BOLL/缠论/本土战法）。
+
+### 分类模式
+
+```
+/technical sh600989 --classify
+```
+
+返回：完整分析 + 个股类型分类 + 缠论结构 + 市场环境自适应。
 
 ## 财务分析 (/financial-analyst)
 
