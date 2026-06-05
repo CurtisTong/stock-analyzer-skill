@@ -50,6 +50,19 @@ def cache_set(key: str, data: bytes):
     cache_file.write_bytes(data)
 
 
+def cache_cleanup(prefix: str = None, max_age_seconds: int = 86400):
+    """清理过期缓存。prefix 为空时清理所有过期文件。"""
+    _ensure_cache_dir()
+    cleaned = 0
+    for f in CACHE_DIR.glob("*.cache"):
+        if prefix and not f.name.startswith(prefix):
+            continue
+        if time.time() - f.stat().st_mtime > max_age_seconds:
+            f.unlink(missing_ok=True)
+            cleaned += 1
+    return cleaned
+
+
 def cache_key(url: str) -> str:
     """用 URL 的 SHA256 生成缓存键。"""
     return hashlib.sha256(url.encode()).hexdigest()[:32]
@@ -474,3 +487,23 @@ class DataFetcherManager:
         """带默认值的获取。"""
         result = self.fetch(code, **kwargs)
         return result if result is not None else fallback
+
+    def fetch_with_cache_fallback(self, code: str, cache_prefix: str = None,
+                                   cache_ttl: int = 21600, fallback=None, **kwargs):
+        """带缓存降级的获取：优先实时数据 → 缓存数据 → 默认值。"""
+        result = self.fetch(code, **kwargs)
+        if result is not None:
+            return result
+
+        # 尝试从缓存降级
+        if cache_prefix:
+            key = cache_key_for_stock(cache_prefix, code, **kwargs)
+            cached = cache_get(key, cache_ttl)
+            if cached is not None:
+                try:
+                    import json
+                    return json.loads(cached)
+                except (json.JSONDecodeError, Exception):
+                    pass
+
+        return fallback

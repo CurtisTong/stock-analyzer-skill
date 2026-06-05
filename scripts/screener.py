@@ -481,12 +481,32 @@ def liquidity_score(quote):
 def hard_filter(quote, fin, args):
     reasons = []
     name = quote.get("name", "")
-    bd = board_type(quote.get("code", ""))
+    code = quote.get("code", "")
+    bd = board_type(code)
 
     # ST 检测：A 股 ST 标记在名称开头，用前缀匹配而非子串匹配
     upper_name = name.upper()
     if upper_name.startswith("ST") or upper_name.startswith("*ST"):
         reasons.append("ST风险")
+
+    # 退市风险：市值过小（主板<3亿、创业板/科创板<2亿）
+    min_survival_cap = {"主板": 3, "创业板": 2, "科创板": 2, "北交所": 1}.get(bd, 3)
+    if 0 < to_float(quote.get("total_cap")) < min_survival_cap:
+        reasons.append(f"市值<{min_survival_cap}亿(退市风险)")
+
+    # 连续亏损检测（EPS 连续为负）
+    if to_float(fin.get("EPSJB")) < 0:
+        reasons.append("EPS<0(亏损)")
+
+    # 商誉减值风险（可选字段，无数据时跳过）
+    goodwill_ratio = to_float(fin.get("GOODWILL_RATIO", 0))
+    if goodwill_ratio > 30:
+        reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
+
+    # 股权质押率过高（可选字段，无数据时跳过）
+    pledge_ratio = to_float(fin.get("PLEDGE_RATIO", 0))
+    if pledge_ratio > 70:
+        reasons.append(f"质押率>{pledge_ratio:.0f}%(爆仓风险)")
 
     # 板块差异化阈值：主板 10%，科创/创业板 20%，北交所 30% 涨跌停
     board_min_amount = {

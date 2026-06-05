@@ -153,16 +153,16 @@ cp data/portfolio_example.json data/portfolio.json
 完整投资方法论见 [`methodology.md`](methodology.md)：
 
 - §1 数据源
-- §2 五层分析框架（ROE/PE/PEG/技术面/风险收益比）
+- §2 五层分析框架（ROE/PE/PEG/技术面/风险收益比，行业差异化阈值）
 - §3 8 人专家圆桌（巴菲特/林奇/索罗斯/段永平 + 徐翔/赵老哥/炒股养家/作手新一）
-- §4 仓位管理（凯利公式 + 仓位分级）
+- §4 仓位管理（凯利公式 + 仓位分级 + 集中度控制 + 时间止损 + 极端预案）
 - §5 决策流程
-- §6 选股策略系统
+- §6 选股策略系统（5 种策略 + 行业差异化阈值 + 板块差异化流动性）
 - §7 数据获取工具详解
 - §8 快捷启动命令
 - §9 关键经验
 
-8 个 skill 的衔接流程见 [`workflow.md`](workflow.md)：市场 → 板块 → 选股 → 个股 → 技术 → 组合，也支持持仓再平衡和深度研究两条工作流。
+8 个 skill 的衔接流程见 [`workflow.md`](workflow.md)：支持快速/标准/深度 3 种链路长度，市场 → 板块 → 选股 → 个股 → 技术 → 组合，也支持持仓再平衡和深度研究两条工作流。
 
 ## 文档
 
@@ -190,8 +190,19 @@ cp data/portfolio_example.json data/portfolio.json
 rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.claude/skills/portfolio ~/.claude/skills/screener ~/.claude/skills/technical ~/.claude/skills/financial-analyst ~/.claude/skills/investment-researcher
 ```
 
+## 近期改进
+
+- **行业差异化阈值**：五层分析框架按行业分档（金融/消费/科技/周期/医药/制造/能源/地产），避免一刀切误判
+- **风控体系强化**：集中度控制（单只≤15%、单行业≤30%）、时间止损、极端情景预案、加仓规则
+- **缠论盘整背驰**：补全中枢进入段 vs 离开段的 MACD 面积对比
+- **评分上限修正**：各维度评分独立 clamp，总分不超过 100
+- **流动性板块差异化**：主板/创业板/科创板/北交所使用不同满分阈值
+- **专家权重优化**：长短线权重随投资期限变化，巴菲特否决权限定中长期模式
+- **工作流增强**：交接字段补充投资期限/催化剂/论点破灭条件，决策门槛量化
+
 ## 已知限制
 
 - 实时数据依赖外部 API 端点稳定性；如遇变更，修改 `scripts/common.py` 中端点即可
 - portfolio skill 默认读取 `data/portfolio_example.json` 作为示例，实际使用前需自定义
 - 部分 API（如东财公告）可能有反爬限制，已加超时和重试
+- 多因子权重基于经验设定，尚未经过历史回测验证

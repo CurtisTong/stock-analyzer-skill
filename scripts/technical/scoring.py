@@ -91,14 +91,17 @@ def composite_score(features, stock_type="普通股", market_state=None):
         macd_score -= 8 * adj.get("overbought", 1.0)
     score += clamp(macd_score, 0, 20)
 
-    # 3. KDJ 15 分
-    kdj_weight = 5 if kdj.get("钝化") else 15
+    # 3. KDJ 10 分（辅助信号：仅在震荡市/盘整时生效，其他市场降权）
+    # KDJ 与 RSI 功能重叠（超买超卖），KDJ 更适合短线震荡
+    market_state_for_kdj = adj.get("trend_following", 1.0)
+    kdj_active = market_state_for_kdj < 1.0  # 震荡/熊市时 KDJ 更有效
+    kdj_weight = 5 if kdj.get("钝化") else (10 if kdj_active else 5)
     kdj_sig = kdj.get("signal", "")
     kdj_scores = {"金叉+超卖": kdj_weight, "金叉": kdj_weight * 0.8,
                    "超卖": kdj_weight * 0.6, "死叉": kdj_weight * 0.2}
     kdj_base = max(0, kdj_scores.get(kdj_sig, kdj_weight * 0.45))
     kdj_score = kdj_base * type_w["kdj"]
-    score += clamp(kdj_score, 0, 20)
+    score += clamp(kdj_score, 0, 15)
 
     # 4. BOLL 10 分
     pos = boll.get("position", 0.5)
@@ -201,15 +204,23 @@ def composite_score(features, stock_type="普通股", market_state=None):
 
     score = clamp(score, 0, 100)
 
-    # 定级
+    # 定级（含模糊区间：边界附近标注"边界"）
     if score >= 80:
         grade = "强烈看多"
+    elif score >= 75:
+        grade = "偏多(强)"  # 模糊区间：75-80
     elif score >= 60:
         grade = "偏多"
+    elif score >= 55:
+        grade = "中性(偏多)"  # 模糊区间：55-65
     elif score >= 40:
         grade = "中性"
+    elif score >= 35:
+        grade = "中性(偏空)"  # 模糊区间：35-45
     elif score >= 20:
         grade = "偏空"
+    elif score >= 15:
+        grade = "偏空(强)"  # 模糊区间：15-25
     else:
         grade = "强烈看空"
 
