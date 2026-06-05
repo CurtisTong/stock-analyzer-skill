@@ -21,6 +21,9 @@ from screener import (
     volume_price_features,
     daily_features,
     analyze_code,
+    infer_industry,
+    get_industry_threshold,
+    load_industry_thresholds,
 )
 
 # 为方便测试 hard_filter 构造 args 对象
@@ -539,3 +542,123 @@ class TestAnalyzeCode:
         cache = {"sh600519": [sample_finance]}
         analyze_code(sample_quote, "balanced", args, finance_cache=cache)
         assert call_count["n"] == 0
+
+
+# ====================================================================
+# 14. infer_industry 行业推断
+# ====================================================================
+class TestInferIndustry:
+    """行业推断逻辑。"""
+
+    def test_bank_industry(self):
+        assert infer_industry("招商银行") == "金融"
+
+    def test_pharma_industry(self):
+        assert infer_industry("恒瑞医药") == "医药"
+
+    def test_tech_industry(self):
+        assert infer_industry("中芯国际科技") == "科技"
+
+    def test_consumer_industry(self):
+        assert infer_industry("贵州茅台白酒") == "消费"
+
+    def test_energy_industry(self):
+        assert infer_industry("中国石油能源") == "能源"
+
+    def test_real_estate_industry(self):
+        assert infer_industry("万科地产") == "地产"
+
+    def test_cycle_industry(self):
+        assert infer_industry("宝钢钢铁") == "周期"
+
+    def test_manufacturing_industry(self):
+        assert infer_industry("比亚迪汽车制造") == "制造"
+
+    def test_unknown_defaults(self):
+        assert infer_industry("某某未知公司") == "默认"
+
+
+# ====================================================================
+# 15. 行业差异化阈值
+# ====================================================================
+class TestIndustryThresholds:
+    """行业阈值配置。"""
+
+    def test_thresholds_load(self):
+        thresholds = load_industry_thresholds()
+        assert isinstance(thresholds, dict)
+        assert "金融" in thresholds
+        assert "默认" in thresholds
+
+    def test_finance_has_lower_roe(self):
+        finance_roe = get_industry_threshold("金融", "roe_min", 12)
+        default_roe = get_industry_threshold("默认", "roe_min", 12)
+        assert finance_roe < default_roe
+
+    def test_tech_has_higher_pe(self):
+        tech_pe = get_industry_threshold("科技", "pe_reasonable", 25)
+        default_pe = get_industry_threshold("默认", "pe_reasonable", 25)
+        assert tech_pe > default_pe
+
+    def test_quality_score_uses_industry(self, sample_finance):
+        # 金融行业 ROE 阈值较低，相同 ROE 应得更高分
+        score_default = quality_score(sample_finance, "默认")
+        score_finance = quality_score(sample_finance, "金融")
+        # 金融行业的 roe_excellent 更低，相同 ROE 得分更高
+        assert score_finance >= score_default
+
+    def test_valuation_score_uses_industry(self, sample_quote, sample_finance):
+        # 科技行业 PE 阈值较高，相同 PE 应得更高分
+        score_default = valuation_score(sample_quote, sample_finance, "默认")
+        score_tech = valuation_score(sample_quote, sample_finance, "科技")
+        # sample_quote PE=25.6，科技行业 pe_reasonable=40，得分更高
+        assert score_tech >= score_default
+
+
+# ====================================================================
+# 16. 流动性板块差异化
+# ====================================================================
+class TestLiquidityBoardDiff:
+    """流动性评分板块差异化。"""
+
+    def test_gem_scores_higher_than_main_for_same_amount(self):
+        # 创业板满分阈值更低，相同成交额得分更高
+        gem_quote = {"code": "sz300001", "amount": "20000", "total_cap": "50", "turnover": "3"}
+        main_quote = {"code": "sh600001", "amount": "20000", "total_cap": "50", "turnover": "3"}
+        gem_score = liquidity_score(gem_quote)
+        main_score = liquidity_score(main_quote)
+        assert gem_score >= main_score
+
+
+# ====================================================================
+# 17. 硬过滤新增规则
+# ====================================================================
+class TestHardFilterExtended:
+    """硬过滤新增规则。"""
+
+    def test_micro_cap_filtered(self, sample_finance):
+        args = _make_args()
+        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "2", "change_pct": "1.0"}
+        reasons = hard_filter(quote, sample_finance, args)
+        assert any("退市风险" in r for r in reasons)
+
+    def test_negative_eps_filtered(self):
+        args = _make_args()
+        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        fin = {"EPSJB": "-0.5"}
+        reasons = hard_filter(quote, fin, args)
+        assert any("EPS<0" in r for r in reasons)
+
+    def test_goodwill_ratio_filtered(self):
+        args = _make_args()
+        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        fin = {"EPSJB": "1.0", "GOODWILL_RATIO": "40"}
+        reasons = hard_filter(quote, fin, args)
+        assert any("商誉" in r for r in reasons)
+
+    def test_pledge_ratio_filtered(self):
+        args = _make_args()
+        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        fin = {"EPSJB": "1.0", "PLEDGE_RATIO": "80"}
+        reasons = hard_filter(quote, fin, args)
+        assert any("质押" in r for r in reasons)
