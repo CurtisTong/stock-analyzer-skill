@@ -5,6 +5,7 @@
 """
 import hashlib
 import os
+import random
 import sys
 import json
 import time
@@ -15,6 +16,13 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = PACKAGE_ROOT / "data"
 CACHE_DIR = PACKAGE_ROOT / ".cache"
+
+USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "stock-analyzer-skill/1.0",
+]
 
 # ---------- 磁盘缓存 ----------
 
@@ -46,6 +54,15 @@ def cache_key(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()[:32]
 
 
+def cache_key_for_stock(prefix: str, code: str, **params) -> str:
+    """生成股票相关的缓存键，支持按代码清除。
+    格式: {prefix}_{code}_{param_hash}
+    """
+    param_str = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
+    param_hash = hashlib.md5(param_str.encode()).hexdigest()[:8] if param_str else ""
+    return f"{prefix}_{code}_{param_hash}".rstrip("_")
+
+
 def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。"""
     key = cache_key(url)
@@ -56,19 +73,35 @@ def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     cache_set(key, data)
     return data
 
+
+def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 21600) -> bytes:
+    """带语义缓存键的 HTTP GET。"""
+    cached = cache_get(key, ttl)
+    if cached is not None:
+        return cached
+    data = http_get(url, timeout)
+    cache_set(key, data)
+    return data
+
 # ---------- HTTP ----------
 
-def http_get(url: str, timeout: int = 10) -> bytes:
-    """GET 请求，5xx 重试一次。"""
-    req = urllib.request.Request(url, headers={"User-Agent": "stock-analyzer-skill/1.0"})
+def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
+    """GET 请求，指数退避重试，UA 随机轮换。"""
     last_err = None
-    for attempt in range(2):
+    for attempt in range(max_retries):
+        req = urllib.request.Request(url, headers={
+            "User-Agent": random.choice(USER_AGENTS),
+        })
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, TimeoutError, urllib.error.HTTPError) as e:
             last_err = e
-    raise RuntimeError(f"GET {url} 失败: {last_err}")
+            if attempt < max_retries - 1:
+                delay = min(1.0 * (2 ** attempt), 8.0)
+                jitter = random.uniform(0, delay * 0.5)
+                time.sleep(delay + jitter)
+    raise RuntimeError(f"GET {url} 失败（重试 {max_retries} 次）: {last_err}")
 
 # ---------- 编码 ----------
 
@@ -220,3 +253,18 @@ def clamp(value, low=0.0, high=100.0):
 def err(msg: str):
     print(f"❌ {msg}", file=sys.stderr)
     sys.exit(1)
+
+
+def parallel_map(fn, items, max_workers=8, timeout=60):
+    """并发执行 fn(item)，返回 {item: result} 字典。"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    results = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futures = {ex.submit(fn, item): item for item in items}
+        for future in as_completed(futures, timeout=timeout):
+            item = futures[future]
+            try:
+                results[item] = future.result()
+            except Exception:
+                results[item] = None
+    return results

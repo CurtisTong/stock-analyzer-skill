@@ -9,13 +9,34 @@
 """
 import sys
 import json
-from common import http_get, decode_gbk, parse_tencent_line, split_codes, batchify, normalize_quote_code, err
+from common import http_get, decode_gbk, parse_tencent_line, split_codes, batchify, normalize_quote_code, err, cache_key_for_stock, cache_get, cache_set
 
 URL = "https://qt.gtimg.cn/q={codes}"
 
-def fetch_batch(codes: list) -> list:
-    """调用一次腾讯 API，解析返回。"""
-    url = URL.format(codes=",".join(codes))
+def fetch_batch(codes: list, use_cache: bool = True) -> list:
+    """调用腾讯 API，支持按股票代码缓存（TTL 15 分钟）。"""
+    if use_cache:
+        cached_results = []
+        uncached_codes = []
+        for code in codes:
+            key = cache_key_for_stock("quote", code)
+            cached = cache_get(key, ttl_seconds=900)  # 15 分钟
+            if cached is not None:
+                try:
+                    cached_results.append(json.loads(cached))
+                except json.JSONDecodeError:
+                    uncached_codes.append(code)
+            else:
+                uncached_codes.append(code)
+
+        if not uncached_codes:
+            return cached_results
+        codes_to_fetch = uncached_codes
+    else:
+        codes_to_fetch = codes
+        cached_results = []
+
+    url = URL.format(codes=",".join(codes_to_fetch))
     raw = http_get(url)
     text = decode_gbk(raw)
     results = []
@@ -26,7 +47,11 @@ def fetch_batch(codes: list) -> list:
         rec = parse_tencent_line(line)
         if rec:
             results.append(rec)
-    return results
+            if use_cache:
+                key = cache_key_for_stock("quote", rec["code"])
+                cache_set(key, json.dumps(rec, ensure_ascii=False).encode())
+
+    return cached_results + results
 
 def main():
     if len(sys.argv) < 2:

@@ -12,16 +12,32 @@
 """
 import sys
 import json
-from common import http_get, normalize_quote_code, err
+from common import http_get, normalize_quote_code, err, cache_key_for_stock, cache_get, cache_set
 
 URL = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={symbol}&scale={scale}&ma=no&datalen={datalen}"
 
-def fetch(symbol: str, scale: int, datalen: int) -> list:
+def fetch(symbol: str, scale: int, datalen: int, use_cache: bool = True) -> list:
+    """获取 K 线数据，支持按股票代码+参数缓存（TTL 6 小时）。"""
+    key = cache_key_for_stock("kline", symbol, scale=scale, datalen=datalen)
+
+    if use_cache:
+        cached = cache_get(key, ttl_seconds=21600)  # 6 小时
+        if cached is not None:
+            try:
+                return json.loads(cached)
+            except json.JSONDecodeError:
+                pass
+
     raw = http_get(URL.format(symbol=symbol, scale=scale, datalen=datalen))
     try:
-        return json.loads(raw)
+        records = json.loads(raw)
     except json.JSONDecodeError:
         return []
+
+    if use_cache and records:
+        cache_set(key, json.dumps(records, ensure_ascii=False).encode())
+
+    return records
 
 def render_table(records: list) -> str:
     if not records:
