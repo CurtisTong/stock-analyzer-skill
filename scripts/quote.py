@@ -9,12 +9,73 @@
 """
 import sys
 import json
-from common import http_get, decode_gbk, parse_tencent_line, split_codes, batchify, normalize_quote_code, err, cache_key_for_stock, cache_get, cache_set
+from common import (http_get, decode_gbk, parse_tencent_line, parse_sina_quote_line,
+                    split_codes, batchify, normalize_quote_code, parallel_map, err,
+                    cache_key_for_stock, cache_get, cache_set, BaseFetcher, DataFetcherManager)
 
-URL = "https://qt.gtimg.cn/q={codes}"
+TENCENT_URL = "https://qt.gtimg.cn/q={codes}"
+SINA_URL = "https://hq.sinajs.cn/list={codes}"
+
+
+# ---------- 数据源策略 ----------
+
+class TencentQuoteFetcher(BaseFetcher):
+    """腾讯行情数据源。"""
+
+    def __init__(self):
+        super().__init__("tencent_quote", priority=10)
+
+    def fetch(self, code: str, **kwargs) -> dict | None:
+        url = TENCENT_URL.format(codes=code)
+        raw = http_get(url)
+        text = decode_gbk(raw)
+        for line in text.strip().split(";"):
+            line = line.strip()
+            if not line:
+                continue
+            rec = parse_tencent_line(line)
+            if rec:
+                return rec
+        return None
+
+
+class SinaQuoteFetcher(BaseFetcher):
+    """新浪行情数据源。"""
+
+    def __init__(self):
+        super().__init__("sina_quote", priority=5)
+
+    def fetch(self, code: str, **kwargs) -> dict | None:
+        import urllib.request
+        url = SINA_URL.format(codes=code)
+        req = urllib.request.Request(url, headers={
+            "Referer": "https://finance.sina.com.cn",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        })
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            raw = resp.read()
+        text = raw.decode("gbk", errors="replace")
+        for line in text.strip().split("\n"):
+            line = line.strip()
+            if not line:
+                continue
+            rec = parse_sina_quote_line(line)
+            if rec:
+                return rec
+        return None
+
+
+# 策略管理器
+quote_manager = DataFetcherManager([
+    TencentQuoteFetcher(),
+    SinaQuoteFetcher(),
+])
+
+
+
 
 def fetch_batch(codes: list, use_cache: bool = True) -> list:
-    """调用腾讯 API，支持按股票代码缓存（TTL 15 分钟）。"""
+    """批量获取行情，支持缓存和自动故障切换。"""
     if use_cache:
         cached_results = []
         uncached_codes = []
@@ -36,20 +97,18 @@ def fetch_batch(codes: list, use_cache: bool = True) -> list:
         codes_to_fetch = codes
         cached_results = []
 
-    url = URL.format(codes=",".join(codes_to_fetch))
-    raw = http_get(url)
-    text = decode_gbk(raw)
+    # 使用策略管理器获取数据
     results = []
-    for line in text.strip().split(";"):
-        line = line.strip()
-        if not line:
-            continue
-        rec = parse_tencent_line(line)
+    for code in codes_to_fetch:
+        rec = quote_manager.fetch(code)
         if rec:
             results.append(rec)
-            if use_cache:
-                key = cache_key_for_stock("quote", rec["code"])
-                cache_set(key, json.dumps(rec, ensure_ascii=False).encode())
+
+    # 写入缓存
+    if use_cache:
+        for rec in results:
+            key = cache_key_for_stock("quote", rec["code"])
+            cache_set(key, json.dumps(rec, ensure_ascii=False).encode())
 
     return cached_results + results
 
@@ -64,9 +123,16 @@ def main():
     if not codes:
         err("未提供代码")
 
-    all_records = []
-    for batch in batchify(codes, 15):
-        all_records.extend(fetch_batch(batch))
+    batches = list(batchify(codes, 15))
+    if len(batches) > 1:
+        # 多批次：并发执行
+        results = parallel_map(lambda b: fetch_batch(b, use_cache=True), batches, max_workers=4, timeout=30)
+        all_records = []
+        for batch in batches:
+            all_records.extend(results.get(batch, []))
+    else:
+        # 单批次
+        all_records = fetch_batch(batches[0])
 
     if json_mode:
         print(json.dumps(all_records, ensure_ascii=False, indent=2))

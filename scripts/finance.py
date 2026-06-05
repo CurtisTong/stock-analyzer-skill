@@ -8,20 +8,33 @@
 """
 import sys
 import json
-from common import http_get_cached, EAST_MONEY_FIELDS, normalize_finance_code, err
+from common import http_get, cache_key_for_stock, cache_get, cache_set, EAST_MONEY_FIELDS, normalize_finance_code, parallel_map, err
 
 URL = "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code={code}"
 
-def fetch(code: str) -> list:
-    """返回最近 4 季的财务数据。"""
-    raw = http_get_cached(URL.format(code=code))
+def fetch(code: str, use_cache: bool = True) -> list:
+    """返回最近 4 季的财务数据，支持按股票代码缓存（TTL 6 小时）。"""
+    key = cache_key_for_stock("finance", code)
+    if use_cache:
+        cached = cache_get(key, ttl_seconds=21600)  # 6 小时
+        if cached is not None:
+            try:
+                return json.loads(cached)
+            except json.JSONDecodeError:
+                pass
+
+    raw = http_get(URL.format(code=code))
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
         return []
     if not data or "data" not in data or not data["data"]:
         return []
-    return data["data"][:4]
+    result = data["data"][:4]
+
+    if use_cache and result:
+        cache_set(key, json.dumps(result, ensure_ascii=False).encode())
+    return result
 
 def render_table(records: list) -> str:
     if not records:
@@ -57,11 +70,15 @@ def main():
     else:
         codes = [args[0]]
 
-    all_results = {}
-    for code in codes:
-        normalized = normalize_finance_code(code)
-        records = fetch(normalized)
-        all_results[normalized] = records
+    normalized_codes = [normalize_finance_code(c) for c in codes]
+
+    if len(normalized_codes) > 1:
+        # 批量模式：并发查询
+        results = parallel_map(fetch, normalized_codes, max_workers=4, timeout=30)
+        all_results = {k: v for k, v in results.items() if v}
+    else:
+        # 单只模式
+        all_results = {normalized_codes[0]: fetch(normalized_codes[0])}
 
     if json_mode:
         print(json.dumps(all_results, ensure_ascii=False, indent=2))

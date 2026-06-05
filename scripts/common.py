@@ -86,7 +86,7 @@ def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 2160
 # ---------- HTTP ----------
 
 def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
-    """GET 请求，指数退避重试，UA 随机轮换。"""
+    """GET 请求，指数退避重试，UA 随机轮换。429 立即抛出不重试。"""
     last_err = None
     for attempt in range(max_retries):
         req = urllib.request.Request(url, headers={
@@ -95,13 +95,21 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
-        except (urllib.error.URLError, TimeoutError, urllib.error.HTTPError) as e:
+        except urllib.error.HTTPError as e:
+            last_err = e
+            if e.code == 429:
+                raise RateLimitError(f"429 Too Many Requests: {url}")
+            if attempt < max_retries - 1:
+                delay = min(1.0 * (2 ** attempt), 8.0)
+                jitter = random.uniform(0, delay * 0.5)
+                time.sleep(delay + jitter)
+        except (urllib.error.URLError, TimeoutError) as e:
             last_err = e
             if attempt < max_retries - 1:
                 delay = min(1.0 * (2 ** attempt), 8.0)
                 jitter = random.uniform(0, delay * 0.5)
                 time.sleep(delay + jitter)
-    raise RuntimeError(f"GET {url} 失败（重试 {max_retries} 次）: {last_err}")
+    raise DataSourceUnavailableError(f"GET {url} 失败（重试 {max_retries} 次）: {last_err}")
 
 # ---------- 编码 ----------
 
@@ -161,6 +169,39 @@ def parse_tencent_line(line: str) -> dict:
         "pb": parts[TENCENT_FIELDS["pb"]],
         "total_cap": parts[TENCENT_FIELDS["total_cap"]],
         "circulating_cap": parts[TENCENT_FIELDS["circulating_cap"]],
+    }
+
+
+# ---------- 新浪行情字段映射 ----------
+
+SINA_QUOTE_URL = "https://hq.sinajs.cn/list={codes}"
+
+def parse_sina_quote_line(line: str) -> dict:
+    """解析新浪行情单行: var hq_str_sh600989="名称,今开,昨收,当前价,最高,最低,..."; """
+    if '="' not in line:
+        return {}
+    var_part, data_part = line.split('="', 1)
+    code = var_part.split("_")[-1]  # sh600989
+    fields = data_part.rstrip('";\n').split(",")
+    if len(fields) < 32:
+        return {}
+    return {
+        "code": code,
+        "name": fields[0],
+        "open": fields[1],
+        "prev_close": fields[2],
+        "price": fields[3],
+        "high": fields[4],
+        "low": fields[5],
+        "volume": fields[8],      # 成交量(股)
+        "amount": fields[9],      # 成交额
+        "change_pct": str(round((float(fields[3]) / float(fields[2]) - 1) * 100, 2)) if float(fields[2]) > 0 else "0",
+        "change_amt": str(round(float(fields[3]) - float(fields[2]), 2)) if float(fields[2]) > 0 else "0",
+        "turnover": "",  # 新浪不直接提供换手率
+        "pe": "",        # 新浪不直接提供 PE
+        "pb": "",        # 新浪不直接提供 PB
+        "total_cap": "", # 新浪不直接提供总市值
+        "circulating_cap": "",
     }
 
 # ---------- 东财财务字段 ----------
@@ -268,3 +309,155 @@ def parallel_map(fn, items, max_workers=8, timeout=60):
             except Exception:
                 results[item] = None
     return results
+
+
+# ---------- 异常分类 ----------
+
+class RateLimitError(Exception):
+    """429 Too Many Requests"""
+    pass
+
+class DataSourceUnavailableError(Exception):
+    """数据源不可用（连接失败、超时等）"""
+    pass
+
+class DataParseError(Exception):
+    """数据解析失败"""
+    pass
+
+
+# ---------- 熔断器 ----------
+
+from enum import Enum
+
+class CircuitState(Enum):
+    CLOSED = "closed"        # 正常
+    OPEN = "open"            # 熔断
+    HALF_OPEN = "half_open"  # 试探
+
+class CircuitBreaker:
+    """简单熔断器：连续失败 N 次后熔断，超时后半开试探。"""
+
+    def __init__(self, name: str, failure_threshold: int = 5,
+                 recovery_timeout: int = 60, half_open_max: int = 1):
+        self.name = name
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.half_open_max = half_open_max
+
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.last_failure_time = 0
+        self.half_open_success = 0
+
+    def can_execute(self) -> bool:
+        """判断是否允许请求。"""
+        if self.state == CircuitState.CLOSED:
+            return True
+        if self.state == CircuitState.OPEN:
+            if time.time() - self.last_failure_time >= self.recovery_timeout:
+                self.state = CircuitState.HALF_OPEN
+                self.half_open_success = 0
+                return True
+            return False
+        if self.state == CircuitState.HALF_OPEN:
+            return True
+        return False
+
+    def record_success(self):
+        """记录成功。"""
+        if self.state == CircuitState.HALF_OPEN:
+            self.half_open_success += 1
+            if self.half_open_success >= self.half_open_max:
+                self.state = CircuitState.CLOSED
+                self.failure_count = 0
+        elif self.state == CircuitState.CLOSED:
+            self.failure_count = 0
+
+    def record_failure(self):
+        """记录失败。"""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        if self.state == CircuitState.HALF_OPEN:
+            self.state = CircuitState.OPEN
+        elif self.failure_count >= self.failure_threshold:
+            self.state = CircuitState.OPEN
+
+    def reset(self):
+        """重置熔断器。"""
+        self.state = CircuitState.CLOSED
+        self.failure_count = 0
+        self.last_failure_time = 0
+
+
+# 全局熔断器实例
+_circuit_breakers = {}
+
+def get_circuit_breaker(name: str, **kwargs) -> CircuitBreaker:
+    """获取或创建熔断器实例。"""
+    if name not in _circuit_breakers:
+        _circuit_breakers[name] = CircuitBreaker(name, **kwargs)
+    return _circuit_breakers[name]
+
+
+# ---------- 数据源抽象基类 ----------
+
+from abc import ABC, abstractmethod
+
+class BaseFetcher(ABC):
+    """数据源抽象基类。"""
+
+    def __init__(self, name: str, priority: int = 0):
+        self.name = name
+        self.priority = priority
+        self.circuit_breaker = get_circuit_breaker(name)
+
+    @abstractmethod
+    def fetch(self, code: str, **kwargs) -> dict | list | None:
+        """获取数据。返回 None 表示失败。"""
+        pass
+
+    def is_available(self) -> bool:
+        """检查数据源是否可用（熔断器状态）。"""
+        return self.circuit_breaker.can_execute()
+
+    def on_success(self):
+        """记录成功。"""
+        self.circuit_breaker.record_success()
+
+    def on_failure(self):
+        """记录失败。"""
+        self.circuit_breaker.record_failure()
+
+
+class DataFetcherManager:
+    """数据源策略管理器：按优先级尝试，自动故障切换。"""
+
+    def __init__(self, fetchers: list):
+        self.fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
+
+    def fetch(self, code: str, **kwargs) -> dict | list | None:
+        """按优先级尝试各数据源。"""
+        last_error = None
+        for fetcher in self.fetchers:
+            if not fetcher.is_available():
+                continue
+            try:
+                result = fetcher.fetch(code, **kwargs)
+                if result is not None:
+                    fetcher.on_success()
+                    return result
+                fetcher.on_failure()
+            except RateLimitError:
+                fetcher.on_failure()
+                raise  # 限流直接抛出
+            except Exception as e:
+                fetcher.on_failure()
+                last_error = e
+                continue
+        return None
+
+    def fetch_with_fallback(self, code: str, fallback=None, **kwargs):
+        """带默认值的获取。"""
+        result = self.fetch(code, **kwargs)
+        return result if result is not None else fallback

@@ -8,24 +8,50 @@
 """
 import sys
 import json
-from common import http_get, err
+from common import http_get, err, cache_key_for_stock, cache_get, cache_set
 
 ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=10&page_index=1&ann_type=A&stock_list={code}&f_node=0"
 REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&code={code}"
 
-def fetch_announcements(code: str) -> list:
+def fetch_announcements(code: str, use_cache: bool = True) -> list:
+    """获取公告数据，支持缓存（TTL 30 分钟）。"""
+    key = cache_key_for_stock("ann", code)
+    if use_cache:
+        cached = cache_get(key, ttl_seconds=1800)  # 30 分钟
+        if cached is not None:
+            try:
+                return json.loads(cached)
+            except json.JSONDecodeError:
+                pass
+
     raw = http_get(ANN_URL.format(code=code))
     try:
         data = json.loads(raw)
-        return data.get("data", {}).get("list", [])
+        result = data.get("data", {}).get("list", [])
+        if use_cache and result:
+            cache_set(key, json.dumps(result, ensure_ascii=False).encode())
+        return result
     except json.JSONDecodeError:
         return []
 
-def fetch_reports(code: str) -> list:
+def fetch_reports(code: str, use_cache: bool = True) -> list:
+    """获取研报数据，支持缓存（TTL 1 小时）。"""
+    key = cache_key_for_stock("report", code)
+    if use_cache:
+        cached = cache_get(key, ttl_seconds=3600)  # 1 小时
+        if cached is not None:
+            try:
+                return json.loads(cached)
+            except json.JSONDecodeError:
+                pass
+
     raw = http_get(REPORT_URL.format(code=code))
     try:
         data = json.loads(raw)
-        return data if isinstance(data, list) else []
+        result = data if isinstance(data, list) else []
+        if use_cache and result:
+            cache_set(key, json.dumps(result, ensure_ascii=False).encode())
+        return result
     except json.JSONDecodeError:
         return []
 
