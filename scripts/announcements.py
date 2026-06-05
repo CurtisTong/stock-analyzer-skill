@@ -8,10 +8,12 @@
 """
 import sys
 import json
+from datetime import datetime, timedelta
 from common import http_get, err, DataError, cache_key_for_stock, cache_get, cache_set
 
 ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=10&page_index=1&ann_type=A&stock_list={code}&f_node=0"
-REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&code={code}"
+# 东方财富研报 API 需要 pageNo, beginTime, qType 参数
+REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&pageNo=1&code={code}&beginTime={begin_time}&endTime={end_time}&qType=0"
 
 def fetch_announcements(code: str, use_cache: bool = True) -> list:
     """获取公告数据，支持缓存（TTL 30 分钟）。"""
@@ -45,10 +47,18 @@ def fetch_reports(code: str, use_cache: bool = True) -> list:
             except json.JSONDecodeError:
                 pass
 
-    raw = http_get(REPORT_URL.format(code=code))
+    # 计算时间范围：最近 1 年
+    end_date = datetime.now()
+    begin_date = end_date - timedelta(days=365)
+    begin_time = begin_date.strftime("%Y-%m-%d")
+    end_time = end_date.strftime("%Y-%m-%d")
+
+    url = REPORT_URL.format(code=code, begin_time=begin_time, end_time=end_time)
+    raw = http_get(url)
     try:
         data = json.loads(raw)
-        result = data if isinstance(data, list) else []
+        # API 返回 {"hits": N, "data": [...], ...} 结构
+        result = data.get("data", []) if isinstance(data, dict) else []
         if use_cache and result:
             cache_set(key, json.dumps(result, ensure_ascii=False).encode())
         return result
