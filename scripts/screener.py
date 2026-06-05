@@ -77,6 +77,9 @@ def load_universe(sector=None, codes=None):
             if sector.lower() in name.lower():
                 matched.extend(items)
         if not matched:
+            # 尝试从 sector_mapping.json 查找 BK 代码，动态拉取
+            matched = _try_fetch_from_mapping(sector)
+        if not matched:
             raise SystemExit(f"未在内置标的库找到板块: {sector}")
         return sorted({normalize_quote_code(c) for c in matched})
 
@@ -84,6 +87,35 @@ def load_universe(sector=None, codes=None):
     for items in sectors.values():
         all_codes.extend(items)
     return sorted({normalize_quote_code(c) for c in all_codes})
+
+
+def _try_fetch_from_mapping(sector: str) -> list[str]:
+    """从 sector_mapping.json 查找板块的 BK 代码，动态拉取成分股"""
+    mapping_path = DATA_DIR / "sector_mapping.json"
+    if not mapping_path.exists():
+        return []
+    try:
+        import time as _time
+        from refresh_pool import fetch_multiple_boards, build_sector_pool
+        mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
+        # 模糊匹配板块名
+        for name, cfg in mapping.items():
+            if name.startswith("_"):
+                continue
+            if sector.lower() in name.lower():
+                bk_codes = cfg.get("bk_codes", [])
+                if not bk_codes:
+                    continue
+                print(f"📡 动态获取板块 '{name}' ({', '.join(bk_codes)})...", flush=True)
+                stocks = fetch_multiple_boards(bk_codes)
+                if stocks:
+                    pool = build_sector_pool(stocks, top_n=30)
+                    print(f"  获取到 {len(pool)} 只标的")
+                    return pool
+        return []
+    except Exception as e:
+        print(f"  ⚠ 动态获取失败: {e}", file=sys.stderr)
+        return []
 
 
 def latest_finance(code):

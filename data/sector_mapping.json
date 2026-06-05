@@ -1,0 +1,64 @@
+{
+  "_meta": {
+    "description": "板块名 → 东财BK代码映射，供 refresh_pool.py 使用",
+    "updated": "2026-06-05",
+    "api": "https://push2.eastmoney.com/api/qt/clist/get?fs=b:{BK_CODE}"
+  },
+  "金融": {
+    "bk_codes": ["BK0475", "BK0449"],
+    "note": "银行+证券"
+  },
+  "消费": {
+    "bk_codes": ["BK0896", "BK0438"],
+    "note": "白酒+食品饮料"
+  },
+  "医药": {
+    "bk_codes": ["BK0465", "BK0899"],
+    "note": "医药生物+创新药"
+  },
+  "资源": {
+    "bk_codes": ["BK0519", "BK1649"],
+    "note": "稀缺资源+油气"
+  },
+  "电力": {
+    "bk_codes": ["BK1024", "BK0432"],
+    "note": "绿色电力+电力"
+  },
+  "石化": {
+    "bk_codes": ["BK0431"],
+    "note": "石油石化"
+  },
+  "高股息": {
+    "bk_codes": [],
+    "note": "跨板块主题，从其他板块筛选PE<20且ROE>8%的标的",
+    "filter": "dividend"
+  },
+  "科技": {
+    "bk_codes": ["BK0448", "BK0482"],
+    "note": "消费电子+计算机"
+  },
+  "机器人": {
+    "bk_codes": ["BK1184", "BK1090"],
+    "note": "人形机器人+机器人概念"
+  },
+  "PCB/AI算力": {
+    "bk_codes": ["BK0877", "BK1134"],
+    "note": "PCB+算力"
+  },
+  "军工": {
+    "bk_codes": ["BK0490"],
+    "note": "军工"
+  },
+  "半导体": {
+    "bk_codes": ["BK0917"],
+    "note": "半导体概念"
+  },
+  "新能源": {
+    "bk_codes": ["BK0900"],
+    "note": "新能源车"
+  },
+  "光伏": {
+    "bk_codes": ["BK0588"],
+    "note": "光伏概念"
+  }
+}
