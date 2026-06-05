@@ -16,9 +16,11 @@ from pathlib import Path
 from common import (
     DATA_DIR,
     board_type,
+    clamp,
     normalize_finance_code,
     normalize_quote_code,
     plain_code,
+    to_float,
 )
 from finance import fetch as fetch_finance
 from kline import fetch as fetch_kline
@@ -61,19 +63,6 @@ STRATEGIES = {
         "label": "拐点修复",
     },
 }
-
-
-def to_float(value, default=0.0):
-    try:
-        if value in (None, "", "-"):
-            return default
-        return float(str(value).replace(",", ""))
-    except (TypeError, ValueError):
-        return default
-
-
-def clamp(value, low=0.0, high=100.0):
-    return max(low, min(high, value))
 
 
 def load_universe(sector=None, codes=None):

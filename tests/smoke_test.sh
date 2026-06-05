@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 端到端冒烟测试：6 个脚本 + 3 个 API 端点 + 7 个 skill + 可选 symlink
+# 端到端冒烟测试：7 个脚本 + 3 个 API 端点 + 8 个 skill + 可选 symlink
 set -e
 
 PKG_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,7 +15,7 @@ ok() { echo "  ✓ $1"; pass=$((pass+1)); }
 ko() { echo "  ✗ $1"; fail=$((fail+1)); }
 
 echo "==> 1. scripts/ 完整性"
-for f in common.py quote.py finance.py kline.py announcements.py screener.py; do
+for f in common.py quote.py finance.py kline.py announcements.py screener.py technical.py; do
   if [ -x "$SCRIPTS/$f" ]; then
     ok "$f 可执行"
   else
@@ -72,8 +72,15 @@ else
   ko "screener.py 输出异常: $output"
 fi
 
-echo "==> 4. 7 个本地 skill 定义"
-for s in stock market sector portfolio screener financial-analyst investment-researcher; do
+output=$(python3 technical.py sh600989 --quick 2>&1 || true)
+if echo "$output" | grep -qE "评分|MACD|均线"; then
+  ok "technical.py 输出含技术指标"
+else
+  ko "technical.py 输出异常: $output"
+fi
+
+echo "==> 4. 8 个本地 skill 定义"
+for s in stock market sector portfolio screener financial-analyst investment-researcher technical; do
   if [ -f "$AGENTS_SKILLS/$s/SKILL.md" ] && grep -q "^---$" "$AGENTS_SKILLS/$s/SKILL.md"; then
     ok ".agents/$s 含 frontmatter"
   else
@@ -86,8 +93,8 @@ for s in stock market sector portfolio screener financial-analyst investment-res
   fi
 done
 
-echo "==> 5. 7 个 symlink 已注册（未安装时可失败）"
-for s in stock market sector portfolio screener financial-analyst investment-researcher; do
+echo "==> 5. 8 个 symlink 已注册（未安装时可失败）"
+for s in stock market sector portfolio screener financial-analyst investment-researcher technical; do
   if [ -L "$GLOBAL_NS/$s" ] && [ -e "$GLOBAL_NS/$s" ]; then
     ok "$s 链接有效"
   else
@@ -96,7 +103,7 @@ for s in stock market sector portfolio screener financial-analyst investment-res
 done
 
 echo "==> 6. SKILL.md 内容含核心说明"
-for s in stock market sector portfolio screener; do
+for s in stock market sector portfolio screener technical; do
   if grep -qE "Usage|scripts/" "$CLAUDE_SKILLS/$s/SKILL.md"; then
     ok "$s/SKILL.md 含 Usage"
   else

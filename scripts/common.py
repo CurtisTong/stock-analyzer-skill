@@ -202,6 +202,21 @@ def batchify(items: list, size: int = 15):
     for i in range(0, len(items), size):
         yield items[i:i + size]
 
+def to_float(value, default=0.0):
+    """安全转浮点数，空值/异常返回默认值。"""
+    try:
+        if value in (None, "", "-"):
+            return default
+        return float(str(value).replace(",", ""))
+    except (TypeError, ValueError):
+        return default
+
+
+def clamp(value, low=0.0, high=100.0):
+    """将值限制在 [low, high] 区间。"""
+    return max(low, min(high, value))
+
+
 def err(msg: str):
     print(f"❌ {msg}", file=sys.stderr)
     sys.exit(1)

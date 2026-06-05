@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 将 stock-analyzer-skill 包的 6 个 skill 注册到 ~/.claude/skills/（扁平结构）
+# 将 stock-analyzer-skill 包的 8 个 skill 注册到 ~/.claude/skills/（扁平结构）
 # Claude Code 的 slash command 解析器只扫描 ~/.claude/skills/*/SKILL.md 一层，
 # 所以 symlink 必须直接在 ~/.claude/skills/ 下，不能嵌套命名空间。
 
@@ -10,7 +10,7 @@ GLOBAL_SKILLS="$HOME/.claude/skills"
 LOCAL_SKILLS="$PKG_ROOT/.claude/skills"
 CODEX_SKILLS="$PKG_ROOT/.agents/skills"
 
-SKILLS=(stock market sector portfolio screener financial-analyst investment-researcher)
+SKILLS=(stock market sector portfolio screener financial-analyst investment-researcher technical)
 
 echo "==> 注册 symlink 到 $GLOBAL_SKILLS/"
 for s in "${SKILLS[@]}"; do
@@ -54,4 +54,4 @@ for s in "${SKILLS[@]}"; do
   fi
 done
 echo
-echo "✓ 安装完成。重新启动 Claude Code 即可识别 7 个 slash command。"
+echo "✓ 安装完成。重新启动 Claude Code 即可识别 8 个 slash command。"
