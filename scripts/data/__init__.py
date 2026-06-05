@@ -1,0 +1,200 @@
+"""
+统一数据获取 API。
+
+用法:
+    from data import get_quote, get_kline, get_finance
+
+    quote = get_quote("sh600989")
+    quotes = get_quotes(["sh600989", "sz000807"])
+    bars = get_kline("sh600989", scale=240, datalen=30)
+    records = get_finance("SH600989")
+"""
+from typing import Optional
+
+from .types import Quote, KlineBar, FinanceRecord
+from .config import get_config
+from . import cache
+
+# 延迟导入 fetchers（避免循环导入）
+_fetchers_loaded = False
+_quote_manager = None
+_kline_manager = None
+_finance_manager = None
+
+
+def _load_fetchers():
+    global _fetchers_loaded, _quote_manager, _kline_manager, _finance_manager
+    if _fetchers_loaded:
+        return
+    from fetchers import get_quote_manager, get_kline_manager, get_finance_manager
+    _quote_manager = get_quote_manager()
+    _kline_manager = get_kline_manager()
+    _finance_manager = get_finance_manager()
+    _fetchers_loaded = True
+
+
+def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
+    """获取单只股票行情。"""
+    _load_fetchers()
+    cfg = get_config()
+    key = f"quote_{code}"
+
+    if use_cache:
+        cached = cache.get_json(key, cfg.quote_cache_ttl)
+        if cached:
+            return _dict_to_quote(cached)
+
+    result = _quote_manager.fetch(code)
+    if result is None:
+        return None
+
+    quote = _dict_to_quote(result)
+
+    if use_cache and quote.has_basic_data():
+        cache.set_json(key, quote.to_dict())
+
+    return quote
+
+
+def get_quotes(codes: list, use_cache: bool = True) -> list:
+    """批量获取行情。"""
+    from common import parallel_map
+    cfg = get_config()
+    results = parallel_map(lambda c: get_quote(c, use_cache), codes,
+                           max_workers=cfg.max_workers, timeout=30)
+    return [q for q in results.values() if q is not None]
+
+
+def get_kline(code: str, scale: int = 240, datalen: int = 30,
+              use_cache: bool = True) -> list:
+    """获取 K 线数据。"""
+    _load_fetchers()
+    cfg = get_config()
+    key = f"kline_{code}_{scale}_{datalen}"
+
+    if use_cache:
+        cached = cache.get_json(key, cfg.kline_cache_ttl)
+        if cached:
+            return [_dict_to_kline_bar(bar) for bar in cached]
+
+    records = _kline_manager.fetch(code, scale=scale, datalen=datalen)
+    if not records:
+        return []
+
+    bars = [_dict_to_kline_bar(r) for r in records]
+
+    if use_cache and bars:
+        cache.set_json(key, [b.to_dict() for b in bars])
+
+    return bars
+
+
+def get_finance(code: str, use_cache: bool = True) -> list:
+    """获取财务数据。"""
+    _load_fetchers()
+    cfg = get_config()
+    key = f"finance_{code}"
+
+    if use_cache:
+        cached = cache.get_json(key, cfg.finance_cache_ttl)
+        if cached:
+            return [_dict_to_finance(r) for r in cached]
+
+    result = _finance_manager.fetch(code)
+    if not result:
+        return []
+
+    records = [_dict_to_finance(r) for r in result]
+
+    if use_cache and records:
+        cache.set_json(key, [r.to_dict() for r in records])
+
+    return records
+
+
+# ---------- 内部转换函数 ----------
+
+def _safe_float(v, default=0.0):
+    try:
+        return float(v) if v not in (None, "", "-") else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_int(v, default=0):
+    try:
+        return int(float(v)) if v not in (None, "", "-") else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _dict_to_quote(d: dict) -> Quote:
+    return Quote(
+        code=d.get("code", ""),
+        name=d.get("name", ""),
+        price=_safe_float(d.get("price")),
+        prev_close=_safe_float(d.get("prev_close")),
+        open=_safe_float(d.get("open")),
+        high=_safe_float(d.get("high")),
+        low=_safe_float(d.get("low")),
+        change_pct=_safe_float(d.get("change_pct")),
+        change_amt=_safe_float(d.get("change_amt")),
+        volume=_safe_int(d.get("volume")),
+        amount=_safe_float(d.get("amount")),
+        turnover=_safe_float(d.get("turnover")),
+        pe=_safe_float(d.get("pe")),
+        pb=_safe_float(d.get("pb")),
+        total_cap=_safe_float(d.get("total_cap")),
+        circulating_cap=_safe_float(d.get("circulating_cap")),
+        source=d.get("source", ""),
+    )
+
+
+def _dict_to_kline_bar(d: dict) -> KlineBar:
+    return KlineBar(
+        day=d.get("day", ""),
+        open=_safe_float(d.get("open")),
+        high=_safe_float(d.get("high")),
+        low=_safe_float(d.get("low")),
+        close=_safe_float(d.get("close")),
+        volume=_safe_int(d.get("volume")),
+        amount=_safe_float(d.get("amount")),
+        pct_chg=_safe_float(d.get("pct_chg")),
+        source=d.get("source", ""),
+    )
+
+
+def _dict_to_finance(d: dict) -> FinanceRecord:
+    """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
+    FIELD_MAP = {
+        "report_date": ["REPORT_DATE", "REPORTDATETIME", "NOTICE_DATE"],
+        "eps": ["EPSJB"],
+        "roe": ["ROEJQ"],
+        "revenue_yoy": ["TOTALOPERATEREVETZ"],
+        "net_profit_yoy": ["PARENTNETPROFITTZ"],
+        "gross_margin": ["XSMLL"],
+        "net_margin": ["XSJLL"],
+        "debt_ratio": ["ZCFZL"],
+        "bps": ["BPS"],
+        "ocf_per_share": ["MGJYXJJE"],
+    }
+
+    def _find(candidates, default=""):
+        for k in candidates:
+            if k in d and d[k] not in (None, "", "-"):
+                return d[k]
+        return default
+
+    return FinanceRecord(
+        report_date=str(_find(FIELD_MAP["report_date"]))[:10],
+        eps=_safe_float(_find(FIELD_MAP["eps"])),
+        roe=_safe_float(_find(FIELD_MAP["roe"])),
+        revenue_yoy=_safe_float(_find(FIELD_MAP["revenue_yoy"])),
+        net_profit_yoy=_safe_float(_find(FIELD_MAP["net_profit_yoy"])),
+        gross_margin=_safe_float(_find(FIELD_MAP["gross_margin"])),
+        net_margin=_safe_float(_find(FIELD_MAP["net_margin"])),
+        debt_ratio=_safe_float(_find(FIELD_MAP["debt_ratio"])),
+        bps=_safe_float(_find(FIELD_MAP["bps"])),
+        ocf_per_share=_safe_float(_find(FIELD_MAP["ocf_per_share"])),
+        source=d.get("source", ""),
+    )

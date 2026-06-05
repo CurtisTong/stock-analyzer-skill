@@ -24,5 +24,6 @@ class TencentQuoteFetcher(BaseFetcher):
                 continue
             rec = parse_tencent_line(line)
             if rec:
+                rec["source"] = "tencent"
                 return rec
         return None

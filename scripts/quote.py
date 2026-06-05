@@ -11,50 +11,14 @@
 """
 import sys
 import json
-from common import (split_codes, batchify, normalize_quote_code, parallel_map, err,
-                    cache_key_for_stock, cache_get, cache_set)
-from fetchers import get_quote_manager, get_quote_fetchers
+from common import split_codes, batchify, normalize_quote_code, parallel_map, err
+from data import get_quote, get_quotes
 
 
 def fetch_batch(codes: list, use_cache: bool = True) -> list:
-    """批量获取行情，支持缓存和自动故障切换。"""
-    manager = get_quote_manager()
-
-    if use_cache:
-        cached_results = []
-        uncached_codes = []
-        for code in codes:
-            key = cache_key_for_stock("quote", code)
-            cached = cache_get(key, ttl_seconds=900)  # 15 分钟
-            if cached is not None:
-                try:
-                    cached_results.append(json.loads(cached))
-                except json.JSONDecodeError:
-                    uncached_codes.append(code)
-            else:
-                uncached_codes.append(code)
-
-        if not uncached_codes:
-            return cached_results
-        codes_to_fetch = uncached_codes
-    else:
-        codes_to_fetch = codes
-        cached_results = []
-
-    # 使用策略管理器获取数据
-    results = []
-    for code in codes_to_fetch:
-        rec = manager.fetch(code)
-        if rec:
-            results.append(rec)
-
-    # 写入缓存
-    if use_cache:
-        for rec in results:
-            key = cache_key_for_stock("quote", rec["code"])
-            cache_set(key, json.dumps(rec, ensure_ascii=False).encode())
-
-    return cached_results + results
+    """批量获取行情，返回 dict 列表（兼容旧接口）。"""
+    quotes = get_quotes(codes, use_cache=use_cache)
+    return [q.to_dict() for q in quotes]
 
 
 def main():
@@ -62,8 +26,8 @@ def main():
         err("用法: quote.py <代码|@文件> [-j] [--sources]")
     args = sys.argv[1:]
 
-    # 显示可用数据源
     if "--sources" in args:
+        from fetchers import get_quote_fetchers
         fetchers = get_quote_fetchers()
         print("可用行情数据源:")
         for f in fetchers:

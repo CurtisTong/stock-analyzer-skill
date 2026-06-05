@@ -61,5 +61,6 @@ class EastmoneyKlineFetcher(BaseFetcher):
                     "high": parts[3],
                     "low": parts[4],
                     "volume": parts[5],
+                    "source": "eastmoney",
                 })
         return result if result else None

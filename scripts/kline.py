@@ -10,31 +10,14 @@ K 线数据查询（多数据源自动切换）。
 """
 import sys
 import json
-from common import (normalize_quote_code, err, cache_key_for_stock, cache_get, cache_set)
-from fetchers import get_kline_manager, get_kline_fetchers
+from common import normalize_quote_code, err
+from data import get_kline
 
 
 def fetch(symbol: str, scale: int, datalen: int, use_cache: bool = True) -> list:
-    """获取 K 线数据，支持缓存和自动故障切换。"""
-    manager = get_kline_manager()
-    key = cache_key_for_stock("kline", symbol, scale=scale, datalen=datalen)
-
-    if use_cache:
-        cached = cache_get(key, ttl_seconds=21600)  # 6 小时
-        if cached is not None:
-            try:
-                return json.loads(cached)
-            except json.JSONDecodeError:
-                pass
-
-    records = manager.fetch(symbol, scale=scale, datalen=datalen)
-    if records is None:
-        records = []
-
-    if use_cache and records:
-        cache_set(key, json.dumps(records, ensure_ascii=False).encode())
-
-    return records
+    """获取 K 线数据，返回 dict 列表（兼容旧接口）。"""
+    bars = get_kline(symbol, scale, datalen, use_cache=use_cache)
+    return [b.to_dict() for b in bars]
 
 
 def render_table(records: list) -> str:
@@ -50,6 +33,7 @@ def main():
     args = sys.argv[1:]
 
     if "--sources" in args:
+        from fetchers import get_kline_fetchers
         fetchers = get_kline_fetchers()
         print("可用 K 线数据源:")
         for f in fetchers:

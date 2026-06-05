@@ -47,5 +47,6 @@ class TencentKlineFetcher(BaseFetcher):
                     "low": row[4],
                     "close": row[2],
                     "volume": row[5],
+                    "source": "tencent",
                 })
         return result if result else None

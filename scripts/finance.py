@@ -10,32 +10,37 @@
 """
 import sys
 import json
-from common import (normalize_finance_code, parallel_map, err, EAST_MONEY_FIELDS)
-from fetchers import get_finance_manager, get_finance_fetchers
+from common import normalize_finance_code, parallel_map, err
+from data import get_finance
 
 
 def fetch(code: str, use_cache: bool = True) -> list:
-    """返回最近 4 季的财务数据。"""
-    manager = get_finance_manager()
-    result = manager.fetch(code, use_cache=use_cache)
-    return result if result else []
+    """返回最近 4 季的财务数据（dict 列表，兼容旧接口）。"""
+    records = get_finance(code, use_cache=use_cache)
+    return [r.to_dict() for r in records]
 
 
 def render_table(records: list) -> str:
     if not records:
         return "(无数据)"
-    keys = list(EAST_MONEY_FIELDS.keys())
+    fields = [
+        ("eps", "每股收益"),
+        ("roe", "ROE%"),
+        ("revenue_yoy", "营收同比%"),
+        ("net_profit_yoy", "净利同比%"),
+        ("gross_margin", "毛利率%"),
+        ("net_margin", "净利率%"),
+        ("debt_ratio", "负债率%"),
+        ("bps", "每股净资产"),
+        ("ocf_per_share", "每股现金流"),
+    ]
     lines = []
-    header = " | ".join(["报告期"] + [EAST_MONEY_FIELDS[k] for k in keys])
+    header = " | ".join(["报告期"] + [label for _, label in fields])
     lines.append(header)
     lines.append("-" * len(header))
     for r in records:
-        period = r.get("REPORT_DATE") or r.get("NOTICE_DATE") or r.get("SECURITYCODE") or "?"
-        for dk in ["REPORT_DATE", "REPORTDATETIME", "NOTICE_DATE", "DECLARE_DATE"]:
-            if dk in r and r[dk]:
-                period = str(r[dk])[:10]
-                break
-        values = [r.get(k, "-") for k in keys]
+        period = r.get("report_date", "?")
+        values = [r.get(key, "-") for key, _ in fields]
         lines.append(" | ".join([period] + [str(v)[:8] for v in values]))
     return "\n".join(lines)
 
@@ -46,6 +51,7 @@ def main():
     args = sys.argv[1:]
 
     if "--sources" in args:
+        from fetchers import get_finance_fetchers
         fetchers = get_finance_fetchers()
         print("可用财务数据源:")
         for f in fetchers:

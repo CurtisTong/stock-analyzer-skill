@@ -30,5 +30,6 @@ class SinaQuoteFetcher(BaseFetcher):
                 continue
             rec = parse_sina_quote_line(line)
             if rec:
+                rec["source"] = "sina"
                 return rec
         return None

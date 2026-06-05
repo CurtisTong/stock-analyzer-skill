@@ -34,6 +34,8 @@ class EastmoneyFinanceFetcher(BaseFetcher):
         if not data or "data" not in data or not data["data"]:
             return None
         result = data["data"][:4]
+        for r in result:
+            r["source"] = "eastmoney"
 
         if use_cache and result:
             cache_set(key, json.dumps(result, ensure_ascii=False).encode())

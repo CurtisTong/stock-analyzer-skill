@@ -21,6 +21,10 @@ class SinaKlineFetcher(BaseFetcher):
         raw = http_get(SINA_URL.format(symbol=code, scale=scale, datalen=datalen))
         try:
             records = json.loads(raw)
-            return records if records else None
+            if records:
+                for r in records:
+                    r["source"] = "sina"
+                return records
+            return None
         except json.JSONDecodeError:
             return None

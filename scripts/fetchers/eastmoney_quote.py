@@ -77,4 +77,5 @@ class EastmoneyQuoteFetcher(BaseFetcher):
             "pb": _div100(d.get("f167", 0)),
             "total_cap": _div10000(d.get("f116", 0)),
             "circulating_cap": _div10000(d.get("f117", 0)),
+            "source": "eastmoney",
         }
