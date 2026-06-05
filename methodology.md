@@ -128,6 +128,19 @@ p = 胜率, b = 赔率(期望收益/最大风险)
          → 持续跟踪(止损/止盈)
 ```
 
+### Skill 协作流程
+
+完整协作关系见 `workflow.md`。常用路径：
+
+| 场景 | 推荐链路 |
+|------|----------|
+| 自上而下找机会 | `market` → `sector` → `screener` → `stock` → `technical` → `portfolio` |
+| 已有个股做验证 | `stock` → `financial-analyst` → `sector` → `technical` → `portfolio` |
+| 持仓再平衡 | `portfolio` → `market` → `technical` → `screener` → `stock` |
+| 深度研究报告 | `investment-researcher` 总控，按需调用其他 skill |
+
+交接时至少保留：市场状态、板块观点、候选池、基本面评级、技术触发、仓位计划、置信度。
+
 ## 六、选股策略系统
 
 选股系统不是“找一只马上买的股票”，而是生成可跟踪候选池。流程必须固定：股票池 → 硬过滤 → 多因子评分 → 策略权重 → 市场适配 → 买点触发。
