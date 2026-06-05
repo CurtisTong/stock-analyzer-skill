@@ -15,7 +15,7 @@ ok() { echo "  ✓ $1"; pass=$((pass+1)); }
 ko() { echo "  ✗ $1"; fail=$((fail+1)); }
 
 echo "==> 1. scripts/ 完整性"
-for f in common.py quote.py finance.py kline.py announcements.py screener.py technical.py; do
+for f in common.py quote.py finance.py kline.py announcements.py screener.py technical.py classifier.py chan.py patterns_local.py; do
   if [ -x "$SCRIPTS/$f" ]; then
     ok "$f 可执行"
   else
@@ -77,6 +77,34 @@ if echo "$output" | grep -qE "评分|MACD|均线"; then
   ok "technical.py 输出含技术指标"
 else
   ko "technical.py 输出异常: $output"
+fi
+
+output=$(python3 technical.py sh600989 --classify --no-chan --quick 2>&1 || true)
+if echo "$output" | grep -qE "评分|三阴一阳"; then
+  ok "technical.py --classify 含本土战法"
+else
+  ko "technical.py --classify 输出异常: $output"
+fi
+
+output=$(python3 classifier.py sh600989 2>&1 || true)
+if echo "$output" | grep -q "type"; then
+  ok "classifier.py 输出含类型"
+else
+  ko "classifier.py 输出异常: $output"
+fi
+
+output=$(python3 chan.py sh600989 2>&1 || true)
+if echo "$output" | grep -qE "valid|fenxing"; then
+  ok "chan.py 输出含缠论"
+else
+  ko "chan.py 输出异常: $output"
+fi
+
+output=$(python3 patterns_local.py sh600989 2>&1 || true)
+if echo "$output" | grep -q "patterns"; then
+  ok "patterns_local.py 输出含战法"
+else
+  ko "patterns_local.py 输出异常: $output"
 fi
 
 echo "==> 4. 8 个本地 skill 定义"

@@ -7,6 +7,8 @@ A 股纯技术分析脚本。
   technical.py sh600989 --scale 60         # 60分钟K线
   technical.py sh600989 -j                 # JSON 输出
   technical.py sh600989 --quick -j         # JSON 快速摘要
+  technical.py sh600989 --classify         # 含个股分类+缠论+本土战法+市场自适应
+  technical.py sh600989 --classify --no-chan  # 跳过缠论
 """
 import argparse
 import json
@@ -19,6 +21,7 @@ from common import (
     board_type,
     clamp,
     normalize_quote_code,
+    normalize_finance_code,
     to_float,
 )
 from kline import fetch as fetch_kline
@@ -834,8 +837,178 @@ def _count_limit_streak(records, limit_ratio):
 
 
 # ═══════════════════════════════════════════════════════════════
-# L11: 综合评分
+# L11: 市场环境检测
 # ═══════════════════════════════════════════════════════════════
+
+def detect_market_environment(index_quote=None):
+    """
+    检测当前市场环境（牛市/熊市/震荡/冰点/亢奋）。
+    优先使用大盘数据（涨跌停家数），不可得时用指数技术指标推断。
+
+    Args:
+        index_quote: 大盘指数行情 dict（可选）
+
+    Returns:
+        {
+            "state": "牛市"|"熊市"|"震荡"|"冰点"|"亢奋",
+            "confidence": "高"|"中"|"低",
+            "signals": [...],
+            "weight_adjustments": {...},
+        }
+    """
+    state = "震荡"
+    confidence = "低"
+    signals = []
+
+    if index_quote and isinstance(index_quote, dict):
+        # 用大盘技术指标判断
+        price = to_float(index_quote.get("price"))
+        change_pct = to_float(index_quote.get("change_pct"))
+        turnover = to_float(index_quote.get("turnover"))
+
+        if change_pct > 2:
+            state = "牛市"
+            confidence = "中"
+            signals.append(f"大盘涨幅{change_pct:.1f}%")
+        elif change_pct < -2:
+            state = "熊市"
+            confidence = "中"
+            signals.append(f"大盘跌幅{change_pct:.1f}%")
+        elif change_pct > 0.5:
+            state = "牛市"
+            confidence = "低"
+            signals.append(f"大盘微涨{change_pct:.1f}%")
+        elif change_pct < -0.5:
+            state = "熊市"
+            confidence = "低"
+            signals.append(f"大盘微跌{change_pct:.1f}%")
+        else:
+            signals.append(f"大盘波动{change_pct:.1f}%")
+
+        if turnover > 5:
+            signals.append("高换手率")
+            if state == "牛市":
+                state = "亢奋"
+                signals.append("亢奋信号")
+        elif turnover < 0.5:
+            signals.append("极度缩量")
+            if state in ("熊市", "震荡"):
+                state = "冰点"
+                signals.append("冰点信号")
+    else:
+        signals.append("大盘数据缺失，默认震荡")
+
+    # 市场 → 信号权重调整
+    adjustments = _market_weight_adjustments(state)
+
+    return {
+        "state": state,
+        "confidence": confidence,
+        "signals": signals,
+        "weight_adjustments": adjustments,
+    }
+
+
+def _market_weight_adjustments(state):
+    """市场环境 → 信号权重因子。"""
+    adjustments = {
+        "牛市": {
+            "bullish_bias": 1.3,
+            "trend_following": 1.4,
+            "breakout": 1.3,
+            "divergence_bottom": 0.5,
+            "buy_point_1": 0.5,
+            "buy_point_3": 1.3,
+            "overbought": 0.8,
+            "desc": "牛市：趋势跟随加权，底背离/一买降权",
+        },
+        "熊市": {
+            "bullish_bias": 1.5,
+            "trend_following": 0.6,
+            "breakout": 0.6,
+            "divergence_bottom": 1.5,
+            "buy_point_1": 1.5,
+            "buy_point_3": 0.5,
+            "overbought": 1.3,
+            "desc": "熊市：反转信号加权，追涨信号降权",
+        },
+        "震荡": {
+            "bullish_bias": 1.0,
+            "trend_following": 0.8,
+            "breakout": 0.8,
+            "divergence_bottom": 1.2,
+            "buy_point_1": 1.1,
+            "buy_point_3": 1.2,
+            "overbought": 1.0,
+            "desc": "震荡：反转+区间交易加权，趋势信号降权",
+        },
+        "冰点": {
+            "bullish_bias": 1.8,
+            "trend_following": 0.3,
+            "breakout": 0.4,
+            "divergence_bottom": 1.8,
+            "buy_point_1": 2.0,
+            "buy_point_3": 0.3,
+            "overbought": 1.5,
+            "desc": "冰点：极度超卖反转加权，趋势信号大幅降权",
+        },
+        "亢奋": {
+            "bullish_bias": 0.6,
+            "trend_following": 0.5,
+            "breakout": 0.5,
+            "divergence_bottom": 0.4,
+            "buy_point_1": 0.3,
+            "buy_point_3": 0.5,
+            "overbought": 0.3,
+            "desc": "亢奋：全面保守，警惕反转",
+        },
+    }
+    return adjustments.get(state, adjustments["震荡"])
+
+
+# ═══════════════════════════════════════════════════════════════
+# L12: 自适应综合评分
+# ═══════════════════════════════════════════════════════════════
+
+# 个股类型 × 指标权重矩阵
+_STOCK_TYPE_WEIGHTS = {
+    "题材股": {
+        "ma": 0.6, "macd": 0.5, "kdj": 0.5,
+        "boll": 0.8, "rsi": 1.0, "volume": 1.3,
+        "pattern": 1.5, "limit": 1.5, "chan": 0.5,
+    },
+    "蓝筹股": {
+        "ma": 1.3, "macd": 1.1, "kdj": 0.4,
+        "boll": 1.2, "rsi": 0.9, "volume": 0.8,
+        "pattern": 0.7, "limit": 0.3, "chan": 0.8,
+    },
+    "强成长股": {
+        "ma": 0.9, "macd": 1.3, "kdj": 0.4,
+        "boll": 1.2, "rsi": 0.9, "volume": 1.2,
+        "pattern": 0.8, "limit": 0.5, "chan": 0.7,
+    },
+    "周期股": {
+        "ma": 0.6, "macd": 1.3, "kdj": 1.2,
+        "boll": 1.0, "rsi": 0.9, "volume": 0.9,
+        "pattern": 0.7, "limit": 0.4, "chan": 1.3,
+    },
+    "稳成长股": {
+        "ma": 1.2, "macd": 1.1, "kdj": 0.5,
+        "boll": 1.0, "rsi": 1.0, "volume": 0.9,
+        "pattern": 1.0, "limit": 0.3, "chan": 0.8,
+    },
+    "防御股": {
+        "ma": 0.8, "macd": 0.9, "kdj": 0.6,
+        "boll": 1.1, "rsi": 1.1, "volume": 0.7,
+        "pattern": 0.7, "limit": 0.3, "chan": 0.9,
+    },
+    "普通股": {
+        "ma": 1.0, "macd": 1.0, "kdj": 1.0,
+        "boll": 1.0, "rsi": 1.0, "volume": 1.0,
+        "pattern": 1.0, "limit": 1.0, "chan": 1.0,
+    },
+}
+
 
 def rsi_features(closes, period=14):
     """RSI 计算（从 screener 移植）。"""
@@ -864,8 +1037,8 @@ def rsi_features(closes, period=14):
     return {"rsi": round(rsi, 1), "signal": signal}
 
 
-def composite_score(features):
-    """多指标共振评分 0-100。"""
+def composite_score(features, stock_type="普通股", market_state=None):
+    """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。"""
     score = 0
     ma = features.get("ma_system", {})
     macd = features.get("macd") or {}
@@ -875,98 +1048,142 @@ def composite_score(features):
     vol = features.get("volume") or {}
     patterns = features.get("patterns", [])
 
-    # 1. 均线 20 分
-    alignment = ma.get("alignment", "")
-    if alignment == "多头排列":
-        score += 20
-    elif alignment == "交叉震荡":
-        score += 12
-    elif alignment == "空头排列":
-        score += 3
+    # 获取权重
+    type_w = _STOCK_TYPE_WEIGHTS.get(stock_type, _STOCK_TYPE_WEIGHTS["普通股"])
+    adj = {}
+    if market_state:
+        adj = _market_weight_adjustments(market_state)
     else:
-        score += 7
+        adj = _market_weight_adjustments("震荡")
+
+    # 1. 均线 20 分 × 类型权重 × 市场趋势权重
+    alignment = ma.get("alignment", "")
+    alignment_scores = {"多头排列": 20, "交叉震荡": 12, "空头排列": 3, "数据不足": 7}
+    ma_base = alignment_scores.get(alignment, 7)
+    ma_score = ma_base * type_w["ma"] * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
+    score += clamp(ma_score, 0, 30)
 
     # 2. MACD 15 分
     macd_signal = macd.get("signal", 0)
     bar_trend = macd.get("bar_trend", "")
     divergence = macd.get("divergence", "")
+    macd_base = 7
     if macd_signal == 1 and "放大" in bar_trend:
-        score += 15
+        macd_base = 15
     elif macd_signal == 1:
-        score += 10
-    elif macd_signal == 0:
-        score += 7
+        macd_base = 10
     elif macd_signal == -1:
-        score += 3
+        macd_base = 3
+    macd_score = macd_base * type_w["macd"]
     if divergence == "底背离(看涨)":
-        score += 8
+        macd_score += 8 * adj.get("divergence_bottom", 1.0)
     elif divergence == "顶背离(看跌)":
-        score -= 8
+        macd_score -= 8 * adj.get("overbought", 1.0)
+    score += clamp(macd_score, -5, 25)
 
     # 3. KDJ 15 分
     kdj_weight = 5 if kdj.get("钝化") else 15
     kdj_sig = kdj.get("signal", "")
-    if "金叉" in kdj_sig and "超卖" in kdj_sig:
-        score += kdj_weight
-    elif "金叉" in kdj_sig:
-        score += kdj_weight * 0.8
-    elif "超卖" in kdj_sig:
-        score += kdj_weight * 0.6
-    elif "死叉" in kdj_sig:
-        score += kdj_weight * 0.2
-    else:
-        score += kdj_weight * 0.45
+    kdj_scores = {"金叉+超卖": kdj_weight, "金叉": kdj_weight * 0.8,
+                   "超卖": kdj_weight * 0.6, "死叉": kdj_weight * 0.2}
+    kdj_base = max(0, kdj_scores.get(kdj_sig, kdj_weight * 0.45))
+    kdj_score = kdj_base * type_w["kdj"]
+    score += clamp(kdj_score, 0, 20)
 
     # 4. BOLL 10 分
     pos = boll.get("position", 0.5)
     bw = boll.get("bandwidth_desc", "")
+    boll_base = 7
     if pos < 0.3 and "收窄" in bw:
-        score += 10
+        boll_base = 10
     elif 0.3 <= pos <= 0.7:
-        score += 7
+        boll_base = 7
     elif pos > 0.7:
-        score += 4
+        boll_base = 4
     else:
-        score += 5
+        boll_base = 5
+    score += boll_base * type_w["boll"]
 
     # 5. RSI 10 分
     rsi = rsi_data.get("rsi", 50)
+    rsi_base = 7
     if 30 <= rsi <= 40:
-        score += 10
+        rsi_base = 10
     elif 40 < rsi <= 60:
-        score += 7
+        rsi_base = 7
     elif 20 <= rsi < 30:
-        score += 8
+        rsi_base = 8
     elif 60 < rsi <= 70:
-        score += 5
+        rsi_base = 5
     elif rsi > 70:
-        score += 3
+        rsi_base = 3
     else:
-        score += 5
+        rsi_base = 5
+    score += rsi_base * type_w["rsi"]
 
     # 6. 成交量 15 分
     vp_signal = vol.get("volume_price_signal", 0)
     vr = vol.get("volume_ratio", 1)
+    vol_base = 7
     if vp_signal == 1:
-        score += 12
-    elif vp_signal == 0:
-        score += 7
-    else:
-        score += 3
+        vol_base = 12
+    elif vp_signal == -1:
+        vol_base = 3
+    vol_score = vol_base * type_w["volume"]
     if vr < 0.3:
-        score += 3
+        vol_score += 3
+    score += clamp(vol_score, 0, 20)
 
-    # 7. K线形态 15 分
+    # 7. K线形态 15 分 × 类型权重 × 市场牛市偏向
     bullish_patterns = ["早晨之星", "阳包阴", "锤子线", "红三兵", "假阴真阳"]
     bearish_patterns = ["黄昏之星", "阴包阳", "倒锤子", "三只乌鸦", "假阳真阴"]
-    pattern_score = 7  # neutral base
+    pattern_score = 7
     for p in patterns:
         ptype = p.get("type", "")
         if any(b in ptype for b in bullish_patterns):
             pattern_score = max(pattern_score, 13)
         if any(b in ptype for b in bearish_patterns):
             pattern_score = min(pattern_score, 3)
-    score += pattern_score
+    score += pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0)
+
+    # 8. 缠论加分项
+    chan_data = features.get("chan_theory") or {}
+    if chan_data.get("valid"):
+        maidain = chan_data.get("maidian", {})
+        buy_points = maidain.get("buy_points", [])
+        for bp in buy_points:
+            bpt = bp.get("type", "")
+            if bpt == "一买":
+                score += 10 * adj.get("buy_point_1", 1.0)
+            elif bpt == "二买":
+                score += 5
+            elif bpt == "三买":
+                score += 8 * adj.get("buy_point_3", 1.0)
+        beichi = chan_data.get("beichi", {})
+        if beichi.get("summary", "").startswith("检测到底背驰"):
+            score += 8 * adj.get("divergence_bottom", 1.0)
+
+    # 9. 本土战法加分
+    local_patterns_data = features.get("local_patterns") or {}
+    for lp in local_patterns_data.get("patterns", []):
+        pname = lp.get("name", "")
+        pconf = lp.get("confidence", "中")
+        bonus = 0
+        if pname == "老鸭头":
+            bonus = 8
+        elif pname == "美人肩":
+            bonus = 6
+        elif pname == "三阴一阳":
+            bonus = 5
+        elif pname == "涨停双响炮":
+            bonus = 7
+        elif pname == "底部首板":
+            bonus = 6
+        elif pname == "双针探底":
+            bonus = 5
+        if pconf == "高":
+            bonus *= 1.2
+        score += bonus
 
     score = clamp(score, 0, 100)
 
@@ -982,7 +1199,6 @@ def composite_score(features):
     else:
         grade = "强烈看空"
 
-    # 生成买卖信号
     buy_signals, sell_signals = _generate_signals(features)
 
     return {
@@ -1019,6 +1235,28 @@ def _generate_signals(features):
         buy.append(f"RSI超卖({rsi_data.get('rsi')})")
     if vol_vp == 1 and "放量上涨" in vol_price:
         buy.append("放量上涨(资金介入)")
+
+    # 缠论买卖点信号
+    chan_data = features.get("chan_theory") or {}
+    if chan_data.get("valid"):
+        maidain = chan_data.get("maidian", {})
+        for bp in maidain.get("buy_points", []):
+            buy.append(f"缠论{bp['type']}")
+        for sp in maidain.get("sell_points", []):
+            sell.append(f"缠论{sp['type']}")
+        beichi = chan_data.get("beichi", {})
+        if beichi.get("summary", "").startswith("检测到底背驰"):
+            buy.append("缠论底背驰")
+        elif "顶背驰" in beichi.get("summary", ""):
+            sell.append("缠论顶背驰")
+
+    # 本土战法信号
+    local_patterns = features.get("local_patterns") or {}
+    for lp in local_patterns.get("patterns", []):
+        if lp["type"] == "看涨":
+            buy.append(lp["name"])
+        elif lp["type"] == "看跌":
+            sell.append(lp["name"])
 
     # 卖出信号
     if macd.get("signal") == -1:
@@ -1123,6 +1361,65 @@ def render_report(features, score, signals, meta):
     else:
         lines.append(f"\n## K线形态\n  (无明显形态)")
 
+    # ── 个股分类 ──
+    classification = features.get("classification")
+    if classification:
+        lines.append(f"\n## 个股分类")
+        lines.append(f"  类型: {classification['type']} (置信度: {classification['confidence']})")
+        if classification.get("reasons"):
+            lines.append(f"  依据: {'; '.join(classification['reasons'])}")
+        if classification.get("priority_indicators"):
+            lines.append(f"  推荐指标: {', '.join(classification['priority_indicators'])}")
+
+    # ── 缠论分析 ──
+    chan = features.get("chan_theory") or {}
+    if chan.get("valid"):
+        lines.append(f"\n## 缠论分析")
+        lines.append(f"  处理后K线: {chan.get('merged_count', '-')}/{chan.get('original_count', '-')}"
+                     f" (合并率{chan.get('merge_ratio_pct', '-')}%)")
+        lines.append(f"  分型: {chan.get('fenxing_count', 0)} (顶{chan.get('top_fenxing', 0)}/底{chan.get('bottom_fenxing', 0)})"
+                     f"  →  笔: {chan.get('bi_count', 0)} (↑{chan.get('up_bi', 0)} ↓{chan.get('down_bi', 0)})"
+                     f"  →  线段: {chan.get('xianduan_count', 0)}")
+        zs_list = chan.get("zhongshu_list", [])
+        if zs_list:
+            zs_desc = "; ".join(f"[{z['zd']}-{z['zg']}]" for z in zs_list[-2:])
+            lines.append(f"  中枢({chan.get('zhongshu_count', 0)}): {zs_desc}")
+        beichi = chan.get("beichi", {})
+        if beichi.get("summary"):
+            lines.append(f"  背驰: {beichi['summary']}")
+        maidain = chan.get("maidian", {})
+        buy_pts = maidain.get("buy_points", [])
+        sell_pts = maidain.get("sell_points", [])
+        if buy_pts:
+            bp_desc = "; ".join(bp["type"] + "(" + bp.get("confidence", "") + ")" for bp in buy_pts)
+            lines.append(f"  买点: {bp_desc}")
+        if sell_pts:
+            sp_desc = "; ".join(sp["type"] + "(" + sp.get("confidence", "") + ")" for sp in sell_pts)
+            lines.append(f"  卖点: {sp_desc}")
+        if not buy_pts and not sell_pts:
+            lines.append(f"  买卖点: 当前无明确缠论买卖点")
+        lines.append(f"  当前位置: {chan.get('current_position', '-')}")
+
+    # ── A股本土战法 ──
+    local_p = features.get("local_patterns") or {}
+    if local_p.get("patterns"):
+        lines.append(f"\n## A股本土战法")
+        for lp in local_p["patterns"]:
+            icon = "↑" if lp["type"] == "看涨" else "↓"
+            lines.append(f"  {icon} {lp['name']} ({lp['confidence']}): {lp['desc']}")
+        lines.append(f"  {local_p.get('summary', '')}")
+    elif local_p:
+        lines.append(f"\n## A股本土战法\n  {local_p.get('summary', '未检测到形态')}")
+
+    # ── 市场环境自适应 ──
+    market_env = features.get("market_environment") or {}
+    if market_env.get("state") and market_env["state"] != "震荡":
+        lines.append(f"\n## 市场环境自适应")
+        lines.append(f"  市场状态: {market_env['state']} (置信度: {market_env.get('confidence', '-')})")
+        adj_info = market_env.get("weight_adjustments", {})
+        if adj_info.get("desc"):
+            lines.append(f"  权重调整: {adj_info['desc']}")
+
     # ── 支撑与阻力 ──
     lines.append(f"\n## 支撑与阻力")
     lines.append(f"  {'支撑位':<10} {'来源':<8} {'强度'}")
@@ -1215,8 +1512,8 @@ def _parse_records(records):
     return closes[:min_len], opens[:min_len], highs[:min_len], lows[:min_len], volumes[:min_len]
 
 
-def _compute_all(closes, opens, highs, lows, volumes, records, board, quote):
-    """计算所有技术指标。"""
+def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, args=None):
+    """计算所有技术指标。args 为 CLI 参数，用于控制可选模块。"""
     features = {}
 
     features["ma_system"] = ma_system(closes)
@@ -1233,6 +1530,70 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote):
     features["wave"] = wave_state(closes, highs, lows)
     features["limit_analysis"] = limit_analysis(records, board, quote)
 
+    # ── 可选增强模块（--classify 时启用）──
+    do_classify = args and getattr(args, "classify", False)
+
+    # 均线序列（供本土战法使用）
+    mas = {}
+    for p in [5, 10, 20, 60]:
+        mas[f"ma{p}"] = [sma(closes[:i + 1], p) if i + 1 >= p else closes[i]
+                         for i in range(len(closes))]
+
+    # 本土战法（始终运行，计算成本低）
+    try:
+        from patterns_local import detect_all_local_patterns
+        local_result = detect_all_local_patterns(records, closes, highs, lows, volumes, mas,
+                                                  code=quote.get("code", ""))
+        features["local_patterns"] = local_result
+    except Exception:
+        features["local_patterns"] = {"patterns": [], "summary": "本土战法计算失败", "count": 0}
+
+    # 个股分类（需要财务数据）
+    if do_classify:
+        try:
+            from classifier import classify_stock
+            fin_record = None
+            try:
+                from finance import fetch as fetch_finance
+                fn_code = normalize_finance_code(quote.get("code", ""))
+                fin_data = fetch_finance(fn_code)
+                fin_record = fin_data[0] if fin_data else None
+            except Exception:
+                pass
+            features["classification"] = classify_stock(fin_record, quote, records)
+        except Exception:
+            features["classification"] = {"type": "普通股", "confidence": "低",
+                                           "reasons": ["分类计算失败"], "priority_indicators": [],
+                                           "deprioritized": []}
+
+    # 缠论分析（需要较长K线历史）
+    do_chan = do_classify and not (args and getattr(args, "no_chan", False))
+    if do_chan and len(records) >= 30:
+        try:
+            from chan import chan_full_analysis
+            features["chan_theory"] = chan_full_analysis(records)
+        except Exception:
+            features["chan_theory"] = {"valid": False, "error": "缠论计算失败"}
+    else:
+        features["chan_theory"] = {"valid": False, "error": "未启用" if not do_classify else "数据不足"}
+
+    # 市场环境
+    if do_classify:
+        market_index = getattr(args, "market_index", None)
+        if market_index:
+            try:
+                idx_quotes = fetch_batch([normalize_quote_code(market_index)])
+                idx_quote = idx_quotes[0] if idx_quotes else None
+                features["market_environment"] = detect_market_environment(idx_quote)
+            except Exception:
+                features["market_environment"] = detect_market_environment()
+        else:
+            features["market_environment"] = detect_market_environment()
+    else:
+        features["market_environment"] = {"state": "震荡", "confidence": "低",
+                                           "signals": ["未启用市场检测"],
+                                           "weight_adjustments": _market_weight_adjustments("震荡")}
+
     return features
 
 
@@ -1243,6 +1604,9 @@ def main():
     parser.add_argument("--quick", "-q", action="store_true", help="快速摘要模式")
     parser.add_argument("--json", "-j", action="store_true", help="JSON 输出")
     parser.add_argument("--datalen", type=int, default=250, help="K线数量（默认250）")
+    parser.add_argument("--classify", action="store_true", help="启用个股分类+缠论+本土战法+市场自适应")
+    parser.add_argument("--no-chan", action="store_true", help="跳过缠论分析（仅与 --classify 配合）")
+    parser.add_argument("--market-index", type=str, default=None, help="市场环境参考指数（默认无，如 sh000001）")
     args = parser.parse_args()
 
     code = normalize_quote_code(args.code)
@@ -1264,10 +1628,17 @@ def main():
         sys.exit(f"❌ {code} K 线数据不足（需≥10根，当前{len(closes)}）")
 
     # 计算所有指标
-    features = _compute_all(closes, opens, highs, lows, volumes, records, board, quote)
+    features = _compute_all(closes, opens, highs, lows, volumes, records, board, quote, args)
 
-    # 综合评分
-    score = composite_score(features)
+    # 综合评分（自适应）
+    stock_type = "普通股"
+    market_state = None
+    if args.classify:
+        classification = features.get("classification") or {}
+        stock_type = classification.get("type", "普通股")
+        market_env = features.get("market_environment") or {}
+        market_state = market_env.get("state")
+    score = composite_score(features, stock_type=stock_type, market_state=market_state)
 
     # 元数据
     price_num = to_float(quote.get("price"))
@@ -1289,15 +1660,15 @@ def main():
         features["stop_loss_pct"] = round((price_num - nearest_support) / price_num * 100, 1)
 
     if args.json:
+        feature_keys = {"ma_system", "macd", "kdj", "bollinger", "rsi", "volume",
+                        "patterns", "support_resistance", "box", "breakout", "wave",
+                        "limit_analysis"}
+        if args.classify:
+            feature_keys.update({"classification", "chan_theory", "local_patterns", "market_environment"})
         output = {
             "meta": meta,
             "score": score,
-            "features": {
-                k: v for k, v in features.items()
-                if k in ("ma_system", "macd", "kdj", "bollinger", "rsi", "volume",
-                         "patterns", "support_resistance", "box", "breakout", "wave",
-                         "limit_analysis")
-            }
+            "features": {k: v for k, v in features.items() if k in feature_keys},
         }
         print(json.dumps(output, ensure_ascii=False, indent=2, default=str))
     elif args.quick:
