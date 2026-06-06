@@ -16,20 +16,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import to_float, normalize_quote_code, normalize_finance_code, DATA_DIR
-from kline import fetch as fetch_kline
-from finance import fetch as fetch_finance
-from screener import STRATEGIES
+from data import get_kline, get_finance, get_quotes
+from strategies import STRATEGIES
 
 
 def fetch_historical_returns(code: str, days: int = 60) -> list:
     """获取历史日收益率序列。"""
-    records = fetch_kline(normalize_quote_code(code), 240, days + 5)
-    if not records or len(records) < 2:
+    bars = get_kline(normalize_quote_code(code), scale=240, datalen=days + 5)
+    if not bars or len(bars) < 2:
         return []
     returns = []
-    for i in range(1, len(records)):
-        prev_close = to_float(records[i - 1].get("close"))
-        curr_close = to_float(records[i].get("close"))
+    for i in range(1, len(bars)):
+        prev_close = bars[i - 1].close
+        curr_close = bars[i].close
         if prev_close > 0:
             returns.append((curr_close - prev_close) / prev_close)
     return returns
@@ -56,16 +55,16 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     Returns:
         回测结果 dict
     """
-    from quote import fetch_batch
     from screener import (
         quality_score, valuation_score, momentum_score,
         liquidity_score, daily_features, infer_industry,
     )
 
-    # 获取行情数据
-    quotes = fetch_batch(codes)
-    if not quotes:
+    # 获取行情数据（使用数据层）
+    quote_objs = get_quotes(codes)
+    if not quote_objs:
         return {"error": "无法获取行情数据"}
+    quotes = [q.to_dict() for q in quote_objs]
 
     weights = STRATEGIES[strategy_name]
 
@@ -75,10 +74,10 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
         code = q.get("code", "")
         industry = infer_industry(q.get("name", ""), code)
 
-        # 获取财务数据
+        # 获取财务数据（使用数据层）
         try:
-            fin_records = fetch_finance(normalize_finance_code(code))
-            fin = fin_records[0] if fin_records else {}
+            fin_records = get_finance(normalize_finance_code(code))
+            fin = fin_records[0].to_dict() if fin_records else {}
         except Exception:
             fin = {}
 

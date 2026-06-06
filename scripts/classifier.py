@@ -177,6 +177,70 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     }
 
 
+# ── 行业推断 ──
+
+def infer_industry(name: str, code: str = "") -> str:
+    """根据股票名称和代码推断行业分类。"""
+    name = name.upper()
+    # 金融：银行、保险、证券、信托
+    if any(kw in name for kw in ["银行", "保险", "证券", "信托", "金融", "资管"]):
+        return "金融"
+    # 地产
+    if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利", "碧桂园"]):
+        return "地产"
+    # 医药
+    if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗", "器械", "基因"]):
+        return "医药"
+    # 科技
+    if any(kw in name for kw in ["科技", "软件", "信息", "智能", "芯片", "半导体", "电子", "通信", "计算"]):
+        return "科技"
+    # 消费
+    if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒", "茅台", "五粮液", "海天", "伊利"]):
+        return "消费"
+    # 能源
+    if any(kw in name for kw in ["石油", "煤炭", "天然气", "能源", "石化", "燃气"]):
+        return "能源"
+    # 周期
+    if any(kw in name for kw in ["钢铁", "有色", "铜", "铝", "锌", "黄金", "矿业", "化工", "化纤", "水泥"]):
+        return "周期"
+    # 制造
+    if any(kw in name for kw in ["汽车", "机械", "制造", "装备", "新能源", "电池", "光伏", "风电", "家电"]):
+        return "制造"
+    return "默认"
+
+
+# ── 统一画像入口 ──
+
+def profile_stock(quote: dict, fin: dict = None, kline_records: list = None) -> dict:
+    """统一个股画像：行业 + 类型 + 指标建议。
+
+    Args:
+        quote: 行情 dict（含 code, name 等）
+        fin: 财务数据 dict（可选）
+        kline_records: K 线数据列表（可选）
+
+    Returns:
+        {
+            "industry": "金融"|...|"默认",
+            "type": "蓝筹股"|...|"普通股",
+            "confidence": "高"|"中"|"低",
+            "reasons": [...],
+            "priority_indicators": [...],
+            "deprioritized": [...],
+        }
+    """
+    name = quote.get("name", "")
+    code = quote.get("code", "")
+
+    industry = infer_industry(name, code)
+    classification = classify_stock(fin, quote, kline_records)
+
+    return {
+        "industry": industry,
+        **classification,
+    }
+
+
 # ── 命令行快速测试 ──
 if __name__ == "__main__":
     import sys

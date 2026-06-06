@@ -18,10 +18,10 @@ from screener import (
     volume_price_features,
     daily_features,
     analyze_code,
-    infer_industry,
     get_industry_threshold,
     load_industry_thresholds,
 )
+from classifier import infer_industry
 from technical.core import ema
 from technical.macd import macd_full as macd_features
 from technical.rsi import rsi_features
@@ -454,7 +454,7 @@ class TestDailyFeatures:
 
     def test_short_data_returns_defaults(self, monkeypatch):
         import screener
-        monkeypatch.setattr(screener, "fetch_kline", lambda code, limit, scale: [])
+        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
 
         result = daily_features("sh600519")
         assert result["trend"] == 0
@@ -463,7 +463,7 @@ class TestDailyFeatures:
 
     def test_with_uptrend_data(self, monkeypatch, kline_uptrend):
         import screener
-        monkeypatch.setattr(screener, "fetch_kline", lambda code, limit, scale: kline_uptrend)
+        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
 
         result = daily_features("sh600519")
         assert "trend" in result
@@ -481,8 +481,8 @@ class TestAnalyzeCode:
     def test_returns_all_fields(self, sample_quote, sample_finance, monkeypatch):
         import screener
         # mock kline 和 finance 避免网络请求
-        monkeypatch.setattr(screener, "fetch_kline", lambda code, limit, scale: [])
-        monkeypatch.setattr(screener, "fetch_finance", lambda code: [sample_finance])
+        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
+        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
 
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
@@ -498,8 +498,8 @@ class TestAnalyzeCode:
 
     def test_score_is_weighted_combination(self, sample_quote, sample_finance, monkeypatch):
         import screener
-        monkeypatch.setattr(screener, "fetch_kline", lambda code, limit, scale: [])
-        monkeypatch.setattr(screener, "fetch_finance", lambda code: [sample_finance])
+        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
+        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
 
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
@@ -516,8 +516,8 @@ class TestAnalyzeCode:
 
     def test_rejected_stock_has_reasons(self, sample_finance, monkeypatch):
         import screener
-        monkeypatch.setattr(screener, "fetch_kline", lambda code, limit, scale: [])
-        monkeypatch.setattr(screener, "fetch_finance", lambda code: [sample_finance])
+        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
+        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
 
         st_quote = {
             "code": "sh600001", "name": "ST测试", "price": "10",
@@ -537,8 +537,8 @@ class TestAnalyzeCode:
             call_count["n"] += 1
             return []
 
-        monkeypatch.setattr(screener, "fetch_kline", lambda code, limit, scale: [])
-        monkeypatch.setattr(screener, "fetch_finance", _should_not_be_called)
+        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
+        monkeypatch.setattr(screener, "_fetch_finance_dicts", _should_not_be_called)
 
         args = _make_args()
         cache = {"sh600519": [sample_finance]}

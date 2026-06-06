@@ -23,103 +23,39 @@ from common import (
     plain_code,
     to_float,
 )
-from finance import fetch as fetch_finance
-from kline import fetch as fetch_kline
-from quote import fetch_batch
+from data import get_quote, get_quotes, get_kline, get_finance
+from classifier import infer_industry
+from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score
+from strategies.thresholds import get_industry_threshold, load_industry_thresholds
 from technical.core import ema
 from technical.macd import macd_full as macd_features
 from technical.rsi import rsi_features
 
-# ---------- 行业差异化阈值 ----------
 
-_industry_thresholds = None
+# ---------- 数据层适配函数 ----------
 
-def load_industry_thresholds():
-    """加载行业差异化阈值表。"""
-    global _industry_thresholds
-    if _industry_thresholds is None:
-        path = DATA_DIR / "industry_thresholds.json"
-        if path.exists():
-            _industry_thresholds = json.loads(path.read_text(encoding="utf-8"))
-        else:
-            _industry_thresholds = {}
-    return _industry_thresholds
+def _fetch_quote_dict(code: str) -> dict:
+    """获取单只行情，返回 dict（兼容旧接口）。"""
+    q = get_quote(normalize_quote_code(code))
+    return q.to_dict() if q else {}
 
 
-def infer_industry(name: str, code: str = "") -> str:
-    """根据股票名称和代码推断行业分类。"""
-    name = name.upper()
-    # 金融：银行、保险、证券、信托
-    if any(kw in name for kw in ["银行", "保险", "证券", "信托", "金融", "资管"]):
-        return "金融"
-    # 地产
-    if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利", "碧桂园"]):
-        return "地产"
-    # 医药
-    if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗", "器械", "基因"]):
-        return "医药"
-    # 科技
-    if any(kw in name for kw in ["科技", "软件", "信息", "智能", "芯片", "半导体", "电子", "通信", "计算"]):
-        return "科技"
-    # 消费
-    if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒", "茅台", "五粮液", "海天", "伊利"]):
-        return "消费"
-    # 能源
-    if any(kw in name for kw in ["石油", "煤炭", "天然气", "能源", "石化", "燃气"]):
-        return "能源"
-    # 周期
-    if any(kw in name for kw in ["钢铁", "有色", "铜", "铝", "锌", "黄金", "矿业", "化工", "化纤", "水泥"]):
-        return "周期"
-    # 制造
-    if any(kw in name for kw in ["汽车", "机械", "制造", "装备", "新能源", "电池", "光伏", "风电", "家电"]):
-        return "制造"
-    return "默认"
+def _fetch_batch_dicts(codes: list) -> list:
+    """批量获取行情，返回 dict 列表。"""
+    quotes = get_quotes(codes)
+    return [q.to_dict() for q in quotes]
 
 
-def get_industry_threshold(industry: str, key: str, default=None):
-    """获取行业特定阈值。"""
-    thresholds = load_industry_thresholds()
-    industry_cfg = thresholds.get(industry, thresholds.get("默认", {}))
-    return industry_cfg.get(key, default)
+def _fetch_kline_dicts(code: str, limit: int = 240, scale: int = 30) -> list:
+    """获取 K 线，返回 dict 列表。"""
+    bars = get_kline(normalize_quote_code(code), scale=scale, datalen=limit)
+    return [b.to_dict() for b in bars]
 
 
-STRATEGIES = {
-    "balanced": {
-        "quality": 0.32,
-        "valuation": 0.25,
-        "momentum": 0.23,
-        "liquidity": 0.20,
-        "label": "均衡精选",
-    },
-    "quality_value": {
-        "quality": 0.42,
-        "valuation": 0.32,
-        "momentum": 0.10,
-        "liquidity": 0.16,
-        "label": "质量价值",
-    },
-    "growth_momentum": {
-        "quality": 0.26,
-        "valuation": 0.12,
-        "momentum": 0.42,
-        "liquidity": 0.20,
-        "label": "成长动量",
-    },
-    "defensive": {
-        "quality": 0.38,
-        "valuation": 0.34,
-        "momentum": 0.08,
-        "liquidity": 0.20,
-        "label": "防守低波",
-    },
-    "turning_point": {
-        "quality": 0.24,
-        "valuation": 0.24,
-        "momentum": 0.36,
-        "liquidity": 0.16,
-        "label": "拐点修复",
-    },
-}
+def _fetch_finance_dicts(code: str) -> list:
+    """获取财务数据，返回 dict 列表。"""
+    records = get_finance(normalize_finance_code(code))
+    return [r.to_dict() for r in records]
 
 
 def load_universe(sector=None, codes=None):
@@ -175,7 +111,7 @@ def _try_fetch_from_mapping(sector: str) -> list[str]:
 
 
 def latest_finance(code):
-    records = fetch_finance(normalize_finance_code(code))
+    records = _fetch_finance_dicts(code)
     return records[0] if records else {}
 
 
@@ -216,7 +152,7 @@ def volume_price_features(closes, volumes):
 
 
 def daily_features(code):
-    records = fetch_kline(normalize_quote_code(code), 240, 30)
+    records = _fetch_kline_dicts(code, 240, 30)
     closes = [to_float(r.get("close")) for r in records if to_float(r.get("close")) > 0]
     volumes = [to_float(r.get("volume")) for r in records if to_float(r.get("volume")) > 0]
     if len(closes) < 10:
@@ -263,142 +199,6 @@ def daily_features(code):
         "rsi_signal": rsi_signal,
         "vol_price_signal": vol_price_signal,
     }
-
-
-def quality_score(fin, industry="默认"):
-    """质量因子评分（行业差异化）。"""
-    roe = to_float(fin.get("ROEJQ"))
-    profit_growth = to_float(fin.get("PARENTNETPROFITTZ"))
-    revenue_growth = to_float(fin.get("TOTALOPERATEREVETZ"))
-    gross_margin = to_float(fin.get("XSMLL"))
-    debt = to_float(fin.get("ZCFZL"))
-    eps = to_float(fin.get("EPSJB"))
-    cashflow = to_float(fin.get("MGJYXJJE"))
-
-    # 行业差异化 ROE 基准
-    roe_excellent = get_industry_threshold(industry, "roe_excellent", 20)
-    gross_margin_min = get_industry_threshold(industry, "gross_margin_min", 20)
-    debt_max = get_industry_threshold(industry, "debt_ratio_max", 60)
-
-    score = 0
-    # ROE：相对于行业优秀值评分
-    score += clamp(roe / roe_excellent * 28)
-    score += clamp(profit_growth / 40 * 22)
-    score += clamp(revenue_growth / 30 * 16)
-    # 毛利率：相对于行业最低值评分
-    if gross_margin_min > 0:
-        score += clamp(gross_margin / (gross_margin_min * 2) * 16)
-    else:
-        score += clamp(gross_margin / 40 * 16)
-    # 负债率：相对于行业上限评分
-    score += clamp((debt_max + 10 - debt) / (debt_max + 10) * 12)
-    if eps > 0 and cashflow > 0:
-        score += clamp((cashflow / eps) * 6, 0, 6)
-    return clamp(score)
-
-
-def valuation_score(quote, fin, industry="默认"):
-    """估值因子评分（行业差异化）。"""
-    pe = to_float(quote.get("pe"))
-    pb = to_float(quote.get("pb"))
-    growth = max(to_float(fin.get("PARENTNETPROFITTZ")), 0)
-
-    # 行业差异化 PE 阈值
-    pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)
-    pe_reasonable = get_industry_threshold(industry, "pe_reasonable", 25)
-    pe_expensive = get_industry_threshold(industry, "pe_expensive", 40)
-    peg_undervalued = get_industry_threshold(industry, "peg_undervalued", 0.8)
-    peg_reasonable = get_industry_threshold(industry, "peg_reasonable", 1.5)
-
-    score = 0
-    # PE 评分（行业差异化）
-    if 0 < pe <= pe_undervalued:
-        score += 38
-    elif pe_undervalued < pe <= pe_reasonable:
-        score += 38 - (pe - pe_undervalued) / (pe_reasonable - pe_undervalued) * 18
-    elif pe_reasonable < pe <= pe_expensive:
-        score += 20 - (pe - pe_reasonable) / (pe_expensive - pe_reasonable) * 10
-
-    # PB 评分
-    if 0 < pb <= 2:
-        score += 24
-    elif 2 < pb <= 5:
-        score += 24 - (pb - 2) / 3 * 14
-
-    # PEG 评分（行业差异化）
-    if pe > 0 and growth > 0:
-        peg = pe / growth
-        if peg <= peg_undervalued:
-            score += 28
-        elif peg <= peg_reasonable:
-            score += 22
-        elif peg <= peg_reasonable * 1.5:
-            score += 12
-
-    return clamp(score)
-
-
-def momentum_score(features, quote):
-    ret20 = features["ret20"]
-    volume_ratio = features["volume_ratio"]
-    turnover = to_float(quote.get("turnover"))
-
-    # 趋势基础分：缩小上升/下降差距，避免过度敏感
-    score = 40 if features["trend"] > 0 else 20 if features["trend"] == 0 else 12
-    score += clamp((ret20 + 8) / 25 * 22)
-    score += clamp((volume_ratio - 0.6) / 1.4 * 12)
-    score += clamp(turnover / 6 * 6)
-
-    # MACD 金叉加分，死叉扣分
-    macd_signal = features.get("macd_signal", 0)
-    if macd_signal > 0:
-        score += 10
-    elif macd_signal < 0:
-        score -= 8
-
-    # RSI 合理区间加分，过度区域扣分
-    rsi = features.get("rsi", 50)
-    if 30 <= rsi <= 70:
-        score += 5
-    elif rsi > 80:
-        score -= 6
-    elif rsi < 20:
-        score -= 4
-
-    # 量价配合加分
-    vol_price_signal = features.get("vol_price_signal", 0)
-    if vol_price_signal > 0:
-        score += 8
-    elif vol_price_signal < 0:
-        score -= 10
-
-    return clamp(score)
-
-
-def liquidity_score(quote):
-    """流动性因子评分（板块差异化）。"""
-    amount = to_float(quote.get("amount"))  # 成交额（万元）
-    cap = to_float(quote.get("total_cap"))  # 总市值（亿元）
-    turnover = to_float(quote.get("turnover"))
-    bd = board_type(quote.get("code", ""))
-
-    # 板块差异化满分阈值
-    # 主板：成交额 5 亿满分，市值 150 亿满分
-    # 创业板/科创板：成交额 2 亿满分，市值 60 亿满分
-    # 北交所：成交额 0.5 亿满分，市值 20 亿满分
-    amount_max = {"主板": 50000, "创业板": 20000, "科创板": 20000, "北交所": 5000}.get(bd, 50000)
-    cap_max = {"主板": 150, "创业板": 60, "科创板": 60, "北交所": 20}.get(bd, 150)
-
-    score = 0
-    score += clamp(amount / amount_max * 42)
-    score += clamp(cap / cap_max * 28)
-    if 0.5 <= turnover <= 8:
-        score += 24
-    elif 8 < turnover <= 15:
-        score += 14
-    else:
-        score += 6
-    return clamp(score)
 
 
 def hard_filter(quote, fin, args):
@@ -469,7 +269,7 @@ def prefetch_finance_all(codes):
     results = {}
 
     def _fetch_one(code):
-        return code, fetch_finance(normalize_finance_code(code))
+        return code, _fetch_finance_dicts(code)
 
     with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {ex.submit(_fetch_one, c): c for c in codes}
@@ -569,7 +369,7 @@ def main():
     args = parser.parse_args()
 
     codes = load_universe(args.sector, args.codes.split(",") if args.codes else None)
-    quotes = fetch_batch(codes)
+    quotes = _fetch_batch_dicts(codes)
     finance_cache = prefetch_finance_all(codes)
     rows = [analyze_code(q, args.strategy, args, finance_cache) for q in quotes]
     rows.sort(key=lambda r: r["score"], reverse=True)
