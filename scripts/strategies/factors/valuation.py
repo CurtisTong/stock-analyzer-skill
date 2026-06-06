@@ -18,6 +18,9 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     peg_undervalued = get_industry_threshold(industry, "peg_undervalued", 0.8)
     peg_reasonable = get_industry_threshold(industry, "peg_reasonable", 1.5)
 
+    # PE 极端值截断：超过行业 expensive 阈值 2 倍时，PE 评分为 0
+    pe_cap = pe_expensive * 2
+
     score = 0
     # PE 评分（行业差异化）
     if pe <= 0:
@@ -29,6 +32,9 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
         # 亏损收窄加分
         if growth > 0:
             score += 10
+    elif pe > pe_cap:
+        # PE 超过极端阈值，PE 评分为 0（但 PB 和 PEG 仍可评分）
+        pass
     elif 0 < pe <= pe_undervalued:
         score += 38
     elif pe_undervalued < pe <= pe_reasonable:
@@ -42,8 +48,8 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     elif 2 < pb <= 5:
         score += 24 - (pb - 2) / 3 * 14
 
-    # PEG 评分（仅盈利股）
-    if pe > 0 and growth > 0:
+    # PEG 评分（仅盈利股，且 PE 未超极端阈值）
+    if 0 < pe <= pe_cap and growth > 0:
         peg = pe / growth
         if peg <= peg_undervalued:
             score += 28

@@ -332,6 +332,44 @@ def analyze_code(quote, strategy, args, finance_cache=None):
     }
 
 
+def apply_portfolio_constraints(rows: list, sector_cap: float = 0.30,
+                                trend_penalty: float = 0.70) -> list:
+    """应用组合层面约束。
+
+    Args:
+        rows: 已排序的候选股票列表
+        sector_cap: 单板块最高占比（默认 30%）
+        trend_penalty: 趋势下降标的得分乘数（默认 0.70）
+
+    Returns:
+        应用约束后的列表
+    """
+    if not rows:
+        return rows
+
+    max_per_sector = max(1, int(len(rows) * sector_cap))
+    sector_count = {}
+    result = []
+
+    for stock in rows:
+        industry = stock.get("industry", "默认")
+
+        # 板块集中度约束
+        if sector_count.get(industry, 0) >= max_per_sector:
+            continue
+
+        # 趋势下降降权
+        if stock.get("trend") == "下降":
+            stock["score"] = round(stock["score"] * trend_penalty, 1)
+
+        sector_count[industry] = sector_count.get(industry, 0) + 1
+        result.append(stock)
+
+    # 重新排序（降权后排名可能变化）
+    result.sort(key=lambda r: r["score"], reverse=True)
+    return result
+
+
 def render(rows, strategy, top):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
@@ -368,6 +406,8 @@ def main():
     parser.add_argument("--min-amount", type=float, default=5000, help="最低成交额，单位万元")
     parser.add_argument("--min-cap", type=float, default=40, help="最低总市值，单位亿元")
     parser.add_argument("--exclude-loss", action="store_true", help="剔除 EPS<=0 标的")
+    parser.add_argument("--no-constraints", action="store_true", help="禁用组合约束")
+    parser.add_argument("--sector-cap", type=float, default=0.30, help="单板块最高占比")
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 
@@ -376,6 +416,10 @@ def main():
     finance_cache = prefetch_finance_all(codes)
     rows = [analyze_code(q, args.strategy, args, finance_cache) for q in quotes]
     rows.sort(key=lambda r: r["score"], reverse=True)
+
+    # 应用组合约束（除非禁用）
+    if not args.no_constraints:
+        rows = apply_portfolio_constraints(rows, sector_cap=args.sector_cap)
 
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
