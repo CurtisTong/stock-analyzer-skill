@@ -33,11 +33,21 @@ def kdj_full(closes, highs, lows, n=9):
         elif k_series[-2] >= d_series[-2] and k_now < d_now:
             kdj_signal = "死叉"
 
-    # 超买超卖区
+    # 超买超卖区（附加信息，不覆盖金叉/死叉）
+    zone = ""
     if j_now > 100:
-        kdj_signal = f"超买区(J={j_now:.0f})"
+        zone = f"超买区(J={j_now:.0f})"
     elif j_now < 0:
-        kdj_signal = f"超卖区(J={j_now:.0f})"
+        zone = f"超卖区(J={j_now:.0f})"
+
+    # 组合信号：金叉+超卖 或 死叉+超买
+    if zone:
+        if kdj_signal == "金叉" and j_now < 0:
+            kdj_signal = "金叉+超卖"
+        elif kdj_signal == "死叉" and j_now > 100:
+            kdj_signal = "死叉+超买"
+        elif kdj_signal == "正常":
+            kdj_signal = zone
 
     # A 股特化：KDJ 钝化检测
     dunhua = False

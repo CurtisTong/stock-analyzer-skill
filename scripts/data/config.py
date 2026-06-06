@@ -41,3 +41,9 @@ def get_config() -> DataConfig:
     if _config is None:
         _config = DataConfig.from_env()
     return _config
+
+
+def reset_config():
+    """重置配置单例（用于测试或动态重载）。"""
+    global _config
+    _config = None

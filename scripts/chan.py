@@ -6,18 +6,21 @@
 """
 import math
 from common import to_float
+from technical.core import _ema_series
 
 
 # ═══════════════════════════════════════════════════════════════
 # 1. K线包含处理
 # ═══════════════════════════════════════════════════════════════
 
-def chan_merge_inclusions(records):
+def chan_merge_inclusions(records, max_merge=3):
     """
     K线包含关系处理：连续涨势取高高，跌势取低低。
     返回合并后的 K 线列表。
 
-    A 股适配：涨跌停导致大量包含 K 线，设置最大连续合并限制（3次）。
+    Args:
+        records: K 线数据列表
+        max_merge: 最大连续合并次数（A 股涨跌停适配，默认 3，设为 0 表示不限制）
     """
     if len(records) < 3:
         return records
@@ -45,7 +48,7 @@ def chan_merge_inclusions(records):
         curr_in_prev = curr["high"] <= prev["high"] and curr["low"] >= prev["low"]
         prev_in_curr = prev["high"] <= curr["high"] and prev["low"] >= curr["low"]
 
-        if (curr_in_prev or prev_in_curr) and consecutive_merges < 3:
+        if (curr_in_prev or prev_in_curr) and (max_merge == 0 or consecutive_merges < max_merge):
             consecutive_merges += 1
             if direction == "up":
                 merged[-1] = {
@@ -171,6 +174,7 @@ def chan_xianduan(bi_list):
     """
     从笔构建线段。
     线段至少由3笔构成，前3笔必须有重叠区间。
+    线段破坏判断基于初始重叠区间（前3笔），不随后续笔动态更新。
     """
     if len(bi_list) < 3:
         return []
@@ -191,24 +195,25 @@ def chan_xianduan(bi_list):
         # 线段方向 = 第一笔方向
         direction = b0["direction"]
 
+        # 固定参考点：线段起点的极值（不随后续笔更新）
+        if direction == "up":
+            seg_start_low = b0["low"]
+        else:
+            seg_start_high = b0["high"]
+
         # 扩展线段：加入更多笔
         j = i + 3
         while j < len(bi_list):
-            # 检查下一笔是否破坏线段结构
             next_bi = bi_list[j]
             if direction == "up":
-                # 上升段中，回调不破前低
-                if next_bi["low"] >= overlap_low:
-                    overlap_high = min(overlap_high, next_bi["high"])
-                    overlap_low = max(overlap_low, next_bi["low"])
+                # 上升段：后续笔的 low 不能跌破线段起点的 low
+                if next_bi["low"] >= seg_start_low:
                     j += 1
                 else:
                     break
             else:
-                # 下降段中，反弹不破前高
-                if next_bi["high"] <= overlap_high:
-                    overlap_high = min(overlap_high, next_bi["high"])
-                    overlap_low = max(overlap_low, next_bi["low"])
+                # 下降段：后续笔的 high 不能突破线段起点的 high
+                if next_bi["high"] <= seg_start_high:
                     j += 1
                 else:
                     break
@@ -282,17 +287,6 @@ def chan_zhongshu(xd_list):
 # ═══════════════════════════════════════════════════════════════
 # 6. MACD 面积计算（用于背驰检测）
 # ═══════════════════════════════════════════════════════════════
-
-def _ema_series(values, period):
-    """EMA 序列。"""
-    if len(values) < period:
-        return []
-    k = 2 / (period + 1)
-    result = [sum(values[:period]) / period]
-    for v in values[period:]:
-        result.append(v * k + result[-1] * (1 - k))
-    return result
-
 
 def _macd_area(dif_series, dea_series, start_idx, end_idx):
     """计算 MACD 柱面积 = Σ|DIF - DEA|，用于力度对比。"""

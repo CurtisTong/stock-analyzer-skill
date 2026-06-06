@@ -9,13 +9,15 @@
     bars = get_kline("sh600989", scale=240, datalen=30)
     records = get_finance("SH600989")
 """
+import threading
 from typing import Optional
 
 from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
 from . import cache
 
-# 延迟导入 fetchers（避免循环导入）
+# 延迟导入 fetchers（避免循环导入），线程安全
+_fetchers_lock = threading.Lock()
 _fetchers_loaded = False
 _quote_manager = None
 _kline_manager = None
@@ -26,11 +28,14 @@ def _load_fetchers():
     global _fetchers_loaded, _quote_manager, _kline_manager, _finance_manager
     if _fetchers_loaded:
         return
-    from fetchers import get_quote_manager, get_kline_manager, get_finance_manager
-    _quote_manager = get_quote_manager()
-    _kline_manager = get_kline_manager()
-    _finance_manager = get_finance_manager()
-    _fetchers_loaded = True
+    with _fetchers_lock:
+        if _fetchers_loaded:
+            return
+        from fetchers import get_quote_manager, get_kline_manager, get_finance_manager
+        _quote_manager = get_quote_manager()
+        _kline_manager = get_kline_manager()
+        _finance_manager = get_finance_manager()
+        _fetchers_loaded = True
 
 
 def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:

@@ -71,12 +71,22 @@ def _find_swing_points(values, window=5):
 
 
 def _parse_records(records):
-    """将 K 线数据转成数值列表。"""
-    closes = [to_float(r.get("close")) for r in records if to_float(r.get("close")) > 0]
-    opens = [to_float(r.get("open")) for r in records if to_float(r.get("open")) > 0]
-    highs = [to_float(r.get("high")) for r in records if to_float(r.get("high")) > 0]
-    lows = [to_float(r.get("low")) for r in records if to_float(r.get("low")) > 0]
-    volumes = [to_float(r.get("volume")) for r in records if to_float(r.get("volume")) > 0]
+    """将 K 线数据转成数值列表（统一过滤零值，保持数组对齐）。"""
+    # 先过滤掉任一字段为 0 的整条记录，确保所有数组索引对齐
+    valid_records = []
+    for r in records:
+        c = to_float(r.get("close"))
+        o = to_float(r.get("open"))
+        h = to_float(r.get("high"))
+        lo = to_float(r.get("low"))
+        v = to_float(r.get("volume"))
+        if c > 0 and o > 0 and h > 0 and lo > 0 and v > 0:
+            valid_records.append(r)
 
-    min_len = min(len(closes), len(opens), len(highs), len(lows), len(volumes))
-    return closes[:min_len], opens[:min_len], highs[:min_len], lows[:min_len], volumes[:min_len]
+    closes = [to_float(r.get("close")) for r in valid_records]
+    opens = [to_float(r.get("open")) for r in valid_records]
+    highs = [to_float(r.get("high")) for r in valid_records]
+    lows = [to_float(r.get("low")) for r in valid_records]
+    volumes = [to_float(r.get("volume")) for r in valid_records]
+
+    return closes, opens, highs, lows, volumes

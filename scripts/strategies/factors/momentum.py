@@ -1,5 +1,6 @@
 """
 动量因子评分：趋势、20日收益、量能比、MACD、RSI、量价配合。
+MACD 和 RSI 均为趋势确认指标，同向时降权以避免信息冗余。
 """
 from common import to_float, clamp
 
@@ -24,13 +25,15 @@ def momentum_score(features: dict, quote: dict) -> float:
         score -= 8
 
     # RSI 合理区间加分，过度区域扣分
+    # 与 MACD 同向时降权（避免趋势类信息重复计算）
     rsi = features.get("rsi", 50)
+    rsi_weight = 0.6 if (macd_signal > 0 and rsi > 50) or (macd_signal < 0 and rsi < 50) else 1.0
     if 30 <= rsi <= 70:
-        score += 5
+        score += int(5 * rsi_weight)
     elif rsi > 80:
-        score -= 6
+        score -= int(6 * rsi_weight)
     elif rsi < 20:
-        score -= 4
+        score -= int(4 * rsi_weight)
 
     # 量价配合加分
     vol_price_signal = features.get("vol_price_signal", 0)

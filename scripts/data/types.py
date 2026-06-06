@@ -14,7 +14,7 @@ class Quote:
     low: float = 0.0
     change_pct: float = 0.0
     change_amt: float = 0.0
-    volume: int = 0          # 手
+    volume: int = 0          # 手（腾讯源）或 股（新浪源），data 层不归一化
     amount: float = 0.0      # 万元
     turnover: float = 0.0    # %
     pe: float = 0.0

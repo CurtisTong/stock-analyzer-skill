@@ -133,21 +133,26 @@ class TestUtilities:
 class TestCache:
     """缓存读写和清理。"""
 
-    def test_cache_set_get(self, tmp_path, monkeypatch):
+    def _patch_cache_dir(self, tmp_path, monkeypatch):
+        """同时 patch common 和 data.cache 的 CACHE_DIR。"""
         monkeypatch.setattr("common.CACHE_DIR", tmp_path)
+        monkeypatch.setattr("data.cache.CACHE_DIR", tmp_path)
+
+    def test_cache_set_get(self, tmp_path, monkeypatch):
+        self._patch_cache_dir(tmp_path, monkeypatch)
         cache_set("test_key", b"test_value")
         result = cache_get("test_key", ttl_seconds=60)
         assert result == b"test_value"
 
     def test_cache_expired(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("common.CACHE_DIR", tmp_path)
+        self._patch_cache_dir(tmp_path, monkeypatch)
         cache_set("test_key", b"test_value")
         # TTL=0 立即过期
         result = cache_get("test_key", ttl_seconds=0)
         assert result is None
 
     def test_cache_cleanup(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("common.CACHE_DIR", tmp_path)
+        self._patch_cache_dir(tmp_path, monkeypatch)
         cache_set("old_key", b"old")
         cache_set("new_key", b"new")
         # 清理 max_age=0 的（全部过期）

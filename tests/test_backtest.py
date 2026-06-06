@@ -81,9 +81,8 @@ class TestSimulateStrategy:
 
         monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
-        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=65: _make_kline_bars([10+i*0.3 for i in range(65)]))
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance_dict])
+        # 滚动窗口需要至少 60+holding_days 根 K 线
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
     def test_returns_all_fields(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
@@ -91,37 +90,42 @@ class TestSimulateStrategy:
 
         result = backtest.simulate_strategy("balanced", ["sh600519"], top_n=1, holding_days=5)
         assert "strategy" in result
-        assert "selected" in result
+        assert "selections" in result
         assert "returns" in result
         assert "avg_return_pct" in result
+        assert "total_periods" in result
         assert result["strategy"] == "balanced"
 
-    def test_empty_quotes_returns_error(self, monkeypatch):
+    def test_no_kline_returns_error(self, monkeypatch):
+        """K 线数据不足时返回错误。"""
         import backtest
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: [])
+        monkeypatch.setattr(backtest, "get_finance", lambda code: [])
         monkeypatch.setattr(backtest, "get_quotes", lambda codes: [])
         result = backtest.simulate_strategy("balanced", ["sh600519"])
         assert "error" in result
 
-    def test_selected_count_matches_top_n(self, monkeypatch, sample_finance, kline_uptrend):
+    def test_rolling_window_generates_returns(self, monkeypatch, sample_finance, kline_uptrend):
+        """验证滚动窗口生成多个收益周期。"""
         import backtest
         import screener
 
-        quote_objs = [_make_quote_obj(code=f"sh60000{i}") for i in range(5)]
         finance_obj = _make_finance_obj()
+        quote_obj = _make_quote_obj()
 
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: quote_objs)
+        # 提供足够的 K 线数据（100 根）
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=100: _make_kline_bars([10+i*0.2 for i in range(100)]))
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
-        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=65: _make_kline_bars([10+i*0.3 for i in range(65)]))
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj])
 
-        result = backtest.simulate_strategy("balanced", [f"sh60000{i}" for i in range(5)], top_n=3)
-        assert len(result["selected"]) == 3
+        result = backtest.simulate_strategy("balanced", ["sh600519"], top_n=1, holding_days=10)
+        assert "error" not in result
+        assert result["total_periods"] > 1  # 滚动窗口应产生多个周期
+        assert len(result["returns"]) == result["total_periods"]
 
     def test_finance_data_fetched(self, monkeypatch, sample_finance, kline_uptrend):
         """验证回测时实际拉取财务数据。"""
         import backtest
-        import screener
 
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
@@ -133,9 +137,7 @@ class TestSimulateStrategy:
 
         monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj])
         monkeypatch.setattr(backtest, "get_finance", mock_get_finance)
-        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=65: _make_kline_bars([10+i*0.3 for i in range(65)]))
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
         backtest.simulate_strategy("balanced", ["sh600519"], top_n=1, holding_days=5)
         assert finance_called["count"] > 0
@@ -146,16 +148,13 @@ class TestRunBacktest:
 
     def _mock_all(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
-        import screener
 
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
         monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
-        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=65: _make_kline_bars([10+i*0.3 for i in range(65)]))
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
     def test_returns_statistical_fields(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
@@ -182,16 +181,13 @@ class TestOptimizeWeights:
 
     def _mock_all(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
-        import screener
 
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
         monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
-        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=65: _make_kline_bars([10+i*0.3 for i in range(65)]))
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
     def test_restores_original_weights(self, monkeypatch, sample_finance, kline_uptrend):
         """验证优化后原始权重被恢复。"""
@@ -244,16 +240,13 @@ class TestCompareStrategies:
 
     def test_compares_all_strategies(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
-        import screener
 
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
         monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
-        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=65: _make_kline_bars([10+i*0.3 for i in range(65)]))
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+        monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
         results = backtest.compare_strategies(["sh600519"], top_n=1, days=10, rounds=2)
         assert len(results) == 5

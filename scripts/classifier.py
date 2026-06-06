@@ -180,7 +180,7 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
 # ── 行业推断 ──
 
 def infer_industry(name: str, code: str = "") -> str:
-    """根据股票名称和代码推断行业分类。"""
+    """根据股票名称和代码推断行业分类（关键词匹配 + 代码段推断）。"""
     name = name.upper()
     # 科创板（688开头）默认归类为科技
     if code.startswith("688") or code.startswith("sh688"):
@@ -191,18 +191,21 @@ def infer_industry(name: str, code: str = "") -> str:
     if any(kw in name for kw in ["证券", "券商"]):
         return "券商"
     # 金融（保险、信托等）
-    if any(kw in name for kw in ["保险", "信托", "金融", "资管"]):
+    if any(kw in name for kw in ["保险", "信托", "金融", "资管", "期货"]):
         return "金融"
     # 地产
-    if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利", "碧桂园"]):
+    if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利",
+                                  "碧桂园", "融创", "恒大", "绿地", "华润置地"]):
         return "地产"
     # 医药
-    if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗", "器械", "基因"]):
+    if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗",
+                                  "器械", "基因", "诊断", "CRO", "创新药"]):
         return "医药"
     # 科技子类：半导体、软件
-    if any(kw in name for kw in ["半导体", "芯片", "晶圆", "封测", "存储"]):
+    if any(kw in name for kw in ["半导体", "芯片", "晶圆", "封测", "存储", "EDA"]):
         return "半导体"
-    if any(kw in name for kw in ["软件", "信息", "数据", "云计算", "人工智能", "物联网", "网络"]):
+    if any(kw in name for kw in ["软件", "信息", "数据", "云计算", "人工智能",
+                                  "物联网", "网络", "SaaS", "数字"]):
         return "软件"
     # 科技（其他）
     if any(kw in name for kw in ["科技", "智能", "电子", "通信", "计算",
@@ -210,17 +213,28 @@ def infer_industry(name: str, code: str = "") -> str:
                                   "安防", "集成", "激光", "光学", "显示", "面板"]):
         return "科技"
     # 消费
-    if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒", "茅台", "五粮液", "海天", "伊利"]):
+    if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒",
+                                  "茅台", "五粮液", "海天", "伊利", "牧原",
+                                  "家电", "美的", "格力", "海尔"]):
         return "消费"
     # 能源
-    if any(kw in name for kw in ["石油", "煤炭", "天然气", "能源", "石化", "燃气"]):
+    if any(kw in name for kw in ["石油", "煤炭", "天然气", "能源", "石化", "燃气",
+                                  "中石油", "中石化", "中海油"]):
         return "能源"
     # 周期
-    if any(kw in name for kw in ["钢铁", "有色", "铜", "铝", "锌", "黄金", "矿业", "化工", "化纤", "水泥"]):
+    if any(kw in name for kw in ["钢铁", "有色", "铜", "铝", "锌", "黄金", "矿业",
+                                  "化工", "化纤", "水泥", "稀土", "锂"]):
         return "周期"
     # 制造
-    if any(kw in name for kw in ["汽车", "机械", "制造", "装备", "新能源", "电池", "光伏", "风电", "家电"]):
+    if any(kw in name for kw in ["汽车", "机械", "制造", "装备", "新能源", "电池",
+                                  "光伏", "风电", "宁德", "比亚迪"]):
         return "制造"
+    # 军工
+    if any(kw in name for kw in ["军工", "航天", "航空", "兵器", "船舶", "电科"]):
+        return "军工"
+    # 交运
+    if any(kw in name for kw in ["航空", "航运", "港口", "铁路", "高速", "物流"]):
+        return "交运"
     return "默认"
 
 

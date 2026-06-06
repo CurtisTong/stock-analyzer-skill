@@ -97,9 +97,21 @@ def composite_score(features, stock_type="普通股", market_state=None):
     kdj_active = market_state_for_kdj < 1.0  # 震荡/熊市时 KDJ 更有效
     kdj_weight = 5 if kdj.get("钝化") else (10 if kdj_active else 5)
     kdj_sig = kdj.get("signal", "")
-    kdj_scores = {"金叉+超卖": kdj_weight, "金叉": kdj_weight * 0.8,
-                   "超卖": kdj_weight * 0.6, "死叉": kdj_weight * 0.2}
-    kdj_base = max(0, kdj_scores.get(kdj_sig, kdj_weight * 0.45))
+    # 按关键词匹配评分（支持组合信号如"金叉+超卖"、"死叉+超买"等）
+    if "金叉" in kdj_sig and "超卖" in kdj_sig:
+        kdj_base = kdj_weight
+    elif "金叉" in kdj_sig:
+        kdj_base = kdj_weight * 0.8
+    elif "死叉" in kdj_sig and "超买" in kdj_sig:
+        kdj_base = kdj_weight * 0.1
+    elif "死叉" in kdj_sig:
+        kdj_base = kdj_weight * 0.2
+    elif "超卖" in kdj_sig:
+        kdj_base = kdj_weight * 0.6
+    elif "超买" in kdj_sig:
+        kdj_base = kdj_weight * 0.3
+    else:
+        kdj_base = kdj_weight * 0.45
     kdj_score = kdj_base * type_w["kdj"]
     score += clamp(kdj_score, 0, 15)
 
@@ -234,13 +246,15 @@ def composite_score(features, stock_type="普通股", market_state=None):
     }
 
 
-def detect_market_environment(index_quote=None):
+def detect_market_environment(index_quote=None, recent_quotes=None):
     """
     检测当前市场环境（牛市/熊市/震荡/冰点/亢奋）。
     优先使用大盘数据（涨跌停家数），不可得时用指数技术指标推断。
+    支持多日窗口判断，避免单日噪声。
 
     Args:
         index_quote: 大盘指数行情 dict（可选）
+        recent_quotes: 近期大盘行情列表（可选，用于多日均值判断）
 
     Returns:
         {
@@ -255,36 +269,54 @@ def detect_market_environment(index_quote=None):
     signals = []
 
     if index_quote and isinstance(index_quote, dict):
-        # 用大盘技术指标判断
         price = to_float(index_quote.get("price"))
         change_pct = to_float(index_quote.get("change_pct"))
         turnover = to_float(index_quote.get("turnover"))
 
-        if change_pct > 2:
-            state = "牛市"
-            confidence = "中"
-            signals.append(f"大盘涨幅{change_pct:.1f}%")
-        elif change_pct < -2:
-            state = "熊市"
-            confidence = "中"
-            signals.append(f"大盘跌幅{change_pct:.1f}%")
-        elif change_pct > 0.5:
-            state = "牛市"
-            confidence = "低"
-            signals.append(f"大盘微涨{change_pct:.1f}%")
-        elif change_pct < -0.5:
-            state = "熊市"
-            confidence = "低"
-            signals.append(f"大盘微跌{change_pct:.1f}%")
+        # 多日窗口：用近期数据的均值平滑单日噪声
+        if recent_quotes and len(recent_quotes) > 1:
+            recent_changes = [to_float(q.get("change_pct")) for q in recent_quotes]
+            recent_turnovers = [to_float(q.get("turnover")) for q in recent_quotes]
+            avg_change = sum(recent_changes) / len(recent_changes)
+            avg_turnover = sum(recent_turnovers) / len(recent_turnovers)
+            window_days = len(recent_quotes)
+            signals.append(f"近{window_days}日均涨跌{avg_change:.2f}%")
         else:
-            signals.append(f"大盘波动{change_pct:.1f}%")
+            avg_change = change_pct
+            avg_turnover = turnover
 
-        if turnover > 5:
+        # 用多日均值判断趋势
+        if avg_change > 1.5:
+            state = "牛市"
+            confidence = "高" if avg_change > 2.5 else "中"
+            signals.append(f"持续上涨(均值{avg_change:.1f}%)")
+        elif avg_change < -1.5:
+            state = "熊市"
+            confidence = "高" if avg_change < -2.5 else "中"
+            signals.append(f"持续下跌(均值{avg_change:.1f}%)")
+        elif avg_change > 0.3:
+            state = "牛市"
+            confidence = "低"
+            signals.append(f"温和上涨(均值{avg_change:.1f}%)")
+        elif avg_change < -0.3:
+            state = "熊市"
+            confidence = "低"
+            signals.append(f"温和下跌(均值{avg_change:.1f}%)")
+        else:
+            signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
+
+        # 用当日数据补充极端信号
+        if change_pct > 2:
+            signals.append(f"当日大涨{change_pct:.1f}%")
+        elif change_pct < -2:
+            signals.append(f"当日大跌{change_pct:.1f}%")
+
+        if avg_turnover > 5:
             signals.append("高换手率")
             if state == "牛市":
                 state = "亢奋"
                 signals.append("亢奋信号")
-        elif turnover < 0.5:
+        elif avg_turnover < 0.5:
             signals.append("极度缩量")
             if state in ("熊市", "震荡"):
                 state = "冰点"

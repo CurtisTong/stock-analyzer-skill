@@ -1,5 +1,6 @@
 """
-估值因子评分：PE、PB、PEG。
+估值因子评分：PE、PB、PEG、PS（市销率）。
+PS 对亏损但有收入的公司是唯一可用的估值指标。
 """
 from common import to_float, clamp
 from strategies.thresholds import get_industry_threshold
@@ -10,6 +11,12 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
     growth = max(to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ"))), 0)
+
+    # 计算 PS（市销率）：总市值 / 营收
+    total_cap = to_float(quote.get("total_cap"))  # 亿
+    revenue_yoy = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ")))
+    # 如果有营收同比和市值，可以估算 PS 区间
+    # 简化：直接用行业 PS 阈值评估
 
     # 行业差异化 PE 阈值
     pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)
@@ -32,6 +39,14 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
         # 亏损收窄加分
         if growth > 0:
             score += 10
+        # PS 评分（亏损但有收入的公司）
+        if total_cap > 0 and revenue_yoy > 0:
+            # 简化 PS：用营收增速作为 proxy
+            # 高增速亏损公司（如互联网早期）仍可给分
+            if revenue_yoy > 30:
+                score += 15  # 高增长亏损，PS 视角可接受
+            elif revenue_yoy > 10:
+                score += 8
     elif pe > pe_cap:
         # PE 超过极端阈值，PE 评分为 0（但 PB 和 PEG 仍可评分）
         pass

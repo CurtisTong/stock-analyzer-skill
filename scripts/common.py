@@ -12,6 +12,8 @@ import threading
 import time
 import urllib.request
 import urllib.error
+from abc import ABC, abstractmethod
+from enum import Enum
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
@@ -25,56 +27,16 @@ USER_AGENTS = [
     "stock-analyzer-skill/1.0",
 ]
 
-# ---------- 磁盘缓存 ----------
+# ---------- 磁盘缓存（统一由 data/cache.py 管理）----------
 
-def _ensure_cache_dir():
-    CACHE_DIR.mkdir(exist_ok=True)
-
-
-def cache_get(key: str, ttl_seconds: int = 21600) -> bytes | None:
-    """读取缓存，TTL 超时返回 None。默认 6 小时。"""
-    _ensure_cache_dir()
-    cache_file = CACHE_DIR / f"{key}.cache"
-    if not cache_file.exists():
-        return None
-    if time.time() - cache_file.stat().st_mtime > ttl_seconds:
-        cache_file.unlink(missing_ok=True)
-        return None
-    return cache_file.read_bytes()
-
-
-def cache_set(key: str, data: bytes):
-    """写入缓存。"""
-    _ensure_cache_dir()
-    cache_file = CACHE_DIR / f"{key}.cache"
-    cache_file.write_bytes(data)
-
-
-def cache_cleanup(prefix: str = None, max_age_seconds: int = 86400):
-    """清理过期缓存。prefix 为空时清理所有过期文件。"""
-    _ensure_cache_dir()
-    cleaned = 0
-    for f in CACHE_DIR.glob("*.cache"):
-        if prefix and not f.name.startswith(prefix):
-            continue
-        if time.time() - f.stat().st_mtime > max_age_seconds:
-            f.unlink(missing_ok=True)
-            cleaned += 1
-    return cleaned
-
-
-def cache_key(url: str) -> str:
-    """用 URL 的 SHA256 生成缓存键。"""
-    return hashlib.sha256(url.encode()).hexdigest()[:32]
-
-
-def cache_key_for_stock(prefix: str, code: str, **params) -> str:
-    """生成股票相关的缓存键，支持按代码清除。
-    格式: {prefix}_{code}_{param_hash}
-    """
-    param_str = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
-    param_hash = hashlib.md5(param_str.encode()).hexdigest()[:8] if param_str else ""
-    return f"{prefix}_{code}_{param_hash}".rstrip("_")
+from data.cache import (
+    CACHE_DIR,
+    get as cache_get,
+    set as cache_set,
+    cleanup as cache_cleanup,
+    cache_key,
+    cache_key_for_stock,
+)
 
 
 def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
@@ -199,6 +161,15 @@ def parse_sina_quote_line(line: str) -> dict:
     fields = data_part.rstrip('";\n').split(",")
     if len(fields) < 32:
         return {}
+    try:
+        prev = float(fields[2])
+        curr = float(fields[3])
+        change_pct = str(round((curr / prev - 1) * 100, 2)) if prev > 0 else "0"
+        change_amt = str(round(curr - prev, 2)) if prev > 0 else "0"
+    except (ValueError, IndexError):
+        change_pct = "0"
+        change_amt = "0"
+
     return {
         "code": code,
         "name": fields[0],
@@ -209,8 +180,8 @@ def parse_sina_quote_line(line: str) -> dict:
         "low": fields[5],
         "volume": fields[8],      # 成交量(股)
         "amount": fields[9],      # 成交额
-        "change_pct": str(round((float(fields[3]) / float(fields[2]) - 1) * 100, 2)) if float(fields[2]) > 0 else "0",
-        "change_amt": str(round(float(fields[3]) - float(fields[2]), 2)) if float(fields[2]) > 0 else "0",
+        "change_pct": change_pct,
+        "change_amt": change_amt,
         "turnover": "",  # 新浪不直接提供换手率
         "pe": "",        # 新浪不直接提供 PE
         "pb": "",        # 新浪不直接提供 PB
@@ -240,7 +211,7 @@ EAST_MONEY_FIELDS = {
 def split_codes(arg: str) -> list:
     """支持逗号分隔或文件路径（@file）。"""
     if arg.startswith("@"):
-        return [line.strip() for line in Path(arg[1:]).read_text().splitlines() if line.strip()]
+        return [line.strip() for line in Path(arg[1:]).read_text(encoding="utf-8").splitlines() if line.strip()]
     return [c.strip() for c in arg.split(",") if c.strip()]
 
 def plain_code(code: str) -> str:
@@ -271,6 +242,19 @@ def normalize_finance_code(code: str) -> str:
     """归一化为东财财务接口使用的大写交易所前缀代码。"""
     q = normalize_quote_code(code)
     return q[:2].upper() + q[2:] if len(q) >= 8 else q.upper()
+
+def to_secid(code: str) -> str:
+    """转换为东方财富 secid 格式（如 1.600519, 0.000858）。"""
+    c = code.strip().lower()
+    if c.startswith("sh"):
+        return f"1.{c[2:]}"
+    if c.startswith("sz"):
+        return f"0.{c[2:]}"
+    plain = c.lstrip("shszbj")
+    if plain.startswith(("60", "68", "51", "56", "58")):
+        return f"1.{plain}"
+    return f"0.{plain}"
+
 
 def board_type(code: str) -> str:
     """粗分 A 股板块，用于风险提示和涨跌幅判断。"""
@@ -313,7 +297,9 @@ def err(msg: str):
 
 def parallel_map(fn, items, max_workers=8, timeout=60):
     """并发执行 fn(item)，返回 {item: result} 字典。"""
+    import logging
     from concurrent.futures import ThreadPoolExecutor, as_completed
+    logger = logging.getLogger(__name__)
     results = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(fn, item): item for item in items}
@@ -321,7 +307,8 @@ def parallel_map(fn, items, max_workers=8, timeout=60):
             item = futures[future]
             try:
                 results[item] = future.result()
-            except Exception:
+            except Exception as e:
+                logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None
     return results
 
@@ -346,8 +333,6 @@ class DataError(Exception):
 
 
 # ---------- 熔断器 ----------
-
-from enum import Enum
 
 class CircuitState(Enum):
     CLOSED = "closed"        # 正常
@@ -427,8 +412,6 @@ def get_circuit_breaker(name: str, **kwargs) -> CircuitBreaker:
 
 
 # ---------- 数据源抽象基类 ----------
-
-from abc import ABC, abstractmethod
 
 class BaseFetcher(ABC):
     """数据源抽象基类。"""

@@ -269,9 +269,9 @@ def prefetch_finance_all(codes):
     results = {}
 
     def _fetch_one(code):
-        # 强制获取最新数据，避免旧缓存零值问题
+        # data 层已有零值缓存校验，自动跳过无效缓存
         from data import get_finance
-        records = get_finance(normalize_finance_code(code), use_cache=False)
+        records = get_finance(normalize_finance_code(code))
         return code, [r.to_dict() for r in records]
 
     with ThreadPoolExecutor(max_workers=8) as ex:

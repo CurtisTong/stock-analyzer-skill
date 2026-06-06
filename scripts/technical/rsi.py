@@ -1,29 +1,34 @@
 """
-RSI 指标。
+RSI 指标（Wilder 平滑方法）。
 无内部依赖。
 """
-import statistics
 
 
 def rsi_features(closes, period=14):
-    """RSI 计算（从 screener 移植）。"""
+    """RSI 计算（Wilder 指数平滑，与通达信/同花顺一致）。"""
     if len(closes) < period + 1:
         return {"rsi": 50, "signal": 0}
+
+    # 计算涨跌序列
     gains, losses = [], []
-    for i in range(-period, 0):
+    for i in range(1, len(closes)):
         chg = closes[i] - closes[i - 1]
-        if chg >= 0:
-            gains.append(chg)
-            losses.append(0)
-        else:
-            gains.append(0)
-            losses.append(-chg)
-    avg_gain = statistics.mean(gains)
-    avg_loss = statistics.mean(losses)
+        gains.append(max(chg, 0))
+        losses.append(max(-chg, 0))
+
+    # Wilder 平滑：初始值用 SMA，后续用指数平滑
+    avg_gain = sum(gains[:period]) / period
+    avg_loss = sum(losses[:period]) / period
+    for i in range(period, len(gains)):
+        avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+        avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+
     if avg_loss == 0:
         rsi = 100
     else:
-        rsi = 100 - 100 / (1 + avg_gain / avg_loss)
+        rs = avg_gain / avg_loss
+        rsi = 100 - 100 / (1 + rs)
+
     signal = 0
     if rsi < 30:
         signal = 1

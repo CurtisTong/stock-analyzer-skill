@@ -4,22 +4,9 @@ import json
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common import BaseFetcher, http_get
+from common import BaseFetcher, http_get, to_secid
 
 EASTMONEY_QUOTE_URL = "http://push2.eastmoney.com/api/qt/stock/get?secid={secid}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f55,f57,f58,f60,f116,f117,f162,f167,f168,f169,f170"
-
-
-def _to_secid(code: str) -> str:
-    """转换为东方财富 secid 格式。"""
-    c = code.strip().lower()
-    if c.startswith("sh"):
-        return f"1.{c[2:]}"
-    if c.startswith("sz"):
-        return f"0.{c[2:]}"
-    plain = c.lstrip("shszbj")
-    if plain.startswith(("60", "68", "51", "56", "58")):
-        return f"1.{plain}"
-    return f"0.{plain}"
 
 
 def _div100(v):
@@ -43,7 +30,7 @@ class EastmoneyQuoteFetcher(BaseFetcher):
         super().__init__("eastmoney_quote", priority=8)
 
     def fetch(self, code: str, **kwargs) -> dict | None:
-        secid = _to_secid(code)
+        secid = to_secid(code)
         url = EASTMONEY_QUOTE_URL.format(secid=secid)
         raw = http_get(url)
         try:
