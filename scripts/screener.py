@@ -152,7 +152,6 @@ def _try_fetch_from_mapping(sector: str) -> list[str]:
     if not mapping_path.exists():
         return []
     try:
-        import time as _time
         from refresh_pool import fetch_multiple_boards, build_sector_pool
         mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
         # 模糊匹配板块名
@@ -336,7 +335,6 @@ def valuation_score(quote, fin, industry="默认"):
         elif peg <= peg_reasonable * 1.5:
             score += 12
 
-    score += clamp(to_float(fin.get("ROEJQ")) / 20 * 10)
     return clamp(score)
 
 
@@ -344,9 +342,9 @@ def momentum_score(features, quote):
     ret20 = features["ret20"]
     volume_ratio = features["volume_ratio"]
     turnover = to_float(quote.get("turnover"))
-    change_pct = to_float(quote.get("change_pct"))
 
-    score = 45 if features["trend"] > 0 else 22 if features["trend"] == 0 else 8
+    # 趋势基础分：缩小上升/下降差距，避免过度敏感
+    score = 40 if features["trend"] > 0 else 20 if features["trend"] == 0 else 12
     score += clamp((ret20 + 8) / 25 * 22)
     score += clamp((volume_ratio - 0.6) / 1.4 * 12)
     score += clamp(turnover / 6 * 6)
@@ -373,10 +371,6 @@ def momentum_score(features, quote):
         score += 8
     elif vol_price_signal < 0:
         score -= 10
-
-    # 涨跌停附近扣分（保留原逻辑但降低权重）
-    if abs(change_pct) >= 9.5:
-        score -= 12
 
     return clamp(score)
 

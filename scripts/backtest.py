@@ -15,8 +15,9 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import to_float, normalize_quote_code, DATA_DIR
+from common import to_float, normalize_quote_code, normalize_finance_code, DATA_DIR
 from kline import fetch as fetch_kline
+from finance import fetch as fetch_finance
 from screener import STRATEGIES
 
 
@@ -74,8 +75,12 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
         code = q.get("code", "")
         industry = infer_industry(q.get("name", ""), code)
 
-        # 获取财务数据（简化：用空数据）
-        fin = {}
+        # 获取财务数据
+        try:
+            fin_records = fetch_finance(normalize_finance_code(code))
+            fin = fin_records[0] if fin_records else {}
+        except Exception:
+            fin = {}
 
         # 获取技术特征
         try:
@@ -236,35 +241,38 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
     base_score = base_report.get("sharpe_ratio", 0)
     print(f"  基准夏普: {base_score:.2f}", flush=True)
 
-    # 网格搜索（简化版：逐维度调整）
-    for key in base_keys:
-        for step in steps:
-            test_weights = {k: base[k] for k in base_keys}
-            test_weights[key] = max(0.05, test_weights[key] + step)
+    # 保存原始权重，确保异常时也能恢复
+    original_weights = {k: base[k] for k in base_keys}
 
-            # 归一化
-            total = sum(test_weights.values())
-            test_weights = {k: v / total for k, v in test_weights.items()}
+    try:
+        # 网格搜索（简化版：逐维度调整）
+        for key in base_keys:
+            for step in steps:
+                test_weights = {k: base[k] for k in base_keys}
+                test_weights[key] = max(0.05, test_weights[key] + step)
 
-            # 临时修改策略权重
-            original = STRATEGIES[strategy_name].copy()
-            STRATEGIES[strategy_name].update(test_weights)
+                # 归一化
+                total = sum(test_weights.values())
+                test_weights = {k: v / total for k, v in test_weights.items()}
 
-            report = run_backtest(strategy_name, codes, top_n, days, 3)
-            score = report.get("sharpe_ratio", 0)
+                # 临时修改策略权重（安全：用 try/finally 保护）
+                STRATEGIES[strategy_name].update(test_weights)
 
-            # 恢复原始权重
-            STRATEGIES[strategy_name].update(original)
+                report = run_backtest(strategy_name, codes, top_n, days, 3)
+                score = report.get("sharpe_ratio", 0)
 
-            results.append({
-                "weights": {k: round(v, 3) for k, v in test_weights.items()},
-                "sharpe": score,
-                "return": report.get("total_return_pct", 0),
-            })
+                results.append({
+                    "weights": {k: round(v, 3) for k, v in test_weights.items()},
+                    "sharpe": score,
+                    "return": report.get("total_return_pct", 0),
+                })
 
-            if score > best_score:
-                best_score = score
-                best_weights = test_weights.copy()
+                if score > best_score:
+                    best_score = score
+                    best_weights = test_weights.copy()
+    finally:
+        # 确保恢复原始权重
+        STRATEGIES[strategy_name].update(original_weights)
 
     return {
         "strategy": strategy_name,

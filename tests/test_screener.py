@@ -271,10 +271,12 @@ class TestMomentumScore:
         death = momentum_score(self._make_features(macd_signal=-1), sample_quote)
         assert golden > neutral > death
 
-    def test_limit_up_penalty(self, sample_quote):
+    def test_limit_up_no_penalty_in_momentum(self, sample_quote):
+        """涨跌停扣分已移至 hard_filter，momentum_score 不再重复扣分"""
         normal = momentum_score(self._make_features(), sample_quote)
         limit_up = momentum_score(self._make_features(), {**sample_quote, "change_pct": "9.8"})
-        assert normal > limit_up
+        # momentum_score 不再对涨跌停扣分，两者应相等
+        assert normal == limit_up
 
     def test_rsi_extreme_penalty(self, sample_quote):
         normal = momentum_score(self._make_features(rsi=50), sample_quote)
