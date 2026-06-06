@@ -182,6 +182,9 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
 def infer_industry(name: str, code: str = "") -> str:
     """根据股票名称和代码推断行业分类。"""
     name = name.upper()
+    # 科创板（688开头）默认归类为科技
+    if code.startswith("688") or code.startswith("sh688"):
+        return "科技"
     # 金融：银行、保险、证券、信托
     if any(kw in name for kw in ["银行", "保险", "证券", "信托", "金融", "资管"]):
         return "金融"
@@ -192,7 +195,9 @@ def infer_industry(name: str, code: str = "") -> str:
     if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗", "器械", "基因"]):
         return "医药"
     # 科技
-    if any(kw in name for kw in ["科技", "软件", "信息", "智能", "芯片", "半导体", "电子", "通信", "计算"]):
+    if any(kw in name for kw in ["科技", "软件", "信息", "智能", "芯片", "半导体", "电子", "通信", "计算",
+                                  "技术", "威视", "光电", "网络", "数据", "云计算", "人工智能", "机器人",
+                                  "物联网", "安防", "集成", "激光", "光学", "显示", "面板"]):
         return "科技"
     # 消费
     if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒", "茅台", "五粮液", "海天", "伊利"]):

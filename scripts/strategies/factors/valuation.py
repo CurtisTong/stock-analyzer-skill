@@ -20,7 +20,16 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
 
     score = 0
     # PE 评分（行业差异化）
-    if 0 < pe <= pe_undervalued:
+    if pe <= 0:
+        # 亏损股：PB 仍可参考（净资产为正时）
+        if 0 < pb <= 1:
+            score += 20  # 破净，可能被低估
+        elif 1 < pb <= 2:
+            score += 12
+        # 亏损收窄加分
+        if growth > 0:
+            score += 10
+    elif 0 < pe <= pe_undervalued:
         score += 38
     elif pe_undervalued < pe <= pe_reasonable:
         score += 38 - (pe - pe_undervalued) / (pe_reasonable - pe_undervalued) * 18
@@ -33,7 +42,7 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     elif 2 < pb <= 5:
         score += 24 - (pb - 2) / 3 * 14
 
-    # PEG 评分（行业差异化）
+    # PEG 评分（仅盈利股）
     if pe > 0 and growth > 0:
         peg = pe / growth
         if peg <= peg_undervalued:

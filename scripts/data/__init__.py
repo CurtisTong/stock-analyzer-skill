@@ -98,7 +98,11 @@ def get_finance(code: str, use_cache: bool = True) -> list:
     if use_cache:
         cached = cache.get_json(key, cfg.finance_cache_ttl)
         if cached:
-            return [_dict_to_finance(r) for r in cached]
+            records = [_dict_to_finance(r) for r in cached]
+            # 校验缓存有效性：至少有一个非零数据点
+            if any(r.eps != 0 or r.roe != 0 for r in records):
+                return records
+            # 零值缓存视为无效，忽略并重新拉取
 
     result = _finance_manager.fetch(code)
     if not result:
