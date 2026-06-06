@@ -269,7 +269,10 @@ def prefetch_finance_all(codes):
     results = {}
 
     def _fetch_one(code):
-        return code, _fetch_finance_dicts(code)
+        # 强制获取最新数据，避免旧缓存零值问题
+        from data import get_finance
+        records = get_finance(normalize_finance_code(code), use_cache=False)
+        return code, [r.to_dict() for r in records]
 
     with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {ex.submit(_fetch_one, c): c for c in codes}
@@ -318,8 +321,8 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "change_pct": quote.get("change_pct"),
         "pe": quote.get("pe"),
         "pb": quote.get("pb"),
-        "roe": fin.get("ROEJQ", "-"),
-        "profit_growth": fin.get("PARENTNETPROFITTZ", "-"),
+        "roe": fin.get("roe", fin.get("ROEJQ", "-")),
+        "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
         "ret20": round(features["ret20"], 1),
         "trend": "上升" if features["trend"] > 0 else "下降" if features["trend"] < 0 else "震荡",
         "rsi": features.get("rsi", 50),

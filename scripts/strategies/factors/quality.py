@@ -7,13 +7,14 @@ from strategies.thresholds import get_industry_threshold
 
 def quality_score(fin: dict, industry: str = "默认") -> float:
     """质量因子评分（行业差异化）。满分 100。"""
-    roe = to_float(fin.get("ROEJQ"))
-    profit_growth = to_float(fin.get("PARENTNETPROFITTZ"))
-    revenue_growth = to_float(fin.get("TOTALOPERATEREVETZ"))
-    gross_margin = to_float(fin.get("XSMLL"))
-    debt = to_float(fin.get("ZCFZL"))
-    eps = to_float(fin.get("EPSJB"))
-    cashflow = to_float(fin.get("MGJYXJJE"))
+    # 支持标准化字段名（data层）和原始东财字段名（兼容）
+    roe = to_float(fin.get("roe", fin.get("ROEJQ")))
+    profit_growth = to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ")))
+    revenue_growth = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ")))
+    gross_margin = to_float(fin.get("gross_margin", fin.get("XSMLL")))
+    debt = to_float(fin.get("debt_ratio", fin.get("ZCFZL")))
+    eps = to_float(fin.get("eps", fin.get("EPSJB")))
+    cashflow = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE")))
 
     # 行业差异化 ROE 基准
     roe_excellent = get_industry_threshold(industry, "roe_excellent", 20)

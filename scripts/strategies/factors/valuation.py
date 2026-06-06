@@ -9,7 +9,7 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     """估值因子评分（行业差异化）。满分 100。"""
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
-    growth = max(to_float(fin.get("PARENTNETPROFITTZ")), 0)
+    growth = max(to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ"))), 0)
 
     # 行业差异化 PE 阈值
     pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)
