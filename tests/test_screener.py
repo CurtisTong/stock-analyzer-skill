@@ -553,13 +553,22 @@ class TestInferIndustry:
     """行业推断逻辑。"""
 
     def test_bank_industry(self):
-        assert infer_industry("招商银行") == "金融"
+        assert infer_industry("招商银行") == "银行"
+
+    def test_broker_industry(self):
+        assert infer_industry("中信证券") == "券商"
 
     def test_pharma_industry(self):
         assert infer_industry("恒瑞医药") == "医药"
 
     def test_tech_industry(self):
         assert infer_industry("中芯国际科技") == "科技"
+
+    def test_semiconductor_industry(self):
+        assert infer_industry("中芯国际半导体") == "半导体"
+
+    def test_software_industry(self):
+        assert infer_industry("用友软件") == "软件"
 
     def test_consumer_industry(self):
         assert infer_industry("贵州茅台白酒") == "消费"

@@ -185,8 +185,13 @@ def infer_industry(name: str, code: str = "") -> str:
     # 科创板（688开头）默认归类为科技
     if code.startswith("688") or code.startswith("sh688"):
         return "科技"
-    # 金融：银行、保险、证券、信托
-    if any(kw in name for kw in ["银行", "保险", "证券", "信托", "金融", "资管"]):
+    # 金融子类：银行、券商
+    if any(kw in name for kw in ["银行"]):
+        return "银行"
+    if any(kw in name for kw in ["证券", "券商"]):
+        return "券商"
+    # 金融（保险、信托等）
+    if any(kw in name for kw in ["保险", "信托", "金融", "资管"]):
         return "金融"
     # 地产
     if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利", "碧桂园"]):
@@ -194,10 +199,15 @@ def infer_industry(name: str, code: str = "") -> str:
     # 医药
     if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗", "器械", "基因"]):
         return "医药"
-    # 科技
-    if any(kw in name for kw in ["科技", "软件", "信息", "智能", "芯片", "半导体", "电子", "通信", "计算",
-                                  "技术", "威视", "光电", "网络", "数据", "云计算", "人工智能", "机器人",
-                                  "物联网", "安防", "集成", "激光", "光学", "显示", "面板"]):
+    # 科技子类：半导体、软件
+    if any(kw in name for kw in ["半导体", "芯片", "晶圆", "封测", "存储"]):
+        return "半导体"
+    if any(kw in name for kw in ["软件", "信息", "数据", "云计算", "人工智能", "物联网", "网络"]):
+        return "软件"
+    # 科技（其他）
+    if any(kw in name for kw in ["科技", "智能", "电子", "通信", "计算",
+                                  "技术", "威视", "光电", "机器人",
+                                  "安防", "集成", "激光", "光学", "显示", "面板"]):
         return "科技"
     # 消费
     if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒", "茅台", "五粮液", "海天", "伊利"]):

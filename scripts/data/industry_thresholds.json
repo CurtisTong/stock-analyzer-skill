@@ -15,6 +15,32 @@
     "notes": "银行/保险 ROE 天然 10-15%，负债率 90%+ 属正常，用资本充足率替代负债率"
   },
 
+  "银行": {
+    "roe_min": 8,
+    "roe_excellent": 12,
+    "gross_margin_min": 0,
+    "debt_ratio_max": 95,
+    "pe_undervalued": 5,
+    "pe_reasonable": 8,
+    "pe_expensive": 12,
+    "peg_undervalued": 0.5,
+    "peg_reasonable": 1.0,
+    "notes": "银行 ROE 天然偏低（8-12%），PE 极低（5-8倍），高负债率属正常"
+  },
+
+  "券商": {
+    "roe_min": 8,
+    "roe_excellent": 18,
+    "gross_margin_min": 0,
+    "debt_ratio_max": 85,
+    "pe_undervalued": 10,
+    "pe_reasonable": 18,
+    "pe_expensive": 28,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 1.5,
+    "notes": "券商 ROE 波动大（牛市高熊市低），PE 中等，周期性强"
+  },
+
   "消费": {
     "roe_min": 15,
     "roe_excellent": 25,
@@ -39,6 +65,32 @@
     "peg_undervalued": 0.8,
     "peg_reasonable": 2.0,
     "notes": "科技股 PE 30-50 常态，高研发投入导致短期 ROE 偏低，不能用传统标准"
+  },
+
+  "半导体": {
+    "roe_min": 8,
+    "roe_excellent": 15,
+    "gross_margin_min": 25,
+    "debt_ratio_max": 55,
+    "pe_undervalued": 25,
+    "pe_reasonable": 50,
+    "pe_expensive": 80,
+    "peg_undervalued": 0.8,
+    "peg_reasonable": 2.0,
+    "notes": "半导体重资产，ROE 天然偏低（8-15%），PE 容忍度高（25-80），研发投入大"
+  },
+
+  "软件": {
+    "roe_min": 12,
+    "roe_excellent": 22,
+    "gross_margin_min": 50,
+    "debt_ratio_max": 45,
+    "pe_undervalued": 30,
+    "pe_reasonable": 60,
+    "pe_expensive": 100,
+    "peg_undervalued": 1.0,
+    "peg_reasonable": 2.5,
+    "notes": "软件轻资产高毛利（50%+），ROE 偏高，PE 估值更激进（30-100）"
   },
 
   "周期": {
