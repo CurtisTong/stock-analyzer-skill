@@ -1,0 +1,159 @@
+# A 股评分系统配置
+
+# 均线排列评分
+alignment_scores:
+  多头排列: 20
+  交叉震荡: 12
+  空头排列: 3
+  数据不足: 7
+
+# MACD 评分
+macd_scores:
+  金叉放大: 15
+  金叉: 10
+  死叉: 3
+  中性: 7
+
+# 市场环境权重调整
+market_weights:
+  牛市:
+    bullish_bias: 1.3
+    trend_following: 1.4
+    breakout: 1.3
+    divergence_bottom: 0.5
+    buy_point_1: 0.5
+    buy_point_3: 1.3
+    overbought: 0.8
+    desc: "牛市：趋势跟随加权，底背离/一买降权"
+  
+  熊市:
+    bullish_bias: 1.5
+    trend_following: 0.6
+    breakout: 0.6
+    divergence_bottom: 1.5
+    buy_point_1: 1.5
+    buy_point_3: 0.5
+    overbought: 1.3
+    desc: "熊市：反转信号加权，追涨信号降权"
+  
+  震荡:
+    bullish_bias: 1.0
+    trend_following: 0.8
+    breakout: 0.8
+    divergence_bottom: 1.2
+    buy_point_1: 1.1
+    buy_point_3: 1.2
+    overbought: 1.0
+    desc: "震荡：反转+区间交易加权，趋势信号降权"
+  
+  冰点:
+    bullish_bias: 1.8
+    trend_following: 0.3
+    breakout: 0.4
+    divergence_bottom: 1.8
+    buy_point_1: 2.0
+    buy_point_3: 0.3
+    overbought: 1.5
+    desc: "冰点：极度超卖反转加权，趋势信号大幅降权"
+  
+  亢奋:
+    bullish_bias: 0.6
+    trend_following: 0.5
+    breakout: 0.5
+    divergence_bottom: 0.4
+    buy_point_1: 0.3
+    buy_point_3: 0.5
+    overbought: 0.3
+    desc: "亢奋：全面保守，警惕反转"
+
+# 个股类型 × 指标权重
+stock_type_weights:
+  题材股:
+    ma: 0.6
+    macd: 0.5
+    kdj: 0.5
+    boll: 0.8
+    rsi: 1.0
+    volume: 1.3
+    pattern: 1.5
+    limit: 1.5
+    chan: 0.5
+  
+  蓝筹股:
+    ma: 1.3
+    macd: 1.1
+    kdj: 0.4
+    boll: 1.2
+    rsi: 0.9
+    volume: 0.8
+    pattern: 0.7
+    limit: 0.3
+    chan: 0.8
+  
+  强成长股:
+    ma: 0.9
+    macd: 1.3
+    kdj: 0.4
+    boll: 1.2
+    rsi: 0.9
+    volume: 1.2
+    pattern: 0.8
+    limit: 0.5
+    chan: 0.7
+  
+  周期股:
+    ma: 0.6
+    macd: 1.3
+    kdj: 1.2
+    boll: 1.0
+    rsi: 0.9
+    volume: 0.9
+    pattern: 0.7
+    limit: 0.4
+    chan: 1.3
+  
+  稳成长股:
+    ma: 1.2
+    macd: 1.1
+    kdj: 0.5
+    boll: 1.0
+    rsi: 1.0
+    volume: 0.9
+    pattern: 1.0
+    limit: 0.3
+    chan: 0.8
+  
+  防御股:
+    ma: 0.8
+    macd: 0.9
+    kdj: 0.6
+    boll: 1.1
+    rsi: 1.1
+    volume: 0.7
+    pattern: 0.7
+    limit: 0.3
+    chan: 0.9
+  
+  普通股:
+    ma: 1.0
+    macd: 1.0
+    kdj: 1.0
+    boll: 1.0
+    rsi: 1.0
+    volume: 1.0
+    pattern: 1.0
+    limit: 1.0
+    chan: 1.0
+
+# 默认行业阈值
+industry_defaults:
+  pe_undervalued: 15
+  pe_reasonable: 25
+  pe_expensive: 40
+  peg_undervalued: 0.8
+  peg_reasonable: 1.5
+  roe_excellent: 20
+  gross_margin_min: 20
+  debt_ratio_max: 60
+  profit_growth_excellent: 40
+  revenue_growth_excellent: 30

@@ -1,0 +1,48 @@
+# A 股市场限制配置
+
+# 涨跌停限制 (%)
+board_limits:
+  主板: 9.5
+  创业板: 19.5
+  科创板: 19.5
+  北交所: 29.5
+
+# 最低市值要求 (亿元)
+min_total_cap:
+  主板: 40
+  创业板: 20
+  科创板: 20
+  北交所: 10
+
+# 最低成交额要求 (万元)
+min_amount:
+  主板: 5000
+  创业板: 3000
+  科创板: 3000
+  北交所: 1000
+
+# 退市风险市值 (亿元)
+min_survival_cap:
+  主板: 3
+  创业板: 2
+  科创板: 2
+  北交所: 1
+
+# ST 风险检测 (名称前缀)
+st_prefixes:
+  - "ST"
+  - "*ST"
+  - "S*ST"
+  - "SST"
+
+# 商誉减值风险阈值 (%)
+goodwill_ratio_warning: 30
+goodwill_ratio_danger: 50
+
+# 股权质押风险阈值 (%)
+pledge_ratio_warning: 70
+pledge_ratio_danger: 85
+
+# 连续亏损检测
+loss_years_warning: 2
+loss_years_danger: 3

@@ -1,0 +1,125 @@
+# 数据源配置
+
+# 行情数据源优先级 (数字越大优先级越高)
+quote_sources:
+  tencent:
+    priority: 10
+    enabled: true
+    timeout: 10
+    retry: 3
+  
+  eastmoney:
+    priority: 8
+    enabled: true
+    timeout: 10
+    retry: 3
+  
+  sina:
+    priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+  
+  efinance:
+    priority: 3
+    enabled: true
+    timeout: 15
+    retry: 2
+  
+  akshare:
+    priority: 2
+    enabled: true
+    timeout: 20
+    retry: 1
+  
+  tushare:
+    priority: 1
+    enabled: true
+    timeout: 20
+    retry: 1
+
+# K线数据源配置
+kline_sources:
+  sina:
+    priority: 10
+    enabled: true
+    timeout: 15
+    max_datalen: 1024
+  
+  eastmoney:
+    priority: 8
+    enabled: true
+    timeout: 15
+    max_datalen: 500
+  
+  tencent:
+    priority: 6
+    enabled: true
+    timeout: 15
+    max_datalen: 500
+  
+  efinance:
+    priority: 4
+    enabled: true
+    timeout: 20
+    max_datalen: 500
+  
+  akshare:
+    priority: 3
+    enabled: true
+    timeout: 30
+    max_datalen: 500
+  
+  tushare:
+    priority: 2
+    enabled: true
+    timeout: 30
+    max_datalen: 500
+  
+  baostock:
+    priority: 1
+    enabled: true
+    timeout: 30
+    max_datalen: 500
+
+# 财务数据源配置
+finance_sources:
+  eastmoney:
+    priority: 10
+    enabled: true
+    timeout: 15
+    retry: 3
+  
+  efinance:
+    priority: 5
+    enabled: true
+    timeout: 20
+    retry: 2
+  
+  akshare:
+    priority: 3
+    enabled: true
+    timeout: 30
+    retry: 1
+
+# 熔断器配置
+circuit_breaker:
+  failure_threshold: 5
+  recovery_timeout: 60
+  half_open_max: 3
+
+# HTTP 配置
+http:
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+  max_redirects: 3
+  connect_timeout: 10
+  read_timeout: 30
+
+# 缓存配置
+cache:
+  quote_ttl: 900      # 15分钟
+  kline_ttl: 21600   # 6小时
+  finance_ttl: 21600 # 6小时
+  ann_ttl: 1800      # 30分钟
+  max_size: 1000     # 最大缓存文件数
+  max_age: 604800    # 7天

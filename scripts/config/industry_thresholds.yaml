@@ -1,0 +1,158 @@
+# 行业差异化财务阈值
+
+thresholds:
+  银行:
+    pe_undervalued: 8
+    pe_reasonable: 12
+    pe_expensive: 18
+    peg_undervalued: 0.5
+    peg_reasonable: 1.0
+    roe_excellent: 12
+    gross_margin_min: 30
+    debt_ratio_max: 90
+    profit_growth_excellent: 10
+    revenue_growth_excellent: 5
+  
+  券商:
+    pe_undervalued: 15
+    pe_reasonable: 25
+    pe_expensive: 35
+    peg_undervalued: 0.8
+    peg_reasonable: 1.5
+    roe_excellent: 10
+    gross_margin_min: 25
+    debt_ratio_max: 80
+    profit_growth_excellent: 15
+    revenue_growth_excellent: 10
+  
+  地产:
+    pe_undervalued: 6
+    pe_reasonable: 10
+    pe_expensive: 15
+    peg_undervalued: 0.4
+    peg_reasonable: 0.8
+    roe_excellent: 10
+    gross_margin_min: 20
+    debt_ratio_max: 85
+    profit_growth_excellent: 8
+    revenue_growth_excellent: 10
+  
+  医药:
+    pe_undervalued: 25
+    pe_reasonable: 40
+    pe_expensive: 60
+    peg_undervalued: 1.0
+    peg_reasonable: 2.0
+    roe_excellent: 18
+    gross_margin_min: 50
+    debt_ratio_max: 60
+    profit_growth_excellent: 25
+    revenue_growth_excellent: 20
+  
+  半导体:
+    pe_undervalued: 30
+    pe_reasonable: 50
+    pe_expensive: 80
+    peg_undervalued: 1.0
+    peg_reasonable: 2.0
+    roe_excellent: 15
+    gross_margin_min: 40
+    debt_ratio_max: 70
+    profit_growth_excellent: 30
+    revenue_growth_excellent: 25
+  
+  软件:
+    pe_undervalued: 35
+    pe_reasonable: 55
+    pe_expensive: 90
+    peg_undervalued: 1.2
+    peg_reasonable: 2.5
+    roe_excellent: 15
+    gross_margin_min: 45
+    debt_ratio_max: 65
+    profit_growth_excellent: 35
+    revenue_growth_excellent: 30
+  
+  消费:
+    pe_undervalued: 20
+    pe_reasonable: 30
+    pe_expensive: 45
+    peg_undervalued: 0.8
+    peg_reasonable: 1.5
+    roe_excellent: 20
+    gross_margin_min: 35
+    debt_ratio_max: 60
+    profit_growth_excellent: 20
+    revenue_growth_excellent: 15
+  
+  能源:
+    pe_undervalued: 10
+    pe_reasonable: 18
+    pe_expensive: 25
+    peg_undervalued: 0.5
+    peg_reasonable: 1.0
+    roe_excellent: 12
+    gross_margin_min: 15
+    debt_ratio_max: 70
+    profit_growth_excellent: 15
+    revenue_growth_excellent: 10
+  
+  周期:
+    pe_undervalued: 12
+    pe_reasonable: 20
+    pe_expensive: 30
+    peg_undervalued: 0.6
+    peg_reasonable: 1.2
+    roe_excellent: 15
+    gross_margin_min: 15
+    debt_ratio_max: 70
+    profit_growth_excellent: 25
+    revenue_growth_excellent: 20
+  
+  制造:
+    pe_undervalued: 18
+    pe_reasonable: 28
+    pe_expensive: 40
+    peg_undervalued: 0.8
+    peg_reasonable: 1.5
+    roe_excellent: 15
+    gross_margin_min: 20
+    debt_ratio_max: 65
+    profit_growth_excellent: 25
+    revenue_growth_excellent: 20
+  
+  军工:
+    pe_undervalued: 50
+    pe_reasonable: 70
+    pe_expensive: 100
+    peg_undervalued: 1.5
+    peg_reasonable: 2.5
+    roe_excellent: 12
+    gross_margin_min: 30
+    debt_ratio_max: 70
+    profit_growth_excellent: 20
+    revenue_growth_excellent: 15
+  
+  科技:
+    pe_undervalued: 30
+    pe_reasonable: 50
+    pe_expensive: 80
+    peg_undervalued: 1.0
+    peg_reasonable: 2.0
+    roe_excellent: 15
+    gross_margin_min: 40
+    debt_ratio_max: 70
+    profit_growth_excellent: 30
+    revenue_growth_excellent: 25
+  
+  默认:
+    pe_undervalued: 15
+    pe_reasonable: 25
+    pe_expensive: 40
+    peg_undervalued: 0.8
+    peg_reasonable: 1.5
+    roe_excellent: 20
+    gross_margin_min: 20
+    debt_ratio_max: 60
+    profit_growth_excellent: 40
+    revenue_growth_excellent: 30

@@ -2,6 +2,12 @@
 """
 公共工具：编码转换、HTTP 请求、字段映射、ETF 代码表。
 被 quote.py / finance.py / kline.py / announcements.py 复用。
+
+包结构:
+- common/           # 公共工具包
+  - __init__.py    # 主模块 (原 common.py 内容)
+  - exceptions/    # 统一异常类
+  - validators.py  # 输入验证器
 """
 import hashlib
 import os
@@ -27,16 +33,31 @@ USER_AGENTS = [
     "stock-analyzer-skill/1.0",
 ]
 
-# ---------- 磁盘缓存（统一由 data/cache.py 管理）----------
+# 延迟导入 data.cache，避免循环依赖
+_cache_module = None
 
-from data.cache import (
-    CACHE_DIR,
-    get as cache_get,
-    set as cache_set,
-    cleanup as cache_cleanup,
-    cache_key,
-    cache_key_for_stock,
-)
+def _get_cache_module():
+    global _cache_module
+    if _cache_module is None:
+        from data import cache as _cache_module
+    return _cache_module
+
+
+# ---------- 磁盘缓存代理函数 ----------
+# 延迟解析 data.cache 模块
+
+def _get_cache_items():
+    cache = _get_cache_module()
+    return cache.CACHE_DIR, cache.get, cache.set, cache.cleanup, cache.cache_key, cache.cache_key_for_stock
+
+
+def __getattr__(name):
+    if name in ("CACHE_DIR", "cache_get", "cache_set", "cache_cleanup", "cache_key", "cache_key_for_stock"):
+        items = _get_cache_items()
+        names = ("CACHE_DIR", "cache_get", "cache_set", "cache_cleanup", "cache_key", "cache_key_for_stock")
+        idx = names.index(name)
+        return items[idx]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
@@ -505,3 +526,81 @@ class DataFetcherManager:
                     pass
 
         return fallback
+
+
+# ═══════════════════════════════════════════════════════════════
+# 新增模块导出 (2026-06)
+# ═══════════════════════════════════════════════════════════════
+
+# 统一异常类
+from common.exceptions import (
+    StockAnalyzerError,
+    DataError,
+    NetworkError,
+    RateLimitError,
+    ParseError,
+    DataUnavailableError,
+    BusinessError,
+    ValidationError,
+    StrategyError,
+    InsufficientDataError,
+    ConfigurationError,
+    format_error,
+    is_retryable_error,
+)
+
+# 输入验证器
+from common.validators import (
+    validate_code,
+    normalize_code,
+    validate_codes,
+    validate_date,
+    validate_date_range,
+    validate_positive,
+    validate_in_range,
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 兼容旧代码：别名映射
+# ═══════════════════════════════════════════════════════════════
+
+# 旧名称 -> 新名称映射 (保持向后兼容)
+DataSourceUnavailableError = NetworkError
+DataParseError = ParseError
+DataError = DataError  # 已经是新异常类
+
+__all__ = [
+    # 原有导出
+    "PACKAGE_ROOT", "DATA_DIR", "CACHE_DIR", "USER_AGENTS",
+    "http_get", "http_get_cached", "http_get_cached_keyed",
+    "decode_gbk", "TENCENT_FIELDS", "parse_tencent_line",
+    "SINA_QUOTE_URL", "parse_sina_quote_line", "EAST_MONEY_FIELDS",
+    "split_codes", "plain_code", "infer_exchange",
+    "normalize_quote_code", "normalize_finance_code", "to_secid",
+    "board_type", "batchify", "to_float", "to_int", "clamp",
+    "err", "parallel_map", "RateLimitError", "DataSourceUnavailableError",
+    "DataParseError", "DataError", "DataError",
+    "CircuitState", "CircuitBreaker", "get_circuit_breaker",
+    "BaseFetcher", "DataFetcherManager",
+
+    # 新增导出
+    "StockAnalyzerError",
+    "NetworkError",
+    "ParseError",
+    "DataUnavailableError",
+    "BusinessError",
+    "ValidationError",
+    "StrategyError",
+    "InsufficientDataError",
+    "ConfigurationError",
+    "format_error",
+    "is_retryable_error",
+    "validate_code",
+    "normalize_code",
+    "validate_codes",
+    "validate_date",
+    "validate_date_range",
+    "validate_positive",
+    "validate_in_range",
+]

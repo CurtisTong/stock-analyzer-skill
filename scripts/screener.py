@@ -31,6 +31,13 @@ from technical.core import ema
 from technical.macd import macd_full as macd_features
 from technical.rsi import rsi_features
 
+# 从配置文件加载限制参数
+try:
+    from config import get_limit_config, get_scoring_config
+    _USE_CONFIG = True
+except ImportError:
+    _USE_CONFIG = False
+
 
 # ---------- 数据层适配函数 ----------
 
@@ -202,6 +209,34 @@ def daily_features(code):
     }
 
 
+def _get_board_limit(board: str) -> float:
+    """获取板块涨跌停限制。"""
+    if _USE_CONFIG:
+        return get_limit_config(f"board_limits.{board}", 9.5)
+    return {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(board, 9.5)
+
+
+def _get_min_survival_cap(board: str) -> float:
+    """获取板块最低生存市值。"""
+    if _USE_CONFIG:
+        return get_limit_config(f"min_survival_cap.{board}", 3)
+    return {"主板": 3, "创业板": 2, "科创板": 2, "北交所": 1}.get(board, 3)
+
+
+def _get_goodwill_warning_threshold() -> float:
+    """获取商誉减值警告阈值。"""
+    if _USE_CONFIG:
+        return get_limit_config("goodwill_ratio_warning", 30)
+    return 30
+
+
+def _get_pledge_warning_threshold() -> float:
+    """获取股权质押警告阈值。"""
+    if _USE_CONFIG:
+        return get_limit_config("pledge_ratio_warning", 70)
+    return 70
+
+
 def hard_filter(quote, fin, args):
     reasons = []
     name = quote.get("name", "")
@@ -210,11 +245,16 @@ def hard_filter(quote, fin, args):
 
     # ST 检测：A 股 ST 标记在名称开头，用前缀匹配而非子串匹配
     upper_name = name.upper()
-    if upper_name.startswith("ST") or upper_name.startswith("*ST"):
-        reasons.append("ST风险")
+    if _USE_CONFIG:
+        st_prefixes = get_limit_config("st_prefixes", ["ST", "*ST"])
+        if any(upper_name.startswith(p) for p in st_prefixes):
+            reasons.append("ST风险")
+    else:
+        if upper_name.startswith("ST") or upper_name.startswith("*ST"):
+            reasons.append("ST风险")
 
-    # 退市风险：市值过小（主板<3亿、创业板/科创板<2亿）
-    min_survival_cap = {"主板": 3, "创业板": 2, "科创板": 2, "北交所": 1}.get(bd, 3)
+    # 退市风险：市值过小
+    min_survival_cap = _get_min_survival_cap(bd)
     if 0 < to_float(quote.get("total_cap")) < min_survival_cap:
         reasons.append(f"市值<{min_survival_cap}亿(退市风险)")
 
@@ -222,29 +262,45 @@ def hard_filter(quote, fin, args):
     if to_float(fin.get("EPSJB")) < 0:
         reasons.append("EPS<0(亏损)")
 
-    # 商誉减值风险（可选字段，无数据时跳过）
+    # 商誉减值风险（可选字段���无数据时跳过）
     goodwill_ratio = to_float(fin.get("GOODWILL_RATIO", 0))
-    if goodwill_ratio > 30:
+    goodwill_threshold = _get_goodwill_warning_threshold()
+    if goodwill_ratio > goodwill_threshold:
         reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
     # 股权质押率过高（可选字段，无数据时跳过）
     pledge_ratio = to_float(fin.get("PLEDGE_RATIO", 0))
-    if pledge_ratio > 70:
+    pledge_threshold = _get_pledge_warning_threshold()
+    if pledge_ratio > pledge_threshold:
         reasons.append(f"质押率>{pledge_ratio:.0f}%(爆仓风险)")
 
-    # 板块差异化阈值：主板 10%，科创/创业板 20%，北交所 30% 涨跌停
-    board_min_amount = {
-        "主板": args.min_amount,
-        "创业板": args.min_amount * 0.7,
-        "科创板": args.min_amount * 0.7,
-        "北交所": args.min_amount * 1.5,
-    }
-    board_min_cap = {
-        "主板": args.min_cap,
-        "创业板": args.min_cap * 0.6,
-        "科创板": args.min_cap * 0.6,
-        "北交所": args.min_cap * 0.4,
-    }
+    # 板块差异化阈值
+    if _USE_CONFIG:
+        board_min_amount = {
+            "主板": args.min_amount,
+            "创业板": get_limit_config("min_amount.创业板", 3000),
+            "科创板": get_limit_config("min_amount.科创板", 3000),
+            "北交所": get_limit_config("min_amount.北交所", 1000),
+        }
+        board_min_cap = {
+            "主板": args.min_cap,
+            "创业板": get_limit_config("min_total_cap.创业板", 20),
+            "科创板": get_limit_config("min_total_cap.科创板", 20),
+            "北交所": get_limit_config("min_total_cap.北交所", 10),
+        }
+    else:
+        board_min_amount = {
+            "主板": args.min_amount,
+            "创业板": args.min_amount * 0.7,
+            "科创板": args.min_amount * 0.7,
+            "北交所": args.min_amount * 1.5,
+        }
+        board_min_cap = {
+            "主板": args.min_cap,
+            "创业板": args.min_cap * 0.6,
+            "科创板": args.min_cap * 0.6,
+            "北交所": args.min_cap * 0.4,
+        }
     min_amt = board_min_amount.get(bd, args.min_amount)
     min_cap = board_min_cap.get(bd, args.min_cap)
 
@@ -255,8 +311,7 @@ def hard_filter(quote, fin, args):
 
     change_pct = abs(to_float(quote.get("change_pct")))
     # 涨跌停过滤：T+1 下当日无法交易
-    limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}
-    limit = limit_ratio.get(bd, 9.5)
+    limit = _get_board_limit(bd)
     if change_pct >= limit:
         reasons.append("涨跌停限制")
 
