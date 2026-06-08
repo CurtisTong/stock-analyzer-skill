@@ -23,8 +23,7 @@ from enum import Enum
 from pathlib import Path
 
 PACKAGE_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = Path(__file__).resolve().parent / "data"
-CACHE_DIR = PACKAGE_ROOT / ".cache"
+DATA_DIR = PACKAGE_ROOT / "data"
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -62,22 +61,24 @@ def __getattr__(name):
 
 def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。"""
-    key = cache_key(url)
-    cached = cache_get(key, ttl)
+    cache = _get_cache_module()
+    key = cache.cache_key(url)
+    cached = cache.get(key, ttl)
     if cached is not None:
         return cached
     data = http_get(url, timeout)
-    cache_set(key, data)
+    cache.set(key, data)
     return data
 
 
 def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带语义缓存键的 HTTP GET。"""
-    cached = cache_get(key, ttl)
+    cache = _get_cache_module()
+    cached = cache.get(key, ttl)
     if cached is not None:
         return cached
     data = http_get(url, timeout)
-    cache_set(key, data)
+    cache.set(key, data)
     return data
 
 # ---------- HTTP ----------
@@ -516,8 +517,9 @@ class DataFetcherManager:
 
         # 尝试从缓存降级
         if cache_prefix:
-            key = cache_key_for_stock(cache_prefix, code, **kwargs)
-            cached = cache_get(key, cache_ttl)
+            cache = _get_cache_module()
+            key = cache.cache_key_for_stock(cache_prefix, code, **kwargs)
+            cached = cache.get(key, cache_ttl)
             if cached is not None:
                 try:
                     import json
