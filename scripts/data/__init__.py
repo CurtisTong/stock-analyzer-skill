@@ -18,7 +18,12 @@ from . import cache
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from common import to_float, to_int
+
+
+def _get_common_helpers():
+    """延迟导入 common，避免 common.py ↔ data/__init__.py 循环导入。"""
+    from common import to_float, to_int
+    return to_float, to_int
 
 # 延迟导入 fetchers（避免循环导入），线程安全
 _fetchers_lock = threading.Lock()
@@ -129,6 +134,7 @@ def get_finance(code: str, use_cache: bool = True) -> list:
 
 
 def _dict_to_quote(d: dict) -> Quote:
+    to_float, to_int = _get_common_helpers()
     return Quote(
         code=d.get("code", ""),
         name=d.get("name", ""),
@@ -151,6 +157,7 @@ def _dict_to_quote(d: dict) -> Quote:
 
 
 def _dict_to_kline_bar(d: dict) -> KlineBar:
+    to_float, to_int = _get_common_helpers()
     return KlineBar(
         day=d.get("day", ""),
         open=to_float(d.get("open")),
@@ -166,6 +173,7 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
 
 def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
+    to_float, _ = _get_common_helpers()
     FIELD_MAP = {
         "report_date": ["REPORT_DATE", "REPORTDATETIME", "NOTICE_DATE"],
         "eps": ["EPSJB"],

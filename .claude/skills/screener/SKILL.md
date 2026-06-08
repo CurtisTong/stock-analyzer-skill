@@ -36,7 +36,6 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 先获取大盘指数和板块 ETF 数据来判断当前市场环境，再选择匹配的策略：
 
 ```bash
-cd ../../..
 python3 scripts/quote.py sh000001,sh510300,sh510500,sh518880 -j
 ```
 
@@ -53,7 +52,6 @@ python3 scripts/quote.py sh000001,sh510300,sh510500,sh518880 -j
 当前 skill 目录到包根目录为 `../../..`：
 
 ```bash
-cd ../../..
 python3 scripts/screener.py --strategy balanced --top 10
 python3 scripts/screener.py --sector 资源 --strategy quality_value --top 5
 python3 scripts/screener.py --codes sh600989,sz000807,300476 --strategy growth_momentum

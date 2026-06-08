@@ -230,3 +230,102 @@ git branch -d feat/<short-desc>
 - [ ] 一个提交只改一件事；无关文件已 `git reset`
 - [ ] 分支命名符合 `<type>/<短描述>` 规范
 - [ ] 已 rebase 到最新 `main`，历史线性
+
+---
+
+## 8. Claude Code Skill 开发规范
+
+本项目的 skill 位于 `.claude/skills/<name>/SKILL.md`，供 Claude Code 使用。以下是开发规范：
+
+### 8.1 路径规范
+
+**核心原则**：Claude Code 运行 Bash 时，工作目录**自动是项目根目录**，不是 skill 文件所在目录。
+
+```bash
+# ❌ 错误：使用相对路径 cd ../../..
+cd ../../..
+python3 scripts/quote.py sh600989
+
+# ✅ 正确：直接运行脚本
+python3 scripts/quote.py sh600989
+python3 scripts/finance.py SH600989
+python3 scripts/kline.py sh600989 240 30
+```
+
+如果 SKILL.md 中需要说明项目根目录，使用通用描述而非硬编码路径：
+
+```markdown
+# ❌ 错误：硬编码用户路径
+项目根目录为 `/Users/curtis/Documents/curtis/stock-analyzer-skill`
+
+# ✅ 正确：通用描述
+Claude Code 运行时工作目录即为项目根目录
+```
+
+### 8.2 避免循环导入
+
+Python 模块级导入顺序很重要。以下模式会导致循环导入错误：
+
+```
+common.py (line 32)  →  from data.cache import ...
+  → 触发加载 data/__init__.py (line 21)
+    → from common import to_float, to_int  ← 此时 common.py 还没执行完！
+      → ImportError
+```
+
+**解决方案**：使用延迟导入（在函数内部导入）：
+
+```python
+# ❌ 错误：模块顶层导入
+from common import to_float, to_int
+
+# ✅ 正确：延迟导入
+def _get_common_helpers():
+    """延迟导入 common，避免循环导入。"""
+    from common import to_float, to_int
+    return to_float, to_int
+
+def _dict_to_quote(d: dict) -> Quote:
+    to_float, to_int = _get_common_helpers()
+    return Quote(price=to_float(d.get("price")), ...)
+```
+
+### 8.3 权限配置
+
+项目级权限配置放在 `.claude/settings.json`（注意不是 `settings.local.json`）。
+
+权限规则应使用通配符匹配脚本名，而非硬编码具体股票代码：
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/quote.py *)",
+      "Bash(python3 scripts/finance.py *)",
+      "Bash(python3 scripts/kline.py *)",
+      "Bash(python3 scripts/technical.py *)",
+      "Bash(python3 scripts/screener.py *)"
+    ]
+  }
+}
+```
+
+### 8.4 测试验证
+
+修改 SKILL.md 或权限配置后，必须验证：
+
+```bash
+# 1. 脚本直接运行正常
+python3 scripts/quote.py sh600989
+
+# 2. 测试套件通过
+python3 -m pytest tests/ -x -q
+```
+
+### 8.5 本地调试
+
+在 Claude Code 中调试 skill 时：
+
+1. 先在终端验证脚本可以正常运行
+2. 检查 Claude Code 的工作目录：`pwd`
+3. 查看权限是否匹配：权限规则需要精确匹配命令格式

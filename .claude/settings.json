@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash tests/smoke_test.sh)",
+      "Bash(chmod:*)",
+      "Bash(iconv -f GBK -t UTF-8)",
+      "Bash(tr ';' '\\\\n')",
+      "Read(//Users/**)",
+      "Bash(python3 scripts/quote.py *)",
+      "Bash(python3 scripts/finance.py *)",
+      "Bash(python3 scripts/kline.py *)",
+      "Bash(python3 scripts/announcements.py *)",
+      "Bash(python3 scripts/technical.py *)",
+      "Bash(python3 scripts/screener.py *)",
+      "Bash(python3 scripts/backtest.py *)",
+      "Bash(python3 scripts/monitor.py *)",
+      "Bash(python3 scripts/chan.py *)",
+      "Bash(python3 -m pytest tests/ *)",
+      "Bash(python -m pytest tests/ *)",
+      "Bash(.venv/bin/python -m pytest tests/ *)",
+      "Bash(pip3 install:*)",
+      "Bash(.venv/bin/pip install:*)",
+      "Bash(ln:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "WebFetch(domain:emweb.securities.eastmoney.com)"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(rm -rf:*)",
+      "Bash(chmod 777:*)"
+    ]
+  }
+}
