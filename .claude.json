@@ -1,0 +1,6 @@
+{
+  "projectRules": {
+    "enabled": true,
+    "skillPaths": [".claude/skills"]
+  }
+}
