@@ -79,7 +79,7 @@ class TestSimulateStrategy:
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
+
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
         # 滚动窗口需要至少 60+holding_days 根 K 线
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
@@ -101,7 +101,7 @@ class TestSimulateStrategy:
         import backtest
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: [])
         monkeypatch.setattr(backtest, "get_finance", lambda code: [])
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [])
+
         result = backtest.simulate_strategy("balanced", ["sh600519"])
         assert "error" in result
 
@@ -116,7 +116,7 @@ class TestSimulateStrategy:
         # 提供足够的 K 线数据（100 根）
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=100: _make_kline_bars([10+i*0.2 for i in range(100)]))
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj])
+
 
         result = backtest.simulate_strategy("balanced", ["sh600519"], top_n=1, holding_days=10)
         assert "error" not in result
@@ -135,7 +135,7 @@ class TestSimulateStrategy:
             finance_called["count"] += 1
             return [finance_obj]
 
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj])
+
         monkeypatch.setattr(backtest, "get_finance", mock_get_finance)
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
@@ -152,7 +152,7 @@ class TestRunBacktest:
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
+
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
@@ -185,7 +185,7 @@ class TestOptimizeWeights:
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
+
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 
@@ -244,7 +244,7 @@ class TestCompareStrategies:
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_quotes", lambda codes: [quote_obj] * len(codes))
+
         monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
         monkeypatch.setattr(backtest, "get_kline", lambda code, scale=240, datalen=70: _make_kline_bars([10+i*0.3 for i in range(70)]))
 

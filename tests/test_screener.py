@@ -50,8 +50,8 @@ class TestStrategies:
     @pytest.mark.parametrize("name", list(STRATEGIES.keys()))
     def test_weight_sum_to_one(self, name):
         cfg = STRATEGIES[name]
-        keys = ["quality", "valuation", "momentum", "liquidity"]
-        total = sum(cfg[k] for k in keys)
+        keys = ["quality", "valuation", "momentum", "liquidity", "volatility"]
+        total = sum(cfg.get(k, 0) for k in keys)
         assert abs(total - 1.0) < 1e-9, f"{name} 权重之和 {total} != 1.0"
 
     @pytest.mark.parametrize("name", list(STRATEGIES.keys()))
@@ -63,8 +63,8 @@ class TestStrategies:
     @pytest.mark.parametrize("name", list(STRATEGIES.keys()))
     def test_weights_are_positive(self, name):
         cfg = STRATEGIES[name]
-        for k in ["quality", "valuation", "momentum", "liquidity"]:
-            assert cfg[k] > 0, f"{name}.{k} 应为正数"
+        for k in ["quality", "valuation", "momentum", "liquidity", "volatility"]:
+            assert cfg.get(k, 0) > 0, f"{name}.{k} 应为正数"
 
 
 # ====================================================================
@@ -504,13 +504,14 @@ class TestAnalyzeCode:
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
 
-        # 总分应为各维度加权和
+        # 总分应为各维度加权和（含波动率因子）
         w = STRATEGIES["balanced"]
         expected = (
             result["quality"] * w["quality"]
             + result["valuation"] * w["valuation"]
             + result["momentum"] * w["momentum"]
             + result["liquidity"] * w["liquidity"]
+            + result["volatility"] * w.get("volatility", 0)
         )
         assert result["score"] == pytest.approx(expected, abs=0.2)
 

@@ -7,4 +7,5 @@ from .registry import (
     register_strategy,
     list_strategies,
 )
-from .factors import quality_score, valuation_score, momentum_score, liquidity_score
+from .factors import quality_score, valuation_score, momentum_score, liquidity_score, volatility_score
+from .factors.volatility import volatility_from_closes

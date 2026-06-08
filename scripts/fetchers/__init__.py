@@ -16,8 +16,8 @@ def _try_import(module_name, class_name):
     try:
         import importlib
         mod = importlib.import_module(f".{module_name}", package=__name__)
-        return getattr(mod, class_name)
-    except (ImportError, AttributeError):
+        return getattr(mod, class_name, None)
+    except Exception:
         return None
 
 

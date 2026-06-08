@@ -38,8 +38,10 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
         elif rising:
             score += 5  # ROE 连续上升，基本面改善
 
-    score += clamp(profit_growth / 40 * 22)
-    score += clamp(revenue_growth / 30 * 16)
+    profit_growth_base = get_industry_threshold(industry, "profit_growth_excellent", 40)
+    score += clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
+    revenue_growth_base = get_industry_threshold(industry, "revenue_growth_excellent", 30)
+    score += clamp(revenue_growth / revenue_growth_base * 16) if revenue_growth_base > 0 else 0
     # 毛利率：相对于行业最低值评分
     if gross_margin_min > 0:
         score += clamp(gross_margin / (gross_margin_min * 2) * 16)

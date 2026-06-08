@@ -15,6 +15,10 @@ from typing import Optional
 from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
 from . import cache
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from common import to_float, to_int
 
 # 延迟导入 fetchers（避免循环导入），线程安全
 _fetchers_lock = threading.Lock()
@@ -121,40 +125,27 @@ def get_finance(code: str, use_cache: bool = True) -> list:
     return records
 
 
-# ---------- 内部转换函数 ----------
-
-def _safe_float(v, default=0.0):
-    try:
-        return float(v) if v not in (None, "", "-") else default
-    except (TypeError, ValueError):
-        return default
-
-
-def _safe_int(v, default=0):
-    try:
-        return int(float(v)) if v not in (None, "", "-") else default
-    except (TypeError, ValueError):
-        return default
+# ---------- 内部转换函数（使用 common.to_float / common.to_int） ----------
 
 
 def _dict_to_quote(d: dict) -> Quote:
     return Quote(
         code=d.get("code", ""),
         name=d.get("name", ""),
-        price=_safe_float(d.get("price")),
-        prev_close=_safe_float(d.get("prev_close")),
-        open=_safe_float(d.get("open")),
-        high=_safe_float(d.get("high")),
-        low=_safe_float(d.get("low")),
-        change_pct=_safe_float(d.get("change_pct")),
-        change_amt=_safe_float(d.get("change_amt")),
-        volume=_safe_int(d.get("volume")),
-        amount=_safe_float(d.get("amount")),
-        turnover=_safe_float(d.get("turnover")),
-        pe=_safe_float(d.get("pe")),
-        pb=_safe_float(d.get("pb")),
-        total_cap=_safe_float(d.get("total_cap")),
-        circulating_cap=_safe_float(d.get("circulating_cap")),
+        price=to_float(d.get("price")),
+        prev_close=to_float(d.get("prev_close")),
+        open=to_float(d.get("open")),
+        high=to_float(d.get("high")),
+        low=to_float(d.get("low")),
+        change_pct=to_float(d.get("change_pct")),
+        change_amt=to_float(d.get("change_amt")),
+        volume=to_int(d.get("volume")),
+        amount=to_float(d.get("amount")),
+        turnover=to_float(d.get("turnover")),
+        pe=to_float(d.get("pe")),
+        pb=to_float(d.get("pb")),
+        total_cap=to_float(d.get("total_cap")),
+        circulating_cap=to_float(d.get("circulating_cap")),
         source=d.get("source", ""),
     )
 
@@ -162,13 +153,13 @@ def _dict_to_quote(d: dict) -> Quote:
 def _dict_to_kline_bar(d: dict) -> KlineBar:
     return KlineBar(
         day=d.get("day", ""),
-        open=_safe_float(d.get("open")),
-        high=_safe_float(d.get("high")),
-        low=_safe_float(d.get("low")),
-        close=_safe_float(d.get("close")),
-        volume=_safe_int(d.get("volume")),
-        amount=_safe_float(d.get("amount")),
-        pct_chg=_safe_float(d.get("pct_chg")),
+        open=to_float(d.get("open")),
+        high=to_float(d.get("high")),
+        low=to_float(d.get("low")),
+        close=to_float(d.get("close")),
+        volume=to_int(d.get("volume")),
+        amount=to_float(d.get("amount")),
+        pct_chg=to_float(d.get("pct_chg")),
         source=d.get("source", ""),
     )
 
@@ -196,14 +187,14 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
 
     return FinanceRecord(
         report_date=str(_find(FIELD_MAP["report_date"]))[:10],
-        eps=_safe_float(_find(FIELD_MAP["eps"])),
-        roe=_safe_float(_find(FIELD_MAP["roe"])),
-        revenue_yoy=_safe_float(_find(FIELD_MAP["revenue_yoy"])),
-        net_profit_yoy=_safe_float(_find(FIELD_MAP["net_profit_yoy"])),
-        gross_margin=_safe_float(_find(FIELD_MAP["gross_margin"])),
-        net_margin=_safe_float(_find(FIELD_MAP["net_margin"])),
-        debt_ratio=_safe_float(_find(FIELD_MAP["debt_ratio"])),
-        bps=_safe_float(_find(FIELD_MAP["bps"])),
-        ocf_per_share=_safe_float(_find(FIELD_MAP["ocf_per_share"])),
+        eps=to_float(_find(FIELD_MAP["eps"])),
+        roe=to_float(_find(FIELD_MAP["roe"])),
+        revenue_yoy=to_float(_find(FIELD_MAP["revenue_yoy"])),
+        net_profit_yoy=to_float(_find(FIELD_MAP["net_profit_yoy"])),
+        gross_margin=to_float(_find(FIELD_MAP["gross_margin"])),
+        net_margin=to_float(_find(FIELD_MAP["net_margin"])),
+        debt_ratio=to_float(_find(FIELD_MAP["debt_ratio"])),
+        bps=to_float(_find(FIELD_MAP["bps"])),
+        ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
         source=d.get("source", ""),
     )

@@ -4,41 +4,48 @@
 from typing import Dict, Optional
 
 # ---------- 内置策略定义 ----------
+# 五因子：quality / valuation / momentum / liquidity / volatility
+# volatility 为 A 股低波动异象因子，低波动得高分
 
 STRATEGIES: Dict[str, dict] = {
     "balanced": {
-        "quality": 0.30,
-        "valuation": 0.25,
-        "momentum": 0.25,
-        "liquidity": 0.20,
+        "quality": 0.25,
+        "valuation": 0.20,
+        "momentum": 0.20,
+        "liquidity": 0.15,
+        "volatility": 0.20,
         "label": "均衡精选",
     },
     "quality_value": {
-        "quality": 0.40,
-        "valuation": 0.35,
-        "momentum": 0.08,
-        "liquidity": 0.17,
+        "quality": 0.35,
+        "valuation": 0.30,
+        "momentum": 0.05,
+        "liquidity": 0.12,
+        "volatility": 0.18,
         "label": "质量价值",
     },
     "growth_momentum": {
-        "quality": 0.22,
-        "valuation": 0.20,
-        "momentum": 0.40,
-        "liquidity": 0.18,
+        "quality": 0.18,
+        "valuation": 0.15,
+        "momentum": 0.35,
+        "liquidity": 0.12,
+        "volatility": 0.20,
         "label": "成长动量",
     },
     "defensive": {
-        "quality": 0.35,
-        "valuation": 0.32,
-        "momentum": 0.15,
-        "liquidity": 0.18,
+        "quality": 0.25,
+        "valuation": 0.22,
+        "momentum": 0.08,
+        "liquidity": 0.12,
+        "volatility": 0.33,
         "label": "防守低波",
     },
     "turning_point": {
-        "quality": 0.22,
-        "valuation": 0.22,
-        "momentum": 0.38,
-        "liquidity": 0.18,
+        "quality": 0.18,
+        "valuation": 0.18,
+        "momentum": 0.32,
+        "liquidity": 0.14,
+        "volatility": 0.18,
         "label": "拐点修复",
     },
 }
@@ -52,12 +59,17 @@ def register_strategy(name: str, weights: dict, label: str = "") -> None:
     Args:
         name: 策略名称
         weights: 因子权重 dict，需包含 quality/valuation/momentum/liquidity
+                 volatility 为可选因子（默认 0）
         label: 策略中文标签
     """
     required_keys = {"quality", "valuation", "momentum", "liquidity"}
     if not required_keys.issubset(weights.keys()):
         raise ValueError(f"策略权重必须包含 {required_keys}")
-    total = sum(weights[k] for k in required_keys)
+    # volatility 为可选，默认 0
+    if "volatility" not in weights:
+        weights["volatility"] = 0.0
+    all_keys = required_keys | {"volatility"}
+    total = sum(weights.get(k, 0) for k in all_keys)
     if abs(total - 1.0) > 0.01:
         raise ValueError(f"权重之和应为 1.0，当前为 {total}")
     STRATEGIES[name] = {**weights, "label": label or name}

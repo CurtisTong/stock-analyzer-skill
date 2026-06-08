@@ -16,8 +16,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import to_float, normalize_quote_code, normalize_finance_code, DATA_DIR
-from data import get_kline, get_finance, get_quotes
+from data import get_kline, get_finance
 from strategies import STRATEGIES
+from strategies.factors.volatility import volatility_score as _volatility_score
 
 
 def fetch_historical_returns(code: str, days: int = 60) -> list:
@@ -34,6 +35,30 @@ def fetch_historical_returns(code: str, days: int = 60) -> list:
     return returns
 
 
+def _build_hist_quote(bars, i, fin, code):
+    """基于历史 K 线和财务数据构建估值/流动性用的行情 dict（严格无前瞻）。"""
+    close = bars[i].close
+    eps = to_float(fin.get("eps", 0))
+    bps = to_float(fin.get("bps", 0))
+    pe = close / eps if eps > 0 else 0
+    pb = close / bps if bps > 0 else 0
+    # 估算总市值（亿元）：close * 总股本，总股本从 total_cap / price 推算
+    total_cap = to_float(fin.get("total_cap", 0))
+    if total_cap <= 0 and bps > 0 and eps > 0:
+        # 无法推算，使用 0
+        total_cap = 0
+    return {
+        "code": code,
+        "price": close,
+        "pe": pe,
+        "pb": pb,
+        "amount": bars[i].amount,
+        "volume": bars[i].volume,
+        "total_cap": total_cap,
+        "turnover": 0,  # 无法从 K 线精确计算，设为 0
+    }
+
+
 def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
                       holding_days: int = 5, initial_capital: float = 100000):
     """
@@ -45,6 +70,10 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     3. 选出 top_n 只股票，持有 holding_days 天
     4. 用 T+1 ~ T+holding_days 的实际收益评估
     5. 滚动窗口，重复上述过程
+
+    注意：财务数据使用回测开始前的最新快照（API 不支持历史快照），
+    quality 因子存在轻微前瞻偏差。valuation 和 liquidity 因子
+    基于历史 K 线价格计算，严格无前瞻。
 
     Args:
         strategy_name: 策略名称
@@ -72,14 +101,8 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     if not kline_data:
         return {"error": "无法获取足够的 K 线数据"}
 
-    # 找到所有股票共有的最新日期
-    all_dates = set()
-    for bars in kline_data.values():
-        all_dates.add(bars[-1].day)
-    if not all_dates:
-        return {"error": "无有效日期"}
-
-    # 获取财务数据（使用当前快照，季度变化较小）
+    # 获取财务数据（注：API 不支持历史快照，此处使用当前最新数据，
+    # quality 因子存在轻微前瞻偏差，valuation/liquidity 因子已改为基于历史价格计算）
     fin_cache = {}
     industry_cache = {}
     for code in codes:
@@ -90,23 +113,17 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
         except Exception:
             fin_cache[code] = {}
 
-    # 获取当前行情快照（用于估值和流动性评分）
-    quote_objs = get_quotes(codes)
-    quote_map = {}
-    if quote_objs:
-        for q in quote_objs:
-            d = q.to_dict()
-            quote_map[d.get("code", "")] = d
-
-    # 滚动窗口回测
+    # 滚动窗口回测（不再获取当前行情快照，改用历史 K 线数据）
     from screener import quality_score, valuation_score, liquidity_score
 
-    portfolio_returns = []
-    selection_details = []
+    all_selections = []
 
     for code, bars in kline_data.items():
         if len(bars) < min_history + holding_days:
             continue
+
+        fin = fin_cache.get(code, {})
+        industry = industry_cache.get(code, "manufacturing")
 
         # 滚动窗口：从 min_history 位置开始，每次前进 holding_days
         i = min_history
@@ -115,48 +132,73 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
             hist = bars[:i]
             momentum = _compute_momentum_from_bars(hist)
 
-            # 综合评分
-            fin = fin_cache.get(code, {})
-            q = quote_map.get(code, {})
-            industry = industry_cache.get(code, "manufacturing")
+            # 基于历史 K 线价格构建行情 dict（严格无前瞻）
+            hist_quote = _build_hist_quote(bars, i, fin, code)
+
             parts = {
-                "quality": quality_score(fin, industry),
-                "valuation": valuation_score(q, fin, industry),
+                "quality": quality_score(fin, industry),  # 注：财务数据为当前快照
+                "valuation": valuation_score(hist_quote, fin, industry),  # 基于历史价格
                 "momentum": momentum,
-                "liquidity": liquidity_score(q),
+                "liquidity": liquidity_score(hist_quote),  # 基于历史成交量
+                "volatility": _volatility_score(bars[:i], industry),  # 基于历史 K 线
             }
-            score = sum(parts[k] * weights[k] for k in parts)
+            score = sum(parts.get(k, 0) * weights.get(k, 0) for k in set(parts) | set(weights) if k != "label")
 
             # 计算持有期收益（T+1 ~ T+holding_days）
             entry_price = bars[i].close
             exit_price = bars[i + holding_days - 1].close
             if entry_price > 0:
                 ret = (exit_price - entry_price) / entry_price
-                portfolio_returns.append(ret)
-                selection_details.append({
+                all_selections.append({
                     "code": code,
                     "date": bars[i].day,
                     "score": round(score, 1),
                     "return_pct": round(ret * 100, 2),
+                    "daily_returns": _calc_daily_returns(bars, i, holding_days),
                 })
 
             i += holding_days
 
-    if not portfolio_returns:
+    if not all_selections:
         return {"error": "无法计算收益"}
 
-    # 取得分最高的 top_n 只股票的收益（按日期分组）
-    avg_return = sum(portfolio_returns) / len(portfolio_returns)
+    # 按日期分组，每组取 top_n 只得分最高的股票
+    from itertools import groupby
+    all_selections.sort(key=lambda x: x["date"])
+    portfolio_returns = []
+    portfolio_daily_returns = []
+    selection_details = []
+
+    for date, group in groupby(all_selections, key=lambda x: x["date"]):
+        group_list = sorted(group, key=lambda x: x["score"], reverse=True)[:top_n]
+        avg_ret = sum(s["return_pct"] for s in group_list) / len(group_list)
+        portfolio_returns.append(avg_ret / 100)
+        # 合并日收益率用于精确回撤计算
+        for s in group_list:
+            portfolio_daily_returns.extend(s["daily_returns"])
+        selection_details.extend(group_list)
+
+    avg_return = sum(portfolio_returns) / len(portfolio_returns) * 100
 
     return {
         "strategy": strategy_name,
-        "selections": selection_details[:20],  # 只返回前 20 条
+        "selections": selection_details[:20],
         "returns": [round(r * 100, 2) for r in portfolio_returns],
-        "avg_return_pct": round(avg_return * 100, 2),
+        "daily_returns": portfolio_daily_returns,
+        "avg_return_pct": round(avg_return, 2),
         "total_periods": len(portfolio_returns),
         "holding_days": holding_days,
         "top_n": top_n,
     }
+
+
+def _calc_daily_returns(bars, start, holding_days):
+    """计算持有期内的日收益率序列（用于精确回撤计算）。"""
+    returns = []
+    for j in range(start, start + holding_days):
+        if j > 0 and bars[j - 1].close > 0:
+            returns.append((bars[j].close - bars[j - 1].close) / bars[j - 1].close)
+    return returns
 
 
 def _compute_momentum_from_bars(bars) -> float:
@@ -243,12 +285,14 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         回测报告 dict
     """
     all_returns = []
+    all_daily_returns = []
     round_results = []
 
     for i in range(rounds):
         result = simulate_strategy(strategy_name, codes, top_n, holding_days=days // rounds)
         if "error" not in result:
             all_returns.append(result["avg_return_pct"])
+            all_daily_returns.extend(result.get("daily_returns", []))
             round_results.append(result)
 
     if not all_returns:
@@ -267,29 +311,50 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
 
     # 夏普比率（年化，假设无风险利率 3%，一年 252 个交易日）
     annual_risk_free = 0.03
-    holding_days_per_round = days // rounds
-    risk_free_per_round = annual_risk_free * holding_days_per_round / 252
-    excess_returns = [r / 100 - risk_free_per_round for r in all_returns]
-    if len(excess_returns) > 1:
+    # 优先使用日收益率计算（更精确），回退到轮次收益率
+    if len(all_daily_returns) > 1:
         import statistics
+        daily_rf = annual_risk_free / 252
+        daily_excess = [r - daily_rf for r in all_daily_returns]
+        mean_excess = sum(daily_excess) / len(daily_excess)
+        std = statistics.stdev(daily_excess)
+        sharpe = mean_excess / std * (252 ** 0.5) if std > 0 else 0
+    elif len(all_returns) > 1:
+        import statistics
+        holding_days_per_round = days // rounds
+        risk_free_per_round = annual_risk_free * holding_days_per_round / 252
+        excess_returns = [r / 100 - risk_free_per_round for r in all_returns]
+        mean_excess = sum(excess_returns) / len(excess_returns)
         std = statistics.stdev(excess_returns)
         periods_per_year = 252 / holding_days_per_round
-        sharpe = (avg_return / 100 - risk_free_per_round) / std * (periods_per_year ** 0.5) if std > 0 else 0
+        sharpe = mean_excess / std * (periods_per_year ** 0.5) if std > 0 else 0
     else:
         sharpe = 0
 
-    # 最大回撤
-    cumulative = [1.0]
-    for r in all_returns:
-        cumulative.append(cumulative[-1] * (1 + r / 100))
-    peak = cumulative[0]
+    # 最大回撤（优先使用日收益率计算，更精确）
     max_drawdown = 0
-    for val in cumulative:
-        if val > peak:
-            peak = val
-        drawdown = (peak - val) / peak
-        if drawdown > max_drawdown:
-            max_drawdown = drawdown
+    if all_daily_returns:
+        cumulative = [1.0]
+        for r in all_daily_returns:
+            cumulative.append(cumulative[-1] * (1 + r))
+        peak = cumulative[0]
+        for val in cumulative:
+            if val > peak:
+                peak = val
+            drawdown = (peak - val) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+    else:
+        cumulative = [1.0]
+        for r in all_returns:
+            cumulative.append(cumulative[-1] * (1 + r / 100))
+        peak = cumulative[0]
+        for val in cumulative:
+            if val > peak:
+                peak = val
+            drawdown = (peak - val) / peak
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
 
     return {
         "strategy": strategy_name,

@@ -79,7 +79,7 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
                 delay = min(1.0 * (2 ** attempt), 8.0)
                 jitter = random.uniform(0, delay * 0.5)
                 time.sleep(delay + jitter)
-        except (urllib.error.URLError, TimeoutError) as e:
+        except (urllib.error.URLError, TimeoutError, OSError, ConnectionResetError, BrokenPipeError) as e:
             last_err = e
             if attempt < max_retries - 1:
                 delay = min(1.0 * (2 ** attempt), 8.0)
@@ -211,7 +211,12 @@ EAST_MONEY_FIELDS = {
 def split_codes(arg: str) -> list:
     """支持逗号分隔或文件路径（@file）。"""
     if arg.startswith("@"):
-        return [line.strip() for line in Path(arg[1:]).read_text(encoding="utf-8").splitlines() if line.strip()]
+        file_path = Path(arg[1:]).resolve()
+        if not str(file_path).startswith(str(DATA_DIR.resolve())):
+            raise ValueError(f"文件路径不在允许范围内: {arg[1:]}")
+        if not file_path.exists():
+            raise FileNotFoundError(f"文件不存在: {arg[1:]}")
+        return [line.strip() for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     return [c.strip() for c in arg.split(",") if c.strip()]
 
 def plain_code(code: str) -> str:
@@ -284,6 +289,16 @@ def to_float(value, default=0.0):
         return default
 
 
+def to_int(value, default=0):
+    """安全转整数，空值/异常返回默认值。"""
+    try:
+        if value in (None, "", "-"):
+            return default
+        return int(float(str(value).replace(",", "")))
+    except (TypeError, ValueError):
+        return default
+
+
 def clamp(value, low=0.0, high=100.0):
     """将值限制在 [low, high] 区间。"""
     return max(low, min(high, value))
@@ -343,7 +358,7 @@ class CircuitBreaker:
     """线程安全的熔断器：连续失败 N 次后熔断，超时后半开试探。"""
 
     def __init__(self, name: str, failure_threshold: int = 5,
-                 recovery_timeout: int = 60, half_open_max: int = 1):
+                 recovery_timeout: int = 60, half_open_max: int = 3):
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout

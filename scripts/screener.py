@@ -25,7 +25,7 @@ from common import (
 )
 from data import get_quote, get_quotes, get_kline, get_finance
 from classifier import infer_industry
-from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score
+from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score, volatility_from_closes
 from strategies.thresholds import get_industry_threshold, load_industry_thresholds
 from technical.core import ema
 from technical.macd import macd_full as macd_features
@@ -198,6 +198,7 @@ def daily_features(code):
         "rsi": round(rsi_val, 1),
         "rsi_signal": rsi_signal,
         "vol_price_signal": vol_price_signal,
+        "closes": closes,  # 用于波动率因子计算
     }
 
 
@@ -304,9 +305,10 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "valuation": valuation_score(quote, fin, industry),
         "momentum": momentum_score(features, quote),
         "liquidity": liquidity_score(quote),
+        "volatility": volatility_from_closes(features.get("closes", []), industry),
     }
     weights = STRATEGIES[strategy]
-    total = sum(parts[k] * weights[k] for k in parts)
+    total = sum(parts.get(k, 0) * weights.get(k, 0) for k in set(parts) | set(weights) if k != "label")
     return {
         "code": quote_code,
         "name": quote.get("name", ""),
@@ -317,6 +319,7 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "valuation": round(parts["valuation"], 1),
         "momentum": round(parts["momentum"], 1),
         "liquidity": round(parts["liquidity"], 1),
+        "volatility": round(parts["volatility"], 1),
         "price": quote.get("price"),
         "change_pct": quote.get("change_pct"),
         "pe": quote.get("pe"),

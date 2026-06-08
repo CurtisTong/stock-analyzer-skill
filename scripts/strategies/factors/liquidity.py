@@ -21,10 +21,29 @@ def liquidity_score(quote: dict) -> float:
     score = 0
     score += clamp(amount / amount_max * 42)
     score += clamp(cap / cap_max * 28)
-    if 0.5 <= turnover <= 8:
-        score += 24
-    elif 8 < turnover <= 15:
-        score += 14
+    # 换手率阈值按市值分层：大盘股正常换手率远低于小盘股
+    if cap > 500:
+        # 大盘股（>500亿）：换手率 0.1-5% 为正常
+        if 0.1 <= turnover <= 5:
+            score += 24
+        elif 5 < turnover <= 10:
+            score += 14
+        else:
+            score += 6
+    elif cap > 100:
+        # 中盘股（100-500亿）：换手率 0.3-8% 为正常
+        if 0.3 <= turnover <= 8:
+            score += 24
+        elif 8 < turnover <= 15:
+            score += 14
+        else:
+            score += 6
     else:
-        score += 6
+        # 小盘股（<100亿）：换手率 0.5-12% 为正常
+        if 0.5 <= turnover <= 12:
+            score += 24
+        elif 12 < turnover <= 20:
+            score += 14
+        else:
+            score += 6
     return clamp(score)

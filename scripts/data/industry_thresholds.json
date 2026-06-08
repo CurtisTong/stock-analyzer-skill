@@ -1,7 +1,6 @@
 {
   "_description": "行业差异化阈值表。按申万一级行业分组，定义各行业的基本面和估值阈值。",
   "_usage": "screener.py 和 technical/scoring.py 按行业选择阈值，避免一刀切误判。",
-
   "金融": {
     "roe_min": 10,
     "roe_excellent": 15,
@@ -12,9 +11,11 @@
     "pe_expensive": 18,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.5,
-    "notes": "银行/保险 ROE 天然 10-15%，负债率 90%+ 属正常，用资本充足率替代负债率"
+    "vol_threshold": 0.015,
+    "notes": "银行/保险 ROE 天然 10-15%，负债率 90%+ 属正常，用资本充足率替代负债率",
+    "profit_growth_excellent": 15,
+    "revenue_growth_excellent": 10
   },
-
   "银行": {
     "roe_min": 8,
     "roe_excellent": 12,
@@ -25,9 +26,11 @@
     "pe_expensive": 12,
     "peg_undervalued": 0.5,
     "peg_reasonable": 1.0,
-    "notes": "银行 ROE 天然偏低（8-12%），PE 极低（5-8倍），高负债率属正常"
+    "vol_threshold": 0.012,
+    "notes": "银行 ROE 天然偏低（8-12%），PE 极低（5-8倍），高负债率属正常",
+    "profit_growth_excellent": 12,
+    "revenue_growth_excellent": 8
   },
-
   "券商": {
     "roe_min": 8,
     "roe_excellent": 18,
@@ -38,9 +41,11 @@
     "pe_expensive": 28,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.5,
-    "notes": "券商 ROE 波动大（牛市高熊市低），PE 中等，周期性强"
+    "vol_threshold": 0.025,
+    "notes": "券商 ROE 波动大（牛市高熊市低），PE 中等，周期性强",
+    "profit_growth_excellent": 25,
+    "revenue_growth_excellent": 20
   },
-
   "消费": {
     "roe_min": 15,
     "roe_excellent": 25,
@@ -51,9 +56,11 @@
     "pe_expensive": 40,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.5,
-    "notes": "白酒/食品 ROE 天然高，毛利率 60%+ 常见，估值享受溢价"
+    "vol_threshold": 0.02,
+    "notes": "白酒/食品 ROE 天然高，毛利率 60%+ 常见，估值享受溢价",
+    "profit_growth_excellent": 25,
+    "revenue_growth_excellent": 20
   },
-
   "科技": {
     "roe_min": 10,
     "roe_excellent": 20,
@@ -64,9 +71,11 @@
     "pe_expensive": 60,
     "peg_undervalued": 0.8,
     "peg_reasonable": 2.0,
-    "notes": "科技股 PE 30-50 常态，高研发投入导致短期 ROE 偏低，不能用传统标准"
+    "vol_threshold": 0.03,
+    "notes": "科技股 PE 30-50 常态，高研发投入导致短期 ROE 偏低，不能用传统标准",
+    "profit_growth_excellent": 50,
+    "revenue_growth_excellent": 35
   },
-
   "半导体": {
     "roe_min": 8,
     "roe_excellent": 15,
@@ -77,9 +86,11 @@
     "pe_expensive": 80,
     "peg_undervalued": 0.8,
     "peg_reasonable": 2.0,
-    "notes": "半导体重资产，ROE 天然偏低（8-15%），PE 容忍度高（25-80），研发投入大"
+    "vol_threshold": 0.035,
+    "notes": "半导体重资产，ROE 天然偏低（8-15%），PE 容忍度高（25-80），研发投入大",
+    "profit_growth_excellent": 60,
+    "revenue_growth_excellent": 40
   },
-
   "软件": {
     "roe_min": 12,
     "roe_excellent": 22,
@@ -90,9 +101,11 @@
     "pe_expensive": 100,
     "peg_undervalued": 1.0,
     "peg_reasonable": 2.5,
-    "notes": "软件轻资产高毛利（50%+），ROE 偏高，PE 估值更激进（30-100）"
+    "vol_threshold": 0.032,
+    "notes": "软件轻资产高毛利（50%+），ROE 偏高，PE 估值更激进（30-100）",
+    "profit_growth_excellent": 45,
+    "revenue_growth_excellent": 30
   },
-
   "周期": {
     "roe_min": 8,
     "roe_excellent": 15,
@@ -103,9 +116,11 @@
     "pe_expensive": 25,
     "peg_undervalued": 0.5,
     "peg_reasonable": 1.0,
-    "notes": "周期股用 3 年均值 ROE，单年高增速往往是周期顶部信号"
+    "vol_threshold": 0.025,
+    "notes": "周期股用 3 年均值 ROE，单年高增速往往是周期顶部信号",
+    "profit_growth_excellent": 30,
+    "revenue_growth_excellent": 25
   },
-
   "医药": {
     "roe_min": 12,
     "roe_excellent": 20,
@@ -116,9 +131,11 @@
     "pe_expensive": 50,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.8,
-    "notes": "创新药高 PE 合理，仿制药/中药估值较低，需区分细分赛道"
+    "vol_threshold": 0.028,
+    "notes": "创新药高 PE 合理，仿制药/中药估值较低，需区分细分赛道",
+    "profit_growth_excellent": 35,
+    "revenue_growth_excellent": 25
   },
-
   "制造": {
     "roe_min": 12,
     "roe_excellent": 18,
@@ -129,9 +146,11 @@
     "pe_expensive": 35,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.5,
-    "notes": "制造业分化大，高端制造（新能源/半导体）估值高于传统制造"
+    "vol_threshold": 0.025,
+    "notes": "制造业分化大，高端制造（新能源/半导体）估值高于传统制造",
+    "profit_growth_excellent": 35,
+    "revenue_growth_excellent": 25
   },
-
   "地产": {
     "roe_min": 8,
     "roe_excellent": 15,
@@ -142,9 +161,11 @@
     "pe_expensive": 15,
     "peg_undervalued": 0.5,
     "peg_reasonable": 1.0,
-    "notes": "地产用净负债率<100% 替代资产负债率，PE 天然低"
+    "vol_threshold": 0.028,
+    "notes": "地产用净负债率<100% 替代资产负债率，PE 天然低",
+    "profit_growth_excellent": 15,
+    "revenue_growth_excellent": 10
   },
-
   "能源": {
     "roe_min": 10,
     "roe_excellent": 18,
@@ -155,9 +176,11 @@
     "pe_expensive": 20,
     "peg_undervalued": 0.5,
     "peg_reasonable": 1.0,
-    "notes": "煤炭/石油周期性强，高分红低估值是常态"
+    "vol_threshold": 0.022,
+    "notes": "煤炭/石油周期性强，高分红低估值是常态",
+    "profit_growth_excellent": 20,
+    "revenue_growth_excellent": 15
   },
-
   "默认": {
     "roe_min": 12,
     "roe_excellent": 18,
@@ -168,6 +191,9 @@
     "pe_expensive": 40,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.5,
-    "notes": "未匹配行业的默认阈值"
+    "vol_threshold": 0.025,
+    "notes": "未匹配行业的默认阈值",
+    "profit_growth_excellent": 40,
+    "revenue_growth_excellent": 30
   }
 }
