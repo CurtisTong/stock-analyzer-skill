@@ -142,3 +142,69 @@
 ### 调用方式
 
 debate 模式中重点关注：kline.py 30日K线判断是否强势股（有≥4板记录）、当前是否缩量调整（量能<主升期50%）、关键K线反转信号（锤子线/早晨之星/阳包阴/缩量十字星）。流通市值取 quote.py circulating_cap，止损位取前低或20日线。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_kline
+from common import to_float
+import statistics
+
+# 基础数据
+quote = get_quote("sh600989")
+circulating_cap = to_float(quote.get("circulating_cap", 0))
+
+# 估值维度：流通市值 + 回调深度
+if 30 <= circulating_cap <= 200:
+    cap_score = 100
+elif 10 <= circulating_cap <= 300:
+    cap_score = 50
+else:
+    cap_score = 0
+
+# 技术面维度：K线反转形态 + 缩量程度
+bars = get_kline("sh600989", scale=240, datalen=30)
+closes = [to_float(b["close"]) for b in bars if to_float(b.get("close", 0)) > 0]
+volumes = [to_float(b.get("volume", 0)) for b in bars if to_float(b.get("volume", 0)) > 0]
+
+if len(closes) >= 10 and len(volumes) >= 10:
+    # 计算缩量程度
+    peak_vol = max(volumes[-10:]) if volumes else 1
+    recent_vol = statistics.mean(volumes[-3:]) if len(volumes) >= 3 else 1
+    vol_ratio = recent_vol / peak_vol if peak_vol > 0 else 1
+
+    # K线反转形态识别（简化版）
+    last3 = closes[-3:]
+    if len(closes) >= 4:
+        prev3 = closes[-4:-1]
+    else:
+        prev3 = closes[:-1] if len(closes) > 1 else [closes[0]] * 3
+
+    # 锤子线/早晨之星形态
+    is_hammer = last3[-1] < last3[-2] and closes[-1] < statistics.mean(last3)
+    is_engulfing = last3[-1] > last3[-2] and last3[-2] < last3[-3] and last3[-1] > last3[-3]
+
+    if vol_ratio <= 0.5 and (is_hammer or is_engulfing):
+        tech_score = 100
+    elif vol_ratio <= 0.5:
+        tech_score = 60
+    else:
+        tech_score = 20
+else:
+    tech_score = 40
+
+# 情绪维度：调整阶段
+if len(closes) >= 10:
+    # 计算调整天数（从最高点回调）
+    peak_idx = closes.index(max(closes))
+    adjust_days = len(closes) - peak_idx - 1
+
+    if 3 <= adjust_days <= 7:
+        sentiment_score = 100  # ���佳调整期
+    elif adjust_days < 3:
+        sentiment_score = 40   # 调整不足
+    else:
+        sentiment_score = 30   # 调整过长
+else:
+    sentiment_score = 50
+```

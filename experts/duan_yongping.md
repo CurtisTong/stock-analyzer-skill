@@ -104,3 +104,48 @@
 ### 调用方式
 
 debate 模式中，先判断"生意模式"—商业模式好→所有维度分不减；一般→总分×0.8。估值用 PE 绝对值+PE 历史分位综合判断。A 股需对管理层可信度单独折扣 10-20%。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_finance
+from common import to_float
+
+# 获取数据
+quote = get_quote("sh600989")
+fin = get_finance("sh600989")[0]
+
+# 估值维度：PE
+pe = to_float(quote.get("pe", 0))
+risk_free_rate = 0.03  # 无风险利率
+pe_threshold = 1 / risk_free_rate  # 约 33 倍
+
+if pe < pe_threshold * 0.75:  # < 25 倍
+    pe_score = 100
+elif pe < pe_threshold:  # < 33 倍
+    pe_score = 70
+elif pe < pe_threshold * 1.2:  # < 40 倍
+    pe_score = 40
+else:
+    pe_score = 0
+
+# 安全边际维度：自由现金流
+eps = to_float(fin.get("EPSJB", 0))
+ocf_per_share = to_float(fin.get("MGJYXJJE", 0))
+if eps > 0 and ocf_per_share > eps * 0.8:
+    fcf_score = 100  # FCF 持续为正
+elif eps > 0:
+    fcf_score = 50
+else:
+    fcf_score = 0
+
+# 商业模式判断（简化版：基于行业和ROE）
+industry = infer_industry(quote.get("name", ""), quote.get("code", ""))
+roe = to_float(fin.get("ROEJQ", 0))
+if roe >= 20:
+    business_score = 100  # 优秀商业模式
+elif roe >= 15:
+    business_score = 60
+else:
+    business_score = 20
+```

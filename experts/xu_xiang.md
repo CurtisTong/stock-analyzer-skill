@@ -105,3 +105,47 @@
 ### 调用方式
 
 debate 模式中重点关注：涨停板基因（kline.py 近30日是否有9.5%+涨幅日）、板块联动（同板涨停数）、大盘趋势（所在指数是否站上20日线）。基本面只看EPS排雷，不深度分析。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_kline
+from common import to_float
+import statistics
+
+# 基础数据
+quote = get_quote("sh600989")
+
+# 技术面维度：涨停板基因
+# 获取近30日K线，检查是否有接近涨停的交易日
+bars = get_kline("sh600989", scale=240, datalen=30)
+high_prices = [to_float(b.get("high", 0)) for b in bars]
+prev_close = to_float(quote.get("prev_close", 0))
+
+if prev_close > 0:
+    # 计算每日涨跌幅
+    limit_up_pct = 0.095 if "30" in quote.get("code", "") or "68" in quote.get("code", "") else 0.095
+    limit_up_count = sum(1 for hp in high_prices if hp / prev_close - 1 >= limit_up_pct * 0.9)
+
+    if limit_up_count >= 2:
+        tech_score = 100
+    elif limit_up_count >= 1:
+        tech_score = 50
+    else:
+        tech_score = 0
+
+# 情绪/题材维度：板块联动（需外部市场数据）
+# 示例：同板块涨停数量
+sector_limit_up_count = 3  # 实际从市场数据获取
+
+if sector_limit_up_count >= 3:
+    sentiment_score = 100
+elif sector_limit_up_count >= 2:
+    sentiment_score = 60
+else:
+    sentiment_score = 20
+
+# 基本面维度：仅排雷
+eps = to_float(quote.get("pe"))  # 这里用PE作为占位，实际不深入分析
+base_score = 60 if eps and eps > 0 else 0
+```

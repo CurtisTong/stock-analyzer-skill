@@ -124,4 +124,51 @@
 
 ### 调用方式
 
-debate 模式中，用 scripts/ 获取 PE 和净利增速计算 PEG，对照上表打分。增速取近 3 年 CAGR，若数据不足则用最新季度年化。
+debate 模式中，用 `scripts/data/` 获取 PE 和净利增速计算 PEG，对照上表打分。增速取近 3 年 CAGR，若数据不足则用最新季度年化。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_finance
+from common import to_float
+
+# 获取数据
+quote = get_quote("sh600989")
+fin = get_finance("sh600989")[0]
+
+# 基本面维度：净利增速
+profit_growth = to_float(fin.get("PARENTNETPROFITTZ", 0))  # 净利润同比增长%
+if profit_growth >= 25:
+    base_score = 100
+elif profit_growth >= 20:
+    base_score = 80
+elif profit_growth >= 15:
+    base_score = 50
+else:
+    base_score = 20
+
+# 估值维度：PEG
+pe = to_float(quote.get("pe", 0))
+growth = to_float(fin.get("PARENTNETPROFITTZ", 0))
+peg = pe / max(growth, 1)  # 避免除零
+
+if peg <= 0.5:
+    peg_score = 100
+elif peg <= 1.0:
+    peg_score = 80
+elif peg <= 1.5:
+    peg_score = 50
+elif peg <= 2.0:
+    peg_score = 30
+else:
+    peg_score = 0
+
+# 风险维度：负债率
+debt_ratio = to_float(fin.get("ZCFZL", 0))
+if debt_ratio < 60:
+    risk_score = 100
+elif debt_ratio < 100:
+    risk_score = 60
+else:
+    risk_score = 0
+```

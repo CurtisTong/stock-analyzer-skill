@@ -88,4 +88,47 @@
 
 ### 调用方式
 
-debate 模式中，从 scripts/ 获取最新 ROE/PE/负债率/FCF 后，按上表打分。估值分需结合 PE 历史分位调整——A 股取近 5 年 PE 分位，<20%分位额外+15分，>80%分位额外-20分。
+debate 模式中，从 `scripts/data/` 获取最新 ROE/PE/负债率/FCF 后，按上表打分。估值分需结合 PE 历史分位调整——A 股取近 5 年 PE 分位，<20%分位额外+15分，>80%分位额外-20分。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_finance
+from common import to_float
+
+# 获取数据
+quote = get_quote("sh600989")
+fin = get_finance("sh600989")[0]
+
+# 基本面维度
+roe = to_float(fin.get("ROEJQ", 0))
+if roe >= 20:
+    base_score = 100
+elif roe >= 15:
+    base_score = 75
+elif roe >= 10:
+    base_score = 40
+else:
+    base_score = 0
+
+# 估值维度
+pe = to_float(quote.get("pe", 0))
+if pe <= 15:
+    pe_score = 100
+elif pe <= 25:
+    pe_score = 60
+elif pe <= 40:
+    pe_score = 25
+else:
+    pe_score = 0
+
+# 安全边际维度
+debt_ratio = to_float(fin.get("ZCFZL", 0))
+fcf_ratio = to_float(fin.get("MGJYXJJE", 0)) / max(to_float(fin.get("EPSJB", 1)), 0.01)
+if debt_ratio < 30 and fcf_ratio > 0.8:
+    margin_score = 100
+elif debt_ratio < 50:
+    margin_score = 60
+else:
+    margin_score = 0
+```

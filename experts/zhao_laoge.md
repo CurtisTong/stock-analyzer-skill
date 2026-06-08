@@ -141,3 +141,56 @@
 ### 调用方式
 
 debate 模式中重点关注：kline.py 30日K线判断均线排列形态（MA5/MA10/MA20是否多头）、题材在生命周期中位置（启动→高潮→加速→分歧→退潮）、量价是否健康（放量上涨+缩量回踩=最佳）。流通市值取 quote.py 的 circulating_cap 字段。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_kline
+from common import to_float
+import statistics
+
+# 基础数据
+quote = get_quote("sh600989")
+circulating_cap = to_float(quote.get("circulating_cap", 0))
+
+# 估值维度：流通市值
+if 50 <= circulating_cap <= 300:
+    cap_score = 100
+elif 30 <= circulating_cap <= 500:
+    cap_score = 60
+else:
+    cap_score = 20
+
+# 技术面维度：均线系统
+bars = get_kline("sh600989", scale=240, datalen=30)
+closes = [to_float(b["close"]) for b in bars if to_float(b.get("close", 0)) > 0]
+
+if len(closes) >= 20:
+    ma5 = statistics.mean(closes[-5:])
+    ma10 = statistics.mean(closes[-10:])
+    ma20 = statistics.mean(closes[-20:])
+
+    if ma5 > ma10 > ma20:
+        tech_score = 100  # 多头排列
+    elif ma5 < ma10 < ma20:
+        tech_score = 0    # 空头排列
+    else:
+        tech_score = 70   # 均线粘合
+else:
+    tech_score = 40
+
+# 情绪/题材维度：量价配合
+volumes = [to_float(b.get("volume", 0)) for b in bars]
+if len(closes) >= 10 and len(volumes) >= 10:
+    recent_vol = statistics.mean(volumes[-5:])
+    prev_vol = statistics.mean(volumes[-10:-5])
+
+    if recent_vol > prev_vol * 1.2 and closes[-1] > statistics.mean(closes[-5:-1]):
+        sentiment_score = 100  # 放量上涨
+    elif recent_vol < prev_vol * 0.8:
+        sentiment_score = 60   # 缩量回调（健康）
+    else:
+        sentiment_score = 40
+else:
+    sentiment_score = 50
+```

@@ -232,9 +232,153 @@ python3 scripts/screener.py --codes sh600989,sz000807,300476 --strategy growth_m
 python3 scripts/screener.py --strategy defensive --exclude-loss --json
 ```
 
-## 七、数据获取工具详解
+## 七、数据获取工具详解（v1.1.0）
 
-### 1. 腾讯实时行情 — 批量查询
+### 1. 代码结构总览
+
+```
+scripts/
+├── __init__.py           # 入口
+├── common/               # 公共工具包（v1.1.0 新增）
+│   ├── __init__.py       # 主模块（缓存、HTTP、编码转换）
+│   ├── validators.py     # 输入验证器
+│   └── exceptions/       # 统一异常类
+│       └── __init__.py
+├── config/               # 配置加载器（v1.1.0 新增）
+│   ├── __init__.py
+│   ├── loader.py
+│   ├── data_source.yaml
+│   ├── industry_thresholds.yaml
+│   ├── limits.yaml
+│   └── scoring.yaml
+├── data/                 # 数据层
+├── strategies/           # 选股策略
+└── technical/            # 技术分析
+```
+
+### 2. Common 模块详解
+
+#### 2.1 缓存与 HTTP
+
+```python
+from common import (
+    cache_get, cache_set, cache_cleanup,
+    http_get, http_get_cached,
+    CACHE_DIR,
+)
+
+# 带缓存的 HTTP 请求（默认 6 小时 TTL）
+data = http_get_cached("https://qt.gtimg.cn/q=sh600989")
+
+# 直接 HTTP 请求
+data = http_get(url, timeout=10)
+```
+
+#### 2.2 股票代码标准化
+
+```python
+from common import normalize_quote_code, normalize_finance_code, plain_code
+
+# 标准化为 sh/sz 前缀格式
+quote_code = normalize_quote_code("600989")  # → "sh600989"
+finance_code = normalize_finance_code("600989")  # → "sh600989"
+plain = plain_code("sh600989")  # → "600989"
+```
+
+#### 2.3 输入验证器
+
+```python
+from common.validators import (
+    validate_code, normalize_code, validate_codes,
+    validate_date, validate_date_range,
+    validate_positive, validate_in_range,
+    ValidationError,
+)
+
+# 验证单个代码
+if validate_code("sh600989"):
+    code = normalize_code("600989")  # → "sh600989"
+
+# 批量验证
+codes = validate_codes(["600989", "000807", "300476"])
+
+# 日期验证
+validate_date_range("2024-01-01", "2024-12-31")
+
+# 数值验证
+validate_positive(10.5, "price", min_value=0)
+validate_in_range(15.0, "pe", 0, 1000)
+```
+
+#### 2.4 统一异常类
+
+```python
+from common.exceptions import (
+    StockAnalyzerError, DataError, NetworkError,
+    RateLimitError, ParseError, DataUnavailableError,
+    BusinessError, ValidationError, StrategyError,
+    InsufficientDataError, ConfigurationError,
+)
+
+try:
+    result = http_get(url)
+except RateLimitError as e:
+    print(f"触发速率限制: {e.retry_after}秒后重试")
+except NetworkError as e:
+    print(f"网络错误: {e.url}, {e.message}")
+except ValidationError as e:
+    print(f"校验失败: {e.field} = {e.value_str}, {e.message}")
+```
+
+### 3. Config 模块详解
+
+```python
+from config import get_limit_config, get_scoring_config, load_industry_thresholds
+
+# 获取限制配置
+st_prefixes = get_limit_config("st_prefixes", ["ST", "*ST"])
+min_amount = get_limit_config("min_amount.创业板", 3000)
+
+# 获取评分配置
+quality_weights = get_scoring_config("weights.quality")
+valuation_weights = get_scoring_config("weights.valuation")
+
+# 获取行业阈值
+thresholds = load_industry_thresholds()
+```
+
+**配置文件说明：**
+
+| 文件 | 用途 |
+|------|------|
+| `limits.yaml` | ST 前缀、最低成交额、最低市值、涨跌停限制 |
+| `scoring.yaml` | 多因子评分权重、因子阈值 |
+| `industry_thresholds.yaml` | 各行业 ROE/PE/增速阈值 |
+| `data_source.yaml` | API 端点配置、缓存 TTL |
+
+### 4. 数据层使用
+
+```python
+from data import get_quote, get_quotes, get_kline, get_finance
+
+# 单只行情
+quote = get_quote("sh600989")
+print(quote.price, quote.pe, quote.change_pct)
+
+# 批量行情
+quotes = get_quotes(["sh600989", "sz000807"])
+
+# K线数据
+bars = get_kline("sh600989", scale=240, datalen=30)  # 日K
+bars = get_kline("sh600989", scale=5, datalen=100)   # 5分钟
+
+# 财务数据
+records = get_finance("sh600989")
+fin = records[0]  # 最新一期
+print(fin.ROEJQ, fin.EPSJB, fin.PARENTNETPROFITTZ)
+```
+
+### 5. 腾讯实时行情 — 批量查询
 
 **单只查询：**
 ```bash
@@ -453,3 +597,158 @@ done
 6. 高赔率≠无风险：仍需止损纪律
 7. 防御仓位（黄金/低估值金融）是组合压舱石
 8. 科技仓位不能为零，至少5-8%
+
+## 十、近期案例复盘总结（2026年6月）
+
+> 完整案例汇总见 `data/reports/202506_Stock_Analysis_Summary.md`
+
+### 10.1 本次分析股票概览
+
+| 股票 | 代码 | 评级 | 置信度 | PE | Q1净利增速 | 今日涨跌 |
+|------|------|------|--------|-----|-----------|----------|
+| 云铝股份 | 000807 | Buy | 80% | 10.7 | +269% | -3.04% |
+| 宝丰能源 | 600989 | Buy | 78% | 13.8 | +50% | +0.73% |
+| 洛阳钼业 | 603993 | Buy | 75% | 15.0 | +97% | -7.15% |
+| 华友钴业 | 603799 | Hold | 65% | 12.1 | +99% | -6.49% |
+| 海尔智家 | 600690 | Hold | 65% | 10.1 | -15% | -0.69% |
+| 贵研铂业 | 600459 | Hold | 55% | 29.8 | +9% | -3.64% |
+| 中兴通讯 | 000063 | **Sell** | 55% | 39.4 | **-47%** | -5.93% |
+
+### 10.2 成功案例特征
+
+**Buy 评级的共同特征**：
+1. **高ROE**：ROE > 15%（云铝19.7%、宝丰24.8%、洛阳26.6%）
+2. **高增长**：Q1净利增速 > 50%（云铝269%、洛阳97%、华友99%）
+3. **低估值**：PE < 15x，PE/ROE < 3
+4. **技术面偏多**：技术评分 > 60，买入信号共振
+
+**案例1：云铝股份**
+- 核心逻辑：Q1净利暴增269%，PE仅10.7x，负债率17.7%极安全
+- 技术面：双针探底+老鸭头形态
+- 结论：Buy，置信度80%，目标价32元
+
+**案例2：宝丰能源**
+- 核心逻辑：ROE 25%顶级，PEG仅0.17严重低估
+- 技术面：三阴一阳+缠论底背驰
+- 结论：Buy，置信度78%，目标价26元
+
+**案例3：洛阳钼业**
+- 核心逻辑：铜金双极战略，Q1净利+97%
+- 技术面：MACD底背离+老鸭头
+- 结论：Buy，置信度75%，目标价20元
+
+### 10.3 失败案例警示
+
+**Sell/Hold 评级的共同特征**：
+1. **业绩下滑**：Q1净利负增长（中兴-47%、海尔-15%）
+2. **高估值陷阱**：PE > 30 且无高增长支撑（中兴PE 39x）
+3. **技术面极弱**：MACD死叉、均线空头排列
+4. **负债率过高**： > 60%（华友63.6%、贵研64.9%）
+
+**案例：中兴通讯**
+- 问题：PE 39x严重高估，Q1净利-47%下滑，ROE仅7.6%
+- 技术面：今日放量大跌-5.93%，MACD死叉
+- 结论：Sell，置信度55%，建议回避
+
+### 10.4 选股核心逻辑总结
+
+| 优先级 | 指标 | 阈值 | 权重 |
+|--------|------|------|------|
+| 1 | ROE | >15%优秀，>20%顶级 | 25% |
+| 2 | 净利增速 | >20%成长，>50%高速 | 25% |
+| 3 | PE/ROE | <3低估，<1极度低估 | 20% |
+| 4 | 技术面 | 评分>60，买入信号共振 | 15% |
+| 5 | 负债率 | <60%健康，<50%优秀 | 10% |
+| 6 | 毛利率 | >30%有壁垒 | 5% |
+
+### 10.5 风险识别模式库
+
+| 风险类型 | 识别信号 | 典型案例 | 应对策略 |
+|----------|----------|----------|----------|
+| 业绩暴降 | Q1/Q2增速转负 | 中兴(-47%) | 立即卖出 |
+| 估值泡沫 | PE>30 且 增速<20% | 中兴(PE 39x) | 回避 |
+| 技术破位 | MACD死叉+放量下跌 | 华友钴业 | 止损 |
+| 负债过高 | 负债率>60% | 华友(63.6%) | 降低仓位 |
+| 周期陷阱 | 低价但无成长 | 贵研铂业 | 观察 |
+| 趋势向下 | 均线空头排列 | 中兴通讯 | 观望 |
+
+### 10.6 今日市场特征（2026-06-08）
+
+- **大盘**：沪深300ETF -2.15%，偏弱震荡
+- **板块**：有色/能源/AI板块领跌
+- **情绪**：7只分析股6只下跌，仅宝丰能源微涨
+- **结论**：市场处于调整期，控制仓位，防守为主
+
+### 10.7 输出格式标准化
+
+深度分析报告必须包含以下核心章节（详见 `skills/stock/SKILL.md` Step 3.1）：
+
+1. **一句话结论**：核心判断 + 置信度
+2. **五层分析**：基本面/估值/技术面/板块/风险收益比
+3. **同业对比**：与行业竞争对手关键指标对比
+4. **8人专家圆桌**：8位专家评分 + 分组汇总 + 信心指数
+5. **投资建议**：评级 + 仓位 + 止损止盈 + 跟踪条件
+6. **核心矛盾**：主要风险点和转折信号
+
+## 十一、测试框架（v1.1.0）
+
+### 1. Pytest 配置
+
+```bash
+# 运行所有测试（跳过网络测试）
+pytest
+
+# 运行包含网络测试
+pytest --run-network
+
+# 运行特定标记的测试
+pytest -m unit
+pytest -m "not slow"
+```
+
+**可用标记：**
+
+| 标记 | 说明 |
+|------|------|
+| `unit` | 单元测试 |
+| `integration` | 集成测试 |
+| `e2e` | 端到端测试 |
+| `network` | 需要网络的测试（默认跳过） |
+| `slow` | 慢速测试 |
+
+### 2. 测试数据 fixtures
+
+```python
+import pytest
+from conftest import (
+    SAMPLE_KLINE,
+    SAMPLE_QUOTE,
+    sample_finance_data,
+    mock_http_get,
+)
+
+# 使用标准K线数据
+def test_ema_trend(SAMPLE_KLINE):
+    closes = [bar["close"] for bar in SAMPLE_KLINE]
+    ...
+
+# 使用标准行情数据
+def test_quota_fields(SAMPLE_QUOTE):
+    assert SAMPLE_QUOTE["pe"] > 0
+```
+
+### 3. Mock 网络请求
+
+```python
+from unittest.mock import patch
+
+@patch("common.http_get")
+def test_with_mock(mock_get):
+    mock_get.return_value = b'...'
+    result = get_quote("sh600989")
+    ...
+```
+
+---
+
+> **版本说明**：v1.1.0 新增 common 包、config 包、增强测试框架。

@@ -123,3 +123,53 @@
 ### 调用方式
 
 debate 模式中重点关注：情绪周期阶段——用全市场涨停家数/跌停家数/炸板率/昨涨停今日溢价四条数据定位（主升/震荡/退潮/冰点）。养家的核心判断不在个股，而在"此刻市场情绪处于什么阶段"。
+
+**代码示例：**
+
+```python
+from data import get_quote
+from common import to_float
+
+# 基础数据
+quote = get_quote("sh600989")
+
+# 情绪维度：情绪周期判断（需结合市场整体数据）
+# 示例市场数据（实际需从市场接口获取）
+market_up_count = 65    # 全市场涨停家数
+market_down_count = 15  # 全市场跌停家数
+break_rate = 0.25       # 炸板率
+
+# 判断情绪周期阶段
+if market_down_count > 50 and break_rate > 0.6:
+    # 冰点期：绝望中蕴含机会
+    phase = "冰点"
+    sentiment_score = 100
+elif market_up_count > 80:
+    # 主升期：赚钱效应扩散
+    phase = "主升"
+    sentiment_score = 80
+elif 40 <= market_up_count <= 60:
+    # 震荡期：分化
+    phase = "震荡"
+    sentiment_score = 50
+else:
+    # 退潮期
+    phase = "退潮"
+    sentiment_score = 0
+
+# 技术面维度：市场温度计
+if market_up_count > 80:
+    tech_score = 100
+elif market_up_count >= 40:
+    tech_score = 50
+else:
+    tech_score = 0
+
+# 风险维度
+if market_down_count < 10:
+    risk_score = 100
+elif market_down_count <= 30:
+    risk_score = 30
+else:
+    risk_score = 0
+```

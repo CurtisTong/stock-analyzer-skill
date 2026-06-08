@@ -1,5 +1,8 @@
 # 8 人专家圆桌 · 投资哲学档案库
 
+> 版本：v1.1.0（2026-06-08）
+> 数据接口更新：所有调用方式已适配 `scripts/data/` 和 `scripts/common/` 模块
+
 本目录是 [methodology.md §三 专家讨论模式](../methodology.md#三专家讨论模式8人圆桌) 的扩展档案库。
 每位专家单独成文，深度档（1200-1500 中文字），覆盖：
 
@@ -97,12 +100,30 @@
 
 **标准流程**：
 
-1. 获取目标股票数据（scripts/）
-2. 获取大盘环境数据（scripts/quote.py sh000001,sh510300）
+1. 获取目标股票数据（`scripts/data/`）
+2. 获取大盘环境数据（`scripts/quote.py sh000001,sh510300` 或 `get_quote("sh000001")`）
 3. 判断市场状态 → 确定长线/短线权重
 4. 每位专家按 §九 评分矩阵独立打分
 5. 按 decide.md 进行投票汇总和冲突解决
 6. 输出：评分表 + 方向 + 风险 + 仓位
+
+**代码示例**：
+
+```python
+from data import get_quote, get_quotes, get_kline, get_finance
+
+# 获取单只股票数据
+quote = get_quote("sh600989")
+finance = get_finance("sh600989")
+kline = get_kline("sh600989", scale=240, datalen=30)
+
+# 获取多只股票数据
+quotes = get_quotes(["sh600989", "sz000807"])
+
+# 获取大盘数据
+index_quote = get_quote("sh000001")  # 上证指数
+etf_quote = get_quote("sh510300")    # 沪深300 ETF
+```
 
 ---
 

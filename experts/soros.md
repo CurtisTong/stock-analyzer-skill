@@ -87,3 +87,46 @@ _简化案例_：某银行 PB 0.5 倍，市场担忧不良资产→股价跌至 
 ### 调用方式
 
 debate 模式中，重点关注：趋势是否明确（从 kline.py 20日均线判断）、市场情绪是否一致（从涨停家数/炸板率判断）、是否有反身性强化信号。个股基本面只作参考背景。
+
+**代码示例：**
+
+```python
+from data import get_quote, get_kline
+from common import to_float
+import statistics
+
+# 获取K线数据判断趋势
+bars = get_kline("sh600989", scale=240, datalen=30)
+closes = [to_float(b["close"]) for b in bars if to_float(b.get("close", 0)) > 0]
+
+if len(closes) >= 20:
+    ma20 = statistics.mean(closes[-20:])
+    current_price = closes[-1]
+
+    if current_price > ma20:
+        trend_score = 100  # 上升趋势
+    else:
+        trend_score = 0    # 下降趋势
+
+# 技术面维度：趋势强度
+if len(closes) >= 10:
+    recent = closes[-10:]
+    if all(recent[i] < recent[i+1] for i in range(len(recent)-1)):
+        tech_score = 100  # 明确上升趋势
+    elif all(recent[i] > recent[i+1] for i in range(len(recent)-1)):
+        tech_score = 0    # 明确下降趋势
+    else:
+        tech_score = 40   # 震荡
+else:
+    tech_score = 40
+
+# 情绪/反身性维度（需结合市场数据）
+# 实际使用时从市场情绪接口获取涨停家数、炸板率等
+market_up_count = 80  # 示例：涨停家数
+if market_up_count > 80:
+    sentiment_score = 40   # 亢奋期，一致性过高
+elif market_up_count > 40:
+    sentiment_score = 60   # 正常
+else:
+    sentiment_score = 100  # 冰点，反向机会
+```

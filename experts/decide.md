@@ -1,5 +1,8 @@
 # 专家圆桌决策引擎
 
+> 版本：v1.1.0（2026-06-08）
+> 更新：适配新的 `scripts/data/` 和 `scripts/common/` 模块
+
 > 整合 8 位专家的独立评分，生成加权投票结果。用于 stock skill debate 模式。
 
 ## 一、投票机制
@@ -122,12 +125,61 @@
 
 ## 五、使用流程（stock skill debate 模式）
 
-1. **获取数据**：运行 `scripts/quote.py`、`scripts/finance.py`、`scripts/kline.py` 获取目标股票完整数据
-2. **获取大盘数据**：运行 `scripts/quote.py sh000001,sh510300 -j` 判断市场环境
+1. **获取数据**：使用 `scripts/data/` 获取目标股票完整数据
+2. **获取大盘数据**：使用 `get_quote("sh000001")` 或 `get_quote("sh510300")` 判断市场环境
 3. **专家打分**：每位专家按各自 `§九 评分矩阵` 对目标股票独立打分（使用步骤1的数据）
 4. **应用调整**：根据市场环境（步骤2）调整长线/短线权重
 5. **冲突解决**：按 §三 规则处理分歧，特别注意巴菲特否决权和养家情绪周期
 6. **输出结果**：按 §四 格式输出，含评分表、方向、风险、仓位
+
+**代码示例：**
+
+```python
+from data import get_quote, get_finance, get_kline
+import statistics
+
+# 1. 获取股票数据
+quote = get_quote("sh600989")
+fin = get_finance("sh600989")[0]
+bars = get_kline("sh600989", scale=240, datalen=30)
+
+# 2. 获取大盘数据判断市场环境
+index_quote = get_quote("sh000001")
+prev_close = index_quote.get("prev_close", 0)
+current_price = index_quote.get("price", 0)
+
+# 判断市场状态
+if prev_close > 0:
+    change_pct = (current_price / prev_close - 1) * 100
+    if change_pct > 3:
+        market_state = "牛市"
+        long_weight = 0.40
+        short_weight = 0.60
+    elif change_pct < -3:
+        market_state = "熊市"
+        long_weight = 0.65
+        short_weight = 0.35
+    else:
+        market_state = "震荡"
+        long_weight = 0.55
+        short_weight = 0.45
+
+# 3. 计算专家评分（以巴菲特为例）
+roe = float(fin.get("ROEJQ", 0))
+pe = float(quote.get("pe", 0))
+
+# 巴菲特评分矩阵
+buffett_scores = {
+    "基本面": 100 if roe >= 20 else (75 if roe >= 15 else (40 if roe >= 10 else 0)),
+    "估值": 100 if pe <= 15 else (60 if pe <= 25 else (25 if pe <= 40 else 0)),
+}
+
+# 4. 计算综合分
+# ... (按 decide.md 规则计算)
+
+# 5. 输出结果
+print(f"市场状态: {market_state} | 长线权重: {long_weight} | 短线权重: {short_weight}")
+```
 
 ---
 
