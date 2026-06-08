@@ -54,4 +54,14 @@ for s in "${SKILLS[@]}"; do
   fi
 done
 echo
-echo "✓ 安装完成。重新启动 Claude Code 即可识别 8 个 slash command。"
+echo "==> 初始化股票池"
+INIT_SCRIPT="$PKG_ROOT/scripts/init_pool.py"
+if command -v python3 &>/dev/null; then
+  python3 "$INIT_SCRIPT"
+else
+  echo "  ⚠ Python3 未安装，跳过初始化"
+  echo "  稍后可手动运行: python3 $INIT_SCRIPT"
+fi
+
+echo
+echo "✓ 安装完成。重新启动 Claude Code 即可识别 9 个 slash command（含 /init）。"

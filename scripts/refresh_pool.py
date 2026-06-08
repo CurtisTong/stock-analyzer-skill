@@ -5,7 +5,7 @@
 用法:
   python3 scripts/refresh_pool.py                     # 刷新全部板块
   python3 scripts/refresh_pool.py --sector 机器人      # 只刷新指定板块
-  python3 scripts/refresh_pool.py --top 20             # 每板块取 Top 20
+  python3 scripts/refresh_pool.py --top 30             # 每板块取 Top 30
   python3 scripts/refresh_pool.py --sort cap           # 按市值排序（默认 amount）
   python3 scripts/refresh_pool.py --dry-run            # 只打印不写入
   python3 scripts/refresh_pool.py --diff               # 对比当前池显示变更
@@ -27,9 +27,9 @@ from common import http_get_cached, normalize_quote_code, board_type
 # ---------- 常量 ----------
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-MAPPING_FILE = os.path.join(PROJECT_ROOT, "data", "sector_mapping.json")
-POOL_FILE = os.path.join(PROJECT_ROOT, "data", "sector_stocks.json")
+DATA_DIR = os.path.join(SCRIPT_DIR, "data")
+MAPPING_FILE = os.path.join(DATA_DIR, "sector_mapping.json")
+POOL_FILE = os.path.join(DATA_DIR, "sector_stocks.json")
 
 API_BASE = "https://push2.eastmoney.com/api/qt/clist/get"
 API_TOKEN = os.environ.get("EASTMONEY_API_TOKEN", "")
@@ -149,7 +149,7 @@ def sort_stocks(stocks: list[dict], key: str = "amount") -> list[dict]:
     return sorted(stocks, key=keys.get(key, keys["amount"]), reverse=True)
 
 
-def build_sector_pool(stocks: list[dict], top_n: int = 15, sort_by: str = "amount") -> list[str]:
+def build_sector_pool(stocks: list[dict], top_n: int = 20, sort_by: str = "amount") -> list[str]:
     """过滤+排序+截取，返回代码列表"""
     filtered = []
     reasons = {}
@@ -184,7 +184,7 @@ def build_dividend_pool(all_pools: dict[str, list[str]], all_stocks: dict[str, d
                 candidates.append(s)
     # 按成交额排序取 Top 15
     sorted_c = sort_stocks(candidates, "amount")
-    return [s["code"] for s in sorted_c[:15]]
+    return [s["code"] for s in sorted_c[:20]]
 
 
 # ---------- 主流程 ----------
@@ -202,7 +202,7 @@ def load_current_pool() -> dict:
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
-def refresh_pool(sectors: list[str] | None = None, top_n: int = 15,
+def refresh_pool(sectors: list[str] | None = None, top_n: int = 20,
                  sort_by: str = "amount", dry_run: bool = False,
                  show_diff: bool = False) -> dict:
     """刷新股票池，返回新池"""
@@ -308,7 +308,7 @@ def print_diff(current: dict, new_pool: dict):
 def main():
     parser = argparse.ArgumentParser(description="股票池自动刷新")
     parser.add_argument("--sector", "-s", nargs="+", help="只刷新指定板块")
-    parser.add_argument("--top", "-n", type=int, default=15, help="每板块取 Top N（默认 15）")
+    parser.add_argument("--top", "-n", type=int, default=20, help="每板块取 Top N（默认 20）")
     parser.add_argument("--sort", choices=["amount", "cap", "pe", "turnover"],
                         default="amount", help="排序方式（默认 amount 成交额）")
     parser.add_argument("--dry-run", action="store_true", help="只打印不写入")

@@ -5,7 +5,7 @@
  * 自动将 stock-analyzer plugin 添加到 Claude Code
  */
 
-const { execSync } = require("child_process");
+const { execSync, spawnSync } = require("child_process");
 const path = require("path");
 
 const pluginDir = __dirname;
@@ -27,6 +27,20 @@ try {
     timeout: 30000,
   });
 
+  // 尝试初始化股票池（各板块前 20 只股票）
+  console.log("");
+  console.log("📊 初始化股票池...");
+  const initScript = path.join(pluginDir, "scripts", "init_pool.py");
+  const initResult = spawnSync("python3", [initScript], {
+    stdio: "inherit",
+    timeout: 120000,
+    cwd: pluginDir,
+  });
+  if (initResult.error) {
+    console.log("  ⚠️  跳过初始化（Python 未安装或不可用）");
+    console.log("  稍后可手动运行: python3 scripts/init_pool.py");
+  }
+
   console.log("");
   console.log("✅ 安装完成！");
   console.log("");
@@ -39,6 +53,7 @@ try {
   console.log("  /portfolio       - 持仓检查");
   console.log("  /financial-analyst - 财务分析");
   console.log("  /investment-researcher - 投资研究");
+  console.log("  /init             - 初始化/刷新股票池");
   console.log("");
   console.log("使用方式：直接在 Claude Code 中输入 /skill-name 参数");
   console.log("例如：/stock 贵州茅台 quick");
