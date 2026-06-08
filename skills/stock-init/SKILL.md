@@ -1,6 +1,6 @@
 ---
-name: init
-description: 初始化或刷新股票池，为每个板块拉取前 20 只股票。当用户输入 /init、/setup、"初始化股票池"、"刷新股票池"时触发。
+name: stock-init
+description: 初始化或刷新股票池，为每个板块拉取前 20 只股票。当用户输入 /stock-init、"初始化股票池"、"刷新股票池"时触发。
 ---
 
 # 初始化股票池
@@ -10,9 +10,9 @@ description: 初始化或刷新股票池，为每个板块拉取前 20 只股票
 ## Usage
 
 ```text
-/init              # 检测并初始化（已有数据则跳过）
-/init force        # 强制重新初始化
-/init top 30       # 每板块取 Top 30
+/stock-init              # 检测并初始化（已有数据则跳过）
+/stock-init force        # 强制重新初始化
+/stock-init top 30       # 每板块取 Top 30
 ```
 
 ## Instructions
