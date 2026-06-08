@@ -66,7 +66,7 @@ claude skills list
 
 ## 目录结构
 
-```
+```text
 stock-analyzer-skill/
 ├── .claude-plugin/                 # Claude Code plugin 配置
 │   ├── plugin.json                 # plugin 元数据
@@ -82,37 +82,101 @@ stock-analyzer-skill/
 │   ├── investment-researcher/SKILL.md
 │   └── help/SKILL.md
 ├── scripts/                        # 工具脚本（Python stdlib only）
-│   ├── common.py                   # 编码转换、字段映射、HTTP
-│   ├── quote.py                    # 腾讯实时行情
-│   ├── finance.py                  # 东财财务数据
-│   ├── kline.py                    # 新浪 K线
+│   ├── api/                        # CLI 入口层
+│   │   ├── quote_cli.py            # 行情查询 CLI
+│   │   └── screener_cli.py         # 选股器 CLI
+│   ├── business/                   # 业务逻辑层
+│   │   ├── stock_analysis.py       # 个股分析服务
+│   │   └── screening_service.py    # 选股服务
+│   ├── common/                     # 基础设施层
+│   │   ├── __init__.py             # HTTP 请求、编码转换、字段映射
+│   │   ├── validators.py           # 输入验证器
+│   │   └── exceptions/             # 统一异常类
+│   ├── config/                     # 配置外部化
+│   │   ├── loader.py               # YAML 配置加载器
+│   │   ├── data_source.yaml        # 数据源端点配置
+│   │   ├── industry_thresholds.yaml # 行业差异化阈值
+│   │   ├── scoring.yaml            # 评分权重配置
+│   │   └── limits.yaml             # 限流与超时配置
+│   ├── data/                       # 数据层
+│   │   ├── types.py                # 数据类型定义
+│   │   ├── cache.py                # 缓存管理
+│   │   ├── config.py               # 数据配置
+│   │   ├── industry_thresholds.json # 行业阈值数据
+│   │   ├── sector_etf.csv          # 板块 ETF 清单
+│   │   ├── sector_stocks.json      # 板块核心标的库
+│   │   ├── sector_mapping.json     # 板块映射关系
+│   │   └── portfolio_example.json  # 持仓配置示例
+│   ├── fetchers/                   # 数据获取层（多数据源适配）
+│   │   ├── tencent_quote.py        # 腾讯实时行情
+│   │   ├── eastmoney_quote.py      # 东财实时行情
+│   │   ├── eastmoney_finance.py    # 东财财务数据
+│   │   ├── eastmoney_kline.py      # 东财 K 线
+│   │   ├── sina_quote.py           # 新浪行情
+│   │   ├── sina_kline.py           # 新浪 K 线
+│   │   ├── akshare_quote.py        # AkShare 行情
+│   │   ├── akshare_finance.py      # AkShare 财务
+│   │   ├── akshare_kline.py        # AkShare K 线
+│   │   ├── efinance_*.py           # efinance 适配
+│   │   ├── baostock_kline.py       # baostock K 线
+│   │   ├── pytdx_*.py              # pytdx 适配
+│   │   ├── tushare_*.py            # tushare 适配
+│   │   └── yfinance_kline.py       # yfinance K 线（港股/美股）
+│   ├── strategies/                 # 选股策略系统
+│   │   ├── registry.py             # 策略注册中心
+│   │   ├── thresholds.py           # 阈值管理
+│   │   └── factors/                # 因子实现
+│   ├── technical/                  # 技术分析模块
+│   │   ├── macd.py / kdj.py / boll.py / rsi.py  # 指标计算
+│   │   ├── moving_average.py       # 均线系统
+│   │   ├── volume.py               # 量价分析
+│   │   ├── trend.py                # 趋势判断
+│   │   ├── candlestick.py          # K 线形态
+│   │   ├── astock.py               # A 股特色指标
+│   │   ├── signals.py              # 信号生成
+│   │   ├── scoring.py              # 综合评分
+│   │   └── report.py               # 报告生成
+│   ├── infrastructure/             # 基础设施（预留）
 │   ├── announcements.py            # 东财公告/研报
-│   ├── screener.py                 # A股多因子选股器
-│   ├── technical.py                # 纯技术分析
-│   ├── classifier.py               # 个股类型分类
+│   ├── backtest.py                 # 历史回测引擎
 │   ├── chan.py                     # 缠论结构
-│   └── patterns_local.py           # A股本土战法形态
-├── data/                           # 静态参考数据
-│   ├── sector_etf.csv              # 板块 ETF 清单
-│   ├── sector_stocks.json          # 板块核心标的库
-│   └── portfolio_example.json      # 持仓配置示例
+│   ├── classifier.py               # 个股类型分类
+│   ├── finance.py                  # 财务数据入口
+│   ├── init_pool.py                # 候选池初始化
+│   ├── kline.py                    # K 线数据入口
+│   ├── monitor.py                  # 实时监控
+│   ├── patterns_local.py           # A 股本土战法形态
+│   ├── quote.py                    # 行情数据入口
+│   ├── refresh_pool.py             # 候选池刷新
+│   ├── screener.py                 # A 股多因子选股器
+│   └── technical.py                # 技术分析入口
+├── data/                           # 输出数据
+│   └── reports/                    # 分析报告
 ├── experts/                        # 8 人专家定义
-│   ├── buffett.md
-│   ├── lynch.md
-│   ├── soros.md
-│   ├── duan_yongping.md
-│   ├── xu_xiang.md
-│   ├── zhao_laoge.md
-│   ├── chaogu_yangjia.md
-│   └── zuoshou_xinyi.md
-├── tests/
-│   └── smoke_test.sh               # 端到端冒烟测试
+│   ├── buffett.md / lynch.md / soros.md / duan_yongping.md
+│   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md
+│   └── decide.md                   # 决策整合规则
+├── tests/                          # 测试套件
+│   ├── conftest.py                 # pytest 配置与 fixtures
+│   ├── smoke_test.sh               # 端到端冒烟测试
+│   ├── test_*.py                   # 单元测试
+│   └── unit/                       # 更多单元测试
+├── docs/                           # 详细文档
+│   ├── quick-start.md              # 快速入门
+│   ├── user-guide.md               # 使用者指南
+│   ├── developer-guide.md          # 开发者指南
+│   ├── methodology.md              # 方法论文档
+│   ├── api-reference.md            # API 参考
+│   ├── implementation-plan.md      # 实现计划
+│   └── improvement-roadmap.md      # 改进路线图
 ├── package.json                    # npm 发布配置
+├── pyproject.toml                  # Python 项目配置
 ├── install-plugin.js               # npm postinstall 脚本
 ├── install.sh                      # 传统安装脚本
 ├── README.md                       # 本文件
+├── CHANGELOG.md                    # 版本变更记录
 ├── CONTRIBUTING.md                 # 贡献指南
-├── workflow.md                     # 8 个 skill 的协作流程
+├── workflow.md                     # 9 个 skill 的协作流程
 └── methodology.md                  # 完整投资方法论
 ```
 
@@ -120,7 +184,7 @@ stock-analyzer-skill/
 
 ### 快速个股分析
 
-```
+```text
 /stock sh600989
 ```
 
@@ -128,7 +192,7 @@ stock-analyzer-skill/
 
 ### 大盘快评
 
-```
+```text
 /market quick
 ```
 
@@ -136,15 +200,15 @@ stock-analyzer-skill/
 
 ### 持仓健康检查
 
-```
+```text
 /portfolio
 ```
 
-读取 `data/portfolio_example.json`（可复制为 `portfolio.json` 自定义持仓）。
+读取 `scripts/data/portfolio_example.json`（可复制为 `portfolio.json` 自定义持仓）。
 
 ### 多因子选股
 
-```
+```text
 /screener --sector 资源 --strategy quality_value --top 5
 ```
 
@@ -152,7 +216,7 @@ stock-analyzer-skill/
 
 ### 技术面确认
 
-```
+```text
 /technical sh600989 --quick
 ```
 
@@ -160,7 +224,7 @@ stock-analyzer-skill/
 
 ### 完整五层 + 专家辩论
 
-```
+```text
 /stock sh600989 debate
 ```
 
@@ -168,7 +232,7 @@ stock-analyzer-skill/
 
 ### 查看帮助
 
-```
+```text
 /help
 ```
 
@@ -177,11 +241,11 @@ stock-analyzer-skill/
 ## 自定义持仓
 
 ```bash
-cp data/portfolio_example.json data/portfolio.json
+cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 # 编辑 portfolio.json，修改 codes 字段
 ```
 
-`/portfolio` 命令默认读取 `data/portfolio.json`（或 `data/portfolio_example.json` 作为回退）。
+`/portfolio` 命令默认读取 `scripts/data/portfolio.json`（或 `scripts/data/portfolio_example.json` 作为回退）。
 
 ## 数据源
 
@@ -220,7 +284,10 @@ cp data/portfolio_example.json data/portfolio.json
 ## 解耦特性
 
 ✅ **零项目依赖**：不引用任何业务项目内文件（`src/`、`data_provider/`、`AGENTS.md` 等）
-✅ **零外部 Python 库**：只用 stdlib（`urllib` + `json` + `pathlib`）
+✅ **零外部 Python 库**：只用 stdlib（`urllib` + `json` + `pathlib` + `yaml`）
+✅ **三层架构**：API 层（CLI 入口）→ Business 层（业务逻辑）→ Data 层（数据获取/缓存），职责清晰
+✅ **配置外部化**：行业阈值、评分权重、数据源端点等均通过 YAML 配置，无需改代码
+✅ **多数据源适配**：fetchers/ 下统一接口，腾讯/东财/新浪/AkShare 等可自由切换
 ✅ **单源真理**：方法论、数据、脚本各自集中在一处
 ✅ **可移植**：可打包为 git 仓库或 npm 包分发
 
@@ -241,19 +308,23 @@ rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.
 
 ## 近期改进
 
+- **三层架构重构**：scripts/ 拆分为 API 层（cli 入口）、Business 层（分析/选股服务）、Data 层（fetchers/缓存/配置），职责清晰、易扩展
+- **配置外部化**：行业阈值、评分权重、数据源端点等提取为 YAML 配置（`scripts/config/`），无需改代码即可调整
+- **多数据源适配**：新增 fetchers/ 统一接口层，支持腾讯/东财/新浪/AkShare/eFinance/baostock/pytdx/tushare/yfinance 等 9+ 数据源自由切换
+- **统一异常与验证**：新增 `common/exceptions/` 统一异常类、`common/validators.py` 输入验证器
 - **Plugin 化分发**：支持通过 Claude Code plugin 系统一键安装，无需重启
 - **帮助系统**：新增 `/help` skill，显示所有可用 skills 和使用说明
+- **回测引擎**：新增 `backtest.py`，支持策略历史回测验证
+- **候选池管理**：新增 `init_pool.py` / `refresh_pool.py`，支持候选池初始化与定期刷新
+- **实时监控**：新增 `monitor.py`，支持持仓和关注标的实时监控
 - **行业差异化阈值**：五层分析框架按行业分档（金融/消费/科技/周期/医药/制造/能源/地产），避免一刀切误判
 - **风控体系强化**：集中度控制（单只≤15%、单行业≤30%）、时间止损、极端情景预案、加仓规则
-- **缠论盘整背驰**：补全中枢进入段 vs 离开段的 MACD 面积对比
-- **评分上限修正**：各维度评分独立 clamp，总分不超过 100
-- **流动性板块差异化**：主板/创业板/科创板/北交所使用不同满分阈值
 - **专家权重优化**：长短线权重随投资期限变化，巴菲特否决权限定中长期模式
 - **工作流增强**：交接字段补充投资期限/催化剂/论点破灭条件，决策门槛量化
 
 ## 已知限制
 
 - 实时数据依赖外部 API 端点稳定性；如遇变更，修改 `scripts/common.py` 中端点即可
-- portfolio skill 默认读取 `data/portfolio_example.json` 作为示例，实际使用前需自定义
+- portfolio skill 默认读取 `scripts/data/portfolio_example.json` 作为示例，实际使用前需自定义
 - 部分 API（如东财公告）可能有反爬限制，已加超时和重试
 - 多因子权重基于经验设定，尚未经过历史回测验证
