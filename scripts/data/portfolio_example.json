@@ -1,14 +1,69 @@
 {
-  "version": 1,
-  "note": "示例持仓配置。复制此文件到 portfolio.json 并修改 codes 字段为你的实际持仓。",
-  "codes": [
-    "sh600989",
-    "sz000807",
-    "sh518880",
-    "sh603993",
-    "sz002415",
-    "sh603799",
-    "sh601211",
-    "sz300438"
+  "version": 2,
+  "note": "示例持仓配置（v2）。复制此文件为 portfolio.json 并修改为你的真实持仓。",
+  "positions": [
+    {
+      "code": "sh600989",
+      "name": "宝丰能源",
+      "cost": 18.5,
+      "quantity": 1000,
+      "buy_date": "2025-03-15",
+      "tags": ["能源", "长线"]
+    },
+    {
+      "code": "sz000807",
+      "name": "云铝股份",
+      "cost": 14.2,
+      "quantity": 2000,
+      "buy_date": "2025-04-10",
+      "tags": ["资源"]
+    },
+    {
+      "code": "sh518880",
+      "name": "黄金ETF",
+      "cost": 6.5,
+      "quantity": 5000,
+      "buy_date": "2025-02-20",
+      "tags": ["避险", "长线"]
+    },
+    {
+      "code": "sh603993",
+      "name": "洛阳钼业",
+      "cost": 8.8,
+      "quantity": 3000,
+      "buy_date": "2025-05-08",
+      "tags": ["资源", "有色"]
+    },
+    {
+      "code": "sz002415",
+      "name": "海康威视",
+      "cost": 32.0,
+      "quantity": 500,
+      "buy_date": "2025-03-22",
+      "tags": ["科技"]
+    }
+  ],
+  "watchlist": [
+    {
+      "code": "sh603799",
+      "name": "华友钴业",
+      "target_buy": 28.0,
+      "target_sell": 42.0,
+      "added_date": "2025-06-01"
+    },
+    {
+      "code": "sh601211",
+      "name": "国泰君安",
+      "target_buy": 14.0,
+      "target_sell": 20.0,
+      "added_date": "2025-05-15"
+    },
+    {
+      "code": "sz300438",
+      "name": "鹏辉能源",
+      "target_buy": 22.0,
+      "target_sell": 35.0,
+      "added_date": "2025-06-03"
+    }
   ]
 }

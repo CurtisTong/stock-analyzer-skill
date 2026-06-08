@@ -1,0 +1,57 @@
+# 盘中消息推送配置
+# 文档: https://github.com/user/stock-analyzer-skill/wiki/notifications
+
+# 推送通道配置
+channels:
+  bark:
+    enabled: false
+    server: "https://api.day.app"       # Bark 服务器地址（支持自托管）
+    key: ""                              # Bark 推送 Key
+    group: "stock"                       # iOS 通知分组名
+
+  # wechat_work:
+  #   enabled: false
+  #   webhook: ""                        # 企业微信机器人 Webhook URL
+
+  # dingtalk:
+  #   enabled: false
+  #   webhook: ""                        # 钉钉机器人 Webhook URL
+
+  # webhook:
+  #   enabled: false
+  #   url: ""                            # 自定义 Webhook URL
+
+# 预警规则
+rules:
+  price_alert:
+    enabled: true
+    thresholds:
+      default: 3.0                       # 默认涨跌幅阈值 (%)
+      overrides: {}                      # 个股自定义: {"sh600989": 5.0}
+    support_resistance: true              # 触及支撑/压力位推送
+    near_limit: true                      # 涨跌停附近推送
+
+  technical_alert:
+    enabled: true
+    macd_cross: true                     # MACD 金叉/死叉
+    ma_break: [20, 60]                   # 均线突破
+    volume_surge: 2.0                    # 量比阈值
+    chan_signal: true                    # 缠论买卖点
+
+  portfolio_alert:
+    enabled: true
+    risk_change: true                    # 风险状态变更
+    underperform_days: 2                 # 连续跑输天数
+    concentration: true                  # 集中度超标
+
+  market_alert:
+    enabled: true
+    index_change: 2.0                    # 大盘涨跌幅阈值 (%)
+    sector_moved: true                   # 持仓板块异动
+    northbound_flow: 50                  # 北向资金净流入/出 (亿)
+
+# 频率控制
+throttle:
+  dedup_window: 15                       # 同类消息去重窗口 (分钟)
+  daily_limit: 20                        # 每日推送上限
+  quiet_hours: "15:05-09:25"             # 非交易时段静默
