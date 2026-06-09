@@ -5,6 +5,18 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.2.3] - 2026-06-09
+
+### Changed
+
+- 更新 `methodology.md`：策略权重更新为五因子模型，新增波动率因子权重配置
+- 更新 `docs/product-architecture.md`：添加五因子详解表格，更新策略权重与代码一致
+
+### Documentation
+
+- 明确五因子模型：质量、估值、动量、流动性、波动率
+- 添加各因子评分逻辑说明
+
 ## [1.2.2] - 2026-06-09
 
 ### Changed
