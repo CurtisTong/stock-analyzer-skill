@@ -1,6 +1,6 @@
 # Skill 工作流编排
 
-本文件定义 8 个 skill 的协作关系。原则：先判断环境，再筛候选，再深挖标的，再落到组合和跟踪。
+本文件定义 12 个 skill 的协作关系。原则：先判断环境，再筛候选，再深挖标的，再落到组合和跟踪。
 
 ## 入口选择
 
@@ -14,16 +14,21 @@
 | 看持仓风险 | `portfolio` | 先用 `market` 判风格，再用 `technical` 查破位，用 `screener` 找替换 |
 | 做财务模型 | `financial-analyst` | 输出假设和敏感性后回到 `stock` 做投资结论 |
 | 做尽调/研究报告 | `investment-researcher` | 汇总 `market`/`sector`/`stock`/`financial-analyst`/`technical` 证据 |
+| 实时监控持仓 | `monitor` | 设置告警条件后可自动推送 |
+| 初始化股票池 | `stock-init` | 首次使用需要初始化候选池 |
+| 历史回测验证 | `backtest` | 验证选股策略的有效性 |
+| 查看帮助 | `help` | 显示所有可用 skills 和使用说明 |
 
 ## 标准流水线
 
-支持 3 种链路长度，按场景选择：
+支持 4 种链路长度，按场景选择：
 
 | 模式 | 链路 | 适用场景 | 耗时 |
 | ---- | ---- | -------- | ---- |
 | 快速 | `stock` → `technical` | 已有标的，快速判断 | 1-2 分钟 |
 | 标准 | 完整 6 环节 | 常规选股分析 | 5-10 分钟 |
 | 深度 | `investment-researcher` 总控 | 重大决策、研究报告 | 15-30 分钟 |
+| 监控 | `monitor` 自动推送 | 持仓实时监控 | 持续 |
 
 ### 1. 自上而下选股
 
@@ -61,6 +66,14 @@
 - `stock`：投资结论和风险收益比。
 - `technical`：交易窗口和失效条件。
 
+### 5. 持仓实时监控
+
+`monitor` 作为常驻进程，按需调用：
+
+- `monitor` 定时检查持仓和关注标的价格/异动
+- 达到告警条件时通过 Bark/其他渠道推送
+- 可设置涨跌幅提醒、成交额异动、技术信号触发等
+
 ## 交接字段
 
 每个 skill 输出给下游时，尽量保留这些字段：
@@ -88,4 +101,25 @@
 | 基本面差 | ROE < 10% 或 EPS < 0 | 仅允许短线观察，不进入中长期池 |
 | 技术未触发 | 未达到买入触发条件 | 高分候选只进跟踪清单 |
 | 组合已拥挤 | 持仓数 ≥ 10 或单行业占比 > 30% | 新增标的必须说明替换对象 |
+| 监控告警 | 持仓涨跌幅超阈值或成交额异动 | 通过 Bark 推送告警 |
+| 回测验证 | 策略夏普比率 < 0.5 或最大回撤 > 30% | 不建议实盘使用 |
+
+---
+
+## 12 Skills 速查表
+
+| Skill | 命令 | 功能 |
+|-------|------|------|
+| stock | /stock <代码> [quick\|full\|debate] | 单股分析，五层框架 + 8人专家圆桌 |
+| market | /market [full\|quick\|intraday] | 大盘复盘，指数+板块+风格+资金 |
+| sector | /sector <板块> [overview\|compare\|stock] | 板块分析，标的对比+多空博弈 |
+| portfolio | /portfolio [health\|rebalance\|compare] | 持仓健康检查，涨跌+支撑+风险预警 |
+| screener | /screener [--sector 板块] [--strategy 策略] | 多因子选股系统 |
+| technical | /technical <代码> [quick\|full] | 纯技术分析，均线+MACD/KDJ/BOLL+缠论 |
+| financial-analyst | /financial-analyst <任务> | 财务分析 agent |
+| investment-researcher | /investment-researcher <任务> | 投资研究 agent |
+| monitor | /monitor [start\|stop\|status] | 实时监控持仓和告警 |
+| stock-init | /stock-init [--sector 板块] | 初始化股票池候选 |
+| help | /help | 显示所有可用 skills 和使用说明 |
+| backtest | /backtest --strategy 策略 --days 天数 | 策略回测验证 |
 
