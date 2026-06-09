@@ -123,12 +123,23 @@ def get_lhb_fetchers() -> list:
     return fetchers
 
 
+def get_event_fetchers() -> list:
+    """获取所有可用的事件日历数据源。"""
+    fetchers = []
+
+    from .eastmoney_event import EarningsCalendarFetcher, LockupCalendarFetcher, DividendCalendarFetcher
+    fetchers.extend([EarningsCalendarFetcher(), LockupCalendarFetcher(), DividendCalendarFetcher()])
+
+    return fetchers
+
+
 # 全局管理器（延迟初始化）
 _quote_manager = None
 _kline_manager = None
 _finance_manager = None
 _flow_manager = None
 _lhb_manager = None
+_event_manager = None
 
 
 def get_quote_manager() -> DataFetcherManager:
@@ -164,3 +175,10 @@ def get_lhb_manager() -> DataFetcherManager:
     if _lhb_manager is None:
         _lhb_manager = DataFetcherManager(get_lhb_fetchers())
     return _lhb_manager
+
+
+def get_event_manager() -> DataFetcherManager:
+    global _event_manager
+    if _event_manager is None:
+        _event_manager = DataFetcherManager(get_event_fetchers())
+    return _event_manager

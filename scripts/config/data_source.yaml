@@ -117,9 +117,10 @@ http:
 
 # 缓存配置
 cache:
-  quote_ttl: 900      # 15分钟
-  kline_ttl: 21600   # 6小时
-  finance_ttl: 21600 # 6小时
-  ann_ttl: 1800      # 30分钟
-  max_size: 1000     # 最大缓存文件数
-  max_age: 604800    # 7天
+  quote_ttl: 900          # 15分钟（盘后）
+  intraday_quote_ttl: 90  # 90秒（盘中）
+  kline_ttl: 21600        # 6小时
+  finance_ttl: 21600      # 6小时
+  ann_ttl: 1800           # 30分钟
+  max_size: 1000          # 最大缓存文件数
+  max_age: 604800         # 7天

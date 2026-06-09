@@ -62,6 +62,7 @@ from common.utils import (
     normalize_finance_code,
     to_secid,
     board_type,
+    is_etf,
     batchify,
     to_float,
     to_int,
@@ -312,7 +313,7 @@ __all__ = [
     # 工具函数
     "split_codes", "plain_code", "infer_exchange",
     "normalize_quote_code", "normalize_finance_code", "to_secid",
-    "board_type", "batchify", "to_float", "to_int", "clamp",
+    "board_type", "is_etf", "batchify", "to_float", "to_int", "clamp",
     "normalize_volume", "normalize_amount",
     "err", "parallel_map",
     # 异常类

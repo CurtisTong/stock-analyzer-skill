@@ -72,6 +72,8 @@ def to_secid(code: str) -> str:
 def board_type(code: str) -> str:
     """粗分 A 股板块，用于风险提示和涨跌幅判断。"""
     c = plain_code(code)
+    if is_etf(code):
+        return "ETF"
     if c.startswith("688"):
         return "科创板"
     if c.startswith(("300", "301")):
@@ -81,6 +83,15 @@ def board_type(code: str) -> str:
     if c.startswith(("60", "00")):
         return "主板"
     return "其他"
+
+
+def is_etf(code: str) -> bool:
+    """判断是否为 ETF 代码。
+    上交所 ETF: 51xxxx, 56xxxx, 58xxxx
+    深交所 ETF: 15xxxx, 16xxxx, 18xxxx
+    """
+    c = plain_code(code)
+    return c.startswith(("51", "56", "58", "15", "16", "18"))
 
 
 # ---------- 类型转换 ----------

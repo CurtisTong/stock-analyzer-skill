@@ -1,7 +1,19 @@
-"""统一配置管理。"""
+"""统一配置管理。
+
+配置优先级：环境变量 > YAML 配置 > 代码默认值
+"""
 import os
 import time
 from dataclasses import dataclass
+
+
+def _load_yaml_config() -> dict:
+    """从 ConfigLoader 加载 YAML 配置（延迟导入避免循环依赖）。"""
+    try:
+        from config.loader import ConfigLoader
+        return ConfigLoader.load("data_source.yaml")
+    except Exception:
+        return {}
 
 
 @dataclass
@@ -22,9 +34,22 @@ class DataConfig:
     max_workers: int = 8
 
     @classmethod
-    def from_env(cls) -> "DataConfig":
-        """从环境变量加载配置。"""
+    def from_yaml_and_env(cls) -> "DataConfig":
+        """从 YAML 配置加载默认值，环境变量覆盖。"""
+        yaml_cfg = _load_yaml_config()
+        cache_cfg = yaml_cfg.get("cache", {})
+        cb_cfg = yaml_cfg.get("circuit_breaker", {})
+
         cfg = cls()
+        # YAML 默认值
+        cfg.quote_cache_ttl = cache_cfg.get("quote_ttl", cfg.quote_cache_ttl)
+        cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
+        cfg.finance_cache_ttl = cache_cfg.get("finance_ttl", cfg.finance_cache_ttl)
+        cfg.ann_cache_ttl = cache_cfg.get("ann_ttl", cfg.ann_cache_ttl)
+        cfg.circuit_failure_threshold = cb_cfg.get("failure_threshold", cfg.circuit_failure_threshold)
+        cfg.circuit_recovery_timeout = cb_cfg.get("recovery_timeout", cfg.circuit_recovery_timeout)
+
+        # 环境变量覆盖
         cfg.quote_cache_ttl = int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl))
         cfg.intraday_quote_cache_ttl = int(os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl))
         cfg.kline_cache_ttl = int(os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl))
@@ -33,6 +58,11 @@ class DataConfig:
         cfg.circuit_recovery_timeout = int(os.getenv("DATA_CIRCUIT_TIMEOUT", cfg.circuit_recovery_timeout))
         cfg.max_workers = int(os.getenv("DATA_MAX_WORKERS", cfg.max_workers))
         return cfg
+
+    @classmethod
+    def from_env(cls) -> "DataConfig":
+        """向后兼容：从环境变量加载配置。"""
+        return cls.from_yaml_and_env()
 
 
 def is_trading_hours() -> bool:
