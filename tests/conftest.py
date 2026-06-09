@@ -126,7 +126,7 @@ def kline_limit_up():
 
 @pytest.fixture
 def sample_quote():
-    """标准行情数据（模拟腾讯接口返回格式）。"""
+    """标准行情数据（归一化后：volume=股, amount=元）。"""
     return {
         "code": "600519",
         "name": "贵州茅台",
@@ -137,8 +137,8 @@ def sample_quote():
         "change_amt": "10.00",
         "high": "1810.00",
         "low": "1790.00",
-        "volume": "12345",
-        "amount": "2234567",
+        "volume": "1234500",       # 股（腾讯原值 12345 手 × 100）
+        "amount": "22345670000",   # 元（腾讯原值 2234567 万 × 10000）
         "turnover": "0.15",
         "pe": "25.6",
         "pb": "8.2",

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common import BaseFetcher, http_get, to_secid
+from common import BaseFetcher, http_get, to_secid, normalize_volume, normalize_amount
 
 EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get?secid={secid}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f55,f57,f58,f60,f116,f117,f162,f167,f168,f169,f170"
 
@@ -57,8 +57,8 @@ class EastmoneyQuoteFetcher(BaseFetcher):
             "change_amt": _div100(d.get("f169", 0)),
             "high": _div100(d.get("f44", 0)),
             "low": _div100(d.get("f45", 0)),
-            "volume": str(d.get("f47", 0)),
-            "amount": str(round(float(d.get("f48", 0)) / 10000, 2)),
+            "volume": normalize_volume(d.get("f47", 0), "eastmoney"),
+            "amount": normalize_amount(d.get("f48", 0), "eastmoney"),
             "turnover": _div100(d.get("f168", 0)),
             "pe": _div100(d.get("f162", 0)),
             "pb": _div100(d.get("f167", 0)),

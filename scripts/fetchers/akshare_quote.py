@@ -1,5 +1,6 @@
 """akshare 行情数据源（需要 akshare 包）。"""
 import sys
+import time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -10,6 +11,10 @@ try:
     HAS_AKSHARE = True
 except ImportError:
     HAS_AKSHARE = False
+
+# 内存缓存：同一次运行内只拉一次全量行情
+_ak_cache = {"df": None, "ts": 0}
+_AK_CACHE_TTL = 60  # 秒
 
 
 class AkshareQuoteFetcher(BaseFetcher):
@@ -23,9 +28,18 @@ class AkshareQuoteFetcher(BaseFetcher):
             return None
         try:
             plain = code.lstrip("shszSHSZbjBJ")
-            df = ak.stock_zh_a_spot_em()
-            if df is None or df.empty:
-                return None
+
+            # 使用内存缓存避免重复拉取全量数据
+            now = time.time()
+            if _ak_cache["df"] is None or now - _ak_cache["ts"] > _AK_CACHE_TTL:
+                df = ak.stock_zh_a_spot_em()
+                if df is None or df.empty:
+                    return None
+                _ak_cache["df"] = df
+                _ak_cache["ts"] = now
+            else:
+                df = _ak_cache["df"]
+
             row = df[df["代码"] == plain]
             if row.empty:
                 return None

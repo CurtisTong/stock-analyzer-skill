@@ -1,39 +1,97 @@
-#!/usr/bin/env python3
 """
-公共工具：编码转换、HTTP 请求、字段映射、ETF 代码表。
-被 quote.py / finance.py / kline.py / announcements.py 复用。
+公共工具包：HTTP 请求、字段映射、工具函数、熔断器、数据源抽象。
 
 包结构:
-- common/           # 公共工具包
-  - __init__.py    # 主模块 (原 common.py 内容)
-  - exceptions/    # 统一异常类
-  - validators.py  # 输入验证器
+- common/__init__.py   # 主模块（re-export + 熔断器/数据源抽象）
+- common/http.py       # HTTP 客户端
+- common/parsers.py    # 字段映射与解析
+- common/utils.py      # 工具函数
+- common/exceptions/   # 统一异常类
+- common/validators.py # 输入验证器
 """
-import hashlib
-import os
-import random
-import sys
 import json
 import threading
 import time
-import urllib.request
-import urllib.error
 from abc import ABC, abstractmethod
 from enum import Enum
-from pathlib import Path
 
-PACKAGE_ROOT = Path(__file__).resolve().parent.parent
-DATA_DIR = PACKAGE_ROOT / "data"
+# ---------- 子模块导入 ----------
 
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "stock-analyzer-skill/1.0",
-]
+# 统一异常类
+from common.exceptions import (
+    StockAnalyzerError,
+    DataError,
+    NetworkError,
+    RateLimitError,
+    ParseError,
+    DataUnavailableError,
+    BusinessError,
+    ValidationError,
+    StrategyError,
+    InsufficientDataError,
+    ConfigurationError,
+    format_error,
+    is_retryable_error,
+)
 
-# 延迟导入 data.cache，避免循环依赖
+# HTTP 客户端
+from common.http import (
+    USER_AGENTS,
+    http_get,
+    http_get_with_headers,
+    decode_gbk,
+)
+
+# 字段映射与解析
+from common.parsers import (
+    TENCENT_FIELDS,
+    parse_tencent_line,
+    SINA_QUOTE_URL,
+    parse_sina_quote_line,
+    EAST_MONEY_FIELDS,
+)
+
+# 工具函数
+from common.utils import (
+    PACKAGE_ROOT,
+    DATA_DIR,
+    split_codes,
+    plain_code,
+    infer_exchange,
+    normalize_quote_code,
+    normalize_finance_code,
+    to_secid,
+    board_type,
+    batchify,
+    to_float,
+    to_int,
+    clamp,
+    normalize_volume,
+    normalize_amount,
+    err,
+    parallel_map,
+)
+
+# 输入验证器
+from common.validators import (
+    validate_code,
+    normalize_code,
+    validate_codes,
+    validate_date,
+    validate_date_range,
+    validate_positive,
+    validate_in_range,
+)
+
+# 向后兼容别名
+DataSourceUnavailableError = NetworkError
+DataParseError = ParseError
+
+
+# ---------- 缓存代理（延迟导入避免循环依赖）----------
+
 _cache_module = None
+
 
 def _get_cache_module():
     global _cache_module
@@ -41,9 +99,6 @@ def _get_cache_module():
         from data import cache as _cache_module
     return _cache_module
 
-
-# ---------- 磁盘缓存代理函数 ----------
-# 延迟解析 data.cache 模块
 
 def _get_cache_items():
     cache = _get_cache_module()
@@ -81,293 +136,6 @@ def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 2160
     cache.set(key, data)
     return data
 
-# ---------- HTTP ----------
-
-def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
-    """GET 请求，指数退避重试，UA 随机轮换。429 立即抛出不重试。"""
-    last_err = None
-    for attempt in range(max_retries):
-        req = urllib.request.Request(url, headers={
-            "User-Agent": random.choice(USER_AGENTS),
-        })
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.read()
-        except urllib.error.HTTPError as e:
-            last_err = e
-            if e.code == 429:
-                raise RateLimitError(f"429 Too Many Requests: {url}")
-            if attempt < max_retries - 1:
-                delay = min(1.0 * (2 ** attempt), 8.0)
-                jitter = random.uniform(0, delay * 0.5)
-                time.sleep(delay + jitter)
-        except (urllib.error.URLError, TimeoutError, OSError, ConnectionResetError, BrokenPipeError) as e:
-            last_err = e
-            if attempt < max_retries - 1:
-                delay = min(1.0 * (2 ** attempt), 8.0)
-                jitter = random.uniform(0, delay * 0.5)
-                time.sleep(delay + jitter)
-    raise DataSourceUnavailableError(f"GET {url} 失败（重试 {max_retries} 次）: {last_err}")
-
-# ---------- 编码 ----------
-
-def decode_gbk(data: bytes) -> str:
-    """腾讯接口 GBK → UTF-8。"""
-    return data.decode("gbk", errors="replace")
-
-# ---------- 腾讯行情字段映射 ----------
-
-# 字段位（按 ~ 分隔，0-based 索引，已剥除 v_sh600989=" 前缀）
-# 方法论文档的 1-based 编号 - 1 = 本表 0-based
-TENCENT_FIELDS = {
-    "market": 0,            # 市场代码
-    "name": 1,              # 名称
-    "code": 2,              # 股票代码
-    "price": 3,             # 当前价
-    "prev_close": 4,        # 昨收
-    "open": 5,              # 今开
-    "change_amt": 31,       # 涨跌额
-    "change_pct": 32,       # 涨跌幅%
-    "high": 33,             # 最高
-    "low": 34,              # 最低
-    "volume": 36,           # 成交量(手)
-    "amount": 37,           # 成交额(万)
-    "turnover": 38,         # 换手率%
-    "pe": 39,               # PE(动)
-    "amplitude": 43,        # 振幅%
-    "total_cap": 44,        # 总市值(亿)
-    "circulating_cap": 45,  # 流通市值(亿)
-    "pb": 46,               # PB
-    "limit_up": 47,         # 涨停价
-    "limit_down": 48,       # 跌停价
-}
-
-def parse_tencent_line(line: str) -> dict:
-    """解析单行腾讯行情（v_sh600989="..." 形式）。"""
-    if "=" not in line or '"' not in line:
-        return {}
-    payload = line.split('"', 1)[1].rstrip('";\n')
-    parts = payload.split("~")
-    if len(parts) < 50:
-        return {}
-    return {
-        "code": parts[TENCENT_FIELDS["code"]],
-        "name": parts[TENCENT_FIELDS["name"]],
-        "price": parts[TENCENT_FIELDS["price"]],
-        "prev_close": parts[TENCENT_FIELDS["prev_close"]],
-        "open": parts[TENCENT_FIELDS["open"]],
-        "change_pct": parts[TENCENT_FIELDS["change_pct"]],
-        "change_amt": parts[TENCENT_FIELDS["change_amt"]],
-        "high": parts[TENCENT_FIELDS["high"]],
-        "low": parts[TENCENT_FIELDS["low"]],
-        "volume": parts[TENCENT_FIELDS["volume"]],
-        "amount": parts[TENCENT_FIELDS["amount"]],
-        "turnover": parts[TENCENT_FIELDS["turnover"]],
-        "pe": parts[TENCENT_FIELDS["pe"]],
-        "pb": parts[TENCENT_FIELDS["pb"]],
-        "total_cap": parts[TENCENT_FIELDS["total_cap"]],
-        "circulating_cap": parts[TENCENT_FIELDS["circulating_cap"]],
-    }
-
-
-# ---------- 新浪行情字段映射 ----------
-
-SINA_QUOTE_URL = "https://hq.sinajs.cn/list={codes}"
-
-def parse_sina_quote_line(line: str) -> dict:
-    """解析新浪行情单行: var hq_str_sh600989="名称,今开,昨收,当前价,最高,最低,..."; """
-    if '="' not in line:
-        return {}
-    var_part, data_part = line.split('="', 1)
-    code = var_part.split("_")[-1]  # sh600989
-    fields = data_part.rstrip('";\n').split(",")
-    if len(fields) < 32:
-        return {}
-    try:
-        prev = float(fields[2])
-        curr = float(fields[3])
-        change_pct = str(round((curr / prev - 1) * 100, 2)) if prev > 0 else "0"
-        change_amt = str(round(curr - prev, 2)) if prev > 0 else "0"
-    except (ValueError, IndexError):
-        change_pct = "0"
-        change_amt = "0"
-
-    return {
-        "code": code,
-        "name": fields[0],
-        "open": fields[1],
-        "prev_close": fields[2],
-        "price": fields[3],
-        "high": fields[4],
-        "low": fields[5],
-        "volume": fields[8],      # 成交量(股)
-        "amount": fields[9],      # 成交额
-        "change_pct": change_pct,
-        "change_amt": change_amt,
-        "turnover": "",  # 新浪不直接提供换手率
-        "pe": "",        # 新浪不直接提供 PE
-        "pb": "",        # 新浪不直接提供 PB
-        "total_cap": "", # 新浪不直接提供总市值
-        "circulating_cap": "",
-    }
-
-# ---------- 东财财务字段 ----------
-
-EAST_MONEY_FIELDS = {
-    "EPSJB": "每股收益",
-    "ROEJQ": "ROE(加权)%",
-    "TOTALOPERATEREVETZ": "营收同比%",
-    "PARENTNETPROFITTZ": "净利同比%",
-    "XSMLL": "毛利率%",
-    "XSJLL": "净利率%",
-    "ZCFZL": "负债率%",
-    "BPS": "每股净资产",
-    "MGJYXJJE": "每股经营现金流",
-    "XSGJ": "销售净利率%",
-    "YSHZ": "营收环比%",
-    "SJLTZ": "净利润环比%",
-}
-
-# ---------- 工具 ----------
-
-def split_codes(arg: str) -> list:
-    """支持逗号分隔或文件路径（@file）。"""
-    if arg.startswith("@"):
-        file_path = Path(arg[1:]).resolve()
-        if not str(file_path).startswith(str(DATA_DIR.resolve())):
-            raise ValueError(f"文件路径不在允许范围内: {arg[1:]}")
-        if not file_path.exists():
-            raise FileNotFoundError(f"文件不存在: {arg[1:]}")
-        return [line.strip() for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    return [c.strip() for c in arg.split(",") if c.strip()]
-
-def plain_code(code: str) -> str:
-    """返回 6 位证券代码。"""
-    c = code.strip().lower()
-    if c.startswith(("sh", "sz", "bj")):
-        c = c[2:]
-    return c.upper()
-
-def infer_exchange(code: str) -> str:
-    """按 A 股代码段推断交易所前缀。"""
-    c = plain_code(code)
-    if c.startswith(("60", "68", "51", "56", "58")):
-        return "sh"
-    if c.startswith(("00", "30", "15", "16", "18")):
-        return "sz"
-    if c.startswith(("43", "83", "87", "88", "92")):
-        return "bj"
-    return code.strip()[:2].lower() if code.strip()[:2].lower() in {"sh", "sz", "bj"} else ""
-
-def normalize_quote_code(code: str) -> str:
-    """归一化为腾讯/新浪使用的小写交易所前缀代码。"""
-    c = plain_code(code)
-    market = infer_exchange(code)
-    return f"{market}{c}" if market else code.strip().lower()
-
-def normalize_finance_code(code: str) -> str:
-    """归一化为东财财务接口使用的大写交易所前缀代码。"""
-    q = normalize_quote_code(code)
-    return q[:2].upper() + q[2:] if len(q) >= 8 else q.upper()
-
-def to_secid(code: str) -> str:
-    """转换为东方财富 secid 格式（如 1.600519, 0.000858）。"""
-    c = code.strip().lower()
-    if c.startswith("sh"):
-        return f"1.{c[2:]}"
-    if c.startswith("sz"):
-        return f"0.{c[2:]}"
-    plain = c.lstrip("shszbj")
-    if plain.startswith(("60", "68", "51", "56", "58")):
-        return f"1.{plain}"
-    return f"0.{plain}"
-
-
-def board_type(code: str) -> str:
-    """粗分 A 股板块，用于风险提示和涨跌幅判断。"""
-    c = plain_code(code)
-    if c.startswith("688"):
-        return "科创板"
-    if c.startswith(("300", "301")):
-        return "创业板"
-    if c.startswith(("43", "83", "87", "88", "92")):
-        return "北交所"
-    if c.startswith(("60", "00")):
-        return "主板"
-    return "其他"
-
-def batchify(items: list, size: int = 15):
-    """将列表按 size 分批。腾讯单次 ≤15。"""
-    for i in range(0, len(items), size):
-        yield items[i:i + size]
-
-def to_float(value, default=0.0):
-    """安全转浮点数，空值/异常返回默认值。"""
-    try:
-        if value in (None, "", "-"):
-            return default
-        return float(str(value).replace(",", ""))
-    except (TypeError, ValueError):
-        return default
-
-
-def to_int(value, default=0):
-    """安全转整数，空值/异常返回默认值。"""
-    try:
-        if value in (None, "", "-"):
-            return default
-        return int(float(str(value).replace(",", "")))
-    except (TypeError, ValueError):
-        return default
-
-
-def clamp(value, low=0.0, high=100.0):
-    """将值限制在 [low, high] 区间。"""
-    return max(low, min(high, value))
-
-
-def err(msg: str):
-    """抛出 DataError 异常（替代原来的 sys.exit）。"""
-    print(f"❌ {msg}", file=sys.stderr)
-    raise DataError(msg)
-
-
-def parallel_map(fn, items, max_workers=8, timeout=60):
-    """并发执行 fn(item)，返回 {item: result} 字典。"""
-    import logging
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    logger = logging.getLogger(__name__)
-    results = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(fn, item): item for item in items}
-        for future in as_completed(futures, timeout=timeout):
-            item = futures[future]
-            try:
-                results[item] = future.result()
-            except Exception as e:
-                logger.warning("parallel_map 任务失败: %s -> %s", item, e)
-                results[item] = None
-    return results
-
-
-# ---------- 异常分类 ----------
-
-class RateLimitError(Exception):
-    """429 Too Many Requests"""
-    pass
-
-class DataSourceUnavailableError(Exception):
-    """数据源不可用（连接失败、超时等）"""
-    pass
-
-class DataParseError(Exception):
-    """数据解析失败"""
-    pass
-
-class DataError(Exception):
-    """通用数据错误，用于替代 err() 的 sys.exit。"""
-    pass
-
 
 # ---------- 熔断器 ----------
 
@@ -375,6 +143,7 @@ class CircuitState(Enum):
     CLOSED = "closed"        # 正常
     OPEN = "open"            # 熔断
     HALF_OPEN = "half_open"  # 试探
+
 
 class CircuitBreaker:
     """线程安全的熔断器：连续失败 N 次后熔断，超时后半开试探。"""
@@ -439,6 +208,7 @@ class CircuitBreaker:
 # 全局熔断器实例（线程安全）
 _circuit_breakers = {}
 _circuit_breakers_lock = threading.Lock()
+
 
 def get_circuit_breaker(name: str, **kwargs) -> CircuitBreaker:
     """获取或创建熔断器实例（线程安全）。"""
@@ -522,7 +292,6 @@ class DataFetcherManager:
             cached = cache.get(key, cache_ttl)
             if cached is not None:
                 try:
-                    import json
                     return json.loads(cached)
                 except (json.JSONDecodeError, Exception):
                     pass
@@ -530,79 +299,35 @@ class DataFetcherManager:
         return fallback
 
 
-# ═══════════════════════════════════════════════════════════════
-# 新增模块导出 (2026-06)
-# ═══════════════════════════════════════════════════════════════
-
-# 统一异常类
-from common.exceptions import (
-    StockAnalyzerError,
-    DataError,
-    NetworkError,
-    RateLimitError,
-    ParseError,
-    DataUnavailableError,
-    BusinessError,
-    ValidationError,
-    StrategyError,
-    InsufficientDataError,
-    ConfigurationError,
-    format_error,
-    is_retryable_error,
-)
-
-# 输入验证器
-from common.validators import (
-    validate_code,
-    normalize_code,
-    validate_codes,
-    validate_date,
-    validate_date_range,
-    validate_positive,
-    validate_in_range,
-)
-
-
-# ═══════════════════════════════════════════════════════════════
-# 兼容旧代码：别名映射
-# ═══════════════════════════════════════════════════════════════
-
-# 旧名称 -> 新名称映射 (保持向后兼容)
-DataSourceUnavailableError = NetworkError
-DataParseError = ParseError
-DataError = DataError  # 已经是新异常类
+# ---------- 导出列表 ----------
 
 __all__ = [
-    # 原有导出
-    "PACKAGE_ROOT", "DATA_DIR", "CACHE_DIR", "USER_AGENTS",
-    "http_get", "http_get_cached", "http_get_cached_keyed",
-    "decode_gbk", "TENCENT_FIELDS", "parse_tencent_line",
+    # 基础设施
+    "PACKAGE_ROOT", "DATA_DIR", "USER_AGENTS",
+    "http_get", "http_get_with_headers", "http_get_cached", "http_get_cached_keyed",
+    "decode_gbk",
+    # 字段映射与解析
+    "TENCENT_FIELDS", "parse_tencent_line",
     "SINA_QUOTE_URL", "parse_sina_quote_line", "EAST_MONEY_FIELDS",
+    # 工具函数
     "split_codes", "plain_code", "infer_exchange",
     "normalize_quote_code", "normalize_finance_code", "to_secid",
     "board_type", "batchify", "to_float", "to_int", "clamp",
-    "err", "parallel_map", "RateLimitError", "DataSourceUnavailableError",
-    "DataParseError", "DataError", "DataError",
+    "normalize_volume", "normalize_amount",
+    "err", "parallel_map",
+    # 异常类
+    "StockAnalyzerError", "DataError", "NetworkError", "RateLimitError",
+    "ParseError", "DataUnavailableError", "BusinessError",
+    "ValidationError", "StrategyError", "InsufficientDataError",
+    "ConfigurationError", "format_error", "is_retryable_error",
+    # 向后兼容别名
+    "DataSourceUnavailableError", "DataParseError",
+    # 熔断器
     "CircuitState", "CircuitBreaker", "get_circuit_breaker",
+    # 数据源抽象
     "BaseFetcher", "DataFetcherManager",
-
-    # 新增导出
-    "StockAnalyzerError",
-    "NetworkError",
-    "ParseError",
-    "DataUnavailableError",
-    "BusinessError",
-    "ValidationError",
-    "StrategyError",
-    "InsufficientDataError",
-    "ConfigurationError",
-    "format_error",
-    "is_retryable_error",
-    "validate_code",
-    "normalize_code",
-    "validate_codes",
-    "validate_date",
-    "validate_date_range",
-    "validate_positive",
-    "validate_in_range",
+    # 输入验证器
+    "validate_code", "normalize_code", "validate_codes",
+    "validate_date", "validate_date_range",
+    "validate_positive", "validate_in_range",
 ]

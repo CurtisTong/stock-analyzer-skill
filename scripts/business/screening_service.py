@@ -252,9 +252,9 @@ class ScreeningService:
         if to_float(quote.get("total_cap", 0)) < min_cap:
             reasons.append(f"市值<{min_cap}亿")
         
-        # 最低成交额
+        # 最低成交额（配置值单位为万元，amount 已归一化为元）
         min_amount = filters.get("min_amount", 5000)
-        if to_float(quote.get("amount", 0)) < min_amount:
+        if to_float(quote.get("amount", 0)) / 10000 < min_amount:
             reasons.append(f"成交额<{min_amount}万")
         
         # 排除亏损

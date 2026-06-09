@@ -103,10 +103,32 @@ def get_finance_fetchers() -> list:
     return fetchers
 
 
+def get_flow_fetchers() -> list:
+    """获取所有可用的资金流向数据源。"""
+    fetchers = []
+
+    from .eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
+    fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher()])
+
+    return fetchers
+
+
+def get_lhb_fetchers() -> list:
+    """获取所有可用的龙虎榜数据源。"""
+    fetchers = []
+
+    from .eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
+    fetchers.extend([LhbDetailFetcher(), LhbSeatFetcher()])
+
+    return fetchers
+
+
 # 全局管理器（延迟初始化）
 _quote_manager = None
 _kline_manager = None
 _finance_manager = None
+_flow_manager = None
+_lhb_manager = None
 
 
 def get_quote_manager() -> DataFetcherManager:
@@ -128,3 +150,17 @@ def get_finance_manager() -> DataFetcherManager:
     if _finance_manager is None:
         _finance_manager = DataFetcherManager(get_finance_fetchers())
     return _finance_manager
+
+
+def get_flow_manager() -> DataFetcherManager:
+    global _flow_manager
+    if _flow_manager is None:
+        _flow_manager = DataFetcherManager(get_flow_fetchers())
+    return _flow_manager
+
+
+def get_lhb_manager() -> DataFetcherManager:
+    global _lhb_manager
+    if _lhb_manager is None:
+        _lhb_manager = DataFetcherManager(get_lhb_fetchers())
+    return _lhb_manager

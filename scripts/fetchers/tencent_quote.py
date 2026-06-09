@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common import BaseFetcher, http_get, decode_gbk, parse_tencent_line
+from common import BaseFetcher, http_get, decode_gbk, parse_tencent_line, normalize_volume, normalize_amount
 
 TENCENT_URL = "https://qt.gtimg.cn/q={codes}"
 
@@ -25,5 +25,7 @@ class TencentQuoteFetcher(BaseFetcher):
             rec = parse_tencent_line(line)
             if rec:
                 rec["source"] = "tencent"
+                rec["volume"] = normalize_volume(rec["volume"], "tencent")
+                rec["amount"] = normalize_amount(rec["amount"], "tencent")
                 return rec
         return None

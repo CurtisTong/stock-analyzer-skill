@@ -304,7 +304,7 @@ def hard_filter(quote, fin, args):
     min_amt = board_min_amount.get(bd, args.min_amount)
     min_cap = board_min_cap.get(bd, args.min_cap)
 
-    if to_float(quote.get("amount")) < min_amt:
+    if to_float(quote.get("amount")) / 10000 < min_amt:
         reasons.append(f"成交额<{min_amt:.0f}万")
     if to_float(quote.get("total_cap")) < min_cap:
         reasons.append(f"市值<{min_cap:.0f}亿")

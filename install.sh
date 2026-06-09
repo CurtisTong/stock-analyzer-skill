@@ -23,7 +23,7 @@ CODEX_GLOBAL="$HOME/.codex/skills"
 CLAUDE_LOCAL="$PKG_ROOT/.claude/skills"
 CODEX_LOCAL="$PKG_ROOT/.codex/skills"
 
-SKILLS=(stock market sector portfolio screener financial-analyst investment-researcher technical init)
+SKILLS=(stock market sector portfolio screener technical monitor stock-init backtest financial-analyst investment-researcher help)
 
 echo "==> [1/5] 创建项目级 .claude/skills/ 链接 (Claude 项目级技能)"
 mkdir -p "$CLAUDE_LOCAL"

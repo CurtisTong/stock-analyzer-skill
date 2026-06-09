@@ -1,5 +1,6 @@
 """efinance 行情数据源（需要 efinance 包）。"""
 import sys
+import time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -10,6 +11,10 @@ try:
     HAS_EFINANCE = True
 except ImportError:
     HAS_EFINANCE = False
+
+# 内存缓存：同一次运行内只拉一次全量行情（避免重复请求）
+_ef_cache = {"df": None, "ts": 0}
+_EF_CACHE_TTL = 60  # 秒
 
 
 class EfinanceQuoteFetcher(BaseFetcher):
@@ -24,9 +29,18 @@ class EfinanceQuoteFetcher(BaseFetcher):
         try:
             # efinance 接受纯代码如 "600989"
             plain = code.lstrip("shszSHSZbjBJ")
-            df = ef.stock.get_realtime_quotes()
-            if df is None or df.empty:
-                return None
+
+            # 使用内存缓存避免重复拉取全量数据
+            now = time.time()
+            if _ef_cache["df"] is None or now - _ef_cache["ts"] > _EF_CACHE_TTL:
+                df = ef.stock.get_realtime_quotes()
+                if df is None or df.empty:
+                    return None
+                _ef_cache["df"] = df
+                _ef_cache["ts"] = now
+            else:
+                df = _ef_cache["df"]
+
             row = df[df["股票代码"] == plain]
             if row.empty:
                 return None

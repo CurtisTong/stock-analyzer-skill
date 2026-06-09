@@ -1,10 +1,9 @@
 """新浪行情数据源。"""
 import sys
-import urllib.request
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common import BaseFetcher, parse_sina_quote_line
+from common import BaseFetcher, parse_sina_quote_line, http_get_with_headers, decode_gbk, normalize_volume, normalize_amount
 
 SINA_URL = "https://hq.sinajs.cn/list={codes}"
 
@@ -17,13 +16,8 @@ class SinaQuoteFetcher(BaseFetcher):
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         url = SINA_URL.format(codes=code)
-        req = urllib.request.Request(url, headers={
-            "Referer": "https://finance.sina.com.cn",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        })
-        with urllib.request.urlopen(req, timeout=8) as resp:
-            raw = resp.read()
-        text = raw.decode("gbk", errors="replace")
+        raw = http_get_with_headers(url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=8)
+        text = decode_gbk(raw)
         for line in text.strip().split("\n"):
             line = line.strip()
             if not line:
@@ -31,5 +25,7 @@ class SinaQuoteFetcher(BaseFetcher):
             rec = parse_sina_quote_line(line)
             if rec:
                 rec["source"] = "sina"
+                rec["volume"] = normalize_volume(rec["volume"], "sina")
+                rec["amount"] = normalize_amount(rec["amount"], "sina")
                 return rec
         return None

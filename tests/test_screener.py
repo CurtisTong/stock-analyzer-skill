@@ -305,9 +305,9 @@ class TestLiquidityScore:
         assert high > low
 
     def test_ideal_turnover_gets_max_turnover_score(self):
-        # 使用较小的 amount/cap 避免 clamp 到 100
-        ideal = liquidity_score({"amount": "30000", "total_cap": "80", "turnover": "3"})
-        extreme = liquidity_score({"amount": "30000", "total_cap": "80", "turnover": "20"})
+        # 使用较小的 amount/cap 避免 clamp 到 100（amount 单位为元）
+        ideal = liquidity_score({"amount": "300000000", "total_cap": "80", "turnover": "3"})
+        extreme = liquidity_score({"amount": "300000000", "total_cap": "80", "turnover": "20"})
         assert ideal > extreme
 
 
@@ -324,32 +324,32 @@ class TestHardFilter:
 
     def test_st_stock_filtered(self, sample_finance):
         args = _make_args()
-        quote = {"name": "ST某某", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "ST某某", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert any("ST" in r for r in reasons)
 
     def test_star_st_filtered(self, sample_finance):
         args = _make_args()
-        quote = {"name": "*ST退市", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "*ST退市", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert any("ST" in r for r in reasons)
 
     def test_low_amount_filtered(self, sample_finance):
         args = _make_args(min_amount=5000)
-        quote = {"name": "测试", "code": "sh600001", "amount": "100", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000", "total_cap": "100", "change_pct": "1.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert any("成交额" in r for r in reasons)
 
     def test_low_cap_filtered(self, sample_finance):
         args = _make_args(min_cap=40)
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "5", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "5", "change_pct": "1.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert any("市值" in r for r in reasons)
 
     def test_limit_up_filtered(self, sample_finance):
         args = _make_args()
         # 主板涨跌停 >= 9.5%
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "9.8"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "9.8"}
         reasons = hard_filter(quote, sample_finance, args)
         assert any("涨跌停" in r for r in reasons)
 
@@ -357,24 +357,24 @@ class TestHardFilter:
         """创业板涨跌停阈值为 19.5%"""
         args = _make_args()
         # 300xxx 是创业板
-        quote = {"name": "测试", "code": "sz300001", "amount": "100000", "total_cap": "100", "change_pct": "15.0"}
+        quote = {"name": "测试", "code": "sz300001", "amount": "1000000000", "total_cap": "100", "change_pct": "15.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert not any("涨跌停" in r for r in reasons)
 
-        quote_limit = {"name": "测试", "code": "sz300001", "amount": "100000", "total_cap": "100", "change_pct": "20.0"}
+        quote_limit = {"name": "测试", "code": "sz300001", "amount": "1000000000", "total_cap": "100", "change_pct": "20.0"}
         reasons2 = hard_filter(quote_limit, sample_finance, args)
         assert any("涨跌停" in r for r in reasons2)
 
     def test_exclude_loss_filters_negative_eps(self):
         args = _make_args(exclude_loss=True)
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         fin = {"EPSJB": "-0.5"}
         reasons = hard_filter(quote, fin, args)
         assert any("EPS" in r for r in reasons)
 
     def test_exclude_loss_passes_positive_eps(self, sample_finance):
         args = _make_args(exclude_loss=True)
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert not any("EPS" in r for r in reasons)
 
@@ -523,7 +523,7 @@ class TestAnalyzeCode:
         st_quote = {
             "code": "sh600001", "name": "ST测试", "price": "10",
             "change_pct": "1.0", "pe": "15", "pb": "2",
-            "amount": "100000", "total_cap": "100", "turnover": "1",
+            "amount": "1000000000", "total_cap": "100", "turnover": "1",
         }
         args = _make_args()
         result = analyze_code(st_quote, "balanced", args)
@@ -650,27 +650,27 @@ class TestHardFilterExtended:
 
     def test_micro_cap_filtered(self, sample_finance):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "2", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "2", "change_pct": "1.0"}
         reasons = hard_filter(quote, sample_finance, args)
         assert any("退市风险" in r for r in reasons)
 
     def test_negative_eps_filtered(self):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         fin = {"EPSJB": "-0.5"}
         reasons = hard_filter(quote, fin, args)
         assert any("EPS<0" in r for r in reasons)
 
     def test_goodwill_ratio_filtered(self):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         fin = {"EPSJB": "1.0", "GOODWILL_RATIO": "40"}
         reasons = hard_filter(quote, fin, args)
         assert any("商誉" in r for r in reasons)
 
     def test_pledge_ratio_filtered(self):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "100000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
         fin = {"EPSJB": "1.0", "PLEDGE_RATIO": "80"}
         reasons = hard_filter(quote, fin, args)
         assert any("质押" in r for r in reasons)

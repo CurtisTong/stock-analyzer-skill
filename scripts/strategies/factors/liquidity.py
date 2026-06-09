@@ -6,7 +6,7 @@ from common import to_float, clamp, board_type
 
 def liquidity_score(quote: dict) -> float:
     """流动性因子评分（板块差异化）。满分 100。"""
-    amount = to_float(quote.get("amount"))  # 成交额（万元）
+    amount = to_float(quote.get("amount")) / 10000  # 元 → 万元
     cap = to_float(quote.get("total_cap"))  # 总市值（亿元）
     turnover = to_float(quote.get("turnover"))
     bd = board_type(quote.get("code", ""))

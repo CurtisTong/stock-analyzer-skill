@@ -14,8 +14,8 @@ class Quote:
     low: float = 0.0
     change_pct: float = 0.0
     change_amt: float = 0.0
-    volume: int = 0          # 手（腾讯源）或 股（新浪源），data 层不归一化
-    amount: float = 0.0      # 万元
+    volume: int = 0          # 股（统一单位：腾讯手×100，新浪/东财原值）
+    amount: float = 0.0      # 元（统一单位：腾讯万×10000，东财万×10000，新浪原值）
     turnover: float = 0.0    # %
     pe: float = 0.0
     pb: float = 0.0
@@ -38,7 +38,7 @@ class KlineBar:
     high: float = 0.0
     low: float = 0.0
     close: float = 0.0
-    volume: int = 0    # 手
+    volume: int = 0    # 股（统一单位）
     amount: float = 0.0
     pct_chg: float = 0.0
     source: str = ""
