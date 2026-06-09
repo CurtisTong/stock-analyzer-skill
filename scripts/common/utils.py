@@ -32,15 +32,20 @@ def plain_code(code: str) -> str:
 
 
 def infer_exchange(code: str) -> str:
-    """按 A 股代码段推断交易所前缀。"""
-    c = plain_code(code)
+    """按 A 股代码段推断交易所前缀。如果代码已带前缀则直接使用。"""
+    c = code.strip().lower()
+    # 如果已带交易所前缀，直接返回
+    if c.startswith(("sh", "sz", "bj")):
+        return c[:2]
+    # 否则按代码段推断
+    c = c.upper()
     if c.startswith(("60", "68", "51", "56", "58")):
         return "sh"
     if c.startswith(("00", "30", "15", "16", "18")):
         return "sz"
     if c.startswith(("43", "83", "87", "88", "92")):
         return "bj"
-    return code.strip()[:2].lower() if code.strip()[:2].lower() in {"sh", "sz", "bj"} else ""
+    return ""
 
 
 def normalize_quote_code(code: str) -> str:
