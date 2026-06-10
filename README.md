@@ -114,9 +114,6 @@ stock-analyzer-skill/
 │   ├── investment-researcher/SKILL.md
 │   └── help/SKILL.md
 ├── scripts/                        # 工具脚本（Python stdlib only）
-│   ├── api/                        # CLI 入口层
-│   │   ├── quote_cli.py            # 行情查询 CLI
-│   │   └── screener_cli.py         # 选股器 CLI
 │   ├── business/                   # 业务逻辑层
 │   │   ├── stock_analysis.py       # 个股分析服务
 │   │   └── screening_service.py    # 选股服务

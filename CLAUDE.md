@@ -40,7 +40,6 @@ python3 scripts/refresh_pool.py
 
 ```
 scripts/
-├── api/          # CLI 入口层（quote_cli.py, screener_cli.py）
 ├── business/     # 业务逻辑层（stock_analysis.py, screening_service.py）
 ├── common/       # 基础设施层（HTTP、编码、字段映射、BaseFetcher、CircuitBreaker）
 ├── config/       # 外部化配置（YAML）— scoring/data_source/limits/industry_thresholds
@@ -50,7 +49,7 @@ scripts/
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 实时监控
 ├── portfolio/    # 持仓管理
-└── *.py          # 顶层 CLI 脚本
+└── *.py          # 顶层 CLI 脚本（SKILL.md 直接调用的入口）
 ```
 
 **数据流**: SKILL.md → Claude Code 调用 `scripts/*.py` → `fetchers/` 多源获取（自动故障转移）→ `business/` 业务逻辑 → 输出分析结果
