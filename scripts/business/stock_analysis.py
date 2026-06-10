@@ -114,7 +114,7 @@ class StockAnalysisService:
         result["macd_divergence"] = macd.get("divergence", "")
         
         # KDJ
-        kdj = kdj_full(closes)
+        kdj = kdj_full(closes, highs, lows) or {}
         result["kdj"] = kdj.get("signal", "")
         
         # BOLL

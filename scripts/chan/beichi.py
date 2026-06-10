@@ -18,6 +18,10 @@ def chan_beichi(bi_list, zs_list, closes):
     min_len = min(len(ema12), len(ema26))
     dif_series = [ema12[i] - ema26[i] for i in range(min_len)]
     dea_series = _ema_series(dif_series, 9)
+    # v1.3.2: dea_series 比 dif_series 短 8 元素（EMA 9 的 warmup），
+    # 裁剪 dif_series 到 dea_series 长度以保持索引对齐。
+    if len(dea_series) < len(dif_series):
+        dif_series = dif_series[-len(dea_series):]
 
     result = {"trend_beichi": None, "range_beichi": [], "summary": ""}
 
