@@ -13,3 +13,7 @@ data/portfolio.json
 
 # 数据缓存
 .cache/
+
+# 本地 skill 软链（由 install.sh 创建，不入版本控制）
+.claude/skills/
+.codex/skills/

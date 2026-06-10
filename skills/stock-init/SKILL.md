@@ -1,6 +1,10 @@
 ---
 name: stock-init
-description: 初始化或刷新股票池，为每个板块拉取前 20 只股票。当用户输入 /stock-init、"初始化股票池"、"刷新股票池"时触发。
+description: 初始化或刷新股票池。为每个板块拉取前 N 只活跃股票（默认 20），供 screener/sector/stock 后续分析使用。零配置可用（内置预置数据），API 失败自动 fallback。
+version: 1.3.1
+model: haiku
+disable-model-invocation: true
+allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *)
 ---
 
 # 初始化股票池
@@ -82,3 +86,11 @@ description: 初始化或刷新股票池，为每个板块拉取前 20 只股票
 | 创业板 | 3,500              | 24               |
 | 科创板 | 3,500              | 24               |
 | 北交所 | 7,500              | 16               |
+
+## Guardrails
+
+- 已有数据时默认跳过；用 `force` 参数才会覆盖
+- API 失败自动回退到预置数据；不静默丢失，写入 `data/stock_pool.json`
+- `default` 参数走完全离线分支，跳过所有网络请求
+- 不修改持仓数据（`portfolio.json`），不推送任何通知
+- 过滤阈值与 `/screener` 硬过滤保持一致，避免后续分析口径不一

@@ -1,6 +1,9 @@
 ---
 name: screener
 description: A 股选股策略系统 skill。用于从内置板块库或用户给定股票池中按多因子策略筛选候选股，支持均衡精选、质量价值、成长动量、防守低波、拐点修复；优先运行 scripts/screener.py，并结合 A 股交易制度、流动性、板块轮动和风险约束解释结果。
+version: 1.3.1
+model: sonnet
+allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Screener
@@ -18,6 +21,11 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 ## Instructions
 
 使用中文。先输出入选名单和策略结论，再解释因子分、剔除原因和交易计划。涉及最新行情时必须运行脚本，不要凭记忆选股。
+
+## 共享约定
+
+- 代码前缀：`../_shared/references/code-prefix.md`
+- 脚本目录：`../_shared/references/script-catalog.md`
 
 ## Workflow Coordination
 
@@ -49,7 +57,7 @@ python3 scripts/quote.py sh000001,sh510300,sh510500,sh518880 -j
 
 ### Step 1: 运行选股脚本
 
-当前 skill 目录到包根目录为 `../../..`：
+Claude Code 运行时工作目录即为项目根目录：
 
 ```bash
 python3 scripts/screener.py --strategy balanced --top 10

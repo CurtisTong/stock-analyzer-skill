@@ -1,6 +1,9 @@
 ---
 name: monitor
-description: A 股盘中监控与消息推送 skill。支持持仓异动监控、价格预警、技术信号推送、市场环境预警，通过 Bark/企业微信/钉钉等通道推送通知。
+description: A 股盘中监控与消息推送 skill。支持持仓异动监控、价格预警、技术信号推送、市场环境预警，通过 Bark/企业微信/钉钉等通道推送通知。用于持仓实时盯盘（盘中定时任务），非交易时段静默。
+version: 1.3.1
+model: sonnet
+allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/config/notification.yaml) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Monitor

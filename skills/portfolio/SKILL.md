@@ -1,6 +1,9 @@
 ---
 name: portfolio
 description: A 股持仓组合管理与健康检查 skill。支持持仓 CRUD（买入/加仓/减仓/清仓）、自选股管理、组合实时涨跌、仓位/板块集中度、风险预警、调仓再平衡和持仓标的对比。v2 数据模型支持成本价、数量、买入日期和标签。
+version: 1.3.1
+model: sonnet
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Portfolio Management
@@ -52,9 +55,14 @@ description: A 股持仓组合管理与健康检查 skill。支持持仓 CRUD（
 
 使用中文，输出用表格+红绿标记。先给组合状态和最需要处理的风险，再给逐项数据。不要假设用户的真实持仓，除非 `data/portfolio.json` 或用户消息提供了持仓。
 
+## 共享约定
+
+- 代码前缀：`../_shared/references/code-prefix.md`
+- 脚本目录：`../_shared/references/script-catalog.md`
+
 ### 持仓数据读取
 
-当前 skill 目录到包根目录为 `../../..`。先读取 `data/portfolio.json`；不存在时使用 `data/portfolio_example.json`，并在输出中标注"示例持仓"。
+Claude Code 运行时工作目录即为项目根目录。先读取 `data/portfolio.json`；不存在时使用 `data/portfolio_example.json`，并在输出中标注"示例持仓"。
 
 v2 数据模型包含 `positions`（持仓）和 `watchlist`（自选）两个列表。自动兼容 v1 格式（仅 `codes` 列表），首次使用时提示用户补充持仓信息。
 
@@ -93,20 +101,12 @@ pm.remove_watch("sz000807")
 
 ### 数据获取
 
-```bash
-python3 scripts/quote.py <持仓sh/sz代码列表>
-python3 scripts/finance.py -c <持仓SH/SZ代码列表>
-python3 scripts/kline.py <单只持仓代码> 240 30
-```
-
-脚本支持 `-j` 输出 JSON，便于计算组合权重、行业暴露和排序。
+按 `../_shared/references/script-catalog.md` 调用 `quote.py` / `finance.py` / `kline.py`，组合维度用 `-j` JSON 计算权重、行业暴露和排序。
 
 ### 大盘+板块
 
-```bash
-python3 scripts/quote.py sh000001,sz399001,sz399006,sh000016
-python3 scripts/quote.py sh512010,sh512480,sh512690,sh512800,sh513120,sh518880
-```
+- 大盘：`sh000001,sz399001,sz399006,sh000016`
+- 板块 ETF：`sh512010,sh512480,sh512690,sh512800,sh513120,sh518880`
 
 ## Workflow Coordination
 
