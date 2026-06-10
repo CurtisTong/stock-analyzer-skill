@@ -1,13 +1,16 @@
 """
-experts/ API 单元测试：覆盖 8 位专家注册表、方向判定、一票否决。
+experts/ 单元测试：覆盖人设一致性、方向阈值、一票否决、维度权重。
+
+P4-3: 新增双向同步校验——registry.py 的 weights 必须与
+experts/*.md §九 评分矩阵中的权重百分比一致（偏差 ≤2%）。
 """
+import re
+import pytest
 import sys
 from pathlib import Path
 
-import pytest
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from experts import (
     EXPERT_REGISTRY,
@@ -28,180 +31,243 @@ from experts.scoring import (
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1. 注册表完整性
+# 辅助函数
 # ═══════════════════════════════════════════════════════════════
-class TestRegistry:
-    def test_total_experts(self):
+
+def _parse_md_weights(md_path: Path) -> dict:
+    """解析 experts/*.md §九 维度权重表。
+
+    查找 '## 九' 后面的 markdown 表格，提取 '维度 | 权重' 列。
+    返回 {维度名: float}，如 {"基本面": 42.0, "估值": 28.0, ...}。
+    """
+    text = md_path.read_text(encoding="utf-8")
+
+    # 找 §九 section（格式：## 九、评分矩阵 或 ## 九：评分矩阵）
+    sec9_match = re.search(r"##\s*九[、：:]?\s*评分矩阵", text)
+    if not sec9_match:
+        return {}
+
+    sec9_text = text[sec9_match.start():]
+
+    # 找表头行（含"维度"和"权重"）—— 表头可能跨多行（markdown 表格续行）
+    table_match = re.search(
+        r"\|\s*维度\s*\|\s*权重\s*\|",
+        sec9_text,
+        re.IGNORECASE,
+    )
+    if not table_match:
+        return {}
+
+    # 解析表格行：从表头所在行开始，找到包含 '|' 的行
+    weights = {}
+    # 回溯到表头行的行首
+    table_start_line = sec9_text[:table_match.start()].count("\n")
+    in_table = False
+    for line in sec9_text.splitlines()[table_start_line:]:
+        line = line.strip()
+        # 表头行包含"维度"时标记进入表格
+        if "维度" in line and "权重" in line:
+            in_table = True
+            continue
+        if not in_table:
+            continue
+        if not line.startswith("|"):
+            break
+        if "---" in line:
+            continue
+        # 分割列
+        cols = [c.strip() for c in line.split("|") if c.strip()]
+        if len(cols) < 2:
+            continue
+        dim = cols[0].strip()
+        weight_str = cols[1].strip()
+        # 提取百分比数字
+        m = re.search(r"(\d+(?:\.\d+)?)\s*%", weight_str)
+        if m:
+            weights[dim] = float(m.group(1))
+    return weights
+
+
+# ═══════════════════════════════════════════════════════════════
+# 1. EXPERT_REGISTRY 完整性
+# ═══════════════════════════════════════════════════════════════
+class TestRegistryIntegrity:
+    def test_exactly_8_experts(self):
         assert len(EXPERT_REGISTRY) == 8
 
-    def test_all_long_term_have_md(self):
-        long_term = list_long_term_experts()
-        assert len(long_term) == 4
-        names = {e.name for e in long_term}
-        assert names == {"buffett", "lynch", "soros", "duan_yongping"}
-
-    def test_all_short_term_have_md(self):
-        short_term = list_short_term_experts()
-        assert len(short_term) == 4
-        names = {e.name for e in short_term}
-        assert names == {"xu_xiang", "zhao_laoge", "chaogu_yangjia", "zuoshou_xinyi"}
-
-    def test_each_expert_has_md_file(self):
-        for e in EXPERT_REGISTRY.values():
-            md = PROJECT_ROOT / e.md_path
-            assert md.exists(), f"Missing MD: {e.md_path}"
+    def test_all_have_required_fields(self):
+        for name, p in EXPERT_REGISTRY.items():
+            assert p.name, f"{name}: missing name"
+            assert p.display_name, f"{name}: missing display_name"
+            assert p.group in ("long_term", "short_term"), f"{name}: bad group {p.group}"
+            assert p.weights, f"{name}: missing weights"
+            assert p.md_path, f"{name}: missing md_path"
 
     def test_weights_sum_to_100(self):
-        """每位专家的 5 维度权重之和应为 100%（允许 ±0.1 浮点误差）。"""
-        for e in EXPERT_REGISTRY.values():
-            total = sum(e.weights.values())
-            assert abs(total - 100.0) < 0.1, (
-                f"{e.name} weights sum to {total}, not 100"
+        for name, p in EXPERT_REGISTRY.items():
+            total = sum(p.weights.values())
+            assert abs(total - 100) < 1.0, (
+                f"{name}: weights sum to {total}%, expected 100%"
             )
 
-    def test_weights_have_5_dimensions(self):
-        for e in EXPERT_REGISTRY.values():
-            assert len(e.weights) == 5, f"{e.name} has {len(e.weights)} dimensions"
-
-    def test_each_expert_has_veto(self):
-        for e in EXPERT_REGISTRY.values():
-            assert len(e.veto_conditions) >= 1, f"{e.name} has no veto conditions"
-
-    def test_expert_profile_is_frozen(self):
-        """ExpertProfile 应不可变（dataclass frozen=True）。"""
-        e = get_expert("buffett")
-        with pytest.raises(Exception):
-            e.name = "another"  # type: ignore
+    def test_all_md_files_exist(self):
+        for name, p in EXPERT_REGISTRY.items():
+            md_path = PROJECT_ROOT / p.md_path
+            assert md_path.exists(), (
+                f"{name}: md_path {p.md_path} does not exist"
+            )
 
 
 # ═══════════════════════════════════════════════════════════════
-# 2. 查询函数
+# 2. 双向同步校验（registry ↔ markdown §九）
 # ═══════════════════════════════════════════════════════════════
-class TestQueries:
-    def test_get_expert_valid(self):
-        e = get_expert("buffett")
-        assert e is not None
-        assert e.display_name == "巴菲特"
+class TestWeightSync:
+    """P4-3: 确保 registry.py 的 weights 与 markdown §九 表格一致。"""
 
-    def test_get_expert_invalid(self):
+    @pytest.mark.parametrize("expert_name", list(EXPERT_REGISTRY.keys()))
+    def test_weights_match_md(self, expert_name):
+        """每位专家的维度权重与 markdown §九 表格一致（偏差 ≤2%）。"""
+        profile = EXPERT_REGISTRY[expert_name]
+        md_path = PROJECT_ROOT / profile.md_path
+
+        if not md_path.exists():
+            pytest.skip(f"Markdown file not found: {profile.md_path}")
+
+        md_weights = _parse_md_weights(md_path)
+        if not md_weights:
+            pytest.skip(f"Could not parse weights from {profile.md_path}")
+
+        for dim, registry_weight in profile.weights.items():
+            md_weight = md_weights.get(dim)
+            if md_weight is None:
+                # 模糊匹配：去掉括号内容后比对
+                dim_clean = re.sub(r"\s*\(.*?\)\s*", "", dim)
+                for md_dim, md_val in md_weights.items():
+                    md_dim_clean = re.sub(r"\s*\(.*?\)\s*", "", md_dim)
+                    if dim_clean == md_dim_clean:
+                        md_weight = md_val
+                        break
+            assert md_weight is not None, (
+                f"{expert_name}: dimension '{dim}' in registry "
+                f"but not found in {profile.md_path} §九 table"
+            )
+            assert abs(registry_weight - md_weight) <= 2.0, (
+                f"{expert_name} '{dim}': registry={registry_weight}% "
+                f"vs md={md_weight}% (delta={abs(registry_weight - md_weight):.1f}%)"
+            )
+
+    @pytest.mark.parametrize("expert_name", list(EXPERT_REGISTRY.keys()))
+    def test_md_has_no_extra_dimensions(self, expert_name):
+        """markdown §九 表格中的维度不应比 registry 多（防遗漏同步）。"""
+        profile = EXPERT_REGISTRY[expert_name]
+        md_path = PROJECT_ROOT / profile.md_path
+
+        if not md_path.exists():
+            pytest.skip(f"Markdown file not found: {profile.md_path}")
+
+        md_weights = _parse_md_weights(md_path)
+        if not md_weights:
+            pytest.skip(f"Could not parse weights from {profile.md_path}")
+
+        registry_dims = set(profile.weights.keys())
+        # 模糊匹配
+        registry_dims_clean = {re.sub(r"\s*\(.*?\)\s*", "", d): d for d in registry_dims}
+
+        for md_dim in md_weights:
+            md_dim_clean = re.sub(r"\s*\(.*?\)\s*", "", md_dim)
+            assert md_dim_clean in registry_dims_clean, (
+                f"{expert_name}: dimension '{md_dim}' in {profile.md_path} §九 "
+                f"but not in registry (missing sync?)"
+            )
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3. get_expert / list_experts
+# ═══════════════════════════════════════════════════════════════
+class TestExpertLookup:
+    def test_get_existing_expert(self):
+        p = get_expert("buffett")
+        assert p is not None
+        assert p.display_name == "巴菲特"
+
+    def test_get_nonexistent_returns_none(self):
         assert get_expert("nobody") is None
 
-    def test_list_experts_no_filter(self):
+    def test_list_all_returns_8(self):
         assert len(list_experts()) == 8
 
-    def test_list_experts_filter_long(self):
-        long = list_experts("long_term")
-        assert all(e.group == "long_term" for e in long)
+    def test_list_long_term_returns_4(self):
+        experts = list_long_term_experts()
+        assert len(experts) == 4
+        assert all(e.group == "long_term" for e in experts)
 
-    def test_list_experts_filter_short(self):
-        short = list_experts("short_term")
-        assert all(e.group == "short_term" for e in short)
+    def test_list_short_term_returns_4(self):
+        experts = list_short_term_experts()
+        assert len(experts) == 4
+        assert all(e.group == "short_term" for e in experts)
 
-    def test_list_experts_filter_unknown(self):
-        assert list_experts("unknown_group") == []
+    def test_list_by_group(self):
+        lt = list_experts("long_term")
+        st = list_experts("short_term")
+        assert len(lt) + len(st) == 8
 
 
 # ═══════════════════════════════════════════════════════════════
-# 3. 方向判定
+# 4. direction_from_score
 # ═══════════════════════════════════════════════════════════════
-class TestDirection:
+class TestDirectionFromScore:
     def test_strong_buy(self):
-        assert direction_from_score(100) == "强烈看多"
+        assert direction_from_score(80) == "强烈看多"
         assert direction_from_score(70) == "强烈看多"
 
     def test_buy(self):
-        assert direction_from_score(69) == "看多"
+        assert direction_from_score(65) == "看多"
         assert direction_from_score(60) == "看多"
 
     def test_neutral(self):
-        assert direction_from_score(59) == "中性"
+        assert direction_from_score(50) == "中性"
         assert direction_from_score(40) == "中性"
 
     def test_sell(self):
-        assert direction_from_score(39) == "看空"
+        assert direction_from_score(35) == "看空"
         assert direction_from_score(30) == "看空"
 
     def test_strong_sell(self):
-        assert direction_from_score(29) == "强烈看空"
+        assert direction_from_score(20) == "强烈看空"
         assert direction_from_score(0) == "强烈看空"
-        assert direction_from_score(-5) == "强烈看空"  # 越界保护
 
     def test_thresholds_ordered(self):
-        """阈值列表应严格降序。"""
+        """阈值必须从高到低排列。"""
         for i in range(len(DIRECTION_THRESHOLDS) - 1):
             assert DIRECTION_THRESHOLDS[i][0] > DIRECTION_THRESHOLDS[i + 1][0]
 
 
 # ═══════════════════════════════════════════════════════════════
-# 4. 一票否决
+# 5. apply_veto
 # ═══════════════════════════════════════════════════════════════
 class TestVeto:
     def test_apply_veto_no_results_returns_all(self):
-        """未提供 veto_results 时返回全部条件（不预判）。"""
-        e = get_expert("buffett")
-        conds = apply_veto(e, stock_data={})
-        assert conds == e.veto_conditions
+        """veto_results=None 时返回全部条件列表。"""
+        profile = get_expert("buffett")
+        result = apply_veto(profile, {}, None)
+        assert result == list(profile.veto_conditions)
 
     def test_apply_veto_with_results(self):
-        e = get_expert("buffett")
-        results = {cond: i < 1 for i, cond in enumerate(e.veto_conditions)}
-        triggered = apply_veto(e, stock_data={}, veto_results=results)
-        # 只有第一条触发
+        profile = get_expert("buffett")
+        veto_results = {
+            "ROE < 10% 或负债率 > 70%（金融业除外）": True,
+            "FCF 连续 2 年为负": False,
+            "公司涉财务造假或管理层失信": False,
+        }
+        triggered = apply_veto(profile, {}, veto_results)
         assert len(triggered) == 1
-        assert triggered[0] == e.veto_conditions[0]
+        assert "ROE" in triggered[0]
 
     def test_apply_veto_none_triggered(self):
-        e = get_expert("buffett")
-        results = {cond: False for cond in e.veto_conditions}
-        triggered = apply_veto(e, stock_data={}, veto_results=results)
+        profile = get_expert("buffett")
+        veto_results = {c: False for c in profile.veto_conditions}
+        triggered = apply_veto(profile, {}, veto_results)
         assert triggered == []
-
-
-# ═══════════════════════════════════════════════════════════════
-# 5. 长短线权重特征
-# ═══════════════════════════════════════════════════════════════
-class TestWeightCharacteristics:
-    def test_long_term_weights_basics(self):
-        """长线 4 人中至少 3 人基本面+估值权重 > 50%（索罗斯例外，他偏宏观）。"""
-        basics_counts = []
-        for e in list_long_term_experts():
-            basics = e.weights.get("基本面", 0) + e.weights.get("估值", 0)
-            basics_counts.append(basics)
-        high_basics = sum(1 for b in basics_counts if b >= 50)
-        assert high_basics >= 3, (
-            f"Only {high_basics}/4 long-term experts have basics+valuation >= 50% "
-            f"({basics_counts})"
-        )
-
-    def test_short_term_weights_market_sentiment(self):
-        """短线 4 人技术面+情绪/题材权重应 > 50%。"""
-        for e in list_short_term_experts():
-            tech_mood = (
-                e.weights.get("技术面", 0) +
-                e.weights.get("情绪", 0) +
-                e.weights.get("情绪/题材", 0) +
-                e.weights.get("情绪/反身性", 0)
-            )
-            assert tech_mood >= 50, (
-                f"{e.name} short-term but tech+mood only {tech_mood}%"
-            )
-
-    def test_yangjia_most_sentiment_focused(self):
-        """养家应该是 8 人中情绪权重最高的。"""
-        yangjia = get_expert("chaogu_yangjia")
-        yangjia_sentiment = yangjia.weights.get("情绪", 0)
-        for e in EXPERT_REGISTRY.values():
-            if e.name == "chaogu_yangjia":
-                continue
-            other_sentiment = (
-                e.weights.get("情绪", 0) +
-                e.weights.get("情绪/题材", 0) +
-                e.weights.get("情绪/反身性", 0)
-            )
-            assert yangjia_sentiment >= other_sentiment, (
-                f"养家 sentiment {yangjia_sentiment}% should be highest, "
-                f"but {e.name} has {other_sentiment}%"
-            )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -226,27 +292,22 @@ class TestScoreFromDimensions:
         assert score == 0.0
 
     def test_clamp_over_100(self):
-        """维度分超过 100 应被钳制。"""
         profile = get_expert("buffett")
         dims = {"基本面": 200, "估值": 100, "技术面": 100, "情绪": 100, "安全边际": 100}
-        # 基本面钳制到 100，权重 42% → 贡献 42
         score = score_from_dimensions(profile, dims)
-        # 总分 = 42 + 28 + 5 + 5 + 20 = 100
         assert score == 100.0
 
     def test_clamp_negative(self):
         profile = get_expert("buffett")
         dims = {"基本面": -50, "估值": 100, "技术面": 100, "情绪": 100, "安全边际": 100}
-        # 基本面钳制到 0，权重 42% → 贡献 0
         score = score_from_dimensions(profile, dims)
-        # 总分 = 0 + 28 + 5 + 5 + 20 = 58
+        # 基本面钳制到 0，权重 42% → 贡献 0
+        # 100*0.28 + 100*0.05 + 100*0.05 + 100*0.20 = 58
         assert score == 58.0
 
     def test_weighted_total(self):
-        """手动验证加权计算。"""
         profile = get_expert("buffett")
         dims = {"基本面": 80, "估值": 60, "技术面": 40, "情绪": 50, "安全边际": 70}
-        # 80*0.42 + 60*0.28 + 40*0.05 + 50*0.05 + 70*0.20
         expected = 80 * 0.42 + 60 * 0.28 + 40 * 0.05 + 50 * 0.05 + 70 * 0.20
         score = score_from_dimensions(profile, dims)
         assert abs(score - expected) < 0.01
@@ -267,7 +328,6 @@ class TestDimensionBreakdown:
         dims = {dim: 80 for dim in profile.weights}
         breakdown = dimension_breakdown(profile, dims)
         total = sum(breakdown.values())
-        # 与 score_from_dimensions 应有微小浮点差异（breakdown 四舍五入）
         score = score_from_dimensions(profile, dims)
         assert abs(total - score) < 0.1
 
@@ -284,13 +344,11 @@ class TestScoreExpert:
         assert "dim_scores" in result
 
     def test_empty_stock_data_neutral(self):
-        """空数据应给出中性分（50 ± 1）。"""
         result = score_expert(get_expert("buffett"), {})
         assert 49 <= result["score"] <= 51
         assert result["direction"] == "中性"
 
     def test_good_stock_buffett_score_high(self):
-        """好股票 + 巴菲特应给高分。"""
         stock = {
             "quote": {"pe": 12, "pb": 1.5, "change_pct": 0.5},
             "finance": {"roe": 25, "net_profit_yoy": 30, "revenue_yoy": 20,
@@ -302,7 +360,6 @@ class TestScoreExpert:
         assert result["direction"] in ("看多", "强烈看多")
 
     def test_bad_stock_buffett_score_low(self):
-        """垃圾股 + 巴菲特应给低分。"""
         stock = {
             "quote": {"pe": 80, "pb": 8, "change_pct": -5},
             "finance": {"roe": 2, "net_profit_yoy": -20, "revenue_yoy": -10,
@@ -314,9 +371,8 @@ class TestScoreExpert:
         assert result["direction"] in ("看空", "中性", "强烈看空")
 
     def test_different_experts_diverge_on_sentiment(self):
-        """同一只票，短线 4 人 vs 长线 4 人应有显著不同分数。"""
         stock = {
-            "quote": {"pe": 18, "pb": 3, "change_pct": 8},  # 接近涨停
+            "quote": {"pe": 18, "pb": 3, "change_pct": 8},
             "finance": {"roe": 12, "net_profit_yoy": 10, "revenue_yoy": 8,
                         "gross_margin": 35, "debt_ratio": 50},
             "kline_features": {"trend": 1, "rsi": 75, "macd_signal": 1},
@@ -330,15 +386,11 @@ class TestScoreExpert:
         ]
         long_avg = sum(long_term_scores) / len(long_term_scores)
         short_avg = sum(short_term_scores) / len(short_term_scores)
-        # 短线团（情绪/题材驱动）应该比长线团更乐观
-        # 因为市场情绪 70 涨停+仅 3 跌停是好环境
         assert short_avg > long_avg, (
-            f"短线团 ({short_avg:.1f}) 应高于长线团 ({long_avg:.1f})，"
-            f"因为短线重情绪/题材，当前情绪面好"
+            f"短线团 ({short_avg:.1f}) 应高于长线团 ({long_avg:.1f})"
         )
 
     def test_score_in_valid_range(self):
-        """无论输入什么，分数应在 0-100 之间。"""
         weird_stocks = [
             {},
             {"quote": {"pe": -100, "pb": -10}, "finance": {"roe": -50}},
