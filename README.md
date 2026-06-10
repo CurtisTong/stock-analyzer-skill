@@ -12,6 +12,7 @@
 | **portfolio**             | `/portfolio [health\|rebalance\|compare]`     | 持仓健康检查   | 涨跌+支撑+风险预警               |
 | **screener**              | `/screener [--sector 板块] [--strategy 策略]` | 选股策略系统   | 多因子筛选+硬过滤+候选池         |
 | **technical**             | `/technical <代码> [quick\|full]`             | 纯技术分析     | 均线+MACD/KDJ/BOLL+缠论+本土战法 |
+| **stock-init**            | `/stock-init [force\|default\|top N]`         | 初始化股票池   | 零配置可用，支持离线模式         |
 | **financial-analyst**     | `/financial-analyst <任务>`                   | 财务分析 agent | 建模+预测+场景分析               |
 | **investment-researcher** | `/investment-researcher <任务>`               | 投资研究 agent | 市场研究+尽调+估值               |
 | **help**                  | `/help`                                       | 帮助信息       | 显示所有可用 skills 和使用说明   |
@@ -104,7 +105,8 @@ stock-analyzer-skill/
 │   │   ├── config.py               # 数据配置
 │   │   ├── industry_thresholds.json # 行业阈值数据
 │   │   ├── sector_etf.csv          # 板块 ETF 清单
-│   │   ├── sector_stocks.json      # 板块核心标的库
+│   │   ├── sector_stocks.json      # 板块核心标的库（动态更新）
+│   │   ├── sector_stocks.default.json # 预置默认股票池（离线可用）
 │   │   ├── sector_mapping.json     # 板块映射关系
 │   │   └── portfolio_example.json  # 持仓配置示例
 │   ├── fetchers/                   # 数据获取层（多数据源适配）
@@ -308,6 +310,7 @@ rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.
 
 ## 近期改进
 
+- **零配置股票池**：新增预置默认股票池数据（`sector_stocks.default.json`），`/stock-init` 无需 token 即可使用，API 失败自动 fallback
 - **三层架构重构**：scripts/ 拆分为 API 层（cli 入口）、Business 层（分析/选股服务）、Data 层（fetchers/缓存/配置），职责清晰、易扩展
 - **配置外部化**：行业阈值、评分权重、数据源端点等提取为 YAML 配置（`scripts/config/`），无需改代码即可调整
 - **多数据源适配**：新增 fetchers/ 统一接口层，支持腾讯/东财/新浪/AkShare/eFinance/baostock/pytdx/tushare/yfinance 等 9+ 数据源自由切换
@@ -325,6 +328,7 @@ rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.
 ## 已知限制
 
 - 实时数据依赖外部 API 端点稳定性；如遇变更，修改 `scripts/common.py` 中端点即可
+- 预置默认股票池数据为静态快照，如需最新数据需联网刷新
 - portfolio skill 默认读取 `scripts/data/portfolio_example.json` 作为示例，实际使用前需自定义
 - 部分 API（如东财公告）可能有反爬限制，已加超时和重试
 - 多因子权重基于经验设定，尚未经过历史回测验证

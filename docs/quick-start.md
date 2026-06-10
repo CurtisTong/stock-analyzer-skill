@@ -26,6 +26,28 @@ cd ~/Documents/curtis/stock-analyzer-skill
 
 预期输出：`N 通过, 0 失败`
 
+## 初始化股票池（零配置）
+
+首次使用前，初始化股票池：
+
+```
+/stock-init
+```
+
+**零配置可用**：脚本内置预置默认股票池数据，无需任何 token 或 API 密钥即可使用。
+
+如需联网获取最新数据：
+
+```
+/stock-init force
+```
+
+如需离线模式（不访问 API）：
+
+```
+/stock-init default
+```
+
 ## 第一个命令
 
 ```
@@ -59,3 +81,7 @@ curl -s "https://qt.gtimg.cn/q=sh600989" | iconv -f GBK -t UTF-8 | head -1
 ```
 
 应返回包含"宝丰能源"的行情数据。
+
+### 如何获取最新股票池数据？
+
+默认使用预置数据（离线可用）。如需最新数据，运行 `/stock-init force` 强制联网刷新。

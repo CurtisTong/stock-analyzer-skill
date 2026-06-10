@@ -5,6 +5,27 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.0] - 2026-06-10
+
+### Added
+
+- 新增预置默认股票池数据（`sector_stocks.default.json`），内置 14 个板块核心标的
+- `init_pool.py` 新增 `--default` 参数，支持离线模式直接使用预置数据
+- `refresh_pool.py` 新增 `--default` 参数，支持离线模式初始化
+- API 失败时自动 fallback 到预置默认数据，确保零配置即可使用
+
+### Changed
+
+- `init_pool.py` 移除 token 硬性检查，无 token 时自动尝试免费访问或使用预置数据
+- `refresh_pool.py` 移除 token 硬性检查，无 token 时也能正常工作
+- 更新 `stock-init` skill 文档，说明免费数据源特性
+
+### Documentation
+
+- 更新 SKILL.md：新增 `--default` 参数说明和离线使用方式
+- 更新 README.md：突出"零配置即可使用"特性
+- 更新 CHANGELOG.md：记录本次变更
+
 ## [1.2.3] - 2026-06-09
 
 ### Changed

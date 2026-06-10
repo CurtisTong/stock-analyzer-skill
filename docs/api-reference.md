@@ -4,6 +4,57 @@
 
 ## 脚本命令行参数
 
+### init_pool.py - 初始化股票池
+
+```bash
+python3 scripts/init_pool.py [--force] [--top N] [--default]
+```
+
+参数：
+
+- `--force` / `-f`：强制重新初始化（忽略已有数据）
+- `--top` / `-n <N>`：每板块取 Top N（默认 20）
+- `--default` / `-d`：使用预置默认数据（不访问 API，离线可用）
+
+示例：
+
+```bash
+python3 scripts/init_pool.py                    # 检测并初始化
+python3 scripts/init_pool.py --force            # 强制重新初始化
+python3 scripts/init_pool.py --top 30           # 每板块取 Top 30
+python3 scripts/init_pool.py --default          # 离线模式
+```
+
+特性：
+
+- 零配置可用：内置预置默认股票池数据，无需 token
+- 自动 fallback：API 失败时自动使用预置数据
+- 无 token 时自动尝试免费访问 API
+
+### refresh_pool.py - 刷新股票池
+
+```bash
+python3 scripts/refresh_pool.py [--sector 板块] [--top N] [--sort 排序] [--dry-run] [--diff] [--default]
+```
+
+参数：
+
+- `--sector` / `-s <板块>`：只刷新指定板块
+- `--top` / `-n <N>`：每板块取 Top N（默认 20）
+- `--sort <排序>`：amount/cap/pe/turnover（默认 amount）
+- `--dry-run`：只打印不写入
+- `--diff`：对比当前池显示变更
+- `--default`：使用预置默认数据初始化（不访问 API）
+
+示例：
+
+```bash
+python3 scripts/refresh_pool.py                 # 刷新全部板块
+python3 scripts/refresh_pool.py --sector 机器人  # 只刷新指定板块
+python3 scripts/refresh_pool.py --diff          # 显示变更
+python3 scripts/refresh_pool.py --default       # 离线模式
+```
+
 ### quote.py - 实时行情查询
 
 ```bash

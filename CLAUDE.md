@@ -32,6 +32,8 @@ python3 scripts/backtest.py sh600989
 python3 scripts/patterns_local.py sh600989
 python3 scripts/monitor.py
 python3 scripts/init_pool.py
+python3 scripts/init_pool.py --default  # 离线模式
+python3 scripts/refresh_pool.py
 ```
 
 ## 三层架构

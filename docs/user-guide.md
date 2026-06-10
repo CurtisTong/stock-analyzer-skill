@@ -1,6 +1,6 @@
 # 使用者指南
 
-掌握所有 8 个技能的用法。
+掌握所有 9 个技能的用法。
 
 ## 技能概览
 
@@ -12,8 +12,54 @@
 | portfolio             | `/portfolio [health\|rebalance\|compare]`     | 持仓健康检查   | 涨跌+支撑+风险预警               |
 | screener              | `/screener [--sector 板块] [--strategy 策略]` | 选股策略系统   | 多因子筛选+硬过滤+候选池         |
 | technical             | `/technical <代码> [quick\|full]`             | 纯技术分析     | 均线+MACD/KDJ/BOLL+缠论+本土战法 |
+| stock-init            | `/stock-init [force\|default\|top N]`         | 初始化股票池   | 零配置可用，支持离线模式         |
 | financial-analyst     | `/financial-analyst <任务>`                   | 财务分析 agent | 建模+预测+场景分析               |
 | investment-researcher | `/investment-researcher <任务>`               | 投资研究 agent | 市场研究+尽调+估值               |
+
+## 初始化股票池 (/stock-init)
+
+命令格式：`/stock-init [force|default|top N]`
+
+为 A 股各板块初始化前 20 只活跃股票，供选股、板块分析等 skill 使用。
+
+### 自动初始化（推荐）
+
+```
+/stock-init
+```
+
+首次运行自动初始化，已有数据时跳过。**零配置可用**：无需任何 token 或 API 密钥。
+
+### 强制刷新
+
+```
+/stock-init force
+```
+
+强制重新初始化，联网获取最新数据。
+
+### 离线模式
+
+```
+/stock-init default
+```
+
+使用预置默认数据，不访问 API，适合离线环境。
+
+### 自定义数量
+
+```
+/stock-init top 30
+```
+
+每板块取 Top 30 只股票（默认 20）。
+
+### 数据源优先级
+
+1. 东方财富 push2 API（联网获取最新数据）
+2. 预置默认数据（`sector_stocks.default.json`，离线可用）
+
+无 token 时自动尝试免费访问 API，失败时自动 fallback 到预置数据。
 
 ## 单股分析 (/stock)
 
