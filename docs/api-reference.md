@@ -195,6 +195,31 @@ python3 scripts/announcements.py 600989 -j              # JSON 输出
 python3 scripts/announcements.py SH600989
 ```
 
+### chip.py - 资金面（筹码）分析（v1.3.1 新增）
+
+```bash
+python3 scripts/chip.py <code> [选项]
+```
+
+选项：
+
+- `<code>`：股票代码（如 sh600989）
+- `--margin`：仅显示融资融券数据
+- `--holders`：仅显示股东户数
+- `--top-holders`：仅显示十大流通股东
+- `--all`：显示全部（默认）
+- `-j, --json`：JSON 格式输出
+- `--days N`：融资融券天数（默认 20）
+
+示例：
+
+```bash
+python3 scripts/chip.py sh600989               # 全部资金面数据
+python3 scripts/chip.py sh600989 --margin -j   # 融资融券 JSON
+python3 scripts/chip.py sh600989 --holders     # 股东户数
+python3 scripts/chip.py sh600989 --top-holders # 十大流通股东
+```
+
 ## 数据源 API
 
 ### 腾讯实时行情字段映射
@@ -227,6 +252,15 @@ python3 scripts/announcements.py SH600989
 | ZCFZL              | 资产负债率%     | 44.9   |
 | BPS                | 每股净资产      | 7.11   |
 | MGJYXJJE           | 每股经营现金流  | 0.76   |
+
+### 东财资金面数据字段（v1.3.1 新增）
+
+| 字段                       | 含义                | 数据源端点                |
+| -------------------------- | ------------------- | ------------------------- |
+| `rzrqye` / `rqye`          | 融资余额 / 融券余额 | datacenter-web.eastmoney.com |
+| `rzye` 变化额              | 融资余额日变化       | datacenter-web.eastmoney.com |
+| `gdhs` / `gdhs_bd`         | 股东户数 / 变化比例  | datacenter-web.eastmoney.com |
+| `sdgd`（Top10 流通股东）   | 持股比例、变动方向    | f10.eastmoney.com         |
 
 注意：
 

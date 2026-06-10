@@ -5,6 +5,27 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.1] - 2026-06-10
+
+### Added
+
+- 新增雪球（`xueqiu_quote.py`）和同花顺（`ths_quote.py`）两个行情 Fetcher，行情源从 7 个扩展到 9 个
+- 新增企业微信（`wechat.py`）和钉钉（`dingtalk.py`）webhook 告警通道，支持 markdown 与加签安全设置
+- 新增资金面（筹码）数据模块：`scripts/data/chip.py` + `scripts/chip.py` CLI，集成融资融券/股东户数/十大流通股东三个数据源
+- 评分引擎新增资金面因子（上限 +10 分，下限 -5 分），支持利空信号正确扣分
+
+### Changed
+
+- `chan.py`（591 行）重构为 `chan/` 包下的 9 个独立模块（merge/fenxing/bi/xianduan/zhongshu/macd/beichi/maidian/__init__），保持原有 API 向后兼容
+- `backtest.py` 数据获取改为 8 线程并发，批量回测性能显著提升
+- `monitor/health.py` 新增缓存清理（`--cleanup`）、最大文件数告警（默认 2000）和大小阈值告警（默认 500MB，可通过 `STOCK_CACHE_MAX_SIZE_MB` 环境变量调整）
+- `FinanceRecord` 数据类型新增 `goodwill`（商誉，亿元）和 `pledge_ratio`（质押比例，%）字段
+
+### Documentation
+
+- 更新 `docs/optimization-report.md`：v1.3.1 技术架构优化实施报告
+- 同步 `docs/product-architecture.md`、`docs/developer-guide.md` 数据源矩阵与技能清单
+
 ## [1.3.0] - 2026-06-10
 
 ### Added

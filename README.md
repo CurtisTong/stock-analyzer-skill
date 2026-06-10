@@ -93,13 +93,16 @@ stock-analyzer-skill/
 ├── .claude-plugin/                 # Claude Code plugin 配置
 │   ├── plugin.json                 # plugin 元数据
 │   └── marketplace.json            # marketplace 配置
-├── skills/                         # 9 个 skill
+├── skills/                         # 12 个 skill
 │   ├── stock/SKILL.md
 │   ├── market/SKILL.md
 │   ├── sector/SKILL.md
 │   ├── portfolio/SKILL.md
 │   ├── screener/SKILL.md
 │   ├── technical/SKILL.md
+│   ├── stock-init/SKILL.md
+│   ├── monitor/SKILL.md
+│   ├── backtest/SKILL.md
 │   ├── financial-analyst/SKILL.md
 │   ├── investment-researcher/SKILL.md
 │   └── help/SKILL.md
@@ -130,13 +133,19 @@ stock-analyzer-skill/
 │   │   ├── sector_stocks.default.json # 预置默认股票池（离线可用）
 │   │   ├── sector_mapping.json     # 板块映射关系
 │   │   └── portfolio_example.json  # 持仓配置示例
-│   ├── fetchers/                   # 数据获取层（多数据源适配）
+│   ├── fetchers/                   # 数据获取层（多数据源适配，21+ 模块）
 │   │   ├── tencent_quote.py        # 腾讯实时行情
 │   │   ├── eastmoney_quote.py      # 东财实时行情
 │   │   ├── eastmoney_finance.py    # 东财财务数据
 │   │   ├── eastmoney_kline.py      # 东财 K 线
+│   │   ├── eastmoney_chip.py       # 东财资金面（融资融券/股东户数/十大流通股东）
+│   │   ├── eastmoney_flow.py       # 东财资金流向
+│   │   ├── eastmoney_lhb.py        # 东财龙虎榜
+│   │   ├── eastmoney_event.py      # 东财事件日历
 │   │   ├── sina_quote.py           # 新浪行情
 │   │   ├── sina_kline.py           # 新浪 K 线
+│   │   ├── xueqiu_quote.py         # 雪球行情（v1.3.1）
+│   │   ├── ths_quote.py            # 同花顺行情（v1.3.1）
 │   │   ├── akshare_quote.py        # AkShare 行情
 │   │   ├── akshare_finance.py      # AkShare 财务
 │   │   ├── akshare_kline.py        # AkShare K 线
@@ -157,17 +166,31 @@ stock-analyzer-skill/
 │   │   ├── candlestick.py          # K 线形态
 │   │   ├── astock.py               # A 股特色指标
 │   │   ├── signals.py              # 信号生成
-│   │   ├── scoring.py              # 综合评分
+│   │   ├── scoring.py              # 综合评分（含资金面因子 v1.3.1）
 │   │   └── report.py               # 报告生成
+│   ├── chan/                       # 缠论模块（v1.3.1 重构，9 个子模块）
+│   │   ├── merge.py / fenxing.py / bi.py
+│   │   ├── xianduan.py / zhongshu.py / macd.py
+│   │   ├── beichi.py / maidian.py
+│   │   └── __init__.py             # 统一导出
+│   ├── monitor/                    # 实时监控
+│   │   ├── health.py               # 健康检查（v1.3.1 支持缓存清理与阈值告警）
+│   │   ├── manager.py              # 监控管理器
+│   │   └── channels/               # 通知通道
+│   │       ├── base.py / bark.py   # Bark 推送
+│   │       ├── wechat.py           # 企业微信 webhook（v1.3.1）
+│   │       └── dingtalk.py         # 钉钉 webhook（v1.3.1）
+│   ├── portfolio/                  # 持仓管理
 │   ├── infrastructure/             # 基础设施（预留）
 │   ├── announcements.py            # 东财公告/研报
-│   ├── backtest.py                 # 历史回测引擎
-│   ├── chan.py                     # 缠论结构
+│   ├── backtest.py                 # 历史回测引擎（v1.3.1 改为 8 线程并发）
+│   ├── chan.py                     # 缠论结构（兼容层，已迁移至 chan/）
+│   ├── chip.py                     # 资金面分析 CLI（v1.3.1 新增）
 │   ├── classifier.py               # 个股类型分类
 │   ├── finance.py                  # 财务数据入口
 │   ├── init_pool.py                # 候选池初始化
 │   ├── kline.py                    # K 线数据入口
-│   ├── monitor.py                  # 实时监控
+│   ├── monitor.py                  # 实时监控入口
 │   ├── patterns_local.py           # A 股本土战法形态
 │   ├── quote.py                    # 行情数据入口
 │   ├── refresh_pool.py             # 候选池刷新
@@ -199,7 +222,7 @@ stock-analyzer-skill/
 ├── README.md                       # 本文件
 ├── CHANGELOG.md                    # 版本变更记录
 ├── CONTRIBUTING.md                 # 贡献指南
-├── workflow.md                     # 9 个 skill 的协作流程
+├── workflow.md                     # 12 个 skill 的协作流程
 └── methodology.md                  # 完整投资方法论
 ```
 
@@ -294,7 +317,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 - §8 快捷启动命令
 - §9 关键经验
 
-8 个 skill 的衔接流程见 [`workflow.md`](workflow.md)：支持快速/标准/深度 3 种链路长度，市场 → 板块 → 选股 → 个股 → 技术 → 组合，也支持持仓再平衡和深度研究两条工作流。
+12 个 skill 的衔接流程见 [`workflow.md`](workflow.md)：支持快速/标准/深度 3 种链路长度，市场 → 板块 → 选股 → 个股 → 技术 → 组合，也支持持仓再平衡、实时监控、策略回测和深度研究四条工作流。
 
 ## 文档
 
@@ -331,9 +354,24 @@ rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.
 
 ## 近期改进
 
+### v1.3.1 (2026-06-10) - 技术架构优化
+
+- **数据源扩展**：新增雪球（`xueqiu_quote.py`）和同花顺（`ths_quote.py`）两个行情 Fetcher，行情源从 7 个扩展到 9 个
+- **多渠道告警**：新增企业微信（`wechat.py`）和钉钉（`dingtalk.py`）webhook 通道，Bark 之外更多选择
+- **资金面数据模块**：新增 `scripts/data/chip.py` + `scripts/chip.py` CLI，集成融资融券/股东户数/十大流通股东三个数据源；评分引擎新增资金面因子（+10 / -5 区间）
+- **缠论代码重构**：`chan.py`（591 行）拆分为 `chan/` 包下 9 个独立模块（merge/fenxing/bi/xianduan/zhongshu/macd/beichi/maidian），保持 API 向后兼容
+- **回测性能优化**：`backtest.py` 数据获取改为 8 线程并发，批量回测显著提速
+- **健康检查增强**：`monitor/health.py` 新增 `--cleanup` 缓存清理命令、最大文件数/大小阈值告警（可通过 `STOCK_CACHE_MAX_SIZE_MB` 调整）
+- **数据类型扩展**：`FinanceRecord` 新增 `goodwill`（商誉，亿元）和 `pledge_ratio`（质押比例，%）字段
+
+### v1.3.0 (2026-06-10) - 零配置股票池
+
 - **零配置股票池**：新增预置默认股票池数据（`sector_stocks.default.json`），`/stock-init` 无需 token 即可使用，API 失败自动 fallback
 - **三层架构重构**：scripts/ 拆分为 API 层（cli 入口）、Business 层（分析/选股服务）、Data 层（fetchers/缓存/配置），职责清晰、易扩展
 - **配置外部化**：行业阈值、评分权重、数据源端点等提取为 YAML 配置（`scripts/config/`），无需改代码即可调整
+
+### v1.2.0 (2026-06-08) - 基础能力
+
 - **多数据源适配**：新增 fetchers/ 统一接口层，支持腾讯/东财/新浪/AkShare/eFinance/baostock/pytdx/tushare/yfinance 等 9+ 数据源自由切换
 - **统一异常与验证**：新增 `common/exceptions/` 统一异常类、`common/validators.py` 输入验证器
 - **Plugin 化分发**：支持通过 Claude Code plugin 系统一键安装，无需重启
@@ -348,8 +386,9 @@ rm -f ~/.claude/skills/stock ~/.claude/skills/market ~/.claude/skills/sector ~/.
 
 ## 已知限制
 
-- 实时数据依赖外部 API 端点稳定性；如遇变更，修改 `scripts/common.py` 中端点即可
+- 实时数据依赖外部 API 端点稳定性；如遇变更，修改 `scripts/fetchers/` 中端点即可
 - 预置默认股票池数据为静态快照，如需最新数据需联网刷新
 - portfolio skill 默认读取 `scripts/data/portfolio_example.json` 作为示例，实际使用前需自定义
 - 部分 API（如东财公告）可能有反爬限制，已加超时和重试
 - 多因子权重基于经验设定，尚未经过历史回测验证
+- 资金面数据（融资融券/股东户数）每日更新，市场实时性受交易所披露节奏限制

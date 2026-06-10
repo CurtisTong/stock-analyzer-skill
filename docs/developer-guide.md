@@ -18,16 +18,21 @@ stock-analyzer-skill/
 │   ├── buffett.md / lynch.md / soros.md / duan_yongping.md
 │   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md
 │   └── decide.md                   # 决策整合规则
-├── .claude/skills/                 # Claude Code skill 源
+├── .claude/skills/                 # Claude Code skill 源（11 个 skill）
 │   ├── stock/SKILL.md
 │   ├── market/SKILL.md
 │   ├── sector/SKILL.md
 │   ├── portfolio/SKILL.md
 │   ├── screener/SKILL.md
 │   ├── technical/SKILL.md
+│   ├── stock-init/SKILL.md
+│   ├── monitor/SKILL.md
+│   ├── backtest/SKILL.md
 │   ├── financial-analyst/SKILL.md
-│   └── investment-researcher/SKILL.md
+│   ├── investment-researcher/SKILL.md
+│   └── help/SKILL.md
 ├── .agents/skills/                 # Codex workspace skill 源
+├── skills/                         # Claude Code skill 源（与 .claude/skills/ 一致）
 ├── scripts/                        # 工具脚本（三层架构）
 │   ├── api/                        # CLI 入口层
 │   │   ├── quote_cli.py
@@ -46,18 +51,31 @@ stock-analyzer-skill/
 │   ├── config/                     # 配置外部化
 │   │   ├── loader.py              # YAML 配置加载器
 │   │   ├── data_source.yaml       # 数据源端点
-│   │   ├── scoring.yaml           # 评分权重
+│   │   ├── scoring.yaml           # 评分权重（含资金面因子，v1.3.1）
 │   │   └── limits.yaml            # 限流配置
-│   ├── fetchers/                   # 数据获取层（21 个模块）
+│   ├── data/                       # 数据层
+│   │   ├── types.py               # 数据类型（含 goodwill/pledge_ratio，v1.3.1）
+│   │   ├── cache.py               # 缓存管理
+│   │   ├── chip.py                # 资金面数据汇总（v1.3.1）
+│   │   ├── config.py              # 数据配置
+│   │   └── *.json / *.csv         # 静态参考数据
+│   ├── fetchers/                   # 数据获取层（25+ 模块）
 │   │   ├── tencent_quote.py       # 腾讯行情
 │   │   ├── eastmoney_quote.py     # 东财行情
+│   │   ├── eastmoney_finance.py   # 东财财务
+│   │   ├── eastmoney_kline.py     # 东财 K 线
+│   │   ├── eastmoney_chip.py      # 东财资金面（v1.3.1）
+│   │   ├── eastmoney_flow.py      # 东财资金流向
+│   │   ├── eastmoney_lhb.py       # 东财龙虎榜
+│   │   ├── eastmoney_event.py     # 东财事件日历
 │   │   ├── sina_quote.py          # 新浪行情
+│   │   ├── sina_kline.py          # 新浪 K 线
+│   │   ├── xueqiu_quote.py        # 雪球行情（v1.3.1）
+│   │   ├── ths_quote.py           # 同花顺行情（v1.3.1）
 │   │   ├── efinance_quote.py      # efinance 行情
 │   │   ├── akshare_quote.py       # AkShare 行情
 │   │   ├── tushare_quote.py       # Tushare 行情
 │   │   ├── pytdx_quote.py         # pytdx 行情
-│   │   ├── sina_kline.py          # 新浪 K 线
-│   │   ├── eastmoney_kline.py     # 东财 K 线
 │   │   ├── baostock_kline.py      # baostock K 线
 │   │   └── ...                    # 更多数据源
 │   ├── strategies/                 # 选股策略系统
@@ -77,24 +95,31 @@ stock-analyzer-skill/
 │   │   ├── candlestick.py         # K 线形态
 │   │   ├── astock.py              # A 股特色指标
 │   │   ├── signals.py             # 信号生成
-│   │   ├── scoring.py             # 综合评分
+│   │   ├── scoring.py             # 综合评分（含资金面因子，v1.3.1）
 │   │   └── report.py              # 报告生成
+│   ├── chan/                       # 缠论模块（v1.3.1 重构）
+│   │   ├── merge.py / fenxing.py / bi.py
+│   │   ├── xianduan.py / zhongshu.py / macd.py
+│   │   ├── beichi.py / maidian.py
+│   │   └── __init__.py
 │   ├── monitor/                    # 实时监控
-│   │   ├── health.py              # 健康检查
+│   │   ├── health.py              # 健康检查（v1.3.1 支持 --cleanup）
 │   │   ├── manager.py             # 监控管理器
 │   │   └── channels/              # 通知渠道
-│   │       ├── base.py
-│   │       └── bark.py            # Bark 推送
+│   │       ├── base.py / bark.py
+│   │       ├── wechat.py          # 企业微信（v1.3.1）
+│   │       └── dingtalk.py        # 钉钉（v1.3.1）
 │   ├── portfolio/                  # 持仓管理
 │   ├── quote.py                   # 腾讯实时行情
 │   ├── finance.py                 # 东财财务数据
 │   ├── kline.py                   # 新浪 K线
+│   ├── chip.py                    # 资金面分析 CLI（v1.3.1）
 │   ├── announcements.py           # 东财公告/研报
 │   ├── screener.py                # A股多因子选股器
 │   ├── technical.py               # 纯技术分析
 │   ├── classifier.py              # 个股类型分类
-│   ├── chan.py                    # 缠论结构
-│   ├── backtest.py                # 回测引擎
+│   ├── chan.py                    # 缠论结构（兼容层，已迁移至 chan/）
+│   ├── backtest.py                # 回测引擎（v1.3.1 改为 8 线程并发）
 │   └── patterns_local.py          # A股本土战法形态
 ├── data/                           # 静态参考数据
 │   ├── industry_thresholds.json   # 行业阈值配置
@@ -104,7 +129,7 @@ stock-analyzer-skill/
 └── tests/
     ├── conftest.py                # pytest 配置
     ├── smoke_test.sh              # 端到端冒烟测试
-    └── test_*.py                  # 单元测试
+    └── test_*.py                  # 单元测试（含 test_chip.py，v1.3.1）
 ```
 
 ## 脚本模块说明
@@ -243,12 +268,14 @@ class DataFetcherManager:
 
 ## 数据源架构
 
-### 行情数据源（7 个）
+### 行情数据源（9 个）
 
 | 数据源 | 用途 | 编码 | 优先级 |
 |--------|------|------|--------|
 | 腾讯 qt.gtimg.cn | 实时行情、PE/PB/市值 | GBK | 10 |
-| 东财 emweb.securities.eastmoney.com | 实时行情 | UTF-8 | 8 |
+| 东财 emweb.securities.eastmoney.com | 实时行情 | UTF-8 | 9 |
+| 雪球 stock.xueqiu.com | 实时行情（v1.3.1） | UTF-8 | 8 |
+| 同花顺 quote.ths123.com | 实时行情（v1.3.1） | UTF-8 | 7 |
 | 新浪 hq.sinajs.cn | 实时行情 | GBK | 6 |
 | efinance | 实时行情 | UTF-8 | 4 |
 | akshare | 实时行情 | UTF-8 | 3 |
@@ -275,6 +302,12 @@ class DataFetcherManager:
 | 东财 emweb.securities.eastmoney.com | 财务摘要 |
 | efinance | 财务数据 |
 | akshare | 财务数据 |
+
+### 资金面数据源（1 个，v1.3.1 新增）
+
+| 数据源 | 用途 |
+|--------|------|
+| 东财 data.eastmoney.com | 融资融券、股东户数、十大流通股东 |
 
 ### 辅助数据源
 
