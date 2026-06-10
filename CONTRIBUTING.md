@@ -329,3 +329,82 @@ python3 -m pytest tests/ -x -q
 1. 先在终端验证脚本可以正常运行
 2. 检查 Claude Code 的工作目录：`pwd`
 3. 查看权限是否匹配：权限规则需要精确匹配命令格式
+
+### 8.6 SKILL.md frontmatter 规范
+
+每个 SKILL.md **必须**含以下 frontmatter 字段（CI 强制校验）：
+
+```yaml
+---
+name: <skill-name>                    # 必填，与目录名一致
+description: <能力 + 触发场景>          # 必填，≤ 250 字符
+version: 1.3.x                        # 与 package.json 对齐
+model: haiku | sonnet | opus          # 按复杂度分配
+allowed-tools: Bash(python3 scripts/*) Read(<paths>)
+disable-model-invocation: true        # 仅命令式 skill
+---
+```
+
+**description 写作要求**：
+
+- 第三人称（"用于 / 提供 / 包含"），不写"我"
+- 描述**能力 + 触发场景**，不硬编码命令字面量（`/X 时触发`）
+- cross-reference 允许（"参考 `/screener`"），但禁止"输入 `/X` 时触发"这种触发句
+- 长度 ≤ 250 字符（社区最佳实践 80-150）
+
+**model 分配参考**：
+
+- `opus`：深度分析（stock full / financial-analyst / investment-researcher）
+- `sonnet`：实时分析（market / sector / portfolio / screener / technical / monitor）
+- `haiku`：命令式（backtest / stock-init / help）
+
+**allowed-tools 模式**：
+
+- 优先用通配符 `Bash(python3 scripts/*)` 而非逐个列举
+- `Read(<path>)` 路径必须用绝对路径
+- 命令式 skill 可省略（除脚本白名单外）
+
+### 8.7 共享 references 规范
+
+跨 skill 复用的约定/数据集中放到 `skills/_shared/references/`：
+
+| 文件                  | 内容                                       |
+| --------------------- | ------------------------------------------ |
+| `code-prefix.md`      | 股票代码 `sh`/`sz`/`SH`/`SZ` 大小写规则   |
+| `script-catalog.md`   | 脚本目录与参数（quote/finance/kline 等）   |
+| `five-layer.md`       | 五层分析框架定义与评级阈值                 |
+
+**新增共享 reference** 时：
+
+1. 在 `_shared/references/` 下新建 `<topic>.md`
+2. 在需要引用的 SKILL.md 中加 1 行引用（不要全文复制）
+3. `cross-reference 一致性测试` 会自动校验脚本/数据文件存在性
+
+skill 内部的子文件（如 `skills/stock/reports/full-template.md`）按需放，不入共享目录。
+
+### 8.8 元数据与一致性测试
+
+修改 SKILL.md 后**必须**跑：
+
+```bash
+# 172 个元数据 + 一致性测试
+python3 -m pytest tests/test_skill_metadata.py tests/test_skill_consistency.py -q
+
+# install.sh 集成测试
+bash tests/integration/test_install.sh
+```
+
+测试覆盖：
+
+- frontmatter 必填字段、name 匹配目录、description 长度与触发句
+- model 复杂度匹配、章节别名兼容
+- SKILL.md 引用的 `scripts/*.py` / `data/*.json` 真实存在（含运行时生成白名单）
+- install.sh 12 个 skill 数组完整性、软链化、清理调用
+
+新增 skill 时，把对应名称加入：
+
+- `tests/test_skill_metadata.py::EXPECTED_SKILLS`
+- `install.sh::SKILLS` 数组
+- `tests/test_skill_consistency.py::DESCRIPTION_KEYWORDS`（核心能力词）
+
+CI 会在 PR 中自动跑这些测试，**全部通过**才允许合并。
