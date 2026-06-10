@@ -255,3 +255,120 @@ class TestCompareStrategies:
         assert "growth_momentum" in results
         assert "defensive" in results
         assert "turning_point" in results
+
+
+# ═══════════════════════════════════════════════════════════════
+# 6. 纯计算函数（无外部依赖）
+# ═══════════════════════════════════════════════════════════════
+class TestCalcRsi:
+    """RSI（Wilder 平滑）纯计算。"""
+
+    def test_insufficient_data_returns_50(self):
+        """数据不足 period+1 时返回 50（中性）。"""
+        import backtest
+        assert backtest._calc_rsi([1, 2, 3], 14) == 50.0
+
+    def test_all_up_returns_100(self):
+        """连续上涨 → RSI = 100。"""
+        import backtest
+        closes = [10.0 + i for i in range(20)]
+        assert backtest._calc_rsi(closes, 14) == 100.0
+
+    def test_all_down_returns_zero(self):
+        """连续下跌 → RSI 接近 0。"""
+        import backtest
+        closes = [30.0 - i for i in range(20)]
+        rsi = backtest._calc_rsi(closes, 14)
+        assert rsi < 1.0
+
+    def test_mixed_range(self):
+        """震荡行情 → RSI 在 20-80 之间。"""
+        import backtest
+        import math
+        closes = [50.0 + 5 * math.sin(i * 0.3) for i in range(40)]
+        rsi = backtest._calc_rsi(closes, 14)
+        assert 20 <= rsi <= 80, f"Expected 20-80, got {rsi:.1f}"
+
+
+class TestBuildHistQuote:
+    """历史行情 dict 构造。"""
+
+    def test_basic_construction(self):
+        import backtest
+        bars = _make_kline_bars([10.0, 11.0, 12.0, 13.0, 14.0, 15.0])
+        fin = {"eps": 2.0, "bps": 8.0, "total_cap": 500}
+        result = backtest._build_hist_quote(bars, 3, fin, "sh600989")
+        assert result["code"] == "sh600989"
+        assert result["price"] == 13.0
+        assert result["pe"] == 6.5  # 13.0 / 2.0
+        assert result["pb"] == pytest.approx(1.625)  # 13.0 / 8.0
+        assert result["total_cap"] == 500
+
+    def test_pe_zero_when_no_eps(self):
+        """eps = 0 → pe = 0。"""
+        import backtest
+        bars = _make_kline_bars([10.0, 11.0])
+        result = backtest._build_hist_quote(bars, 0, {}, "sh600989")
+        assert result["pe"] == 0
+        assert result["pb"] == 0
+
+    def test_amount_volume_from_bar(self):
+        """amount/volume 取自 K 线。"""
+        import backtest
+        bars = [KlineBar(day="d1", open=10, high=10, low=10, close=10, volume=5000, amount=50000)]
+        result = backtest._build_hist_quote(bars, 0, {}, "sh600989")
+        assert result["volume"] == 5000
+        assert result["amount"] == 50000
+
+
+class TestCalcDailyReturns:
+    """持有期内日收益率序列。"""
+
+    def test_length_matches_holding_days(self):
+        import backtest
+        bars = _make_kline_bars([10.0 + i * 0.1 for i in range(10)])
+        result = backtest._calc_daily_returns(bars, 5, 3)
+        assert len(result) == 3
+
+    def test_returns_reflect_price_changes(self):
+        """日收益 = (close[t] - close[t-1]) / close[t-1]。"""
+        import backtest
+        bars = _make_kline_bars([10.0, 11.0, 12.0, 13.0, 14.0, 15.0])
+        result = backtest._calc_daily_returns(bars, 1, 3)
+        assert abs(result[0] - 0.1) < 0.001    # (11-10)/10
+        assert abs(result[1] - 1/11) < 0.001   # (12-11)/11
+        assert abs(result[2] - 1/12) < 0.001   # (13-12)/12
+
+    def test_empty_when_prev_close_zero(self):
+        """前收为 0 时跳过。"""
+        import backtest
+        bars = _make_kline_bars([0.0, 10.0, 11.0])
+        result = backtest._calc_daily_returns(bars, 1, 2)
+        # bar[0].close=0 → bar[1] 跳过；bar[1].close=10 → bar[2] 记录
+        assert len(result) == 1
+        assert abs(result[0] - 0.1) < 0.001
+
+
+class TestComputeMomentum:
+    """动量因子纯计算。"""
+
+    def test_insufficient_data_returns_50(self):
+        """不足 60 根 K 线返回 50（中性）。"""
+        import backtest
+        bars = _make_kline_bars([10.0 + i * 0.1 for i in range(30)])
+        assert backtest._compute_momentum_from_bars(bars) == 50.0
+
+    def test_uptrend_high_momentum(self):
+        """上升趋势 → 动量分 > 45（量比因子可能略微拉低总分）。"""
+        import backtest
+        bars = _make_kline_bars([10.0 + i * 0.5 for i in range(70)])
+        score = backtest._compute_momentum_from_bars(bars)
+        # 量比默认 1.0（volume=0 → vol_score=50），趋势 + RSI + 价格动量仍应偏高
+        assert score > 45, f"Expected > 45 for uptrend, got {score:.1f}"
+
+    def test_downtrend_low_momentum(self):
+        """下降趋势 → 动量分 < 50。"""
+        import backtest
+        bars = _make_kline_bars([50.0 - i * 0.5 for i in range(70)])
+        score = backtest._compute_momentum_from_bars(bars)
+        assert score < 50, f"Expected < 50 for downtrend, got {score:.1f}"
