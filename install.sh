@@ -58,8 +58,8 @@ for s in "${SKILLS[@]}"; do
   DST="$CLAUDE_GLOBAL/$s"
   if [ -d "$SRC" ]; then
     rm -rf "$DST"
-    cp -r "$SRC" "$DST"
-    echo "  ✓ synced $s"
+    ln -s "$SRC" "$DST"
+    echo "  ✓ linked $s"
   fi
 done
 
@@ -71,8 +71,8 @@ for s in "${SKILLS[@]}"; do
   DST="$CODEX_GLOBAL/$s"
   if [ -d "$SRC" ]; then
     rm -rf "$DST"
-    cp -r "$SRC" "$DST"
-    echo "  ✓ synced $s"
+    ln -s "$SRC" "$DST"
+    echo "  ✓ linked $s"
   fi
 done
 

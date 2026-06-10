@@ -1,6 +1,6 @@
 # stock-analyzer-skill
 
-独立的股票分析 skill 包，提供 11 个股票分析相关 skill + 完整方法论 + 工具脚本。
+独立的股票分析 skill 包，提供 12 个股票分析相关 skill + 完整方法论 + 工具脚本。
 
 > **🎯 零配置可用**：内置预置默认股票池数据，首次使用无需任何 token 或 API 密钥，`/stock-init` 一键初始化即可开始分析。
 
@@ -37,6 +37,13 @@
 > - **五层框架**：基本面/估值/技术面/板块/风险收益比，详见 [methodology.md](methodology.md)
 > - **8人专家圆桌**：长线 4 人（巴菲特/林奇/索罗斯/段永平）+ 短线 4 人（徐翔/赵老哥/炒股养家/作手新一），debate 模式下多空辩论
 > - **硬过滤**：排除 ST 股、低成交额、低市值标的的预筛选规则
+
+### v1.3.2 改进
+
+- 12 个 skill frontmatter 全面升级：新增 `model` / `allowed-tools` / `version` 字段；3 个命令式 skill 设 `disable-model-invocation: true`
+- 共享约定集中到 [`skills/_shared/references/`](skills/_shared/references/)：代码前缀、脚本目录、五层框架按需加载
+- `install.sh` 全局同步改用软链（单源真相）
+- 新增 [tests/test_skill_metadata.py](tests/test_skill_metadata.py) 防止 skill 元数据退化（100 个测试）
 
 ## 安装
 

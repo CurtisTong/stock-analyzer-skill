@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 11 个 skill（`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/technical`、`/monitor`、`/stock-init`、`/financial-analyst`、`/investment-researcher`、`/help`）。核心脚本零外部依赖（纯 stdlib），数据源为国内 API（腾讯、东方财富、新浪）。
+A-share 股票分析 Claude Code 插件，提供 12 个 skill（`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/technical`、`/monitor`、`/stock-init`、`/backtest`、`/financial-analyst`、`/investment-researcher`、`/help`）。核心脚本零外部依赖（纯 stdlib），数据源为国内 API（腾讯、东方财富、新浪）。
 
 ## 常用命令
 
