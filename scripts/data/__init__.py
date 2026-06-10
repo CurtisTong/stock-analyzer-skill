@@ -14,10 +14,12 @@ from typing import Optional
 
 from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
-from . import cache
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# v1.3.1: 缓存已迁入 common.cache，此处仅作兼容 shim（见 data.cache）
+from common import cache
 
 
 def _get_common_helpers():

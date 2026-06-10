@@ -55,7 +55,7 @@ def get_fetcher_health() -> dict:
 
 def get_cache_stats() -> dict:
     """获取缓存统计信息。"""
-    from data import cache
+    from common import cache
 
     cache_dir = cache.CACHE_DIR
     if not cache_dir.exists():
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     import sys
     args = sys.argv[1:]
     if "--cleanup" in args:
-        from data import cache
+        from common import cache
         max_age = 86400  # 默认 24 小时
         for i, a in enumerate(args):
             if a == "--max-age" and i + 1 < len(args):

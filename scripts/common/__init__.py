@@ -3,6 +3,7 @@
 
 包结构:
 - common/__init__.py   # 主模块（re-export + 熔断器/数据源抽象）
+- common/cache.py      # 磁盘缓存（v1.3.1 起从 data.cache 迁入）
 - common/http.py       # HTTP 客户端
 - common/parsers.py    # 字段映射与解析
 - common/utils.py      # 工具函数
@@ -84,40 +85,26 @@ from common.validators import (
     validate_in_range,
 )
 
+# 缓存（v1.3.1：从此模块向上依赖，杜绝 common ↔ data 循环）
+from common import cache
+from common.cache import (
+    CACHE_DIR,
+    cache_get,
+    cache_set,
+    cache_cleanup,
+    cache_key,
+    cache_key_for_stock,
+)
+
 # 向后兼容别名
 DataSourceUnavailableError = NetworkError
 DataParseError = ParseError
 
 
-# ---------- 缓存代理（延迟导入避免循环依赖）----------
-
-_cache_module = None
-
-
-def _get_cache_module():
-    global _cache_module
-    if _cache_module is None:
-        from data import cache as _cache_module
-    return _cache_module
-
-
-def _get_cache_items():
-    cache = _get_cache_module()
-    return cache.CACHE_DIR, cache.get, cache.set, cache.cleanup, cache.cache_key, cache.cache_key_for_stock
-
-
-def __getattr__(name):
-    if name in ("CACHE_DIR", "cache_get", "cache_set", "cache_cleanup", "cache_key", "cache_key_for_stock"):
-        items = _get_cache_items()
-        names = ("CACHE_DIR", "cache_get", "cache_set", "cache_cleanup", "cache_key", "cache_key_for_stock")
-        idx = names.index(name)
-        return items[idx]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
+# ---------- 带缓存的 HTTP 包装 ----------
 
 def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。"""
-    cache = _get_cache_module()
     key = cache.cache_key(url)
     cached = cache.get(key, ttl)
     if cached is not None:
@@ -129,7 +116,6 @@ def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
 
 def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带语义缓存键的 HTTP GET。"""
-    cache = _get_cache_module()
     cached = cache.get(key, ttl)
     if cached is not None:
         return cached
@@ -288,7 +274,6 @@ class DataFetcherManager:
 
         # 尝试从缓存降级
         if cache_prefix:
-            cache = _get_cache_module()
             key = cache.cache_key_for_stock(cache_prefix, code, **kwargs)
             cached = cache.get(key, cache_ttl)
             if cached is not None:
@@ -307,6 +292,9 @@ __all__ = [
     "PACKAGE_ROOT", "DATA_DIR", "USER_AGENTS",
     "http_get", "http_get_with_headers", "http_get_cached", "http_get_cached_keyed",
     "decode_gbk",
+    # 缓存（v1.3.1 起从 data.cache 迁入）
+    "CACHE_DIR", "cache_get", "cache_set", "cache_cleanup",
+    "cache_key", "cache_key_for_stock", "cache",
     # 字段映射与解析
     "TENCENT_FIELDS", "parse_tencent_line",
     "SINA_QUOTE_URL", "parse_sina_quote_line", "EAST_MONEY_FIELDS",

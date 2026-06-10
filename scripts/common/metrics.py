@@ -68,7 +68,7 @@ class MetricsCollector:
     def dump(self, path: Path = None):
         """将指标写入 JSON 文件。"""
         if path is None:
-            from data import cache
+            from common import cache
             path = cache.CACHE_DIR / "metrics.json"
         path.parent.mkdir(exist_ok=True)
         path.write_text(json.dumps(self.get_summary(), ensure_ascii=False, indent=2))
