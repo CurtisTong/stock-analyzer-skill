@@ -107,33 +107,8 @@ def get_limit_config(key: str = None, default: Any = None) -> Any:
     return ConfigLoader.get("limits.yaml", key, default)
 
 
-def get_industry_threshold(industry: str, metric: str, default: float) -> float:
-    """
-    获取行业差异化阈值。
-
-    Args:
-        industry: 行业名称
-        metric: 指标名称 (如 "pe_undervalued")
-        default: 默认值
-
-    Returns:
-        阈值
-    """
-    # 先尝试从行业阈���配置获取
-    value = ConfigLoader.get(
-        "industry_thresholds.yaml",
-        f"thresholds.{industry}.{metric}",
-        None
-    )
-    if value is not None:
-        return float(value)
-
-    # 回退到默认行业配置
-    return ConfigLoader.get(
-        "scoring.yaml",
-        f"industry_defaults.{metric}",
-        default
-    )
+# v1.3.2: get_industry_threshold moved to strategies.thresholds
+# (data source is data/industry_thresholds.json, not config/industry_thresholds.yaml).
 
 
 def reload_config(filename: str = None):

@@ -1,5 +1,9 @@
 """
 配置加载器测试。
+
+v1.3.2: get_industry_threshold 已从 config/ 迁出（实际数据源是
+data/industry_thresholds.json，由 strategies.thresholds 加载）。
+行业阈值的测试搬到 tests/test_screener.py::TestIndustryThresholds。
 """
 import pytest
 import sys
@@ -8,7 +12,7 @@ from pathlib import Path
 # 添加项目路径
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from config import ConfigLoader, get_scoring_config, get_limit_config, get_industry_threshold
+from config import ConfigLoader, get_scoring_config, get_limit_config
 
 
 class TestConfigLoader:
@@ -42,13 +46,10 @@ class TestConfigLoader:
         assert value == "default"
 
     def test_reload(self):
-        """测试重新加载。"""
-        # 首次加载
+        """测试重新加载配置。"""
         config1 = ConfigLoader.load("limits.yaml")
-        # 重新加载
         ConfigLoader.reload("limits.yaml")
         config2 = ConfigLoader.load("limits.yaml")
-        # 应该相同（配置未改变）
         assert config1 == config2
 
 
@@ -81,7 +82,6 @@ class TestGetLimitConfig:
         """测试获取涨跌停限制。"""
         limit = get_limit_config("board_limits.主板")
         assert limit == 9.5
-
         limit = get_limit_config("board_limits.创业板")
         assert limit == 19.5
 
@@ -89,24 +89,3 @@ class TestGetLimitConfig:
         """测试获取最低市值。"""
         cap = get_limit_config("min_total_cap.主板")
         assert cap == 40
-
-
-class TestGetIndustryThreshold:
-    """行业阈值获取测试。"""
-
-    def test_get_industry_threshold_existing(self):
-        """测试获取现有行业阈值。"""
-        # 银行有特定阈值
-        pe = get_industry_threshold("银行", "pe_undervalued", 15)
-        assert pe == 8
-
-    def test_get_industry_threshold_default(self):
-        """测试获取默认行业阈值。"""
-        # 不存在的行业使用默认值
-        pe = get_industry_threshold("不存在的行业", "pe_undervalued", 15)
-        assert pe == 15
-
-    def test_get_industry_threshold_科技(self):
-        """测试科技行业阈值。"""
-        pe = get_industry_threshold("科技", "pe_undervalued", 15)
-        assert pe == 30
