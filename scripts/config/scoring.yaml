@@ -144,6 +144,7 @@ stock_type_weights:
     pattern: 1.0
     limit: 1.0
     chan: 1.0
+  # chip 权重在 scoring.py 硬编码（与股类型相关），此处不再重复配置
 
 # 默认行业阈值
 industry_defaults:

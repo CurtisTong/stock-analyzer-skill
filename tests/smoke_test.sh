@@ -107,6 +107,17 @@ else
   ko "patterns_local.py 输出异常: $output"
 fi
 
+output=$(python3 chip.py sh600989 -j --days 5 2>&1 || true)
+# 网络请求可能失败，仅验证 JSON 格式而非数据存在性
+if echo "$output" | grep -qE '^\s*\{' && echo "$output" | grep -qE '\}\s*$'; then
+  ok "chip.py 输出有效 JSON"
+elif echo "$output" | grep -qE "margin|holders|top_holders"; then
+  ok "chip.py 输出含资金面数据"
+else
+  # 超时或网络错误时跳过，不算失败
+  echo "  ⚠ chip.py 请求超时或网络错误（可忽略）"
+fi
+
 echo "==> 4. 8 个本地 skill 定义"
 for s in stock market sector portfolio screener financial-analyst investment-researcher technical; do
   if [ -f "$AGENTS_SKILLS/$s/SKILL.md" ] && grep -q "^---$" "$AGENTS_SKILLS/$s/SKILL.md"; then

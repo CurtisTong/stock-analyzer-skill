@@ -12,37 +12,37 @@ _STOCK_TYPE_WEIGHTS = {
     "题材股": {
         "ma": 0.6, "macd": 0.5, "kdj": 0.5,
         "boll": 0.8, "rsi": 1.0, "volume": 1.3,
-        "pattern": 1.5, "limit": 1.5, "chan": 0.5,
+        "pattern": 1.5, "limit": 1.5, "chan": 0.5, "chip": 0.8,
     },
     "蓝筹股": {
         "ma": 1.3, "macd": 1.1, "kdj": 0.4,
         "boll": 1.2, "rsi": 0.9, "volume": 0.8,
-        "pattern": 0.7, "limit": 0.3, "chan": 0.8,
+        "pattern": 0.7, "limit": 0.3, "chan": 0.8, "chip": 1.3,
     },
     "强成长股": {
         "ma": 0.9, "macd": 1.3, "kdj": 0.4,
         "boll": 1.2, "rsi": 0.9, "volume": 1.2,
-        "pattern": 0.8, "limit": 0.5, "chan": 0.7,
+        "pattern": 0.8, "limit": 0.5, "chan": 0.7, "chip": 1.0,
     },
     "周期股": {
         "ma": 0.6, "macd": 1.3, "kdj": 1.2,
         "boll": 1.0, "rsi": 0.9, "volume": 0.9,
-        "pattern": 0.7, "limit": 0.4, "chan": 1.3,
+        "pattern": 0.7, "limit": 0.4, "chan": 1.3, "chip": 1.1,
     },
     "稳成长股": {
         "ma": 1.2, "macd": 1.1, "kdj": 0.5,
         "boll": 1.0, "rsi": 1.0, "volume": 0.9,
-        "pattern": 1.0, "limit": 0.3, "chan": 0.8,
+        "pattern": 1.0, "limit": 0.3, "chan": 0.8, "chip": 1.2,
     },
     "防御股": {
         "ma": 0.8, "macd": 0.9, "kdj": 0.6,
         "boll": 1.1, "rsi": 1.1, "volume": 0.7,
-        "pattern": 0.7, "limit": 0.3, "chan": 0.9,
+        "pattern": 0.7, "limit": 0.3, "chan": 0.9, "chip": 1.0,
     },
     "普通股": {
         "ma": 1.0, "macd": 1.0, "kdj": 1.0,
         "boll": 1.0, "rsi": 1.0, "volume": 1.0,
-        "pattern": 1.0, "limit": 1.0, "chan": 1.0,
+        "pattern": 1.0, "limit": 1.0, "chan": 1.0, "chip": 1.0,
     },
 }
 
@@ -213,6 +213,47 @@ def composite_score(features, stock_type="普通股", market_state=None):
             bonus *= 1.2
         local_bonus += bonus
     score += clamp(local_bonus, 0, 10)
+
+    # 10. 资金面加分项（上限 +10 分，下限 -5 分）
+    chip_bonus = 0
+    chip_data = features.get("chip") or {}
+
+    # 10.1 融资融券信号（上限 3 分）
+    margin = chip_data.get("margin") or {}
+    if margin.get("rzjme_5d", 0) > 0:  # 近5日融资净买入为正
+        chip_bonus += 2
+        if margin.get("rzjme_trend", "") == "连续增加":
+            chip_bonus += 1
+    elif margin.get("rzjme_5d", 0) < 0:
+        chip_bonus -= 1  # 允许负分
+
+    # 10.2 股东户数信号（上限 3 分）
+    holders = chip_data.get("holders") or {}
+    if holders.get("concentration", "") == "持续集中":
+        chip_bonus += 3
+    elif holders.get("concentration", "") == "提升":
+        chip_bonus += 2
+    elif holders.get("concentration", "") == "分散":
+        chip_bonus -= 1  # 允许负分
+
+    # 10.3 筹码分布信号（4分）- Phase 3 实现
+    # chip_dist = chip_data.get("chip_dist") or {}
+    # profit_ratio = chip_dist.get("profit_ratio", 50)
+    # if 40 <= profit_ratio <= 60:
+    #     chip_bonus += 2
+    # elif profit_ratio > 80:
+    #     chip_bonus -= 1
+    # elif profit_ratio < 20:
+    #     chip_bonus -= 1
+    # conc = chip_dist.get("concentration_90", 20)
+    # if conc < 10:
+    #     chip_bonus += 2
+    # elif conc < 15:
+    #     chip_bonus += 1
+
+    chip_score = chip_bonus * type_w.get("chip", 1.0)
+    # 资金面允许负分惩罚，故下限为 -5 而非 0
+    score += clamp(chip_score, -5, 10)
 
     score = clamp(score, 0, 100)
 

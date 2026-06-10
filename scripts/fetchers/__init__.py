@@ -133,6 +133,16 @@ def get_event_fetchers() -> list:
     return fetchers
 
 
+def get_chip_fetchers() -> list:
+    """获取所有可用的筹码相关数据源。"""
+    fetchers = []
+
+    from .eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
+    fetchers.extend([MarginFetcher(), HolderFetcher(), TopHolderFetcher()])
+
+    return fetchers
+
+
 # 全局管理器（延迟初始化）
 _quote_manager = None
 _kline_manager = None
@@ -140,6 +150,7 @@ _finance_manager = None
 _flow_manager = None
 _lhb_manager = None
 _event_manager = None
+_chip_manager = None
 
 
 def get_quote_manager() -> DataFetcherManager:
@@ -182,3 +193,10 @@ def get_event_manager() -> DataFetcherManager:
     if _event_manager is None:
         _event_manager = DataFetcherManager(get_event_fetchers())
     return _event_manager
+
+
+def get_chip_manager() -> DataFetcherManager:
+    global _chip_manager
+    if _chip_manager is None:
+        _chip_manager = DataFetcherManager(get_chip_fetchers())
+    return _chip_manager
