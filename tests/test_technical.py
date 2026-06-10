@@ -39,7 +39,7 @@ from technical import (
     _count_limit_streak,
     _parse_records,
     _MA_PERIODS,
-    _STOCK_TYPE_WEIGHTS,
+    _STOCK_TYPE_WEIGHTS_DEFAULT,
 )
 
 

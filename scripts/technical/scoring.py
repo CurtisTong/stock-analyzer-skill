@@ -6,9 +6,16 @@ from common import clamp, to_float
 
 from .signals import _generate_signals
 
+# v1.3.2：权重与阈值从 config/scoring.yaml 加载；YAML 缺失时回退到代码内默认值。
+try:
+    from config import get_scoring_config
+    _USE_CONFIG = True
+except ImportError:
+    _USE_CONFIG = False
 
-# 个股类型 × 指标权重矩阵
-_STOCK_TYPE_WEIGHTS = {
+
+# 个股类型 × 指标权重矩阵（YAML 默认值，行为与历史硬编码版本完全一致）
+_STOCK_TYPE_WEIGHTS_DEFAULT = {
     "题材股": {
         "ma": 0.6, "macd": 0.5, "kdj": 0.5,
         "boll": 0.8, "rsi": 1.0, "volume": 1.3,
@@ -47,6 +54,26 @@ _STOCK_TYPE_WEIGHTS = {
 }
 
 
+def _get_stock_type_weights(stock_type: str) -> dict:
+    """从 YAML 读取个股类型权重；缺失时回退硬编码默认。"""
+    if _USE_CONFIG:
+        cfg = get_scoring_config("stock_type_weights") or {}
+        if stock_type in cfg:
+            row = dict(cfg[stock_type])
+            # 补全缺失的 chip 字段（向后兼容旧 YAML）
+            if "chip" not in row:
+                row["chip"] = _STOCK_TYPE_WEIGHTS_DEFAULT.get(
+                    stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
+                ).get("chip", 1.0)
+            return row
+        return _STOCK_TYPE_WEIGHTS_DEFAULT.get(
+            stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
+        )
+    return _STOCK_TYPE_WEIGHTS_DEFAULT.get(
+        stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
+    )
+
+
 def composite_score(features, stock_type="普通股", market_state=None):
     """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。"""
     score = 0
@@ -59,7 +86,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
     patterns = features.get("patterns", [])
 
     # 获取权重
-    type_w = _STOCK_TYPE_WEIGHTS.get(stock_type, _STOCK_TYPE_WEIGHTS["普通股"])
+    type_w = _get_stock_type_weights(stock_type)
     adj = {}
     if market_state:
         adj = _market_weight_adjustments(market_state)
@@ -68,7 +95,10 @@ def composite_score(features, stock_type="普通股", market_state=None):
 
     # 1. 均线 20 分 × 类型权重 × 市场趋势权重
     alignment = ma.get("alignment", "")
-    alignment_scores = {"多头排列": 20, "交叉震荡": 12, "空头排列": 3, "数据不足": 7}
+    if _USE_CONFIG:
+        alignment_scores = get_scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
+    else:
+        alignment_scores = _ALIGNMENT_SCORES_DEFAULT
     ma_base = alignment_scores.get(alignment, 7)
     ma_score = ma_base * type_w["ma"] * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
     score += clamp(ma_score, 0, 30)
@@ -377,57 +407,68 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
 
 
 def _market_weight_adjustments(state):
-    """市场环境 → 信号权重因子。"""
-    adjustments = {
-        "牛市": {
-            "bullish_bias": 1.3,
-            "trend_following": 1.4,
-            "breakout": 1.3,
-            "divergence_bottom": 0.5,
-            "buy_point_1": 0.5,
-            "buy_point_3": 1.3,
-            "overbought": 0.8,
-            "desc": "牛市：趋势跟随加权，底背离/一买降权",
-        },
-        "熊市": {
-            "bullish_bias": 1.5,
-            "trend_following": 0.6,
-            "breakout": 0.6,
-            "divergence_bottom": 1.5,
-            "buy_point_1": 1.5,
-            "buy_point_3": 0.5,
-            "overbought": 1.3,
-            "desc": "熊市：反转信号加权，追涨信号降权",
-        },
-        "震荡": {
-            "bullish_bias": 1.0,
-            "trend_following": 0.8,
-            "breakout": 0.8,
-            "divergence_bottom": 1.2,
-            "buy_point_1": 1.1,
-            "buy_point_3": 1.2,
-            "overbought": 1.0,
-            "desc": "震荡：反转+区间交易加权，趋势信号降权",
-        },
-        "冰点": {
-            "bullish_bias": 1.8,
-            "trend_following": 0.3,
-            "breakout": 0.4,
-            "divergence_bottom": 1.8,
-            "buy_point_1": 2.0,
-            "buy_point_3": 0.3,
-            "overbought": 1.5,
-            "desc": "冰点：极度超卖反转加权，趋势信号大幅降权",
-        },
-        "亢奋": {
-            "bullish_bias": 0.6,
-            "trend_following": 0.5,
-            "breakout": 0.5,
-            "divergence_bottom": 0.4,
-            "buy_point_1": 0.3,
-            "buy_point_3": 0.5,
-            "overbought": 0.3,
-            "desc": "亢奋：全面保守，警惕反转",
-        },
-    }
-    return adjustments.get(state, adjustments["震荡"])
+    """市场环境 → 信号权重因子。v1.3.2：从 config/scoring.yaml::market_weights 加载。"""
+    if _USE_CONFIG:
+        cfg = get_scoring_config("market_weights") or {}
+        if state in cfg:
+            return cfg[state]
+    return _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT.get(
+        state, _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT["震荡"]
+    )
+
+
+_ALIGNMENT_SCORES_DEFAULT = {"多头排列": 20, "交叉震荡": 12, "空头排列": 3, "数据不足": 7}
+
+
+_MARKET_WEIGHT_ADJUSTMENTS_DEFAULT = {
+    "牛市": {
+        "bullish_bias": 1.3,
+        "trend_following": 1.4,
+        "breakout": 1.3,
+        "divergence_bottom": 0.5,
+        "buy_point_1": 0.5,
+        "buy_point_3": 1.3,
+        "overbought": 0.8,
+        "desc": "牛市：趋势跟随加权，底背离/一买降权",
+    },
+    "熊市": {
+        "bullish_bias": 1.5,
+        "trend_following": 0.6,
+        "breakout": 0.6,
+        "divergence_bottom": 1.5,
+        "buy_point_1": 1.5,
+        "buy_point_3": 0.5,
+        "overbought": 1.3,
+        "desc": "熊市：反转信号加权，追涨信号降权",
+    },
+    "震荡": {
+        "bullish_bias": 1.0,
+        "trend_following": 0.8,
+        "breakout": 0.8,
+        "divergence_bottom": 1.2,
+        "buy_point_1": 1.1,
+        "buy_point_3": 1.2,
+        "overbought": 1.0,
+        "desc": "震荡：反转+区间交易加权，趋势信号降权",
+    },
+    "冰点": {
+        "bullish_bias": 1.8,
+        "trend_following": 0.3,
+        "breakout": 0.4,
+        "divergence_bottom": 1.8,
+        "buy_point_1": 2.0,
+        "buy_point_3": 0.3,
+        "overbought": 1.5,
+        "desc": "冰点：极度超卖反转加权，趋势信号大幅降权",
+    },
+    "亢奋": {
+        "bullish_bias": 0.6,
+        "trend_following": 0.5,
+        "breakout": 0.5,
+        "divergence_bottom": 0.4,
+        "buy_point_1": 0.3,
+        "buy_point_3": 0.5,
+        "overbought": 0.3,
+        "desc": "亢奋：全面保守，警惕反转",
+    },
+}

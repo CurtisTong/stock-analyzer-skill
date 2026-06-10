@@ -71,7 +71,9 @@ from .scoring import (
     composite_score,
     detect_market_environment,
     _market_weight_adjustments,
-    _STOCK_TYPE_WEIGHTS,
+    _get_stock_type_weights,
+    _STOCK_TYPE_WEIGHTS_DEFAULT,
+    _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT,
 )
 
 # 买卖信号
@@ -108,7 +110,8 @@ __all__ = [
     "limit_analysis", "_count_limit_streak",
     # scoring
     "composite_score", "detect_market_environment",
-    "_market_weight_adjustments", "_STOCK_TYPE_WEIGHTS",
+    "_market_weight_adjustments", "_get_stock_type_weights",
+    "_STOCK_TYPE_WEIGHTS_DEFAULT", "_MARKET_WEIGHT_ADJUSTMENTS_DEFAULT",
     # signals
     "_generate_signals",
     # report
