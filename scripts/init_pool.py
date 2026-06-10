@@ -21,7 +21,9 @@ from refresh_pool import (
     POOL_FILE,
     load_mapping,
     load_current_pool,
+    load_default_pool,
     refresh_pool,
+    init_from_default,
 )
 
 # 初始化阈值：低于此值视为未初始化
@@ -51,8 +53,12 @@ def is_pool_populated() -> tuple[bool, str]:
     return True, f"{len(sectors)} 个板块，{total_stocks} 只股票"
 
 
-def init_pool(top_n: int = 20, force: bool = False) -> bool:
-    """初始化股票池。返回是否实际执行了初始化。"""
+def init_pool(top_n: int = 20, force: bool = False, use_default: bool = False) -> bool:
+    """初始化股票池。返回是否实际执行了初始化。
+
+    Args:
+        use_default: True 时直接使用预置默认数据，不访问 API
+    """
     # 检查是否已初始化
     if not force:
         populated, desc = is_pool_populated()
@@ -61,25 +67,29 @@ def init_pool(top_n: int = 20, force: bool = False) -> bool:
             print("   如需刷新，运行: python3 scripts/refresh_pool.py")
             return False
 
-    # 检查 API Token
+    # 显示 token 提示（非阻塞）
     token = os.environ.get("EASTMONEY_API_TOKEN", "")
     if not token:
-        print("⚠️  未设置 EASTMONEY_API_TOKEN，无法从东财 API 拉取数据")
+        print("ℹ️  未设置 EASTMONEY_API_TOKEN，将尝试免费访问或使用预置数据")
+        print("   如需最新数据，可设置: export EASTMONEY_API_TOKEN=你的token")
         print()
-        print("请按以下步骤操作：")
-        print("  1. 设置环境变量: export EASTMONEY_API_TOKEN=你的token")
-        print("     （东财 push2 API 的 ut 参数，可从网页版 F12 抓取）")
-        print("  2. 运行初始化: python3 scripts/init_pool.py --force")
-        print()
-        print("或直接运行: python3 scripts/refresh_pool.py")
-        return False
 
     # 执行初始化
     print(f"🚀 初始化股票池（每板块 Top {top_n}）...")
     print()
 
     try:
-        new_pool = refresh_pool(top_n=top_n, dry_run=False, show_diff=False)
+        if use_default:
+            # 直接使用预置默认数据
+            new_pool = init_from_default(top_n=top_n, dry_run=False)
+        else:
+            # 尝试从 API 获取，失败时自动 fallback 到默认数据
+            new_pool = refresh_pool(top_n=top_n, dry_run=False, show_diff=False, use_default=True)
+
+        if not new_pool:
+            print("❌ 初始化失败: 无法获取股票数据", file=sys.stderr)
+            return False
+
         total = sum(len(v) for v in new_pool.values())
         print()
         print(f"✅ 初始化完成: {len(new_pool)} 个板块，共 {total} 只股票")
@@ -96,9 +106,11 @@ def main():
                         help="强制重新初始化（忽略已有数据）")
     parser.add_argument("--top", "-n", type=int, default=20,
                         help="每板块取 Top N（默认 20）")
+    parser.add_argument("--default", "-d", action="store_true",
+                        help="使用预置默认数据（不访问 API，离线可用）")
     args = parser.parse_args()
 
-    init_pool(top_n=args.top, force=args.force)
+    init_pool(top_n=args.top, force=args.force, use_default=args.default)
 
 
 if __name__ == "__main__":

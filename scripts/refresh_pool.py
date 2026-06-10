@@ -33,9 +33,10 @@ POOL_FILE = os.path.join(DATA_DIR, "sector_stocks.json")
 
 API_BASE = "https://push2.eastmoney.com/api/qt/clist/get"
 API_TOKEN = os.environ.get("EASTMONEY_API_TOKEN", "")
-if not API_TOKEN:
-    print("警告: 未设置 EASTMONEY_API_TOKEN 环境变量，refresh_pool 功能不可用", file=sys.stderr)
 FIELDS = "f12,f14,f2,f3,f6,f8,f9,f20"  # code,name,price,chg%,amount,turnover,pe,cap
+
+# 预置默认股票池文件
+DEFAULT_POOL_FILE = os.path.join(DATA_DIR, "sector_stocks.default.json")
 
 # 硬过滤阈值
 FILTER = {
@@ -48,8 +49,10 @@ FILTER = {
 
 def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
     """获取板块成分股，返回 [{code, name, price, change_pct, amount, turnover, pe, cap}]"""
+    # ut 参数可选，有 token 时使用，无 token 时也能访问部分数据
+    ut_param = f"&ut={API_TOKEN}" if API_TOKEN else ""
     url = (
-        f"{API_BASE}?pn=1&pz=500&np=1&ut={API_TOKEN}"
+        f"{API_BASE}?pn=1&pz=500&np=1{ut_param}"
         f"&fltt=2&invt=2&fid=f3&fs=b:{bk_code}&fields={FIELDS}"
     )
     for attempt in range(max_retries + 1):
@@ -194,6 +197,18 @@ def load_mapping() -> dict:
         return json.load(f)
 
 
+def load_default_pool() -> dict:
+    """加载预置默认股票池数据。"""
+    if not os.path.exists(DEFAULT_POOL_FILE):
+        return {}
+    try:
+        with open(DEFAULT_POOL_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {k: v for k, v in data.items() if not k.startswith("_")}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
 def load_current_pool() -> dict:
     if not os.path.exists(POOL_FILE):
         return {}
@@ -204,10 +219,15 @@ def load_current_pool() -> dict:
 
 def refresh_pool(sectors: list[str] | None = None, top_n: int = 20,
                  sort_by: str = "amount", dry_run: bool = False,
-                 show_diff: bool = False) -> dict:
-    """刷新股票池，返回新池"""
+                 show_diff: bool = False, use_default: bool = True) -> dict:
+    """刷新股票池，返回新池。
+
+    Args:
+        use_default: API 失败时是否使用预置默认数据（默认 True）
+    """
     mapping = load_mapping()
     current = load_current_pool()
+    default_pool = load_default_pool() if use_default else {}
 
     target_sectors = sectors or [k for k in mapping if not k.startswith("_")]
     new_pool = dict(current)  # 以当前池为基础，只更新目标板块
@@ -239,6 +259,9 @@ def refresh_pool(sectors: list[str] | None = None, top_n: int = 20,
         elif sector in current:
             new_pool[sector] = current[sector]
             print(f"  ⚠ API 失败，保留现有 {len(current[sector])} 只")
+        elif sector in default_pool:
+            new_pool[sector] = default_pool[sector][:top_n]
+            print(f"  ⚠ API 失败，使用预置默认 {len(new_pool[sector])} 只")
 
         # 保存原始数据供高股息筛选
         for s in stocks:
@@ -303,6 +326,39 @@ def print_diff(current: dict, new_pool: dict):
     print(f"\n总计: {total_old} → {total_new} ({total_new - total_old:+d})")
 
 
+# ---------- 默认数据初始化 ----------
+
+def init_from_default(top_n: int = 20, dry_run: bool = False) -> dict:
+    """从预置默认数据初始化股票池（不访问 API）。"""
+    default_pool = load_default_pool()
+    if not default_pool:
+        print("❌ 预置默认数据不可用", file=sys.stderr)
+        return {}
+
+    new_pool = {}
+    for sector, codes in default_pool.items():
+        new_pool[sector] = codes[:top_n]
+        print(f"📋 {sector}: {len(new_pool[sector])} 只（预置数据）")
+
+    if not dry_run and new_pool:
+        output = {
+            "_meta": {
+                "updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                "source": "preset_default",
+                "total_sectors": len(new_pool),
+                "total_stocks": sum(len(v) for v in new_pool.values()),
+            }
+        }
+        output.update(new_pool)
+        with open(POOL_FILE, "w", encoding="utf-8") as f:
+            json.dump(output, f, ensure_ascii=False, indent=2)
+        print(f"\n✅ 已写入 {POOL_FILE} ({output['_meta']['total_stocks']} 只)")
+    elif dry_run:
+        print(f"\n📋 dry-run 模式，未写入")
+
+    return new_pool
+
+
 # ---------- CLI ----------
 
 def main():
@@ -313,15 +369,20 @@ def main():
                         default="amount", help="排序方式（默认 amount 成交额）")
     parser.add_argument("--dry-run", action="store_true", help="只打印不写入")
     parser.add_argument("--diff", action="store_true", help="对比当前池显示变更")
+    parser.add_argument("--default", action="store_true",
+                        help="使用预置默认数据初始化（不访问 API）")
     args = parser.parse_args()
 
-    refresh_pool(
-        sectors=args.sector,
-        top_n=args.top,
-        sort_by=args.sort,
-        dry_run=args.dry_run,
-        show_diff=args.diff,
-    )
+    if args.default:
+        init_from_default(top_n=args.top, dry_run=args.dry_run)
+    else:
+        refresh_pool(
+            sectors=args.sector,
+            top_n=args.top,
+            sort_by=args.sort,
+            dry_run=args.dry_run,
+            show_diff=args.diff,
+        )
 
 
 if __name__ == "__main__":

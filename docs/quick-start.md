@@ -9,12 +9,20 @@
 
 ## 安装
 
+### 方式一：Claude Code Plugin（推荐）
+
+```bash
+claude plugins marketplace add . && claude plugins install stock-analyzer
+```
+
+### 方式二：手动安装
+
 ```bash
 cd ~/Documents/curtis/stock-analyzer-skill
 ./install.sh
 ```
 
-`install.sh` 会在 `~/.claude/skills/` 下创建 8 个扁平 symlink，指向本包的 `.claude/skills/` 目录。
+`install.sh` 会在 `~/.claude/skills/` 下创建 11 个 symlink，指向本包的 `skills/` 目录。
 
 重启 Claude Code 即可识别。
 
@@ -35,6 +43,8 @@ cd ~/Documents/curtis/stock-analyzer-skill
 ```
 
 **零配置可用**：脚本内置预置默认股票池数据，无需任何 token 或 API 密钥即可使用。
+
+> **跳过初始化会怎样？** 使用 `/stock`、`/screener`、`/sector` 等命令时，如果股票池未初始化，系统会自动触发初始化或提示先运行 `/stock-init`。
 
 如需联网获取最新数据：
 
@@ -85,3 +95,20 @@ curl -s "https://qt.gtimg.cn/q=sh600989" | iconv -f GBK -t UTF-8 | head -1
 ### 如何获取最新股票池数据？
 
 默认使用预置数据（离线可用）。如需最新数据，运行 `/stock-init force` 强制联网刷新。
+
+### smoke_test 报错怎么办？
+
+```bash
+# 确保在项目根目录运行
+cd ~/Documents/curtis/stock-analyzer-skill
+./tests/smoke_test.sh
+
+# 如果仍有问题，检查 Python 版本
+python3 --version  # 需要 3.9+
+```
+
+### Claude Code 不识别 skills？
+
+1. 确认已重启 Claude Code
+2. 运行 `claude skills list` 查看已安装的 skills
+3. 如果使用手动安装，检查 symlink 是否正确：`ls -la ~/.claude/skills/`

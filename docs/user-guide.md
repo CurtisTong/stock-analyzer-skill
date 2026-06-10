@@ -1,20 +1,41 @@
 # 使用者指南
 
-掌握所有 9 个技能的用法。
+掌握所有 11 个技能的用法。
+
+## 股票代码格式
+
+支持以下格式输入股票代码：
+
+| 格式        | 示例       | 说明           |
+| ----------- | ---------- | -------------- |
+| `sh` + 代码 | `sh600519` | 上海证券交易所 |
+| `sz` + 代码 | `sz000858` | 深圳证券交易所 |
+| 纯数字      | `600519`   | 自动推断交易所 |
+| 股票名称    | `贵州茅台` | 按名称模糊匹配 |
 
 ## 技能概览
 
-| Skill                 | 命令                                          | 用途           | 模式                             |
-| --------------------- | --------------------------------------------- | -------------- | -------------------------------- |
-| stock                 | `/stock <代码或名称> [quick\|full\|debate]`   | 单股分析       | 五层框架 + 8人专家圆桌           |
-| market                | `/market [full\|quick\|intraday]`             | 大盘复盘       | 指数+板块+风格+资金              |
-| sector                | `/sector <板块> [overview\|compare\|stock]`   | 板块分析       | 标的对比+多空博弈                |
-| portfolio             | `/portfolio [health\|rebalance\|compare]`     | 持仓健康检查   | 涨跌+支撑+风险预警               |
-| screener              | `/screener [--sector 板块] [--strategy 策略]` | 选股策略系统   | 多因子筛选+硬过滤+候选池         |
-| technical             | `/technical <代码> [quick\|full]`             | 纯技术分析     | 均线+MACD/KDJ/BOLL+缠论+本土战法 |
-| stock-init            | `/stock-init [force\|default\|top N]`         | 初始化股票池   | 零配置可用，支持离线模式         |
-| financial-analyst     | `/financial-analyst <任务>`                   | 财务分析 agent | 建模+预测+场景分析               |
-| investment-researcher | `/investment-researcher <任务>`               | 投资研究 agent | 市场研究+尽调+估值               |
+| Skill                 | 命令                                          | 用途           | 模式                               |
+| --------------------- | --------------------------------------------- | -------------- | ---------------------------------- |
+| stock                 | `/stock <代码或名称> [quick\|full\|debate]`   | 单股分析       | 五层框架¹ + 8人专家圆桌²           |
+| market                | `/market [full\|quick\|intraday]`             | 大盘复盘       | 指数+板块+风格+资金                |
+| sector                | `/sector <板块> [overview\|compare\|stock]`   | 板块分析       | 标的对比+多空博弈                  |
+| portfolio             | `/portfolio [health\|rebalance\|compare]`     | 持仓健康检查   | 涨跌+支撑+风险预警                 |
+| screener              | `/screener [--sector 板块] [--strategy 策略]` | 选股策略系统   | 多因子筛选+硬过滤³+候选池          |
+| technical             | `/technical <代码> [quick\|full\|classify]`   | 纯技术分析     | 均线+MACD/KDJ/BOLL+缠论⁴+本土战法⁵ |
+| stock-init            | `/stock-init [force\|default\|top N]`         | 初始化股票池   | 零配置可用，支持离线模式           |
+| financial-analyst     | `/financial-analyst <任务>`                   | 财务分析 agent | 建模+预测+场景分析                 |
+| investment-researcher | `/investment-researcher <任务>`               | 投资研究 agent | 市场研究+尽调+估值                 |
+| backtest              | `/backtest [--strategy 策略] [--all]`         | 策略回测       | 历史胜率+收益验证                  |
+| monitor               | `/monitor [start\|stop]`                      | 盘中监控       | 持仓异动+价格预警推送              |
+
+> **术语说明**：
+>
+> - ¹ **五层框架**：基本面/估值/技术面/板块/风险收益比，详见 [methodology.md](methodology.md)
+> - ² **8人专家圆桌**：长线 4 人（巴菲特/林奇/索罗斯/段永平）+ 短线 4 人（徐翔/赵老哥/炒股养家/作手新一）
+> - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板≥3500万）、低市值（主板≥40亿、创业板≥24亿）标的
+> - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
+> - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
 
 ## 初始化股票池 (/stock-init)
 
@@ -155,9 +176,11 @@
 ### 自定义持仓
 
 ```bash
-cp data/portfolio_example.json data/portfolio.json
+cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 # 编辑 portfolio.json，修改 codes 字段
 ```
+
+> **说明**：`/portfolio` 命令读取 `scripts/data/portfolio.json`，如果不存在则回退到 `scripts/data/portfolio_example.json` 作为示例。
 
 ### health 模式（健康检查）
 
@@ -258,9 +281,39 @@ cp data/portfolio_example.json data/portfolio.json
 
 用途：市场研究、尽调、估值。
 
-```
+```text
 /investment-researcher 宝丰能源投资价值研究
 ```
+
+## 策略回测 (/backtest)
+
+命令格式：`/backtest [--strategy 策略] [--all] [--days N]`
+
+验证选股策略的历史胜率和收益。
+
+```text
+/backtest                            # 默认均衡精选，60 天回测
+/backtest --strategy quality_value   # 质量价值策略
+/backtest --all                      # 比较所有 5 种策略
+/backtest --days 120                 # 回测 120 天
+/backtest --codes 600519,000858      # 指定股票池
+```
+
+返回：策略胜率、平均收益、最大回撤等统计指标。
+
+## 盘中监控 (/monitor)
+
+命令格式：`/monitor [start|stop]`
+
+实时监控持仓异动和价格预警。
+
+```text
+/monitor           # 查看监控状态
+/monitor start     # 启动监控
+/monitor stop      # 停止监控
+```
+
+支持 Bark、企微、钉钉等推送通知。
 
 ## 组合使用场景
 
@@ -314,8 +367,39 @@ cp data/portfolio_example.json data/portfolio.json
 
 ### 如何自定义选股策略？
 
-当前策略权重在 `scripts/screener.py` 中定义。如需自定义：
+当前策略权重在 `scripts/config/scoring.yaml` 中定义。如需自定义：
 
 1. 修改策略权重配置
 2. 添加新因子定义
 3. 更新评分逻辑
+
+### API 返回空数据怎么办？
+
+1. 检查网络连接：`curl -s "https://qt.gtimg.cn/q=sh600519"`
+2. 检查股票代码是否正确
+3. 尝试其他数据源：系统会自动 fallback 到备用数据源
+
+### 股票名称有多个匹配怎么办？
+
+系统会返回第一个匹配结果。建议使用股票代码（如 `sh600519`）而非名称，避免歧义。
+
+### 为什么某些股票被排除？
+
+选股器默认排除：
+
+- ST 股（风险警示）
+- 成交额低于阈值（主板≥5000万，创业板≥3500万）
+- 市值低于阈值（主板≥40亿，创业板≥24亿）
+
+如需包含这些股票，可使用 `--codes` 参数手动指定。
+
+## Skill 边界说明
+
+| Skill                    | 定位   | 适用场景         |
+| ------------------------ | ------ | ---------------- |
+| `/stock`                 | 判断   | 买/卖/持有决策   |
+| `/technical`             | 技术面 | 买入时机、止损位 |
+| `/financial-analyst`     | 建模   | 估值、预测、场景 |
+| `/investment-researcher` | 报告   | 深度研究、存档   |
+| `/screener`              | 筛选   | 批量选股、候选池 |
+| `/backtest`              | 验证   | 策略历史表现     |
