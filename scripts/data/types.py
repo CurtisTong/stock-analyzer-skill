@@ -62,6 +62,8 @@ class FinanceRecord:
     debt_ratio: float = 0.0       # 负债率(%)
     bps: float = 0.0              # 每股净资产
     ocf_per_share: float = 0.0    # 每股经营现金流
+    goodwill: float = 0.0         # 商誉（亿元）
+    pledge_ratio: float = 0.0     # 质押比例(%)
     source: str = ""
 
     def to_dict(self) -> dict:

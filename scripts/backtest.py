@@ -11,6 +11,7 @@ import argparse
 import json
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -90,28 +91,48 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     weights = STRATEGIES[strategy_name]
     min_history = 60  # 计算技术指标需要的最少 K 线数
 
-    # 获取所有候选股票的 K 线历史
-    kline_data = {}
-    for code in codes:
+    # 并发获取所有候选股票的 K 线历史
+    def _fetch_kline(code):
         ncode = normalize_quote_code(code)
         bars = get_kline(ncode, scale=240, datalen=min_history + holding_days + 10)
-        if bars and len(bars) >= min_history:
-            kline_data[code] = bars
+        return code, bars
+
+    kline_data = {}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(_fetch_kline, c): c for c in codes}
+        for future in as_completed(futures):
+            try:
+                code, bars = future.result()
+                if bars and len(bars) >= min_history:
+                    kline_data[code] = bars
+            except Exception:
+                pass
 
     if not kline_data:
         return {"error": "无法获取足够的 K 线数据"}
 
-    # 获取财务数据（注：API 不支持历史快照，此处使用当前最新数据，
+    # 并发获取财务数据（注：API 不支持历史快照，此处使用当前最新数据，
     # quality 因子存在轻微前瞻偏差，valuation/liquidity 因子已改为基于历史价格计算）
-    fin_cache = {}
-    industry_cache = {}
-    for code in codes:
-        industry_cache[code] = infer_industry("", code)
+    def _fetch_finance(code):
+        industry = infer_industry("", code)
         try:
             fin_records = get_finance(normalize_finance_code(code))
-            fin_cache[code] = fin_records[0].to_dict() if fin_records else {}
+            fin = fin_records[0].to_dict() if fin_records else {}
         except Exception:
-            fin_cache[code] = {}
+            fin = {}
+        return code, industry, fin
+
+    fin_cache = {}
+    industry_cache = {}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        futures = {ex.submit(_fetch_finance, c): c for c in codes}
+        for future in as_completed(futures):
+            try:
+                code, industry, fin = future.result()
+                industry_cache[code] = industry
+                fin_cache[code] = fin
+            except Exception:
+                pass
 
     # 滚动窗口回测（不再获取当前行情快照，改用历史 K 线数据）
     from screener import quality_score, valuation_score, liquidity_score

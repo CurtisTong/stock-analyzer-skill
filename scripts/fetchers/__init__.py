@@ -29,7 +29,15 @@ def get_quote_fetchers() -> list:
     from .tencent_quote import TencentQuoteFetcher
     from .eastmoney_quote import EastmoneyQuoteFetcher
     from .sina_quote import SinaQuoteFetcher
-    fetchers.extend([TencentQuoteFetcher(), EastmoneyQuoteFetcher(), SinaQuoteFetcher()])
+    from .xueqiu_quote import XueqiuQuoteFetcher
+    from .ths_quote import ThsQuoteFetcher
+    fetchers.extend([
+        TencentQuoteFetcher(),
+        EastmoneyQuoteFetcher(),
+        SinaQuoteFetcher(),
+        XueqiuQuoteFetcher(),
+        ThsQuoteFetcher(),
+    ])
 
     # 可选依赖数据源
     cls = _try_import("efinance_quote", "EfinanceQuoteFetcher")

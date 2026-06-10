@@ -14,6 +14,8 @@ import yaml
 
 from .channels.base import NotificationChannel
 from .channels.bark import BarkChannel
+from .channels.wechat import WechatWorkChannel
+from .channels.dingtalk import DingtalkChannel
 
 
 def _config_path() -> Path:
@@ -65,7 +67,22 @@ class NotificationManager:
             if ch.is_configured():
                 self._channels.append(ch)
 
-        # 未来扩展: wechat_work, dingtalk, webhook ...
+        # 企业微信
+        wechat_cfg = channels_cfg.get("wechat_work", {})
+        if wechat_cfg.get("enabled", False):
+            ch = WechatWorkChannel(key=wechat_cfg.get("key", ""))
+            if ch.is_configured():
+                self._channels.append(ch)
+
+        # 钉钉
+        dingtalk_cfg = channels_cfg.get("dingtalk", {})
+        if dingtalk_cfg.get("enabled", False):
+            ch = DingtalkChannel(
+                token=dingtalk_cfg.get("token", ""),
+                secret=dingtalk_cfg.get("secret", ""),
+            )
+            if ch.is_configured():
+                self._channels.append(ch)
 
     def register_channel(self, channel: NotificationChannel) -> None:
         """手动注册通知通道。"""
