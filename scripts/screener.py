@@ -30,6 +30,7 @@ from strategies.thresholds import get_industry_threshold, load_industry_threshol
 from technical.core import ema
 from technical.macd import macd_full as macd_features
 from technical.rsi import rsi_features
+from technical.volume import volume_analysis
 
 
 # ---------- 数据层适配函数 ----------
@@ -117,38 +118,16 @@ def latest_finance(code):
 
 def volume_price_features(closes, volumes):
     """量价关系分析。返回 (vol_price_signal, description)。
-    signal: 1=配合良好, 0=中性, -1=背离警报。"""
+    signal: 1=配合良好, 0=中性, -1=背离警报。
+
+    v1.3.2：已并入 technical.volume.volume_analysis，本函数保留为薄包装以兼容旧调用。
+    """
     if len(closes) < 6 or len(volumes) < 6:
         return {"signal": 0, "desc": "数据不足"}
-
-    # 近 5 日对比前 5 日
-    mid = len(closes) // 2
-    recent_close = closes[-mid:]
-    prev_close = closes[:mid]
-    recent_vol = volumes[-mid:]
-    prev_vol = volumes[:mid]
-
-    price_chg = statistics.mean(recent_close) / max(statistics.mean(prev_close), 0.01) - 1
-    vol_chg = statistics.mean(recent_vol) / max(statistics.mean(prev_vol), 0.01) - 1
-
-    # 近 3 日 vs 整体
-    last3_close = closes[-3:]
-    last3_vol = volumes[-3:]
-    avg_close = statistics.mean(closes)
-    avg_vol = statistics.mean(volumes)
-
-    price_up = statistics.mean(last3_close) > avg_close
-    vol_up = statistics.mean(last3_vol) > avg_vol
-
-    if price_up and vol_up:
-        return {"signal": 1, "desc": "放量上涨-资金介入"}
-    elif not price_up and not vol_up:
-        return {"signal": 1, "desc": "缩量下跌-抛压减轻"}
-    elif price_up and not vol_up:
-        return {"signal": -1, "desc": "缩量上涨-量价背离"}
-    elif not price_up and vol_up:
-        return {"signal": -1, "desc": "放量下跌-主力出货"}
-    return {"signal": 0, "desc": "量价中性"}
+    result = volume_analysis(closes, volumes)
+    if result is None:
+        return {"signal": 0, "desc": "数据不足"}
+    return {"signal": result.get("volume_price_signal", 0), "desc": result.get("volume_price", "量价中性")}
 
 
 def daily_features(code):
@@ -184,9 +163,9 @@ def daily_features(code):
     rsi_val = rsi["rsi"]
     rsi_signal = rsi["signal"]
 
-    # 量价关系
-    vp = volume_price_features(closes, volumes)
-    vol_price_signal = vp["signal"]
+    # 量价关系（v1.3.2：委托给 technical.volume.volume_analysis）
+    vp = volume_analysis(closes, volumes) or {}
+    vol_price_signal = vp.get("volume_price_signal", 0)
 
     return {
         "trend": trend,

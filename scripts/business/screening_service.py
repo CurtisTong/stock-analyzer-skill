@@ -255,6 +255,7 @@ class ScreeningService:
         """计算技术指标特征。"""
         import statistics
         from technical import macd_full, rsi_features
+        from technical.volume import volume_analysis as _vol_analysis
         from data import get_kline
 
         bars = get_kline(code, scale=240, datalen=240)
@@ -287,8 +288,9 @@ class ScreeningService:
         macd = macd_full(closes) or {}
         macd_signal = macd.get("signal", 0)
 
-        # 量价关系
-        vol_price_signal = self._volume_price_features(closes, volumes)
+        # 量价关系（v1.3.2：复用 technical.volume.volume_analysis）
+        vp = _vol_analysis(closes, volumes) or {}
+        vol_price_signal = vp.get("volume_price_signal", 0)
 
         return {
             "trend": trend,
@@ -302,34 +304,6 @@ class ScreeningService:
             "vol_price_signal": vol_price_signal,
             "closes": closes,
         }
-
-    @staticmethod
-    def _volume_price_features(closes, volumes):
-        """量价关系分析。signal: 1=配合良好, 0=中性, -1=背离警报。"""
-        if len(closes) < 6 or len(volumes) < 6:
-            return 0
-        mid = len(closes) // 2
-        recent_close = closes[-mid:]
-        prev_close = closes[:mid]
-        recent_vol = volumes[-mid:]
-        prev_vol = volumes[:mid]
-        import statistics
-        price_chg = statistics.mean(recent_close) / max(statistics.mean(prev_close), 0.01) - 1
-        # vol_chg 未直接使用，保留以备扩展
-        _ = statistics.mean(recent_vol) / max(statistics.mean(prev_vol), 0.01) - 1
-        last3_close = closes[-3:]
-        last3_vol = volumes[-3:]
-        price_up = statistics.mean(last3_close) > statistics.mean(closes)
-        vol_up = statistics.mean(last3_vol) > statistics.mean(volumes)
-        if price_up and vol_up:
-            return 1
-        elif not price_up and not vol_up:
-            return 1
-        elif price_up and not vol_up:
-            return -1
-        elif not price_up and vol_up:
-            return -1
-        return 0
 
     def _hard_filter(self, quote: dict, fin: dict, filters: dict) -> List[str]:
         """硬过滤。
