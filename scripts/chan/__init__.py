@@ -7,7 +7,7 @@ from .fenxing import chan_fenxing
 from .bi import chan_bi
 from .xianduan import chan_xianduan
 from .zhongshu import chan_zhongshu
-from .macd import _macd_area
+from .area import _macd_area  # v1.3.2: was chan/macd.py, renamed to avoid clash with technical/macd.py
 from .beichi import chan_beichi
 from .maidian import chan_maidian
 from common import to_float

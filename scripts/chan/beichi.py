@@ -1,6 +1,6 @@
 """背驰检测。"""
 from technical.core import _ema_series
-from .macd import _macd_area
+from .area import _macd_area  # v1.3.2: was chan/macd.py
 
 
 def chan_beichi(bi_list, zs_list, closes):
