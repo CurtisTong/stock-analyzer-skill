@@ -34,15 +34,13 @@ stock-analyzer-skill/
 ├── .agents/skills/                 # Codex workspace skill 源
 ├── skills/                         # Claude Code skill 源（与 .claude/skills/ 一致）
 ├── scripts/                        # 工具脚本（三层架构）
-│   ├── api/                        # CLI 入口层
-│   │   ├── quote_cli.py
-│   │   └── screener_cli.py
 │   ├── business/                   # 业务逻辑层
 │   │   ├── stock_analysis.py
 │   │   └── screening_service.py
 │   ├── common/                     # 基础设施层
 │   │   ├── __init__.py            # BaseFetcher, CircuitBreaker, DataFetcherManager
 │   │   ├── http.py                # HTTP 请求封装
+│   │   ├── cache.py               # 磁盘缓存（v1.3.2 从 data/cache.py 迁入）
 │   │   ├── validators.py          # 输入验证器
 │   │   ├── utils.py               # 工具函数
 │   │   ├── parsers.py             # 数据解析器
@@ -52,13 +50,35 @@ stock-analyzer-skill/
 │   │   ├── loader.py              # YAML 配置加载器
 │   │   ├── data_source.yaml       # 数据源端点
 │   │   ├── scoring.yaml           # 评分权重（含资金面因子，v1.3.1）
-│   │   └── limits.yaml            # 限流配置
+│   │   ├── limits.yaml            # 限流配置
+│   │   ├── industry_thresholds.yaml # 行业差异化阈值（v1.3.2 从 data/industry_thresholds.json 迁入）
+│   │   └── notification.yaml      # 通知通道配置
 │   ├── data/                       # 数据层
 │   │   ├── types.py               # 数据类型（含 goodwill/pledge_ratio，v1.3.1）
-│   │   ├── cache.py               # 缓存管理
+│   │   ├── cache.py               # 兼容 shim（实际在 common/cache.py，v1.3.2）
 │   │   ├── chip.py                # 资金面数据汇总（v1.3.1）
 │   │   ├── config.py              # 数据配置
 │   │   └── *.json / *.csv         # 静态参考数据
+│   ├── fetchers/                   # 数据获取层（25+ 模块）
+│   │   ├── tencent_quote.py       # 腾讯行情
+│   │   ├── eastmoney_quote.py     # 东财行情
+│   │   ├── eastmoney_finance.py   # 东财财务
+│   │   ├── eastmoney_kline.py     # 东财 K 线
+│   │   ├── eastmoney_chip.py      # 东财资金面（v1.3.1）
+│   │   ├── eastmoney_flow.py      # 东财资金流向
+│   │   ├── eastmoney_lhb.py       # 东财龙虎榜
+│   │   ├── eastmoney_event.py     # 东财事件日历
+│   │   ├── sina_quote.py          # 新浪行情
+│   │   ├── sina_kline.py          # 新浪 K 线
+│   │   ├── xueqiu_quote.py        # 雪球行情（v1.3.1）
+│   │   ├── ths_quote.py           # 同花顺行情（v1.3.1）
+│   │   ├── efinance_quote.py      # efinance 行情
+│   │   ├── akshare_quote.py       # AkShare 行情
+│   │   ├── tushare_quote.py       # Tushare 行情
+│   │   ├── pytdx_quote.py         # pytdx 行情
+│   │   ├── baostock_kline.py      # baostock K 线
+│   │   └── ...                    # 更多数据源
+│   ├── *.py                        # 顶层 CLI 脚本（SKILL.md 直接调用的入口）
 │   ├── fetchers/                   # 数据获取层（25+ 模块）
 │   │   ├── tencent_quote.py       # 腾讯行情
 │   │   ├── eastmoney_quote.py     # 东财行情
