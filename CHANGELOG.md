@@ -5,6 +5,20 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.5.0] - 2026-06-11
+
+### Added
+
+- 回测模块新增 3 个核心指标：
+  - `calmar_ratio`：卡玛比率（年化收益/最大回撤），衡量风险调整收益
+  - `profit_loss_ratio`：盈亏比（平均盈利/平均亏损），衡量盈亏不对称性
+  - `total_trades`：总交易次数，方便统计样本量
+- 回测输出 JSON 格式已包含全部 11 个指标（策略/轮次/总收益/平均收益/最大收益/最小收益/胜率/夏普比率/最大回撤/卡玛比率/盈亏比/交易次数）
+
+### Changed
+
+- `scripts/backtest.py`：`run_backtest()` 函数新增指标计算逻辑
+
 ## [1.4.1] - 2026-06-11
 
 ### Added

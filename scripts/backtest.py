@@ -377,6 +377,21 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
             if drawdown > max_drawdown:
                 max_drawdown = drawdown
 
+    # 卡玛比率 = 年化收益率 / 最大回撤
+    # 假设一年 252 个交易日，按回测天数折算年化
+    annualized_return = total_return * (252 / days) if days > 0 else 0
+    calmar_ratio = round(annualized_return / (max_drawdown * 100), 2) if max_drawdown > 0 else 0
+
+    # 盈亏比 = 平均盈利 / 平均亏损（基于轮次收益率）
+    winning_trades = [r for r in all_returns if r > 0]
+    losing_trades = [r for r in all_returns if r < 0]
+    avg_win = sum(winning_trades) / len(winning_trades) if winning_trades else 0
+    avg_loss = abs(sum(losing_trades) / len(losing_trades)) if losing_trades else 0
+    profit_loss_ratio = round(avg_win / avg_loss, 2) if avg_loss > 0 else 0
+
+    # 总交易次数 = 每轮持仓数 × 轮次数
+    total_trades = top_n * rounds
+
     return {
         "strategy": strategy_name,
         "rounds": rounds,
@@ -387,6 +402,9 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         "win_rate_pct": round(win_rate, 1),
         "sharpe_ratio": round(sharpe, 2),
         "max_drawdown_pct": round(max_drawdown * 100, 2),
+        "calmar_ratio": calmar_ratio,
+        "profit_loss_ratio": profit_loss_ratio,
+        "total_trades": total_trades,
         "round_details": round_results,
     }
 

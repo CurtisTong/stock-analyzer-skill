@@ -133,20 +133,23 @@ for s in stock market sector portfolio screener financial-analyst investment-res
   fi
 done
 
-echo "==> 4.1 SKILL.md 版本一致性 (v1.4.1)"
+echo "==> 4.1 SKILL.md 版本一致性 (v1.4.1 + 允许 backtest=v1.5.0)"
 EXPECTED_VERSION="version: 1.4.1"
 VERSION_COUNT=0
 for s in stock market sector portfolio screener financial-analyst investment-researcher technical backtest help stock-init monitor; do
   if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ]; then
     if grep -q "^$EXPECTED_VERSION" "$PKG_ROOT/skills/$s/SKILL.md"; then
       VERSION_COUNT=$((VERSION_COUNT+1))
+    elif [ "$s" = "backtest" ] && grep -q "^version: 1.5.0" "$PKG_ROOT/skills/$s/SKILL.md"; then
+      # backtest 允许 v1.5.0
+      VERSION_COUNT=$((VERSION_COUNT+1))
     fi
   fi
 done
 if [ $VERSION_COUNT -eq 12 ]; then
-  ok "12 个 SKILL.md 版本一致为 v1.4.1"
+  ok "12 个 SKILL.md 版本一致（11 个 v1.4.1 + backtest v1.5.0）"
 else
-  ko "版本不一致: 仅 $VERSION_COUNT/12 为 v1.4.1"
+  ko "版本不一致: 仅 $VERSION_COUNT/12"
 fi
 
 echo "==> 5. 8 个 symlink 已注册（未安装时可失败）"
