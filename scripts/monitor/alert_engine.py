@@ -1,0 +1,545 @@
+"""
+策略信号引擎：计算持仓+自选股的关键点位，盘中触及即推送。
+
+用法:
+  python3 scripts/monitor/alert_engine.py scan               # 扫描全部，输出关键点位
+  python3 scripts/monitor/alert_engine.py scan --json        # JSON 输出
+  python3 scripts/monitor/alert_engine.py levels sh600989    # 单股关键点位
+  python3 scripts/monitor/alert_engine.py check              # 盘中检查，触发推送
+  python3 scripts/monitor/alert_engine.py check --dry-run    # 只输出不推送
+"""
+import json
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+# 添加 scripts 目录到 path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from common import normalize_quote_code, to_float
+from data import get_quote, get_quotes, get_kline
+from technical.moving_average import ma_system
+from technical.macd import macd_full
+from technical.trend import support_resistance
+from monitor import NotificationManager
+from portfolio import PortfolioManager
+
+
+def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
+    """获取单只股票的技术分析数据。
+
+    Returns:
+        {"quote": {...}, "kline": [...], "ma": {...}, "macd": {...}, "sr": {...}}
+    """
+    result = {"code": code, "quote": None, "error": None}
+
+    # 实时行情
+    try:
+        q = get_quote(code)
+        result["quote"] = q.to_dict() if q else None
+    except Exception as e:
+        result["error"] = f"行情获取失败: {e}"
+        return result
+
+    # K 线
+    try:
+        bars = get_kline(code, 240, datalen)
+        records = [b.to_dict() for b in bars]
+    except Exception as e:
+        result["error"] = f"K线获取失败: {e}"
+        return result
+
+    if not records or len(records) < 20:
+        result["error"] = "K线数据不足"
+        return result
+
+    closes = [r["close"] for r in records]
+    highs = [r["high"] for r in records]
+    lows = [r["low"] for r in records]
+
+    # 均线系统
+    result["ma"] = ma_system(closes)
+
+    # MACD
+    result["macd"] = macd_full(closes)
+
+    # 支撑/阻力位
+    result["sr"] = support_resistance(closes, highs, lows, result["ma"])
+
+    return result
+
+
+def compute_key_levels(code: str, position: Optional[dict] = None,
+                       watch: Optional[dict] = None) -> dict:
+    """计算单只股票的关键点位集合。
+
+    Args:
+        code: 股票代码
+        position: 持仓信息（可选）
+        watch: 自选信息（可选）
+
+    Returns:
+        {
+            "code": "sh600989",
+            "name": "宝丰能源",
+            "price": 18.50,
+            "levels": {
+                "supports": [...],
+                "resistances": [...],
+                "target_buy": 12.00,
+                "target_sell": 15.00,
+                "macd_signal": "金叉",
+                "ma_break": "突破MA20",
+            },
+            "alerts": [...]  # 当前触发的预警
+        }
+    """
+    data = _fetch_technical_data(code)
+    result = {
+        "code": code,
+        "name": data.get("quote", {}).get("name", ""),
+        "price": 0,
+        "change_pct": 0,
+        "levels": {},
+        "alerts": [],
+        "error": data.get("error"),
+    }
+
+    if data.get("error") or not data.get("quote"):
+        return result
+
+    price = to_float(data["quote"].get("price", 0))
+    result["price"] = price
+    result["change_pct"] = to_float(data["quote"].get("change_pct", 0))
+
+    if price <= 0:
+        result["error"] = "价格无效"
+        return result
+
+    levels = {}
+
+    # ── 支撑/阻力位 ──
+    sr = data.get("sr", {})
+    levels["supports"] = sr.get("supports", [])
+    levels["resistances"] = sr.get("resistances", [])
+    levels["nearest_support"] = sr.get("nearest_support")
+    levels["nearest_resistance"] = sr.get("nearest_resistance")
+
+    # ── 均线 ──
+    ma = data.get("ma", {})
+    levels["ma_values"] = {}
+    for p in [5, 10, 20, 60]:
+        v = ma.get(f"ma{p}")
+        if v is not None:
+            levels["ma_values"][f"MA{p}"] = v
+    levels["ma_alignment"] = ma.get("alignment", "")
+
+    # 均线突破检测
+    ma_breaks = []
+    for p in [20, 60]:
+        v = ma.get(f"ma{p}")
+        if v is not None:
+            # 从下方突破
+            if price >= v and price < v * 1.02:
+                ma_breaks.append(f"突破MA{p}({v})")
+            # 跌破
+            elif price <= v and price > v * 0.98:
+                ma_breaks.append(f"跌破MA{p}({v})")
+    levels["ma_breaks"] = ma_breaks
+
+    # ── MACD ──
+    macd = data.get("macd", {})
+    if macd:
+        levels["macd"] = {
+            "dif": macd.get("dif"),
+            "dea": macd.get("dea"),
+            "bar": macd.get("macd_bar"),
+            "signal": macd.get("signal_desc", "无"),
+            "bar_trend": macd.get("bar_trend", ""),
+        }
+        if macd.get("signal") == 1:
+            levels["macd_signal"] = "金叉"
+        elif macd.get("signal") == -1:
+            levels["macd_signal"] = "死叉"
+        else:
+            levels["macd_signal"] = ""
+
+    # ── 目标买入/卖出价（来自自选） ──
+    if watch:
+        tb = to_float(watch.get("target_buy", 0))
+        ts = to_float(watch.get("target_sell", 0))
+        if tb > 0:
+            levels["target_buy"] = tb
+        if ts > 0:
+            levels["target_sell"] = ts
+
+    # ── 涨跌停附近 ──
+    prev_close = to_float(data["quote"].get("prev_close", 0))
+    if prev_close > 0:
+        limit_up = round(prev_close * 1.1, 2)
+        limit_down = round(prev_close * 0.9, 2)
+        levels["limit_up"] = limit_up
+        levels["limit_down"] = limit_down
+        dist_up = (limit_up - price) / price * 100
+        dist_down = (price - limit_down) / price * 100
+        if dist_up < 1 and dist_up >= 0:
+            levels["near_limit_up"] = True
+        if dist_down < 1 and dist_down >= 0:
+            levels["near_limit_down"] = True
+
+    result["levels"] = levels
+
+    # ── 生成预警 ──
+    alerts = _check_alerts(price, levels, position, watch)
+    result["alerts"] = alerts
+
+    return result
+
+
+def _check_alerts(price: float, levels: dict,
+                  position: Optional[dict] = None,
+                  watch: Optional[dict] = None) -> list:
+    """检查当前价格是否触发预警条件。"""
+    alerts = []
+
+    # 支撑位触及
+    for s in levels.get("supports", []):
+        lv = s.get("level", 0)
+        if lv > 0 and price <= lv * 1.01:
+            alerts.append({
+                "type": "support_touch",
+                "level": lv,
+                "source": s.get("source", ""),
+                "message": f"触及支撑位 {lv}（{s.get('source', '')}）",
+                "urgent": s.get("strength") == "强",
+            })
+
+    # 压力位触及
+    for r in levels.get("resistances", []):
+        lv = r.get("level", 0)
+        if lv > 0 and price >= lv * 0.99:
+            alerts.append({
+                "type": "resistance_touch",
+                "level": lv,
+                "source": r.get("source", ""),
+                "message": f"触及压力位 {lv}（{r.get('source', '')}）",
+                "urgent": False,
+            })
+
+    # 目标买入价
+    tb = levels.get("target_buy", 0)
+    if tb > 0 and price <= tb:
+        alerts.append({
+            "type": "target_buy",
+            "level": tb,
+            "message": f"到达目标买入价 {tb}",
+            "urgent": True,
+        })
+
+    # 目标卖出价
+    ts = levels.get("target_sell", 0)
+    if ts > 0 and price >= ts:
+        alerts.append({
+            "type": "target_sell",
+            "level": ts,
+            "message": f"到达目标卖出价 {ts}",
+            "urgent": True,
+        })
+
+    # MACD 金叉/死叉
+    macd_sig = levels.get("macd_signal", "")
+    if macd_sig == "金叉":
+        alerts.append({
+            "type": "macd_golden",
+            "message": "MACD 金叉",
+            "urgent": False,
+        })
+    elif macd_sig == "死叉":
+        alerts.append({
+            "type": "macd_dead",
+            "message": "MACD 死叉",
+            "urgent": False,
+        })
+
+    # 均线突破
+    for mb in levels.get("ma_breaks", []):
+        alerts.append({
+            "type": "ma_break",
+            "message": mb,
+            "urgent": False,
+        })
+
+    # 涨跌停附近
+    if levels.get("near_limit_up"):
+        alerts.append({
+            "type": "near_limit",
+            "message": f"距涨停 <1%（涨停价 {levels.get('limit_up')}）",
+            "urgent": True,
+        })
+    if levels.get("near_limit_down"):
+        alerts.append({
+            "type": "near_limit",
+            "message": f"距跌停 <1%（跌停价 {levels.get('limit_down')}）",
+            "urgent": True,
+        })
+
+    # 持仓盈亏预警
+    if position:
+        cost = to_float(position.get("cost", 0))
+        if cost > 0:
+            pnl_pct = (price - cost) / cost * 100
+            if pnl_pct <= -8:
+                alerts.append({
+                    "type": "stop_loss",
+                    "message": f"持仓亏损 {pnl_pct:.1f}%，触及止损线",
+                    "urgent": True,
+                })
+            elif pnl_pct >= 20:
+                alerts.append({
+                    "type": "take_profit",
+                    "message": f"持仓盈利 {pnl_pct:.1f}%，可考虑止盈",
+                    "urgent": False,
+                })
+
+    return alerts
+
+
+def scan_all() -> list:
+    """扫描持仓+自选股，返回关键点位集合。"""
+    pm = PortfolioManager()
+    positions = pm.get_positions()
+    watchlist = pm.get_watchlist()
+
+    results = []
+
+    # 持仓
+    for pos in positions:
+        code = pos.get("code", "")
+        if not code:
+            continue
+        r = compute_key_levels(code, position=pos)
+        results.append(r)
+
+    # 自选（去重）
+    pos_codes = {p.get("code") for p in positions}
+    for w in watchlist:
+        code = w.get("code", "")
+        if not code or code in pos_codes:
+            continue
+        r = compute_key_levels(code, watch=w)
+        results.append(r)
+
+    return results
+
+
+def check_and_push(dry_run: bool = False) -> dict:
+    """盘中检查：扫描全部标的，触发预警则推送。
+
+    Returns:
+        {"scanned": int, "alerts": int, "pushed": int, "details": [...]}
+    """
+    results = scan_all()
+    nm = NotificationManager() if not dry_run else None
+
+    summary = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "scanned": len(results),
+        "alerts": 0,
+        "pushed": 0,
+        "details": [],
+    }
+
+    for r in results:
+        code = r["code"]
+        name = r.get("name", code)
+        price = r.get("price", 0)
+        alerts = r.get("alerts", [])
+
+        if not alerts:
+            continue
+
+        summary["alerts"] += len(alerts)
+
+        for alert in alerts:
+            alert_type = alert.get("type", "unknown")
+            message = alert.get("message", "")
+            urgent = alert.get("urgent", False)
+
+            # 构造推送内容
+            body = f"现价 {price}"
+            if r.get("change_pct"):
+                body += f"（{r['change_pct']:+.2f}%）"
+            body += f"\n{message}"
+
+            # 持仓信息
+            if r.get("position"):
+                pos = r["position"]
+                cost = to_float(pos.get("cost", 0))
+                qty = to_float(pos.get("quantity", 0))
+                if cost > 0 and qty > 0:
+                    pnl = (price - cost) * qty
+                    pnl_pct = (price - cost) / cost * 100
+                    body += f"\n持仓 {int(qty)} 股 | 盈亏 {pnl:+,.0f}({pnl_pct:+.1f}%)"
+
+            detail = {
+                "code": code,
+                "name": name,
+                "type": alert_type,
+                "message": message,
+                "price": price,
+                "pushed": False,
+            }
+
+            if not dry_run and nm:
+                # 映射 alert_type 到 send_alert 的类型
+                type_map = {
+                    "support_touch": "break",
+                    "resistance_touch": "price",
+                    "target_buy": "price",
+                    "target_sell": "price",
+                    "macd_golden": "technical",
+                    "macd_dead": "technical",
+                    "ma_break": "technical",
+                    "near_limit": "risk",
+                    "stop_loss": "risk",
+                    "take_profit": "portfolio",
+                }
+                push_type = type_map.get(alert_type, "price")
+                result = nm.send_alert(
+                    alert_type=push_type,
+                    stock_name=name,
+                    stock_code=code,
+                    message=body,
+                    urgent=urgent,
+                )
+                detail["pushed"] = result.get("sent", 0) > 0
+                if detail["pushed"]:
+                    summary["pushed"] += 1
+
+            summary["details"].append(detail)
+
+    return summary
+
+
+def render_scan(results: list) -> str:
+    """渲染扫描结果为可读文本。"""
+    lines = []
+    lines.append(f"📊 关键点位扫描 | {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append(f"扫描标的: {len(results)} 只")
+    lines.append("")
+
+    for r in results:
+        code = r["code"]
+        name = r.get("name", code)
+        price = r.get("price", 0)
+        change = r.get("change_pct", 0)
+        error = r.get("error")
+
+        if error:
+            lines.append(f"❌ {name}({code}): {error}")
+            continue
+
+        icon = "🔴" if change < 0 else "🟢" if change > 0 else "⚪"
+        lines.append(f"{icon} {name}({code}) | 现价 {price} | {change:+.2f}%")
+
+        levels = r.get("levels", {})
+
+        # 支撑位
+        supports = levels.get("supports", [])
+        if supports:
+            items = [f"{s['level']}({s.get('source', '')})" for s in supports[:3]]
+            lines.append(f"  支撑: {' / '.join(items)}")
+
+        # 压力位
+        resistances = levels.get("resistances", [])
+        if resistances:
+            items = [f"{r['level']}({r.get('source', '')})" for r in resistances[:3]]
+            lines.append(f"  压力: {' / '.join(items)}")
+
+        # 均线
+        ma_vals = levels.get("ma_values", {})
+        if ma_vals:
+            items = [f"{k}={v}" for k, v in ma_vals.items()]
+            lines.append(f"  均线: {' | '.join(items)}")
+
+        # MACD
+        macd_info = levels.get("macd", {})
+        if macd_info:
+            sig = levels.get("macd_signal", "")
+            bar = macd_info.get("bar_trend", "")
+            lines.append(f"  MACD: DIF={macd_info.get('dif')} DEA={macd_info.get('dea')} | {sig or bar}")
+
+        # 目标价
+        if levels.get("target_buy"):
+            lines.append(f"  目标买入: {levels['target_buy']}")
+        if levels.get("target_sell"):
+            lines.append(f"  目标卖出: {levels['target_sell']}")
+
+        # 预警
+        alerts = r.get("alerts", [])
+        if alerts:
+            for a in alerts:
+                urgent_mark = "🔴" if a.get("urgent") else "🟡"
+                lines.append(f"  {urgent_mark} 预警: {a['message']}")
+
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def render_levels(code: str) -> str:
+    """渲染单股关键点位。"""
+    pm = PortfolioManager()
+    pos = pm.get_position(code)
+    watch = pm.get_watch(code)
+    r = compute_key_levels(code, position=pos, watch=watch)
+    return render_scan([r])
+
+
+def main():
+    args = sys.argv[1:]
+    if not args:
+        print("用法:")
+        print("  alert_engine.py scan [--json]        # 扫描全部标的")
+        print("  alert_engine.py levels <code>        # 单股关键点位")
+        print("  alert_engine.py check [--dry-run]    # 盘中检查+推送")
+        sys.exit(1)
+
+    cmd = args[0]
+
+    if cmd == "scan":
+        results = scan_all()
+        if "--json" in args:
+            print(json.dumps(results, ensure_ascii=False, indent=2))
+        else:
+            print(render_scan(results))
+
+    elif cmd == "levels":
+        if len(args) < 2:
+            print("用法: alert_engine.py levels <code>")
+            sys.exit(1)
+        code = normalize_quote_code(args[1])
+        print(render_levels(code))
+
+    elif cmd == "check":
+        dry_run = "--dry-run" in args
+        summary = check_and_push(dry_run=dry_run)
+        if "--json" in args:
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+        else:
+            mode = "（dry-run）" if dry_run else ""
+            print(f"📡 盘中检查{mode} | {summary['timestamp']}")
+            print(f"扫描: {summary['scanned']} | 预警: {summary['alerts']} | 推送: {summary['pushed']}")
+            for d in summary.get("details", []):
+                status = "✅" if d.get("pushed") else "⏭️"
+                print(f"  {status} {d['name']}({d['code']}): {d['message']}")
+
+    else:
+        print(f"未知命令: {cmd}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

@@ -50,6 +50,18 @@ rules:
     sector_moved: true                   # 持仓板块异动
     northbound_flow: 50                  # 北向资金净流入/出 (亿)
 
+  strategy_alert:
+    enabled: true
+    watchlist: true                      # 同时监控自选股
+    key_levels:
+      support_resistance: true           # 支撑/压力位触及推送
+      target_price: true                 # 目标买入/卖出价到达推送
+      macd_cross: true                   # MACD 金叉/死叉推送
+      ma_break: [20, 60]                 # 均线突破推送
+      near_limit: true                   # 涨跌停附近推送
+      stop_loss_pct: 8                   # 持仓止损线 (%)
+      take_profit_pct: 20                # 持仓止盈线 (%)
+
 # 频率控制
 throttle:
   dedup_window: 15                       # 同类消息去重窗口 (分钟)

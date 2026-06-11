@@ -3,7 +3,7 @@
 > **A 股投资的 12 个专业分析师，常驻你的 Claude Code。**
 > 五层分析框架 + 8 人专家圆桌 + 多数据源自动故障转移，零配置即可使用。
 
-![Version](https://img.shields.io/badge/version-1.3.2-blue)
+![Version](https://img.shields.io/badge/version-1.4.1-blue)
 ![Python](https://img.shields.io/badge/python-3.9%2B-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 ![Zero Deps](https://img.shields.io/badge/python_deps-stdlib_only-lightgrey)
@@ -53,18 +53,27 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 /stock sh600989 debate  →  8 人专家圆桌多空辩论
 ```
 
+#### 嫌 CLI 麻烦？用本地 Web 录入
+
+```bash
+python3 scripts/portfolio_web.py
+# 浏览器打开 http://127.0.0.1:8765/
+```
+
+手机/电脑都能用，支持 IFTTT 等 Webhook 推送持仓变更。详见 `/portfolio` skill 的「Web 录入（可选）」段。
+
 ---
 
 ## 🎯 4 个典型场景
 
 不知道从哪个命令开始？挑一个最贴近你当前问题的：
 
-| 场景 | 命令链 | 你会得到什么 |
-| --- | --- | --- |
+| 场景                | 命令链                                                                       | 你会得到什么                     |
+| ------------------- | ---------------------------------------------------------------------------- | -------------------------------- |
 | 🥇 **自上而下选股** | `/market` → `/sector 资源` → `/screener --strategy quality_value` → `/stock` | 从市场状态到具体标的的完整决策链 |
-| 🥈 **诊断持仓** | `/portfolio` → `/stock 持仓股 debate` | 健康度 + 风险预警 + 多空辩论结论 |
-| 🥉 **挖掘板块机会** | `/market` → `/sector 医药 compare` | 板块轮动位置 + 核心标的横向对比 |
-| 🏅 **深度研究个股** | `/stock 贵州茅台 debate` → `/financial-analyst` → `/technical` | 八方观点 + 财务建模 + 技术买卖点 |
+| 🥈 **诊断持仓**     | `/portfolio` → `/stock 持仓股 debate`                                        | 健康度 + 风险预警 + 多空辩论结论 |
+| 🥉 **挖掘板块机会** | `/market` → `/sector 医药 compare`                                           | 板块轮动位置 + 核心标的横向对比  |
+| 🏅 **深度研究个股** | `/stock 贵州茅台 debate` → `/financial-analyst` → `/technical`               | 八方观点 + 财务建模 + 技术买卖点 |
 
 > 🌟 **特色功能**：`/stock <代码> debate` 召集 **8 位投资专家**（巴菲特/林奇/索罗斯/段永平/徐翔/赵老哥/炒股养家/作手新一）从各自框架独立打分，由 `decide.md` 汇总投票，是本包最独特的卖点。详见 [experts/README.md](experts/README.md)。
 >
@@ -74,21 +83,21 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 
 ## 📋 12 个 Skill 速查
 
-| 类别 | Skill | 命令 | 解决什么问题 |
-| --- | --- | --- | --- |
-| **决策** | [stock](skills/stock/SKILL.md) | `/stock <代码>` | 单股五层分析（基本面/估值/技术/板块/风险收益比） |
-| **🌟 专家** | [stock-debate](skills/stock/SKILL.md) | `/stock <代码> debate` | **8 位投资专家多空圆桌辩论**（长线 4 + 短线 4） |
-| **环境** | [market](skills/market/SKILL.md) | `/market` | 大盘快评/完整复盘/盘中分时 |
-| **环境** | [sector](skills/sector/SKILL.md) | `/sector <板块>` | 板块全景/标的对比/板块内筛选 |
-| **选股** | [screener](skills/screener/SKILL.md) | `/screener` | 5 种策略 × 5 因子维度批量选股 |
-| **组合** | [portfolio](skills/portfolio/SKILL.md) | `/portfolio` | 持仓健康/调仓再平衡/对比 |
-| **组合** | [monitor](skills/monitor/SKILL.md) | `/monitor start` | 盘中异动监控 + Bark/企微/钉钉推送 |
-| **技术** | [technical](skills/technical/SKILL.md) | `/technical <代码>` | 均线/MACD/KDJ/BOLL/缠论/本土战法 |
-| **验证** | [backtest](skills/backtest/SKILL.md) | `/backtest` | 5 种策略历史胜率+收益验证 |
-| **数据** | [stock-init](skills/stock-init/SKILL.md) | `/stock-init` | 初始化/刷新股票池（零配置） |
-| **研究** | [financial-analyst](skills/financial-analyst/SKILL.md) | `/financial-analyst <任务>` | 财务建模/预测/场景分析 |
-| **研究** | [investment-researcher](skills/investment-researcher/SKILL.md) | `/investment-researcher <任务>` | 市场研究/尽调/估值 |
-| **辅助** | [help](skills/help/SKILL.md) | `/help` | 显示所有 skills 和使用说明 |
+| 类别        | Skill                                                          | 命令                            | 解决什么问题                                         |
+| ----------- | -------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------- |
+| **决策**    | [stock](skills/stock/SKILL.md)                                 | `/stock <代码>`                 | 单股五层分析（基本面/估值/技术/板块/风险收益比）     |
+| **🌟 专家** | [stock-debate](skills/stock/SKILL.md)                          | `/stock <代码> debate`          | **8 位投资专家多空圆桌辩论**（长线 4 + 短线 4）      |
+| **环境**    | [market](skills/market/SKILL.md)                               | `/market`                       | 大盘快评/完整复盘/盘中分时                           |
+| **环境**    | [sector](skills/sector/SKILL.md)                               | `/sector <板块>`                | 板块全景/标的对比/板块内筛选                         |
+| **选股**    | [screener](skills/screener/SKILL.md)                           | `/screener`                     | 5 种策略 × 5 因子维度批量选股                        |
+| **组合**    | [portfolio](skills/portfolio/SKILL.md)                         | `/portfolio`                    | 持仓健康/调仓再平衡/对比                             |
+| **组合**    | [monitor](skills/monitor/SKILL.md)                             | `/monitor start`                | 盘中异动监控 + 策略关键点位扫描 + Bark/企微/钉钉推送 |
+| **技术**    | [technical](skills/technical/SKILL.md)                         | `/technical <代码>`             | 均线/MACD/KDJ/BOLL/缠论/本土战法                     |
+| **验证**    | [backtest](skills/backtest/SKILL.md)                           | `/backtest`                     | 5 种策略历史胜率+收益验证                            |
+| **数据**    | [stock-init](skills/stock-init/SKILL.md)                       | `/stock-init`                   | 初始化/刷新股票池（零配置）                          |
+| **研究**    | [financial-analyst](skills/financial-analyst/SKILL.md)         | `/financial-analyst <任务>`     | 财务建模/预测/场景分析                               |
+| **研究**    | [investment-researcher](skills/investment-researcher/SKILL.md) | `/investment-researcher <任务>` | 市场研究/尽调/估值                                   |
+| **辅助**    | [help](skills/help/SKILL.md)                                   | `/help`                         | 显示所有 skills 和使用说明                           |
 
 **股票代码格式**：`sh600519`（沪）/ `sz000858`（深）/ `600519`（自动推断）/ `贵州茅台`（按名称模糊匹配）
 
@@ -159,12 +168,12 @@ scripts/
 
 ## 📚 文档导航
 
-| 你的角色 | 推荐先读 | 之后 |
-| --- | --- | --- |
-| **新用户** | [快速入门](docs/quick-start.md) | [使用者指南](docs/user-guide.md) |
-| **投资者** | [投资方法论](methodology.md) | [8 人专家档案库](experts/README.md) |
-| **二次开发者** | [开发者指南](docs/developer-guide.md) | [API 参考](docs/api-reference.md) |
-| **贡献者** | [贡献指南](CONTRIBUTING.md) | [变更日志](CHANGELOG.md) |
+| 你的角色       | 推荐先读                              | 之后                                |
+| -------------- | ------------------------------------- | ----------------------------------- |
+| **新用户**     | [快速入门](docs/quick-start.md)       | [使用者指南](docs/user-guide.md)    |
+| **投资者**     | [投资方法论](methodology.md)          | [8 人专家档案库](experts/README.md) |
+| **二次开发者** | [开发者指南](docs/developer-guide.md) | [API 参考](docs/api-reference.md)   |
+| **贡献者**     | [贡献指南](CONTRIBUTING.md)           | [变更日志](CHANGELOG.md)            |
 
 ---
 
@@ -214,4 +223,4 @@ MIT License © curtis
 
 ---
 
-**版本**：v1.3.2（2026-06-10） · **最后更新**：见 [CHANGELOG.md](CHANGELOG.md)
+**版本**：v1.4.1（2026-06-11） · **最后更新**：见 [CHANGELOG.md](CHANGELOG.md)

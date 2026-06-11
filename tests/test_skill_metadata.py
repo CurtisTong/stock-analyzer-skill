@@ -152,14 +152,22 @@ def test_model_field_valid(skill_path):
         )
 
 
+VERSION_OVERRIDES = {
+    "portfolio": "1.5.0",  # 新增后台策略监控
+    "monitor": "1.4.0",    # 新增策略关键点位扫描
+}
+DEFAULT_VERSION = "1.3.1"
+
+
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
 def test_version_consistency(skill_path):
-    """version 字段与 package.json 一致（1.3.1）。"""
+    """version 字段与 package.json 一致（默认 1.3.1，个别 skill 可覆盖）。"""
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
+    expected = VERSION_OVERRIDES.get(skill_path.parent.name, DEFAULT_VERSION)
     if "version" in fm:
-        assert fm["version"] == "1.3.1", (
-            f"{skill_path.parent.name}: version={fm['version']}（应为 1.3.1）"
+        assert fm["version"] == expected, (
+            f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
         )
 
 

@@ -1,9 +1,9 @@
 ---
 name: portfolio
 description: A 股持仓组合管理与健康检查 skill。支持持仓 CRUD（买入/加仓/减仓/清仓）、自选股管理、组合实时涨跌、仓位/板块集中度、风险预警、调仓再平衡和持仓标的对比。v2 数据模型支持成本价、数量、买入日期和标签。
-version: 1.3.1
+version: 1.5.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Portfolio Management
@@ -42,6 +42,19 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 | `rebalance`      | 结合大盘风格给出调仓建议           |
 | `compare`        | 持仓标的互相对比+替换建议          |
 
+### Web 录入
+
+| 操作                          | 说明                                                          | 示例                                   |
+| ----------------------------- | ------------------------------------------------------------- | -------------------------------------- |
+| `web`                         | 启动本地 Web 录入服务（127.0.0.1:8765），默认启用后台策略监控 | `/portfolio web`                       |
+| `web --port <端口>`           | 指定端口启动                                                  | `/portfolio web --port 9000`           |
+| `web --open`                  | 启动后自动打开浏览器                                          | `/portfolio web --open`                |
+| `web --no-notify`             | 启动时不推送通知（默认自动接入已配置的推送通道）              | `/portfolio web --no-notify`           |
+| `web --no-monitor`            | 禁用后台策略监控                                              | `/portfolio web --no-monitor`          |
+| `web --monitor-interval <秒>` | 监控检查间隔（默认 300 秒）                                   | `/portfolio web --monitor-interval 60` |
+| `web --stop`                  | 停止后台运行的 Web 服务                                       | `/portfolio web --stop`                |
+| `web --status`                | 查看 Web 服务运行状态                                         | `/portfolio web --status`              |
+
 ### 自然语言
 
 支持自然语言触发，例如：
@@ -54,6 +67,25 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 ## Instructions
 
 使用中文，输出用表格+红绿标记。先给组合状态和最需要处理的风险，再给逐项数据。不要假设用户的真实持仓，除非 `data/portfolio.json` 或用户消息提供了持仓。
+
+### Web 录入命令处理
+
+当用户输入 `/portfolio web` 系列命令时，按以下方式处理：
+
+| 命令                           | 处理方式                                                           |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `/portfolio web`               | `python3 scripts/portfolio_web.py --open`（后台启动 + 打开浏览器） |
+| `/portfolio web --port <端口>` | `python3 scripts/portfolio_web.py --port <端口> --open`            |
+| `/portfolio web --open`        | 同 `web`（前台启动 + 打开浏览器）                                  |
+| `/portfolio web --stop`        | `pkill -f "portfolio_web.py" && echo "已停止"`                     |
+| `/portfolio web --status`      | `lsof -i:8765 2>/dev/null && echo "运行中" \|\| echo "未运行"`     |
+
+**注意**：
+
+- `web` 命令默认后台启动（`&`），启动后输出端口和浏览器访问地址。
+- 如果端口已被占用（上一次未正常退出），提示用户先运行 `web --stop`。
+- 启动后在输出中附加一行：`浏览器访问：http://127.0.0.1:8765/`
+- 不要阻塞当前会话等 `serve_forever()` 结束。
 
 ## 共享约定
 
@@ -98,6 +130,35 @@ pm.remove_watch("sz000807")
 
 - 原持仓 1000 股 @ 18.50，加仓 500 股 @ 19.00
 - 新成本 = (18.50×1000 + 19.00×500) / 1500 = 18.67
+
+## Web 录入（可选）
+
+不想每次打 CLI？启一个本地 web server，浏览器或手机都能录：
+
+```bash
+python3 scripts/portfolio_web.py           # 监听 127.0.0.1:8765
+# 浏览器打开 http://127.0.0.1:8765/
+```
+
+支持 8 个 action 的 JSON Webhook，方便外部脚本/IFTTT 推送：
+
+```bash
+curl -X POST http://127.0.0.1:8765/api/positions \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"add_position","code":"sh600989","cost":18.5,"quantity":1000,"tags":["长线"]}'
+```
+
+action 列表：`add_position` / `reduce_position` / `remove_position` /
+`update_position` / `tag_position` / `untag_position` / `add_watch` / `update_watch` / `remove_watch`
+
+**注意事项**：
+
+- 默认仅监听 `127.0.0.1`，不对外暴露。
+- **不要**同时通过 CLI 工具与本服务改 `portfolio.json`——后写会覆盖前写（与项目原有约定一致）。建议把本服务作为唯一录入入口。
+- `update_position` 的 `tags` 字段是**整列表覆盖**，不是合并；要追加/删除请用 `tag_position` / `untag_position`。
+- `add_watch` 的 `target_buy=0` / `target_sell=0` 会被忽略（表示"未设"）；如要显式清零，请用 web 表单/curl 时改用 `update_watch` 路径或编辑文件。
+- 股票代码必须传 `sh600989` / `sz000807` 完整形式，不归一化。
+- 详细协议与错误码见 `tests/test_portfolio_web.py`。
 
 ### 数据获取
 
@@ -189,3 +250,4 @@ pm.remove_watch("sz000807")
 - 未知成本价时，不计算真实盈亏，只做当日涨跌、估值和风险状态。
 - 调仓建议必须包含"减/加多少、触发条件、替代标的或现金比例"，避免泛泛而谈。
 - 不要建议超过用户风险承受能力的集中仓位；单一行业或主题过重时优先提示组合风险。
+- 本 web server 与 CLI / 外部脚本同时写 portfolio.json 时，后写覆盖前写；建议 web 作为唯一录入入口。

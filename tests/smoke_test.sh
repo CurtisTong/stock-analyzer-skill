@@ -157,6 +157,61 @@ for s in financial-analyst investment-researcher; do
   fi
 done
 
+echo "==> 7. portfolio_web server 冒烟（临时端口 + tmp 隔离数据）"
+if [ ! -f "$SCRIPTS/portfolio_web.py" ]; then
+  ko "portfolio_web.py 缺失"
+else
+  TMPDIR=$(mktemp -d)
+  cat > "$TMPDIR/portfolio.json" <<EOF
+{"version":2,"positions":[],"watchlist":[]}
+EOF
+  python3 "$SCRIPTS/portfolio_web.py" --port 18765 --data-file "$TMPDIR/portfolio.json" > /tmp/portfolio_web_smoke.log 2>&1 &
+  SRV_PID=$!
+  # 等待 server 启动（最多 3 秒）
+  for i in 1 2 3 4 5 6; do
+    if curl -s -o /dev/null -m 1 http://127.0.0.1:18765/api/health; then break; fi
+    sleep 0.5
+  done
+
+  if curl -s -m 5 -o /dev/null -w "%{http_code}" "http://127.0.0.1:18765/api/health" | grep -q 200; then
+    ok "portfolio_web /api/health 返回 200"
+  else
+    ko "portfolio_web 健康检查失败（log: /tmp/portfolio_web_smoke.log）"
+  fi
+
+  if curl -s -m 5 "http://127.0.0.1:18765/" | grep -q "<form"; then
+    ok "portfolio_web / 返回 HTML 表单"
+  else
+    ko "portfolio_web / 未返回表单页"
+  fi
+
+  RESP=$(curl -s -m 5 -X POST -H 'Content-Type: application/json' \
+    -d '{"action":"add_position","code":"sh600989","name":"宝丰能源","cost":18.5,"quantity":1000}' \
+    "http://127.0.0.1:18765/api/positions")
+  if echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] and d['data']['quantity']==1000" 2>/dev/null; then
+    ok "portfolio_web POST add_position 落库"
+  else
+    ko "portfolio_web POST 失败: $RESP"
+  fi
+
+  LIST=$(curl -s -m 5 "http://127.0.0.1:18765/api/positions")
+  if echo "$LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); assert any(p['code']=='sh600989' for p in d['data']['positions'])" 2>/dev/null; then
+    ok "portfolio_web GET /api/positions 读出新增项"
+  else
+    ko "portfolio_web list 读出失败"
+  fi
+
+  if curl -s -m 5 -X DELETE "http://127.0.0.1:18765/api/positions" | grep -q '"method_not_allowed"'; then
+    ok "portfolio_web DELETE 返回 405 method_not_allowed"
+  else
+    ko "portfolio_web DELETE 未返回 405"
+  fi
+
+  kill $SRV_PID 2>/dev/null
+  wait $SRV_PID 2>/dev/null
+  rm -rf "$TMPDIR" /tmp/portfolio_web_smoke.log
+fi
+
 echo
 echo "==> 总结: $pass 通过, $fail 失败"
 [ $fail -eq 0 ]

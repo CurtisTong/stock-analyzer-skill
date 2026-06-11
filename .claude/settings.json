@@ -27,12 +27,9 @@
       "Bash(cat:*)",
       "Bash(head:*)",
       "Bash(tail:*)",
-      "WebFetch(domain:emweb.securities.eastmoney.com)"
+      "WebFetch(domain:emweb.securities.eastmoney.com)",
+      "Bash(python3 scripts/portfolio_web.py *)"
     ],
-    "deny": [
-      "Bash(sudo:*)",
-      "Bash(rm -rf:*)",
-      "Bash(chmod 777:*)"
-    ]
+    "deny": ["Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(chmod 777:*)"]
   }
 }
