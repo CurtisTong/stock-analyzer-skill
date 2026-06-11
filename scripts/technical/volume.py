@@ -75,8 +75,11 @@ def volume_analysis(closes, volumes):
 
 def _obv_series(closes, volumes):
     """OBV 序列。"""
+    n = min(len(closes), len(volumes))
+    if n == 0:
+        return []
     obv = [0]
-    for i in range(1, len(closes)):
+    for i in range(1, n):
         if closes[i] > closes[i - 1]:
             obv.append(obv[-1] + volumes[i])
         elif closes[i] < closes[i - 1]:
