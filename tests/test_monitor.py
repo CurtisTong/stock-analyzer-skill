@@ -3,6 +3,7 @@ monitor 层单元测试：覆盖 NotificationManager 的频率控制、静默时
 """
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -54,9 +55,9 @@ class TestThrottle:
     def test_daily_limit_enforced(self):
         """到达 daily_limit 后非紧急消息应被拒。"""
         mgr = _make_manager({"throttle": {"dedup_window": 0, "daily_limit": 3}})
-        # 模拟已发送 3 条
+        # 模拟已发送 3 条（使用今天的日期，避免被重置）
         mgr._daily_count = 3
-        mgr._daily_date = "2026-06-10"
+        mgr._daily_date = datetime.now().strftime("%Y-%m-%d")
         # 非紧急：被拒
         assert mgr._check_throttle("k1", urgent=False) is False
         # urgent 跳过 daily_limit
@@ -66,7 +67,7 @@ class TestThrottle:
         """urgent=True 不受 daily_limit 限制。"""
         mgr = _make_manager({"throttle": {"dedup_window": 0, "daily_limit": 1}})
         mgr._daily_count = 5
-        mgr._daily_date = "2026-06-10"
+        mgr._daily_date = datetime.now().strftime("%Y-%m-%d")
         # urgent 仍允许
         assert mgr._check_throttle("k1", urgent=True) is True
         # 非 urgent 被拒

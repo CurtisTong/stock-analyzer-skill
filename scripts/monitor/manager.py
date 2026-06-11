@@ -5,6 +5,7 @@
 
 import json
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +29,94 @@ def _log_path() -> Path:
     return cache_dir / "notifications.log"
 
 
+# 日志轮转配置（可从 YAML 覆盖）
+_LOG_MAX_SIZE = 5 * 1024 * 1024  # 默认 5MB
+_LOG_MAX_FILES = 5               # 保留最近 5 个轮转文件
+
+
+def _rotate_log_if_needed(log_path: Path, max_size: int = _LOG_MAX_SIZE,
+                          max_files: int = _LOG_MAX_FILES) -> None:
+    """检查并执行日志轮转。
+
+    Args:
+        log_path: 日志文件路径
+        max_size: 单个日志文件最大字节数
+        max_files: 保留的轮转文件数量
+    """
+    if not log_path.exists():
+        return
+
+    # 检查文件大小
+    try:
+        size = log_path.stat().st_size
+    except OSError:
+        return
+
+    if size < max_size:
+        return
+
+    # 执行轮转：notifications.log -> notifications.log.1 -> notifications.log.2 -> ...
+    log_dir = log_path.parent
+    log_name = log_path.stem
+    log_ext = log_path.suffix
+
+    # 删除最旧的轮转文件
+    oldest = log_dir / f"{log_name}{log_ext}.{max_files}"
+    try:
+        oldest.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+    # 依次轮转：从 .max_files-1 到 1
+    for i in range(max_files - 1, 0, -1):
+        src = log_dir / f"{log_name}{log_ext}.{i}"
+        dst = log_dir / f"{log_name}{log_ext}.{i + 1}"
+        try:
+            if src.exists():
+                src.rename(dst)
+        except OSError:
+            pass
+
+    # 当前日志重命名为 .1
+    try:
+        log_path.rename(log_dir / f"{log_name}{log_ext}.1")
+    except OSError:
+        pass
+
+
+def _clean_old_logs(log_path: Path, keep: int = _LOG_MAX_FILES) -> int:
+    """清理旧的轮转日志文件。
+
+    Args:
+        log_path: 日志文件路径
+        keep: 保留最近 N 个轮转文件
+
+    Returns:
+        清理的文件数量
+    """
+    log_dir = log_path.parent
+    log_name = log_path.stem
+    log_ext = log_path.suffix
+
+    # 匹配 notifications.log.N 格式
+    escaped_ext = re.escape(log_ext)
+    pattern = re.compile(rf"^{re.escape(log_name)}{escaped_ext}\.(\d+)$")
+    cleaned = 0
+
+    for f in log_dir.iterdir():
+        m = pattern.match(f.name)
+        if m:
+            idx = int(m.group(1))
+            if idx > keep:
+                try:
+                    f.unlink()
+                    cleaned += 1
+                except OSError:
+                    pass
+
+    return cleaned
+
+
 class NotificationManager:
     """通知管理器。
 
@@ -45,12 +134,22 @@ class NotificationManager:
         self._setup_channels()
 
     def _load_config(self) -> dict:
-        """加载通知配置。"""
+        """加载通知配置，并更新日志轮转设置。"""
+        global _LOG_MAX_SIZE, _LOG_MAX_FILES
         path = _config_path()
+        config = {}
         if path.exists():
             text = path.read_text(encoding="utf-8")
-            return yaml.safe_load(text) or {}
-        return {}
+            config = yaml.safe_load(text) or {}
+
+        # 从配置中读取日志轮转设置
+        log_cfg = config.get("logging", {})
+        if "max_size" in log_cfg:
+            _LOG_MAX_SIZE = log_cfg["max_size"] * 1024 * 1024  # MB 转 bytes
+        if "max_files" in log_cfg:
+            _LOG_MAX_FILES = log_cfg["max_files"]
+
+        return config
 
     def _setup_channels(self) -> None:
         """根据配置注册通道。"""
@@ -147,7 +246,12 @@ class NotificationManager:
 
     def _log_send(self, title: str, channel: str, success: bool,
                   error: str = "") -> None:
-        """记录推送日志。"""
+        """记录推送日志（带日志轮转保护）。"""
+        log_path = _log_path()
+
+        # 写入前检查是否需要轮转
+        _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
+
         ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         status = "OK" if success else "FAIL"
         line = f"[{ts}] [{status}] [{channel}] {title}"
@@ -155,7 +259,7 @@ class NotificationManager:
             line += f" | {error}"
         line += "\n"
         try:
-            with open(_log_path(), "a", encoding="utf-8") as f:
+            with open(log_path, "a", encoding="utf-8") as f:
                 f.write(line)
         except OSError:
             pass

@@ -21,6 +21,11 @@ channels:
   #   enabled: false
   #   url: ""                            # 自定义 Webhook URL
 
+# 日志配置
+logging:
+  max_size: 5                            # 单个日志文件最大大小 (MB)
+  max_files: 5                           # 保留的轮转文件数量
+
 # 预警规则
 rules:
   price_alert:

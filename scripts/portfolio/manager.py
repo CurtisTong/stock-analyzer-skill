@@ -17,8 +17,10 @@ v2 数据模型：
 import copy
 import json
 import os
+import sys
 import tempfile
 from datetime import datetime
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -40,26 +42,86 @@ def _today() -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
-def _atomic_write(path: Path, data: dict) -> None:
-    """原子写入 JSON 文件。"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(path.parent))
+def _lock_path(path: Path) -> Path:
+    """返回与数据文件对应的锁文件路径。"""
+    return path.parent / f".{path.stem}.lock"
+
+
+@contextmanager
+def _file_lock(path: Path, timeout: float = 10.0):
+    """基于文件锁的并发保护机制。
+
+    Args:
+        path: 数据文件路径
+        timeout: 获取锁超时时间（秒）
+
+    Raises:
+        TimeoutError: 获取锁超时
+        OSError: 锁文件操作失败
+    """
+    lock_path = _lock_path(path)
+    lock_fd = None
+    start_time = datetime.now().timestamp()
+
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, str(path))
-    except Exception:
+        # 尝试获取锁
+        while True:
+            try:
+                # O_CREAT | O_EXCL: 原子创建，如果已存在则失败
+                lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                break
+            except FileExistsError:
+                # 锁已存在，检查是否超时
+                if datetime.now().timestamp() - start_time > timeout:
+                    raise TimeoutError(f"获取锁超时: {lock_path}")
+                # 短暂等待后重试
+                import time
+                time.sleep(0.05)
+
+        yield  # 锁获取成功，执行操作
+
+    finally:
+        # 释放锁
+        if lock_fd is not None:
+            try:
+                os.close(lock_fd)
+            except OSError:
+                pass
         try:
-            os.unlink(tmp)
+            os.unlink(str(lock_path))
         except OSError:
             pass
-        raise
+
+
+def _atomic_write(path: Path, data: dict) -> None:
+    """原子写入 JSON 文件（已加锁保护）。"""
+    with _file_lock(path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(path.parent))
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, str(path))
+        except Exception:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+
+
+def _atomic_read(path: Path) -> dict:
+    """原子读取 JSON 文件（已加锁保护）。"""
+    with _file_lock(path, timeout=5.0):
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
 
 
 class PortfolioManager:
     """持仓组合管理器。
 
-    注意：不支持并发写入。如果多个进程同时修改同一文件，后写入的会覆盖先写入的。
+    支持并发写入：通过文件锁机制防止多进程同时修改导致数据覆盖。
     """
 
     def __init__(self, path: Optional[str] = None):
@@ -107,8 +169,30 @@ class PortfolioManager:
         }
 
     def save(self) -> None:
-        """持久化到文件。"""
+        """持久化到文件（已加锁保护）。"""
         _atomic_write(self._path, self._data)
+
+    def reload(self) -> None:
+        """重新从磁盘加载数据（用于外部修改后的同步）。"""
+        with _file_lock(self._path, timeout=5.0):
+            self._data = self._load()
+
+    def atomic_update(self, updater: callable) -> None:
+        """原子性地执行数据更新操作。
+
+        Args:
+            updater: 接受当前数据 dict，返回修改后的数据 dict
+
+        Example:
+            pm.atomic_update(lambda data: data.setdefault("positions", []).append(new_pos))
+        """
+        with _file_lock(self._path):
+            # 重新加载最新数据
+            self._data = self._load()
+            # 执行更新
+            self._data = updater(self._data)
+            # 写回
+            _atomic_write(self._path, self._data)
 
     # ---------- 查询 ----------
 
