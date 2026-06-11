@@ -1,7 +1,7 @@
 ---
 name: financial-analyst
 description: 财务分析 agent，专注于财务建模、预测、场景分析和数据驱动决策支持。当 /stock 五层框架不足以解答估值分歧、盈利质量异常或增长预测时使用。完全自包含——使用 stock-analyzer-skill 包的 scripts/ 工具。
-version: 1.3.1
+version: 1.4.1
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

@@ -1,7 +1,7 @@
 ---
 name: backtest
 description: 多因子选股策略回测，验证 5 种策略（均衡/质量价值/成长动量/防守低波/拐点修复）的历史胜率、累计收益、夏普比率和最大回撤。当用户要验证选股策略有效性、对比策略表现或调整策略参数时触发。
-version: 1.3.1
+version: 1.4.1
 model: haiku
 disable-model-invocation: true
 allowed-tools: Bash(python3 scripts/backtest.py *)

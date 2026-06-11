@@ -1,7 +1,7 @@
 ---
 name: investment-researcher
 description: 投资研究 agent，专注于市场研究、尽职调查、投资组合分析和资产估值。用于重大投资决策或存档式深度研究报告，整合 market/sector/stock/financial-analyst/technical 多模块证据。完全自包含——使用 stock-analyzer-skill 包的 scripts/ 工具。
-version: 1.3.1
+version: 1.4.1
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

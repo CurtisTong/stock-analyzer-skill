@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Dict
+import datetime
 
 
 @dataclass
@@ -24,6 +25,7 @@ class Quote:
     total_cap: float = 0.0   # 亿
     circulating_cap: float = 0.0
     source: str = ""
+    fetch_time: str = ""     # 数据获取时间 ISO 格式
 
     def has_basic_data(self) -> bool:
         return self.price > 0
@@ -44,6 +46,7 @@ class KlineBar:
     amount: float = 0.0
     pct_chg: float = 0.0
     source: str = ""
+    fetch_time: str = ""     # 数据获取时间 ISO 格式
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -65,6 +68,7 @@ class FinanceRecord:
     goodwill: float = 0.0         # 商誉（亿元）
     pledge_ratio: float = 0.0     # 质押比例(%)
     source: str = ""
+    fetch_time: str = ""          # 数据获取时间 ISO 格式
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()

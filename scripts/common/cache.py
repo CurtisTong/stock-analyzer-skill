@@ -114,3 +114,83 @@ def cache_set(key: str, data: bytes) -> None:
 def cache_cleanup(prefix: str = None, max_age_seconds: int = 86400) -> int:
     """cleanup() 的别名。"""
     return cleanup(prefix, max_age_seconds)
+
+
+def cleanup_by_size(max_size_mb: int = 500, keep_newest: bool = True) -> int:
+    """按缓存目录大小清理，保留最新文件。
+
+    Args:
+        max_size_mb: 缓存目录最大允许大小（MB）
+        keep_newest: True=保留最新文件，False=保留最旧文件
+
+    Returns:
+        清理的文件数量
+    """
+    import shutil
+
+    _ensure_dir()
+
+    # 计算当前总大小
+    files = list(CACHE_DIR.glob("*.cache"))
+    if not files:
+        return 0
+
+    total_size = sum(f.stat().st_size for f in files)
+    max_size_bytes = max_size_mb * 1024 * 1024
+
+    if total_size <= max_size_bytes:
+        return 0
+
+    # 按修改时间排序
+    if keep_newest:
+        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    else:
+        files.sort(key=lambda f: f.stat().st_mtime)
+
+    # 从最旧的开始删除，直到大小合适
+    cleaned = 0
+    current_size = total_size
+    for f in files:
+        if current_size <= max_size_bytes:
+            break
+        file_size = f.stat().st_size
+        f.unlink(missing_ok=True)
+        current_size -= file_size
+        cleaned += 1
+
+    return cleaned
+
+
+def get_cache_stats() -> dict:
+    """获取缓存统计信息。
+
+    Returns:
+        {
+            "total_files": int,
+            "total_size_mb": float,
+            "oldest_file": "ISO时间" | None,
+            "newest_file": "ISO时间" | None
+        }
+    """
+    _ensure_dir()
+
+    files = list(CACHE_DIR.glob("*.cache"))
+    if not files:
+        return {
+            "total_files": 0,
+            "total_size_mb": 0.0,
+            "oldest_file": None,
+            "newest_file": None,
+        }
+
+    from datetime import datetime
+
+    files_with_time = [(f, f.stat().st_mtime) for f in files]
+    total_size = sum(f.stat().st_size for f, _ in files_with_time)
+
+    return {
+        "total_files": len(files),
+        "total_size_mb": round(total_size / 1024 / 1024, 2),
+        "oldest_file": datetime.fromtimestamp(min(t for _, t in files_with_time)).isoformat(),
+        "newest_file": datetime.fromtimestamp(max(t for _, t in files_with_time)).isoformat(),
+    }

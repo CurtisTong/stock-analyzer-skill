@@ -1,7 +1,7 @@
 ---
 name: stock
 description: 单股分析 skill。用于 A 股个股快速分析、完整五层分析、估值/技术面/板块/风险收益比判断，以及 8 人专家圆桌多空讨论；优先使用 stock-analyzer-skill 包内 scripts/ 工具获取实时行情、财务、K 线、公告和研报数据。
-version: 1.3.1
+version: 1.4.1
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/experts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

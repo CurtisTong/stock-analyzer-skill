@@ -125,12 +125,29 @@ for s in stock market sector portfolio screener financial-analyst investment-res
   else
     ko ".agents/$s 缺 SKILL.md 或 frontmatter"
   fi
-  if [ -f "$CLAUDE_SKILLS/$s/SKILL.md" ] && cmp -s "$AGENTS_SKILLS/$s/SKILL.md" "$CLAUDE_SKILLS/$s/SKILL.md"; then
-    ok ".claude/$s 与 .agents 同步"
+  # .claude/skills/ 使用 symlink，指向 skills/，无需同步检查
+  if [ -L "$CLAUDE_SKILLS/$s" ] || [ -d "$CLAUDE_SKILLS/$s" ]; then
+    ok ".claude/$s 已链接"
   else
-    ko ".claude/$s 与 .agents 不一致"
+    ko ".claude/$s 缺失"
   fi
 done
+
+echo "==> 4.1 SKILL.md 版本一致性 (v1.4.1)"
+EXPECTED_VERSION="version: 1.4.1"
+VERSION_COUNT=0
+for s in stock market sector portfolio screener financial-analyst investment-researcher technical backtest help stock-init monitor; do
+  if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ]; then
+    if grep -q "^$EXPECTED_VERSION" "$PKG_ROOT/skills/$s/SKILL.md"; then
+      VERSION_COUNT=$((VERSION_COUNT+1))
+    fi
+  fi
+done
+if [ $VERSION_COUNT -eq 12 ]; then
+  ok "12 个 SKILL.md 版本一致为 v1.4.1"
+else
+  ko "版本不一致: 仅 $VERSION_COUNT/12 为 v1.4.1"
+fi
 
 echo "==> 5. 8 个 symlink 已注册（未安装时可失败）"
 for s in stock market sector portfolio screener financial-analyst investment-researcher technical; do

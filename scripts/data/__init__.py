@@ -11,12 +11,18 @@
 """
 import threading
 from typing import Optional
+from datetime import datetime
 
 from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+
+def _now_iso() -> str:
+    """获取当前时间的 ISO 格式字符串。"""
+    return datetime.now().isoformat()
 
 # v1.3.1: 缓存已迁入 common.cache，此处仅作兼容 shim（见 data.cache）
 from common import cache
@@ -155,6 +161,7 @@ def _dict_to_quote(d: dict) -> Quote:
         total_cap=to_float(d.get("total_cap")),
         circulating_cap=to_float(d.get("circulating_cap")),
         source=d.get("source", ""),
+        fetch_time=d.get("fetch_time") or _now_iso(),
     )
 
 
@@ -170,6 +177,7 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
         amount=to_float(d.get("amount")),
         pct_chg=to_float(d.get("pct_chg")),
         source=d.get("source", ""),
+        fetch_time=d.get("fetch_time") or _now_iso(),
     )
 
 
@@ -207,4 +215,5 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         bps=to_float(_find(FIELD_MAP["bps"])),
         ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
         source=d.get("source", ""),
+        fetch_time=d.get("fetch_time") or _now_iso(),
     )
