@@ -17,7 +17,8 @@ from strategies import (
     valuation_score,
     momentum_score,
     liquidity_score,
-    volatility_from_closes
+    volatility_from_closes,
+    dividend_score,
 )
 from strategies.thresholds import get_industry_threshold
 
@@ -46,10 +47,11 @@ def _board_limit(board: str) -> float:
 
 
 def _min_survival_cap(board: str) -> float:
-    """获取板块最低生存市值（亿），低于此视为退市风险。"""
+    """获取板块最低生存市值（亿），低于此视为退市风险。
+    2026更新：注册制退市常态化，提高阈值。"""
     return _limit(f"min_survival_cap.{board}", {
-        "主板": 3, "创业板": 2, "科创板": 2, "北交所": 1,
-    }.get(board, 3))
+        "主板": 5, "创业板": 3, "科创板": 3, "北交所": 2,
+    }.get(board, 5))
 
 
 def _goodwill_threshold() -> float:
@@ -203,6 +205,7 @@ class ScreeningService:
             "momentum": momentum_score(features, quote_dict),
             "liquidity": liquidity_score(quote_dict),
             "volatility": volatility_from_closes(features.get("closes", []), industry),
+            "dividend": dividend_score(quote_dict, fin, industry),
         }
 
         total = sum(
@@ -233,6 +236,7 @@ class ScreeningService:
             "momentum": round(parts["momentum"], 1),
             "liquidity": round(parts["liquidity"], 1),
             "volatility": round(parts["volatility"], 1),
+            "dividend": round(parts.get("dividend", 0), 1),
             "price": quote_dict.get("price"),
             "change_pct": quote_dict.get("change_pct"),
             "pe": quote_dict.get("pe"),
@@ -314,26 +318,38 @@ class ScreeningService:
             filters: 筛选条件 dict，支持：
                 - min_amount (float, 万元): 最低成交额
                 - min_cap (float, 亿): 最低市值
-                - exclude_loss (bool): 剔除 EPS<=0
+                - filter_loss (bool): 是否过滤亏损股（默认 True）
+                - exclude_loss (bool): 附加排除 EPS<=0（需显式设置）
+                - pledge_warning (bool): 质押率过高仅预警（默认 False）
         """
         reasons = []
+        warnings = []
         name = quote.get("name", "")
         code = quote.get("code", "")
         bd = board_type(code)
 
-        # ST 检测：A 股 ST 标记在名称开头，用前缀匹配
-        upper_name = name.upper()
-        if any(upper_name.startswith(p) for p in _st_prefixes()):
-            reasons.append("ST风险")
-
-        # 退市风险：市值过小
+        # 退市风险：市值过小（提高阈值，注册制后退市常态化）
         min_survival_cap = _min_survival_cap(bd)
         if 0 < to_float(quote.get("total_cap")) < min_survival_cap:
             reasons.append(f"市值<{min_survival_cap}亿(退市风险)")
 
-        # 连续亏损检测
+        # ST 检测 + 财务类退市风险预警
+        upper_name = name.upper()
+        is_st = any(upper_name.startswith(p) for p in _st_prefixes())
+        if is_st:
+            reasons.append("ST风险")
+        else:
+            # 财务类退市风险预警（2026新增）：营收<1亿+净利润为负+审计意见非标
+            eps = to_float(fin.get("eps", fin.get("EPSJB")))
+            revenue = to_float(fin.get("revenue", fin.get("TOTALOPERATEREVE", 0)))
+            revenue_billion = revenue / 100000000  # 转为亿元
+            if eps < 0 and 0 < revenue_billion < 1:
+                warnings.append("营收<1亿+亏损(退市风险警示)")
+
+        # 亏损过滤（改为可配置，默认过滤）
         eps = to_float(fin.get("eps", fin.get("EPSJB")))
-        if eps < 0:
+        filter_loss = filters.get("filter_loss", True)
+        if filter_loss and eps < 0:
             reasons.append("EPS<0(亏损)")
 
         # 商誉减值风险（无数据时跳过）
@@ -341,10 +357,14 @@ class ScreeningService:
         if goodwill_ratio > _goodwill_threshold():
             reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
-        # 股权质押率过高
+        # 股权质押率过高（降为预警而非硬过滤，2026更新）
         pledge_ratio = to_float(fin.get("pledge_ratio", fin.get("PLEDGE_RATIO", 0)))
+        pledge_as_warning = filters.get("pledge_warning", False)
         if pledge_ratio > _pledge_threshold():
-            reasons.append(f"质押率>{pledge_ratio:.0f}%(爆仓风险)")
+            if pledge_as_warning:
+                warnings.append(f"质押率>{pledge_ratio:.0f}%(偏高)")
+            else:
+                reasons.append(f"质押率>{pledge_ratio:.0f}%(爆仓风险)")
 
         # 板块差异化阈值
         base_min_amount = filters.get("min_amount", 5000)
@@ -392,6 +412,9 @@ class ScreeningService:
         if filters.get("exclude_loss") and eps <= 0:
             reasons.append("EPS<=0")
 
+        # 附加警告信息（不影响筛选结果）
+        if warnings:
+            reasons.append(";".join(warnings[:2]))
         return reasons
 
 

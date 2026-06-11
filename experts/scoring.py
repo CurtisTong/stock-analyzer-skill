@@ -141,23 +141,57 @@ def _score_technical(kline_features: dict) -> float:
 
 
 def _score_sentiment(market_features: dict) -> float:
-    """情绪/题材维度：基于市场行情（涨停家数/炸板率/板块强度）。"""
+    """情绪/题材维度：基于市场行情（上涨家数比+涨停家数+炸板率+两融余额占比）。"""
     if not market_features:
         return 50.0
     score = 50
+
+    # 宽度指标优先（2026新增）：上涨家数比
+    advance_ratio = market_features.get("advance_ratio", None)
+    if advance_ratio is not None:
+        if advance_ratio > 0.6:
+            score += 15
+        elif advance_ratio > 0.4:
+            score += 5
+        elif advance_ratio < 0.3:
+            score -= 15
+        elif advance_ratio < 0.2:
+            score -= 25
+
+    # 新高新低比补充
+    nh_nl_ratio = market_features.get("nh_nl_ratio", None)
+    if nh_nl_ratio is not None:
+        if nh_nl_ratio > 1.5:
+            score += 10
+        elif nh_nl_ratio < 0.5:
+            score -= 10
+        elif nh_nl_ratio < 0.2:
+            score -= 20
+
+    # 涨停家数（降权处理，2026年涨停信息含量下降）
     limit_up_count = market_features.get("limit_up_count", 0)
     if limit_up_count > 80:
-        score += 25
-    elif limit_up_count > 40:
+        score += 15       # 原为25
+    elif limit_up_count > 50:
         score += 10
-    elif limit_up_count < 20:
-        score -= 20
+    elif limit_up_count > 30:
+        score += 5
+    elif limit_up_count < 15:
+        score -= 15
 
     limit_down_count = market_features.get("limit_down_count", 0)
     if limit_down_count > 50:
-        score -= 30
+        score -= 25
     elif limit_down_count > 20:
-        score -= 15
+        score -= 10
+
+    # 两融余额占比（亢奋/冰点辅助判断）
+    margin_ratio = market_features.get("margin_ratio", None)
+    if margin_ratio is not None:
+        if margin_ratio > 0.10:      # 两融占比>10%，亢奋
+            score -= 15
+        elif margin_ratio < 0.04:    # 两融占比<4%，冰点偏防御
+            score -= 5
 
     return max(0, min(100, score))
 

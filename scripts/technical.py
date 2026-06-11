@@ -52,7 +52,7 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
 
     features["ma_system"] = ma_system(closes)
     features["macd"] = macd_full(closes)
-    features["kdj"] = kdj_full(closes, highs, lows)
+    features["kdj"] = kdj_full(closes, highs, lows, board=board)
     features["bollinger"] = bollinger(closes) or {}
     features["rsi"] = rsi_features(closes)
     features["volume"] = volume_analysis(closes, volumes) or {}

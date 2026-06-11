@@ -25,7 +25,7 @@ from common import (
 )
 from data import get_quote, get_quotes, get_kline, get_finance
 from classifier import infer_industry
-from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score, volatility_from_closes
+from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score, volatility_from_closes, dividend_score
 from strategies.thresholds import get_industry_threshold, load_industry_thresholds
 from technical.core import ema
 from technical.macd import macd_full as macd_features
@@ -234,6 +234,7 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "momentum": momentum_score(features, quote),
         "liquidity": liquidity_score(quote),
         "volatility": volatility_from_closes(features.get("closes", []), industry),
+        "dividend": dividend_score(quote, fin, industry),
     }
     weights = STRATEGIES[strategy]
     total = sum(parts.get(k, 0) * weights.get(k, 0) for k in set(parts) | set(weights) if k != "label")
@@ -248,6 +249,7 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "momentum": round(parts["momentum"], 1),
         "liquidity": round(parts["liquidity"], 1),
         "volatility": round(parts["volatility"], 1),
+        "dividend": round(parts.get("dividend", 0), 1),
         "price": quote.get("price"),
         "change_pct": quote.get("change_pct"),
         "pe": quote.get("pe"),

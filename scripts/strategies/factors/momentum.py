@@ -1,15 +1,57 @@
 """
 动量因子评分：趋势、20日收益、量能比、MACD、RSI、量价配合。
 MACD 和 RSI 均为趋势确认指标，同向时降权以避免信息冗余。
+
+2026 更新：支持市场环境动态衰减——量化高活跃期降低动量权重。
 """
 from common import to_float, clamp
 
+# 市场环境对动量因子的衰减系数
+_MOMENTUM_DECAY_TABLE = {
+    "quant_high": 0.70,      # 量化高活跃：趋势持续时间缩短，假突破增多
+    "quant_normal": 0.90,    # 量化正常
+    "quant_low": 1.00,       # 量化低活跃：趋势持续性恢复
+}
+
+
+def _detect_quant_activity(quote: dict, features: dict) -> str:
+    """检测量化活跃度。
+
+    依据：
+    - 全市场成交额（如果 quote 有提供）> 1.2 万亿 → 量化高活跃
+    - 换手率 > 3% → 量化活跃度高
+    - 日内波动率特征
+    """
+    # 优先使用全市场成交额
+    market_amount = to_float(quote.get("market_amount", 0))
+    if market_amount > 12000:  # 1.2万亿
+        return "quant_high"
+    if market_amount > 8000:   # 8000亿
+        return "quant_normal"
+
+    # 通过换手率推断
+    turnover = to_float(quote.get("turnover", 0))
+    if turnover > 3.0:
+        return "quant_high"
+    if turnover > 1.5:
+        return "quant_normal"
+
+    return "quant_low"
+
 
 def momentum_score(features: dict, quote: dict) -> float:
-    """动量因子评分。满分 100。"""
+    """动量因子评分。满分 100。
+
+    2026 更新：根据市场量化活跃度动态衰减动量权重。
+    量化高活跃环境 → 趋势跟踪信号可靠性下降，衰减至 0.7。
+    """
     ret20 = features["ret20"]
     volume_ratio = features["volume_ratio"]
     turnover = to_float(quote.get("turnover"))
+
+    # 检测量化活跃度并应用衰减
+    quant_regime = _detect_quant_activity(quote, features)
+    decay = _MOMENTUM_DECAY_TABLE.get(quant_regime, 1.0)
 
     # 趋势基础分：缩小上升/下降差距，避免过度敏感
     score = 40 if features["trend"] > 0 else 20 if features["trend"] == 0 else 12
@@ -35,11 +77,16 @@ def momentum_score(features: dict, quote: dict) -> float:
     elif rsi < 20:
         score -= int(4 * rsi_weight)
 
-    # 量价配合加分
     vol_price_signal = features.get("vol_price_signal", 0)
     if vol_price_signal > 0:
         score += 8
     elif vol_price_signal < 0:
         score -= 10
 
-    return clamp(score)
+    # 量化衰减：趋势信号部分按regime打折，量价信号全额保留
+    # 量在量化环境中更可靠（成交量反映真实资金动向）
+    trend_part = score
+    vol_price_part = 8 if vol_price_signal > 0 else (-10 if vol_price_signal < 0 else 0)
+
+    final_score = (trend_part - vol_price_part) * decay + vol_price_part
+    return clamp(final_score)

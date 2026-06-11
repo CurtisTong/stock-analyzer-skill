@@ -50,7 +50,7 @@ class TestStrategies:
     @pytest.mark.parametrize("name", list(STRATEGIES.keys()))
     def test_weight_sum_to_one(self, name):
         cfg = STRATEGIES[name]
-        keys = ["quality", "valuation", "momentum", "liquidity", "volatility"]
+        keys = ["quality", "valuation", "momentum", "liquidity", "volatility", "dividend"]
         total = sum(cfg.get(k, 0) for k in keys)
         assert abs(total - 1.0) < 1e-9, f"{name} 权重之和 {total} != 1.0"
 

@@ -1,6 +1,8 @@
 """
 质量因子评分：ROE、净利增速、营收增速、毛利率、负债率、经营现金流。
 支持多期财务数据的 ROE 趋势判断。
+
+2026 更新：新增 ESG/治理维度——分红记录、大股东减持、违规处罚、审计意见。
 """
 from common import to_float, clamp
 from strategies.thresholds import get_industry_threshold
@@ -51,4 +53,59 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     score += clamp((debt_max + 10 - debt) / (debt_max + 10) * 12)
     if eps > 0 and cashflow > 0:
         score += clamp((cashflow / eps) * 6, 0, 6)
+
+    # ESG/治理维度：合计 ±12 分（2026新增）
+    score += _esg_score(fin)
+
     return clamp(score)
+
+
+def _esg_score(fin: dict) -> float:
+    """ESG/治理维度评分（±12 分）。
+
+    维度：
+    - 分红记录（+0~+4）：连续分红 3/5/10 年分别加分
+    - 大股东减持（-6~0）：近期大股东减持扣分
+    - 违规处罚（-6~0）：近期被监管处罚扣分
+    - 审计意见（-3~+2）：标准无保留意见加分，非标意见扣分
+    """
+    if not fin:
+        return 0
+
+    esg_score = 0.0
+
+    # 1. 分红记录（+0~+4）
+    consecutive_dividend = to_float(fin.get("consecutive_dividend_years", 0))
+    if consecutive_dividend >= 10:
+        esg_score += 4.0
+    elif consecutive_dividend >= 5:
+        esg_score += 2.5
+    elif consecutive_dividend >= 3:
+        esg_score += 1.0
+
+    # 2. 大股东减持记录（-6~0）
+    major_reduction = to_float(fin.get("major_shareholder_reduction", 0))
+    if major_reduction > 5:      # 大股东减持超过 5%
+        esg_score -= 6.0
+    elif major_reduction > 2:    # 减持 2%-5%
+        esg_score -= 3.0
+    elif major_reduction > 0:    # 有小幅减持
+        esg_score -= 1.0
+
+    # 3. 违规处罚记录（-6~0）
+    violation_penalty = to_float(fin.get("violation_penalty", 0))
+    if violation_penalty >= 3:     # 3 次及以上违规
+        esg_score -= 6.0
+    elif violation_penalty >= 1:   # 1-2 次违规
+        esg_score -= 3.0
+
+    # 4. 审计意见（-3~+2）
+    audit_opinion = str(fin.get("audit_opinion", "") or fin.get("AUDIT_OPINION", ""))
+    if "标准无保留" in audit_opinion or "无保留" in audit_opinion:
+        esg_score += 2.0
+    elif "保留意见" in audit_opinion:
+        esg_score -= 1.5
+    elif "否定意见" in audit_opinion or "无法表示意见" in audit_opinion:
+        esg_score -= 3.0
+
+    return clamp(esg_score, -12, 12)

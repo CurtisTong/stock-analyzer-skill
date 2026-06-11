@@ -157,12 +157,16 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
             hist_quote = _build_hist_quote(bars, i, fin, code)
 
             parts = {
-                "quality": quality_score(fin, industry),  # 注：财务数据为当前快照
+                "quality": quality_score(fin, industry) * 0.85,  # 财务快照前瞻偏差折扣
                 "valuation": valuation_score(hist_quote, fin, industry),  # 基于历史价格
                 "momentum": momentum,
                 "liquidity": liquidity_score(hist_quote),  # 基于历史成交量
                 "volatility": _volatility_score(bars[:i], industry),  # 基于历史 K 线
             }
+            # 红利因子（有财务数据时可用）
+            dividend = _calc_dividend_score(hist_quote, fin, industry)
+            if dividend > 0:
+                parts["dividend"] = dividend
             score = sum(parts.get(k, 0) * weights.get(k, 0) for k in set(parts) | set(weights) if k != "label")
 
             # 计算持有期收益（T+1 ~ T+holding_days）
@@ -269,6 +273,15 @@ def _compute_momentum_from_bars(bars) -> float:
     return (trend_score * 0.3 + rsi_score * 0.2 + mom_score * 0.3 + vol_score * 0.2)
 
 
+def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
+    """计算红利因子得分（回测用，轻量版）。"""
+    try:
+        from strategies.factors.dividend import dividend_score
+        return dividend_score(hist_quote, fin, industry)
+    except ImportError:
+        return 0.0
+
+
 def _calc_rsi(closes: list, period: int = 14) -> float:
     """计算 RSI（Wilder 平滑），无前瞻。"""
     if len(closes) < period + 1:
@@ -291,7 +304,8 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
 
 
 def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
-                 days: int = 60, rounds: int = 5):
+                 days: int = 60, rounds: int = 5,
+                 benchmark: str = None):
     """
     运行多轮回测。
 
@@ -301,6 +315,7 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         top_n: 每轮买入数量
         days: 回测天数
         rounds: 回测轮数
+        benchmark: 基准指数代码（如 "sh000300" 沪深300），用于信息比率计算
 
     Returns:
         回测报告 dict
@@ -318,6 +333,9 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
 
     if not all_returns:
         return {"error": "回测失败，无有效数据"}
+
+    # 获取基准收益
+    benchmark_returns = _fetch_benchmark_returns(benchmark, days) if benchmark else None
 
     # 计算统计指标
     total_return = 1.0
@@ -392,6 +410,27 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
     # 总交易次数 = 每轮持仓数 × 轮次数
     total_trades = top_n * rounds
 
+    # 信息比率 = (策略年化收益 - 基准年化收益) / 跟踪误差
+    information_ratio = 0
+    if benchmark_returns and len(benchmark_returns) > 1 and len(all_daily_returns) > 1:
+        import statistics
+        # 对齐长度
+        min_len = min(len(all_daily_returns), len(benchmark_returns))
+        excess_returns_daily = [
+            all_daily_returns[i] - benchmark_returns[i]
+            for i in range(min_len)
+        ]
+        mean_excess = sum(excess_returns_daily) / len(excess_returns_daily)
+        te = statistics.stdev(excess_returns_daily)
+        information_ratio = round(mean_excess / te * (252 ** 0.5), 2) if te > 0 else 0
+
+    # 换手率估算：每期买入 top_n 只，持有 holding_days，年化换手
+    holding_days_per_round = days // rounds
+    annual_turnover = (252 / holding_days_per_round) * top_n if holding_days_per_round > 0 else 0
+
+    # 单笔胜率时间分布：按持仓位置分段的胜率
+    win_by_position = _calc_win_by_position(round_results, holding_days_per_round) if round_results else {}
+
     return {
         "strategy": strategy_name,
         "rounds": rounds,
@@ -401,20 +440,91 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         "min_return_pct": round(min_return, 2),
         "win_rate_pct": round(win_rate, 1),
         "sharpe_ratio": round(sharpe, 2),
+        "information_ratio": information_ratio,
         "max_drawdown_pct": round(max_drawdown * 100, 2),
         "calmar_ratio": calmar_ratio,
         "profit_loss_ratio": profit_loss_ratio,
         "total_trades": total_trades,
+        "annual_turnover": round(annual_turnover),
+        "win_by_position": win_by_position,
+        "benchmark": benchmark or "none",
         "round_details": round_results,
     }
 
 
-def compare_strategies(codes: list, top_n: int = 5, days: int = 60, rounds: int = 5):
-    """比较所有策略的表现。"""
+def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list:
+    """获取基准指数的日收益率序列。"""
+    if not benchmark_code:
+        return None
+    try:
+        from data import get_kline
+        from common import normalize_quote_code
+        bars = get_kline(normalize_quote_code(benchmark_code), scale=240, datalen=days + 5)
+        if not bars or len(bars) < 2:
+            return None
+        returns = []
+        for i in range(1, len(bars)):
+            if bars[i - 1].close > 0:
+                returns.append((bars[i].close - bars[i - 1].close) / bars[i - 1].close)
+        return returns
+    except Exception:
+        return None
+
+
+def _calc_win_by_position(round_results: list, holding_days: int) -> dict:
+    """计算不同持仓位置的胜率分布。"""
+    if not round_results or holding_days <= 0:
+        return {}
+    thirds = max(1, holding_days // 3)
+    positions = {
+        "early": {"wins": 0, "total": 0},     # 前1/3
+        "mid": {"wins": 0, "total": 0},        # 中1/3
+        "late": {"wins": 0, "total": 0},       # 后1/3
+    }
+    for res in round_results:
+        dly = res.get("daily_returns", [])
+        for i, r in enumerate(dly):
+            pos = "early" if i < thirds else ("mid" if i < 2 * thirds else "late")
+            positions[pos]["total"] += 1
+            if r > 0:
+                positions[pos]["wins"] += 1
+    return {
+        k: round(v["wins"] / v["total"] * 100, 1) if v["total"] > 0 else 0
+        for k, v in positions.items()
+    }
+
+
+def compare_strategies(codes: list, top_n: int = 5, days: int = 60, rounds: int = 5,
+                       benchmark: str = None, scenarios: list = None):
+    """比较所有策略的表现。
+
+    Args:
+        codes: 候选股票代码
+        top_n: 每轮买入数量
+        days: 回测天数
+        rounds: 回测轮数
+        benchmark: 基准指数代码
+        scenarios: 情景列表，如 [{"label":"2025结构牛", "days":60, "rounds":3}, ...]
+    """
     results = {}
     for strategy_name in STRATEGIES:
         print(f"  回测策略: {STRATEGIES[strategy_name]['label']}...", flush=True)
-        report = run_backtest(strategy_name, codes, top_n, days, rounds)
+        report = run_backtest(strategy_name, codes, top_n, days, rounds, benchmark)
+        # 情景分析
+        if scenarios:
+            scenario_results = {}
+            for sc in scenarios:
+                label = sc.get("label", "未知")
+                sc_days = sc.get("days", days)
+                sc_rounds = sc.get("rounds", max(1, rounds // 2))
+                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark)
+                scenario_results[label] = {
+                    "total_return_pct": sr.get("total_return_pct"),
+                    "sharpe_ratio": sr.get("sharpe_ratio"),
+                    "max_drawdown_pct": sr.get("max_drawdown_pct"),
+                    "win_rate_pct": sr.get("win_rate_pct"),
+                }
+            report["scenarios"] = scenario_results
         results[strategy_name] = report
     return results
 
@@ -503,6 +613,8 @@ def main():
     parser.add_argument("--days", type=int, default=60, help="回测天数")
     parser.add_argument("--rounds", type=int, default=5, help="回测轮数")
     parser.add_argument("--codes", help="自定义股票代码（逗号分隔）")
+    parser.add_argument("--benchmark", default=None, help="基准指数代码（如 sh000300 沪深300）")
+    parser.add_argument("--scenarios", action="store_true", help="运行情景分析")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
@@ -531,24 +643,47 @@ def main():
 
     elif args.all:
         print(f"\n📈 比较所有策略 (top={args.top}, days={args.days}, rounds={args.rounds})", flush=True)
-        results = compare_strategies(codes, args.top, args.days, args.rounds)
+        # 构建情景
+        scenarios = None
+        if args.scenarios:
+            scenarios = [
+                {"label": "2025结构牛", "days": 60, "rounds": 3},
+                {"label": "2024震荡修复", "days": 60, "rounds": 3},
+                {"label": "2022熊市", "days": 60, "rounds": 3},
+            ]
+        results = compare_strategies(codes, args.top, args.days, args.rounds,
+                                     benchmark=args.benchmark, scenarios=scenarios)
         if args.json:
             print(json.dumps(results, ensure_ascii=False, indent=2))
         else:
-            print(f"\n{'策略':<18} {'总收益%':>8} {'夏普':>6} {'最大回撤%':>8} {'胜率%':>6}")
-            print("-" * 50)
+            header = f"{'策略':<18} {'总收益%':>8} {'夏普':>6} {'信息比':>7} {'最大回撤%':>8} {'胜率%':>6}"
+            if scenarios:
+                header += f" {'情景(收%)':>30}"
+            print(header)
+            print("-" * (len(header) + 10))
             for name, report in results.items():
                 if "error" in report:
                     print(f"{name:<18} {'ERROR':>8}")
                 else:
-                    print(f"{name:<18} {report['total_return_pct']:>8.2f} "
-                          f"{report['sharpe_ratio']:>6.2f} "
-                          f"{report['max_drawdown_pct']:>8.2f} "
-                          f"{report['win_rate_pct']:>6.1f}")
+                    line = (f"{name:<18} {report['total_return_pct']:>8.2f} "
+                            f"{report['sharpe_ratio']:>6.2f} "
+                            f"{report.get('information_ratio', 0):>7.2f} "
+                            f"{report['max_drawdown_pct']:>8.2f} "
+                            f"{report['win_rate_pct']:>6.1f}")
+                    if report.get("scenarios"):
+                        scenario_str = "; ".join(
+                            f"{k}:{v['total_return_pct']}%" if v.get("total_return_pct") is not None else f"{k}:?"
+                            for k, v in report["scenarios"].items()
+                        )
+                        line += f" {scenario_str[:30]:>30}"
+                    print(line)
 
     else:
         print(f"\n📈 回测策略: {args.strategy} (top={args.top}, days={args.days}, rounds={args.rounds})", flush=True)
-        report = run_backtest(args.strategy, codes, args.top, args.days, args.rounds)
+        if args.benchmark:
+            print(f"   基准: {args.benchmark}")
+        report = run_backtest(args.strategy, codes, args.top, args.days, args.rounds,
+                              benchmark=args.benchmark)
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
         elif "error" in report:
@@ -560,7 +695,14 @@ def main():
             print(f"最小收益: {report['min_return_pct']:.2f}%")
             print(f"胜率: {report['win_rate_pct']:.1f}%")
             print(f"夏普比率: {report['sharpe_ratio']:.2f}")
+            if report.get("information_ratio"):
+                print(f"信息比率: {report['information_ratio']:.2f}")
             print(f"最大回撤: {report['max_drawdown_pct']:.2f}%")
+            print(f"盈亏比: {report.get('profit_loss_ratio', 0):.2f}")
+            print(f"年化换手: {report.get('annual_turnover', 0)} 次")
+            if report.get("win_by_position"):
+                wp = report["win_by_position"]
+                print(f"分位置胜率: 早期{wp.get('early', '-')}% / 中期{wp.get('mid', '-')}% / 后期{wp.get('late', '-')}%")
 
 
 if __name__ == "__main__":

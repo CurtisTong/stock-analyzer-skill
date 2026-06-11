@@ -37,9 +37,9 @@ class TestThresholdHelpers:
         assert _board_limit("unknown") == 9.5
 
     def test_min_survival_cap_known_boards(self):
-        assert _min_survival_cap("主板") == 3
-        assert _min_survival_cap("创业板") == 2
-        assert _min_survival_cap("北交所") == 1
+        assert _min_survival_cap("主板") == 5
+        assert _min_survival_cap("创业板") == 3
+        assert _min_survival_cap("北交所") == 2
 
     def test_goodwill_threshold_default(self):
         assert _goodwill_threshold() == 30
