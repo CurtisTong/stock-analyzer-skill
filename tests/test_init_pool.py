@@ -23,6 +23,19 @@ def _make_pool_data(n_sectors: int = 15, stocks_per_sector: int = 20) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 0. 常量阈值合理性
+# ═══════════════════════════════════════════════════════════════
+class TestConstants:
+    def test_min_sectors_reasonable(self):
+        """板块阈值应在 3~20 之间。"""
+        assert 3 <= MIN_SECTORS <= 20
+
+    def test_min_stocks_reasonable(self):
+        """股票阈值应 ≥ 50（确保池有基本覆盖）。"""
+        assert MIN_STOCKS >= 50
+
+
+# ═══════════════════════════════════════════════════════════════
 # 1. is_pool_populated
 # ═══════════════════════════════════════════════════════════════
 class TestIsPoolPopulated:
@@ -86,6 +99,44 @@ class TestIsPoolPopulated:
         # 12 个板块（忽略 _updated）> 10 阈值
         assert populated is True
         assert "12 个板块" in desc
+
+    def test_exactly_at_min_sectors(self, tmp_path, monkeypatch):
+        """板块数恰好等于 MIN_SECTORS 时应返回 True（边界）。"""
+        import init_pool
+        pool_file = tmp_path / "pool.json"
+        pool_file.write_text(
+            json.dumps(_make_pool_data(n_sectors=MIN_SECTORS, stocks_per_sector=20)),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(init_pool, "POOL_FILE", str(pool_file))
+        populated, _ = is_pool_populated()
+        assert populated is True
+
+    def test_exactly_at_min_stocks(self, tmp_path, monkeypatch):
+        """股票数恰好等于 MIN_STOCKS 时应返回 True（边界）。"""
+        import init_pool
+        pool_file = tmp_path / "pool.json"
+        # MIN_SECTORS 个板块，每板块 ceil(MIN_STOCKS / MIN_SECTORS) 只股票
+        per_sector = max(1, -(-MIN_STOCKS // MIN_SECTORS))  # 向上取整
+        pool_file.write_text(
+            json.dumps(_make_pool_data(n_sectors=MIN_SECTORS, stocks_per_sector=per_sector)),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(init_pool, "POOL_FILE", str(pool_file))
+        populated, _ = is_pool_populated()
+        assert populated is True
+
+    def test_one_below_min_sectors(self, tmp_path, monkeypatch):
+        """板块数 = MIN_SECTORS - 1 时应返回 False（边界）。"""
+        import init_pool
+        pool_file = tmp_path / "pool.json"
+        pool_file.write_text(
+            json.dumps(_make_pool_data(n_sectors=MIN_SECTORS - 1, stocks_per_sector=20)),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(init_pool, "POOL_FILE", str(pool_file))
+        populated, _ = is_pool_populated()
+        assert populated is False
 
 
 # ═══════════════════════════════════════════════════════════════

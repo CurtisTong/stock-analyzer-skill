@@ -39,10 +39,14 @@ def score_from_dimensions(profile: ExpertProfile, dim_scores: Dict[str, float]) 
 
 
 def dimension_breakdown(profile: ExpertProfile, dim_scores: Dict[str, float]) -> Dict[str, float]:
-    """返回每个维度的加权贡献（用于在 debate 报告中显示）。"""
+    """返回每个维度的加权贡献（用于在 debate 报告中显示）。
+
+    与 score_from_dimensions 一致，对输入分值做 0-100 钳制。
+    """
     breakdown = {}
     for dim, weight in profile.weights.items():
         score = dim_scores.get(dim, 50.0)
+        score = max(0.0, min(100.0, float(score)))
         breakdown[dim] = round(score * (weight / 100.0), 2)
     return breakdown
 
@@ -61,7 +65,8 @@ def _score_fundamentals(fin: dict) -> float:
     gross_margin = float(fin.get("gross_margin") or fin.get("XSMLL") or 0)
     debt = float(fin.get("debt_ratio") or fin.get("ZCFZL") or 0)
 
-    # 加权：ROE 30% + 净利增速 25% + 营收增速 15% + 毛利率 20% + 负债率 10%
+    # 5 项均分：ROE / 净利增速 / 营收增速 / 毛利率 / 负债率 各贡献 0-20，
+    # 合计 0-100 后总分 = sum / 5。
     score = 0
     score += min(100, roe * 5)  # ROE 20% → 100
     score += min(100, max(0, profit_yoy + 50))  # -50 → 0, +50 → 100
@@ -78,6 +83,10 @@ def _score_valuation(quote: dict, fin: dict) -> float:
     pe = float(quote.get("pe") or 0)
     pb = float(quote.get("pb") or 0)
     growth = float(fin.get("net_profit_yoy") or fin.get("PARENTNETPROFITTZ") or 0) if fin else 0
+
+    # PE/PB 都缺失（含亏损股 PE<0 被置 0）→ 无法估值，返回中性
+    if pe <= 0 and pb <= 0:
+        return 50.0
 
     score = 0
     if pe > 0:
@@ -192,8 +201,13 @@ def score_expert(
                       _score_fundamentals(fin) * 0.5)
             dim_scores[dim] = round(margin, 1)
         elif dim in ("风险", "risk"):
-            # 风险 = 反向分（高分 = 低风险）
-            risk = (100 - _score_fundamentals(fin)) * 0.3 + 50
+            # 风险维度：高分 = 风险可控（好）。
+            # 综合基本面稳健度 + 估值安全性 + 负债率。
+            risk = (
+                _score_fundamentals(fin) * 0.4 +
+                _score_valuation(quote, fin) * 0.3 +
+                (100 - float(fin.get("debt_ratio") or fin.get("ZCFZL") or 50)) * 0.3
+            )
             dim_scores[dim] = round(max(0, min(100, risk)), 1)
         else:
             dim_scores[dim] = 50.0

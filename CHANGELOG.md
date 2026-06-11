@@ -49,6 +49,11 @@
 - `business.StockAnalysisService._analyze_technical` 中 `kdj_full(closes)` 缺参数 bug（实际签名要求 `(closes, highs, lows)`）— 此前因 0 调用方未被暴露
 - `chan/beichi.py` 中 `_ema_series(dif_series, 9)` 比 `dif_series` 短 8 元素导致 `list index out of range` — 此前因 0 调用方未被暴露
 - `ScreeningService.screen()` 中 `quote_map` key 与 normalized_codes 不匹配的潜在 bug（用纯数字 code 作 key，但查找用 `sh/sz` 前缀，永远查不到）— 此前因 0 调用方未被暴露
+- `experts/scoring.py` 评分模块 4 项修复：
+  - `_score_fundamentals` 注释与��际权重不符（"加权"改为"均分"）
+  - `_score_valuation` 在 pe/pb 都缺失时返回 0 而非 50（修复不对称边界）
+  - `dimension_breakdown` 增加 0-100 clamp，与 `score_from_dimensions` 一致
+  - "风险"维度评分逻辑反直觉，改为正面评分（基本面 40% + 估值安全 30% + 低负债 30%）
 
 ## [1.3.1] - 2026-06-10
 

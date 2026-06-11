@@ -106,7 +106,7 @@ class TestRegistryIntegrity:
     def test_weights_sum_to_100(self):
         for name, p in EXPERT_REGISTRY.items():
             total = sum(p.weights.values())
-            assert abs(total - 100) < 1.0, (
+            assert abs(total - 100) < 0.5, (
                 f"{name}: weights sum to {total}%, expected 100%"
             )
 
@@ -116,6 +116,12 @@ class TestRegistryIntegrity:
             assert md_path.exists(), (
                 f"{name}: md_path {p.md_path} does not exist"
             )
+
+    def test_expert_profile_is_frozen(self):
+        """ExpertProfile 应不可变（dataclass frozen=True）。"""
+        profile = get_expert("buffett")
+        with pytest.raises(Exception):
+            profile.name = "another"  # type: ignore
 
 
 # ═══════════════════════════════════════════════════════════════
