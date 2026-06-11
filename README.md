@@ -1,59 +1,156 @@
 # stock-analyzer-skill
 
-> **A 股投资的 12 个专业分析师，常驻你的 Claude Code。**
-> 五层分析框架 + 8 人专家圆桌 + 多数据源自动故障转移，零配置即可使用。
+<div align="center">
 
-![Version](https://img.shields.io/badge/version-1.4.1-blue)
-![Python](https://img.shields.io/badge/python-3.9%2B-green)
-![License](https://img.shields.io/badge/license-MIT-orange)
-![Zero Deps](https://img.shields.io/badge/python_deps-stdlib_only-lightgrey)
+```text
+   ███████╗████████╗ ██████╗  ██████╗██╗  ██╗
+   ██╔════╝╚══██╔══╝██╔═══██╗██╔════╝██║ ██╔╝
+   ███████╗   ██║   ██║   ██║██║     █████╔╝
+   ╚════██║   ██║   ██║   ██║██║     ██╔═██╗
+   ███████║   ██║   ╚██████╔╝╚██████╗██║  ██╗
+   ╚══════╝   ╚═╝    ╚═════╝  ╚═════╝╚═╝  ╚═╝
+        A N A L Y Z E R   ·   S K I L L
+```
+
+## 🎯 A 股投资的 12 位分析师，常驻你的 Claude Code
+
+**五层分析框架** · **8 人专家圆桌** · **27 个数据源故障转移** · **零配置开箱即用**
+
+[![Version](https://img.shields.io/badge/version-1.5.0-2563eb?style=flat-square)](CHANGELOG.md)
+[![Python](https://img.shields.io/badge/python-3.9+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
+[![Zero Deps](https://img.shields.io/badge/python_deps-stdlib_only-10b981?style=flat-square)](pyproject.toml)
+[![Skills](https://img.shields.io/badge/skills-12-8b5cf6?style=flat-square)](#-12-个-skill-速查)
+
+[🚀 快速开始](#-30-秒上手) · [🎬 看效果](#-效果一览) · [📖 文档导航](#-文档导航) · [💬 常见问题](#-常见问题)
+
+</div>
 
 ---
 
-## 这是什么？
+## 📑 目录
 
-一个 Claude Code 插件包，把 12 个 A 股分析能力封装成 `/xxx` 斜杠命令。
-不写代码也能用——**说一句 `/stock 贵州茅台`，就能拿到 5 层专业分析**。
-
-**适合谁用**：
-
-- 📈 散户/个人投资者：日常看行情、复盘、盯持仓
-- 🎓 投资学习者：跟着 8 位投资专家的人设理解多空博弈
-- 🛠 量化爱好者：用脚本能力二次开发、组合到自己的工作流
-
-**不适合谁用**：
-
-- ❌ 寻找"代码选股圣杯"的自动化交易者（本包不保证收益）
-- ❌ 需要实时 tick 级行情的 HFT 场景（数据源最小粒度为分钟级）
+- [✨ 这是什么？](#-这是什么)
+- [🎯 核心能力](#-核心能力)
+- [🚀 30 秒上手](#-30-秒上手)
+- [🎬 效果一览](#-效果一览)
+- [👥 8 人专家圆桌（招牌功能）](#-8-人专家圆桌招牌功能)
+- [🗺️ 4 个典型场景](#-4-个典型场景)
+- [📋 12 个 Skill 速查](#-12-个-skill-速查)
+- [📦 安装方式](#-安装方式)
+- [🏗️ 项目架构](#-项目架构)
+- [📖 文档导航](#-文档导航)
+- [💬 常见问题](#-常见问题)
+- [⚠️ 已知限制](#-已知限制)
 
 ---
 
-## 🚀 5 分钟上手
+## ✨ 这是什么？
 
-### ① 安装插件（任选一种）
+一个把 **A 股专业分析能力** 封装成 12 条 `/xxx` 斜杠命令的 Claude Code 插件包。
+
+> 💡 不写代码也能用——**说一句 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析**。
+
+<table>
+<tr>
+<th width="50%">✅ 适合你，如果你是……</th>
+<th width="50%">❌ 不适合你，如果你想要……</th>
+</tr>
+<tr>
+<td valign="top">
+
+📈 **散户 / 个人投资者**
+日常看行情、复盘、盯持仓
+
+🎓 **投资学习者**
+跟 8 位投资专家的人设理解多空博弈
+
+🛠 **量化爱好者 / 工程师**
+二次开发、组合到自己的工作流
+
+</td>
+<td valign="top">
+
+🤖 **代码选股圣杯**
+本包不保证收益，不替你下单
+
+⚡ **HFT / Tick 级行情**
+数据源最小粒度为分钟级
+
+💰 **付费订阅推票**
+本包是研究框架，非荐股服务
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🎯 核心能力
+
+<table>
+<tr>
+<td width="33%" align="center" valign="top">
+
+### 🔍 五层分析框架
+
+**基本面** · **估值**
+**技术面** · **板块**
+**风险收益比**
+
+每层都有量化打分<br>
+默认输出可解释结论
+
+</td>
+<td width="33%" align="center" valign="top">
+
+### 👥 8 人专家圆桌
+
+**长线 4 人**<br>
+巴菲特 · 林奇<br>
+索罗斯 · 段永平
+
+**短线 4 人**<br>
+徐翔 · 赵老哥<br>
+养家 · 作手新一
+
+</td>
+<td width="33%" align="center" valign="top">
+
+### 🔁 多源故障转移
+
+**27 个 fetcher**<br>
+腾讯 · 东财 · 新浪<br>
+雪球 · 同花顺<br>
+AkShare · efinance<br>
+
+集成熔断器，单源故障<br>自动切换下家
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 30 秒上手
 
 ```bash
-# 推荐：Claude Code Plugin
+# 1️⃣ 安装（任选一种）
 claude plugins marketplace add . && claude plugins install stock-analyzer
-```
 
-### ② 初始化股票池（一次即可）
-
-```text
+# 2️⃣ 初始化股票池（仅首次）
 /stock-init
+
+# 3️⃣ 开跑
+/stock sh600989 quick      # ⚡ 3 分钟快评
+/stock sh600989            # 📊 五层完整分析
+/stock sh600989 debate     # 🎤 8 人专家辩论
 ```
 
-> **零配置可用**：内置预置默认股票池，无需 token 即可使用。联网时自动获取最新数据，失败自动 fallback。
+> **零配置可用**：内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。
 
-### ③ 跑第一个命令
-
-```text
-/stock sh600989 quick    →  3 分钟快评（基本面+估值+技术面）
-/stock sh600989         →  完整五层分析
-/stock sh600989 debate  →  8 人专家圆桌多空辩论
-```
-
-#### 嫌 CLI 麻烦？用本地 Web 录入
+<details>
+<summary>📱 <b>嫌 CLI 麻烦？打开本地 Web 录入</b></summary>
 
 ```bash
 python3 scripts/portfolio_web.py
@@ -62,74 +159,292 @@ python3 scripts/portfolio_web.py
 
 手机/电脑都能用，支持 IFTTT 等 Webhook 推送持仓变更。详见 `/portfolio` skill 的「Web 录入（可选）」段。
 
+</details>
+
 ---
 
-## 🎯 4 个典型场景
+## 🎬 效果一览
+
+<details open>
+<summary><b>📊 单股五层分析示例</b> — <code>/stock 贵州茅台 quick</code></summary>
+
+```text
+🏢 贵州茅台 (sh600519) · 白酒龙头
+─────────────────────────────────────
+💰 现价 ¥1,652.30   📈 +0.85%   💎 PE 22.1   📊 PB 6.8
+
+【第 1 层 · 基本面】 ⭐⭐⭐⭐  评分 85/100
+  ROE 31.2%（行业 Top 1）│ 毛利率 91.5% │ 净利率 53.6%
+  ✅ 业绩持续 5 年正增长，现金流充沛
+
+【第 2 层 · 估值】 ⭐⭐⭐⭐  评分 78/100
+  PE 22.1 vs 历史中位 28 │ 处于近 5 年 23% 分位
+  ✅ 当前估值偏低，安全边际充足
+
+【第 3 层 · 技术面】 ⭐⭐⭐  评分 65/100
+  MA20 上行 │ MACD 金叉初现 │ KDJ 超买
+  ⚠️ 短期回踩 1620 概率较大
+
+【第 4 层 · 板块】 ⭐⭐⭐⭐  评分 80/100
+  白酒板块近 30 日资金净流入 38 亿，强于大盘
+
+【第 5 层 · 风险收益比】 1 : 3.2 ⭐⭐⭐⭐
+  目标价 ¥1,950（+18%）│ 止损 ¥1,560（-5.6%）
+
+🎯 综合结论：可分批介入，回踩 1620 加仓
+```
+
+</details>
+
+<details>
+<summary><b>👥 8 人专家圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
+
+```text
+🎤 8 人专家圆桌 · 贵州茅台 (sh600519)
+═══════════════════════════════════════
+
+【长线阵营】
+🟢 巴菲特    8.5/10  "31% ROE + 永续护城河，长期可持有"
+🟢 林奇      7.5/10  "PEG 0.8，增长消化估值，buy"
+🟡 索罗斯    6.0/10  "趋势中性，等待量能确认"
+🟢 段永平    9.0/10  "本就该买，跌了更买"
+
+【短线阵营】
+🟡 徐翔      5.5/10  "无明显涨停基因，非首选"
+🔴 赵老哥    4.0/10  "趋势钝化，不在我射程"
+🟡 养家      6.0/10  "情绪温和，板块二线"
+🟢 作手新一  7.5/10  "回踩 1620 是教科书低吸点"
+
+─────────────────────────────────────
+🗳️ 最终投票：4 买入 · 3 观望 · 1 回避
+🎯 综合建议：长线优配 / 短线观望 → 见 decide.md 详解
+```
+
+</details>
+
+<details>
+<summary><b>📈 大盘复盘示例</b> — <code>/market</code></summary>
+
+```text
+📅 2026-06-11 收盘复盘
+─────────────────────────────────────
+上证 3,142 (+0.32%)  深成 10,856 (+0.58%)  创业 2,234 (+1.12%)
+
+【风格】成长 > 价值 │ 小盘 > 大盘 │ 进攻信号 🟢
+【板块 Top3】AI 算力 +3.8% / 半导体 +2.4% / 新能源车 +1.9%
+【板块 Bot3】白酒 -1.2% / 银行 -0.8% / 地产 -0.6%
+
+【主力资金】净流入 87 亿（连续 3 日）
+【北向资金】净买入 23 亿
+【两融余额】1.62 万亿（环比 +1.2%）
+
+🎯 策略：进攻型仓位可提升至 70%，重点关注算力/半导体补涨
+```
+
+</details>
+
+---
+
+## 👥 8 人专家圆桌（招牌功能）
+
+> 🌟 **本包最独特的卖点**。8 位投资专家从各自框架独立打分，由 [`decide.md`](experts/decide.md) 汇总投票。
+
+<table>
+<tr>
+<th colspan="2" align="center">🟢 长线 4 人（价值发现）</th>
+<th colspan="2" align="center">🔴 短线 4 人（时机把握）</th>
+</tr>
+<tr>
+<td align="center">
+
+**[巴菲特](experts/buffett.md)**
+价值投资<br>
+高 ROE + 低 PE
+
+</td>
+<td align="center">
+
+**[彼得·林奇](experts/lynch.md)**
+成长投资<br>
+PEG &lt; 1
+
+</td>
+<td align="center">
+
+**[徐翔](experts/xu_xiang.md)**
+涨停板战法<br>
+龙头 + 量价
+
+</td>
+<td align="center">
+
+**[赵老哥](experts/zhao_laoge.md)**
+趋势龙头<br>
+波段操作
+
+</td>
+</tr>
+<tr>
+<td align="center">
+
+**[索罗斯](experts/soros.md)**
+宏观趋势<br>
+反身性 + 技术
+
+</td>
+<td align="center">
+
+**[段永平](experts/duan_yongping.md)**
+逆向投资<br>
+低估值 + 护城河
+
+</td>
+<td align="center">
+
+**[炒股养家](experts/chaogu_yangjia.md)**
+情绪流<br>
+情绪周期判断
+
+</td>
+<td align="center">
+
+**[作手新一](experts/zuoshou_xinyi.md)**
+强势股低吸<br>
+回调支撑分批
+
+</td>
+</tr>
+</table>
+
+📖 每位专家含 1200+ 字深度档：核心哲学 / 量化选股标准 / 买卖规则 / 仓位止损 / A 股适用边界 / 代表案例 — 详见 [experts/README.md](experts/README.md)。
+
+---
+
+## 🗺️ 4 个典型场景
 
 不知道从哪个命令开始？挑一个最贴近你当前问题的：
 
-| 场景                | 命令链                                                                       | 你会得到什么                     |
-| ------------------- | ---------------------------------------------------------------------------- | -------------------------------- |
-| 🥇 **自上而下选股** | `/market` → `/sector 资源` → `/screener --strategy quality_value` → `/stock` | 从市场状态到具体标的的完整决策链 |
-| 🥈 **诊断持仓**     | `/portfolio` → `/stock 持仓股 debate`                                        | 健康度 + 风险预警 + 多空辩论结论 |
-| 🥉 **挖掘板块机会** | `/market` → `/sector 医药 compare`                                           | 板块轮动位置 + 核心标的横向对比  |
-| 🏅 **深度研究个股** | `/stock 贵州茅台 debate` → `/financial-analyst` → `/technical`               | 八方观点 + 财务建模 + 技术买卖点 |
+### 1️⃣ 自上而下选股
 
-> 🌟 **特色功能**：`/stock <代码> debate` 召集 **8 位投资专家**（巴菲特/林奇/索罗斯/段永平/徐翔/赵老哥/炒股养家/作手新一）从各自框架独立打分，由 `decide.md` 汇总投票，是本包最独特的卖点。详见 [experts/README.md](experts/README.md)。
->
-> 💡 12 个 skill 的完整衔接流程见 [`workflow.md`](workflow.md)。
+```mermaid
+flowchart LR
+  A["/market"] --> B["/sector 资源"]
+  B --> C["/screener --strategy quality_value"]
+  C --> D["/stock 候选"]
+```
+
+**适合**：节奏感强、想从市场状态推导出具体标的的投资者
+**产出**：从大盘风格 → 板块强弱 → 5 因子筛选 → 个股决策的完整链条
+
+### 2️⃣ 诊断现有持仓
+
+```mermaid
+flowchart LR
+  A["/portfolio"] --> B["/stock 持仓股 debate"]
+```
+
+**适合**：持仓 3-10 只、想确认风险敞口与调仓方向
+**产出**：仓位健康度 + 板块集中度 + 风险预警 + 多空辩论结论
+
+### 3️⃣ 挖掘板块机会
+
+```mermaid
+flowchart LR
+  A["/market"] --> B["/sector 医药 compare"]
+```
+
+**适合**：行业研究员、主题轮动交易者
+**产出**：板块轮动位置 + 核心标的横向对比 + 资金偏好
+
+### 4️⃣ 深度研究单股
+
+```mermaid
+flowchart LR
+  A["/stock 贵州茅台 debate"] --> B["/financial-analyst"]
+  B --> C["/technical"]
+```
+
+**适合**：单笔仓位重、需要决策依据存档的投资者
+**产出**：8 方观点 + 财务建模 + 技术买卖点的完整研究包
+
+> 💡 12 个 skill 完整衔接流程见 [`workflow.md`](workflow.md)。
 
 ---
 
 ## 📋 12 个 Skill 速查
 
-| 类别        | Skill                                                          | 命令                            | 解决什么问题                                         |
-| ----------- | -------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------- |
-| **决策**    | [stock](skills/stock/SKILL.md)                                 | `/stock <代码>`                 | 单股五层分析（基本面/估值/技术/板块/风险收益比）     |
-| **🌟 专家** | [stock-debate](skills/stock/SKILL.md)                          | `/stock <代码> debate`          | **8 位投资专家多空圆桌辩论**（长线 4 + 短线 4）      |
-| **环境**    | [market](skills/market/SKILL.md)                               | `/market`                       | 大盘快评/完整复盘/盘中分时                           |
-| **环境**    | [sector](skills/sector/SKILL.md)                               | `/sector <板块>`                | 板块全景/标的对比/板块内筛选                         |
-| **选股**    | [screener](skills/screener/SKILL.md)                           | `/screener`                     | 5 种策略 × 5 因子维度批量选股                        |
-| **组合**    | [portfolio](skills/portfolio/SKILL.md)                         | `/portfolio`                    | 持仓健康/调仓再平衡/对比                             |
-| **组合**    | [monitor](skills/monitor/SKILL.md)                             | `/monitor start`                | 盘中异动监控 + 策略关键点位扫描 + Bark/企微/钉钉推送 |
-| **技术**    | [technical](skills/technical/SKILL.md)                         | `/technical <代码>`             | 均线/MACD/KDJ/BOLL/缠论/本土战法                     |
-| **验证**    | [backtest](skills/backtest/SKILL.md)                           | `/backtest`                     | 5 种策略历史胜率+收益验证                            |
-| **数据**    | [stock-init](skills/stock-init/SKILL.md)                       | `/stock-init`                   | 初始化/刷新股票池（零配置）                          |
-| **研究**    | [financial-analyst](skills/financial-analyst/SKILL.md)         | `/financial-analyst <任务>`     | 财务建模/预测/场景分析                               |
-| **研究**    | [investment-researcher](skills/investment-researcher/SKILL.md) | `/investment-researcher <任务>` | 市场研究/尽调/估值                                   |
-| **辅助**    | [help](skills/help/SKILL.md)                                   | `/help`                         | 显示所有 skills 和使用说明                           |
+| 类别        | Skill                                                          | 命令                            | 一句话价值                                       |
+| :---------- | :------------------------------------------------------------- | :------------------------------ | :----------------------------------------------- |
+| 🎯 **决策** | [stock](skills/stock/SKILL.md)                                 | `/stock <代码>`                 | 单股五层分析（基本面/估值/技术/板块/风险收益比） |
+| 🌟 **专家** | [stock-debate](skills/stock/SKILL.md)                          | `/stock <代码> debate`          | **8 位投资专家多空圆桌辩论**（长线 4 + 短线 4）  |
+| 🌐 **环境** | [market](skills/market/SKILL.md)                               | `/market`                       | 大盘快评 / 完整复盘 / 盘中分时                   |
+| 🌐 **环境** | [sector](skills/sector/SKILL.md)                               | `/sector <板块>`                | 板块全景 / 标的对比 / 板块内筛选                 |
+| 🔎 **选股** | [screener](skills/screener/SKILL.md)                           | `/screener`                     | 5 种策略 × 5 因子维度批量选股                    |
+| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                         | `/portfolio`                    | 持仓健康 / 调仓再平衡 / 标的对比                 |
+| 📡 **组合** | [monitor](skills/monitor/SKILL.md)                             | `/monitor start`                | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
+| 📈 **技术** | [technical](skills/technical/SKILL.md)                         | `/technical <代码>`             | 均线 / MACD / KDJ / BOLL / 缠论 / 本土战法       |
+| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                           | `/backtest`                     | 策略历史回测，含卡玛比率/盈亏比/夏普             |
+| 💾 **数据** | [stock-init](skills/stock-init/SKILL.md)                       | `/stock-init`                   | 初始化 / 刷新股票池（零配置）                    |
+| 🔬 **研究** | [financial-analyst](skills/financial-analyst/SKILL.md)         | `/financial-analyst <任务>`     | 财务建模 / 预测 / 场景分析                       |
+| 🔬 **研究** | [investment-researcher](skills/investment-researcher/SKILL.md) | `/investment-researcher <任务>` | 市场研究 / 尽调 / 估值                           |
+| ❓ **辅助** | [help](skills/help/SKILL.md)                                   | `/help`                         | 显示所有 skills 和使用说明                       |
 
-**股票代码格式**：`sh600519`（沪）/ `sz000858`（深）/ `600519`（自动推断）/ `贵州茅台`（按名称模糊匹配）
+> 📌 **股票代码格式**：`sh600519`（沪） / `sz000858`（深） / `600519`（自动推断） / `贵州茅台`（按名称模糊匹配）
 
 ---
 
-## 📦 安装
+## 📦 安装方式
 
-### 方式一：Claude Code Plugin（推荐）
+<table>
+<tr>
+<th width="33%">⭐ 推荐方式</th>
+<th width="33%">📦 npm 全局</th>
+<th width="33%">🔗 手动软链</th>
+</tr>
+<tr>
+<td valign="top">
 
-```bash
-# 在项目根目录执行一行命令
-claude plugins marketplace add . && claude plugins install stock-analyzer
-```
-
-✅ 自动注册到 Claude Code，重启后立即可用。
-
-### 方式二：npm 全局安装
-
-```bash
-npm install -g stock-analyzer-skill
-```
-
-### 方式三：手动软链（传统）
+**Claude Code Plugin**
 
 ```bash
-git clone <repo> && cd stock-analyzer-skill
-./install.sh   # 在 ~/.claude/skills/ 下创建 symlink
+claude plugins marketplace add .
+claude plugins install stock-analyzer
 ```
 
-> ⚠️ 手动方式需重启 Claude Code 生效。
+✅ 自动注册<br>
+✅ 重启即用
 
-### 验证安装
+</td>
+<td valign="top">
+
+**npm**
+
+```bash
+npm install -g \
+  stock-analyzer-skill
+```
+
+✅ 跨项目复用<br>
+✅ 升级方便
+
+</td>
+<td valign="top">
+
+**Symlink（传统）**
+
+```bash
+git clone <repo>
+cd stock-analyzer-skill
+./install.sh
+```
+
+⚠️ 需重启 Claude Code
+
+</td>
+</tr>
+</table>
+
+### ✅ 验证安装
 
 ```bash
 claude skills list | grep stock     # 看到 12 个 stock-* 即成功
@@ -138,15 +453,15 @@ claude skills list | grep stock     # 看到 12 个 stock-* 即成功
 
 ---
 
-## 🏗️ 项目架构（开发者视角）
+## 🏗️ 项目架构
 
 ```text
 scripts/
 ├── business/      # 业务逻辑层（stock_analysis / screening_service）
 ├── common/        # 基础设施（HTTP、缓存、熔断器、异常体系）
-├── config/        # 外部化配置（YAML：评分/数据源/行业阈值）
+├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
-├── fetchers/      # 9+ 数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/…）
+├── fetchers/      # 27 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/...）
 ├── strategies/    # 5 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 实时监控 + 多通道通知
@@ -154,44 +469,84 @@ scripts/
 └── *.py           # 顶层 CLI 入口（SKILL.md 直接调用）
 ```
 
-**核心特性**：
+### 💎 核心特性
 
-- 🪶 **零 Python 外部依赖**：仅 `urllib` + `json` + `pathlib` + `yaml`
-- 🔁 **多数据源故障转移**：单个 API 挂掉自动切换到下一家（集成熔断器）
-- 📦 **三层架构**：API 层 → 业务层 → 数据层，职责清晰易扩展
-- ⚙️ **配置外部化**：行业阈值/评分权重/数据端点全部 YAML，零改代码调参
-- 🧪 **测试覆盖**：单元测试 + 元数据测试 + 端到端冒烟测试
+| 特性                      | 说明                                      |
+| :------------------------ | :---------------------------------------- |
+| 🪶 **零 Python 外部依赖** | 仅 `urllib` + `json` + `pathlib` + `yaml` |
+| 🔁 **多数据源故障转移**   | 单 API 挂掉自动切下家（集成熔断器）       |
+| 🏛️ **三层架构**           | API 层 → 业务层 → 数据层，职责清晰易扩展  |
+| ⚙️ **配置外部化**         | 行业阈值 / 评分权重 / 数据端点全部 YAML   |
+| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试    |
 
-详见 [开发者指南](docs/developer-guide.md) 和 [产品架构](docs/product-architecture.md)。
-
----
-
-## 📚 文档导航
-
-| 你的角色       | 推荐先读                              | 之后                                |
-| -------------- | ------------------------------------- | ----------------------------------- |
-| **新用户**     | [快速入门](docs/quick-start.md)       | [使用者指南](docs/user-guide.md)    |
-| **投资者**     | [投资方法论](methodology.md)          | [8 人专家档案库](experts/README.md) |
-| **二次开发者** | [开发者指南](docs/developer-guide.md) | [API 参考](docs/api-reference.md)   |
-| **贡献者**     | [贡献指南](CONTRIBUTING.md)           | [变更日志](CHANGELOG.md)            |
+📖 详见 [开发者指南](docs/developer-guide.md) 和 [产品架构](docs/product-architecture.md)。
 
 ---
 
-## ❓ 常见问题
+## 📖 文档导航
 
-**Q：股票池没初始化会怎样？**
+<table>
+<tr>
+<th>你的角色</th>
+<th>推荐先读</th>
+<th>之后</th>
+</tr>
+<tr>
+<td>🆕 <b>新用户</b></td>
+<td><a href="docs/quick-start.md">快速入门</a></td>
+<td><a href="docs/user-guide.md">使用者指南</a></td>
+</tr>
+<tr>
+<td>📈 <b>投资者</b></td>
+<td><a href="methodology.md">投资方法论</a></td>
+<td><a href="experts/README.md">8 人专家档案库</a></td>
+</tr>
+<tr>
+<td>🛠️ <b>二次开发者</b></td>
+<td><a href="docs/developer-guide.md">开发者指南</a></td>
+<td><a href="docs/api-reference.md">API 参考</a></td>
+</tr>
+<tr>
+<td>🤝 <b>贡献者</b></td>
+<td><a href="CONTRIBUTING.md">贡献指南</a></td>
+<td><a href="CHANGELOG.md">变更日志</a></td>
+</tr>
+</table>
+
+---
+
+## 💬 常见问题
+
+<details>
+<summary><b>Q：股票池没初始化会怎样？</b></summary>
+
 使用 `/stock`、`/screener`、`/sector` 时如果股票池未初始化，系统会自动触发或提示先跑 `/stock-init`。
 
-**Q：可以离线使用吗？**
+</details>
+
+<details>
+<summary><b>Q：可以离线使用吗？</b></summary>
+
 可以。`/stock-init default` 走预置数据，零网络请求。联网后再 `/stock-init force` 刷新。
 
-**Q：数据源挂了怎么办？**
-内置熔断器 + 多源故障转移：腾讯 → 东财 → 新浪 → 雪球 → 同花顺 → AkShare → …，单源失败不影响整体。
+</details>
 
-**Q：分析结果能直接拿去交易吗？**
-❌ 不能。所有输出仅供研究框架参考，不构成投资建议。投资有风险，决策需谨慎。
+<details>
+<summary><b>Q：数据源挂了怎么办？</b></summary>
 
-**Q：如何自定义持仓？**
+内置熔断器 + 多源故障转移：腾讯 → 东财 → 新浪 → 雪球 → 同花顺 → AkShare → efinance → ……，单源失败不影响整体。
+
+</details>
+
+<details>
+<summary><b>Q：分析结果能直接拿去交易吗？</b></summary>
+
+❌ **不能**。所有输出仅供研究框架参考，**不构成投资建议**。投资有风险，决策需谨慎。
+
+</details>
+
+<details>
+<summary><b>Q：如何自定义持仓？</b></summary>
 
 ```bash
 cp scripts/data/portfolio_example.json scripts/data/portfolio.json
@@ -199,14 +554,25 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 /portfolio    # 自动读取 portfolio.json
 ```
 
+或使用零依赖 Web 录入：`python3 scripts/portfolio_web.py`，浏览器打开 `127.0.0.1:8765`。
+
+</details>
+
+<details>
+<summary><b>Q：8 人专家投票冲突时怎么办？</b></summary>
+
+由 [`experts/decide.md`](experts/decide.md) 定义的整合规则裁决——加权投票 + 长短线分仓建议。例如长线 4 人偏多、短线 4 人偏空，结论会是「核心仓持有、卫星仓减仓」。
+
+</details>
+
 ---
 
 ## ⚠️ 已知限制
 
-- 实时数据依赖外部 API 稳定性，变更时改 `scripts/fetchers/` 端点即可
+- 实时数据依赖外部 API 稳定性，端点变更时改 `scripts/fetchers/` 即可
 - 预置股票池为静态快照，全市场最新数据需联网刷新
-- 多因子权重基于经验设定，未经大规模历史回测验证
-- 资金面数据（融资融券/股东户数）每日更新，受交易所披露节奏限制
+- 多因子权重基于经验设定，未经大规模历史回测验证（v1.5.0 起回测模块已支持卡玛比率/盈亏比/夏普等 11 项指标）
+- 资金面数据（融资融券 / 股东户数）每日更新，受交易所披露节奏限制
 
 ---
 
@@ -221,6 +587,12 @@ Issue / PR / 建议 → [GitHub Repo](https://github.com/CurtisTong/stock-analyz
 
 MIT License © curtis
 
+<div align="center">
+
 ---
 
-**版本**：v1.4.1（2026-06-11） · **最后更新**：见 [CHANGELOG.md](CHANGELOG.md)
+**v1.5.0** · 2026-06-11 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+
+⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
+
+</div>

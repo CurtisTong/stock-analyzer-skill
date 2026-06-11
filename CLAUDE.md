@@ -44,7 +44,7 @@ scripts/
 ├── common/       # 基础设施层（HTTP、编码、字段映射、BaseFetcher、CircuitBreaker）
 ├── config/       # 外部化配置（YAML）— scoring/data_source/limits/industry_thresholds
 ├── data/         # 数据类型（Quote, KlineBar, FinanceRecord）+ 磁盘缓存
-├── fetchers/     # 多数据源 Fetcher（21 个模块，优先级故障转移）
+├── fetchers/     # 多数据源 Fetcher（27 个模块，优先级故障转移）
 ├── strategies/   # 筛选策略系统（5 策略 × 5 因子维度）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 实时监控
