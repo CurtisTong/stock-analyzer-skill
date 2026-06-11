@@ -5,6 +5,16 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.3] - 2026-06-11
+
+### Changed
+
+- README 全面重构：PM / 用户专家 / 产品专家三维优化，体积从 20638 bytes 降至 ~8700 bytes（−58%）
+- README 新增 Hero 段 + 4 个 status badge + 5 分钟上手最短路径 + 4 个典型场景（自上而下选股 / 诊断持仓 / 板块挖掘 / 深度研究）
+- README 新增"12 个 skill 速查表"，按"决策/专家/环境/选股/组合/技术/验证/数据/研究/辅助"七大类分组，`stock-debate` 独立成行 + 🌟 视觉强调
+- 4 个典型场景后追加特色功能 callout，点名 8 位投资专家为独特卖点
+- GitHub 仓库地址统一为 `https://github.com/CurtisTong/stock-analyzer-skill`（README / CHANGELOG / package.json / plugin.json 全部对齐）
+
 ## [1.3.2] - 2026-06-10
 
 ### Added
@@ -216,6 +226,6 @@
 
 ## 链接
 
-- [GitHub 仓库](https://github.com/curtis/stock-analyzer-skill)
-- [问题反馈](https://github.com/curtis/stock-analyzer-skill/issues)
-- [发布页面](https://github.com/curtis/stock-analyzer-skill/releases)
+- [GitHub 仓库](https://github.com/CurtisTong/stock-analyzer-skill)
+- [问题反馈](https://github.com/CurtisTong/stock-analyzer-skill/issues)
+- [发布页面](https://github.com/CurtisTong/stock-analyzer-skill/releases)
