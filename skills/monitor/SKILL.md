@@ -45,13 +45,18 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Us
 
 ### 初始化
 
-```python
-import sys; sys.path.insert(0, "scripts")
+使用 shell 命令初始化监控：
+
+```bash
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
 from monitor import NotificationManager
 from portfolio import PortfolioManager
 
 nm = NotificationManager()
 pm = PortfolioManager()
+print('✅ 监控和持仓管理器已初始化')
+"
 ```
 
 ### 推送通道
@@ -71,18 +76,18 @@ pm = PortfolioManager()
 
 > 权威阈值表：`../_shared/references/alert-thresholds.md`（与 `portfolio` 共享）。本表是简版，修改前请先更新共享表。
 
-| 类型     | 触发条件         | 默认阈值   |
-| -------- | ---------------- | ---------- |
-| 价格预警 | 涨跌幅超阈值     | ±3%        |
-| 价格预警 | 触及支撑/压力位  | -          |
-| 价格预警 | 涨跌停附近       | 距涨停 <1% |
-| 技术信号 | MACD 金叉/死叉   | -          |
-| 技术信号 | 均线突破         | 20/60 日线 |
-| 技术信号 | 放量异动         | 量比 >2.0  |
-| 持仓风险 | 风险状态变更     | -          |
-| 持仓风险 | 连续跑输板块     | 2 天       |
-| 市场环境 | 大盘涨跌幅       | ±2%        |
-| 市场环境 | 北向资金大幅流动 | ±50 亿     |
+| 类型     | 触发条件         | 默认阈值           |
+| -------- | ---------------- | ------------------ |
+| 价格预警 | 涨跌幅超阈值     | ±3%                |
+| 价格预警 | 触及支撑/压力位  | -                  |
+| 价格预警 | 涨跌停附近       | 距涨停 <1%         |
+| 技术信号 | MACD 金叉/死叉   | -                  |
+| 技术信号 | 均线突破         | 20/60 日线         |
+| 技术信号 | 放量异动         | 量比 >2.0          |
+| 持仓风险 | 风险状态变更     | -                  |
+| 持仓风险 | 连续跑输板块     | 2 天               |
+| 市场环境 | 大盘涨跌幅       | ±2%                |
+| 市场环境 | 北向资金大幅流动 | ±50 亿 ⚠️ 暂不可用 |
 
 ### 策略关键点位监控
 
@@ -119,28 +124,42 @@ python3 scripts/monitor/alert_engine.py check
 
 #### scan 命令处理
 
-```python
-import sys; sys.path.insert(0, "scripts")
+使用 shell 命令扫描关键点位：
+
+```bash
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
 from monitor.alert_engine import scan_all, render_scan, compute_key_levels, render_levels
 
 # 扫描全部
 results = scan_all()
 print(render_scan(results))
 
-# 单股
-print(render_levels("sh600989"))
+# 单股（可选，替换代码）
+# print(render_levels('sh600989'))
+"
 ```
 
 #### check 命令处理
 
-```python
-import sys; sys.path.insert(0, "scripts")
-from monitor.alert_engine import check_and_push
+使用 shell 命令检查并推送：
 
+```bash
 # dry-run 预览
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from monitor.alert_engine import check_and_push
 summary = check_and_push(dry_run=True)
+print(summary)
+"
+
 # 正式推送
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from monitor.alert_engine import check_and_push
 summary = check_and_push(dry_run=False)
+print(summary)
+"
 ```
 
 ### 频率控制

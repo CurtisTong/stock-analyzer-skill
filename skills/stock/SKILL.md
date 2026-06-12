@@ -105,16 +105,9 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 深度分析报告（`full` / `debate` 模式）使用 `reports/full-template.md` 中的完整模板。`quick` 模式不展开。
 
-### Step 3.2: 评级标准
+评级标准和五个维度定义详见 `../_shared/references/five-layer.md`（唯一权威源）。
 
-| 评级   | 基本面标准          | 估值标准            | 技术面标准            |
-| ------ | ------------------- | ------------------- | --------------------- |
-| A+/Buy | ROE>20% 且 增速>50% | PE/ROE<1 且 PEG<0.5 | 评分>65, 多重买入信号 |
-| A/Buy  | ROE>15% 且 增速>20% | PE/ROE<3 且 PEG<1   | 评分>60, 买入信号     |
-| B/Hold | ROE>10% 且 增速>0   | PE/ROE<5            | 评分50-60, 中性       |
-| C/Sell | ROE<10% 或 增速<0   | PE/ROE>5 或 PE>30   | 评分<50, 卖出信号     |
-
-### Step 4: ��家讨论（debate模式）
+### Step 4: 专家讨论（debate模式）
 
 **三种子模式**：
 

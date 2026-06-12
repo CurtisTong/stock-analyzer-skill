@@ -36,11 +36,11 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 ### 查询模式
 
-| 模式             | 说明                               |
-| ---------------- | ---------------------------------- |
-| `health`（默认） | 持仓健康检查，涨跌+支撑位+风险预警 |
+| 模式             | 说明                                                                                                                                   |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `health`（默认） | 持仓健康检查，涨跌+支撑位+风险预警                                                                                                     |
 | `rebalance`      | 结合大盘风格给出调仓建议（**会按 `workflow.md` §3 "持仓再平衡"链路联动 `market` → `technical` → `screener` → `stock`**，不是单点输出） |
-| `compare`        | 持仓标的互相对比+替换建议          |
+| `compare`        | 持仓标的互相对比+替换建议                                                                                                              |
 
 ### Web 录入
 
@@ -98,32 +98,52 @@ Claude Code 运行时工作目录即为项目根目录。先读取 `scripts/data
 
 v2 数据模型包含 `positions`（持仓）和 `watchlist`（自选）两个列表。自动兼容 v1 格式（仅 `codes` 列表），首次使用时提示用户补充持仓信息。
 
-```python
-import sys; sys.path.insert(0, "scripts")
+使用 Python 读取数据：
+
+```bash
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
 from portfolio import PortfolioManager
 pm = PortfolioManager()
 positions = pm.get_positions()
 watchlist = pm.get_watchlist()
 codes = pm.get_all_codes()
+print('持仓:', positions)
+print('自选:', watchlist)
+"
 ```
 
 ### 持仓操作执行
 
-```python
+使用 CLI 命令操作：
+
+```bash
 # 买入建仓 / 加仓
-pm.add_position("sh600989", "宝丰能源", 18.50, 1000, tags=["能源", "长线"])
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from portfolio import PortfolioManager
+pm = PortfolioManager()
+pm.add_position('sh600989', '宝丰能源', 18.50, 1000, tags=['能源', '长线'])
+print('✅ 已添加持仓')
+"
 
 # 减仓
-pm.reduce_position("sh600989", 500)
-
-# 清仓
-pm.remove_position("sh600989")
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from portfolio import PortfolioManager
+pm = PortfolioManager()
+pm.reduce_position('sh600989', 500)
+print('✅ 已减仓')
+"
 
 # 加自选
-pm.add_watch("sz000807", "云铝股份", target_buy=12.00)
-
-# 删自选
-pm.remove_watch("sz000807")
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from portfolio import PortfolioManager
+pm = PortfolioManager()
+pm.add_watch('sz000807', '云铝股份', target_buy=12.00)
+print('✅ 已加自选')
+"
 ```
 
 加仓时自动计算加权平均成本：
@@ -154,7 +174,10 @@ action 列表：`add_position` / `reduce_position` / `remove_position` /
 **注意事项**：
 
 - 默认仅监听 `127.0.0.1`，不对外暴露。
-- **不要**同时通过 CLI 工具与本服务改 `scripts/data/portfolio.json`——后写会覆盖前写（与项目原有约定一致）。建议把本服务作为唯一录入入口。
+- **谨防竞态条件**：CLI 工具与本 Web 服务**同时**写 `scripts/data/portfolio.json` 时，后写会覆盖前写（无文件锁）。建议：
+  - 把 Web 服务作为唯一录入入口。
+  - 如果 CLI 命令后的操作确认结果与预期不符，可能是被 Web 服务覆盖。
+  - 如需同时使用，建议间隔至少 1 秒，或待 Web 服务空闲时操作（[portfolio.json](scripts/data/portfolio.json) 修改时间可作为参考）。
 - `update_position` 的 `tags` 字段是**整列表覆盖**，不是合并；要追加/删除请用 `tag_position` / `untag_position`。
 - `add_watch` 的 `target_buy=0` / `target_sell=0` 会被忽略（表示"未设"）；如要显式清零，请用 web 表单/curl 时改用 `update_watch` 路径或编辑文件。
 - 股票代码必须传 `sh600989` / `sz000807` 完整形式，不归一化。

@@ -96,7 +96,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 - 流动性：成交额、市值、换手适中程度。
 - 量价信号：放量上涨=资金介入、缩量下跌=抛压减轻、放量下跌=主力出货、缩量上涨=量价背离。
 
-硬过滤（自动，按板块差异化）：
+硬过滤（自动，按板块差异化；阈值为当前值，修改需同步 `stock-init/SKILL.md` 和 `scripts/strategies/thresholds.py`）：
 
 - ST 名称前缀匹配
 - 成交额不足（主板 <5000 万，创业板/科创板 <3500 万，北交所 <7500 万）

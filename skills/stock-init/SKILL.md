@@ -99,6 +99,8 @@ python3 scripts/init_pool.py --full-market
 
 ### 过滤阈值
 
+过滤规则与 `/screener` 硬过滤一致（见 `screener/SKILL.md` Step 1 的硬过滤描述），按上市板块差异化执行：
+
 | 板块   | 最低成交额（万元） | 最低市值（亿元） |
 | ------ | ------------------ | ---------------- |
 | 主板   | 5,000              | 40               |
@@ -106,10 +108,12 @@ python3 scripts/init_pool.py --full-market
 | 科创板 | 3,500              | 24               |
 | 北交所 | 7,500              | 16               |
 
+> ⚠️ 此表与 screener 共享。修改阈值时需同步更新 `screener/SKILL.md` 和 `scripts/strategies/thresholds.py`。
+
 ## Guardrails
 
 - 已有数据时默认跳过；用 `force` 参数才会覆盖
 - API 失败自动回退到预置数据；不静默丢失，写入 `data/stock_pool.json`
 - `default` 参数走完全离线分支，跳过所有网络请求
 - 不修改持仓数据（`portfolio.json`），不推送任何通知
-- 过滤阈值与 `/screener` 硬过滤保持一致，避免后续分析口径不一
+- 过滤阈值与 `/screener` 硬过滤保持一致（上表为当前值）
