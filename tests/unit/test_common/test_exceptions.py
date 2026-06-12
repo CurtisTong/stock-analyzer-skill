@@ -104,14 +104,18 @@ class TestHelperFunctions:
     """辅助函数测试。"""
 
     def test_format_error_custom(self):
-        """测试自定义异常格式化。"""
-        err = ValidationError("code", "abc", "格式错误")
-        assert format_error(err) == "字段 code 校验失败: 格式错误"
+        """测试自定义异常格式化（ValidationError 走用户友好消息路径）。"""
+        # code 字段触发股票代码专属提示
+        err_code = ValidationError("code", "abc", "格式错误")
+        assert format_error(err_code) == "股票代码格式不正确，请使用如 sh600989 或 600989 格式"
+        # 非特化字段走 default 友好消息
+        err_other = ValidationError("amount", -1, "必须为正数")
+        assert format_error(err_other) == "输入信息有误，请检查后重新输入"
 
     def test_format_error_generic(self):
-        """测试通用异常格式化。"""
+        """测试通用异常格式化（非项目异常 fallback）。"""
         err = ValueError("Some error")
-        assert format_error(err) == "未知错误: Some error"
+        assert format_error(err) == "发生了意外错误，请稍后重试。如果问题持续，请反馈给我们。"
 
     def test_is_retryable_error(self):
         """测试可重试错误判断。"""

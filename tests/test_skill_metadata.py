@@ -153,11 +153,10 @@ def test_model_field_valid(skill_path):
 
 
 VERSION_OVERRIDES = {
-    "portfolio": "1.5.0",  # 新增后台策略监控
-    "monitor": "1.4.0",    # 新增策略关键点位扫描
     "market": "1.5.0",     # 新增美股收盘数据参考
+    "backtest": "1.5.0",   # 新增卡玛比率/盈亏比/总交易次数指标
 }
-DEFAULT_VERSION = "1.3.1"
+DEFAULT_VERSION = "1.4.1"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
