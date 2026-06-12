@@ -105,12 +105,12 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 ### Step 3.2: 评级标准
 
-| 评级 | 基本面标准 | 估值标准 | 技术面标准 |
-|------|------------|----------|------------|
+| 评级   | 基本面标准          | 估值标准            | 技术面标准            |
+| ------ | ------------------- | ------------------- | --------------------- |
 | A+/Buy | ROE>20% 且 增速>50% | PE/ROE<1 且 PEG<0.5 | 评分>65, 多重买入信号 |
-| A/Buy | ROE>15% 且 增速>20% | PE/ROE<3 且 PEG<1 | 评分>60, 买入信号 |
-| B/Hold | ROE>10% 且 增速>0 | PE/ROE<5 | 评分50-60, 中性 |
-| C/Sell | ROE<10% 或 增速<0 | PE/ROE>5 或 PE>30 | 评分<50, 卖出信号 |
+| A/Buy  | ROE>15% 且 增速>20% | PE/ROE<3 且 PEG<1   | 评分>60, 买入信号     |
+| B/Hold | ROE>10% 且 增速>0   | PE/ROE<5            | 评分50-60, 中性       |
+| C/Sell | ROE<10% 或 增速<0   | PE/ROE>5 或 PE>30   | 评分<50, 卖出信号     |
 
 ### Step 4: ��家讨论（debate模式）
 
@@ -143,9 +143,33 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
    - 养家：重情绪周期阶段/涨停跌停家数（几乎不看基本面）
    - 作手新一：重 K线反转形态/缩量程度/止损成本
 
+   **量化基线参考**（可选但推荐）：在 LLM 推理打分前，先运行量化评分获取基线：
+
+   ```bash
+   python3 scripts/quote.py <股票代码> -j
+   python3 scripts/finance.py <股票代码> -j
+   python3 scripts/kline.py <股票代码> -j
+   ```
+
+   然后在 Python 中调用 `experts.scoring.score_expert_precise()` 获取每位专家的量化评分，
+   作为 LLM 推理的参考基线。如果量化分与 LLM 推理分差异 >15 分，需在报告中说明原因。
+
 3. **投票汇总**：按 experts/decide.md 规则——分组计票、市场环境调整权重、冲突解决（巴菲特否决权、养家情绪降权）。
 
 4. **输出**：按 decide.md §四 格式——评分表 + 方向 + 风险 + 仓位。记得计算信心指数。
+
+5. **记录校准数据**：debate 完成后，记录本次预测供后续验证：
+
+   ```bash
+   python3 scripts/calibration.py record --stock <代码> --direction <方向> \
+     --scores '{"buffett":72,"lynch":65,...}'
+   ```
+
+   输出中附带当前校准因子（如有历史数据）：
+
+   ```
+   校准因子: +0.15 (8位专家平均校准率 62%)
+   ```
 
 **长线/短线单组模式流程**（参考 experts/decide.md §七）：
 

@@ -11,6 +11,9 @@ tests/output/
 # 用户自定义持仓
 data/portfolio.json
 
+# 专家校准数据（用户本地运行时产生）
+data/expert_calibration.json
+
 # 数据缓存
 .cache/
 
