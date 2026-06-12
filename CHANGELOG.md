@@ -300,28 +300,58 @@
 - 支持 Codex（.agents/skills/）和 Claude Code（.claude/skills/）两套入口
 - 所有数据 API 在国内直连，无须代理
 
-## [Unreleased]
+## [1.7.0] - 2026-06-12
+
+### Added
+
+- 专家圆桌决策引擎 `experts/decide.py`（decide.md 代码化）：
+  - `detect_market_state()`：市场环境检测（牛市/熊市/震荡/冰点/亢奋），基于价格均线偏移、量能比、动能（MA5≈收盘价振幅≈ROC）、市场宽度指标综合判定
+  - `aggregate_votes()`：8 位专家加权投票聚合，整合市场状态权重 × 投资期限权重 × 专家分层加权，输出净多/净空/方向/强度/共识度/仓位建议/信心指数
+  - `format_debate_output()`：结构化辩论报告格式化，含方向分布条形图、共识评估、仓位上沿/下沿
+  - `_MARKET_WEIGHTS` / `_HORIZON_WEIGHTS`：双权重矩阵（市场状态 × 投资期限），支持短线/中线/长线三种周期
+  - `_EXPERT_LAYER_WEIGHTS`：三层调权（核心层 × 趋势层 × 交易层），短线交易层独享动量修正，长线核心层主导方向
+  - 仓位自适应收敛：牛市方向一致宽幅（±30%→±25%），分歧或冰点窄幅（±15%→±10%）
+- 单元测试 `tests/test_decide.py`（486 行）：market_state / aggregate_votes / format_output 全链路覆盖，含判势多场景、冰点孤例、共识判断置信边界、全零输入防护
+- 数据层动态线程数与分类型缓存：
+  - `scripts/data/config.py::get_config()` 新增 `thread_count` 动态计算（CPU 核数 × 2，上限 32），替代硬编码 8 线程
+  - 每个 Fetcher 模块独立的 `FETCHER_CONFIG`，按数据类型（quote/kline/finance）差异化配置超时与重试策略
+  - `scripts/common/utils.py::FetcherConfig` dataclass：统一 Fetcher 配置契约（`max_workers` / `timeout` / `retries`）
+  - `scripts/data/__init__.py::_split_codes_by_type()`：按股票类型分组拉取，减少线程等待（主板 4 线程 + 创业板 2 线程 + 科创板 1 线程 + 北交所 1 线程）
+  - 错误透传机制：Fetcher 级异常统一包装为 `DataError`，携带原始异常链（`__cause__`），便于定位上游数据源问题
+- 文档一致性与用户专家审查修复（P0-P3 全部）：
+  - `skills/_shared/references/alert-thresholds.md`：新增预警与告警阈值共享表，`portfolio` 和 `monitor` 共用同一份权威源
+  - 12 个 SKILL.md 全量深度审查修复（P0-P2 问题）
+  - `skills/help/SKILL.md`："高级子模式速查"表 + "9 个 skill" → "12 个 skill" 修正
+  - `skills/stock/SKILL.md`：`/stock` 参数默认行为明确、短线团专家首次出现补全全名、calibration 步骤加版本说明
+  - `skills/portfolio/SKILL.md`：数据路径修正（4 处）、allowed-tools 增补、rebalance 模式联动作业说明
+  - `workflow.md`：决策门槛表加"触发 skill"列
+  - 新增 `docs/user-guide.md` 用户指南文档
+
+### Changed
+
+- `scripts/screener.py`：同步 `data/__init__.py` 动态线程 API，分类型缓存适配
+- `tests/test_business.py` / `tests/test_screener.py`：同步新配置接口与缓存策略
 
 ### Fixed
 
 - 文档一致性与用户跑不下去的坑（用户专家审查报告 P0 必修）
-  - `skills/stock/SKILL.md`：`/stock` 不带参数时明确走 `quick`；移除 `debate (默认全模式)` 的双重"默认"声明，附提示"需要专家圆桌必须显式写 `debate`"
-  - `skills/portfolio/SKILL.md`（4 处）+ `skills/monitor/SKILL.md`（2 处）+ `allowed-tools`：数据路径 `data/portfolio.json` → `scripts/data/portfolio.json`（与实际文件位置一致）
+  - `skills/stock/SKILL.md`：移除 `debate (默认全模式)` 的双重"默认"声明，附提示"需要专家圆桌必须显式写 `debate`"
+  - `skills/portfolio/SKILL.md`（4 处）+ `skills/monitor/SKILL.md`（2 处）：数据路径 `data/portfolio.json` → `scripts/data/portfolio.json`（与实际文件位置一致）
   - `skills/portfolio/SKILL.md`：`allowed-tools` 增补 `Bash(lsof -i:8765 *)` 与 `web --status` 内部命令对齐
-  - `skills/help/SKILL.md`："9 个 skill" → "12 个 skill"；明确 `workflow.md` 路径表述
   - `skills/stock/SKILL.md`：短线团专家首次出现补全为"**炒股养家**（养家）"，跨文档统一
   - `skills/stock/SKILL.md`：第 5 步 `calibration` 记录加"需要 1.6.0+" 版本说明
   - `workflow.md`：决策门槛表加"触发 skill"列，绑定每条门槛的主动核对 / 先行调用方
 
-### Added
+### Planned
 
-- 文档润色与共享契约（用户专家审查报告 P3 润色）
-  - `skills/_shared/references/alert-thresholds.md`：新增预警与告警阈值共享表，`portfolio` 和 `monitor` 共用同一份权威源
-  - `skills/help/SKILL.md`："高级子模式速查"表列出 9 个 skill 的子模式
-  - `skills/portfolio/SKILL.md`：`rebalance` 模式说明补"按 `workflow.md` §3 联动 4 个其他 skill"的链路口径
-  - `skills/market/SKILL.md`：Guardrails 补"美股参考依赖 yfinance，未安装时跳过而不是失败"
-  - `~/.claude/skills/init-pool/SKILL.md`：旧别名壳改为"已并入 stock-init"指引，命令名错误（`/init-pool-pool`、脚本名 `init-pool_pool.py`）一并标注
-  - `skills/stock-init/SKILL.md` description：注明"旧别名 /init-pool 已并入本 skill"
+- 支持更多数据源（如雪球、同花顺）
+- 添加历史回测功能
+- 支持港股和美股分析
+- 添加更多本土战法形态
+- 优化缠论算法
+- 添加自动化测试
+
+## [Unreleased]
 
 ### Planned
 
