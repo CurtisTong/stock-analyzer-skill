@@ -5,6 +5,48 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.6.0] - 2026-06-12
+
+### Added
+
+- 专家评分硬编码体系（替代 LLM 推理 markdown）：
+  - `experts/scoring.py::score_expert_precise()`：8 位专家专属评分函数（`_score_buffett` / `_score_lynch` / `_score_soros` / `_score_duan_yongping` / `_score_xu_xiang` / `_score_zhao_laoge` / `_score_chaogu_yangjia` / `_score_zuoshou_xinyi`），精确复现 `experts/*.md §九` 评分矩阵阈值规则，输出量化基线参考；缺失函数自动回退到 `score_expert` 并标记 `method="fallback"`
+  - `experts/scoring.py::compute_confidence_index()`：信心指数计算含校准因子（公式 `consistency*0.35 + composite*0.55 + cal*0.1`，校准贡献上限 ±10 分）
+- 校准数据自动回写机制：
+  - `experts/calibration.py`：`record_prediction` / `verify_predictions` / `get_calibration` / `get_pending_predictions` / `compute_calibration_factor` / `get_calibration_report` 6 个 API，落地 `data/expert_calibration.json`，`tempfile.mkstemp + os.replace` 原子写入并发安全；同日同股按 `pred_YYYYMMDD_<code>` ID 去重覆盖
+  - `scripts/calibration.py` CLI 入口：`record` / `verify` / `report` / `pending` 4 个子命令
+  - 校准因子归一化到 `[-1, 1]`，公式 `mean × (1 − min(CV, 0.5))`
+- 全市场股票池支持（~5000 只 A 股全覆盖）：
+  - `scripts/refresh_pool.py::fetch_all_market_stocks()`：按板块归档到 `data/all_stocks.json`（主板沪 / 主板深 / 创业板 / 科创板 / 北交所），分页 `page_size=5000`，排除 ST 与未分类板块
+  - `--full-market` 参数在 `refresh_pool.py` / `screener.py` / `init_pool.py` 三处贯通：refresh 拉取并保存全量、screener 加载全市场 universe 后预筛、init 智能跳过已存在数据（除非 `--force`）
+  - `scripts/screener.py::load_full_market_universe(boards=None)` + `_BOARD_KEY_MAP`：按 `board_type()` 映射到 all_stocks.json 键名，支持子集筛选
+  - `scripts/screener.py::pre_screen_quotes()`：大池高效预筛，复用 `refresh_pool.FILTER` 统一阈值（成交额 主板 5000 万 / 创业科创 3500 万 / 北交所 7500 万；总市值 主板 40 亿 / 创业科创 24 亿 / 北交所 16 亿），支持 `--board-limit` 按板块分桶截取
+- 美股收盘数据接入（大盘分析新增美股参考板块）：
+  - `scripts/fetchers/yfinance_quote.py::YfinanceQuoteFetcher`（priority=6）：基于 `yfinance` 包，识别 `us:` 前缀，未安装包时返回 `NOT_HANDLED`；字段对齐 `Quote` 数据类型（price/prev_close/change_pct/pe/pb/total_cap 等）
+  - `scripts/fetchers/yfinance_kline.py` 同步支持 `us:` 前缀
+  - `scripts/common/__init__.py::NOT_HANDLED` 哨兵值：与 `None` 失败语义区分，`DataFetcherManager.fetch` 遇到 `NOT_HANDLED` 跳过且不计熔断失败，A 股 / 美股跨域数据源安全共存
+  - 典型用法：`python3 scripts/quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq`（标普500 / 纳指 / 道指 / VIX / SPY / QQQ）
+- npm 自动发布 workflow：
+  - 新增 `.github/workflows/release.yml`：`v*` tag push 触发，Python 3.11/3.12 矩阵测试 → `npm publish` → `softprops/action-gh-release@v2` 创建 GitHub Release（`body_path: CHANGELOG.md` + `generate_release_notes`）
+  - 需要配置 `NPM_TOKEN` secret；流程：`git tag v1.6.0 → git push --tags → 自动测试 → npm publish → GitHub Release`
+- 单元测试新增 ~126 个：
+  - `tests/test_calibration.py`（267 行）：record/verify/compute_factor/report 全链路覆盖
+  - `tests/test_scoring.py`（338 行）：8 位专家专属评分函数边界测试
+  - `tests/test_yfinance_us.py`（242 行）：US 前缀识别、NOT_HANDLED 短路、字段映射、熔断隔离 19 个用例
+  - `tests/test_screener.py` 新增 `TestPreScreenQuotes` 和全市场 universe 用例
+
+### Changed
+
+- `skills/stock/SKILL.md` debate 流程新增 2 个步骤：
+  - 「量化基线参考」：调用 `experts.scoring.score_expert_precise()` 获取量化分，与 LLM 推理分差 >15 时需说明分歧
+  - 「记录校准数据」：debate 完成后调用 `python3 scripts/calibration.py record --stock <代码> --direction <方向> --scores '{...}'` 写入校准库；输出附带当前校准因子（示例 `校准因子: +0.15`）
+- `skills/market/SKILL.md`：
+  - 数据获取段加入美股收盘命令与 `us:` 前缀约定（`us:^gspc` = 标普500、`us:spy` = SPY ETF）
+  - 新增「美股参考」段：包含 VIX 避险阈值、美股板块映射 A 股（科技→半导体、银行→金融）、美联储/美债收益率对北向资金影响
+- `skills/stock-init/SKILL.md` / `skills/screener/SKILL.md` / `skills/help/SKILL.md`：同步 `--full-market` 命令与流程说明
+- `package.json`：移除不存在的 `"main": "index.js"` 字段（避免 npm 安装时入口报错）
+- `scripts/refresh_pool.py`：去重 `_infer_exchange` 推断逻辑，统一前缀生成路径
+
 ## [1.5.0] - 2026-06-11
 
 ### Added
