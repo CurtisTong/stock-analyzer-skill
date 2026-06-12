@@ -1,0 +1,622 @@
+"""
+专家圆桌决策引擎 (decide.md 代码化)。
+
+整合 8 位专家的独立评分，输出加权投票结果、仓位建议和信心指数。
+实现 decide.md §一-§七 的完整决策规则。
+
+公开 API：
+- detect_market_state(index_quote, kline_data, breadth_data) -> dict
+- aggregate_votes(expert_results, market_state, horizon, calibration_factor) -> dict
+- format_debate_output(result) -> str
+"""
+import statistics
+from typing import Dict, List, Optional
+
+from experts import (
+    ExpertProfile,
+    direction_from_score,
+    list_long_term_experts,
+    list_short_term_experts,
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 市场环境检测 (decide.md §二)
+# ═══════════════════════════════════════════════════════════════
+
+# 市场状态 → 长线/短线权重映射
+_MARKET_WEIGHTS = {
+    "牛市": (0.40, 0.60),
+    "熊市": (0.60, 0.40),
+    "震荡": (0.55, 0.45),
+    "冰点": (0.60, 0.40),
+    "亢奋": (0.70, 0.30),
+}
+
+# 投资期限 → 长线/短线权重映射 (decide.md §一.2)
+_HORIZON_WEIGHTS = {
+    "short":  (0.35, 0.65),   # 短期操作（<1月）
+    "medium": (0.40, 0.60),   # 中期持有（1-6月）
+    "long":   (0.70, 0.30),   # 长期投资（>6月）
+}
+
+
+def detect_market_state(
+    index_quote: Optional[dict] = None,
+    kline_data: Optional[dict] = None,
+    breadth_data: Optional[dict] = None,
+) -> dict:
+    """判断市场环境状态（decide.md §二）。
+
+    Args:
+        index_quote: 大盘行情 dict（price/prev_close/change_pct）
+        kline_data: 大盘 K 线特征 dict（ma20/closes/volumes）
+        breadth_data: 市场宽度 dict（advance_ratio/new_high_low_ratio/
+            limit_down_count/margin_ratio）
+
+    Returns:
+        {
+            "state": "牛市"|"熊市"|"震荡"|"冰点"|"亢奋",
+            "long_weight": float,
+            "short_weight": float,
+            "reason": str,
+        }
+    """
+    # 默认震荡
+    state = "震荡"
+
+    if index_quote and kline_data:
+        price = index_quote.get("price", 0)
+        ma20 = kline_data.get("ma20", 0)
+        volumes = kline_data.get("volumes", [])
+        closes = kline_data.get("closes", [])
+
+        # 量能判断
+        vol_ratio = 1.0
+        if len(volumes) >= 10:
+            recent = statistics.mean(volumes[-5:])
+            base = statistics.mean(volumes[-10:])
+            vol_ratio = recent / base if base > 0 else 1.0
+
+        # 趋势判断
+        above_ma20 = price > ma20 > 0 if ma20 > 0 else False
+        below_ma20 = price < ma20 > 0 if ma20 > 0 else False
+
+        # 宽度指标
+        advance_ratio = breadth_data.get("advance_ratio", 0.5) if breadth_data else 0.5
+        high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
+        limit_down = breadth_data.get("limit_down_count", 0) if breadth_data else 0
+        margin_ratio = breadth_data.get("margin_ratio", 0) if breadth_data else 0
+
+        # PE 分位（亢奋判断）
+        pe_percentile = index_quote.get("pe_percentile", 50)
+
+        # 冰点：上涨家数比<20% + 跌停>50家 + 新高新低比<0.2
+        if advance_ratio < 0.20 and limit_down > 50 and high_low_ratio < 0.2:
+            state = "冰点"
+        # 亢奋：PE>历史90%分位 + 上涨家数比>75% + 两融余额占比>10%
+        elif pe_percentile > 90 and advance_ratio > 0.75 and margin_ratio > 10:
+            state = "亢奋"
+        # 牛市：在 MA20 上方 + 放量 + 上涨家数比>60% + 新高新低比>1.5
+        elif above_ma20 and vol_ratio > 1.2 and advance_ratio > 0.60 and high_low_ratio > 1.5:
+            state = "牛市"
+        # 熊市：在 MA20 下方 + 缩量 + 上涨家数比<40% + 新高新低比<0.5
+        elif below_ma20 and vol_ratio < 0.8 and advance_ratio < 0.40 and high_low_ratio < 0.5:
+            state = "熊市"
+        else:
+            state = "震荡"
+
+    lw, sw = _MARKET_WEIGHTS[state]
+    return {
+        "state": state,
+        "long_weight": lw,
+        "short_weight": sw,
+        "reason": _market_state_reason(state),
+    }
+
+
+def _market_state_reason(state: str) -> str:
+    reasons = {
+        "牛市": "指数在均线上方，量能放大，市场宽度良好",
+        "熊市": "指数在均线下方，量能萎缩，市场宽度收窄",
+        "震荡": "趋势不明确，等待方向选择",
+        "冰点": "极度恐慌，上涨家数极少，跌停大量",
+        "亢奋": "估值高位，情绪过热，杠杆偏高",
+    }
+    return reasons.get(state, "")
+
+
+# ═══════════════════════════════════════════════════════════════
+# 投票整合 (decide.md §一 + §三)
+# ═══════════════════════════════════════════════════════════════
+
+def _count_votes(scores: List[float]) -> Dict[str, int]:
+    """统计看多/看空票数。"""
+    bull = sum(1 for s in scores if s >= 60)
+    bear = sum(1 for s in scores if s <= 39)
+    return {"bull": bull, "bear": bear, "total": len(scores)}
+
+
+def _resolve_conflict(
+    long_votes: dict,
+    short_votes: dict,
+    long_avg: float,
+    short_avg: float,
+    buffett_score: float,
+    yangjia_score: float,
+    is_yangjia_ice: bool,
+    horizon: str,
+) -> dict:
+    """冲突解决规则（decide.md §三）。
+
+    Returns:
+        {"direction": str, "position_factor": float, "notes": list}
+    """
+    notes = []
+    direction = "中性"
+    position_factor = 1.0
+
+    lv = long_votes
+    sv = short_votes
+
+    # 双一致看多
+    if lv["bull"] >= 3 and sv["bull"] >= 3:
+        direction = "强烈看多"
+        position_factor = 1.0
+    # 双一致看空
+    elif lv["bear"] >= 3 and sv["bear"] >= 3:
+        direction = "强烈看空"
+        position_factor = 0.0
+    # 长线主导多
+    elif lv["bull"] >= 3 and sv["bull"] == 2 and sv["bear"] == 2:
+        direction = "看多"
+        position_factor = 0.8
+    # 长线主导空
+    elif lv["bear"] >= 3 and sv["bull"] == 2 and sv["bear"] == 2:
+        direction = "看空"
+        position_factor = 0.0
+    # 短线主导多
+    elif lv["bull"] == 2 and lv["bear"] == 2 and sv["bull"] >= 3:
+        direction = "谨慎看多"
+        position_factor = 0.5
+    # 短线主导空
+    elif lv["bull"] == 2 and lv["bear"] == 2 and sv["bear"] >= 3:
+        direction = "谨慎看空"
+        position_factor = 0.3
+    # 全面分歧
+    elif lv["bull"] == 2 and lv["bear"] == 2 and sv["bull"] == 2 and sv["bear"] == 2:
+        direction = "中性"
+        position_factor = 0.0
+        notes.append("全面分歧，建议观望")
+    else:
+        # 按综合分判断
+        avg = (long_avg + short_avg) / 2
+        direction = direction_from_score(avg)
+        if avg >= 60:
+            position_factor = 0.8
+        elif avg >= 40:
+            position_factor = 0.5
+        else:
+            position_factor = 0.0
+
+    # 巴菲特否决权（中长期模式）
+    if buffett_score <= 39:
+        if horizon in ("medium", "long"):
+            notes.append("巴菲特否决权触发：中长期模式下方向至少降一级")
+            direction = _downgrade_direction(direction)
+            position_factor *= 0.7
+        else:
+            notes.append("巴菲特看空，短期模式下不触发否决权，长线组降权×0.8")
+            # 长线组降权在调权阶段处理
+
+    # 养家情绪周期降权
+    if yangjia_score < 30 and not is_yangjia_ice:
+        notes.append("养家情绪退潮，短线组评分×0.7 降权")
+    elif is_yangjia_ice and yangjia_score < 30:
+        notes.append("养家判定冰点期，标注'冰点机会，需确认转折信号'（不降权）")
+
+    return {
+        "direction": direction,
+        "position_factor": position_factor,
+        "notes": notes,
+    }
+
+
+def _downgrade_direction(direction: str) -> str:
+    """方向降一级。"""
+    order = ["强烈看多", "看多", "谨慎看多", "中性", "谨慎看空", "看空", "强烈看空"]
+    try:
+        idx = order.index(direction)
+        return order[min(idx + 1, len(order) - 1)]
+    except ValueError:
+        return "中性"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 仓位建议 (decide.md §四)
+# ═══════════════════════════════════════════════════════════════
+
+def _compute_position(direction: str, confidence: float, position_factor: float) -> dict:
+    """基于方向和信心指数计算仓位建议。
+
+    Returns:
+        {"recommendation": str, "position_pct": int, "stop_loss": str, "steps": str}
+    """
+    # 基础仓位（信心驱动）
+    if confidence >= 75:
+        base = 70
+    elif confidence >= 60:
+        base = 50
+    elif confidence >= 40:
+        base = 30
+    else:
+        base = 0
+
+    position = int(base * position_factor)
+
+    # 方向修正
+    if direction in ("强烈看空", "看空"):
+        position = 0
+    elif direction == "谨慎看空":
+        position = min(position, 20)
+
+    if position == 0:
+        return {
+            "recommendation": "不建仓/观望" if "空" not in direction else "减仓/清仓",
+            "position_pct": 0,
+            "stop_loss": "-",
+            "steps": "-",
+        }
+
+    # 分步建仓
+    if position >= 50:
+        steps = f"首笔{int(position*0.5)}% → 确认后{int(position*0.3)}% → 趋势延续{int(position*0.2)}%"
+    elif position >= 30:
+        steps = f"首笔{int(position*0.6)}% → 确认后{int(position*0.4)}%"
+    else:
+        steps = f"试探性{position}%"
+
+    return {
+        "recommendation": f"标准仓位×{position_factor:.1f}",
+        "position_pct": position,
+        "stop_loss": "技术支撑位或-8%",
+        "steps": steps,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# 主入口：投票整合
+# ═══════════════════════════════════════════════════════════════
+
+def aggregate_votes(
+    expert_results: List[dict],
+    market_state: Optional[dict] = None,
+    horizon: str = "medium",
+    calibration_factor: float = 0.0,
+) -> dict:
+    """整合 8 位专家投票，输出最终决策（decide.md 完整规则）。
+
+    Args:
+        expert_results: 专家评分结果列表，每项包含：
+            - name: 专家英文名
+            - score: 0-100 评分
+            - direction: 方向标签
+            - reason: 核心理由（1句话）
+            - breakdown: 评分明细 dict
+        market_state: detect_market_state() 的输出，None 时使用默认权重
+        horizon: "short"(<1月) / "medium"(1-6月) / "long"(>6月)
+        calibration_factor: 校准因子 [-1, 1]，默认 0
+
+    Returns:
+        {
+            "market_state": str,
+            "long_weight": float,
+            "short_weight": float,
+            "expert_results": list,
+            "long_avg": float,
+            "short_avg": float,
+            "composite_score": float,
+            "direction": str,
+            "confidence": float,
+            "long_votes": dict,
+            "short_votes": dict,
+            "position": dict,
+            "risk_notes": list,
+            "notes": list,
+        }
+    """
+    # 分组
+    long_experts = [r for r in expert_results if r.get("group") == "long_term"]
+    short_experts = [r for r in expert_results if r.get("group") == "short_term"]
+
+    # 如果没有 group 信息，按前4后4分
+    if not long_experts and not short_experts and len(expert_results) == 8:
+        long_experts = expert_results[:4]
+        short_experts = expert_results[4:]
+
+    long_scores = [r["score"] for r in long_experts]
+    short_scores = [r["score"] for r in short_experts]
+
+    long_avg = statistics.mean(long_scores) if long_scores else 50
+    short_avg = statistics.mean(short_scores) if short_scores else 50
+
+    # 市场环境权重
+    if market_state:
+        mkt = market_state["state"]
+        lw = market_state["long_weight"]
+        sw = market_state["short_weight"]
+    else:
+        mkt = "震荡"
+        lw, sw = _HORIZON_WEIGHTS.get(horizon, (0.55, 0.45))
+
+    # 养家降权处理
+    yangjia = next((r for r in expert_results if r.get("name") == "chaogu_yangjia"), None)
+    yangjia_score = yangjia["score"] if yangjia else 50
+    is_yangjia_ice = False
+    if yangjia and yangjia.get("breakdown"):
+        # 检查是否冰点期（情绪周期维度得分高）
+        dim_scores = yangjia.get("dim_scores", {})
+        emotion_score = dim_scores.get("情绪", dim_scores.get("情绪周期", 50))
+        is_yangjia_ice = emotion_score >= 80 and yangjia_score < 30
+
+    # 养家情绪退潮降权（非冰点时）
+    if yangjia_score < 30 and not is_yangjia_ice:
+        adjusted_short = []
+        for r in short_experts:
+            if r.get("name") == "chaogu_yangjia":
+                adjusted_short.append(r["score"])
+            else:
+                adjusted_short.append(r["score"] * 0.7)
+        short_avg = statistics.mean(adjusted_short) if adjusted_short else short_avg
+
+    # 巴菲特降权（短期模式看空时）
+    buffett = next((r for r in expert_results if r.get("name") == "buffett"), None)
+    buffett_score = buffett["score"] if buffett else 50
+    if buffett_score <= 39 and horizon == "short":
+        adjusted_long = []
+        for r in long_experts:
+            if r.get("name") == "buffett":
+                adjusted_long.append(r["score"])
+            else:
+                adjusted_long.append(r["score"] * 0.8)
+        long_avg = statistics.mean(adjusted_long) if adjusted_long else long_avg
+
+    # 综合分
+    composite = long_avg * lw + short_avg * sw
+
+    # 投票统计
+    long_votes = _count_votes(long_scores)
+    short_votes = _count_votes(short_scores)
+
+    # 冲突解决
+    conflict = _resolve_conflict(
+        long_votes, short_votes, long_avg, short_avg,
+        buffett_score, yangjia_score, is_yangjia_ice, horizon,
+    )
+    direction = conflict["direction"]
+    position_factor = conflict["position_factor"]
+
+    # 信心指数
+    all_scores = long_scores + short_scores
+    from experts.scoring import compute_confidence_index
+    confidence = compute_confidence_index(all_scores, composite, calibration_factor)
+
+    # 仓位建议
+    position = _compute_position(direction, confidence, position_factor)
+
+    # 风险提示
+    risk_notes = []
+    for r in expert_results:
+        if r["score"] <= 39:
+            risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
+
+    return {
+        "market_state": mkt,
+        "long_weight": lw,
+        "short_weight": sw,
+        "expert_results": expert_results,
+        "long_avg": round(long_avg, 1),
+        "short_avg": round(short_avg, 1),
+        "composite_score": round(composite, 1),
+        "direction": direction,
+        "confidence": round(confidence, 1),
+        "long_votes": long_votes,
+        "short_votes": short_votes,
+        "position_factor": position_factor,
+        "position": position,
+        "risk_notes": risk_notes,
+        "notes": conflict["notes"],
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# 单组模式 (decide.md §七)
+# ═══════════════════════════════════════════════════════════════
+
+def aggregate_group_votes(
+    expert_results: List[dict],
+    group: str = "long_term",
+    calibration_factor: float = 0.0,
+) -> dict:
+    """单组模式投票整合（decide.md §七）。
+
+    Args:
+        expert_results: 该组 4 位专家的评分结果
+        group: "long_term" 或 "short_term"
+        calibration_factor: 校准因子
+
+    Returns:
+        与 aggregate_votes 类似的结构，但只有单组数据
+    """
+    scores = [r["score"] for r in expert_results]
+    avg = statistics.mean(scores) if scores else 50
+
+    votes = _count_votes(scores)
+    direction = "中性"
+    position_factor = 0.0
+
+    # 组内投票规则 (§七.1)
+    if all(s >= 70 for s in scores):
+        direction = "强烈看多"
+        position_factor = 1.2
+    elif votes["bull"] >= 3 and votes["bear"] == 0:
+        direction = "看多"
+        position_factor = 1.0
+    elif votes["bull"] == 3 and any(s <= 39 for s in scores):
+        # 3/4看多 + 1票否决
+        direction = "看多"
+        position_factor = 0.7
+    elif votes["bull"] == 2 and votes["bear"] == 2:
+        direction = "中性"
+        position_factor = 0.0
+    elif votes["bear"] >= 3:
+        direction = "看空"
+        position_factor = 0.0
+    elif all(s <= 30 for s in scores):
+        direction = "强烈看空"
+        position_factor = 0.0
+
+    # 信心指数（单组模式 §七.3）
+    if scores:
+        mean = statistics.mean(scores)
+        cv = statistics.stdev(scores) / mean if mean > 0 and len(scores) > 1 else 0
+        consistency = max(0.0, min(100.0, 100 - cv * 150))
+        confidence = consistency * 0.35 + avg * 0.65
+    else:
+        confidence = 50.0
+
+    position = _compute_position(direction, confidence, position_factor)
+
+    risk_notes = []
+    for r in expert_results:
+        if r["score"] <= 39:
+            risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
+
+    return {
+        "group": group,
+        "avg_score": round(avg, 1),
+        "direction": direction,
+        "confidence": round(confidence, 1),
+        "votes": votes,
+        "position_factor": position_factor,
+        "position": position,
+        "expert_results": expert_results,
+        "risk_notes": risk_notes,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════
+# 输出格式化 (decide.md §四)
+# ═══════════════════════════════════════════════════════════════
+
+def format_debate_output(result: dict) -> str:
+    """格式化 debate 输出（decide.md §四 格式）。"""
+    lines = []
+
+    lines.append("## 专家圆桌投票结果")
+    lines.append(
+        f"**市场状态**: {result['market_state']} | "
+        f"**长线权重**: {result['long_weight']:.0%} | "
+        f"**短线权重**: {result['short_weight']:.0%}"
+    )
+    lines.append("")
+
+    # 评分表
+    lines.append("| 专家 | 评分 | 方向 | 核心理由 |")
+    lines.append("|------|------|------|----------|")
+    for r in result.get("expert_results", []):
+        name = r.get("display_name", r.get("name", "?"))
+        score = r.get("score", 0)
+        direction = r.get("direction", direction_from_score(score))
+        reason = r.get("reason", "-")
+        lines.append(f"| {name} | {score} | {direction} | {reason} |")
+
+    lines.append("")
+
+    # 分组汇总
+    lines.append("## 分组汇总")
+    lv = result["long_votes"]
+    sv = result["short_votes"]
+    lines.append(
+        f"- 长线组平均: {result['long_avg']}分 | "
+        f"看多{lv['bull']}票 / 看空{lv['bear']}票"
+    )
+    lines.append(
+        f"- 短线组平均: {result['short_avg']}分 | "
+        f"看多{sv['bull']}票 / 看空{sv['bear']}票"
+    )
+    lines.append(f"- 调整后综合分: {result['composite_score']}/100")
+    lines.append(f"- **最终方向: {result['direction']}**")
+    lines.append(f"- 信心指数: {result['confidence']}/100")
+    lines.append("")
+
+    # 风险提示
+    if result.get("risk_notes"):
+        lines.append("## 风险提示")
+        for note in result["risk_notes"]:
+            lines.append(f"- {note}")
+        lines.append("")
+
+    # 仓位建议
+    pos = result.get("position", {})
+    lines.append("## 仓位建议")
+    lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}% ({pos.get('recommendation', '-')})")
+    lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
+    lines.append(f"- 分步建仓: {pos.get('steps', '-')}")
+
+    # 特殊备注
+    if result.get("notes"):
+        lines.append("")
+        lines.append("### 特殊规则触发")
+        for note in result["notes"]:
+            lines.append(f"- {note}")
+
+    return "\n".join(lines)
+
+
+def format_group_output(result: dict) -> str:
+    """格式化单组模式输出（decide.md §七.4）。"""
+    group_name = "长线模式" if result["group"] == "long_term" else "短线模式"
+    lines = []
+
+    lines.append(f"## 专家圆桌投票结果（{group_name}）")
+    lines.append("")
+
+    lines.append("| 专家 | 评分 | 方向 | 核心理由 |")
+    lines.append("|------|------|------|----------|")
+    for r in result.get("expert_results", []):
+        name = r.get("display_name", r.get("name", "?"))
+        score = r.get("score", 0)
+        direction = r.get("direction", direction_from_score(score))
+        reason = r.get("reason", "-")
+        lines.append(f"| {name} | {score} | {direction} | {reason} |")
+
+    lines.append("")
+    lines.append("## 组内汇总")
+    v = result["votes"]
+    lines.append(f"- 平均分: {result['avg_score']}/100 | 看多{v['bull']}票 / 看空{v['bear']}票")
+    lines.append(f"- **最终方向: {result['direction']}**")
+    lines.append(f"- 信心指数: {result['confidence']}/100")
+    lines.append("")
+
+    if result.get("risk_notes"):
+        lines.append("## 风险提示")
+        for note in result["risk_notes"]:
+            lines.append(f"- {note}")
+        lines.append("")
+
+    pos = result.get("position", {})
+    lines.append("## 仓位建议")
+    lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}%")
+    lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
+
+    return "\n".join(lines)
+
+
+__all__ = [
+    "detect_market_state",
+    "aggregate_votes",
+    "aggregate_group_votes",
+    "format_debate_output",
+    "format_group_output",
+]
