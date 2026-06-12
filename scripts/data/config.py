@@ -19,19 +19,27 @@ def _load_yaml_config() -> dict:
 @dataclass
 class DataConfig:
     """数据层配置。"""
-    # 缓存 TTL (秒)
+    # 缓存 TTL (秒) - 分类型配置
     quote_cache_ttl: int = 900       # 15 分钟（盘后）
     intraday_quote_cache_ttl: int = 90  # 90 秒（盘中）
     kline_cache_ttl: int = 21600     # 6 小时
+    kline_1m_cache_ttl: int = 30     # 30 秒（分钟K线）
+    kline_240m_cache_ttl: int = 3600 # 1 小时（日K线）
     finance_cache_ttl: int = 21600   # 6 小时
+    margin_cache_ttl: int = 3600     # 1 小时（融资融券）
     ann_cache_ttl: int = 1800        # 30 分钟
 
     # 熔断器
     circuit_failure_threshold: int = 5
     circuit_recovery_timeout: int = 60
 
-    # 并发
-    max_workers: int = 8
+    # 并发 - 动态计算
+    @property
+    def max_workers(self) -> int:
+        """动态计算最优工作线程数"""
+        import os
+        cpu_count = os.cpu_count() or 4
+        return min(max(cpu_count * 2, 8), 32)
 
     @classmethod
     def from_yaml_and_env(cls) -> "DataConfig":
@@ -53,10 +61,13 @@ class DataConfig:
         cfg.quote_cache_ttl = int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl))
         cfg.intraday_quote_cache_ttl = int(os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl))
         cfg.kline_cache_ttl = int(os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl))
+        cfg.kline_1m_cache_ttl = int(os.getenv("DATA_KLINE_1M_TTL", cfg.kline_1m_cache_ttl))
+        cfg.kline_240m_cache_ttl = int(os.getenv("DATA_KLINE_240M_TTL", cfg.kline_240m_cache_ttl))
         cfg.finance_cache_ttl = int(os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl))
+        cfg.margin_cache_ttl = int(os.getenv("DATA_MARGIN_TTL", cfg.margin_cache_ttl))
         cfg.circuit_failure_threshold = int(os.getenv("DATA_CIRCUIT_THRESHOLD", cfg.circuit_failure_threshold))
         cfg.circuit_recovery_timeout = int(os.getenv("DATA_CIRCUIT_TIMEOUT", cfg.circuit_recovery_timeout))
-        cfg.max_workers = int(os.getenv("DATA_MAX_WORKERS", cfg.max_workers))
+        # max_workers 通过 @property 动态计算，不从环境变量读取
         return cfg
 
     @classmethod

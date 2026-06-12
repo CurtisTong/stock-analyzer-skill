@@ -1,9 +1,12 @@
 """akshare 财务数据源（需要 akshare 包）。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import akshare as ak
@@ -31,5 +34,6 @@ class AkshareFinanceFetcher(BaseFetcher):
             for _, row in df.head(4).iterrows():
                 result.append(row.to_dict())
             return result if result else None
-        except Exception:
+        except Exception as e:
+            logger.debug("akshare_finance 获取失败 %s: %s", code, e)
             return None

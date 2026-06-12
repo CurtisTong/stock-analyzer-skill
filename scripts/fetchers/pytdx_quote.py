@@ -1,9 +1,12 @@
 """通达信行情数据源（需要 pytdx 包）。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     from pytdx.hq import TdxHq_API
@@ -73,6 +76,7 @@ class PytdxQuoteFetcher(BaseFetcher):
                         "total_cap": "",
                         "circulating_cap": "",
                     }
-            except Exception:
+            except Exception as e:
+                logger.debug("pytdx_quote 连接 %s:%s 失败: %s", host, port, e)
                 continue
         return None

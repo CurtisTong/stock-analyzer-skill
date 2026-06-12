@@ -1,9 +1,12 @@
 """efinance 财务数据源（需要 efinance 包）。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import efinance as ef
@@ -28,5 +31,6 @@ class EfinanceFinanceFetcher(BaseFetcher):
                 return None
             # 返回最近 4 季数据
             return [df.to_dict()]
-        except Exception:
+        except Exception as e:
+            logger.debug("efinance_finance 获取失败 %s: %s", code, e)
             return None

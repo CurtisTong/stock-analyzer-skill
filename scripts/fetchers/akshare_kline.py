@@ -1,9 +1,12 @@
 """akshare K 线数据源（需要 akshare 包）。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import akshare as ak
@@ -55,5 +58,6 @@ class AkshareKlineFetcher(BaseFetcher):
                     "volume": str(row.get("成交量", 0)),
                 })
             return result if result else None
-        except Exception:
+        except Exception as e:
+            logger.debug("akshare_kline 获取失败 %s: %s", code, e)
             return None

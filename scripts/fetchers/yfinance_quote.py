@@ -2,11 +2,14 @@
 
 仅处理 us: 前缀的美股代码（如 us:^gspc、us:spy），A 股代码返回 NOT_HANDLED 不干扰现有链路。
 """
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, NOT_HANDLED
+
+logger = logging.getLogger(__name__)
 
 try:
     import yfinance as yf
@@ -111,5 +114,6 @@ class YfinanceQuoteFetcher(BaseFetcher):
                 "circulating_cap": "0",
                 "source": "yfinance",
             }
-        except Exception:
+        except Exception as e:
+            logger.debug("yfinance_quote 获取失败 %s: %s", code, e)
             return None

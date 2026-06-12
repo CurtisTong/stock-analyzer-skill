@@ -1,10 +1,13 @@
 """Tushare K 线数据源（需要 tushare 包 + token）。"""
+import logging
 import sys
 import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import tushare as ts
@@ -58,5 +61,6 @@ class TushareKlineFetcher(BaseFetcher):
                 })
             result.reverse()  # tushare 返回倒序
             return result if result else None
-        except Exception:
+        except Exception as e:
+            logger.debug("tushare_kline 获取失败 %s: %s", code, e)
             return None

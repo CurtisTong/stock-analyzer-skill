@@ -1,9 +1,12 @@
 """通达信 K 线数据源（需要 pytdx 包）。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     from pytdx.hq import TdxHq_API
@@ -65,6 +68,7 @@ class PytdxKlineFetcher(BaseFetcher):
                             "volume": str(d.get("vol", 0)),
                         })
                     return result if result else None
-            except Exception:
+            except Exception as e:
+                logger.debug("pytdx_kline 连接 %s:%s 失败: %s", host, port, e)
                 continue
         return None

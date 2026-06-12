@@ -89,13 +89,29 @@ def get_quotes(codes: list, use_cache: bool = True) -> list:
 
 def get_kline(code: str, scale: int = 240, datalen: int = 30,
               use_cache: bool = True) -> list:
-    """获取 K 线数据。"""
+    """获取 K 线数据。
+
+    Args:
+        code: 股票代码
+        scale: K线周期（1/5/15/30/60/240/1440）
+        datalen: 数据长度
+        use_cache: 是否使用缓存
+    """
     _load_fetchers()
     cfg = get_config()
+
+    # 根据周期选择合适的 TTL
+    if scale == 1:
+        cache_ttl = cfg.kline_1m_cache_ttl
+    elif scale == 240:
+        cache_ttl = cfg.kline_240m_cache_ttl
+    else:
+        cache_ttl = cfg.kline_cache_ttl
+
     key = f"kline_{code}_{scale}_{datalen}"
 
     if use_cache:
-        cached = cache.get_json(key, cfg.kline_cache_ttl)
+        cached = cache.get_json(key, cache_ttl)
         if cached:
             return [_dict_to_kline_bar(bar) for bar in cached]
 

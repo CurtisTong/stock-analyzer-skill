@@ -1,10 +1,12 @@
 """同花顺行情数据源。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get, to_float
 
+logger = logging.getLogger(__name__)
 
 # 同花顺行情 API（公开接口）
 THS_URL = "https://d.10jqka.com.cn/v6/line/hs_{market}_{code}/01/last.js"
@@ -55,7 +57,8 @@ def _parse_quote(text: str, code: str) -> dict | None:
             "amount": 0,
             "source": "ths",
         }
-    except Exception:
+    except Exception as e:
+        logger.debug("ths 解析失败 %s: %s", code, e)
         return None
 
 
@@ -76,5 +79,6 @@ class ThsQuoteFetcher(BaseFetcher):
             raw = http_get(url, timeout=10)
             text = raw.decode("utf-8", errors="ignore")
             return _parse_quote(text, code)
-        except Exception:
+        except Exception as e:
+            logger.debug("ths_quote 获取失败 %s: %s", code, e)
             return None

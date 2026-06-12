@@ -171,6 +171,7 @@ def err(msg: str):
 def parallel_map(fn, items, max_workers=8, timeout=60):
     """并发执行 fn(item)，返回 {item: result} 字典。"""
     import logging
+    from common.exceptions import RateLimitError
     logger = logging.getLogger(__name__)
     results = {}
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -179,6 +180,8 @@ def parallel_map(fn, items, max_workers=8, timeout=60):
             item = futures[future]
             try:
                 results[item] = future.result()
+            except RateLimitError:
+                raise  # 限流不吞掉，让调用方感知
             except Exception as e:
                 logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None

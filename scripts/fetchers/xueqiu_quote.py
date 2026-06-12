@@ -1,9 +1,12 @@
 """雪球行情数据源。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get_with_headers, to_float
+
+logger = logging.getLogger(__name__)
 
 # 雪球行情 API
 XUEQIU_URL = "https://stock.xueqiu.com/v5/stock/quote.json?symbol={symbol}&extend=detail"
@@ -64,5 +67,6 @@ class XueqiuQuoteFetcher(BaseFetcher):
             import json
             data = json.loads(raw)
             return _parse_quote(data)
-        except Exception:
+        except Exception as e:
+            logger.debug("xueqiu_quote 获取失败 %s: %s", code, e)
             return None

@@ -60,7 +60,9 @@ class TestScreeningServiceInit:
     def test_default_strategy(self):
         svc = ScreeningService()
         assert svc.default_strategy == "balanced"
-        assert svc.max_workers == 8
+        # v1.7: max_workers 改为动态计算（CPU 核心数×2，上限 32）
+        assert svc.max_workers >= 4
+        assert svc.max_workers <= 32
 
 
 # ═══════════════════════════════════════════════════════════════

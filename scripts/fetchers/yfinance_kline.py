@@ -1,9 +1,12 @@
 """Yahoo Finance K 线数据源（需要 yfinance 包）。"""
+import logging
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import yfinance as yf
@@ -70,5 +73,6 @@ class YfinanceKlineFetcher(BaseFetcher):
                     "volume": str(int(row.get("Volume", 0))),
                 })
             return result if result else None
-        except Exception:
+        except Exception as e:
+            logger.debug("yfinance_kline 获取失败 %s: %s", code, e)
             return None

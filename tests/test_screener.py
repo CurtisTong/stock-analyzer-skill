@@ -586,8 +586,14 @@ class TestDailyFeatures:
     """日线特征提取（mock K 线数据）。"""
 
     def test_short_data_returns_defaults(self, monkeypatch):
+        """v1.7: daily_features 委托给 business.screening_service.compute_features，
+        后者内部调用 data.get_kline。"""
+        from data import KlineBar
         import screener
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
+
+        # 构造空的 KlineBar 列表 mock get_kline
+        empty_bars = []
+        monkeypatch.setattr("data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: empty_bars)
 
         result = daily_features("sh600519")
         assert result["trend"] == 0
@@ -595,8 +601,25 @@ class TestDailyFeatures:
         assert result["macd_signal"] == 0
 
     def test_with_uptrend_data(self, monkeypatch, kline_uptrend):
+        """v1.7: 同上，mock get_kline 返回真实数据。"""
+        from data import KlineBar
         import screener
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: kline_uptrend)
+
+        # kline_uptrend fixture 是 dict 列表，需转换为 KlineBar
+        bars = [
+            KlineBar(
+                day=r.get("day", ""),
+                open=r.get("open", 0),
+                high=r.get("high", 0),
+                low=r.get("low", 0),
+                close=r.get("close", 0),
+                volume=r.get("volume", 0),
+                amount=r.get("amount", 0),
+                pct_chg=r.get("pct_chg", 0),
+            )
+            for r in kline_uptrend
+        ]
+        monkeypatch.setattr("data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: bars)
 
         result = daily_features("sh600519")
         assert "trend" in result

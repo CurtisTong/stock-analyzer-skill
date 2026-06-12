@@ -1,10 +1,13 @@
 """Tushare 行情数据源（需要 tushare 包 + token）。"""
+import logging
 import sys
 import os
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import tushare as ts
@@ -58,5 +61,6 @@ class TushareQuoteFetcher(BaseFetcher):
                 "total_cap": "",
                 "circulating_cap": "",
             }
-        except Exception:
+        except Exception as e:
+            logger.debug("tushare_quote 获取失败 %s: %s", code, e)
             return None

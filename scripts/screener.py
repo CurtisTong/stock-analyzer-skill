@@ -11,7 +11,6 @@ A 股多因子选股器。
 """
 import argparse
 import json
-import statistics
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -29,10 +28,8 @@ from data import get_quote, get_quotes, get_kline, get_finance
 from classifier import infer_industry
 from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score, volatility_from_closes, dividend_score
 from strategies.thresholds import get_industry_threshold, load_industry_thresholds
-from technical.core import ema
-from technical.macd import macd_full as macd_features
-from technical.rsi import rsi_features
 from technical.volume import volume_analysis
+from business.screening_service import compute_features
 
 
 # ---------- 数据层适配函数 ----------
@@ -242,54 +239,8 @@ def volume_price_features(closes, volumes):
 
 
 def daily_features(code):
-    records = _fetch_kline_dicts(code, 240, 30)
-    closes = [to_float(r.get("close")) for r in records if to_float(r.get("close")) > 0]
-    volumes = [to_float(r.get("volume")) for r in records if to_float(r.get("volume")) > 0]
-    if len(closes) < 10:
-        return {
-            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1,
-            "macd_signal": 0, "rsi": 50, "rsi_signal": 0, "vol_price_signal": 0,
-        }
-
-    last = closes[-1]
-    ma10 = statistics.mean(closes[-10:])
-    ma20 = statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
-    base = closes[-21] if len(closes) >= 21 else closes[0]
-    ret20 = (last / base - 1) * 100 if base else 0
-    recent_vol = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else 0
-    base_vol = statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol
-    volume_ratio = recent_vol / base_vol if base_vol else 1
-    trend = 0
-    if last > ma10 > ma20:
-        trend = 1
-    elif last < ma10 < ma20:
-        trend = -1
-
-    # MACD
-    macd = macd_features(closes) or {"signal": 0}
-    macd_signal = macd.get("signal", 0)
-
-    # RSI
-    rsi = rsi_features(closes)
-    rsi_val = rsi["rsi"]
-    rsi_signal = rsi["signal"]
-
-    # 量价关系（v1.3.2：委托给 technical.volume.volume_analysis）
-    vp = volume_analysis(closes, volumes) or {}
-    vol_price_signal = vp.get("volume_price_signal", 0)
-
-    return {
-        "trend": trend,
-        "ret20": ret20,
-        "ma10": ma10,
-        "ma20": ma20,
-        "volume_ratio": volume_ratio,
-        "macd_signal": macd_signal,
-        "rsi": round(rsi_val, 1),
-        "rsi_signal": rsi_signal,
-        "vol_price_signal": vol_price_signal,
-        "closes": closes,  # 用于波动率因子计算
-    }
+    """计算技术指标特征（复用 business 层 compute_features，消除重复计算）。"""
+    return compute_features(code)
 
 
 def hard_filter(quote, fin, args):
@@ -307,13 +258,17 @@ def prefetch_finance_all(codes):
     """并发拉取所有股票的财务数据。"""
     results = {}
 
+    # 动态计算最优线程数
+    cpu_count = __import__("os").cpu_count() or 4
+    max_workers = min(max(len(codes) // 10, 4), cpu_count * 2)
+
     def _fetch_one(code):
         # data 层已有零值缓存校验，自动跳过无效缓存
         from data import get_finance
         records = get_finance(normalize_finance_code(code))
         return code, [r.to_dict() for r in records]
 
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futures = {ex.submit(_fetch_one, c): c for c in codes}
         for future in as_completed(futures):
             try:

@@ -1,10 +1,13 @@
 """akshare 行情数据源（需要 akshare 包）。"""
+import logging
 import sys
 import time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+
+logger = logging.getLogger(__name__)
 
 try:
     import akshare as ak
@@ -62,5 +65,6 @@ class AkshareQuoteFetcher(BaseFetcher):
                 "total_cap": str(r.get("总市值", 0)),
                 "circulating_cap": str(r.get("流通市值", 0)),
             }
-        except Exception:
+        except Exception as e:
+            logger.debug("akshare_quote 获取失败 %s: %s", code, e)
             return None
