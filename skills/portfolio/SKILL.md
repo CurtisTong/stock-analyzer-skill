@@ -3,7 +3,7 @@ name: portfolio
 description: A 股持仓组合管理与健康检查 skill。支持持仓 CRUD（买入/加仓/减仓/清仓）、自选股管理、组合实时涨跌、仓位/板块集中度、风险预警、调仓再平衡和持仓标的对比。v2 数据模型支持成本价、数量、买入日期和标签。
 version: 1.4.1
 model: sonnet
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Portfolio Management
@@ -39,7 +39,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 | 模式             | 说明                               |
 | ---------------- | ---------------------------------- |
 | `health`（默认） | 持仓健康检查，涨跌+支撑位+风险预警 |
-| `rebalance`      | 结合大盘风格给出调仓建议           |
+| `rebalance`      | 结合大盘风格给出调仓建议（**会按 `workflow.md` §3 "持仓再平衡"链路联动 `market` → `technical` → `screener` → `stock`**，不是单点输出） |
 | `compare`        | 持仓标的互相对比+替换建议          |
 
 ### Web 录入
@@ -66,7 +66,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 ## Instructions
 
-使用中文，输出用表格+红绿标记。先给组合状态和最需要处理的风险，再给逐项数据。不要假设用户的真实持仓，除非 `data/portfolio.json` 或用户消息提供了持仓。
+使用中文，输出用表格+红绿标记。先给组合状态和最需要处理的风险，再给逐项数据。不要假设用户的真实持仓，除非 `scripts/data/portfolio.json` 或用户消息提供了持仓。
 
 ### Web 录入命令处理
 
@@ -94,7 +94,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 ### 持仓数据读取
 
-Claude Code 运行时工作目录即为项目根目录。先读取 `data/portfolio.json`；不存在时使用 `data/portfolio_example.json`，并在输出中标注"示例持仓"。
+Claude Code 运行时工作目录即为项目根目录。先读取 `scripts/data/portfolio.json`；不存在时使用 `scripts/data/portfolio_example.json`，并在输出中标注"示例持仓"。
 
 v2 数据模型包含 `positions`（持仓）和 `watchlist`（自选）两个列表。自动兼容 v1 格式（仅 `codes` 列表），首次使用时提示用户补充持仓信息。
 
@@ -154,7 +154,7 @@ action 列表：`add_position` / `reduce_position` / `remove_position` /
 **注意事项**：
 
 - 默认仅监听 `127.0.0.1`，不对外暴露。
-- **不要**同时通过 CLI 工具与本服务改 `portfolio.json`——后写会覆盖前写（与项目原有约定一致）。建议把本服务作为唯一录入入口。
+- **不要**同时通过 CLI 工具与本服务改 `scripts/data/portfolio.json`——后写会覆盖前写（与项目原有约定一致）。建议把本服务作为唯一录入入口。
 - `update_position` 的 `tags` 字段是**整列表覆盖**，不是合并；要追加/删除请用 `tag_position` / `untag_position`。
 - `add_watch` 的 `target_buy=0` / `target_sell=0` 会被忽略（表示"未设"）；如要显式清零，请用 web 表单/curl 时改用 `update_watch` 路径或编辑文件。
 - 股票代码必须传 `sh600989` / `sz000807` 完整形式，不归一化。
@@ -235,6 +235,8 @@ action 列表：`add_position` / `reduce_position` / `remove_position` /
 
 ### 风险预警规则
 
+> 权威阈值表：`../_shared/references/alert-thresholds.md`（与 `monitor` 共享）。
+
 | 预警    | 条件             | 操作建议  |
 | ------- | ---------------- | --------- |
 | 🔴 破位 | 跌破关键支撑位   | 减仓/止损 |
@@ -250,4 +252,4 @@ action 列表：`add_position` / `reduce_position` / `remove_position` /
 - 未知成本价时，不计算真实盈亏，只做当日涨跌、估值和风险状态。
 - 调仓建议必须包含"减/加多少、触发条件、替代标的或现金比例"，避免泛泛而谈。
 - 不要建议超过用户风险承受能力的集中仓位；单一行业或主题过重时优先提示组合风险。
-- 本 web server 与 CLI / 外部脚本同时写 portfolio.json 时，后写覆盖前写；建议 web 作为唯一录入入口。
+- 本 web server 与 CLI / 外部脚本同时写 `scripts/data/portfolio.json` 时，后写覆盖前写；建议 web 作为唯一录入入口。

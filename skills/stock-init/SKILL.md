@@ -11,6 +11,8 @@ allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh
 
 为 A 股各板块初始化前 20 只活跃股票，供选股、板块分析等 skill 使用。
 
+> **旧别名**：`/init-pool` 已并入本 skill。详见 [`~/.claude/skills/init-pool/SKILL.md`](file:///Users/curtis/.claude/skills/init-pool/SKILL.md)。
+
 ## Usage
 
 ```text

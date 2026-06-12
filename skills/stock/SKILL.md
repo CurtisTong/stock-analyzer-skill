@@ -18,9 +18,11 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 - `quick`（默认）：基本面+估值+技术面，3分钟出结论
 - `full`：五层完整分析+风险收益比+仓位建议
-- `debate`（默认全模式）：五层分析 + 8人专家圆桌多空辩论
+- `debate`：五层分析 + 8人专家圆桌多空辩论（8 人全模式）
 - `debate 长线`：仅长线4人（巴菲特/林奇/索罗斯/段永平），适合价值投资者
-- `debate 短线`：仅短线4人（徐翔/赵老哥/养家/作手新一），适合交易型选手
+- `debate 短线`：仅短线4人（徐翔/赵老哥/炒股养家/作手新一），适合交易型选手
+
+> `/stock` 不带参数时走 `quick`；需要专家圆桌必须显式写 `debate`。
 
 ## 共享约定
 
@@ -95,7 +97,7 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 **debate 短线模式：**
 
 - 五层分析
-- 仅4位短线专家（徐翔/赵老哥/养家/作手新一）
+- 仅4位短线专家（徐翔/赵老哥/炒股养家/作手新一）
 - 组内投票，无跨组加权
 - 适合短线交易时机判断
 
@@ -122,8 +124,10 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 | 长线模式       | `debate 长线` | 长线4人            | 组内投票，无跨组权重   |
 | 短线模式       | `debate 短线` | 短线4人            | 组内投票，无跨组权重   |
 
+> 专家全名：徐翔、赵老哥、**炒股养家**（养家）、作手新一。
+
 长线团：巴菲特（价值）、彼得林奇（成长）、索罗斯（趋势）、段永平（逆向）
-短线团：徐翔（涨停板）、赵老哥（趋势龙头）、炒股养家（情绪流）、作手新一（低吸）
+短线团：徐翔（涨停板）、赵老哥（趋势龙头）、炒股养家（养家，情绪流）、作手新一（低吸）
 
 **全模式标准流程**（参考 experts/decide.md 决策引擎）：
 
@@ -158,7 +162,7 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 4. **输出**：按 decide.md §四 格式——评分表 + 方向 + 风险 + 仓位。记得计算信心指数。
 
-5. **记录校准数据**：debate 完成后，记录本次预测供后续验证：
+5. **记录校准数据**：debate 完成后，记录本次预测供后续验证（**需要 1.6.0+**，`scripts/calibration.py` 由 1.6.0 引入；旧版本可跳过此步，不影响主流程）：
 
    ```bash
    python3 scripts/calibration.py record --stock <代码> --direction <方向> \

@@ -3,7 +3,7 @@ name: monitor
 description: A 股盘中监控与消息推送 skill。支持持仓异动监控、价格预警、技术信号推送、市场环境预警、策略关键点位扫描，通过 Bark/企业微信/钉钉等通道推送通知。用于持仓实时盯盘（盘中定时任务），非交易时段静默。
 version: 1.4.1
 model: sonnet
-allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/config/notification.yaml) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/config/notification.yaml) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Monitor
@@ -41,7 +41,7 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Us
 
 ## Instructions
 
-使用中文输出。监控依赖 `data/portfolio.json` 中的持仓数据。
+使用中文输出。监控依赖 `scripts/data/portfolio.json` 中的持仓数据。
 
 ### 初始化
 
@@ -68,6 +68,8 @@ pm = PortfolioManager()
 通道实现: `scripts/monitor/channels/`
 
 ### 推送规则
+
+> 权威阈值表：`../_shared/references/alert-thresholds.md`（与 `portfolio` 共享）。本表是简版，修改前请先更新共享表。
 
 | 类型     | 触发条件         | 默认阈值   |
 | -------- | ---------------- | ---------- |

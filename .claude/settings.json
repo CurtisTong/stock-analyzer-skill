@@ -27,6 +27,7 @@
       "Bash(cat:*)",
       "Bash(head:*)",
       "Bash(tail:*)",
+      "Bash(lsof -i:8765 *)",
       "WebFetch(domain:emweb.securities.eastmoney.com)",
       "Bash(python3 scripts/portfolio_web.py *)"
     ],

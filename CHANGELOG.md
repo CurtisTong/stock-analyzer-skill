@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD024 -->
+
 # Changelog
 
 本文件记录 stock-analyzer-skill 的所有重要变更。
@@ -299,6 +301,27 @@
 - 所有数据 API 在国内直连，无须代理
 
 ## [Unreleased]
+
+### Fixed
+
+- 文档一致性与用户跑不下去的坑（用户专家审查报告 P0 必修）
+  - `skills/stock/SKILL.md`：`/stock` 不带参数时明确走 `quick`；移除 `debate (默认全模式)` 的双重"默认"声明，附提示"需要专家圆桌必须显式写 `debate`"
+  - `skills/portfolio/SKILL.md`（4 处）+ `skills/monitor/SKILL.md`（2 处）+ `allowed-tools`：数据路径 `data/portfolio.json` → `scripts/data/portfolio.json`（与实际文件位置一致）
+  - `skills/portfolio/SKILL.md`：`allowed-tools` 增补 `Bash(lsof -i:8765 *)` 与 `web --status` 内部命令对齐
+  - `skills/help/SKILL.md`："9 个 skill" → "12 个 skill"；明确 `workflow.md` 路径表述
+  - `skills/stock/SKILL.md`：短线团专家首次出现补全为"**炒股养家**（养家）"，跨文档统一
+  - `skills/stock/SKILL.md`：第 5 步 `calibration` 记录加"需要 1.6.0+" 版本说明
+  - `workflow.md`：决策门槛表加"触发 skill"列，绑定每条门槛的主动核对 / 先行调用方
+
+### Added
+
+- 文档润色与共享契约（用户专家审查报告 P3 润色）
+  - `skills/_shared/references/alert-thresholds.md`：新增预警与告警阈值共享表，`portfolio` 和 `monitor` 共用同一份权威源
+  - `skills/help/SKILL.md`："高级子模式速查"表列出 9 个 skill 的子模式
+  - `skills/portfolio/SKILL.md`：`rebalance` 模式说明补"按 `workflow.md` §3 联动 4 个其他 skill"的链路口径
+  - `skills/market/SKILL.md`：Guardrails 补"美股参考依赖 yfinance，未安装时跳过而不是失败"
+  - `~/.claude/skills/init-pool/SKILL.md`：旧别名壳改为"已并入 stock-init"指引，命令名错误（`/init-pool-pool`、脚本名 `init-pool_pool.py`）一并标注
+  - `skills/stock-init/SKILL.md` description：注明"旧别名 /init-pool 已并入本 skill"
 
 ### Planned
 

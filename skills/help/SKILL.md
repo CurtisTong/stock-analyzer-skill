@@ -66,6 +66,20 @@ disable-model-invocation: true
 4. `/screener` - 找替代候选
 5. `/portfolio rebalance` - 调仓建议
 
+### 高级子模式速查
+
+| Skill | 子模式 | 用途 |
+| ----- | ------ | ---- |
+| `/stock` | `quick`（默认）/ `full` / `debate` / `debate 长线` / `debate 短线` | quick=3 分钟；full=五层；debate=8 人圆桌；长线/短线=4 人组内投票 |
+| `/market` | `full`（默认）/ `quick` / `intraday` | intraday=盘中分时复盘（5 分钟 K 线） |
+| `/sector` | `overview`（默认）/ `compare` / `stock` | compare=标的横向对比；stock=板块内个股深挖 |
+| `/portfolio` | `health`（默认）/ `rebalance` / `compare` / `web` | rebalance=按 workflow 联动；web=本地录入服务 |
+| `/screener` | `--strategy` 5 选 1 | balanced / quality_value / growth_momentum / defensive / turning_point |
+| `/technical` | `quick` / `full`（默认）/ `full --classify` | --classify 加个股分类 + 缠论 + 战法 |
+| `/monitor` | `start` / `stop` / `status` / `scan` / `levels <code>` / `check` | scan/levels/check=关键点位扫描；check 支持 `--dry-run` |
+| `/backtest` | `--strategy` / `--all` / `--days N` / `--codes` | --all=5 策略横评；--optimize=权重优化 |
+| `/investment-researcher` | 自然语言 | 自动按 `market` → `sector` → `financial-analyst` → `stock` → `technical` 链路串行 |
+
 ## 数据来源
 
 - **实时行情**：腾讯财经 `qt.gtimg.cn`
@@ -85,6 +99,6 @@ disable-model-invocation: true
 ## 获取更多帮助
 
 - 12 个 skill 命令清单：`./references/skill-catalog.md`
-- 查看 `workflow.md` 了解 9 个 skill 的协作流程
-- 查看 `methodology.md` 了解完整投资方法论
+- 查看本仓库根目录的 `workflow.md` 了解 12 个 skill 的协作流程（入口选择 / 标准流水线 / 交接字段 / 决策门槛）
+- 查看本仓库根目录的 `methodology.md` 了解完整投资方法论（五层框架、专家圆桌、字段含义）
 - 查看 `README.md` 了解项目结构和安装说明
