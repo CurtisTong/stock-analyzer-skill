@@ -155,6 +155,7 @@ def test_model_field_valid(skill_path):
 VERSION_OVERRIDES = {
     "portfolio": "1.5.0",  # 新增后台策略监控
     "monitor": "1.4.0",    # 新增策略关键点位扫描
+    "market": "1.5.0",     # 新增美股收盘数据参考
 }
 DEFAULT_VERSION = "1.3.1"
 

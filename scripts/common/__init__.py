@@ -207,6 +207,10 @@ def get_circuit_breaker(name: str, **kwargs) -> CircuitBreaker:
 
 # ---------- 数据源抽象基类 ----------
 
+# 哨兵值：fetcher 返回此值表示"不处理该类代码"（区别于"处理失败"返回 None）
+NOT_HANDLED = object()
+
+
 class BaseFetcher(ABC):
     """数据源抽象基类。"""
 
@@ -217,7 +221,7 @@ class BaseFetcher(ABC):
 
     @abstractmethod
     def fetch(self, code: str, **kwargs) -> dict | list | None:
-        """获取数据。返回 None 表示失败。"""
+        """获取数据。返回 None 表示失败，返回 NOT_HANDLED 表示不处理该类代码。"""
         pass
 
     def is_available(self) -> bool:
@@ -247,6 +251,8 @@ class DataFetcherManager:
                 continue
             try:
                 result = fetcher.fetch(code, **kwargs)
+                if result is NOT_HANDLED:
+                    continue  # 该 fetcher 不处理此类代码，跳过（不计失败）
                 if result is not None:
                     fetcher.on_success()
                     return result
@@ -314,7 +320,7 @@ __all__ = [
     # 熔断器
     "CircuitState", "CircuitBreaker", "get_circuit_breaker",
     # 数据源抽象
-    "BaseFetcher", "DataFetcherManager",
+    "NOT_HANDLED", "BaseFetcher", "DataFetcherManager",
     # 输入验证器
     "validate_code", "normalize_code", "validate_codes",
     "validate_date", "validate_date_range",

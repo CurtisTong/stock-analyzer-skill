@@ -61,6 +61,7 @@ def get_quote_fetchers() -> list:
         ("akshare_quote", "AkshareQuoteFetcher"),
         ("tushare_quote", "TushareQuoteFetcher"),
         ("pytdx_quote", "PytdxQuoteFetcher"),
+        ("yfinance_quote", "YfinanceQuoteFetcher"),
     ]:
         c = _try_import(mod, cls)
         if c:

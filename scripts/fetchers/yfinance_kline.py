@@ -7,13 +7,21 @@ from common import BaseFetcher
 
 try:
     import yfinance as yf
-    HAS_YFINANCE = True
 except ImportError:
-    HAS_YFINANCE = False
+    yf = None
+
+
+US_PREFIX = "us:"
 
 
 def _to_yf_symbol(code: str) -> str:
-    """转换为 yfinance 符号格式。"""
+    """转换为 yfinance 符号格式。
+
+    us: 前缀代码直接提取符号（us:^gspc → ^gspc, US:SPY → spy），A 股代码按交易所转换。
+    """
+    if code.lower().startswith(US_PREFIX):
+        _, _, symbol = code.partition(":")
+        return symbol.strip()
     plain = code.lstrip("shszSHSZbjBJ").zfill(6)
     if plain.startswith(("60", "68", "51", "56", "58")):
         return f"{plain}.SS"
@@ -31,7 +39,7 @@ class YfinanceKlineFetcher(BaseFetcher):
         super().__init__("yfinance_kline", priority=4)
 
     def fetch(self, code: str, **kwargs) -> list | None:
-        if not HAS_YFINANCE:
+        if yf is None:
             return None
         try:
             scale = kwargs.get("scale", 240)

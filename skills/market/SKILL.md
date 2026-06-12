@@ -1,7 +1,7 @@
 ---
 name: market
-description: A 股大盘复盘 skill。用于市场快评、完整复盘、盘中分时复盘、指数/板块 ETF/风格轮动/资金偏好判断；优先使用 stock-analyzer-skill 包内 scripts/quote.py 和 scripts/kline.py 获取实时指数与板块 ETF 数据。
-version: 1.4.1
+description: A 股大盘复盘 skill。用于市场快评、完整复盘、盘中分时复盘、指数/板块 ETF/风格轮动/资金偏好判断；优先使用 stock-analyzer-skill 包内 scripts/quote.py 和 scripts/kline.py 获取实时指数与板块 ETF 数据；支持拉取美股收盘数据作为参考。
+version: 1.5.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
@@ -39,13 +39,16 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 输出必须包含 `market_regime`（进攻/均衡/防守/冰点/亢奋）和适合的下一步 skill。
 
-### Step 1: 获取大盘数据 + 板块 ETF
+### Step 1: 获取大盘数据 + 板块 ETF + 美股参考
 
 按 `../_shared/references/script-catalog.md` 调用 `quote.py` 与 `kline.py`。常用标的：
 
 - 指数：`sh000001,sz399001,sz399006,sh000300,sh000016,sh000905`
 - 板块 ETF：`sh510050,sh510300,sh510500,sh512010,sh512480,sh512690,sh512800,sh513120,sh512660,sh515790,sh515030,sh516160`
+- 美股参考（full 模式）：`quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq` 获取美股主要指数收盘数据
 - `intraday` 模式额外取 5 分钟 K 线（48 根）
+
+**美股代码约定**：使用 `us:` 前缀 + yfinance 符号（如 `us:^gspc` = 标普500, `us:spy` = 标普500 ETF）。数据源为 yfinance，需已安装该包。
 
 ### Step 2: 分析输出
 
@@ -63,6 +66,12 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - 市场风格: 成长/价值/防御
 - 资金流向: 流入/流出板块
 
+## 美股参考
+| 指数 | 收盘 | 涨跌% | 对 A 股影响 |
+- VIX 恐慌指数解读（>20 避险情绪升温）
+- 美股板块强弱对 A 股映射（如科技→半导体、银行→金融）
+- 美联储政策/美债收益率对北向资金的潜在影响
+
 ## 持仓影响
 | 持仓 | 今日 | 板块 | 匹配度 |
 
@@ -79,13 +88,13 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 ### Step 4: 风格信号库
 
-| 信号 | 含义 | 历史胜率 |
-|------|------|---------|
-| 上证50涨+中证500跌 | 大小盘分化，防御为主 | 高 |
-| 半导体/光伏暴跌 | 成长板块杀跌 | 短期超跌反弹概率大 |
-| 医药/白酒/银行齐涨 | 防御行情确立 | 持续2-3天 |
-| 券商+黄金同涨 | 市场方向不明，博弈+避险 | 震荡延续 |
-| 创业板单日+3%以上 | 超跌暴力反弹 | 需观察次日是否延续 |
+| 信号               | 含义                    | 历史胜率           |
+| ------------------ | ----------------------- | ------------------ |
+| 上证50涨+中证500跌 | 大小盘分化，防御为主    | 高                 |
+| 半导体/光伏暴跌    | 成长板块杀跌            | 短期超跌反弹概率大 |
+| 医药/白酒/银行齐涨 | 防御行情确立            | 持续2-3天          |
+| 券商+黄金同涨      | 市场方向不明，博弈+避险 | 震荡延续           |
+| 创业板单日+3%以上  | 超跌暴力反弹            | 需观察次日是否延续 |
 
 ## Guardrails
 
