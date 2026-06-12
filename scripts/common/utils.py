@@ -1,4 +1,6 @@
 """工具函数：代码转换、类型转换、并发执行。"""
+import os
+import statistics
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -132,6 +134,27 @@ def clamp(value, low=0.0, high=100.0):
     return max(low, min(high, value))
 
 
+def compute_volume_ratio(volumes: list, recent_window: int = 5, base_window: int = 10) -> float:
+    """计算量比（最近 N 日平均 / 基础 N 日平均）。
+
+    base_window 包含 recent_window，语义为"最近 N 日放量程度"，
+    与 detect_market_state 原始逻辑一致。
+    """
+    if len(volumes) < base_window:
+        return 1.0
+    recent_vol = statistics.mean(volumes[-recent_window:])
+    base_vol = statistics.mean(volumes[-base_window:])
+    return recent_vol / base_vol if base_vol > 0 else 1.0
+
+
+def compute_optimal_workers(item_count: int = 0) -> int:
+    """动态计算最优工作线程数。"""
+    cpu_count = os.cpu_count() or 4
+    if item_count > 0:
+        return min(max(item_count // 10, 4), cpu_count * 2)
+    return min(cpu_count * 2, 32)
+
+
 # ---------- 数据单位归一化 ----------
 # 统一规范：volume=股, amount=元, total_cap/circulating_cap=亿
 
@@ -193,6 +216,7 @@ __all__ = [
     "split_codes", "plain_code", "infer_exchange",
     "normalize_quote_code", "normalize_finance_code", "to_secid",
     "board_type", "batchify", "to_float", "to_int", "clamp",
+    "compute_volume_ratio", "compute_optimal_workers",
     "normalize_volume", "normalize_amount",
     "err", "parallel_map",
 ]

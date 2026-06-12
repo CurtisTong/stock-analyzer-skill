@@ -18,6 +18,7 @@ from experts import (
     list_long_term_experts,
     list_short_term_experts,
 )
+from experts.scoring import compute_confidence_index
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -39,6 +40,23 @@ _HORIZON_WEIGHTS = {
     "medium": (0.40, 0.60),   # 中期持有（1-6月）
     "long":   (0.70, 0.30),   # 长期投资（>6月）
 }
+
+# 市场状态检测阈值
+_MARKET_ICE_ADVANCE_RATIO = 0.20
+_MARKET_ICE_LIMIT_DOWN = 50
+_MARKET_ICE_HIGH_LOW_RATIO = 0.2
+
+_MARKET_MANIA_PE_PERCENTILE = 90
+_MARKET_MANIA_ADVANCE_RATIO = 0.75
+_MARKET_MANIA_MARGIN_RATIO = 10
+
+_MARKET_BULL_VOL_RATIO = 1.2
+_MARKET_BULL_ADVANCE_RATIO = 0.60
+_MARKET_BULL_HIGH_LOW_RATIO = 1.5
+
+_MARKET_BEAR_VOL_RATIO = 0.8
+_MARKET_BEAR_ADVANCE_RATIO = 0.40
+_MARKET_BEAR_HIGH_LOW_RATIO = 0.5
 
 
 def detect_market_state(
@@ -62,46 +80,49 @@ def detect_market_state(
             "reason": str,
         }
     """
-    # 默认震荡
     state = "震荡"
 
     if index_quote and kline_data:
         price = index_quote.get("price", 0)
         ma20 = kline_data.get("ma20", 0)
         volumes = kline_data.get("volumes", [])
-        closes = kline_data.get("closes", [])
 
-        # 量能判断
-        vol_ratio = 1.0
-        if len(volumes) >= 10:
-            recent = statistics.mean(volumes[-5:])
-            base = statistics.mean(volumes[-10:])
-            vol_ratio = recent / base if base > 0 else 1.0
+        try:
+            from common.utils import compute_volume_ratio
+            vol_ratio = compute_volume_ratio(volumes, recent_window=5, base_window=10)
+        except ImportError:
+            vol_ratio = 1.0
+            if len(volumes) >= 10:
+                recent = statistics.mean(volumes[-5:])
+                base = statistics.mean(volumes[-10:])
+                vol_ratio = recent / base if base > 0 else 1.0
 
-        # 趋势判断
         above_ma20 = price > ma20 > 0 if ma20 > 0 else False
         below_ma20 = price < ma20 > 0 if ma20 > 0 else False
 
-        # 宽度指标
         advance_ratio = breadth_data.get("advance_ratio", 0.5) if breadth_data else 0.5
         high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
         limit_down = breadth_data.get("limit_down_count", 0) if breadth_data else 0
         margin_ratio = breadth_data.get("margin_ratio", 0) if breadth_data else 0
-
-        # PE 分位（亢奋判断）
         pe_percentile = index_quote.get("pe_percentile", 50)
 
-        # 冰点：上涨家数比<20% + 跌停>50家 + 新高新低比<0.2
-        if advance_ratio < 0.20 and limit_down > 50 and high_low_ratio < 0.2:
+        if (advance_ratio < _MARKET_ICE_ADVANCE_RATIO
+                and limit_down > _MARKET_ICE_LIMIT_DOWN
+                and high_low_ratio < _MARKET_ICE_HIGH_LOW_RATIO):
             state = "冰点"
-        # 亢奋：PE>历史90%分位 + 上涨家数比>75% + 两融余额占比>10%
-        elif pe_percentile > 90 and advance_ratio > 0.75 and margin_ratio > 10:
+        elif (pe_percentile > _MARKET_MANIA_PE_PERCENTILE
+              and advance_ratio > _MARKET_MANIA_ADVANCE_RATIO
+              and margin_ratio > _MARKET_MANIA_MARGIN_RATIO):
             state = "亢奋"
-        # 牛市：在 MA20 上方 + 放量 + 上涨家数比>60% + 新高新低比>1.5
-        elif above_ma20 and vol_ratio > 1.2 and advance_ratio > 0.60 and high_low_ratio > 1.5:
+        elif (above_ma20
+              and vol_ratio > _MARKET_BULL_VOL_RATIO
+              and advance_ratio > _MARKET_BULL_ADVANCE_RATIO
+              and high_low_ratio > _MARKET_BULL_HIGH_LOW_RATIO):
             state = "牛市"
-        # 熊市：在 MA20 下方 + 缩量 + 上涨家数比<40% + 新高新低比<0.5
-        elif below_ma20 and vol_ratio < 0.8 and advance_ratio < 0.40 and high_low_ratio < 0.5:
+        elif (below_ma20
+              and vol_ratio < _MARKET_BEAR_VOL_RATIO
+              and advance_ratio < _MARKET_BEAR_ADVANCE_RATIO
+              and high_low_ratio < _MARKET_BEAR_HIGH_LOW_RATIO):
             state = "熊市"
         else:
             state = "震荡"
@@ -156,35 +177,32 @@ def _resolve_conflict(
     direction = "中性"
     position_factor = 1.0
 
-    lv = long_votes
-    sv = short_votes
-
     # 双一致看多
-    if lv["bull"] >= 3 and sv["bull"] >= 3:
+    if long_votes["bull"] >= 3 and short_votes["bull"] >= 3:
         direction = "强烈看多"
         position_factor = 1.0
     # 双一致看空
-    elif lv["bear"] >= 3 and sv["bear"] >= 3:
+    elif long_votes["bear"] >= 3 and short_votes["bear"] >= 3:
         direction = "强烈看空"
         position_factor = 0.0
     # 长线主导多
-    elif lv["bull"] >= 3 and sv["bull"] == 2 and sv["bear"] == 2:
+    elif long_votes["bull"] >= 3 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
         direction = "看多"
         position_factor = 0.8
     # 长线主导空
-    elif lv["bear"] >= 3 and sv["bull"] == 2 and sv["bear"] == 2:
+    elif long_votes["bear"] >= 3 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
         direction = "看空"
         position_factor = 0.0
     # 短线主导多
-    elif lv["bull"] == 2 and lv["bear"] == 2 and sv["bull"] >= 3:
+    elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] >= 3:
         direction = "谨慎看多"
         position_factor = 0.5
     # 短线主导空
-    elif lv["bull"] == 2 and lv["bear"] == 2 and sv["bear"] >= 3:
+    elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bear"] >= 3:
         direction = "谨慎看空"
         position_factor = 0.3
     # 全面分歧
-    elif lv["bull"] == 2 and lv["bear"] == 2 and sv["bull"] == 2 and sv["bear"] == 2:
+    elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
         direction = "中性"
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
@@ -207,7 +225,6 @@ def _resolve_conflict(
             position_factor *= 0.7
         else:
             notes.append("巴菲特看空，短期模式下不触发否决权，长线组降权×0.8")
-            # 长线组降权在调权阶段处理
 
     # 养家情绪周期降权
     if yangjia_score < 30 and not is_yangjia_ice:
@@ -220,6 +237,21 @@ def _resolve_conflict(
         "position_factor": position_factor,
         "notes": notes,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# 辅助函数：专家信息提取
+# ═══════════════════════════════════════════════════════════════
+
+def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
+    """提取养家的情绪得分。
+
+    查找顺序与原始逻辑一致：先 "情绪"，再 fallback "情绪周期"。
+    """
+    if not yangjia or not yangjia.get("breakdown"):
+        return 50
+    dim_scores = yangjia.get("dim_scores", {})
+    return dim_scores.get("情绪", dim_scores.get("情绪周期", 50))
 
 
 def _downgrade_direction(direction: str) -> str:
@@ -349,37 +381,31 @@ def aggregate_votes(
         mkt = "震荡"
         lw, sw = _HORIZON_WEIGHTS.get(horizon, (0.55, 0.45))
 
-    # 养家降权处理
-    yangjia = next((r for r in expert_results if r.get("name") == "chaogu_yangjia"), None)
+    # 一次性构建专家查找字典，避免重复线性搜索
+    expert_by_name = {r.get("name"): r for r in expert_results}
+    yangjia = expert_by_name.get("chaogu_yangjia")
+    buffett = expert_by_name.get("buffett")
+
     yangjia_score = yangjia["score"] if yangjia else 50
-    is_yangjia_ice = False
-    if yangjia and yangjia.get("breakdown"):
-        # 检查是否冰点期（情绪周期维度得分高）
-        dim_scores = yangjia.get("dim_scores", {})
-        emotion_score = dim_scores.get("情绪", dim_scores.get("情绪周期", 50))
-        is_yangjia_ice = emotion_score >= 80 and yangjia_score < 30
+    buffett_score = buffett["score"] if buffett else 50
+
+    # 提取养家情绪得分，判断是否冰点期
+    emotion_score = _get_yangjia_emotion_score(yangjia)
+    is_yangjia_ice = emotion_score >= 80 and yangjia_score < 30
 
     # 养家情绪退潮降权（非冰点时）
+    # 优化：直接计算降权后的平均值，避免 N+1 模式
     if yangjia_score < 30 and not is_yangjia_ice:
-        adjusted_short = []
-        for r in short_experts:
-            if r.get("name") == "chaogu_yangjia":
-                adjusted_short.append(r["score"])
-            else:
-                adjusted_short.append(r["score"] * 0.7)
-        short_avg = statistics.mean(adjusted_short) if adjusted_short else short_avg
+        total_score = sum(r["score"] * (1.0 if r.get("name") == "chaogu_yangjia" else 0.7)
+                          for r in short_experts)
+        short_avg = total_score / len(short_experts) if short_experts else short_avg
 
     # 巴菲特降权（短期模式看空时）
-    buffett = next((r for r in expert_results if r.get("name") == "buffett"), None)
-    buffett_score = buffett["score"] if buffett else 50
+    # 优化：直接计算降权后的平均值
     if buffett_score <= 39 and horizon == "short":
-        adjusted_long = []
-        for r in long_experts:
-            if r.get("name") == "buffett":
-                adjusted_long.append(r["score"])
-            else:
-                adjusted_long.append(r["score"] * 0.8)
-        long_avg = statistics.mean(adjusted_long) if adjusted_long else long_avg
+        total_score = sum(r["score"] * (1.0 if r.get("name") == "buffett" else 0.8)
+                          for r in long_experts)
+        long_avg = total_score / len(long_experts) if long_experts else long_avg
 
     # 综合分
     composite = long_avg * lw + short_avg * sw
@@ -398,7 +424,6 @@ def aggregate_votes(
 
     # 信心指数
     all_scores = long_scores + short_scores
-    from experts.scoring import compute_confidence_index
     confidence = compute_confidence_index(all_scores, composite, calibration_factor)
 
     # 仓位建议

@@ -22,6 +22,22 @@ from typing import Callable, Dict, List, Optional
 from . import ExpertProfile, direction_from_score
 
 
+# 延迟导入 clamp，处理跨模块路径问题（缓存避免重复 import 查找）
+_clamp_fn = None
+
+
+def _get_clamp():
+    global _clamp_fn
+    if _clamp_fn is not None:
+        return _clamp_fn
+    try:
+        from common.utils import clamp
+        _clamp_fn = clamp
+    except ImportError:
+        _clamp_fn = lambda val, lo=0.0, hi=100.0: max(lo, min(hi, val))
+    return _clamp_fn
+
+
 # ═══════════════════════════════════════════════════════════════
 # 基础工具函数
 # ═══════════════════════════════════════════════════════════════
@@ -55,10 +71,6 @@ def dimension_breakdown(profile: ExpertProfile, dim_scores: Dict[str, float]) ->
         score = max(0.0, min(100.0, float(score)))
         breakdown[dim] = round(score * (weight / 100.0), 2)
     return breakdown
-
-
-def _clamp(val: float, lo: float = 0.0, hi: float = 100.0) -> float:
-    return max(lo, min(hi, val))
 
 
 def _safe_float(val, default: float = 0.0) -> float:
@@ -292,9 +304,9 @@ def _score_buffett(stock_data: dict) -> Dict[str, float]:
     # PE 历史分位调整（近5年）
     pe_percentile = _safe_float(quote.get("pe_percentile"), -1)
     if 0 <= pe_percentile < 20:
-        val = _clamp(val + 15)
+        val = _get_clamp()(val + 15)
     elif pe_percentile > 80:
-        val = _clamp(val - 20)
+        val = _get_clamp()(val - 20)
 
     # 技术面：简单趋势
     trend = kline.get("trend", 0)
@@ -736,7 +748,7 @@ def _score_zuoshou_xinyi(stock_data: dict) -> Dict[str, float]:
     else:
         val = 0
     if pullback > 62:
-        val = _clamp(val * 0.3)
+        val = _get_clamp()(val * 0.3)
 
     # 技术面：K线反转形态 + 缩量程度
     closes = kline_data.get("closes") or []
