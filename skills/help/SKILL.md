@@ -23,10 +23,18 @@ disable-model-invocation: true
 首次使用请按以下步骤：
 
 1. `/stock-init` — 初始化股票池（零配置可用，无需 token）
-2. 如需持仓分析，编辑 `scripts/data/portfolio.json` 添加持仓（可选）
-3. `/market quick` — 快速了解今日市场状态
+2. 如需全量选股，运行 `/stock-init full-market` 初始化全市场 A 股池（约 5000 只）
+3. 如需持仓分析，编辑 `scripts/data/portfolio.json` 添加持仓（可选）
+4. `/market quick` — 快速了解今日市场状态
 
 完成后即可使用各分析功能。
+
+### 股票池模式
+
+| 模式         | 数据量   | 初始化命令                | 适用场景             |
+| ------------ | -------- | ------------------------- | -------------------- |
+| 主题板块池   | ~140 只  | `/stock-init`（默认）     | 板块分析、快速选股   |
+| 全市场股票池 | ~5000 只 | `/stock-init full-market` | 全量选股、多因子筛选 |
 
 ## 共享约定
 

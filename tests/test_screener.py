@@ -11,6 +11,8 @@ from screener import (
     hard_filter,
     latest_finance,
     load_universe,
+    load_full_market_universe,
+    pre_screen_quotes,
     liquidity_score,
     momentum_score,
     quality_score,
@@ -385,8 +387,14 @@ class TestHardFilter:
 class TestLoadUniverse:
     """股票池加载。"""
 
+    def _make_args(self, **kwargs):
+        """创建 load_universe 所需的 args namespace。"""
+        defaults = dict(codes=None, sector=None, full_market=False, board_limit=0)
+        defaults.update(kwargs)
+        return argparse.Namespace(**defaults)
+
     def test_from_codes(self):
-        result = load_universe(codes=["sh600519", "sz000858"])
+        result = load_universe(self._make_args(codes="sh600519,sz000858"))
         assert isinstance(result, list)
         assert len(result) == 2
         # 应该已归一化
@@ -394,11 +402,11 @@ class TestLoadUniverse:
             assert c.startswith(("sh", "sz"))
 
     def test_codes_deduplicated(self):
-        result = load_universe(codes=["600519", "sh600519"])
+        result = load_universe(self._make_args(codes="600519,sh600519"))
         assert len(result) == 1
 
     def test_codes_sorted(self):
-        result = load_universe(codes=["sz000858", "sh600519"])
+        result = load_universe(self._make_args(codes="sz000858,sh600519"))
         assert result == sorted(result)
 
     def test_from_sector_with_mock(self, monkeypatch, tmp_path):
@@ -413,7 +421,7 @@ class TestLoadUniverse:
         import screener
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
-        result = load_universe(sector="白酒")
+        result = load_universe(self._make_args(sector="白酒"))
         assert len(result) == 2
 
     def test_from_sector_all(self, monkeypatch, tmp_path):
@@ -428,7 +436,7 @@ class TestLoadUniverse:
         import screener
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
-        result = load_universe()
+        result = load_universe(self._make_args())
         assert len(result) == 4
 
     def test_sector_not_found_raises(self, monkeypatch, tmp_path):
@@ -443,11 +451,136 @@ class TestLoadUniverse:
         monkeypatch.setattr(screener, "_try_fetch_from_mapping", lambda s: [])
 
         with pytest.raises(SystemExit):
-            load_universe(sector="不存在的板块")
+            load_universe(self._make_args(sector="不存在的板块"))
+
+    def test_full_market_loads_all_boards(self, monkeypatch, tmp_path):
+        """全市场模式加载所有板块。"""
+        all_stocks = {
+            "_meta": {"total_stocks": 4},
+            "主板沪": ["sh600519"],
+            "主板深": ["sz000858"],
+            "创业板": ["sz300750"],
+            "科创板": ["sh688981"],
+            "北交所": ["bj430047"],
+        }
+        fake_file = tmp_path / "all_stocks.json"
+        fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
+
+        import screener
+        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+
+        result = load_universe(self._make_args(full_market=True))
+        assert len(result) == 5
+
+    def test_full_market_with_board_filter(self, monkeypatch, tmp_path):
+        """全市场模式 + 板块过滤。"""
+        all_stocks = {
+            "_meta": {"total_stocks": 3},
+            "主板沪": ["sh600519"],
+            "创业板": ["sz300750"],
+            "科创板": ["sh688981"],
+        }
+        fake_file = tmp_path / "all_stocks.json"
+        fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
+
+        import screener
+        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+
+        # "主板" 应匹配 "主板沪"
+        result = load_universe(self._make_args(full_market=True, sector="主板"))
+        assert len(result) == 1
+        assert result[0] == "sh600519"
+
+    def test_full_market_missing_file_raises(self, monkeypatch, tmp_path):
+        """全市场模式文件不存在应抛出 SystemExit。"""
+        import screener
+        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+
+        with pytest.raises(SystemExit):
+            load_universe(self._make_args(full_market=True))
 
 
 # ====================================================================
-# 12. daily_features（需要 mock kline.fetch）
+# 12. pre_screen_quotes
+# ====================================================================
+class TestPreScreenQuotes:
+    """全市场预筛选测试。"""
+
+    def _make_args(self, **kwargs):
+        defaults = dict(board_limit=0)
+        defaults.update(kwargs)
+        return argparse.Namespace(**defaults)
+
+    def _make_quote(self, code="sh600519", name="贵州茅台",
+                    amount=5000000000, total_cap=2000):
+        """创建测试用行情 dict。"""
+        return {
+            "code": code,
+            "name": name,
+            "amount": str(amount),
+            "total_cap": str(total_cap),
+        }
+
+    def test_filters_st(self):
+        """排除 ST 股。"""
+        quotes = [
+            self._make_quote(name="*ST某某"),
+            self._make_quote(name="ST某某"),
+            self._make_quote(name="正常股票"),
+        ]
+        result = pre_screen_quotes(quotes, self._make_args())
+        assert len(result) == 1
+        assert result[0]["name"] == "正常股票"
+
+    def test_filters_zero_amount(self):
+        """排除停牌/无成交。"""
+        quotes = [
+            self._make_quote(amount=0),
+            self._make_quote(amount=100000000),
+        ]
+        result = pre_screen_quotes(quotes, self._make_args())
+        assert len(result) == 1
+
+    def test_filters_low_amount_by_board(self):
+        """按板块差异化过滤成交额。"""
+        # 主板成交额阈值 5000 万
+        quotes = [
+            self._make_quote(code="sh600519", amount=40000000),  # 4000万 < 5000万
+            self._make_quote(code="sh600520", amount=60000000),  # 6000万 > 5000万
+        ]
+        result = pre_screen_quotes(quotes, self._make_args())
+        assert len(result) == 1
+        assert result[0]["code"] == "sh600520"
+
+    def test_filters_low_cap(self):
+        """按板块差异化过滤市值。"""
+        # 主板市值阈值 40 亿
+        quotes = [
+            self._make_quote(code="sh600519", total_cap=30),   # 30亿 < 40亿
+            self._make_quote(code="sh600520", total_cap=50),   # 50亿 > 40亿
+        ]
+        result = pre_screen_quotes(quotes, self._make_args())
+        assert len(result) == 1
+        assert result[0]["code"] == "sh600520"
+
+    def test_board_limit_truncates(self):
+        """board_limit 按板块截取。"""
+        quotes = [
+            self._make_quote(code="sh600519", amount=100000000),
+            self._make_quote(code="sh600520", amount=90000000),
+            self._make_quote(code="sh600521", amount=80000000),
+        ]
+        result = pre_screen_quotes(quotes, self._make_args(board_limit=2))
+        assert len(result) == 2
+
+    def test_empty_input(self):
+        """空输入返回空列表。"""
+        result = pre_screen_quotes([], self._make_args())
+        assert result == []
+
+
+# ====================================================================
+# 13. daily_features（需要 mock kline.fetch）
 # ====================================================================
 class TestDailyFeatures:
     """日线特征提取（mock K 线数据）。"""

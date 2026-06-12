@@ -24,6 +24,7 @@ RUNTIME_DATA_FILES = {
     "portfolio.json",           # 用户创建
     "portfolio_example.json",   # 项目自带的示例
     "stock_pool_backup.json",   # refresh_pool.py 备份
+    "all_stocks.json",          # refresh_pool.py --full-market 产出
 }
 
 # description 关键词白名单：skill 核心能力词

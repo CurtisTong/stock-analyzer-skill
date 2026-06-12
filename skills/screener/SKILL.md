@@ -64,10 +64,14 @@ python3 scripts/screener.py --strategy balanced --top 10
 python3 scripts/screener.py --sector 资源 --strategy quality_value --top 5
 python3 scripts/screener.py --codes sh600989,sz000807,300476 --strategy growth_momentum
 python3 scripts/screener.py --strategy defensive --exclude-loss --json
+python3 scripts/screener.py --full-market --strategy balanced --top 20
+python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_momentum
 ```
 
 可选参数：
 
+- `--full-market`：使用全市场股票池（~5000只），而非主题板块池（~140只）。需先运行 `python3 scripts/init_pool.py --full-market` 初始化
+- `--full-market --sector 创业板`：全市场模式下只筛选创业板
 - `--min-amount 5000`：主板最低成交额（万元），创业板/科创板自动 ×0.7，北交所 ×1.5
 - `--min-cap 40`：主板最低市值（亿元），创业板/科创板自动 ×0.6，北交所 ×0.4
 - `--exclude-loss`：剔除 EPS<=0 标的

@@ -18,6 +18,7 @@ allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh
 /stock-init force        # 强制重新初始化
 /stock-init top 30       # 每板块取 Top 30
 /stock-init default      # 使用预置默认数据（离线可用，不访问 API）
+/stock-init full-market  # 初始化全市场股票池（约 5000 只）
 ```
 
 ## Instructions
@@ -48,7 +49,13 @@ allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh
    python3 scripts/init_pool.py --default
    ```
 
-5. **输出结果**：展示初始化摘要，包括每板块股票数量和总计。
+5. **如果用户指定 `full-market`**，加 `--full-market` 参数（初始化全市场 A 股池）：
+
+   ```bash
+   python3 scripts/init_pool.py --full-market
+   ```
+
+6. **输出结果**：展示初始化摘要，包括每板块股票数量和总计。
 
 ## 前置条件
 
@@ -77,6 +84,16 @@ allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh
 - 数据来源: 东方财富 push2 API（优先） → 预置默认数据（fallback）
 - 使用 `--default` 参数可跳过 API 直接使用预置数据（离线可用）
 - 过滤规则: 排除 ST 股、低成交额、低市值标的
+
+### 全市场股票池初始化
+
+运行以下命令初始化全市场 A 股池：
+
+```bash
+python3 scripts/init_pool.py --full-market
+```
+
+这会创建 `scripts/data/all_stocks.json`，包含全部 A 股（约 5000 只），按上市板块分组（主板沪/主板深/创业板/科创板/北交所）。与主题板块池（`sector_stocks.json`，约 140 只）互补使用：主题池用于板块分析，全市场池用于全量选股。
 
 ### 过滤阈值
 

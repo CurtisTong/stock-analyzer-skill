@@ -6,6 +6,8 @@ A 股多因子选股器。
   screener.py --sector 资源 --top 5
   screener.py --strategy growth_momentum --json
   screener.py --codes sh600989,sz000807,300476
+  screener.py --full-market --top 10                  # 全市场模式
+  screener.py --full-market --sector 创业板 --top 5   # 全市场创业板
 """
 import argparse
 import json
@@ -59,10 +61,119 @@ def _fetch_finance_dicts(code: str) -> list:
     return [r.to_dict() for r in records]
 
 
-def load_universe(sector=None, codes=None):
+# board_type() 返回值 → all_stocks.json 中的键名映射
+# board_type() 返回 "主板"，但 all_stocks.json 按上市板块分为 "主板沪" 和 "主板深"
+_BOARD_KEY_MAP = {
+    "主板": ["主板沪", "主板深"],
+    "创业板": ["创业板"],
+    "科创板": ["科创板"],
+    "北交所": ["北交所"],
+}
+
+
+def load_full_market_universe(boards=None):
+    """从 data/all_stocks.json 加载全市场股票池。
+
+    Args:
+        boards: 可选，指定板块列表（使用 board_type() 的返回值，如 ["主板", "创业板"]）。
+                "主板" 会自动匹配 "主板沪" + "主板深"。
+                None 表示加载全部板块。
+    Returns:
+        list[str] — 股票代码列表
+    """
+    path = DATA_DIR / "all_stocks.json"
+    if not path.exists():
+        raise SystemExit(
+            "data/all_stocks.json 不存在，请先运行:\n"
+            "  python3 scripts/refresh_pool.py --full-market"
+        )
+    data = json.loads(path.read_text(encoding="utf-8"))
+    # 过滤掉 _meta 等非板块键
+    all_board_keys = [k for k in data if not k.startswith("_")]
+    if boards:
+        # 通过显式映射将 board_type() 返回值转换为 all_stocks.json 的键名
+        target_keys = []
+        for b in boards:
+            target_keys.extend(_BOARD_KEY_MAP.get(b, [b]))
+        board_keys = [k for k in all_board_keys if k in target_keys]
+        if not board_keys:
+            raise SystemExit(f"未在 all_stocks.json 找到板块: {boards}")
+    else:
+        board_keys = all_board_keys
+    all_codes = []
+    for key in board_keys:
+        all_codes.extend(data.get(key, []))
+    return sorted({normalize_quote_code(c) for c in all_codes})
+
+
+# 预筛选阈值（与 refresh_pool.py FILTER 字典保持一致，共用同一数据源）
+from refresh_pool import FILTER as _PRE_SCREEN
+
+
+def pre_screen_quotes(quotes, args):
+    """全市场模式预筛选：排除 ST / 停牌 / 低流动性 / 低市值股票。
+
+    Args:
+        quotes: _fetch_batch_dicts 返回的 dict 列表
+        args: CLI 参数（读取 board_limit）
+    Returns:
+        过滤后的 dict 列表
+    """
+    before = len(quotes)
+    result = []
+    for q in quotes:
+        name = q.get("name", "")
+        # 排除 ST
+        if "ST" in name.upper():
+            continue
+        # 排除停牌 / 无成交（amount 单位为元）
+        amount_yuan = to_float(q.get("amount", 0))
+        if amount_yuan <= 0:
+            continue
+        # 板块判断
+        bt = board_type(q.get("code", ""))
+        if bt == "其他":
+            continue
+        # 成交额过滤（阈值万元 → 元）
+        min_amt = _PRE_SCREEN["min_amount"].get(bt, 5000) * 10000
+        if amount_yuan < min_amt:
+            continue
+        # 总市值过滤（total_cap 单位亿）
+        cap = to_float(q.get("total_cap", 0))
+        min_cap = _PRE_SCREEN["min_cap"].get(bt, 40)
+        if cap < min_cap:
+            continue
+        result.append(q)
+
+    # 按板块截取（每板块最多 N 只，按成交额降序）
+    board_limit = getattr(args, "board_limit", 0)
+    if board_limit > 0:
+        from collections import defaultdict
+        buckets = defaultdict(list)
+        for q in result:
+            buckets[board_type(q.get("code", ""))].append(q)
+        result = []
+        for stocks in buckets.values():
+            stocks.sort(key=lambda x: to_float(x.get("amount", 0)), reverse=True)
+            result.extend(stocks[:board_limit])
+
+    after = len(result)
+    print(f"全市场预筛选: {before} → {after} 只（排除 ST/停牌/低流动性/低市值）")
+    return result
+
+
+def load_universe(args):
+    codes = args.codes.split(",") if args.codes else None
     if codes:
         return sorted({normalize_quote_code(c) for c in codes})
 
+    # 全市场模式
+    if args.full_market:
+        boards = [args.sector] if args.sector else None
+        return load_full_market_universe(boards)
+
+    # 现有板块模式
+    sector = args.sector
     path = DATA_DIR / "sector_stocks.json"
     sectors = json.loads(path.read_text(encoding="utf-8"))
     if sector:
@@ -190,7 +301,6 @@ def hard_filter(quote, fin, args):
         "exclude_loss": args.exclude_loss,
     }
     return ScreeningService()._hard_filter(quote, fin, filters)
-    return reasons
 
 
 def prefetch_finance_all(codes):
@@ -303,12 +413,13 @@ def apply_portfolio_constraints(rows: list, sector_cap: float = 0.30,
     return result
 
 
-def render(rows, strategy, top):
+def render(rows, strategy, top, title=None):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
     accepted.sort(key=lambda r: r["score"], reverse=True)
 
-    print(f"策略: {STRATEGIES[strategy]['label']} ({strategy})")
+    label = title or STRATEGIES[strategy]['label']
+    print(f"策略: {label} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
     header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
@@ -341,12 +452,19 @@ def main():
     parser.add_argument("--exclude-loss", action="store_true", help="剔除 EPS<=0 标的")
     parser.add_argument("--no-constraints", action="store_true", help="禁用组合约束")
     parser.add_argument("--sector-cap", type=float, default=0.30, help="单板块最高占比")
+    parser.add_argument("--full-market", action="store_true", help="全市场模式，从 data/all_stocks.json 加载")
+    parser.add_argument("--board-limit", type=int, default=0, help="全市场模式下每板块最多保留 N 只（0=不限制）")
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 
-    codes = load_universe(args.sector, args.codes.split(",") if args.codes else None)
+    codes = load_universe(args)
     quotes = _fetch_batch_dicts(codes)
-    finance_cache = prefetch_finance_all(codes)
+
+    # 全市场模式预筛选（大幅减少进入六因子分析的股票数量）
+    if args.full_market:
+        quotes = pre_screen_quotes(quotes, args)
+
+    finance_cache = prefetch_finance_all([q["code"] for q in quotes])
     rows = [analyze_code(q, args.strategy, args, finance_cache) for q in quotes]
     rows.sort(key=lambda r: r["score"], reverse=True)
 
@@ -357,7 +475,10 @@ def main():
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
     else:
-        render(rows, args.strategy, args.top)
+        title = None
+        if args.full_market:
+            title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"
+        render(rows, args.strategy, args.top, title=title)
 
 
 if __name__ == "__main__":

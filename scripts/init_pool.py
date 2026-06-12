@@ -6,6 +6,7 @@
   python3 scripts/init_pool.py              # 检测并初始化（已有数据则跳过）
   python3 scripts/init_pool.py --force      # 强制重新初始化
   python3 scripts/init_pool.py --top 30     # 每板块取 Top 30
+  python3 scripts/init_pool.py --full-market  # 初始化全市场股票池（all_stocks.json）
 
 退出码始终为 0，不阻塞安装流程。
 """
@@ -19,11 +20,14 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 from refresh_pool import (
     POOL_FILE,
+    ALL_STOCKS_FILE,
     load_mapping,
     load_current_pool,
     load_default_pool,
     refresh_pool,
     init_from_default,
+    fetch_all_market_stocks,
+    save_all_market_stocks,
 )
 
 # 初始化阈值：低于此值视为未初始化
@@ -100,6 +104,35 @@ def init_pool(top_n: int = 20, force: bool = False, use_default: bool = False) -
         return False
 
 
+def init_full_market(force: bool = False) -> bool:
+    """初始化全市场股票池。返回是否实际执行了初始化。"""
+    if not force and os.path.exists(ALL_STOCKS_FILE):
+        try:
+            with open(ALL_STOCKS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            total = data.get("_meta", {}).get("total_stocks", 0)
+            if total > 0:
+                print(f"✅ 全市场股票池已存在（{total} 只），跳过初始化")
+                print("   如需刷新，运行: python3 scripts/refresh_pool.py --full-market")
+                return False
+        except (json.JSONDecodeError, OSError):
+            pass  # 文件损坏，重新初始化
+
+    print("🚀 初始化全市场股票池...")
+    print()
+
+    try:
+        stocks_by_board = fetch_all_market_stocks()
+        save_all_market_stocks(stocks_by_board)
+        total = sum(len(v) for v in stocks_by_board.values())
+        print(f"\n✅ 全市场初始化完成: 共 {total} 只股票")
+        return True
+    except Exception as e:
+        print(f"\n❌ 全市场初始化失败: {e}", file=sys.stderr)
+        print("   可稍后重试: python3 scripts/init_pool.py --full-market")
+        return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="首次安装初始化股票池")
     parser.add_argument("--force", "-f", action="store_true",
@@ -108,9 +141,14 @@ def main():
                         help="每板块取 Top N（默认 20）")
     parser.add_argument("--default", "-d", action="store_true",
                         help="使用预置默认数据（不访问 API，离线可用）")
+    parser.add_argument("--full-market", action="store_true",
+                        help="初始化全市场股票池（all_stocks.json，约 5000 只）")
     args = parser.parse_args()
 
-    init_pool(top_n=args.top, force=args.force, use_default=args.default)
+    if args.full_market:
+        init_full_market(force=args.force)
+    else:
+        init_pool(top_n=args.top, force=args.force, use_default=args.default)
 
 
 if __name__ == "__main__":

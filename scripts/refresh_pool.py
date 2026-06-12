@@ -30,6 +30,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(SCRIPT_DIR, "data")
 MAPPING_FILE = os.path.join(DATA_DIR, "sector_mapping.json")
 POOL_FILE = os.path.join(DATA_DIR, "sector_stocks.json")
+ALL_STOCKS_FILE = os.path.join(DATA_DIR, "all_stocks.json")
 
 API_BASE = "https://push2.eastmoney.com/api/qt/clist/get"
 API_TOKEN = os.environ.get("EASTMONEY_API_TOKEN", "")
@@ -43,6 +44,34 @@ FILTER = {
     "min_amount": {"主板": 5000, "创业板": 3500, "科创板": 3500, "北交所": 7500},  # 万元
     "min_cap":    {"主板": 40,   "创业板": 24,   "科创板": 24,   "北交所": 16},     # 亿元
 }
+
+
+# ---------- 代码分类工具 ----------
+
+def _classify_board(code6: str) -> str:
+    """根据 6 位代码推断上市板块。"""
+    if code6.startswith("60"):
+        return "主板沪"
+    if code6.startswith("00"):
+        return "主板深"
+    if code6.startswith("30"):
+        return "创业板"
+    if code6.startswith("68"):
+        return "科创板"
+    if code6.startswith(("43", "83", "87", "88", "92")):
+        return "北交所"
+    return "其他"
+
+
+def _infer_exchange(code6: str) -> str:
+    """根据 6 位代码推断交易所前缀。"""
+    if code6.startswith(("60", "68")):
+        return "sh"
+    if code6.startswith(("00", "30", "15", "16", "18")):
+        return "sz"
+    if code6.startswith(("43", "83", "87", "88", "92")):
+        return "bj"
+    return "sz"
 
 
 # ---------- API 调用 ----------
@@ -67,15 +96,7 @@ def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
                 code6 = str(item.get("f12", ""))
                 if not code6 or len(code6) != 6:
                     continue
-                # 推断交易所前缀
-                if code6.startswith(("6",)):
-                    full_code = f"sh{code6}"
-                elif code6.startswith(("0", "3")):
-                    full_code = f"sz{code6}"
-                elif code6.startswith(("4", "8")):
-                    full_code = f"bj{code6}"
-                else:
-                    full_code = f"sz{code6}"
+                full_code = f"{_infer_exchange(code6)}{code6}"
                 results.append({
                     "code": full_code,
                     "name": item.get("f14", ""),
@@ -107,10 +128,96 @@ def fetch_multiple_boards(bk_codes: list[str]) -> list[dict]:
     return list(seen.values())
 
 
+# ---------- 全市场股票池 ----------
+
+# 全 A 股市场过滤：沪A主板 + 深A主板 + 创业板 + 科创板 + 北交所
+FULL_MARKET_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81"
+
+
+def fetch_all_market_stocks() -> dict[str, list[str]]:
+    """拉取全市场 A 股列表，按上市板块分组返回。
+
+    Returns:
+        {"主板沪": ["sh600519", ...], "主板深": [...], ...}
+    """
+    boards: dict[str, list[str]] = {
+        "主板沪": [],
+        "主板深": [],
+        "创业板": [],
+        "科创板": [],
+        "北交所": [],
+    }
+    page = 1
+    page_size = 5000
+
+    while True:
+        url = (
+            f"{API_BASE}?pn={page}&pz={page_size}&np=1"
+            f"&fltt=2&invt=2&fid=f3&fs={FULL_MARKET_FS}&fields={FIELDS}"
+        )
+        try:
+            raw = http_get_cached(url, ttl=3600)
+            data = json.loads(raw)
+        except Exception as e:
+            print(f"❌ 全市场 API 请求失败 (第 {page} 页): {e}", file=sys.stderr)
+            sys.exit(1)
+
+        if not data or "data" not in data or not data["data"]:
+            if page == 1:
+                print("❌ 全市场 API 返回空数据", file=sys.stderr)
+                sys.exit(1)
+            break
+
+        items = data["data"].get("diff", [])
+        if not items:
+            break
+
+        for item in items:
+            code6 = str(item.get("f12", ""))
+            name = str(item.get("f14", ""))
+            if not code6 or len(code6) != 6:
+                continue
+            # 排除 ST 股
+            if "ST" in name.upper():
+                continue
+            board = _classify_board(code6)
+            if board == "其他":
+                continue
+            exchange = _infer_exchange(code6)
+            full_code = f"{exchange}{code6}"
+            boards[board].append(full_code)
+
+        total = data["data"].get("total", 0)
+        if page * page_size >= total:
+            break
+        page += 1
+        time.sleep(0.3)
+
+    return boards
+
+
+def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
+    """保存全市场股票池到 all_stocks.json。"""
+    total = sum(len(v) for v in stocks_by_board.values())
+    output = {
+        "_meta": {
+            "updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "source": "eastmoney_full_market",
+            "total_stocks": total,
+        },
+    }
+    output.update(stocks_by_board)
+    with open(ALL_STOCKS_FILE, "w", encoding="utf-8") as f:
+        json.dump(output, f, ensure_ascii=False, indent=2)
+    print(f"\n✅ 已写入 {ALL_STOCKS_FILE} ({total} 只)")
+    for board, codes in stocks_by_board.items():
+        print(f"  {board}: {len(codes)} 只")
+
+
 # ---------- 过滤 ----------
 
 def is_st(name: str) -> bool:
-    return "ST" in name.upper() or "*ST" in name
+    return "ST" in name.upper()
 
 
 def passes_filter(stock: dict) -> tuple[bool, str]:
@@ -371,9 +478,14 @@ def main():
     parser.add_argument("--diff", action="store_true", help="对比当前池显示变更")
     parser.add_argument("--default", action="store_true",
                         help="使用预置默认数据初始化（不访问 API）")
+    parser.add_argument("--full-market", action="store_true",
+                        help="拉取全市场 A 股列表（约 5000 只），保存到 all_stocks.json")
     args = parser.parse_args()
 
-    if args.default:
+    if args.full_market:
+        stocks_by_board = fetch_all_market_stocks()
+        save_all_market_stocks(stocks_by_board)
+    elif args.default:
         init_from_default(top_n=args.top, dry_run=args.dry_run)
     else:
         refresh_pool(
