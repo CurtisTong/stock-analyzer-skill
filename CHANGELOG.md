@@ -17,6 +17,7 @@
   - `aggregate_group_votes()`：长线-only / 短线-only 单组模式投票聚合（decide.md §七）
   - `format_debate_output()`：结构化辩论报告格式化，含方向分布、共识评估、仓位上沿/下沿
   - `_MARKET_WEIGHTS` / `_HORIZON_WEIGHTS`：双权重矩阵（市场状态 × 投资期限），支持短线/中线/长线三种周期
+  - `_market_state_reason()`：把市场状态判定结果翻译成一句话自然语言（"指数在均线上方，量能放大…"），便于 debate 输出回显给用户
   - 冲突解决（decide.md §三）：双一致看多/空、长线主导、短线主导、巴菲特否决权（中长期模式）、养家情绪周期降权/冰点特殊处理
 - 单元测试 `tests/test_decide.py`（486 行）：market_state / aggregate_votes / format_output 全链路覆盖，含判势多场景、冰点孤例、共识判断置信边界、全零输入防护
 - 数据层动态线程数与分类型缓存：
