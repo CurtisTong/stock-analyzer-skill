@@ -32,6 +32,20 @@ _EXPERT_NAMES = [
 ]
 
 
+def _get_calibration_threshold() -> float:
+    """从 scoring.yaml 读取校准阈值（v1.7.1 起可配置）。
+
+    Returns:
+        涨跌判定阈值（%），默认 5.0（与历史行为一致）
+    """
+    try:
+        from config.loader import ConfigLoader
+        cfg = ConfigLoader.load("scoring.yaml")
+        return float(cfg.get("calibration", {}).get("calibration_threshold_pct", 5.0))
+    except Exception:
+        return 5.0  # 配置缺失时降级到原默认值
+
+
 def _empty_data() -> dict:
     return {
         "predictions": [],
@@ -165,9 +179,11 @@ def verify_predictions(
                 actual_return = get_price_fn(
                     pred["stock"], pred["date"], pred["verify_after"]
                 )
-                if actual_return > 5:
+                # v1.7.1 起阈值可配置：从 scripts/config/scoring.yaml 读取
+                threshold = _get_calibration_threshold()
+                if actual_return > threshold:
                     actual_direction = "上涨"
-                elif actual_return < -5:
+                elif actual_return < -threshold:
                     actual_direction = "下跌"
                 else:
                     actual_direction = "横盘"

@@ -5,6 +5,7 @@
 import os
 import time
 from dataclasses import dataclass
+from datetime import date, datetime  # 顶层导入，便于测试 patch
 
 
 def _load_yaml_config() -> dict:
@@ -86,14 +87,58 @@ class DataConfig:
 
 
 def is_trading_hours() -> bool:
-    """判断当前是否在 A 股交易时段（9:15-15:00，周一至周五）。"""
-    now = time.localtime()
-    # 周末不交易
-    if now.tm_wday >= 5:
+    """判断当前是否在 A 股交易时段（含午休和节假日处理）。
+
+    v1.7.1 增强：
+    - 拆分上午 9:30-11:30 / 下午 13:00-15:00（午休 11:30-13:00 判为非交易时段）
+    - 节假日从 data/a_share_holidays.json 读取，文件不存在时降级到"仅周末判断"
+
+    Returns:
+        True 当前处于 A 股正常交易时段；False 非交易时段（含周末/午休/节假日）
+    """
+    now = datetime.now()
+
+    # 1. 周末
+    if now.weekday() >= 5:
         return False
-    # 交易时段：9:15 - 15:00
-    current_minutes = now.tm_hour * 60 + now.tm_min
-    return 9 * 60 + 15 <= current_minutes <= 15 * 60
+
+    # 2. 节假日（文件缺失时降级跳过）
+    if _is_holiday(now.date()):
+        return False
+
+    # 3. 交易时段（按上交所/深交所规则）：9:30-11:30 + 13:00-15:00
+    current_minutes = now.hour * 60 + now.minute
+    morning = 9 * 60 + 30 <= current_minutes <= 11 * 60 + 30
+    afternoon = 13 * 60 <= current_minutes <= 15 * 60
+    return morning or afternoon
+
+
+# ═══════════════════════════════════════════════════════════════
+# 节假日缓存（v1.7.1 新增）
+# ═══════════════════════════════════════════════════════════════
+
+_holiday_set: set | None = None
+
+
+def _load_holidays() -> set:
+    """从 data/a_share_holidays.json 加载节假日集合（惰性 + 单次加载）。"""
+    global _holiday_set
+    if _holiday_set is not None:
+        return _holiday_set
+    try:
+        from pathlib import Path
+        path = Path(__file__).resolve().parent.parent.parent / "data" / "a_share_holidays.json"
+        import json
+        data = json.loads(path.read_text(encoding="utf-8"))
+        _holiday_set = set(data.get("holidays", []))
+    except Exception:
+        _holiday_set = set()  # 文件缺失/解析失败时降级为空集
+    return _holiday_set
+
+
+def _is_holiday(d: "date") -> bool:
+    """判断指定日期是否为 A 股休市日。"""
+    return d.isoformat() in _load_holidays()
 
 
 def get_quote_cache_ttl() -> int:

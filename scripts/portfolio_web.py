@@ -283,15 +283,14 @@ def _collect_code_name_map() -> list:
 
 # ===== 后台监控 =====
 def _is_trading_hours() -> bool:
-    """检查当前是否在交易时段（09:25-15:05）。"""
-    from datetime import datetime as _dt
-    now = _dt.now()
-    # 周末跳过
-    if now.weekday() >= 5:
-        return False
-    t = now.time()
-    from datetime import time as _time
-    return _time(9, 25) <= t <= _time(15, 5)
+    """检查当前是否在交易时段。
+
+    v1.7.1 起统一调用 data.config.is_trading_hours()，
+    避免与 data/config.py 的实现双轨制漂移。该函数保留为薄包装
+    以兼容既有调用点（portfolio_web.py 内 3 处）。
+    """
+    from data.config import is_trading_hours as _official_is_trading_hours
+    return _official_is_trading_hours()
 
 
 def _monitor_loop():
