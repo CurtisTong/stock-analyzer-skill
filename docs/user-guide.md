@@ -362,11 +362,11 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ### 数据源是否稳定？
 
-数据源依赖外部 API 端点稳定性。如遇变更，修改 `scripts/common.py` 中端点即可。
+数据源依赖外部 API 端点稳定性。如遇变更，修改 `scripts/common/__init__.py` 中端点即可。
 
 ### 如何处理 API 变更？
 
-1. 检查 `scripts/common.py` 中的端点配置
+1. 检查 `scripts/common/__init__.py` 中的端点配置
 2. 更新端点 URL
 3. 验证数据格式是否变化
 4. 更新字段映射

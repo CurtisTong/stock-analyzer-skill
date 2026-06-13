@@ -12,18 +12,17 @@
 ### Added
 
 - 专家圆桌决策引擎 `experts/decide.py`（decide.md 代码化）：
-  - `detect_market_state()`：市场环境检测（牛市/熊市/震荡/冰点/亢奋），基于价格均线偏移、量能比、动能（MA5≈收盘价振幅≈ROC）、市场宽度指标综合判定
-  - `aggregate_votes()`：8 位专家加权投票聚合，整合市场状态权重 × 投资期限权重 × 专家分层加权，输出净多/净空/方向/强度/共识度/仓位建议/信心指数
-  - `format_debate_output()`：结构化辩论报告格式化，含方向分布条形图、共识评估、仓位上沿/下沿
+  - `detect_market_state()`：市场环境检测（牛市/熊市/震荡/冰点/亢奋），基于价格均线偏移、量能比、市场宽度指标综合判定
+  - `aggregate_votes()`：8 位专家加权投票聚合，整合市场状态权重 × 投资期限权重，输出净多/净空/方向/强度/共识度/仓位建议/信心指数
+  - `aggregate_group_votes()`：长线-only / 短线-only 单组模式投票聚合（decide.md §七）
+  - `format_debate_output()`：结构化辩论报告格式化，含方向分布、共识评估、仓位上沿/下沿
   - `_MARKET_WEIGHTS` / `_HORIZON_WEIGHTS`：双权重矩阵（市场状态 × 投资期限），支持短线/中线/长线三种周期
-  - `_EXPERT_LAYER_WEIGHTS`：三层调权（核心层 × 趋势层 × 交易层），短线交易层独享动量修正，长线核心层主导方向
-  - 仓位自适应收敛：牛市方向一致宽幅（±30%→±25%），分歧或冰点窄幅（±15%→±10%）
+  - 冲突解决（decide.md §三）：双一致看多/空、长线主导、短线主导、巴菲特否决权（中长期模式）、养家情绪周期降权/冰点特殊处理
 - 单元测试 `tests/test_decide.py`（486 行）：market_state / aggregate_votes / format_output 全链路覆盖，含判势多场景、冰点孤例、共识判断置信边界、全零输入防护
 - 数据层动态线程数与分类型缓存：
-  - `scripts/data/config.py::get_config()` 新增 `thread_count` 动态计算（CPU 核数 × 2，上限 32），替代硬编码 8 线程
-  - 每个 Fetcher 模块独立的 `FETCHER_CONFIG`，按数据类型（quote/kline/finance）差异化配置超时与重试策略
+  - `scripts/data/config.py::DataConfig.max_workers`：动态计算（`cpu_count * 2`，下界 8，上界 32），替代旧硬编码 8 线程
+  - 分类型缓存 TTL：`quote_cache_ttl`（盘后 900s）/ `intraday_quote_cache_ttl`（盘中 90s）/ `kline_cache_ttl`（6h）/ `finance_cache_ttl`（6h）/ `margin_cache_ttl`（1h）/ `ann_cache_ttl`（30min）等均按数据类型差异化
   - `scripts/common/utils.py::FetcherConfig` dataclass：统一 Fetcher 配置契约（`max_workers` / `timeout` / `retries`）
-  - `scripts/data/__init__.py::_split_codes_by_type()`：按股票类型分组拉取，减少线程等待（主板 4 线程 + 创业板 2 线程 + 科创板 1 线程 + 北交所 1 线程）
   - 错误透传机制：Fetcher 级异常统一包装为 `DataError`，携带原始异常链（`__cause__`），便于定位上游数据源问题
 - 文档一致性与用户专家审查修复（P0-P3 全部）：
   - `skills/_shared/references/alert-thresholds.md`：新增预警与告警阈值共享表，`portfolio` 和 `monitor` 共用同一份权威源

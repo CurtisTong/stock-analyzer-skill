@@ -37,8 +37,8 @@ python3 scripts/init_pool.py --default  # 离线模式
 python3 scripts/refresh_pool.py
 python3 scripts/calibration.py record/verify/report/pending
 python3 scripts/portfolio_web.py --port 8765
-python3 scripts/stock.py sh600989
-python3 scripts/chip.py sh600989
+python3 scripts/stock.py sh600989          # 五层分析业务层入口（JSON 友好）
+python3 scripts/chip.py sh600989           # 资金面：融资融券 / 股东户数 / 十大流通
 ```
 
 ## 三层架构

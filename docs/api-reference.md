@@ -220,6 +220,30 @@ python3 scripts/chip.py sh600989 --holders     # 股东户数
 python3 scripts/chip.py sh600989 --top-holders # 十大流通股东
 ```
 
+### stock.py - 五层分析业务层入口（v1.3.2 新增）
+
+```bash
+python3 scripts/stock.py <code> [选项]
+```
+
+业务层入口：`scripts/business/stock_analysis.py::StockAnalysisService.analyze`，本脚本只负责参数解析、调用业务层、渲染结果。
+
+选项：
+
+- `<code>`：股票代码（如 sh600989）
+- `-j, --json`：JSON 格式输出
+- `--no-finance`：跳过财务拉取（加速模式）
+
+示例：
+
+```bash
+python3 scripts/stock.py sh600989           # 五层分析（基本面/估值/技术/板块/风险收益比）
+python3 scripts/stock.py sh600989 -j        # JSON 输出
+python3 scripts/stock.py sh600989 --no-finance  # 加速模式
+```
+
+> 与 `/stock <code>` skill 的关系：`stock.py` 是 CLI 直跑入口，`/stock` skill 走的是 Claude Code 工具调用 + 多步推理。如需结构化 JSON 接入工作流用 `stock.py`；如需 LLM 推理 + 五层讲解用 `/stock`。
+
 ## 数据源 API
 
 ### 腾讯实时行情字段映射
