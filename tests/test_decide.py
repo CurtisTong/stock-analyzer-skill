@@ -226,6 +226,31 @@ class TestAggregateVotes:
         assert agg["position_factor"] == 0.0
         assert any("分歧" in n for n in agg["notes"])
 
+    def test_extreme_polarization_neutral(self):
+        """v1.7.1 修复：4 看多 + 4 看空（两极分化，无中性票）应判为中性而非按综合分兜底。
+
+        场景：长线 4 全看多 + 短线 4 全看空（或反向），不应让综合分决定方向。
+        """
+        # 长线全看多 + 短线全看空
+        long_exp = [
+            _make_expert("buffett", 75, "long_term"),
+            _make_expert("lynch", 72, "long_term"),
+            _make_expert("soros", 70, "long_term"),
+            _make_expert("duan_yongping", 68, "long_term"),
+        ]
+        short_exp = [
+            _make_expert("xu_xiang", 25, "short_term"),
+            _make_expert("zhao_laoge", 28, "short_term"),
+            _make_expert("chaogu_yangjia", 30, "short_term"),
+            _make_expert("zuoshou_xinyi", 22, "short_term"),
+        ]
+        results = long_exp + short_exp
+        agg = aggregate_votes(results, market_state=None, horizon="medium")
+        # 两极分化应判中性，不被综合分（≈51）误判为"看多"
+        assert agg["direction"] == "中性", f"期望中性，实际 {agg['direction']}"
+        assert agg["position_factor"] == 0.0
+        assert any("两极" in n or "分化" in n for n in agg["notes"])
+
     def test_buffett_veto_long_horizon(self):
         """巴菲特否决权触发（long horizon）。"""
         long_exp = [

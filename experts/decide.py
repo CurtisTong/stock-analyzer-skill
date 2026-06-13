@@ -201,11 +201,19 @@ def _resolve_conflict(
     elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bear"] >= 3:
         direction = "谨慎看空"
         position_factor = 0.3
-    # 全面分歧
+    # 全面分歧（8 人都投票，没有中性票且 2:2:2:2）
     elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
         direction = "中性"
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
+    # 极端两极分歧（4 看多 + 4 看空，没有中性票）
+    elif (long_votes["bull"] + long_votes["bear"] == 4
+          and short_votes["bull"] + short_votes["bear"] == 4
+          and (long_votes["bull"] + short_votes["bull"]) == 4
+          and (long_votes["bear"] + short_votes["bear"]) == 4):
+        direction = "中性"
+        position_factor = 0.0
+        notes.append("两极分化（4 看多 + 4 看空），建议观望")
     else:
         # 按综合分判断
         avg = (long_avg + short_avg) / 2
@@ -391,6 +399,11 @@ def aggregate_votes(
 
     # 提取养家情绪得分，判断是否冰点期
     emotion_score = _get_yangjia_emotion_score(yangjia)
+    # 冰点判定语义：
+    #   emotion_score >= 80 对应养家评分矩阵中"冰点转折+题材发酵→100分"或"主升初期→80分"，
+    #   即养家看到了情绪层面的机会（chaogu_yangjia.md §九）；
+    #   yangjia_score < 30 表示综合分被基本面/估值/风险维度拖累到强烈看空；
+    #   两者并存 = "情绪看到冰点机会但其他维度不支持"，需保留机会但不降权（冰点=机会）。
     is_yangjia_ice = emotion_score >= 80 and yangjia_score < 30
 
     # 养家情绪退潮降权（非冰点时）

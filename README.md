@@ -155,7 +155,7 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 | ------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------- |
 | 🎯 **专家圆桌决策引擎**       | `/stock sh600989 debate` 自动跑 8 位专家 → 加权投票 → 方向 + 信心 + 仓位        | 把"LLM 推理的模糊判断"转成"可解释、可复盘的决策"  |
 | 🧠 **专家自校准**             | debate 完成后自动写 `data/expert_calibration.json`，下轮信心指数自动校准        | 用历史准确率反推"该不该信这一次"                 |
-| 🌎 **美股参考板块**           | `/market full` 自动拉 `us:^gspc` / `us:^ixic` / `us:spy` 等收盘数据              | 隔夜美股 + VIX 提前一天判断 A 股开盘情绪          |
+| 🌎 **美股参考板块**           | `/market full` 自动拉 `us:^gspc` / `us:^ixic` / `us:spy` 等收盘数据（**需 `pip install yfinance`**） | 隔夜美股 + VIX 提前一天判断 A 股开盘情绪          |
 | 📈 **全市场股票池（~5000 只）** | `/stock-init full-market` 一次性拉全 A 股，按板块预筛后进 screener              | 真正"全市场扫描"，不再被默认 20 只限死            |
 
 > 📖 这些能力的详细使用方法见 [docs/user-guide.md](docs/user-guide.md) 与 [CHANGELOG.md](CHANGELOG.md)。

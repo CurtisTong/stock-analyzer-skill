@@ -104,8 +104,8 @@ def load_full_market_universe(boards=None):
     return sorted({normalize_quote_code(c) for c in all_codes})
 
 
-# 预筛选阈值（与 refresh_pool.py FILTER 字典保持一致，共用同一数据源）
-from refresh_pool import FILTER as _PRE_SCREEN
+# 预筛选阈值（v1.7.1 起统一从 strategies.filters 导入，消除与 refresh_pool 的隐式耦合）
+from strategies.filters import PRE_SCREEN_FILTER as _PRE_SCREEN
 
 
 def pre_screen_quotes(quotes, args):

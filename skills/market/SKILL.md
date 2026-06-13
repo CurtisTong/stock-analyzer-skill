@@ -48,7 +48,15 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - 美股参考（full 模式）：`quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq` 获取美股主要指数收盘数据
 - `intraday` 模式额外取 5 分钟 K 线（48 根）
 
-**美股代码约定**：使用 `us:` 前缀 + yfinance 符号（如 `us:^gspc` = 标普500, `us:spy` = 标普500 ETF）。数据源为 yfinance，需已安装该包。
+**美股代码约定**：使用 `us:` 前缀 + yfinance 符号（如 `us:^gspc` = 标普500, `us:spy` = 标普500 ETF）。
+
+**启用美股功能**：美股数据依赖可选第三方包 yfinance，**未安装时自动跳过且不影响 A 股功能**。安装命令：
+
+```bash
+pip install yfinance>=0.2
+```
+
+未安装时调用 `us:` 前缀代码会返回空，不报错也不影响主链路。
 
 ### Step 2: 分析输出
 

@@ -39,11 +39,8 @@ FIELDS = "f12,f14,f2,f3,f6,f8,f9,f20"  # code,name,price,chg%,amount,turnover,pe
 # 预置默认股票池文件
 DEFAULT_POOL_FILE = os.path.join(DATA_DIR, "sector_stocks.default.json")
 
-# 硬过滤阈值
-FILTER = {
-    "min_amount": {"主板": 5000, "创业板": 3500, "科创板": 3500, "北交所": 7500},  # 万元
-    "min_cap":    {"主板": 40,   "创业板": 24,   "科创板": 24,   "北交所": 16},     # 亿元
-}
+# 硬过滤阈值（v1.7.1 起从 strategies.filters 导入，保留本地 FILTER 别名向后兼容）
+from strategies.filters import PRE_SCREEN_FILTER as FILTER  # noqa: F401
 
 
 # ---------- 代码分类工具 ----------
