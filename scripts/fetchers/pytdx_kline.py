@@ -31,10 +31,14 @@ def _get_market(code: str) -> int:
 
 
 class PytdxKlineFetcher(BaseFetcher):
-    """通达信 K 线数据源 (优先级 2) - 需要安装 pytdx 包。"""
+    """通达信 K 线数据源 (优先级 9) - 需要安装 pytdx 包。
+
+    pytdx 通过通达信本地服务端口直连，速度快、无限频，是次优选择
+    （最优是 sina=10）。未装 pytdx 包时此 fetcher 不会注册。
+    """
 
     def __init__(self):
-        super().__init__("pytdx_kline", priority=2)
+        super().__init__("pytdx_kline", priority=9)
 
     def fetch(self, code: str, **kwargs) -> list | None:
         if not HAS_PYTDX:

@@ -9,31 +9,39 @@ quote_sources:
     enabled: true
     timeout: 10
     retry: 3
-  
+
   eastmoney:
     priority: 8
     enabled: true
     timeout: 10
     retry: 3
-  
+
+  pytdx:
+    priority: 9
+    enabled: true
+    timeout: 5
+    retry: 1
+    # 局域网通达信端口直连，速度快、无限频
+    # 需要：pip install pytdx + 本地通达信客户端开启 7709 端口
+
   sina:
     priority: 5
     enabled: true
     timeout: 10
     retry: 2
-  
+
   efinance:
     priority: 3
     enabled: true
     timeout: 15
     retry: 2
-  
+
   akshare:
     priority: 2
     enabled: true
     timeout: 20
     retry: 1
-  
+
   tushare:
     priority: 1
     enabled: true
@@ -47,37 +55,45 @@ kline_sources:
     enabled: true
     timeout: 15
     max_datalen: 1024
-  
+
+  pytdx:
+    priority: 9
+    enabled: true
+    timeout: 5
+    max_datalen: 800
+    # 局域网通达信端口直连，K 线全市场 + 历史回溯深度大
+    # 需要：pip install pytdx + 本地通达信客户端开启 7709 端口
+
   eastmoney:
     priority: 8
     enabled: true
     timeout: 15
     max_datalen: 500
-  
+
   tencent:
     priority: 6
     enabled: true
     timeout: 15
     max_datalen: 500
-  
+
   efinance:
     priority: 4
     enabled: true
     timeout: 20
     max_datalen: 500
-  
+
   akshare:
     priority: 3
     enabled: true
     timeout: 30
     max_datalen: 500
-  
+
   tushare:
     priority: 2
     enabled: true
     timeout: 30
     max_datalen: 500
-  
+
   baostock:
     priority: 1
     enabled: true

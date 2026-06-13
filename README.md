@@ -157,6 +157,7 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 | 🧠 **专家自校准**             | debate 完成后自动写 `data/expert_calibration.json`，下轮信心指数自动校准        | 用历史准确率反推"该不该信这一次"                 |
 | 🌎 **美股参考板块**           | `/market full` 自动拉 `us:^gspc` / `us:^ixic` / `us:spy` 等收盘数据（**需 `pip install yfinance`**） | 隔夜美股 + VIX 提前一天判断 A 股开盘情绪          |
 | 📈 **全市场股票池（~5000 只）** | `/stock-init full-market` 一次性拉全 A 股，按板块预筛后进 screener              | 真正"全市场扫描"，不再被默认 20 只限死            |
+| 🛰️ **通达信局域网数据源（v1.7.1）** | `pip install pytdx` + 本地通达信客户端开启 7709 端口后，行情/K 线自动走 pytdx（优先级 9） | 局域网直连，速度快、无限频，适合盘中频繁查询      |
 
 > 📖 这些能力的详细使用方法见 [docs/user-guide.md](docs/user-guide.md) 与 [CHANGELOG.md](CHANGELOG.md)。
 
