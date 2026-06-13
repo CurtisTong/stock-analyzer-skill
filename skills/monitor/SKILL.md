@@ -1,7 +1,7 @@
 ---
 name: monitor
 description: A 股盘中监控与消息推送 skill。支持持仓异动监控、价格预警、技术信号推送、市场环境预警、策略关键点位扫描，通过 Bark/企业微信/钉钉等通道推送通知。用于持仓实时盯盘（盘中定时任务），非交易时段静默。
-version: 1.4.1
+version: 1.7.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/config/notification.yaml) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
@@ -16,14 +16,20 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Us
 /monitor [操作] [参数...]
 ```
 
+本 skill 包含两组命令，分别对应不同脚本：
+
+**健康检查**（`scripts/monitor.py`）— 数据源与缓存监控：
+
+| 操作        | 说明           | 示例                 |
+| ----------- | -------------- | -------------------- |
+| `--cache`   | 显示缓存状态   | `/monitor --cache`   |
+| `--sources` | 显示数据源状态 | `/monitor --sources` |
+| `--cleanup` | 清理过期缓存   | `/monitor --cleanup` |
+
+**实时监控**（`scripts/monitor/alert_engine.py`）— 盘中预警与推送：
+
 | 操作     | 说明                              | 示例                       |
 | -------- | --------------------------------- | -------------------------- |
-| `start`  | 启动盘中监控                      | `/monitor start`           |
-| `stop`   | 停止监控                          | `/monitor stop`            |
-| `status` | 查看监控状态                      | `/monitor status`          |
-| `test`   | 测试推送通道                      | `/monitor test`            |
-| `config` | 查看/修改配置                     | `/monitor config`          |
-| `log`    | 查看推送日志                      | `/monitor log`             |
 | `scan`   | 扫描持仓+自选股关键点位           | `/monitor scan`            |
 | `levels` | 查看单股关键点位                  | `/monitor levels sh600989` |
 | `check`  | 盘中检查+推送（dry-run 模式预览） | `/monitor check`           |

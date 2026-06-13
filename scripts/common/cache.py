@@ -2,10 +2,16 @@
 import hashlib
 import json
 import os
+import platform
 import tempfile
 import time
 from pathlib import Path
 from typing import Optional
+
+# Windows 不支持 fcntl，用条件导入守护
+_USE_FCNTL = platform.system() != "Windows"
+if _USE_FCNTL:
+    import fcntl
 
 _DEFAULT_CACHE_DIR = Path(__file__).resolve().parent.parent.parent / ".cache"
 CACHE_DIR = Path(os.getenv("STOCK_CACHE_DIR", str(_DEFAULT_CACHE_DIR)))
@@ -28,11 +34,16 @@ def get(key: str, ttl_seconds: int) -> Optional[bytes]:
 
 
 def set(key: str, data: bytes):
-    """写入缓存（原子写入：先写临时文件，再 rename）。"""
+    """写入缓存（原子写入：先写临时文件，再 rename）。
+
+    非 Windows 平台使用 fcntl 文件锁防止多进程竞争。
+    """
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
     fd, tmp_path = tempfile.mkstemp(dir=CACHE_DIR, suffix=".tmp")
     try:
+        if _USE_FCNTL:
+            fcntl.flock(fd, fcntl.LOCK_EX)
         os.write(fd, data)
         os.close(fd)
         fd = -1
@@ -45,6 +56,9 @@ def set(key: str, data: bytes):
                 pass
         Path(tmp_path).unlink(missing_ok=True)
         raise
+    finally:
+        # 确保异常路径也能清理 .tmp 残留（正常路径 tmp_path 已被 replace 走，unlink 无害）
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 def get_json(key: str, ttl_seconds: int):
@@ -114,6 +128,20 @@ def cache_set(key: str, data: bytes) -> None:
 def cache_cleanup(prefix: str = None, max_age_seconds: int = 86400) -> int:
     """cleanup() 的别名。"""
     return cleanup(prefix, max_age_seconds)
+
+
+def cleanup_tmp_files() -> int:
+    """清理缓存目录下的 *.tmp 残留文件（崩溃遗留）。返回清理数量。"""
+    if not CACHE_DIR.exists():
+        return 0
+    cleaned = 0
+    for f in CACHE_DIR.glob("*.tmp"):
+        try:
+            f.unlink()
+            cleaned += 1
+        except OSError:
+            pass
+    return cleaned
 
 
 def cleanup_by_size(max_size_mb: int = 500, keep_newest: bool = True) -> int:

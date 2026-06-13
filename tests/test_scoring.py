@@ -304,6 +304,103 @@ class TestThresholdBoundaries:
         })
         assert result["情绪"] == expected
 
+    @pytest.mark.parametrize("total_amount,limit_down,expected_risk", [
+        (3000, 5, 20),   # 流动性枯竭
+        (6999, 5, 20),   # 刚好低于阈值
+        (7000, 5, 80),   # 刚好达到阈值，流动性正常
+        (10000, 5, 80),  # 流动性充裕
+        (0, 5, 80),      # total_amount=0 不触发流动性判断
+    ])
+    def test_soros_liquidity_floor(self, total_amount, limit_down, expected_risk):
+        from experts.scoring import _score_soros
+        result = _score_soros({
+            "market_features": {
+                "total_amount": total_amount,
+                "limit_down_count": limit_down,
+            },
+        })
+        assert result["风险"] == expected_risk, (
+            f"Soros risk={result['风险']} for total_amount={total_amount}, "
+            f"expected={expected_risk}"
+        )
+
+
+class TestPEPercentileAdjustment:
+    """PE 历史分位调整：仅在基础分及格时才奖励历史低估。"""
+
+    def test_garbage_stock_no_bonus(self):
+        """PE=45（垃圾股）+ pe_percentile=15，不应加 15 分（基础分 0 < 25）。"""
+        from experts.scoring import _score_buffett
+        result = _score_buffett({
+            "quote": {"pe": 45, "pe_percentile": 15},
+        })
+        assert result["估值"] == 0, (
+            f"PE=45 + percentile=15 should stay 0, got {result['估值']}"
+        )
+
+    def test_reasonable_stock_gets_bonus(self):
+        """PE=20（合理估值）+ pe_percentile=15，应加 15 分（基础分 60 >= 25）。"""
+        from experts.scoring import _score_buffett
+        result_no_pct = _score_buffett({"quote": {"pe": 20}})
+        result_with_pct = _score_buffett({
+            "quote": {"pe": 20, "pe_percentile": 15},
+        })
+        assert result_with_pct["估值"] == result_no_pct["估值"] + 15, (
+            f"Expected +15 bonus, got {result_with_pct['估值']} vs {result_no_pct['估值']}"
+        )
+
+
+class TestZhaoLaogeRiskGradual:
+    """赵老哥风险评分：破20日线渐进式扣分（龙头低吸风格）。"""
+
+    def _make_stock_with_closes(self, closes):
+        """构造指定收盘价序列的股票数据。"""
+        return {
+            "kline_data": {
+                "closes": closes,
+                "volumes": [1000000] * len(closes),
+            },
+        }
+
+    def test_above_ma20_risk_80(self):
+        """close = ma20 * 1.02（高于20日线），risk=80。"""
+        from experts.scoring import _score_zhao_laoge
+        base_price = 10.0
+        closes = [base_price] * 20 + [base_price * 1.02]
+        result = _score_zhao_laoge(self._make_stock_with_closes(closes))
+        assert result["风险"] == 80
+
+    def test_shallow_break_ma20_risk_60(self):
+        """close = ma20 * 0.98（浅破2%），risk=60。"""
+        from experts.scoring import _score_zhao_laoge
+        base_price = 10.0
+        closes = [base_price] * 20 + [base_price * 0.98]
+        result = _score_zhao_laoge(self._make_stock_with_closes(closes))
+        assert result["风险"] == 60
+
+    def test_moderate_break_ma20_risk_30(self):
+        """close = ma20 * 0.92（中破8%），risk=30。"""
+        from experts.scoring import _score_zhao_laoge
+        base_price = 10.0
+        closes = [base_price] * 20 + [base_price * 0.92]
+        result = _score_zhao_laoge(self._make_stock_with_closes(closes))
+        assert result["风险"] == 30
+
+    def test_deep_break_ma20_risk_10(self):
+        """close = ma20 * 0.85（深破15%），risk=10。"""
+        from experts.scoring import _score_zhao_laoge
+        base_price = 10.0
+        closes = [base_price] * 20 + [base_price * 0.85]
+        result = _score_zhao_laoge(self._make_stock_with_closes(closes))
+        assert result["风险"] == 10
+
+    def test_insufficient_data_risk_60(self):
+        """数据不足20根K线，risk=60（回退默认值）。"""
+        from experts.scoring import _score_zhao_laoge
+        closes = [10.0] * 10
+        result = _score_zhao_laoge(self._make_stock_with_closes(closes))
+        assert result["风险"] == 60
+
 
 class TestConfidenceIndex:
     def test_high_consistency_high_score(self):

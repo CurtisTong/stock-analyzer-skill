@@ -164,3 +164,8 @@ industry_defaults:
   debt_ratio_max: 60
   profit_growth_excellent: 40
   revenue_growth_excellent: 30
+
+# 专家评分参数
+experts:
+  soros:
+    market_liquidity_floor_yi: 7000  # 两市日均成交额（亿元），低于此值视为流动性枯竭

@@ -1,0 +1,190 @@
+"""
+experts/scoring 注册表测试：验证 8 位专家评分函数都正确注册。
+"""
+import pytest
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
+
+from experts import EXPERT_REGISTRY, get_expert
+from experts.scoring import (
+    score_expert_precise,
+    _EXPERT_SCORING_FUNCTIONS,
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 1. 注册表完整性
+# ═══════════════════════════════════════════════════════════════
+
+class TestScorerRegistry:
+    """验证所有专家评分函数都已注册。"""
+
+    def test_all_experts_registered(self):
+        """所有 8 位专家都应在注册表中。"""
+        expected_experts = {
+            "buffett", "lynch", "soros", "duan_yongping",
+            "xu_xiang", "zhao_laoge", "chaogu_yangjia", "zuoshou_xinyi",
+        }
+        registered = set(_EXPERT_SCORING_FUNCTIONS.keys())
+        assert registered == expected_experts, (
+            f"Missing: {expected_experts - registered}, "
+            f"Extra: {registered - expected_experts}"
+        )
+
+    def test_registry_count(self):
+        """注册表应恰好有 8 个专家。"""
+        assert len(_EXPERT_SCORING_FUNCTIONS) == 8
+
+    def test_all_scoring_functions_callable(self):
+        """所有注册的评分函数都应可调用。"""
+        for name, fn in _EXPERT_SCORING_FUNCTIONS.items():
+            assert callable(fn), f"{name}: scoring function is not callable"
+
+    @pytest.mark.parametrize("expert_name", list(EXPERT_REGISTRY.keys()))
+    def test_expert_has_scorer(self, expert_name):
+        """每位专家在 EXPERT_REGISTRY 中都应有对应的评分函数。"""
+        assert expert_name in _EXPERT_SCORING_FUNCTIONS, (
+            f"{expert_name} in EXPERT_REGISTRY but not in _EXPERT_SCORING_FUNCTIONS"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
+# 2. 评分函数独立性
+# ═══════════════════════════════════════════════════════════════
+
+class TestScorerIndependence:
+    """验证各专家评分函数独立工作。"""
+
+    EMPTY_STOCK = {}
+    GOOD_STOCK = {
+        "quote": {"pe": 12, "pb": 1.5, "circulating_cap": 80, "price": 25.0},
+        "finance": {
+            "ROEJQ": 25, "PARENTNETPROFITTZ": 30, "ZCFZL": 25,
+            "EPSJB": 2.0, "MGJYXJJE": 2.5,
+        },
+        "kline_features": {"trend": 1, "rsi": 50, "macd_signal": 1},
+        "kline_data": {
+            "closes": [20 + i * 0.3 for i in range(30)],
+            "volumes": [1000000 + i * 10000 for i in range(30)],
+        },
+        "market_features": {
+            "limit_up_count": 60, "limit_down_count": 5,
+            "advance_ratio": 0.55, "break_rate": 0.2,
+            "limit_up_30d_count": 3, "sector_limit_up_count": 2,
+        },
+    }
+
+    @pytest.mark.parametrize("expert_name", list(_EXPERT_SCORING_FUNCTIONS.keys()))
+    def test_scorer_returns_dict(self, expert_name):
+        """每位专家的评分函数应返回 dict。"""
+        fn = _EXPERT_SCORING_FUNCTIONS[expert_name]
+        result = fn(self.EMPTY_STOCK)
+        assert isinstance(result, dict), f"{expert_name}: did not return dict"
+
+    @pytest.mark.parametrize("expert_name", list(_EXPERT_SCORING_FUNCTIONS.keys()))
+    def test_scorer_returns_valid_dimensions(self, expert_name):
+        """每位专家的评分函数应返回正确数量的维度。"""
+        profile = get_expert(expert_name)
+        fn = _EXPERT_SCORING_FUNCTIONS[expert_name]
+        result = fn(self.GOOD_STOCK)
+        # 结果应包含至少一个维度
+        assert len(result) > 0, f"{expert_name}: returned empty dict"
+        # 所有返回的维度值应在 0-100 范围
+        for dim, score in result.items():
+            assert 0 <= score <= 100, (
+                f"{expert_name}.{dim}={score} out of range [0, 100]"
+            )
+
+    @pytest.mark.parametrize("expert_name", list(_EXPERT_SCORING_FUNCTIONS.keys()))
+    def test_scorer_handles_empty_data(self, expert_name):
+        """每位专家的评分函数应能处理空数据。"""
+        fn = _EXPERT_SCORING_FUNCTIONS[expert_name]
+        result = fn(self.EMPTY_STOCK)
+        assert isinstance(result, dict)
+        for dim, score in result.items():
+            assert 0 <= score <= 100, (
+                f"{expert_name}.{dim}={score} out of range on empty data"
+            )
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3. score_expert_precise 端到端
+# ═══════════════════════════════════════════════════════════════
+
+class TestPreciseIntegration:
+    """验证 score_expert_precise 通过注册表正确调用。"""
+
+    def test_precise_uses_registry(self):
+        """score_expert_precise 应使用注册表中的函数。"""
+        profile = get_expert("buffett")
+        result = score_expert_precise(profile, {})
+        assert result["method"] == "precise"
+
+    def test_precise_all_experts(self):
+        """所有专家都应通过 precise 路径评分。"""
+        for name, profile in EXPERT_REGISTRY.items():
+            result = score_expert_precise(profile, {})
+            assert result["method"] == "precise", (
+                f"{name}: method={result['method']}, expected 'precise'"
+            )
+            assert "score" in result
+            assert "direction" in result
+            assert "breakdown" in result
+            assert "dim_scores" in result
+
+
+# ═══════════════════════════════════════════════════════════════
+# 4. 向后兼容性
+# ═══════════════════════════════════════════════════════════════
+
+class TestBackwardCompatibility:
+    """验证向后兼容的导入路径。"""
+
+    def test_import_score_from_dimensions(self):
+        """from experts.scoring import score_from_dimensions 应正常工作。"""
+        from experts.scoring import score_from_dimensions
+        assert callable(score_from_dimensions)
+
+    def test_import_dimension_breakdown(self):
+        """from experts.scoring import dimension_breakdown 应正常工作。"""
+        from experts.scoring import dimension_breakdown
+        assert callable(dimension_breakdown)
+
+    def test_import_score_expert(self):
+        """from experts.scoring import score_expert 应正常工作。"""
+        from experts.scoring import score_expert
+        assert callable(score_expert)
+
+    def test_import_score_expert_precise(self):
+        """from experts.scoring import score_expert_precise 应正常工作。"""
+        from experts.scoring import score_expert_precise
+        assert callable(score_expert_precise)
+
+    def test_import_compute_confidence_index(self):
+        """from experts.scoring import compute_confidence_index 应正常工作。"""
+        from experts.scoring import compute_confidence_index
+        assert callable(compute_confidence_index)
+
+    def test_import_legacy_scorer_functions(self):
+        """向后兼容：旧的 _score_* 函数名仍可导入。"""
+        from experts.scoring import (
+            _score_buffett,
+            _score_lynch,
+            _score_soros,
+            _score_duan_yongping,
+            _score_xu_xiang,
+            _score_zhao_laoge,
+            _score_chaogu_yangjia,
+            _score_zuoshou_xinyi,
+        )
+        assert callable(_score_buffett)
+        assert callable(_score_lynch)
+        assert callable(_score_soros)
+        assert callable(_score_duan_yongping)
+        assert callable(_score_xu_xiang)
+        assert callable(_score_zhao_laoge)
+        assert callable(_score_chaogu_yangjia)
+        assert callable(_score_zuoshou_xinyi)

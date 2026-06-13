@@ -25,34 +25,44 @@ def chan_beichi(bi_list, zs_list, closes):
 
     result = {"trend_beichi": None, "range_beichi": [], "summary": ""}
 
-    # ── 趋势背驰：比较最后两段同向笔的力度 ──
-    # 找最后两段下跌笔（底背驰）或上升笔（顶背驰）
-    down_bis = [bi for bi in bi_list if bi["direction"] == "down"]
-    up_bis = [bi for bi in bi_list if bi["direction"] == "up"]
+    # ── 趋势背驰：以最后一个中枢为锚点 ──
+    # 仅比较"中枢前最后一段"和"中枢后第一段"的 MACD 面积
+    if zs_list:
+        last_zs = zs_list[-1]
+        xd_start = last_zs.get("xd_start", 0)
+        xd_end = last_zs.get("xd_end", 0)
 
-    # 底背驰：最后两段下跌笔，第二段价格更低但 MACD 面积更小
-    if len(down_bis) >= 2:
-        b1, b2 = down_bis[-2], down_bis[-1]
-        start1, end1 = b1["start_idx"], b1["end_idx"]
-        start2, end2 = b2["start_idx"], b2["end_idx"]
+        # 中枢前最后一笔（进入段）
+        entry_bi = None
+        for bi in reversed(bi_list):
+            if bi["end_idx"] <= xd_start:
+                entry_bi = bi
+                break
 
-        if end2 < len(dif_series) and end1 < len(dif_series):
-            area1 = _macd_area(dif_series, dea_series, min(start1, len(dif_series) - 1), min(end1, len(dif_series) - 1))
-            area2 = _macd_area(dif_series, dea_series, min(start2, len(dif_series) - 1), min(end2, len(dif_series) - 1))
-            if area2 < area1 and b2["low"] < b1["low"]:
-                result["trend_beichi"] = "底背驰(看涨)"
+        # 中枢后第一笔（离开段）
+        exit_bi = None
+        for bi in bi_list:
+            if bi["start_idx"] >= xd_end:
+                exit_bi = bi
+                break
 
-    # 顶背驰：最后两段上升笔，第二段价格更高但 MACD 面积更小
-    if len(up_bis) >= 2 and result["trend_beichi"] is None:
-        b1, b2 = up_bis[-2], up_bis[-1]
-        start1, end1 = b1["start_idx"], b1["end_idx"]
-        start2, end2 = b2["start_idx"], b2["end_idx"]
+        if entry_bi and exit_bi and entry_bi["direction"] == exit_bi["direction"]:
+            e_start, e_end = entry_bi["start_idx"], entry_bi["end_idx"]
+            x_start, x_end = exit_bi["start_idx"], exit_bi["end_idx"]
 
-        if end2 < len(dif_series) and end1 < len(dif_series):
-            area1 = _macd_area(dif_series, dea_series, min(start1, len(dif_series) - 1), min(end1, len(dif_series) - 1))
-            area2 = _macd_area(dif_series, dea_series, min(start2, len(dif_series) - 1), min(end2, len(dif_series) - 1))
-            if area2 < area1 and b2["high"] > b1["high"]:
-                result["trend_beichi"] = "顶背驰(看跌)"
+            if e_end < len(dif_series) and x_end < len(dif_series):
+                entry_area = _macd_area(dif_series, dea_series,
+                                        min(e_start, len(dif_series) - 1),
+                                        min(e_end, len(dif_series) - 1))
+                exit_area = _macd_area(dif_series, dea_series,
+                                       min(x_start, len(dif_series) - 1),
+                                       min(x_end, len(dif_series) - 1))
+
+                if exit_area < entry_area:
+                    if entry_bi["direction"] == "down" and exit_bi["low"] < entry_bi["low"]:
+                        result["trend_beichi"] = "底背驰(看涨)"
+                    elif entry_bi["direction"] == "up" and exit_bi["high"] > entry_bi["high"]:
+                        result["trend_beichi"] = "顶背驰(看跌)"
 
     # ── 盘整背驰：检查每个中枢的进入段 vs 离开段 ──
     for zs_idx, zs in enumerate(zs_list):

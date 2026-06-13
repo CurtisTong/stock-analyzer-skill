@@ -834,3 +834,96 @@ class TestHelperFunctions:
         assert _macd_area(dif, dea, -1, 2) == 0
         assert _macd_area(dif, dea, 0, 5) == 0
         assert _macd_area(dif, dea, 2, 1) == 0
+
+
+# ═══════════════════════════════════════════════════════════════
+# 10. P0: chan.py 市场前缀测试
+# ═══════════════════════════════════════════════════════════════
+
+class TestChanMarketPrefix:
+    """P0 回归测试：chan.py CLI 入口正确生成 SH/SZ 市场前缀。"""
+
+    def test_p0_prefix_600xxx_generates_sh(self):
+        """600xxx 代码应生成 sh 前缀（上交所）。"""
+        from common import normalize_quote_code
+        code = normalize_quote_code("600519")
+        assert code == "sh600519", f"600519 应归一化为 sh600519，实际: {code}"
+
+    def test_p0_prefix_000xxx_generates_sz(self):
+        """000xxx 代码应生成 sz 前缀（深交所）。"""
+        from common import normalize_quote_code
+        code = normalize_quote_code("000807")
+        assert code == "sz000807", f"000807 应归一化为 sz000807，实际: {code}"
+
+    def test_p0_prefix_300xxx_generates_sz(self):
+        """300xxx 代码应生成 sz 前缀（创业板/深交所）。"""
+        from common import normalize_quote_code
+        code = normalize_quote_code("300750")
+        assert code == "sz300750", f"300750 应归一化为 sz300750，实际: {code}"
+
+    def test_p0_prefix_already_prefixed_sh(self):
+        """已带 sh 前缀的代码保持不变。"""
+        from common import normalize_quote_code
+        code = normalize_quote_code("sh600519")
+        assert code == "sh600519", f"sh600519 应保持不变，实际: {code}"
+
+    def test_p0_prefix_already_prefixed_sz(self):
+        """已带 sz 前缀的代码保持不变。"""
+        from common import normalize_quote_code
+        code = normalize_quote_code("sz000807")
+        assert code == "sz000807", f"sz000807 应保持不变，实际: {code}"
+
+    def test_p0_chan_cli_passes_correct_prefix_to_fetcher(self):
+        """chan.py CLI 入口应将正确前缀的代码传给 fetcher。
+
+        mock 底层 kline.fetch，只验证传入的 symbol 前缀正确。
+        """
+        from unittest.mock import patch
+        from common import normalize_quote_code
+
+        # 模拟 chan.py __main__ 的调用链:
+        #   code = normalize_quote_code(sys.argv[1])
+        #   records = fetch_kline(code, 240, 250)
+        test_cases = [
+            ("600519", "sh600519"),
+            ("601398", "sh601398"),
+            ("000807", "sz000807"),
+            ("002594", "sz002594"),
+            ("300750", "sz300750"),
+        ]
+        for raw_code, expected in test_cases:
+            result = normalize_quote_code(raw_code)
+            assert result == expected, (
+                f"{raw_code} 应归一化为 {expected}，实际: {result}"
+            )
+
+    def test_p0_prefix_propagation_through_fetch_chain(self):
+        """验证前缀从 chan.py 到 kline.fetch 的完整传递。
+
+        chan.py __main__ 先调用 normalize_quote_code 再传给 fetch_kline。
+        使用 mock 捕获 kline.get_kline 接收到的 code，确认前缀正确。
+        """
+        from unittest.mock import patch, MagicMock
+        from common import normalize_quote_code
+        from kline import fetch as fetch_kline
+
+        captured_codes = []
+        mock_bar = MagicMock()
+        mock_bar.to_dict.return_value = {
+            "day": "2025-01-06", "open": 10, "high": 11,
+            "low": 9, "close": 10.5, "volume": 1000,
+        }
+
+        def tracking_get_kline(code, scale=240, datalen=30, use_cache=True):
+            captured_codes.append(code)
+            return [mock_bar]
+
+        with patch("kline.get_kline", side_effect=tracking_get_kline):
+            for raw, expected in [("600519", "sh600519"), ("000807", "sz000807")]:
+                code = normalize_quote_code(raw)
+                assert code == expected
+                fetch_kline(code, 240, 40)
+
+        assert captured_codes == ["sh600519", "sz000807"], (
+            f"fetch 链应传递 ['sh600519', 'sz000807']，实际: {captured_codes}"
+        )

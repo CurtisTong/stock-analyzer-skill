@@ -13,6 +13,13 @@ def chan_zhongshu(xd_list):
     zs_list = []
     for i in range(len(xd_list) - 2):
         x0, x1, x2 = xd_list[i], xd_list[i + 1], xd_list[i + 2]
+
+        # 两两重叠校验：每对线段必须有共同区间
+        if not (max(x0["low"], x1["low"]) < min(x0["high"], x1["high"])
+                and max(x1["low"], x2["low"]) < min(x1["high"], x2["high"])
+                and max(x0["low"], x2["low"]) < min(x0["high"], x2["high"])):
+            continue
+
         zg = min(x0["high"], x1["high"], x2["high"])
         zd = max(x0["low"], x1["low"], x2["low"])
 

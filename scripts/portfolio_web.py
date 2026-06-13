@@ -18,7 +18,9 @@
 import argparse
 import json
 import os
+import secrets
 import socket
+import stat
 import subprocess
 import sys
 import threading
@@ -69,6 +71,35 @@ _monitor_thread = None
 _monitor_stop_event = threading.Event()
 _monitor_interval = 300  # 默认 5 分钟检查一次
 _monitor_last_result = None  # 最近一次监控结果
+_token: Optional[str] = None  # Bearer token（_ensure_token 初始化）
+
+
+# ===== Bearer Token 认证 =====
+_TOKEN_DIR = Path.home() / ".config" / "stock-analyzer"
+_TOKEN_FILE = _TOKEN_DIR / "portfolio_web.token"
+
+
+def _ensure_token() -> str:
+    """读取或生成 Bearer token，存储到 ~/.config/stock-analyzer/portfolio_web.token。
+
+    文件权限 0o600，仅所有者可读写。
+    """
+    global _token
+    if _token is not None:
+        return _token
+
+    _TOKEN_DIR.mkdir(parents=True, exist_ok=True)
+
+    if _TOKEN_FILE.exists():
+        stored = _TOKEN_FILE.read_text(encoding="utf-8").strip()
+        if stored:
+            _token = stored
+            return _token
+
+    _token = secrets.token_urlsafe(32)
+    _TOKEN_FILE.write_text(_token + "\n", encoding="utf-8")
+    _TOKEN_FILE.chmod(stat.S_IRUSR | stat.S_IWUSR)  # 0o600
+    return _token
 
 
 # ===== 工具函数 =====
@@ -532,9 +563,22 @@ class Handler(BaseHTTPRequestHandler):
     def _send_method_not_allowed(self, allowed: str):
         self._write_json(HTTPStatus.METHOD_NOT_ALLOWED, _err("method_not_allowed", 405, f"allowed: {allowed}"))
 
+    def _check_auth(self) -> bool:
+        """校验 Authorization: Bearer <token>，不通过则写 401 响应并返回 False。"""
+        token = _ensure_token()
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer ") and auth[7:].strip() == token:
+            return True
+        self._write_json(HTTPStatus.UNAUTHORIZED,
+                         _err("unauthorized", 401, "missing or invalid Bearer token"))
+        return False
+
     # ---- GET ----
     def do_GET(self):
         path = urlparse(self.path).path.rstrip("/") or "/"
+        # health / favicon 免认证
+        if path not in ("/api/health", "/favicon.ico") and not self._check_auth():
+            return
         try:
             if path == "/" or path == "":
                 self._serve_index()
@@ -556,12 +600,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         path = urlparse(self.path).path.rstrip("/") or "/"
+        # health / favicon 免认证
+        if path not in ("/api/health", "/favicon.ico") and not self._check_auth():
+            return
         if path in ("/", "/api/health", "/api/positions", "/api/monitor", "/favicon.ico") or path.startswith("/api/positions/"):
             self._write(HTTPStatus.OK, b"", "application/json; charset=utf-8")
         else:
             self._write(HTTPStatus.NOT_FOUND, b"", "application/json; charset=utf-8")
 
     def do_POST(self):
+        if not self._check_auth():
+            return
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path != "/api/positions":
             self._write_json(HTTPStatus.NOT_FOUND, _err("not_found", 404, path))
@@ -932,6 +981,7 @@ INDEX_HTML_TEMPLATE = """<!doctype html>
     </div>
     <pre id="curl"><span class="kw">curl</span> -X POST http://127.0.0.1:8765/api/positions \\
   -H <span class="str">'Content-Type: application/json'</span> \\
+  -H <span class="str">'Authorization: Bearer &lt;YOUR_TOKEN&gt;'</span> \\
   -d <span class="str">'{"action":"add_position","code":"sh600989","cost":18.5,"quantity":1000,"tags":["长线"]}'</span></pre>
   </div>
 
@@ -941,6 +991,8 @@ INDEX_HTML_TEMPLATE = """<!doctype html>
 const $ = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
 let toastTimer;
+const TOKEN = new URLSearchParams(location.search).get("token") || "";
+const AUTH = TOKEN ? {"Authorization": "Bearer " + TOKEN} : {};
 
 function showToast(msg, ok) {
   const t = $("#toast");
@@ -976,7 +1028,7 @@ function syncFields() {
 
 async function loadList() {
   try {
-    const r = await fetch("/api/positions");
+    const r = await fetch("/api/positions", {headers: AUTH});
     const j = await r.json();
     if (!j.ok) throw new Error(j.error);
     renderPositions(j.data.positions);
@@ -1059,7 +1111,7 @@ $("#entry").addEventListener("submit", async (e) => {
   btn.disabled = true; btn.textContent = "提交中…";
   try {
     const r = await fetch("/api/positions", {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json", ...AUTH },
       body: JSON.stringify(body),
     });
     const j = await r.json();
@@ -1087,7 +1139,7 @@ loadList();
 
 async function loadMonitor() {
   try {
-    const r = await fetch("/api/monitor");
+    const r = await fetch("/api/monitor", {headers: AUTH});
     const j = await r.json();
     if (!j.ok) return;
     const d = j.data;
@@ -1158,10 +1210,13 @@ def main():
                         help="禁用后台监控")
     parser.add_argument("--monitor-interval", type=int, default=300,
                         help="监控检查间隔秒数（默认 300）")
+    parser.add_argument("--allow-public-bind", action="store_true",
+                        help="允许绑定到 0.0.0.0（默认拒绝）")
     args = parser.parse_args()
 
-    if args.host == "0.0.0.0":
-        print("WARNING: binding to 0.0.0.0 — 内网其它设备可访问", file=sys.stderr)
+    if args.host == "0.0.0.0" and not args.allow_public_bind:
+        print("ERROR: 绑定 0.0.0.0 需显式 --allow-public-bind 参数", file=sys.stderr)
+        sys.exit(1)
 
     # 跳过预检直接启动——ThreadingHTTPServer.allow_reuse_address 已为 True，
     # 可接管 TIME_WAIT；预检 socket 未设 SO_REUSEADDR 反而会留下 TIME_WAIT 导致 bind 失败。
@@ -1173,7 +1228,9 @@ def main():
         sys.exit(1)
 
     bound_host, bound_port = server.server_address
-    print(f"Portfolio Web 启动: http://{bound_host}:{bound_port}/", flush=True)
+    token = _ensure_token()
+    print(f"Portfolio Web 启动: http://{bound_host}:{bound_port}/?token={token}", flush=True)
+    print(f"  Token: {token}", flush=True)
     print(f"  数据文件: {args.data_file or _SCRIPTS_DIR / 'data' / 'portfolio.json'}", flush=True)
 
     # 通知推送

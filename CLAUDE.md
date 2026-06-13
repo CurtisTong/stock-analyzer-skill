@@ -25,15 +25,20 @@ python3 scripts/quote.py sh600989
 python3 scripts/finance.py sh600989
 python3 scripts/kline.py sh600989
 python3 scripts/technical.py sh600989
-python3 scripts/screener.py balanced
+python3 scripts/screener.py --strategy balanced
 python3 scripts/chan.py sh600989
 python3 scripts/classifier.py sh600989
 python3 scripts/backtest.py sh600989
 python3 scripts/patterns_local.py sh600989
 python3 scripts/monitor.py
+python3 scripts/monitor/alert_engine.py scan/levels/check
 python3 scripts/init_pool.py
 python3 scripts/init_pool.py --default  # 离线模式
 python3 scripts/refresh_pool.py
+python3 scripts/calibration.py record/verify/report/pending
+python3 scripts/portfolio_web.py --port 8765
+python3 scripts/stock.py sh600989
+python3 scripts/chip.py sh600989
 ```
 
 ## 三层架构

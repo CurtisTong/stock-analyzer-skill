@@ -13,7 +13,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from monitor.channels.base import NotificationChannel  # noqa: E402
+from monitor.channels.base import NotificationChannel, validate_webhook_url  # noqa: E402
 from monitor.channels.bark import BarkChannel  # noqa: E402
 from monitor.channels.wechat import WechatWorkChannel  # noqa: E402
 from monitor.channels.dingtalk import DingtalkChannel  # noqa: E402
@@ -260,3 +260,90 @@ class TestDingtalkChannel:
             digestmod=hashlib.sha256,
         ).digest()
         assert decoded == expected
+
+
+# ═══════════════════════════════════════════════════════════════
+# 5. SSRF 防护：validate_webhook_url
+# ═══════════════════════════════════════════════════════════════
+class TestValidateWebhookUrl:
+    """webhook URL SSRF 防护校验。"""
+
+    def test_valid_https_url(self):
+        """合法 HTTPS URL 通过。"""
+        assert validate_webhook_url("https://api.day.app/key") == "https://api.day.app/key"
+
+    def test_valid_https_domain(self):
+        """域名形式的 HTTPS URL 通过。"""
+        assert validate_webhook_url("https://qyapi.weixin.qq.com/cgi-bin/webhook/send") == \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send"
+
+    def test_empty_url_passes(self):
+        """空字符串直接通过（通道未配置时不校验）。"""
+        assert validate_webhook_url("") == ""
+
+    def test_file_scheme_passes(self):
+        """file:// 用于测试，允许通过。"""
+        assert validate_webhook_url("file:///tmp/test") == "file:///tmp/test"
+
+    def test_rejects_http(self):
+        """HTTP（非 HTTPS）被拒绝。"""
+        with pytest.raises(ValueError, match="https"):
+            validate_webhook_url("http://api.day.app/key")
+
+    def test_rejects_private_10(self):
+        """10.x.x.x 私有地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://10.0.0.1/webhook")
+
+    def test_rejects_private_172_16(self):
+        """172.16.x.x 私有地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://172.16.0.1/webhook")
+
+    def test_rejects_private_172_31(self):
+        """172.31.x.x 私有地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://172.31.255.255/webhook")
+
+    def test_rejects_private_192_168(self):
+        """192.168.x.x 私有地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://192.168.1.1/webhook")
+
+    def test_rejects_loopback_127(self):
+        """127.x.x.x 环回地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://127.0.0.1/webhook")
+
+    def test_rejects_loopback_ipv6(self):
+        """::1 环回地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://[::1]/webhook")
+
+    def test_rejects_link_local(self):
+        """169.254.x.x 链路本地地址被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            validate_webhook_url("https://169.254.1.1/webhook")
+
+    def test_public_ip_passes(self):
+        """公网 IP 通过。"""
+        assert validate_webhook_url("https://8.8.8.8/webhook") == "https://8.8.8.8/webhook"
+
+
+class TestBarkChannelSsrf:
+    """BarkChannel SSRF 防护。"""
+
+    def test_rejects_http_server(self):
+        """Bark server 使用 HTTP 被拒绝。"""
+        with pytest.raises(ValueError, match="https"):
+            BarkChannel(server="http://api.day.app", key="k")
+
+    def test_rejects_private_ip_server(self):
+        """Bark server 指向私有 IP 被拒绝。"""
+        with pytest.raises(ValueError, match="私有"):
+            BarkChannel(server="https://192.168.1.1", key="k")
+
+    def test_valid_server_passes(self):
+        """合法 Bark server URL 正常创建。"""
+        ch = BarkChannel(server="https://api.day.app", key="k")
+        assert ch._server == "https://api.day.app"

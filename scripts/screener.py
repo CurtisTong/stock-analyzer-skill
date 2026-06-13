@@ -12,13 +12,14 @@ A 股多因子选股器。
 import argparse
 import json
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from pathlib import Path
 
 from common import (
     DATA_DIR,
     board_type,
     clamp,
+    get_shared_executor,
     normalize_finance_code,
     normalize_quote_code,
     plain_code,
@@ -258,24 +259,20 @@ def prefetch_finance_all(codes):
     """并发拉取所有股票的财务数据。"""
     results = {}
 
-    # 动态计算最优线程数
-    cpu_count = __import__("os").cpu_count() or 4
-    max_workers = min(max(len(codes) // 10, 4), cpu_count * 2)
-
     def _fetch_one(code):
         # data 层已有零值缓存校验，自动跳过无效缓存
         from data import get_finance
         records = get_finance(normalize_finance_code(code))
         return code, [r.to_dict() for r in records]
 
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(_fetch_one, c): c for c in codes}
-        for future in as_completed(futures):
-            try:
-                code, data = future.result()
-                results[code] = data
-            except Exception:
-                results[futures[future]] = []
+    ex = get_shared_executor()
+    futures = {ex.submit(_fetch_one, c): c for c in codes}
+    for future in as_completed(futures):
+        try:
+            code, data = future.result()
+            results[code] = data
+        except Exception:
+            results[futures[future]] = []
     return results
 
 

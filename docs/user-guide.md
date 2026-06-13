@@ -29,7 +29,7 @@
 | financial-analyst     | `/financial-analyst <任务>`                   | 财务分析 agent | 建模+预测+场景分析                 |
 | investment-researcher | `/investment-researcher <任务>`               | 投资研究 agent | 市场研究+尽调+估值                 |
 | backtest              | `/backtest [--strategy 策略] [--all]`         | 策略回测       | 历史胜率+收益验证                  |
-| monitor               | `/monitor [start\|stop]`                      | 盘中监控       | 持仓异动+价格预警推送              |
+| monitor               | `/monitor scan\|levels\|check\|--cache`       | 盘中监控       | 持仓异动+价格预警推送              |
 
 > **术语说明**：
 >
@@ -305,14 +305,18 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ## 盘中监控 (/monitor)
 
-命令格式：`/monitor [start|stop]`
-
-实时监控持仓异动和价格预警。
+健康检查与实时监控，包含两组命令。
 
 ```text
-/monitor           # 查看监控状态
-/monitor start     # 启动监控
-/monitor stop      # 停止监控
+# 健康检查（数据源与缓存）
+/monitor --cache       # 显示缓存状态
+/monitor --sources     # 显示数据源状态
+/monitor --cleanup     # 清理过期缓存
+
+# 实时监控（盘中预警与推送）
+/monitor scan          # 扫描持仓+自选股关键点位
+/monitor levels sh600989  # 查看单股关键点位
+/monitor check         # 盘中检查+推送
 ```
 
 支持 Bark、企微、钉钉等推送通知。

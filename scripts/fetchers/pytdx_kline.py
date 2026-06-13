@@ -5,14 +5,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+from fetchers.pytdx_pool import HAS_PYTDX, get_default_pool
 
 logger = logging.getLogger(__name__)
-
-try:
-    from pytdx.hq import TdxHq_API
-    HAS_PYTDX = True
-except ImportError:
-    HAS_PYTDX = False
 
 DEFAULT_SERVERS = [
     ("119.147.212.81", 7709),
@@ -49,26 +44,26 @@ class PytdxKlineFetcher(BaseFetcher):
         plain = code.lstrip("shszSHSZbjBJ").zfill(6)
         market = _get_market(code)
         category = CATEGORY_MAP.get(scale, 9)
+        pool = get_default_pool(DEFAULT_SERVERS)
 
-        api = TdxHq_API()
-        for host, port in DEFAULT_SERVERS:
-            try:
-                with api.connect(host, port, time_out=5):
-                    data = api.get_security_bars(category, market, plain, 0, datalen)
-                    if not data:
-                        continue
-                    result = []
-                    for d in data:
-                        result.append({
-                            "day": str(d.get("datetime", ""))[:10],
-                            "open": str(d.get("open", 0)),
-                            "close": str(d.get("close", 0)),
-                            "high": str(d.get("high", 0)),
-                            "low": str(d.get("low", 0)),
-                            "volume": str(d.get("vol", 0)),
-                        })
-                    return result if result else None
-            except Exception as e:
-                logger.debug("pytdx_kline 连接 %s:%s 失败: %s", host, port, e)
-                continue
-        return None
+        api, host, port = pool.get()
+        try:
+            data = api.get_security_bars(category, market, plain, 0, datalen)
+            if not data:
+                return None
+            result = []
+            for d in data:
+                result.append({
+                    "day": str(d.get("datetime", ""))[:10],
+                    "open": str(d.get("open", 0)),
+                    "close": str(d.get("close", 0)),
+                    "high": str(d.get("high", 0)),
+                    "low": str(d.get("low", 0)),
+                    "volume": str(d.get("vol", 0)),
+                })
+            return result if result else None
+        except Exception as e:
+            logger.debug("pytdx_kline 请求 %s:%s 失败: %s", host, port, e)
+            return None
+        finally:
+            pool.put(api, host, port)

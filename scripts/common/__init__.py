@@ -72,6 +72,7 @@ from common.utils import (
     normalize_amount,
     err,
     parallel_map,
+    get_shared_executor,
 )
 
 # 输入验证器
@@ -95,6 +96,9 @@ from common.cache import (
     cache_key,
     cache_key_for_stock,
 )
+
+# 启动时清理崩溃残留的 .tmp 文件
+cache.cleanup_tmp_files()
 
 # 向后兼容别名
 DataSourceUnavailableError = NetworkError
@@ -147,9 +151,14 @@ class CircuitBreaker:
         self.failure_count = 0
         self.last_failure_time = 0
         self.half_open_success = 0
+        self._half_open_token = False  # 半开期试探令牌，True 表示已有线程在试探
 
     def can_execute(self) -> bool:
-        """判断是否允许请求（线程安全）。"""
+        """判断是否允许请求（线程安全）。
+
+        半开期通过 _half_open_token 保证只有 1 个线程能进行试探，
+        后续请求在试探完成前直接拒绝。
+        """
         with self._lock:
             if self.state == CircuitState.CLOSED:
                 return True
@@ -157,20 +166,27 @@ class CircuitBreaker:
                 if time.time() - self.last_failure_time >= self.recovery_timeout:
                     self.state = CircuitState.HALF_OPEN
                     self.half_open_success = 0
+                    # 转换线程直接消费 token，后续 HALF_OPEN 请求被拒绝
+                    self._half_open_token = False
                     return True
                 return False
             if self.state == CircuitState.HALF_OPEN:
-                return True
+                if self._half_open_token:
+                    self._half_open_token = False
+                    return True
+                return False
             return False
 
     def record_success(self):
-        """记录成功（线程安全）。"""
+        """记录成功（线程安全）。
+
+        半开期 1 次成功即恢复到 CLOSED。
+        """
         with self._lock:
             if self.state == CircuitState.HALF_OPEN:
-                self.half_open_success += 1
-                if self.half_open_success >= self.half_open_max:
-                    self.state = CircuitState.CLOSED
-                    self.failure_count = 0
+                self.state = CircuitState.CLOSED
+                self.failure_count = 0
+                self._half_open_token = False
             elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
 
@@ -179,6 +195,7 @@ class CircuitBreaker:
         with self._lock:
             self.failure_count += 1
             self.last_failure_time = time.time()
+            self._half_open_token = False
             if self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
             elif self.failure_count >= self.failure_threshold:
@@ -190,6 +207,7 @@ class CircuitBreaker:
             self.state = CircuitState.CLOSED
             self.failure_count = 0
             self.last_failure_time = 0
+            self._half_open_token = False
 
 
 # 全局熔断器实例（线程安全）
@@ -238,10 +256,38 @@ class BaseFetcher(ABC):
 
 
 class DataFetcherManager:
-    """数据源策略管理器：按优先级尝试，自动故障切换。"""
+    """数据源策略管理器：按优先级尝试，自动故障切换。
 
-    def __init__(self, fetchers: list):
+    支持通过 source_config（来自 data_source.yaml）覆盖 fetcher 的优先级。
+    source_config 格式示例:
+        {"tencent": {"priority": 10, "enabled": true}, "eastmoney": {"priority": 8}, ...}
+    覆盖规则: fetcher.name 按 "_" 分割取首段作为 key 查找 source_config。
+    """
+
+    # 数据域后缀 → YAML 配置节名
+    _DOMAIN_SECTION_MAP = {
+        "quote": "quote_sources",
+        "kline": "kline_sources",
+        "finance": "finance_sources",
+    }
+
+    def __init__(self, fetchers: list, source_config: dict = None):
+        if source_config:
+            self._apply_source_config(fetchers, source_config)
         self.fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
+
+    @staticmethod
+    def _apply_source_config(fetchers: list, source_config: dict):
+        """用 YAML 配置覆盖 fetcher 优先级。
+
+        fetcher.name 格式: "{provider}_{domain}"（如 "tencent_quote"），
+        提取 provider 部分作为 source_config 的 key。
+        """
+        for fetcher in fetchers:
+            provider = fetcher.name.split("_")[0]
+            cfg = source_config.get(provider)
+            if cfg and isinstance(cfg, dict):
+                fetcher.priority = cfg.get("priority", fetcher.priority)
 
     def fetch(self, code: str, **kwargs) -> dict | list | None:
         """按优先级尝试各数据源。"""
@@ -309,7 +355,7 @@ __all__ = [
     "normalize_quote_code", "normalize_finance_code", "to_secid",
     "board_type", "is_etf", "batchify", "to_float", "to_int", "clamp",
     "normalize_volume", "normalize_amount",
-    "err", "parallel_map",
+    "err", "parallel_map", "get_shared_executor",
     # 异常类
     "StockAnalyzerError", "DataError", "NetworkError", "RateLimitError",
     "ParseError", "DataUnavailableError", "BusinessError",

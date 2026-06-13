@@ -11,12 +11,12 @@ import argparse
 import json
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed
 from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import to_float, normalize_quote_code, normalize_finance_code, DATA_DIR
+from common import to_float, normalize_quote_code, normalize_finance_code, DATA_DIR, get_shared_executor
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
@@ -98,15 +98,15 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
         return code, bars
 
     kline_data = {}
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        futures = {ex.submit(_fetch_kline, c): c for c in codes}
-        for future in as_completed(futures):
-            try:
-                code, bars = future.result()
-                if bars and len(bars) >= min_history:
-                    kline_data[code] = bars
-            except Exception:
-                pass
+    ex = get_shared_executor()
+    futures = {ex.submit(_fetch_kline, c): c for c in codes}
+    for future in as_completed(futures):
+        try:
+            code, bars = future.result()
+            if bars and len(bars) >= min_history:
+                kline_data[code] = bars
+        except Exception:
+            pass
 
     if not kline_data:
         return {"error": "无法获取足够的 K 线数据"}
@@ -124,15 +124,15 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
 
     fin_cache = {}
     industry_cache = {}
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        futures = {ex.submit(_fetch_finance, c): c for c in codes}
-        for future in as_completed(futures):
-            try:
-                code, industry, fin = future.result()
-                industry_cache[code] = industry
-                fin_cache[code] = fin
-            except Exception:
-                pass
+    ex = get_shared_executor()
+    futures = {ex.submit(_fetch_finance, c): c for c in codes}
+    for future in as_completed(futures):
+        try:
+            code, industry, fin = future.result()
+            industry_cache[code] = industry
+            fin_cache[code] = fin
+        except Exception:
+            pass
 
     # 滚动窗口回测（不再获取当前行情快照，改用历史 K 线数据）
     from screener import quality_score, valuation_score, liquidity_score

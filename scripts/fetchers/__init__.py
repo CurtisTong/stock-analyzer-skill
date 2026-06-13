@@ -222,24 +222,49 @@ _event_manager = None
 _chip_manager = None
 
 
+def _load_source_config(section: str) -> dict:
+    """从 data_source.yaml 加载指定数据域的配置节。
+
+    Args:
+        section: YAML 配置节名（如 "quote_sources"）
+
+    Returns:
+        配置字典，加载失败时返回空 dict
+    """
+    try:
+        from config.loader import ConfigLoader
+        return ConfigLoader.load("data_source.yaml").get(section, {})
+    except Exception:
+        return {}
+
+
 def get_quote_manager() -> DataFetcherManager:
     global _quote_manager
     if _quote_manager is None:
-        _quote_manager = DataFetcherManager(get_quote_fetchers())
+        _quote_manager = DataFetcherManager(
+            get_quote_fetchers(),
+            source_config=_load_source_config("quote_sources"),
+        )
     return _quote_manager
 
 
 def get_kline_manager() -> DataFetcherManager:
     global _kline_manager
     if _kline_manager is None:
-        _kline_manager = DataFetcherManager(get_kline_fetchers())
+        _kline_manager = DataFetcherManager(
+            get_kline_fetchers(),
+            source_config=_load_source_config("kline_sources"),
+        )
     return _kline_manager
 
 
 def get_finance_manager() -> DataFetcherManager:
     global _finance_manager
     if _finance_manager is None:
-        _finance_manager = DataFetcherManager(get_finance_fetchers())
+        _finance_manager = DataFetcherManager(
+            get_finance_fetchers(),
+            source_config=_load_source_config("finance_sources"),
+        )
     return _finance_manager
 
 

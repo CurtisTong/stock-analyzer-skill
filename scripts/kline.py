@@ -20,6 +20,67 @@ def fetch(symbol: str, scale: int, datalen: int, use_cache: bool = True) -> list
     return [b.to_dict() for b in bars]
 
 
+def aggregate_klines(records: list, period: str = "week") -> list:
+    """将日 K 线聚合为周 K 线（或月 K 线）。
+
+    Args:
+        records: 日 K 线 dict 列表，每条需含 day/open/high/low/close/volume 字段
+        period: 聚合周期，"week" 按 ISO 周聚合，"month" 按月聚合
+
+    Returns:
+        聚合后的 K 线 dict 列表，包含 day/open/high/low/close/volume 字段
+    """
+    if not records:
+        return []
+
+    from datetime import datetime
+
+    def _group_key(day_str: str) -> str:
+        """按周期生成分组键。"""
+        try:
+            dt = datetime.strptime(day_str[:10], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            return day_str[:8]  # fallback: 按前8位分组
+        if period == "month":
+            return dt.strftime("%Y-%m")
+        # week: ISO 年-周号
+        iso_year, iso_week, _ = dt.isocalendar()
+        return f"{iso_year}-W{iso_week:02d}"
+
+    groups = []
+    current_key = None
+    current_bars = []
+
+    for r in records:
+        day = r.get("day", "")
+        key = _group_key(day)
+        if key != current_key:
+            if current_bars:
+                groups.append(current_bars)
+            current_bars = [r]
+            current_key = key
+        else:
+            current_bars.append(r)
+
+    # P0 fix: 最后一组必须加入，不能遗漏
+    if current_bars:
+        groups.append(current_bars)
+
+    result = []
+    for bars in groups:
+        agg = {
+            "day": bars[-1]["day"],  # 取最后一天的日期作为聚合日期
+            "open": bars[0].get("open", 0),
+            "high": max(b.get("high", 0) for b in bars),
+            "low": min(b.get("low", float("inf")) for b in bars),
+            "close": bars[-1].get("close", 0),
+            "volume": sum(b.get("volume", 0) for b in bars),
+        }
+        result.append(agg)
+
+    return result
+
+
 def render_table(records: list) -> str:
     if not records:
         return "(无数据)"

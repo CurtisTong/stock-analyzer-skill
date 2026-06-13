@@ -1,14 +1,20 @@
 """
-common.py 单元测试：覆盖熔断器、缓存、异常处理。
+common.py 单元测试：覆盖熔断器、缓存、异常处理、连接池。
 """
+import http.client
 import threading
 import time
+from unittest.mock import MagicMock, patch
+
 import pytest
 
 from common import (
+    BaseFetcher,
     CircuitBreaker,
     CircuitState,
     DataError,
+    DataFetcherManager,
+    NOT_HANDLED,
     cache_cleanup,
     cache_get,
     cache_set,
@@ -17,6 +23,8 @@ from common import (
     to_float,
     err,
 )
+from common.http import _get_connection, _return_connection, _connection_pool, _pool_lock
+from common.utils import parallel_map
 
 
 # ====================================================================
@@ -169,3 +177,223 @@ class TestCache:
         key1 = cache_key_for_stock("kline", "sh600519", scale=240, datalen=30)
         key2 = cache_key_for_stock("kline", "sh600519", scale=5, datalen=48)
         assert key1 != key2
+
+
+# ====================================================================
+# 5. parallel_map 超时返回部分结果
+# ====================================================================
+class TestParallelMap:
+    """parallel_map graceful timeout。"""
+
+    def test_parallel_map_partial_results(self):
+        """超时时返回已完成的部分结果，而非抛异常。"""
+        def task(item):
+            if item in ("slow1", "slow2"):
+                time.sleep(10)  # 模拟超时任务
+            return f"result_{item}"
+
+        items = ["fast1", "fast2", "fast3", "slow1", "slow2"]
+        results = parallel_map(task, items, max_workers=5, timeout=1)
+
+        # 3 个快速任务应返回有效结果
+        assert results["fast1"] == "result_fast1"
+        assert results["fast2"] == "result_fast2"
+        assert results["fast3"] == "result_fast3"
+        # 超时任务不在结果中（被 cancel）或值为 None
+        assert len(results) >= 3
+
+
+# ====================================================================
+# 6. 连接池
+# ====================================================================
+class TestConnectionPool:
+    """http.client 连接池复用。"""
+
+    def setup_method(self):
+        """每个测试前清空连接池。"""
+        with _pool_lock:
+            _connection_pool.clear()
+
+    def teardown_method(self):
+        """每个测试后清空连接池。"""
+        with _pool_lock:
+            for conn in _connection_pool.values():
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            _connection_pool.clear()
+
+    def test_get_connection_returns_https(self):
+        """HTTPS URL 创建 HTTPSConnection。"""
+        conn = _get_connection("https://api.example.com/test")
+        assert isinstance(conn, http.client.HTTPSConnection)
+        conn.close()
+
+    def test_get_connection_returns_http(self):
+        """HTTP URL 创建 HTTPConnection。"""
+        conn = _get_connection("http://api.example.com/test")
+        assert isinstance(conn, http.client.HTTPConnection)
+        conn.close()
+
+    def test_get_connection_with_port(self):
+        """带端口的 URL 使用指定端口。"""
+        conn = _get_connection("https://api.example.com:8443/test")
+        assert conn.host == "api.example.com"
+        assert conn.port == 8443
+        conn.close()
+
+    def test_return_connection_pools(self):
+        """归还的连接被放入池中。"""
+        conn = _get_connection("https://api.example.com/test")
+        # 模拟连接已建立（设置 sock）
+        conn.sock = MagicMock()
+        _return_connection("https://api.example.com/test", conn)
+        pool_key = "https://api.example.com:443"
+        assert pool_key in _connection_pool
+        assert _connection_pool[pool_key] is conn
+
+    def test_get_connection_reuses_pooled(self):
+        """池中有可用连接时复用。"""
+        conn = _get_connection("https://api.example.com/test")
+        conn.sock = MagicMock()  # 模拟已连接
+        _return_connection("https://api.example.com/test", conn)
+        conn2 = _get_connection("https://api.example.com/test")
+        assert conn2 is conn
+
+    def test_get_connection_evicts_stale(self):
+        """池中连接已断开时创建新连接。"""
+        conn = _get_connection("https://api.example.com/test")
+        conn.sock = MagicMock()
+        _return_connection("https://api.example.com/test", conn)
+        # 模拟连接断开
+        conn.sock = None
+        conn2 = _get_connection("https://api.example.com/test")
+        assert conn2 is not conn
+        conn2.close()
+
+    def test_pool_thread_safety(self):
+        """并发访问连接池无异常。"""
+        errors = []
+
+        def worker():
+            try:
+                for _ in range(50):
+                    conn = _get_connection("https://api.example.com/test")
+                    conn.sock = MagicMock()
+                    _return_connection("https://api.example.com/test", conn)
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=worker) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert len(errors) == 0
+
+
+# ====================================================================
+# 7. DataFetcherManager 优先级覆盖
+# ====================================================================
+
+class _StubFetcher(BaseFetcher):
+    """测试用 fetcher，返回固定值。"""
+
+    def __init__(self, name: str, priority: int = 0, result=None):
+        super().__init__(name, priority)
+        self._result = result if result is not None else {"source": name}
+
+    def fetch(self, code: str, **kwargs):
+        return self._result
+
+
+class TestDataFetcherManager:
+    """DataFetcherManager 优先级覆盖与故障切换。"""
+
+    def test_sort_by_default_priority(self):
+        """无 source_config 时按 fetcher 默认优先级排序。"""
+        f1 = _StubFetcher("low_quote", priority=1)
+        f2 = _StubFetcher("high_quote", priority=10)
+        mgr = DataFetcherManager([f1, f2])
+        assert mgr.fetchers[0].name == "high_quote"
+        assert mgr.fetchers[1].name == "low_quote"
+
+    def test_source_config_overrides_priority(self):
+        """source_config 覆盖 fetcher 默认优先级。"""
+        f1 = _StubFetcher("tencent_quote", priority=1)
+        f2 = _StubFetcher("sina_quote", priority=10)
+        config = {
+            "tencent": {"priority": 10, "enabled": True},
+            "sina": {"priority": 1, "enabled": True},
+        }
+        mgr = DataFetcherManager([f1, f2], source_config=config)
+        # tencent 优先级被覆盖为 10，sina 被覆盖为 1
+        assert mgr.fetchers[0].name == "tencent_quote"
+        assert mgr.fetchers[0].priority == 10
+        assert mgr.fetchers[1].name == "sina_quote"
+        assert mgr.fetchers[1].priority == 1
+
+    def test_source_config_partial_override(self):
+        """source_config 只覆盖匹配的 fetcher，未匹配的保持原优先级。"""
+        f1 = _StubFetcher("tencent_quote", priority=5)
+        f2 = _StubFetcher("custom_quote", priority=8)
+        config = {
+            "tencent": {"priority": 10},
+        }
+        mgr = DataFetcherManager([f1, f2], source_config=config)
+        assert mgr.fetchers[0].name == "tencent_quote"
+        assert mgr.fetchers[0].priority == 10
+        assert mgr.fetchers[1].name == "custom_quote"
+        assert mgr.fetchers[1].priority == 8  # 未被覆盖
+
+    def test_source_config_empty(self):
+        """空 source_config 不改变优先级。"""
+        f1 = _StubFetcher("tencent_quote", priority=5)
+        f2 = _StubFetcher("sina_quote", priority=10)
+        mgr = DataFetcherManager([f1, f2], source_config={})
+        assert mgr.fetchers[0].name == "sina_quote"
+        assert mgr.fetchers[1].name == "tencent_quote"
+
+    def test_fetch_uses_priority_order(self):
+        """fetch 按优先级从高到低尝试。"""
+        calls = []
+        f1 = _StubFetcher("high", priority=10, result=None)  # 返回 None 触发失败
+        f1.fetch = lambda code, **kw: calls.append("high") or None
+        f2 = _StubFetcher("low", priority=1, result={"ok": True})
+        f2.fetch = lambda code, **kw: calls.append("low") or {"ok": True}
+        mgr = DataFetcherManager([f1, f2])
+        result = mgr.fetch("sh600519")
+        assert result == {"ok": True}
+        assert calls == ["high", "low"]
+
+    def test_fetch_stops_at_first_success(self):
+        """fetch 在第一个成功源停止，不尝试后续源。"""
+        calls = []
+        f1 = _StubFetcher("first", priority=10)
+        f1.fetch = lambda code, **kw: calls.append("first") or {"data": 1}
+        f2 = _StubFetcher("second", priority=5)
+        f2.fetch = lambda code, **kw: calls.append("second") or {"data": 2}
+        mgr = DataFetcherManager([f1, f2])
+        result = mgr.fetch("sh600519")
+        assert result == {"data": 1}
+        assert calls == ["first"]
+
+    def test_fetch_skips_unavailable(self):
+        """fetch 跳过熔断器阻止的 fetcher。"""
+        f1 = _StubFetcher("broken", priority=10)
+        f1.circuit_breaker.record_failure()
+        f1.circuit_breaker.record_failure()
+        f1.circuit_breaker.record_failure()
+        f1.circuit_breaker.record_failure()
+        f1.circuit_breaker.record_failure()  # 达到阈值，熔断
+        f2 = _StubFetcher("working", priority=5, result={"ok": True})
+        mgr = DataFetcherManager([f1, f2])
+        result = mgr.fetch("sh600519")
+        assert result == {"ok": True}
+
+    def test_domain_section_map(self):
+        """_DOMAIN_SECTION_MAP 包含三个已知数据域。"""
+        assert DataFetcherManager._DOMAIN_SECTION_MAP["quote"] == "quote_sources"
+        assert DataFetcherManager._DOMAIN_SECTION_MAP["kline"] == "kline_sources"
+        assert DataFetcherManager._DOMAIN_SECTION_MAP["finance"] == "finance_sources"

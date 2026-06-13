@@ -6,7 +6,7 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from common import to_float, normalize_quote_code, board_type
+from common import to_float, normalize_quote_code, board_type, get_shared_executor
 from common.exceptions import InsufficientDataError, ValidationError
 from common.validators import validate_code
 from data import get_quote, get_quotes, get_kline, get_finance
@@ -227,7 +227,7 @@ class ScreeningService:
 
     def _prefetch_finance(self, codes: List[str]) -> Dict[str, List[dict]]:
         """预获取财务数据。"""
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from concurrent.futures import as_completed
         from data import get_finance
         from common import normalize_finance_code
 
@@ -240,14 +240,14 @@ class ScreeningService:
             except Exception:
                 return code, []
 
-        with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
-            futures = {ex.submit(fetch_one, c): c for c in codes}
-            for future in as_completed(futures):
-                try:
-                    code, data = future.result()
-                    results[code] = data
-                except Exception:
-                    pass
+        ex = get_shared_executor(self.max_workers)
+        futures = {ex.submit(fetch_one, c): c for c in codes}
+        for future in as_completed(futures):
+            try:
+                code, data = future.result()
+                results[code] = data
+            except Exception:
+                pass
 
         return results
 

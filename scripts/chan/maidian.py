@@ -32,16 +32,19 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes):
                     "confidence": "中",
                 })
 
-    # ── 二买：一买后的次低点 ──
-    if buy_points and any(bp["type"] == "一买" for bp in buy_points):
-        # 查找一买发生后是否出现回调未破前低
-        recent_lows = [min(b["low"] for b in bi_list[-3:])]
-        if recent_lows and last_close > recent_lows[0] and last_close < last_zs["zd"]:
-            buy_points.append({
-                "type": "二买",
-                "desc": f"回踩未破前低({recent_lows[0]}), 中枢下方",
-                "confidence": "中",
-            })
+    # ── 二买：中枢下方 + 近期次低高于前低（不依赖一买） ──
+    if last_close < last_zs["zd"]:
+        down_bis = [b for b in bi_list if b["direction"] == "down"]
+        if len(down_bis) >= 2:
+            prev_low = down_bis[-2]["low"]
+            curr_low = down_bis[-1]["low"]
+            # 次低高于前低 → 下跌力度衰减
+            if curr_low > prev_low and last_close > prev_low:
+                buy_points.append({
+                    "type": "二买",
+                    "desc": f"中枢下方次低({curr_low})高于前低({prev_low})",
+                    "confidence": "中",
+                })
 
     # ── 三买：突破中枢后回踩不入 ──
     above_zs = closes[-1] > last_zs["zg"]

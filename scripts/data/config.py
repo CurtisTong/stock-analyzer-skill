@@ -29,6 +29,10 @@ class DataConfig:
     margin_cache_ttl: int = 3600     # 1 小时（融资融券）
     ann_cache_ttl: int = 1800        # 30 分钟
 
+    # HTTP 超时（秒）
+    http_timeout: int = 10           # 单次 HTTP 请求超时
+    parallel_timeout: int = 30       # parallel_map 总超时
+
     # 熔断器
     circuit_failure_threshold: int = 5
     circuit_recovery_timeout: int = 60
@@ -50,6 +54,9 @@ class DataConfig:
 
         cfg = cls()
         # YAML 默认值
+        http_cfg = yaml_cfg.get("http", {})
+        cfg.http_timeout = http_cfg.get("connect_timeout", cfg.http_timeout)
+        cfg.parallel_timeout = http_cfg.get("read_timeout", cfg.parallel_timeout)
         cfg.quote_cache_ttl = cache_cfg.get("quote_ttl", cfg.quote_cache_ttl)
         cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
         cfg.finance_cache_ttl = cache_cfg.get("finance_ttl", cfg.finance_cache_ttl)
@@ -58,6 +65,8 @@ class DataConfig:
         cfg.circuit_recovery_timeout = cb_cfg.get("recovery_timeout", cfg.circuit_recovery_timeout)
 
         # 环境变量覆盖
+        cfg.http_timeout = int(os.getenv("DATA_HTTP_TIMEOUT", cfg.http_timeout))
+        cfg.parallel_timeout = int(os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout))
         cfg.quote_cache_ttl = int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl))
         cfg.intraday_quote_cache_ttl = int(os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl))
         cfg.kline_cache_ttl = int(os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl))
@@ -93,6 +102,21 @@ def get_quote_cache_ttl() -> int:
     if is_trading_hours():
         return cfg.intraday_quote_cache_ttl
     return cfg.quote_cache_ttl
+
+
+def get_source_timeout(source_type: str, source_name: str, default: int = 10) -> int:
+    """从 YAML 配置获取数据源超时。
+
+    Args:
+        source_type: 数据源类型（quote_sources / kline_sources / finance_sources）
+        source_name: 数据源名称（tencent / eastmoney / sina / ...）
+        default: 默认超时（秒）
+
+    Returns:
+        超时秒数
+    """
+    return ConfigLoader.get("data_source.yaml",
+                            f"{source_type}.{source_name}.timeout", default)
 
 
 _config = None

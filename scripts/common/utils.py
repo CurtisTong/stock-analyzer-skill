@@ -1,4 +1,5 @@
 """工具函数：代码转换、类型转换、并发执行。"""
+import concurrent.futures
 import os
 import statistics
 import sys
@@ -191,23 +192,58 @@ def err(msg: str):
 
 # ---------- 并发 ----------
 
+# 模块级共享线程池（惰性初始化）
+_shared_executor = None
+_shared_executor_lock = __import__("threading").Lock()
+
+
+def get_shared_executor(max_workers=None):
+    """获取共享线程池，线程安全的惰性初始化。
+
+    Args:
+        max_workers: 最大线程数，首次调用时生效，后续调用忽略此参数。
+                    默认为 min(32, os.cpu_count() + 4)。
+    Returns:
+        ThreadPoolExecutor 实例（不会被 shutdown，由进程退出时自动清理）
+    """
+    global _shared_executor
+    if _shared_executor is not None:
+        return _shared_executor
+    with _shared_executor_lock:
+        if _shared_executor is None:
+            if max_workers is None:
+                max_workers = min(32, (os.cpu_count() or 4) + 4)
+            _shared_executor = ThreadPoolExecutor(max_workers=max_workers)
+    return _shared_executor
+
+
 def parallel_map(fn, items, max_workers=8, timeout=60):
-    """并发执行 fn(item)，返回 {item: result} 字典。"""
+    """并发执行 fn(item)，返回 {item: result} 字典。
+
+    超时时返回已完成的部分结果，而非抛出异常丢失所有结果。
+    RateLimitError 始终向上抛出。
+    """
     import logging
     from common.exceptions import RateLimitError
     logger = logging.getLogger(__name__)
     results = {}
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        futures = {ex.submit(fn, item): item for item in items}
+    ex = get_shared_executor(max_workers)
+    futures = {ex.submit(fn, item): item for item in items}
+    try:
         for future in as_completed(futures, timeout=timeout):
             item = futures[future]
             try:
                 results[item] = future.result()
             except RateLimitError:
-                raise  # 限流不吞掉，让调用方感知
+                raise
             except Exception as e:
                 logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None
+    except concurrent.futures.TimeoutError:
+        logger.warning("parallel_map 超时，返回部分结果 (%d/%d)",
+                       len(results), len(items))
+        for future in futures:
+            future.cancel()
     return results
 
 
@@ -218,5 +254,5 @@ __all__ = [
     "board_type", "batchify", "to_float", "to_int", "clamp",
     "compute_volume_ratio", "compute_optimal_workers",
     "normalize_volume", "normalize_amount",
-    "err", "parallel_map",
+    "err", "parallel_map", "get_shared_executor",
 ]

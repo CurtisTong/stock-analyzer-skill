@@ -16,6 +16,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    import fcntl
+    _HAS_FCNTL = True
+except ImportError:
+    _HAS_FCNTL = False
+
 # 项目根目录 data/
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _CALIBRATION_FILE = _PROJECT_ROOT / "data" / "expert_calibration.json"
@@ -47,15 +53,25 @@ def _load() -> dict:
 
 def _save(data: dict) -> None:
     _CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=_CALIBRATION_FILE.parent, suffix=".tmp")
+    lock_path = _CALIBRATION_FILE.with_suffix(".json.lock")
+    lock_fd = None
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, _CALIBRATION_FILE)
-    except Exception:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-        raise
+        if _HAS_FCNTL:
+            lock_fd = open(lock_path, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        fd, tmp = tempfile.mkstemp(dir=_CALIBRATION_FILE.parent, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, _CALIBRATION_FILE)
+        except Exception:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
+    finally:
+        if lock_fd is not None:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
 
 
 def record_prediction(
@@ -163,22 +179,35 @@ def verify_predictions(
         pred["actual_direction"] = actual_direction
         verified_count += 1
 
-        # 更新专家校准数据
+        # 更新专家校准数据：按每位专家自己的分数方向判定
+        from experts import direction_from_score
         pred_direction = pred.get("direction", "")
-        is_correct = None
+
+        # 预测级别正确性（用组合方向，保留兼容）
+        pred_correct = None
         if actual_direction is not None:
             if pred_direction in ("强烈看多", "看多") and actual_direction == "上涨":
-                is_correct = True
+                pred_correct = True
             elif pred_direction in ("看空", "强烈看空") and actual_direction == "下跌":
-                is_correct = True
+                pred_correct = True
             elif pred_direction == "中性" and actual_direction == "横盘":
-                is_correct = True
+                pred_correct = True
             else:
-                is_correct = False
+                pred_correct = False
 
         for expert_name, score in pred.get("expert_scores", {}).items():
             if expert_name in data["experts"]:
-                if is_correct is not None:
+                if actual_direction is not None:
+                    expert_direction = direction_from_score(score)
+                    is_correct = None
+                    if expert_direction in ("强烈看多", "看多") and actual_direction == "上涨":
+                        is_correct = True
+                    elif expert_direction in ("看空", "强烈看空") and actual_direction == "下跌":
+                        is_correct = True
+                    elif expert_direction == "中性" and actual_direction == "横盘":
+                        is_correct = True
+                    else:
+                        is_correct = False
                     data["experts"][expert_name]["events"] += 1
                     if is_correct:
                         data["experts"][expert_name]["correct"] += 1
@@ -190,7 +219,7 @@ def verify_predictions(
             "direction": pred_direction,
             "actual_return": actual_return,
             "actual_direction": actual_direction,
-            "correct": is_correct,
+            "correct": pred_correct,
         })
 
     _save(data)

@@ -11,7 +11,7 @@ import urllib.error
 import urllib.request
 from typing import Optional, Tuple
 
-from .base import NotificationChannel
+from .base import NotificationChannel, validate_webhook_url
 
 
 class BarkChannel(NotificationChannel):
@@ -19,6 +19,7 @@ class BarkChannel(NotificationChannel):
 
     def __init__(self, server: str = "https://api.day.app",
                  key: str = "", group: str = "stock"):
+        validate_webhook_url(server)
         self._server = server.rstrip("/")
         self._key = key
         self._group = group

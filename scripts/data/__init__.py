@@ -148,6 +148,12 @@ def get_finance(code: str, use_cache: bool = True) -> list:
 
     records = [_dict_to_finance(r) for r in result]
 
+    # 完整性校验：所有记录 eps==0 且 roe==0 说明字段映射失败，触发 fallback
+    if records and all(r.eps == 0 and r.roe == 0 for r in records):
+        from common.exceptions import ParseError
+        raise ParseError(str(result[:1]), "finance_field_mapping",
+                         "所有记录 eps/roe 均为 0，字段映射可能失败")
+
     if use_cache and records:
         cache.set_json(key, [r.to_dict() for r in records])
 
@@ -181,18 +187,32 @@ def _dict_to_quote(d: dict) -> Quote:
     )
 
 
+def _normalize_volume(raw_volume: int, source: str) -> int:
+    """将 volume 统一归一化为"股"。
+
+    各数据源返回的 volume 单位不同：
+    - tencent / eastmoney / sina: 手（1手=100股）
+    - 其他/未知: 透传不修改
+    """
+    if source in ("tencent", "eastmoney", "sina"):
+        return raw_volume * 100
+    return raw_volume
+
+
 def _dict_to_kline_bar(d: dict) -> KlineBar:
     to_float, to_int = _get_common_helpers()
+    source = d.get("source", "")
+    raw_volume = to_int(d.get("volume"))
     return KlineBar(
         day=d.get("day", ""),
         open=to_float(d.get("open")),
         high=to_float(d.get("high")),
         low=to_float(d.get("low")),
         close=to_float(d.get("close")),
-        volume=to_int(d.get("volume")),
+        volume=_normalize_volume(raw_volume, source),
         amount=to_float(d.get("amount")),
         pct_chg=to_float(d.get("pct_chg")),
-        source=d.get("source", ""),
+        source=source,
         fetch_time=d.get("fetch_time") or _now_iso(),
     )
 
@@ -201,16 +221,22 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
     to_float, _ = _get_common_helpers()
     FIELD_MAP = {
-        "report_date": ["REPORT_DATE", "REPORTDATETIME", "NOTICE_DATE"],
-        "eps": ["EPSJB"],
-        "roe": ["ROEJQ"],
-        "revenue_yoy": ["TOTALOPERATEREVETZ"],
-        "net_profit_yoy": ["PARENTNETPROFITTZ"],
-        "gross_margin": ["XSMLL"],
-        "net_margin": ["XSJLL"],
-        "debt_ratio": ["ZCFZL"],
-        "bps": ["BPS"],
-        "ocf_per_share": ["MGJYXJJE"],
+        "report_date": ["REPORT_DATE", "REPORTDATETIME", "NOTICE_DATE",
+                        "报告日期", "截止日期"],
+        "eps": ["EPSJB", "基本每股收益", "每股收益"],
+        "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE"],
+        "revenue_yoy": ["TOTALOPERATEREVETZ", "营业收入同比", "营收同比",
+                        "营业总收入同比增长率", "营收同比(%)"],
+        "net_profit_yoy": ["PARENTNETPROFITTZ", "归母净利润同比",
+                           "净利润同比", "归母净利润同比增长率",
+                           "净利润同比(%)"],
+        "gross_margin": ["XSMLL", "销售毛利率", "毛利率",
+                         "毛利率(%)", "销售毛利率(%)"],
+        "net_margin": ["XSJLL", "销售净利率", "净利率",
+                       "净利率(%)", "销售净利率(%)"],
+        "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)"],
+        "bps": ["BPS", "每股净资产"],
+        "ocf_per_share": ["MGJYXJJE", "每股经营现金流", "每股现金流量净额"],
     }
 
     def _find(candidates, default=""):

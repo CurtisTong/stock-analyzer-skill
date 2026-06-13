@@ -29,7 +29,11 @@
       "Bash(tail:*)",
       "Bash(lsof -i:8765 *)",
       "WebFetch(domain:emweb.securities.eastmoney.com)",
-      "Bash(python3 scripts/portfolio_web.py *)"
+      "Bash(python3 scripts/portfolio_web.py *)",
+      "Bash(python3 scripts/calibration.py *)",
+      "Bash(python3 scripts/stock.py *)",
+      "Bash(python3 scripts/chip.py *)",
+      "Bash(python3 scripts/monitor/alert_engine.py *)"
     ],
     "deny": ["Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(chmod 777:*)"]
   }

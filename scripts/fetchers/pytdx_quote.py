@@ -5,14 +5,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
+from fetchers.pytdx_pool import HAS_PYTDX, get_default_pool
 
 logger = logging.getLogger(__name__)
-
-try:
-    from pytdx.hq import TdxHq_API
-    HAS_PYTDX = True
-except ImportError:
-    HAS_PYTDX = False
 
 # 默认服务器列表
 DEFAULT_SERVERS = [
@@ -44,39 +39,39 @@ class PytdxQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         if not HAS_PYTDX:
             return None
-        api = TdxHq_API()
         plain = code.lstrip("shszSHSZbjBJ").zfill(6)
         market = _get_market(code)
+        pool = get_default_pool(DEFAULT_SERVERS)
 
-        for host, port in DEFAULT_SERVERS:
-            try:
-                with api.connect(host, port, time_out=5):
-                    data = api.get_security_quotes([(market, plain)])
-                    if not data:
-                        continue
-                    d = data[0]
-                    price = d.get("price", 0)
-                    prev_close = d.get("last_close", 0)
-                    change_pct = round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0
-                    return {
-                        "code": plain,
-                        "name": d.get("name", ""),
-                        "price": str(price),
-                        "prev_close": str(prev_close),
-                        "open": str(d.get("open", 0)),
-                        "change_pct": str(change_pct),
-                        "change_amt": str(round(price - prev_close, 2)),
-                        "high": str(d.get("high", 0)),
-                        "low": str(d.get("low", 0)),
-                        "volume": str(d.get("vol", 0)),
-                        "amount": str(d.get("amount", 0)),
-                        "turnover": "",
-                        "pe": "",
-                        "pb": "",
-                        "total_cap": "",
-                        "circulating_cap": "",
-                    }
-            except Exception as e:
-                logger.debug("pytdx_quote 连接 %s:%s 失败: %s", host, port, e)
-                continue
-        return None
+        api, host, port = pool.get()
+        try:
+            data = api.get_security_quotes([(market, plain)])
+            if not data:
+                return None
+            d = data[0]
+            price = d.get("price", 0)
+            prev_close = d.get("last_close", 0)
+            change_pct = round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0
+            return {
+                "code": plain,
+                "name": d.get("name", ""),
+                "price": str(price),
+                "prev_close": str(prev_close),
+                "open": str(d.get("open", 0)),
+                "change_pct": str(change_pct),
+                "change_amt": str(round(price - prev_close, 2)),
+                "high": str(d.get("high", 0)),
+                "low": str(d.get("low", 0)),
+                "volume": str(d.get("vol", 0)),
+                "amount": str(d.get("amount", 0)),
+                "turnover": "",
+                "pe": "",
+                "pb": "",
+                "total_cap": "",
+                "circulating_cap": "",
+            }
+        except Exception as e:
+            logger.debug("pytdx_quote 请求 %s:%s 失败: %s", host, port, e)
+            return None
+        finally:
+            pool.put(api, host, port)

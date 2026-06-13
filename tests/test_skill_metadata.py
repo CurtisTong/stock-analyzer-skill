@@ -153,10 +153,9 @@ def test_model_field_valid(skill_path):
 
 
 VERSION_OVERRIDES = {
-    "market": "1.5.0",     # 新增美股收盘数据参考
-    "backtest": "1.5.0",   # 新增卡玛比率/盈亏比/总交易次数指标
+    # v1.7.0 统一版本号
 }
-DEFAULT_VERSION = "1.4.1"
+DEFAULT_VERSION = "1.7.0"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
