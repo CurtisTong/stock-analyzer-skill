@@ -54,6 +54,14 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 按 `../_shared/references/script-catalog.md` 调用 `quote.py` / `finance.py` / `kline.py` / `announcements.py`。`debate` 模式额外取 5 分钟 K 线（48 根）。
 
+`--with-backtest` 模式附加近 60 日回测胜率：
+
+```bash
+python3 scripts/stock.py sh600989 --with-backtest
+```
+
+输出 `backtest` 字段包含 `win_rate`（胜率%）、`total_return`（累计收益%）、`sharpe`（夏普比率）、`max_drawdown`（最大回撤%）。
+
 ### Step 2: 五层分析
 
 | 层级       | 分析内容                  | 输出                 |

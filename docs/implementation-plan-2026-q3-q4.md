@@ -61,16 +61,16 @@
 
 > 把"产品护城河"显式化。2 周完成。
 
-| 任务                                                              | 来源      | 工作量 | 验收                                                   |
-| ----------------------------------------------------------------- | --------- | ------ | ------------------------------------------------------ |
-| **B6** 1-2 个完整 walkthrough 教程文档（拿 600519 跑通 12 skill） | 用户 P1   | 1d     | `docs/tutorials/` 落 2 篇                              |
-| **B7** `monitor.py --sources` 升级为 fetcher 健康度矩阵           | 技术 P2-⑩ | 1d     | 终端打印 27 fetcher 24h 失败率排名                     |
-| **C1** `monitor.py` 升级为结构化 JSON 日志                        | 技术 P2-⑨ | 1d     | `--log-json` 输出含 expert_id / fetcher / ts / verdict |
-| **C2** `docs/` 接 mdBook 站点，GitHub Pages 发布                  | 技术 P2-⑪ | 2d     | 静态文档站上线，`homepage` 字段指向                    |
-| **C3** `/portfolio` `--with-backtest` flag                        | 产品 P1   | 0.5d   | `/portfolio sh600989` 显示"近 60 日胜率 N%"            |
-| **C5** 输出尾部追加"📊 数据源 / fallback" 证据链                  | 用户 P1   | 0.5d   | `/stock full` 输出含数据源证据链                       |
-| **C7** README 顶部 30 秒 GIF/动图 demo                            | 用户 P2   | 0.5d   | 1 个真录屏                                             |
-| **C8** 引入 `git-cliff` 自动生成 CHANGELOG                        | 技术 P3-⑫ | 0.2d   | tag push 后 CHANGELOG.md 自动更新                      |
+| 任务                                                              | 来源      | 工作量 | 验收                                                   | 状态      |
+| ----------------------------------------------------------------- | --------- | ------ | ------------------------------------------------------ | --------- |
+| **B6** 1-2 个完整 walkthrough 教程文档（拿 600519 跑通 12 skill） | 用户 P1   | 1d     | `docs/tutorials/` 落 2 篇                              | ✅ 已完成 |
+| **B7** `monitor.py --sources` 升级为 fetcher 健康度矩阵           | 技术 P2-⑩ | 1d     | 终端打印 27 fetcher 24h 失败率排名                     | ✅ 已完成 |
+| **C1** `monitor.py` 升级为结构化 JSON 日志                        | 技术 P2-⑨ | 1d     | `--log-json` 输出含 expert_id / fetcher / ts / verdict | ✅ 已完成 |
+| **C2** `docs/` 接 mdBook 站点，GitHub Pages 发布                  | 技术 P2-⑪ | 2d     | 静态文档站上线，`homepage` 字段指向                    | ✅ 已完成 |
+| **C3** `/portfolio` `--with-backtest` flag                        | 产品 P1   | 0.5d   | `/portfolio sh600989` 显示"近 60 日胜率 N%"            | ✅ 已完成 |
+| **C5** 输出尾部追加"📊 数据源 / fallback" 证据链                  | 用户 P1   | 0.5d   | `/stock full` 输出含数据源证据链                       | ✅ 已完成 |
+| **C7** README 顶部 30 秒 GIF/动图 demo                            | 用户 P2   | 0.5d   | 1 个真录屏                                             | 待补录屏  |
+| **C8** 引入 `git-cliff` 自动生成 CHANGELOG                        | 技术 P3-⑫ | 0.2d   | tag push 后 CHANGELOG.md 自动更新                      | ✅ 已完成 |
 
 **Sprint 3-4 验收**：决策可解释"数据源 + 胜率 + 回测"三件套齐 + 文档站上线 + GIF + 自动 CHANGELOG。
 

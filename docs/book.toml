@@ -1,0 +1,14 @@
+[book]
+title = "Stock Analyzer Skill 文档"
+authors = ["curtis"]
+language = "zh"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/CurtisTong/stock-analyzer-skill"
+edit-url-template = "https://github.com/CurtisTong/stock-analyzer-skill/edit/main/docs/{path}"

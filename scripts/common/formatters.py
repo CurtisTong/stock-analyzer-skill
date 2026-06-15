@@ -116,3 +116,22 @@ def format_footer(
 def now_str() -> str:
     """返回当前时间的格式化字符串。"""
     return datetime.now().strftime("%Y-%m-%d %H:%M")
+
+
+def collect_source_evidence(fetcher_results: dict[str, object | None]) -> tuple[list[str], list[str]]:
+    """从 fetcher 结果中收集数据源证据。
+
+    Args:
+        fetcher_results: {fetcher_name: result_or_None} 字典
+
+    Returns:
+        (成功源列表, 失败源列表)
+    """
+    sources = []
+    failed = []
+    for name, result in fetcher_results.items():
+        if result is not None:
+            sources.append(name)
+        else:
+            failed.append(name)
+    return sources, failed

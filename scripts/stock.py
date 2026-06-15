@@ -96,6 +96,8 @@ def main():
     parser.add_argument("--no-finance", action="store_true", help="跳过财务分析")
     parser.add_argument("--no-technical", action="store_true", help="跳过技术分析")
     parser.add_argument("--no-chan", action="store_true", help="跳过缠论分析")
+    parser.add_argument("--with-backtest", action="store_true",
+                        help="附加近 60 日回测胜率（需运行 backtest.py）")
     args = parser.parse_args()
 
     svc = StockAnalysisService()
@@ -105,6 +107,27 @@ def main():
         include_finance=not args.no_finance,
         include_chan=not args.no_chan,
     )
+
+    # 附加回测胜率
+    if args.with_backtest:
+        try:
+            import subprocess
+            bt_result = subprocess.run(
+                ["python3", "scripts/backtest.py", args.code, "--days", "60", "-j"],
+                capture_output=True, text=True, timeout=60,
+                cwd=str(Path(__file__).resolve().parent.parent),
+            )
+            if bt_result.returncode == 0:
+                bt_data = json.loads(bt_result.stdout)
+                if "balanced" in bt_data:
+                    result["backtest"] = {
+                        "win_rate": bt_data["balanced"].get("win_rate"),
+                        "total_return": bt_data["balanced"].get("total_return"),
+                        "sharpe": bt_data["balanced"].get("sharpe"),
+                        "max_drawdown": bt_data["balanced"].get("max_drawdown"),
+                    }
+        except Exception as e:
+            result["backtest_error"] = str(e)
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
