@@ -55,6 +55,19 @@ jobs:
           chmod +x tests/integration/test_install.sh
           bash tests/integration/test_install.sh
 
+  version-check:
+    name: 版本一致性检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 检查版本一致性
+        run: |
+          python3 scripts/dev/sync_version.py --check
+
   lint-frontmatter:
     name: SKILL.md frontmatter 一致性
     runs-on: ubuntu-latest

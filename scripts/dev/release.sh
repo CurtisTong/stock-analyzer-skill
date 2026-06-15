@@ -39,9 +39,10 @@ PROJECT_ROOT=$(pwd)
 info "项目根目录: $PROJECT_ROOT"
 info "目标版本: $VERSION"
 
-# 检查工作目录是否干净
-if [ -n "$(git status --porcelain)" ]; then
-    error "工作目录不干净，请先提交或暂存更改"
+# 检查工作目录是否干净（忽略版本文件变更）
+DIRTY_FILES=$(git status --porcelain | grep -v "package.json\|plugin.json\|marketplace.json\|SKILL.md\|README.md\|test_skill_metadata.py" || true)
+if [ -n "$DIRTY_FILES" ]; then
+    error "工作目录不干净，请先提交或暂存更改:\n$DIRTY_FILES"
 fi
 
 # 检查是否在 main 分支
@@ -72,25 +73,9 @@ else
     sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" package.json
 fi
 
-# 更新 plugin.json 版本
-if [ -f ".claude-plugin/plugin.json" ]; then
-    info "更新 plugin.json 版本..."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" .claude-plugin/plugin.json
-    else
-        sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" .claude-plugin/plugin.json
-    fi
-fi
-
-# 更新 marketplace.json 版本
-if [ -f ".claude-plugin/marketplace.json" ]; then
-    info "更新 marketplace.json 版本..."
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" .claude-plugin/marketplace.json
-    else
-        sed -i "s/\"version\": \"$CURRENT_VERSION\"/\"version\": \"$VERSION\"/" .claude-plugin/marketplace.json
-    fi
-fi
+# 使用 sync_version.py 同步所有其他文件
+info "同步版本到所有文件..."
+python3 scripts/dev/sync_version.py --version "$VERSION"
 
 # 检查 CHANGELOG.md 是否有对应版本
 if ! grep -q "## \[$VERSION\]" CHANGELOG.md; then
@@ -99,14 +84,14 @@ if ! grep -q "## \[$VERSION\]" CHANGELOG.md; then
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         # 回滚更改
-        git checkout -- package.json .claude-plugin/
+        git checkout -- package.json .claude-plugin/ skills/ README.md tests/
         exit 1
     fi
 fi
 
 # 提交版本更改
 info "提交版本更改..."
-git add package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
+git add package.json .claude-plugin/ skills/ README.md tests/test_skill_metadata.py
 git commit -m "chore: bump version to $VERSION"
 
 # 创建 tag
