@@ -7,6 +7,29 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.9.0] - 2026-06-15
+
+### Added
+
+- **新手引导流程**：帮助用户快速上手
+- **专家意见卡片化**：简洁展示投票结果
+- **持仓日报推送**：自动生成日报并通知（`scripts/portfolio/daily_report.py`）
+- **监控分级推送**：支持 urgent/important/normal 三级（`scripts/monitor/alert_engine.py`）
+- **术语解释**：自动检测并解释专业术语
+- **风险提示增强**：在输出末尾添加风险提示
+- **数据导出 CSV**：支持导出分析结果
+- **学习路径**：系统化投资学习教程（`skills/learn/SKILL.md`）
+- **情绪温度计**：计算市场情绪指数（`scripts/technical/sentiment.py`）
+- **专家逻辑透明**：展示评分推理链
+- **长期持有评估**：评估股票是否适合长期持有（`scripts/technical/long_term.py`）
+- **portfolio_web.py 拆分**：1289 行拆分为 5 个模块（`scripts/portfolio/web/`）
+- **GitHub Release 自动化**：优化 release workflow，新增一键发布脚本
+
+### Fixed
+
+- **新浪 volume 归一化**：修正成交量计算并优化涨跌停检测
+- **refresh_pool 全市场获取**：修复从 260 只恢复到 5296 只股票
+
 ## [1.8.0] - 2026-06-15
 
 ### Added
