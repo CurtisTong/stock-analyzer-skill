@@ -9,13 +9,13 @@ from collections import defaultdict
 class MetricsCollector:
     """线程安全的指标收集器。"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._lock = threading.Lock()
-        self._counters = defaultdict(int)
-        self._latencies = defaultdict(list)
+        self._counters: dict[str, int] = defaultdict(int)
+        self._latencies: dict[str, list[float]] = defaultdict(list)
         self._start_time = time.time()
 
-    def record_fetch(self, source: str, success: bool, latency_ms: float):
+    def record_fetch(self, source: str, success: bool, latency_ms: float) -> None:
         """记录一次 fetch 调用。"""
         with self._lock:
             self._counters[f"fetch.{source}.total"] += 1
@@ -25,7 +25,7 @@ class MetricsCollector:
                 self._counters[f"fetch.{source}.failure"] += 1
             self._latencies[f"fetch.{source}"].append(latency_ms)
 
-    def record_cache(self, hit: bool):
+    def record_cache(self, hit: bool) -> None:
         """记录一次缓存访问。"""
         with self._lock:
             self._counters["cache.total"] += 1
@@ -34,18 +34,20 @@ class MetricsCollector:
             else:
                 self._counters["cache.miss"] += 1
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, object]:
         """获取指标摘要。"""
         with self._lock:
-            summary = {
+            counters: dict[str, int | float] = dict(self._counters)
+            latency: dict[str, dict[str, float | int]] = {}
+            summary: dict[str, object] = {
                 "uptime_seconds": round(time.time() - self._start_time, 1),
-                "counters": dict(self._counters),
-                "latency": {},
+                "counters": counters,
+                "latency": latency,
             }
             # 计算延迟统计
             for key, values in self._latencies.items():
                 if values:
-                    summary["latency"][key] = {
+                    latency[key] = {
                         "avg_ms": round(sum(values) / len(values), 1),
                         "min_ms": round(min(values), 1),
                         "max_ms": round(max(values), 1),
@@ -57,15 +59,15 @@ class MetricsCollector:
                 total = self._counters.get(f"fetch.{source}.total", 0)
                 success = self._counters.get(f"fetch.{source}.success", 0)
                 if total > 0:
-                    summary["counters"][f"fetch.{source}.success_rate"] = round(success / total * 100, 1)
+                    counters[f"fetch.{source}.success_rate"] = round(success / total * 100, 1)
             # 缓存命中率
             cache_total = self._counters.get("cache.total", 0)
             cache_hit = self._counters.get("cache.hit", 0)
             if cache_total > 0:
-                summary["counters"]["cache.hit_rate"] = round(cache_hit / cache_total * 100, 1)
+                counters["cache.hit_rate"] = round(cache_hit / cache_total * 100, 1)
             return summary
 
-    def dump(self, path: Path = None):
+    def dump(self, path: Path | None = None) -> None:
         """将指标写入 JSON 文件。"""
         if path is None:
             from common import cache
@@ -75,7 +77,7 @@ class MetricsCollector:
 
 
 # 全局实例
-_collector = None
+_collector: MetricsCollector | None = None
 _collector_lock = threading.Lock()
 
 

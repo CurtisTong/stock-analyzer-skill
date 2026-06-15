@@ -151,13 +151,13 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 
 ## 🆕 v1.7.0 新增能力
 
-| 新能力                         | 怎么用                                                                          | 价值                                              |
-| ------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------- |
-| 🎯 **专家圆桌决策引擎**       | `/stock sh600989 debate` 自动跑 8 位专家 → 加权投票 → 方向 + 信心 + 仓位        | 把"LLM 推理的模糊判断"转成"可解释、可复盘的决策"  |
-| 🧠 **专家自校准**             | debate 完成后自动写 `data/expert_calibration.json`，下轮信心指数自动校准        | 用历史准确率反推"该不该信这一次"                 |
-| 🌎 **美股参考板块**           | `/market full` 自动拉 `us:^gspc` / `us:^ixic` / `us:spy` 等收盘数据（**需 `pip install yfinance`**） | 隔夜美股 + VIX 提前一天判断 A 股开盘情绪          |
-| 📈 **全市场股票池（~5000 只）** | `/stock-init full-market` 一次性拉全 A 股，按板块预筛后进 screener              | 真正"全市场扫描"，不再被默认 20 只限死            |
-| 🛰️ **通达信局域网数据源（v1.7.1）** | `pip install pytdx` + 本地通达信客户端开启 7709 端口后，行情/K 线自动走 pytdx（优先级 9） | 局域网直连，速度快、无限频，适合盘中频繁查询      |
+| 新能力                              | 怎么用                                                                                               | 价值                                             |
+| ----------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 🎯 **专家圆桌决策引擎**             | `/stock sh600989 debate` 自动跑 8 位专家 → 加权投票 → 方向 + 信心 + 仓位                             | 把"LLM 推理的模糊判断"转成"可解释、可复盘的决策" |
+| 🧠 **专家自校准**                   | debate 完成后自动写 `data/expert_calibration.json`，下轮信心指数自动校准                             | 用历史准确率反推"该不该信这一次"                 |
+| 🌎 **美股参考板块**                 | `/market full` 自动拉 `us:^gspc` / `us:^ixic` / `us:spy` 等收盘数据（**需 `pip install yfinance`**） | 隔夜美股 + VIX 提前一天判断 A 股开盘情绪         |
+| 📈 **全市场股票池（~5000 只）**     | `/stock-init full-market` 一次性拉全 A 股，按板块预筛后进 screener                                   | 真正"全市场扫描"，不再被默认 20 只限死           |
+| 🛰️ **通达信局域网数据源（v1.7.1）** | `pip install pytdx` + 本地通达信客户端开启 7709 端口后，行情/K 线自动走 pytdx（优先级 9）            | 局域网直连，速度快、无限频，适合盘中频繁查询     |
 
 > 📖 这些能力的详细使用方法见 [docs/user-guide.md](docs/user-guide.md) 与 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -587,6 +587,26 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 <summary><b>Q：8 人专家投票冲突时怎么办？</b></summary>
 
 由 [`experts/decide.md`](experts/decide.md) 定义的整合规则裁决——加权投票 + 长短线分仓建议。例如长线 4 人偏多、短线 4 人偏空，结论会是「核心仓持有、卫星仓减仓」。
+
+</details>
+
+<details>
+<summary><b>Q：缓存越来越大怎么办？</b></summary>
+
+运行缓存清理命令可删除过期缓存（默认 6 小时 TTL）：
+
+```bash
+python3 scripts/monitor.py --cleanup
+```
+
+建议配合 cron 每日自动清理（以 macOS/Linux 为例）：
+
+```bash
+# 每天凌晨 3 点清理过期缓存
+0 3 * * * cd /path/to/stock-analyzer-skill && python3 scripts/monitor.py --cleanup
+```
+
+查看缓存状态：`python3 scripts/monitor.py --cache`
 
 </details>
 

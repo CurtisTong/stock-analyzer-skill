@@ -38,11 +38,16 @@ jobs:
             -m "not network" \
             --timeout=60 \
             -n auto \
+            --durations=10 \
             --cov=scripts --cov=experts --cov-fail-under=60
 
       - name: 跑 skill 元数据校验
         run: |
           python -m pytest tests/test_skill_metadata.py tests/test_skill_consistency.py -v
+
+      - name: 跑 allowed-tools 自审计
+        run: |
+          python3 scripts/dev/check_allowed_tools.py --ci
 
       - name: 跑 install.sh 集成测试（仅 main 分支）
         if: github.ref == 'refs/heads/main'

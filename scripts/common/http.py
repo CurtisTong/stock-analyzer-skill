@@ -25,7 +25,7 @@ def _get_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
     """从连接池获取或创建连接（线程安全）。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
-    host = parsed.hostname
+    host = parsed.hostname or "localhost"
     port = parsed.port or (443 if scheme == "https" else 80)
     pool_key = f"{scheme}://{host}:{port}"
 
@@ -50,7 +50,7 @@ def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
     """将连接归还到连接池。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
-    host = parsed.hostname
+    host = parsed.hostname or "localhost"
     port = parsed.port or (443 if scheme == "https" else 80)
     pool_key = f"{scheme}://{host}:{port}"
 
@@ -67,7 +67,7 @@ def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
 
 
 def _do_request(conn: http.client.HTTPConnection, url: str,
-                headers: dict, timeout: int) -> bytes:
+                headers: dict[str, str], timeout: int) -> bytes:
     """执行一次 HTTP GET，返回响应体。处理非 2xx 状态码。"""
     parsed = urllib.parse.urlparse(url)
     path = parsed.path or "/"
@@ -106,7 +106,7 @@ def _invalidate_connection(url: str, conn: http.client.HTTPConnection) -> None:
         pass
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
-    host = parsed.hostname
+    host = parsed.hostname or "localhost"
     port = parsed.port or (443 if scheme == "https" else 80)
     pool_key = f"{scheme}://{host}:{port}"
     with _pool_lock:
@@ -142,7 +142,7 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
     raise NetworkError(url, str(last_err), max_retries)
 
 
-def http_get_with_headers(url: str, headers: dict = None,
+def http_get_with_headers(url: str, headers: dict[str, str] | None = None,
                           timeout: int = 10, max_retries: int = 3) -> bytes:
     """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。"""
     req_headers = {"User-Agent": random.choice(USER_AGENTS)}

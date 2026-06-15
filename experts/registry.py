@@ -12,6 +12,25 @@ from . import ExpertProfile
 
 EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
 
+# 合规隔离层：内部 ID → 显示名映射。
+# 如果未来需要"虚构化"专家名称，只需改这张表 + display_name，
+# 评分函数（_score_xu_xiang 等）和 decide.py 的 _EXPERT_PROFILES 不受影响。
+LEGACY_ALIAS: Dict[str, str] = {
+    "buffett": "巴菲特",
+    "lynch": "彼得·林奇",
+    "soros": "索罗斯",
+    "duan_yongping": "段永平",
+    "xu_xiang": "徐翔",
+    "zhao_laoge": "赵老哥",
+    "chaogu_yangjia": "炒股养家",
+    "zuoshou_xinyi": "作手新一",
+}
+
+
+def get_display_name(expert_id: str) -> str:
+    """获取专家的显示名称（走 LEGACY_ALIAS 隔离层）。"""
+    return LEGACY_ALIAS.get(expert_id, expert_id)
+
 
 def _register(profile: ExpertProfile) -> None:
     EXPERT_REGISTRY[profile.name] = profile

@@ -49,6 +49,8 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Us
 
 使用中文输出。监控依赖 `scripts/data/portfolio.json` 中的持仓数据。
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 ### 初始化
 
 使用 shell 命令初始化监控：

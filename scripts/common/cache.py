@@ -6,7 +6,7 @@ import platform
 import tempfile
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 # Windows 不支持 fcntl，用条件导入守护
 _USE_FCNTL = platform.system() != "Windows"
@@ -17,7 +17,7 @@ _DEFAULT_CACHE_DIR = Path(__file__).resolve().parent.parent.parent / ".cache"
 CACHE_DIR = Path(os.getenv("STOCK_CACHE_DIR", str(_DEFAULT_CACHE_DIR)))
 
 
-def _ensure_dir():
+def _ensure_dir() -> None:
     CACHE_DIR.mkdir(exist_ok=True)
 
 
@@ -33,7 +33,7 @@ def get(key: str, ttl_seconds: int) -> Optional[bytes]:
     return f.read_bytes()
 
 
-def set(key: str, data: bytes):
+def set(key: str, data: bytes) -> None:
     """写入缓存（原子写入：先写临时文件，再 rename）。
 
     非 Windows 平台使用 fcntl 文件锁防止多进程竞争。
@@ -61,7 +61,7 @@ def set(key: str, data: bytes):
         Path(tmp_path).unlink(missing_ok=True)
 
 
-def get_json(key: str, ttl_seconds: int):
+def get_json(key: str, ttl_seconds: int) -> Any:
     """读取 JSON 缓存。"""
     raw = get(key, ttl_seconds)
     if raw is None:
@@ -72,12 +72,12 @@ def get_json(key: str, ttl_seconds: int):
         return None
 
 
-def set_json(key: str, data):
+def set_json(key: str, data: Any) -> None:
     """写入 JSON 缓存。"""
     set(key, json.dumps(data, ensure_ascii=False).encode())
 
 
-def clear(prefix: str = ""):
+def clear(prefix: str = "") -> None:
     """清除指定前缀或全部缓存。"""
     if not CACHE_DIR.exists():
         return
@@ -86,7 +86,7 @@ def clear(prefix: str = ""):
             f.unlink()
 
 
-def cleanup(prefix: str = None, max_age_seconds: int = 86400):
+def cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
     """清理过期缓存。prefix 为空时清理所有过期文件。返回清理数量。"""
     _ensure_dir()
     cleaned = 0
@@ -104,7 +104,7 @@ def cache_key(url: str) -> str:
     return hashlib.sha256(url.encode()).hexdigest()[:32]
 
 
-def cache_key_for_stock(prefix: str, code: str, **params) -> str:
+def cache_key_for_stock(prefix: str, code: str, **params: object) -> str:
     """生成股票相关的缓存键，支持按代码清除。
     格式: {prefix}_{code}_{param_hash}
     """
@@ -125,7 +125,7 @@ def cache_set(key: str, data: bytes) -> None:
     set(key, data)
 
 
-def cache_cleanup(prefix: str = None, max_age_seconds: int = 86400) -> int:
+def cache_cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
     """cleanup() 的别名。"""
     return cleanup(prefix, max_age_seconds)
 
@@ -189,7 +189,7 @@ def cleanup_by_size(max_size_mb: int = 500, keep_newest: bool = True) -> int:
     return cleaned
 
 
-def get_cache_stats() -> dict:
+def get_cache_stats() -> dict[str, Any]:
     """获取缓存统计信息。
 
     Returns:

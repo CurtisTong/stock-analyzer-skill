@@ -27,6 +27,8 @@ allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh
 
 当用户触发此 skill 时，执行以下步骤：
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 1. **运行初始化脚本**：
 
    ```bash

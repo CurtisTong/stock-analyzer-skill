@@ -1197,8 +1197,8 @@ def main():
     parser.add_argument("--port", type=int, default=8765, help="监听端口（默认 8765）")
     parser.add_argument("--data-file", default=None,
                         help="portfolio.json 路径（默认 scripts/data/portfolio.json）")
-    parser.add_argument("--open", action="store_true",
-                        help="启动后用默认浏览器打开表单页（仅 macOS）")
+    parser.add_argument("--no-open", action="store_true", default=False,
+                        help="启动后不自动打开浏览器（默认自动打开）")
     parser.add_argument("--notify", action="store_true", default=True,
                         help="启用持仓变更推送（默认开启，自动读取 notification.yaml）")
     parser.add_argument("--no-notify", dest="notify", action="store_false",
@@ -1232,6 +1232,16 @@ def main():
     print(f"  Token: {token}", flush=True)
     print(f"  数据文件: {args.data_file or _SCRIPTS_DIR / 'data' / 'portfolio.json'}", flush=True)
 
+    # 自动打开浏览器（默认行为，--no-open 可禁用）
+    if not args.no_open:
+        import webbrowser
+        url = f"http://{bound_host}:{bound_port}/?token={token}"
+        try:
+            webbrowser.open(url)
+            print(f"  浏览器已打开: {url}", flush=True)
+        except Exception:
+            print(f"  浏览器打开失败，请手动访问: {url}", flush=True)
+
     # 通知推送
     global _notify_enabled
     if args.notify:
@@ -1256,16 +1266,6 @@ def main():
         print(f"  后台监控: ❌ 已禁用", flush=True)
 
     print(f"  停止: Ctrl-C", flush=True)
-
-    if args.open:
-        try:
-            if sys.platform == "darwin":
-                subprocess.Popen(["open", f"http://{bound_host}:{bound_port}/"])
-            else:
-                webbrowser_open = __import__("webbrowser")
-                webbrowser_open.open(f"http://{bound_host}:{bound_port}/")
-        except Exception as e:  # noqa: BLE001
-            print(f"WARNING: 打开浏览器失败: {e}", file=sys.stderr)
 
     try:
         server.serve_forever()

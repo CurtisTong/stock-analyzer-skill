@@ -36,11 +36,11 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 ### 查询模式
 
-| 模式             | 说明                                                                                                                                   |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `health`（默认） | 持仓健康检查，涨跌+支撑位+风险预警                                                                                                     |
-| `rebalance`      | 结合大盘风格给出调仓建议（**会按 `workflow.md` §3 "持仓再平衡"链路联动 `market` → `technical` → `screener` → `stock`**，不是单点输出） |
-| `compare`        | 持仓标的互相对比+替换建议                                                                                                              |
+| 模式             | 别名     | 说明                                                                                                                                   |
+| ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `health`（默认） |          | 持仓健康检查，涨跌+支撑位+风险预警                                                                                                     |
+| `rebalance`      | 调仓建议 | 结合大盘风格给出调仓建议（**会按 `workflow.md` §3 "持仓再平衡"链路联动 `market` → `technical` → `screener` → `stock`**，不是单点输出） |
+| `compare`        |          | 持仓标的互相对比+替换建议                                                                                                              |
 
 ### Web 录入
 
@@ -68,21 +68,23 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 使用中文，输出用表格+红绿标记。先给组合状态和最需要处理的风险，再给逐项数据。不要假设用户的真实持仓，除非 `scripts/data/portfolio.json` 或用户消息提供了持仓。
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 ### Web 录入命令处理
 
 当用户输入 `/portfolio web` 系列命令时，按以下方式处理：
 
-| 命令                           | 处理方式                                                           |
-| ------------------------------ | ------------------------------------------------------------------ |
-| `/portfolio web`               | `python3 scripts/portfolio_web.py --open`（后台启动 + 打开浏览器） |
-| `/portfolio web --port <端口>` | `python3 scripts/portfolio_web.py --port <端口> --open`            |
-| `/portfolio web --open`        | 同 `web`（前台启动 + 打开浏览器）                                  |
-| `/portfolio web --stop`        | `pkill -f "portfolio_web.py" && echo "已停止"`                     |
-| `/portfolio web --status`      | `lsof -i:8765 2>/dev/null && echo "运行中" \|\| echo "未运行"`     |
+| 命令                           | 处理方式                                                         |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `/portfolio web`               | `python3 scripts/portfolio_web.py`（后台启动 + 自动打开浏览器）  |
+| `/portfolio web --port <端口>` | `python3 scripts/portfolio_web.py --port <端口>`                 |
+| `/portfolio web --no-open`     | `python3 scripts/portfolio_web.py --no-open`（不自动打开浏览器） |
+| `/portfolio web --stop`        | `pkill -f "portfolio_web.py" && echo "已停止"`                   |
+| `/portfolio web --status`      | `lsof -i:8765 2>/dev/null && echo "运行中" \|\| echo "未运行"`   |
 
 **注意**：
 
-- `web` 命令默认后台启动（`&`），启动后输出端口和浏览器访问地址。
+- `web` 命令默认自动打开浏览器，使用 `--no-open` 可禁用。
 - 如果端口已被占用（上一次未正常退出），提示用户先运行 `web --stop`。
 - 启动后在输出中附加一行：`浏览器访问：http://127.0.0.1:8765/`
 - 不要阻塞当前会话等 `serve_forever()` 结束。

@@ -14,7 +14,7 @@ DATA_DIR = PACKAGE_ROOT / "data"
 
 # ---------- 代码转换 ----------
 
-def split_codes(arg: str) -> list:
+def split_codes(arg: str) -> list[str]:
     """支持逗号分隔或文件路径（@file）。"""
     if arg.startswith("@"):
         file_path = Path(arg[1:]).resolve()
@@ -104,13 +104,12 @@ def is_etf(code: str) -> bool:
 
 # ---------- 类型转换 ----------
 
-def batchify(items: list, size: int = 15):
+def batchify(items: list[str], size: int = 15) -> list[list[str]]:
     """将列表按 size 分批。腾讯单次 ≤15。"""
-    for i in range(0, len(items), size):
-        yield items[i:i + size]
+    return [items[i:i + size] for i in range(0, len(items), size)]
 
 
-def to_float(value, default=0.0):
+def to_float(value: object, default: float = 0.0) -> float:
     """安全转浮点数，空值/异常返回默认值。"""
     try:
         if value in (None, "", "-"):
@@ -120,7 +119,7 @@ def to_float(value, default=0.0):
         return default
 
 
-def to_int(value, default=0):
+def to_int(value: object, default: int = 0) -> int:
     """安全转整数，空值/异常返回默认值。"""
     try:
         if value in (None, "", "-"):
@@ -130,12 +129,12 @@ def to_int(value, default=0):
         return default
 
 
-def clamp(value, low=0.0, high=100.0):
+def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     """将值限制在 [low, high] 区间。"""
     return max(low, min(high, value))
 
 
-def compute_volume_ratio(volumes: list, recent_window: int = 5, base_window: int = 10) -> float:
+def compute_volume_ratio(volumes: list[float], recent_window: int = 5, base_window: int = 10) -> float:
     """计算量比（最近 N 日平均 / 基础 N 日平均）。
 
     base_window 包含 recent_window，语义为"最近 N 日放量程度"，
@@ -159,7 +158,7 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 # ---------- 数据单位归一化 ----------
 # 统一规范：volume=股, amount=元, total_cap/circulating_cap=亿
 
-def normalize_volume(raw, source: str) -> int:
+def normalize_volume(raw: object, source: str) -> int:
     """将不同数据源的成交量归一化为股。
     腾讯: 手 → 股 (×100)
     新浪/东财: 股 (原值)
@@ -170,7 +169,7 @@ def normalize_volume(raw, source: str) -> int:
     return v
 
 
-def normalize_amount(raw, source: str) -> float:
+def normalize_amount(raw: object, source: str) -> float:
     """将不同数据源的成交额归一化为元。
     腾讯: 万元 → 元 (×10000)
     东财: 元 (原值)
@@ -184,7 +183,7 @@ def normalize_amount(raw, source: str) -> float:
 
 # ---------- 错误处理 ----------
 
-def err(msg: str):
+def err(msg: str) -> None:
     """抛出 DataError 异常（替代原来的 sys.exit）。"""
     print(f"❌ {msg}", file=sys.stderr)
     raise DataError(msg, {"source": "common.err"})
@@ -197,7 +196,7 @@ _shared_executor = None
 _shared_executor_lock = __import__("threading").Lock()
 
 
-def get_shared_executor(max_workers=None):
+def get_shared_executor(max_workers: int | None = None) -> ThreadPoolExecutor:
     """获取共享线程池，线程安全的惰性初始化。
 
     Args:
@@ -217,18 +216,19 @@ def get_shared_executor(max_workers=None):
     return _shared_executor
 
 
-def parallel_map(fn, items, max_workers=8, timeout=60):
+def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: int = 60) -> dict[str, object]:
     """并发执行 fn(item)，返回 {item: result} 字典。
 
     超时时返回已完成的部分结果，而非抛出异常丢失所有结果。
     RateLimitError 始终向上抛出。
     """
     import logging
+    from concurrent.futures import Future
     from common.exceptions import RateLimitError
     logger = logging.getLogger(__name__)
-    results = {}
+    results: dict[str, object] = {}
     ex = get_shared_executor(max_workers)
-    futures = {ex.submit(fn, item): item for item in items}
+    futures: dict[Future[object], str] = {ex.submit(fn, item): item for item in items}  # type: ignore[arg-type]
     try:
         for future in as_completed(futures, timeout=timeout):
             item = futures[future]

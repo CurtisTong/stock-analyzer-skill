@@ -29,7 +29,7 @@ TENCENT_FIELDS = {
 }
 
 
-def parse_tencent_line(line: str) -> dict:
+def parse_tencent_line(line: str) -> dict[str, str]:
     """解析单行腾讯行情（v_sh600989="..." 形式）。"""
     if "=" not in line or '"' not in line:
         return {}
@@ -62,7 +62,7 @@ def parse_tencent_line(line: str) -> dict:
 SINA_QUOTE_URL = "https://hq.sinajs.cn/list={codes}"
 
 
-def parse_sina_quote_line(line: str) -> dict:
+def parse_sina_quote_line(line: str) -> dict[str, str]:
     """解析新浪行情单行: var hq_str_sh600989="名称,今开,昨收,当前价,最高,最低,..."; """
     if '="' not in line:
         return {}

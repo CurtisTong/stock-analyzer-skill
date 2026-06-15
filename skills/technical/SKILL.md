@@ -24,6 +24,8 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 使用中文。先给结论（综合评分+多空方向），再给逐项证据。涉及最新行情时必须运行脚本。
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 ## 共享约定
 
 - 代码前缀：`../_shared/references/code-prefix.md`

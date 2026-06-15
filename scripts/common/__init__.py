@@ -149,7 +149,7 @@ class CircuitBreaker:
         self._lock = threading.Lock()
         self.state = CircuitState.CLOSED
         self.failure_count = 0
-        self.last_failure_time = 0
+        self.last_failure_time: float = 0.0
         self.half_open_success = 0
         self._half_open_token = False  # 半开期试探令牌，True 表示已有线程在试探
 
@@ -177,7 +177,7 @@ class CircuitBreaker:
                 return False
             return False
 
-    def record_success(self):
+    def record_success(self) -> None:
         """记录成功（线程安全）。
 
         半开期 1 次成功即恢复到 CLOSED。
@@ -190,7 +190,7 @@ class CircuitBreaker:
             elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
 
-    def record_failure(self):
+    def record_failure(self) -> None:
         """记录失败（线程安全）。"""
         with self._lock:
             self.failure_count += 1
@@ -201,7 +201,7 @@ class CircuitBreaker:
             elif self.failure_count >= self.failure_threshold:
                 self.state = CircuitState.OPEN
 
-    def reset(self):
+    def reset(self) -> None:
         """重置熔断器（线程安全）。"""
         with self._lock:
             self.state = CircuitState.CLOSED
@@ -211,11 +211,11 @@ class CircuitBreaker:
 
 
 # 全局熔断器实例（线程安全）
-_circuit_breakers = {}
+_circuit_breakers: dict[str, CircuitBreaker] = {}
 _circuit_breakers_lock = threading.Lock()
 
 
-def get_circuit_breaker(name: str, **kwargs) -> CircuitBreaker:
+def get_circuit_breaker(name: str, **kwargs: int) -> CircuitBreaker:
     """获取或创建熔断器实例（线程安全）。"""
     with _circuit_breakers_lock:
         if name not in _circuit_breakers:
@@ -238,7 +238,7 @@ class BaseFetcher(ABC):
         self.circuit_breaker = get_circuit_breaker(name)
 
     @abstractmethod
-    def fetch(self, code: str, **kwargs) -> dict | list | None:
+    def fetch(self, code: str, **kwargs: object) -> dict[str, object] | list[object] | None:
         """获取数据。返回 None 表示失败，返回 NOT_HANDLED 表示不处理该类代码。"""
         pass
 
@@ -246,11 +246,11 @@ class BaseFetcher(ABC):
         """检查数据源是否可用（熔断器状态）。"""
         return self.circuit_breaker.can_execute()
 
-    def on_success(self):
+    def on_success(self) -> None:
         """记录成功。"""
         self.circuit_breaker.record_success()
 
-    def on_failure(self):
+    def on_failure(self) -> None:
         """记录失败。"""
         self.circuit_breaker.record_failure()
 
@@ -271,13 +271,13 @@ class DataFetcherManager:
         "finance": "finance_sources",
     }
 
-    def __init__(self, fetchers: list, source_config: dict = None):
+    def __init__(self, fetchers: list[BaseFetcher], source_config: dict[str, object] | None = None):
         if source_config:
             self._apply_source_config(fetchers, source_config)
         self.fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
 
     @staticmethod
-    def _apply_source_config(fetchers: list, source_config: dict):
+    def _apply_source_config(fetchers: list[BaseFetcher], source_config: dict[str, object]) -> None:
         """用 YAML 配置覆盖 fetcher 优先级。
 
         fetcher.name 格式: "{provider}_{domain}"（如 "tencent_quote"），
@@ -289,7 +289,7 @@ class DataFetcherManager:
             if cfg and isinstance(cfg, dict):
                 fetcher.priority = cfg.get("priority", fetcher.priority)
 
-    def fetch(self, code: str, **kwargs) -> dict | list | None:
+    def fetch(self, code: str, **kwargs: object) -> dict[str, object] | list[object] | None:
         """按优先级尝试各数据源。"""
         last_error = None
         for fetcher in self.fetchers:
@@ -312,13 +312,13 @@ class DataFetcherManager:
                 continue
         return None
 
-    def fetch_with_fallback(self, code: str, fallback=None, **kwargs):
+    def fetch_with_fallback(self, code: str, fallback: object = None, **kwargs: object) -> object:
         """带默认值的获取。"""
         result = self.fetch(code, **kwargs)
         return result if result is not None else fallback
 
-    def fetch_with_cache_fallback(self, code: str, cache_prefix: str = None,
-                                   cache_ttl: int = 21600, fallback=None, **kwargs):
+    def fetch_with_cache_fallback(self, code: str, cache_prefix: str | None = None,
+                                   cache_ttl: int = 21600, fallback: object = None, **kwargs: object) -> object:
         """带缓存降级的获取：优先实时数据 → 缓存数据 → 默认值。"""
         result = self.fetch(code, **kwargs)
         if result is not None:

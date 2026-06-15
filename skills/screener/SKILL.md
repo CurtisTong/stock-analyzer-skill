@@ -3,7 +3,7 @@ name: screener
 description: A 股选股策略系统 skill。用于从内置板块库或用户给定股票池中按多因子策略筛选候选股，支持均衡精选、质量价值、成长动量、防守低波、拐点修复；优先运行 scripts/screener.py，并结合 A 股交易制度、流动性、板块轮动和风险约束解释结果。
 version: 1.7.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Screener
@@ -21,6 +21,8 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 ## Instructions
 
 使用中文。先输出入选名单和策略结论，再解释因子分、剔除原因和交易计划。涉及最新行情时必须运行脚本，不要凭记忆选股。
+
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
 
 ## 共享约定
 
@@ -78,13 +80,13 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 策略含义：
 
-| 策略              | 适用市场          | 核心偏好                     |
-| ----------------- | ----------------- | ---------------------------- |
-| `balanced`        | 震荡/方向不明     | 质量、估值、动量、流动性均衡 |
-| `quality_value`   | 价值修复/防守行情 | 高 ROE、低估值、现金流质量   |
-| `growth_momentum` | 进攻行情/题材主线 | 增速、趋势、成交活跃度       |
-| `defensive`       | 缩量弱市/避险     | 低估值、低负债、稳定质量     |
-| `turning_point`   | 超跌修复/拐点     | 估值安全垫 + 技术转强        |
+| 策略              | 适用市场          | 核心偏好                     | 一句话说明           |
+| ----------------- | ----------------- | ---------------------------- | -------------------- |
+| `balanced`        | 震荡/方向不明     | 质量、估值、动量、流动性均衡 | 啥都来点，不偏科     |
+| `quality_value`   | 价值修复/防守行情 | 高 ROE、低估值、现金流质量   | 找便宜的好公司       |
+| `growth_momentum` | 进攻行情/题材主线 | 增速、趋势、成交活跃度       | 追热点，买强势股     |
+| `defensive`       | 缩量弱市/避险     | 低估值、低负债、稳定质量     | 躲风头，买抗跌的     |
+| `turning_point`   | 超跌修复/拐点     | 估值安全垫 + 技术转强        | 跌多了反弹，左侧抄底 |
 
 ### Step 2: 解释评分
 

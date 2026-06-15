@@ -27,7 +27,9 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 ## Instructions
 
-使用中文，输出简洁有结构。先给市场状态和操作倾向，再展开指数、板块、风格证据。涉及“今天、盘中、最新”时必须取实时数据。
+使用中文，输出简洁有结构。先给市场状态和操作倾向，再展开指数、板块、风格证据。涉及”今天、盘中、最新”时必须取实时数据。
+
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
 
 ## Workflow Coordination
 

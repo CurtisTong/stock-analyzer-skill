@@ -20,19 +20,19 @@ from typing import Any
 class StockAnalyzerError(Exception):
     """项目基础异常类。"""
 
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
         self.message = message
-        self.details = details or {}
+        self.details: dict[str, Any] = details or {}
         super().__init__(self.message)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "error_type": self.__class__.__name__,
             "message": self.message,
             "details": self.details,
         }
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.message})"
 
 
@@ -60,7 +60,7 @@ class NetworkError(DataError):
 class RateLimitError(NetworkError):
     """触发速率限制 (429)。"""
 
-    def __init__(self, url: str, retry_after: int = None):
+    def __init__(self, url: str, retry_after: int | None = None):
         self.retry_after = retry_after
         super().__init__(url, "429 Too Many Requests", 0)
         self.message = f"触发速率限制，请 {retry_after} 秒后重试"

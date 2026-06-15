@@ -35,6 +35,8 @@ python3 scripts/backtest.py [参数]
 
 ## 输出说明
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 回测结果包含：
 
 - **累计收益率**：策略在回测期间的总收益

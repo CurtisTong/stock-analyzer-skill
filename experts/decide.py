@@ -609,6 +609,25 @@ def format_debate_output(result: dict) -> str:
         for note in result["notes"]:
             lines.append(f"- {note}")
 
+    # 校准胜率卡片
+    try:
+        from experts.calibration import get_calibration, get_calibration_report
+        calibration = get_calibration()
+        has_data = any(v.get("events", 0) > 0 for v in calibration.values())
+        if has_data:
+            lines.append("")
+            lines.append("## 📊 专家校准胜率")
+            lines.append("")
+            lines.append("| 专家 | 事件数 | 正确数 | 胜率 |")
+            lines.append("|------|--------|--------|------|")
+            for name, rec in calibration.items():
+                events = rec.get("events", 0)
+                correct = rec.get("correct", 0)
+                rate = f"{correct/events:.0%}" if events > 0 else "样本不足"
+                lines.append(f"| {name} | {events} | {correct} | {rate} |")
+    except Exception:
+        pass  # 校准数据不可用时静默跳过
+
     return "\n".join(lines)
 
 

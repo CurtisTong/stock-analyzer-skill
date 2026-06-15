@@ -18,6 +18,52 @@ disable-model-invocation: true
 /skills
 ```
 
+## 你现在最关心什么？
+
+根据你的目标，选择最合适的入口：
+
+### 🔍 我想找机会（选股）
+
+> 不知道买什么，想从市场里捞候选
+
+1. `/market quick` — 3 分钟看今天市场强弱
+2. `/screener` — 按策略筛出候选（默认均衡精选）
+3. `/stock <候选股> quick` — 快速分析一只
+4. `/technical <候选股>` — 确认买点和止损
+
+### 📊 我想看大盘（复盘）
+
+> 今天市场怎么样？该进攻还是防守？
+
+- `/market quick` — 3 分钟快评（涨跌 + 最强最弱板块）
+- `/market` — 完整复盘（指数 + 板块 + 风格 + 资金）
+- `/market intraday` — 盘中分时复盘
+
+### 💼 我想看持仓（管理）
+
+> 我有持仓，想看看现在怎么样
+
+1. `/portfolio health` — 持仓健康检查（涨跌 + 支撑 + 风险）
+2. `/portfolio rebalance` — 调仓建议（联动市场风格）
+3. `/portfolio compare` — 持仓互相对比
+
+### 🎤 我想深度研究（单股）
+
+> 有一只股票，想全面了解
+
+1. `/stock <代码> full` — 五层完整分析
+2. `/stock <代码> debate` — 8 人专家圆桌辩论
+3. `/technical <代码>` — 技术面深度分析
+4. `/financial-analyst <代码>` — 财务建模与预测
+
+### 📈 我想看板块（行业）
+
+> 某个行业怎么样？谁是龙头？
+
+1. `/market` — 先看今日板块强弱
+2. `/sector <板块>` — 板块全景 + 核心标的
+3. `/sector <板块> compare` — 板块内标的横向对比
+
 ## 第一次使用
 
 首次使用请按以下步骤：
@@ -68,17 +114,17 @@ disable-model-invocation: true
 
 ### 高级子模式速查
 
-| Skill | 子模式 | 用途 |
-| ----- | ------ | ---- |
-| `/stock` | `quick`（默认）/ `full` / `debate` / `debate 长线` / `debate 短线` | quick=3 分钟；full=五层；debate=8 人圆桌；长线/短线=4 人组内投票 |
-| `/market` | `full`（默认）/ `quick` / `intraday` | intraday=盘中分时复盘（5 分钟 K 线） |
-| `/sector` | `overview`（默认）/ `compare` / `stock` | compare=标的横向对比；stock=板块内个股深挖 |
-| `/portfolio` | `health`（默认）/ `rebalance` / `compare` / `web` | rebalance=按 workflow 联动；web=本地录入服务 |
-| `/screener` | `--strategy` 5 选 1 | balanced / quality_value / growth_momentum / defensive / turning_point |
-| `/technical` | `quick` / `full`（默认）/ `full --classify` | --classify 加个股分类 + 缠论 + 战法 |
-| `/monitor` | `start` / `stop` / `status` / `scan` / `levels <code>` / `check` | scan/levels/check=关键点位扫描；check 支持 `--dry-run` |
-| `/backtest` | `--strategy` / `--all` / `--days N` / `--codes` | --all=5 策略横评；--optimize=权重优化 |
-| `/investment-researcher` | 自然语言 | 自动按 `market` → `sector` → `financial-analyst` → `stock` → `technical` 链路串行 |
+| Skill                    | 子模式                                                             | 用途                                                                              |
+| ------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `/stock`                 | `quick`（默认）/ `full` / `debate` / `debate 长线` / `debate 短线` | quick=3 分钟；full=五层；debate=8 人圆桌；长线/短线=4 人组内投票                  |
+| `/market`                | `full`（默认）/ `quick` / `intraday`                               | intraday=盘中分时复盘（5 分钟 K 线）                                              |
+| `/sector`                | `overview`（默认）/ `compare` / `stock`                            | compare=标的横向对比；stock=板块内个股深挖                                        |
+| `/portfolio`             | `health`（默认）/ `rebalance` / `compare` / `web`                  | rebalance=按 workflow 联动；web=本地录入服务                                      |
+| `/screener`              | `--strategy` 5 选 1                                                | balanced / quality_value / growth_momentum / defensive / turning_point            |
+| `/technical`             | `quick` / `full`（默认）/ `full --classify`                        | --classify 加个股分类 + 缠论 + 战法                                               |
+| `/monitor`               | `start` / `stop` / `status` / `scan` / `levels <code>` / `check`   | scan/levels/check=关键点位扫描；check 支持 `--dry-run`                            |
+| `/backtest`              | `--strategy` / `--all` / `--days N` / `--codes`                    | --all=5 策略横评；--optimize=权重优化                                             |
+| `/investment-researcher` | 自然语言                                                           | 自动按 `market` → `sector` → `financial-analyst` → `stock` → `technical` 链路串行 |
 
 ## 数据来源
 

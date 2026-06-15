@@ -31,9 +31,14 @@
       "WebFetch(domain:emweb.securities.eastmoney.com)",
       "Bash(python3 scripts/portfolio_web.py *)",
       "Bash(python3 scripts/calibration.py *)",
+      "Bash(python3 scripts/calibration_sync.py *)",
       "Bash(python3 scripts/stock.py *)",
       "Bash(python3 scripts/chip.py *)",
-      "Bash(python3 scripts/monitor/alert_engine.py *)"
+      "Bash(python3 scripts/monitor/alert_engine.py *)",
+      "Bash(python3 scripts/init_pool.py *)",
+      "Bash(python3 scripts/refresh_pool.py *)",
+      "Bash(python3 scripts/patterns_local.py *)",
+      "Bash(python3 scripts/classifier.py *)"
     ],
     "deny": ["Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(chmod 777:*)"]
   }

@@ -22,6 +22,8 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 使用简洁中文。先给核心结论和置信度，再给关键数据、模型假设、敏感性分析和行动项。不单独输出交易买点。
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 ## 共享约定
 
 - 代码前缀：`../_shared/references/code-prefix.md`

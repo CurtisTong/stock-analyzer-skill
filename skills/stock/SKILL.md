@@ -36,6 +36,8 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 
 使用中文，输出用表格+要点格式。先给结论，再给证据和风险。涉及实时行情、最新公告、研报或盘中走势时必须获取数据，不要只凭记忆判断。
 
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 ## Workflow Coordination
 
 完整链路见包根目录 `workflow.md`。本 skill 负责把候选股变成投资判断：
