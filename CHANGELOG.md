@@ -7,6 +7,11 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-15
+
+### CI/CD
+- 添加 CHANGELOG 自动更新工作流
+
 ## [1.9.0] - 2026-06-15
 
 ### Added
