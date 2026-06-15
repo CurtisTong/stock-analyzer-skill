@@ -27,6 +27,68 @@ from monitor import NotificationManager
 from portfolio import PortfolioManager
 
 
+# ═══════════════════════════════════════════════════════════════
+# 预警分级配置
+# ═══════════════════════════════════════════════════════════════
+
+# 预警级别定义
+ALERT_LEVELS = {
+    "urgent": {
+        "name": "紧急",
+        "notify": True,
+        "sound": True,
+        "types": [
+            "stop_loss",           # 触及止损线
+            "target_buy",          # 到达目标买入价
+            "target_sell",         # 到达目标卖出价
+            "near_limit",          # 距涨跌停 <1%
+        ],
+    },
+    "important": {
+        "name": "重要",
+        "notify": True,
+        "sound": False,
+        "types": [
+            "support_touch",       # 触及支撑位（强度=强）
+            "resistance_touch",    # 触及压力位
+            "macd_golden",         # MACD 金叉
+            "macd_dead",           # MACD 死叉
+            "ma_break",            # 均线突破
+            "take_profit",         # 持仓盈利 >20%
+        ],
+    },
+    "normal": {
+        "name": "普通",
+        "notify": False,  # 默认不推送
+        "sound": False,
+        "types": [
+            "support_touch_weak",  # 触及支撑位（强度=弱）
+        ],
+    },
+}
+
+# alert_type 到级别的映射
+_ALERT_TYPE_LEVEL = {}
+for level, config in ALERT_LEVELS.items():
+    for t in config["types"]:
+        _ALERT_TYPE_LEVEL[t] = level
+
+
+def get_alert_level(alert_type: str, urgent: bool = False) -> str:
+    """获取预警级别。
+
+    Args:
+        alert_type: 预警类型
+        urgent: 是否标记为紧急
+
+    Returns:
+        "urgent" / "important" / "normal"
+    """
+    if urgent:
+        return "urgent"
+    return _ALERT_TYPE_LEVEL.get(alert_type, "normal")
+
+
 def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
     """获取单只股票的技术分析数据。
 
@@ -334,8 +396,12 @@ def scan_all() -> list:
     return results
 
 
-def check_and_push(dry_run: bool = False) -> dict:
+def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
     """盘中检查：扫描全部标的，触发预警则推送。
+
+    Args:
+        dry_run: 只输出不推送
+        level: 推送级别阈值（"urgent"/"important"/"normal"）
 
     Returns:
         {"scanned": int, "alerts": int, "pushed": int, "details": [...]}
@@ -343,11 +409,17 @@ def check_and_push(dry_run: bool = False) -> dict:
     results = scan_all()
     nm = NotificationManager() if not dry_run else None
 
+    # 级别阈值：只推送 >= level 的预警
+    level_order = {"normal": 0, "important": 1, "urgent": 2}
+    min_level = level_order.get(level, 1)
+
     summary = {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "scanned": len(results),
         "alerts": 0,
+        "filtered": 0,
         "pushed": 0,
+        "level": level,
         "details": [],
     }
 
@@ -367,8 +439,19 @@ def check_and_push(dry_run: bool = False) -> dict:
             message = alert.get("message", "")
             urgent = alert.get("urgent", False)
 
+            # 计算预警级别
+            alert_level = get_alert_level(alert_type, urgent)
+            alert_level_value = level_order.get(alert_level, 0)
+
+            # 过滤低级别预警
+            if alert_level_value < min_level:
+                summary["filtered"] += 1
+                continue
+
             # 构造推送内容
-            body = f"现价 {price}"
+            level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(alert_level, "⚪")
+            body = f"{level_icon} [{ALERT_LEVELS[alert_level]['name']}]"
+            body += f"\n现价 {price}"
             if r.get("change_pct"):
                 body += f"（{r['change_pct']:+.2f}%）"
             body += f"\n{message}"
@@ -387,6 +470,7 @@ def check_and_push(dry_run: bool = False) -> dict:
                 "code": code,
                 "name": name,
                 "type": alert_type,
+                "level": alert_level,
                 "message": message,
                 "price": price,
                 "pushed": False,
@@ -502,9 +586,14 @@ def main():
     args = sys.argv[1:]
     if not args:
         print("用法:")
-        print("  alert_engine.py scan [--json]        # 扫描全部标的")
-        print("  alert_engine.py levels <code>        # 单股关键点位")
-        print("  alert_engine.py check [--dry-run]    # 盘中检查+推送")
+        print("  alert_engine.py scan [--json]                  # 扫描全部标的")
+        print("  alert_engine.py levels <code>                  # 单股关键点位")
+        print("  alert_engine.py check [--dry-run] [--level L]  # 盘中检查+推送")
+        print("")
+        print("推送级别 (--level):")
+        print("  urgent    - 只推送紧急预警（止损、涨跌停附近）")
+        print("  important - 推送重要+紧急预警（默认）")
+        print("  normal    - 推送所有预警")
         sys.exit(1)
 
     cmd = args[0]
@@ -525,16 +614,30 @@ def main():
 
     elif cmd == "check":
         dry_run = "--dry-run" in args
-        summary = check_and_push(dry_run=dry_run)
+
+        # 解析 --level 参数
+        level = "important"  # 默认推送重要+紧急
+        if "--level" in args:
+            level_idx = args.index("--level")
+            if level_idx + 1 < len(args):
+                level = args[level_idx + 1]
+                if level not in ALERT_LEVELS:
+                    print(f"无效的级别: {level}，可选: {', '.join(ALERT_LEVELS.keys())}")
+                    sys.exit(1)
+
+        summary = check_and_push(dry_run=dry_run, level=level)
         if "--json" in args:
             print(json.dumps(summary, ensure_ascii=False, indent=2))
         else:
             mode = "（dry-run）" if dry_run else ""
+            level_name = ALERT_LEVELS.get(level, {}).get("name", level)
             print(f"📡 盘中检查{mode} | {summary['timestamp']}")
-            print(f"扫描: {summary['scanned']} | 预警: {summary['alerts']} | 推送: {summary['pushed']}")
+            print(f"推送级别: {level_name}")
+            print(f"扫描: {summary['scanned']} | 预警: {summary['alerts']} | 过滤: {summary.get('filtered', 0)} | 推送: {summary['pushed']}")
             for d in summary.get("details", []):
                 status = "✅" if d.get("pushed") else "⏭️"
-                print(f"  {status} {d['name']}({d['code']}): {d['message']}")
+                level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(d.get("level", ""), "⚪")
+                print(f"  {status} {level_icon} {d['name']}({d['code']}): {d['message']}")
 
     else:
         print(f"未知命令: {cmd}")

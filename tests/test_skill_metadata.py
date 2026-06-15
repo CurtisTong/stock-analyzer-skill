@@ -19,11 +19,11 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
 
-# 期望的 12 个 skill
+# 期望的 13 个 skill
 EXPECTED_SKILLS = {
     "stock", "market", "sector", "portfolio", "screener",
     "technical", "monitor", "stock-init", "backtest",
-    "financial-analyst", "investment-researcher", "help",
+    "financial-analyst", "investment-researcher", "help", "learn",
 }
 
 # 命令式 skill：允许 disable-model-invocation 且 description 可短

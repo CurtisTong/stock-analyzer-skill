@@ -631,6 +631,93 @@ def format_debate_output(result: dict) -> str:
     return "\n".join(lines)
 
 
+def format_debate_card(result: dict) -> str:
+    """格式化专家投票卡片（简洁版）。
+
+    输出示例：
+    ┌─────────────────────────────────────────────┐
+    │  专家投票结果                                 │
+    ├─────────────────────────────────────────────┤
+    │  ██████████████████████░░░░░░  75% 买入 (6)  │
+    │  ████████░░░░░░░░░░░░░░░░░░░░  12.5% 持有 (1)│
+    │  ████████░░░░░░░░░░░░░░░░░░░░  12.5% 卖出 (1)│
+    ├─────────────────────────────────────────────┤
+    │  综合建议：买入 | 信心：78%                    │
+    │  核心分歧：索罗斯看空宏观风险                   │
+    └─────────────────────────────────────────────┘
+    """
+    expert_results = result.get("expert_results", [])
+    total = len(expert_results)
+    if total == 0:
+        return "暂无专家投票数据"
+
+    # 统计投票
+    buy_count = sum(1 for r in expert_results if r.get("score", 0) >= 60)
+    hold_count = sum(1 for r in expert_results if 40 <= r.get("score", 0) < 60)
+    sell_count = sum(1 for r in expert_results if r.get("score", 0) < 40)
+
+    buy_pct = buy_count / total * 100
+    hold_pct = hold_count / total * 100
+    sell_pct = sell_count / total * 100
+
+    # 生成进度条（30 字符宽）
+    bar_width = 30
+    buy_bar = '█' * int(buy_pct / 100 * bar_width)
+    hold_bar = '█' * int(hold_pct / 100 * bar_width)
+    sell_bar = '█' * int(sell_pct / 100 * bar_width)
+
+    # 填充到固定宽度
+    buy_bar = buy_bar.ljust(bar_width, '░')
+    hold_bar = hold_bar.ljust(bar_width, '░')
+    sell_bar = sell_bar.ljust(bar_width, '░')
+
+    # 找出分歧点
+    dissent = _find_dissent(expert_results)
+
+    # 综合建议
+    direction = result.get("direction", "中性")
+    confidence = result.get("confidence", 50)
+
+    # 构建卡片
+    card = f"""┌─────────────────────────────────────────────┐
+│  专家投票结果                                 │
+├─────────────────────────────────────────────┤
+│  {buy_bar}  {buy_pct:5.1f}% 买入 ({buy_count})  │
+│  {hold_bar}  {hold_pct:5.1f}% 持有 ({hold_count})│
+│  {sell_bar}  {sell_pct:5.1f}% 卖出 ({sell_count})│
+├─────────────────────────────────────────────┤
+│  综合建议：{direction} | 信心：{confidence:.0f}%                    │
+│  核心分歧：{dissent}                         │
+└─────────────────────────────────────────────┘"""
+
+    return card
+
+
+def _find_dissent(expert_results: list) -> str:
+    """找出分歧点。"""
+    if not expert_results:
+        return "无数据"
+
+    # 找出看空的专家
+    dissenters = [r for r in expert_results if r.get("score", 0) < 40]
+    if not dissenters:
+        return "无分歧"
+
+    # 找出看多的专家
+    supporters = [r for r in expert_results if r.get("score", 0) >= 60]
+    if not supporters:
+        return "一致看空"
+
+    # 提取分歧原因
+    names = [r.get("display_name", r.get("name", "?")) for r in dissenters]
+    reasons = [r.get("reason", "看空") for r in dissenters]
+
+    # 截断原因（保留前 20 字符）
+    reason_short = reasons[0][:20] if reasons else "看空"
+
+    return f"{','.join(names)}看空：{reason_short}"
+
+
 def format_group_output(result: dict) -> str:
     """格式化单组模式输出（decide.md §七.4）。"""
     group_name = "长线模式" if result["group"] == "long_term" else "短线模式"
@@ -675,5 +762,6 @@ __all__ = [
     "aggregate_votes",
     "aggregate_group_votes",
     "format_debate_output",
+    "format_debate_card",
     "format_group_output",
 ]

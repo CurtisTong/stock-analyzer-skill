@@ -12,6 +12,7 @@ import pytest
 
 import portfolio_web
 from portfolio import PortfolioManager
+from portfolio.web import utils as portfolio_web_utils
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -25,9 +26,13 @@ def _isolate_token(tmp_path, monkeypatch):
     token_dir = tmp_path / "token"
     token_dir.mkdir()
     token_file = token_dir / "portfolio_web.token"
+    # 同时 monkeypatch portfolio_web 和 portfolio.web.utils 的属性
     monkeypatch.setattr(portfolio_web, "_TOKEN_FILE", token_file)
     monkeypatch.setattr(portfolio_web, "_TOKEN_DIR", token_dir)
     monkeypatch.setattr(portfolio_web, "_token", None)
+    monkeypatch.setattr(portfolio_web_utils, "_TOKEN_FILE", token_file)
+    monkeypatch.setattr(portfolio_web_utils, "_TOKEN_DIR", token_dir)
+    monkeypatch.setattr(portfolio_web_utils, "_token", None)
     yield
 
 
