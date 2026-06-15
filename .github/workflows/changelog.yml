@@ -1,0 +1,80 @@
+name: Update Changelog
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'CHANGELOG.md'
+      - 'docs/**'
+      - '*.md'
+
+permissions:
+  contents: write
+
+jobs:
+  update-changelog:
+    name: 更新 CHANGELOG
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 检查是否有新 commits
+        id: check
+        run: |
+          # 获取上个 tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "has_new=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 检查 tag 到 HEAD 之间是否有 Conventional Commits
+          COMMITS=$(git log "${LAST_TAG}..HEAD" --oneline --format="%s" | grep -E "^(feat|fix|docs|refactor|perf|chore|ci|style|test)" || true)
+          if [ -n "$COMMITS" ]; then
+            echo "has_new=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_new=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 生成 CHANGELOG 片段
+        if: steps.check.outputs.has_new == 'true'
+        id: gen
+        run: |
+          FRAGMENT=$(python3 scripts/dev/gen_changelog.py)
+          if [ -z "$FRAGMENT" ]; then
+            echo "has_content=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_content=true" >> "$GITHUB_OUTPUT"
+            # 保存到临时文件
+            echo "$FRAGMENT" > /tmp/changelog_fragment.md
+          fi
+
+      - name: 更新 CHANGELOG.md
+        if: steps.gen.outputs.has_content == 'true'
+        run: |
+          python3 scripts/dev/gen_changelog.py --append
+
+      - name: 提交更改
+        if: steps.gen.outputs.has_content == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # 检查是否有实际更改
+          if git diff --quiet CHANGELOG.md; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git add CHANGELOG.md
+          git commit -m "docs: auto-update CHANGELOG.md [skip ci]"
+          git push
