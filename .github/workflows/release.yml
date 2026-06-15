@@ -8,8 +8,44 @@ permissions:
   contents: write
 
 jobs:
+  validate:
+    name: 验证发布条件
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_publish: ${{ steps.check.outputs.should_publish }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 提取版本号
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: 校验 package.json 版本一致性
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+      - name: 检查 npm 是否已发布
+        id: check
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # 检查 npm 上是否已有该版本
+          if npm view stock-analyzer-skill@$VERSION version 2>/dev/null; then
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Version $VERSION already exists on npm, skipping publish"
+          else
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
     name: 测试验证
+    needs: validate
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -19,16 +55,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 设置 Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - name: 设置测试环境
+        uses: ./.github/actions/setup-test
         with:
           python-version: ${{ matrix.python-version }}
-          cache: pip
-
-      - name: 安装依赖
-        run: |
-          python -m pip install --upgrade pip
-          pip install pytest pyyaml
 
       - name: 跑全量测试
         run: python -m pytest tests/ -x -q --ignore=tests/integration -m "not network"
@@ -38,7 +68,8 @@ jobs:
 
   publish:
     name: 发布到 npm
-    needs: test
+    needs: [validate, test]
+    if: needs.validate.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -59,7 +90,8 @@ jobs:
 
   github-release:
     name: 创建 GitHub Release
-    needs: publish
+    needs: [validate, publish]
+    if: always() && needs.validate.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
@@ -67,24 +99,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: 提取版本号
-        id: version
-        run: echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-
-      - name: 校验 package.json 版本一致性
-        run: |
-          PKG_VERSION=$(node -p "require('./package.json').version")
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
-            exit 1
-          fi
-
       - name: 提取当前版本 CHANGELOG
-        id: changelog
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          # 提取当前版本到下一个版本之间的内容
+          VERSION="${{ needs.validate.outputs.version }}"
           awk -v ver="$VERSION" '
             /^## \[/ {
               if (found) exit
@@ -93,7 +110,6 @@ jobs:
             }
             found { print }
           ' CHANGELOG.md > release_notes.md
-          # 如果提取为空，使用默认内容
           if [ ! -s release_notes.md ]; then
             echo "See [CHANGELOG.md](CHANGELOG.md) for details." > release_notes.md
           fi
@@ -101,7 +117,7 @@ jobs:
       - name: 创建 Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
           body_path: release_notes.md
           generate_release_notes: false
