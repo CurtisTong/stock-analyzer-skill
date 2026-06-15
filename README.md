@@ -14,7 +14,7 @@
 
 ## 🎯 A 股投资的 12 位分析师，常驻你的 Claude Code
 
-**五层分析框架** · **8 人专家圆桌** · **27 个数据源故障转移** · **零配置开箱即用**
+**五层分析框架** · **8 人专家圆桌** · **28 个数据源故障转移** · **零配置开箱即用**
 
 [![Version](https://img.shields.io/badge/version-1.8.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.9+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
@@ -119,10 +119,10 @@
 
 ### 🔁 多源故障转移
 
-**27 个 fetcher**<br>
+**28 个 fetcher**<br>
 腾讯 · 东财 · 新浪<br>
-雪球 · 同花顺<br>
-AkShare · efinance<br>
+雪球 · 同花顺 · 通达信<br>
+AkShare · efinance · yfinance<br>
 
 集成熔断器，单源故障<br>自动切换下家
 
@@ -149,7 +149,23 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 
 > **零配置可用**：内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。
 
-## 🆕 v1.7.0 新增能力
+## 🆕 v1.8.0 新增能力
+
+| 新能力                    | 怎么用                                                                         | 价值                                                 |
+| ------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| 🎮 **模拟盘（虚拟持仓）** | `/portfolio add sh600989 1000 18.50 --virtual` 或 `portfolio_web.py --virtual` | 零风险练习交易策略，虚拟/实盘数据完全隔离            |
+| 📅 **事件日历**           | `python3 scripts/events.py sh600519`                                           | 财报披露、限售解禁、分红一目了然，避免踩雷           |
+| 📋 **统一输出模板**       | 12 个 skill 自动生效——首行结论 + 尾行数据源 + 时间戳                           | 格式一致可复盘，每次输出都带数据来源和时间           |
+| 🔄 **校准数据同步**       | `python3 scripts/calibration_sync.py --auto`（依赖 gh CLI）                    | 跨设备同步专家校准数据，GitHub Gist 双向同步         |
+| 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示每位专家历史胜率，可信度透明         |
+| 📊 **回测胜率附加**       | `/stock sh600519 --with-backtest`                                              | 分析报告附加近 60 日回测（胜率/收益/夏普/回撤）      |
+| 📝 **结构化 JSON 日志**   | `monitor --log-json` / `monitor --sources`                                     | 监控输出机器可解析，数据源健康度矩阵一目了然         |
+| 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 12 skill 串联实战        |
+| 🛡️ **自审计 CI**          | 提交 PR 自动运行                                                               | SKILL.md 与 settings.json 一致性自动检查，阻断不一致 |
+| 🎯 **场景化帮助**         | `/help`                                                                        | 5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块） |
+
+<details>
+<summary>📦 <b>v1.7.0 能力（折叠）</b></summary>
 
 | 新能力                              | 怎么用                                                                                               | 价值                                             |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
@@ -159,7 +175,9 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 | 📈 **全市场股票池（~5000 只）**     | `/stock-init full-market` 一次性拉全 A 股，按板块预筛后进 screener                                   | 真正"全市场扫描"，不再被默认 20 只限死           |
 | 🛰️ **通达信局域网数据源（v1.7.1）** | `pip install pytdx` + 本地通达信客户端开启 7709 端口后，行情/K 线自动走 pytdx（优先级 9）            | 局域网直连，速度快、无限频，适合盘中频繁查询     |
 
-> 📖 这些能力的详细使用方法见 [docs/user-guide.md](docs/user-guide.md) 与 [CHANGELOG.md](CHANGELOG.md)。
+</details>
+
+> 📖 详细使用方法见 [docs/user-guide.md](docs/user-guide.md) 与 [CHANGELOG.md](CHANGELOG.md)。
 
 <details>
 <summary>📱 <b>嫌 CLI 麻烦？打开本地 Web 录入</b></summary>
@@ -405,7 +423,7 @@ flowchart LR
 | 🌐 **环境** | [market](skills/market/SKILL.md)                               | `/market`                       | 大盘快评 / 完整复盘 / 盘中分时                   |
 | 🌐 **环境** | [sector](skills/sector/SKILL.md)                               | `/sector <板块>`                | 板块全景 / 标的对比 / 板块内筛选                 |
 | 🔎 **选股** | [screener](skills/screener/SKILL.md)                           | `/screener`                     | 5 种策略 × 5 因子维度批量选股                    |
-| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                         | `/portfolio`                    | 持仓健康 / 调仓再平衡 / 标的对比                 |
+| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                         | `/portfolio`                    | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比        |
 | 📡 **组合** | [monitor](skills/monitor/SKILL.md)                             | `/monitor start`                | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
 | 📈 **技术** | [technical](skills/technical/SKILL.md)                         | `/technical <代码>`             | 均线 / MACD / KDJ / BOLL / 缠论 / 本土战法       |
 | 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                           | `/backtest`                     | 策略历史回测，含卡玛比率/盈亏比/夏普             |
@@ -486,7 +504,7 @@ scripts/
 ├── common/        # 基础设施（HTTP、缓存、熔断器、异常体系）
 ├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
-├── fetchers/      # 27 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/...）
+├── fetchers/      # 28 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
 ├── strategies/    # 5 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 实时监控 + 多通道通知
@@ -616,8 +634,10 @@ python3 scripts/monitor.py --cleanup
 
 - 实时数据依赖外部 API 稳定性，端点变更时改 `scripts/fetchers/` 即可
 - 预置股票池为静态快照，全市场最新数据需联网刷新
-- 多因子权重基于经验设定，未经大规模历史回测验证（v1.5.0 起回测模块支持卡玛/盈亏比/夏普等 11 项指标；v1.6.0 起 8 位专家评分硬编码，可与 LLM 推理交叉校验）
+- 多因子权重基于经验设定，回测模块（v1.5.0+）支持卡玛/盈亏比/夏普等 11 项指标验证，但未做大规模参数寻优
 - 资金面数据（融资融券 / 股东户数）每日更新，受交易所披露节奏限制
+- 美股数据依赖 `yfinance` 包（可选），未安装时自动跳过
+- 校准数据同步依赖 `gh` CLI，未配置 GitHub 认证时 `--auto` 模式不可用
 
 ---
 
@@ -636,7 +656,7 @@ MIT License © curtis
 
 ---
 
-**v1.7.0** · 2026-06-12 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.8.0** · 2026-06-15 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 
