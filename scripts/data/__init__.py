@@ -190,13 +190,10 @@ def _dict_to_quote(d: dict) -> Quote:
 def _normalize_volume(raw_volume: int, source: str) -> int:
     """将 volume 统一归一化为"股"。
 
-    各数据源返回的 volume 单位不同：
-    - tencent / eastmoney / sina: 手（1手=100股）
-    - 其他/未知: 透传不修改
+    委托给 common.normalize_volume，保持单一真相源。
     """
-    if source in ("tencent", "eastmoney", "sina"):
-        return raw_volume * 100
-    return raw_volume
+    from common import normalize_volume
+    return normalize_volume(raw_volume, source)
 
 
 def _dict_to_kline_bar(d: dict) -> KlineBar:

@@ -8,14 +8,16 @@ __pycache__/
 tests/output/
 *.log
 
-# 用户自定义持仓
-data/portfolio.json
+# 用户自定义持仓（实际路径在 scripts/data/，修正历史规则路径错误）
+scripts/data/portfolio.json
+scripts/data/portfolio_virtual.json
 
 # 专家校准数据（用户本地运行时产生）
-data/expert_calibration.json
+scripts/data/expert_calibration.json
 
-# 数据缓存
+# 运行时数据缓存
 .cache/
+scripts/data/all_stocks.json
 
 # 本地 skill 软链（由 install.sh 创建，不入版本控制）
 .claude/skills/

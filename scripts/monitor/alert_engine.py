@@ -18,7 +18,7 @@ from typing import Optional
 # 添加 scripts 目录到 path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common import normalize_quote_code, to_float
+from common import normalize_quote_code, to_float, board_type, board_limit_pct
 from data import get_quote, get_quotes, get_kline
 from technical.moving_average import ma_system
 from technical.macd import macd_full
@@ -240,8 +240,10 @@ def compute_key_levels(code: str, position: Optional[dict] = None,
     # ── 涨跌停附近 ──
     prev_close = to_float(data["quote"].get("prev_close", 0))
     if prev_close > 0:
-        limit_up = round(prev_close * 1.1, 2)
-        limit_down = round(prev_close * 0.9, 2)
+        bd = board_type(code)
+        limit_pct = board_limit_pct(bd)
+        limit_up = round(prev_close * (1 + limit_pct / 100), 2)
+        limit_down = round(prev_close * (1 - limit_pct / 100), 2)
         levels["limit_up"] = limit_up
         levels["limit_down"] = limit_down
         dist_up = (limit_up - price) / price * 100

@@ -21,9 +21,9 @@ class TestNormalizeVolume:
         """东财源 volume=1000（手）→ 100000（股）。"""
         assert _normalize_volume(1000, "eastmoney") == 100000
 
-    def test_sina_multiplies_by_100(self):
-        """新浪源 volume=1000（手）→ 100000（股）。"""
-        assert _normalize_volume(1000, "sina") == 100000
+    def test_sina_passes_through(self):
+        """新浪源 volume 已是股，透传不修改。"""
+        assert _normalize_volume(1000, "sina") == 1000
 
     def test_unknown_source_passes_through(self):
         """未知 source 透传不修改。"""
@@ -65,10 +65,10 @@ class TestDictToKlineBarNormalization:
         bar = _dict_to_kline_bar(self._make_dict(500, "eastmoney"))
         assert bar.volume == 50000
 
-    def test_sina_volume_normalized(self):
-        """新浪源 dict → KlineBar.volume 乘以 100。"""
+    def test_sina_volume_passthrough(self):
+        """新浪源 dict → KlineBar.volume 透传（已是股）。"""
         bar = _dict_to_kline_bar(self._make_dict(200, "sina"))
-        assert bar.volume == 20000
+        assert bar.volume == 200
 
     def test_unknown_source_volume_unchanged(self):
         """未知 source → volume 透传。"""

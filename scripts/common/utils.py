@@ -158,13 +158,14 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 # ---------- 数据单位归一化 ----------
 # 统一规范：volume=股, amount=元, total_cap/circulating_cap=亿
 
-def normalize_volume(raw: object, source: str) -> int:
+def normalize_volume(raw: int | str | None, source: str) -> int:
     """将不同数据源的成交量归一化为股。
     腾讯: 手 → 股 (×100)
-    新浪/东财: 股 (原值)
+    东财: 手 → 股 (×100)
+    新浪: 股 (原值)
     """
     v = to_int(raw)
-    if source == "tencent":
+    if source in ("tencent", "eastmoney"):
         return v * 100
     return v
 
@@ -247,6 +248,22 @@ def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: in
     return results
 
 
+def board_limit_pct(board: str) -> float:
+    """获取板块涨跌停限制（%），如主板 9.5、创业板 19.5。
+
+    优先从 config/limits.yaml 读取，缺失时使用硬编码默认值。
+    """
+    _DEFAULTS = {
+        "主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5,
+    }
+    default = _DEFAULTS.get(board, 9.5)
+    try:
+        from config.loader import ConfigLoader
+        return ConfigLoader.get("limits.yaml", f"board_limits.{board}", default)
+    except (ImportError, KeyError, FileNotFoundError):
+        return default
+
+
 __all__ = [
     "PACKAGE_ROOT", "DATA_DIR",
     "split_codes", "plain_code", "infer_exchange",
@@ -255,4 +272,5 @@ __all__ = [
     "compute_volume_ratio", "compute_optimal_workers",
     "normalize_volume", "normalize_amount",
     "err", "parallel_map", "get_shared_executor",
+    "board_limit_pct",
 ]
