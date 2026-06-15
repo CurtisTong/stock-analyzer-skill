@@ -127,12 +127,59 @@ def fetch_multiple_boards(bk_codes: list[str]) -> list[dict]:
 
 # ---------- 全市场股票池 ----------
 
-# 全 A 股市场过滤：沪A主板 + 深A主板 + 创业板 + 科创板 + 北交所
-FULL_MARKET_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81"
+# 东方财富选股器 API
+XUANGU_API_BASE = "https://data.eastmoney.com/dataapi/xuangu/list"
+XUANGU_FIELDS = "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,MARKET"
+
+
+def _fetch_xuangu_page(page: int = 1, page_size: int = 1000,
+                       market_filter: str = "") -> tuple[list[dict], int]:
+    """从东方财富选股器 API 获取一页股票数据。
+
+    Returns:
+        (stocks_list, total_count)
+    """
+    import urllib.parse
+    import urllib.request
+
+    params = {
+        "st": "SECURITY_CODE",
+        "sr": "1",
+        "ps": str(page_size),
+        "p": str(page),
+        "sty": XUANGU_FIELDS,
+        "filter": market_filter,
+    }
+
+    query = urllib.parse.urlencode(params)
+    url = f"{XUANGU_API_BASE}?{query}"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Referer": "https://data.eastmoney.com/",
+    }
+
+    req = urllib.request.Request(url, headers=headers)
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+            data = json.loads(raw)
+
+            if data.get("success"):
+                records = data.get("result", {}).get("data", [])
+                total = data.get("result", {}).get("count", 0)
+                return records, total
+            return [], 0
+    except Exception as e:
+        print(f"  ⚠ 选股器 API 请求失败 (第 {page} 页): {e}", file=sys.stderr)
+        return [], 0
 
 
 def fetch_all_market_stocks() -> dict[str, list[str]]:
     """拉取全市场 A 股列表，按上市板块分组返回。
+
+    优先使用 push2 API，如果失败则回退到选股器 API。
 
     Returns:
         {"主板沪": ["sh600519", ...], "主板深": [...], ...}
@@ -144,6 +191,71 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
         "科创板": [],
         "北交所": [],
     }
+
+    # 方案 1: 尝试使用 push2 API
+    print("📡 尝试使用 push2 API 获取全市场股票...", flush=True)
+    try:
+        _fetch_push2_market(boards)
+        total = sum(len(v) for v in boards.values())
+        if total > 1000:
+            print(f"✅ push2 API 成功获取 {total} 只股票", flush=True)
+            return boards
+        else:
+            print(f"⚠ push2 API 数据不足 ({total} 只)，切换到选股器 API", flush=True)
+    except Exception as e:
+        print(f"⚠ push2 API 失败: {e}，切换到选股器 API", flush=True)
+
+    # 方案 2: 使用选股器 API（使用 SECURITY_TYPE_CODE 过滤条件）
+    print("📡 使用选股器 API 获取全市场股票...", flush=True)
+
+    # 清空之前的数据
+    for key in boards:
+        boards[key] = []
+
+    # 使用 SECURITY_TYPE_CODE 过滤条件获取所有 A 股
+    # 058001001 = A 股
+    all_stocks = []
+    page = 1
+    page_size = 1000
+
+    while True:
+        stocks, total = _fetch_xuangu_page(
+            page, page_size,
+            '(SECURITY_TYPE_CODE="058001001")'
+        )
+        if not stocks:
+            break
+
+        all_stocks.extend(stocks)
+        print(f"  第 {page} 页: {len(stocks)} 只 (总计: {total})", flush=True)
+
+        if len(all_stocks) >= total:
+            break
+
+        page += 1
+        time.sleep(0.3)
+
+    # 按板块分类
+    for s in all_stocks:
+        code = str(s.get("SECURITY_CODE", ""))
+        name = str(s.get("SECURITY_NAME_ABBR", ""))
+        if not code or len(code) != 6:
+            continue
+        # 排除 ST 股
+        if "ST" in name.upper():
+            continue
+        board = _classify_board(code)
+        if board in boards:
+            exchange = _infer_exchange(code)
+            full_code = f"{exchange}{code}"
+            boards[board].append(full_code)
+
+    return boards
+
+
+def _fetch_push2_market(boards: dict[str, list[str]]) -> None:
+    """使用 push2 API 获取全市场股票（原始方案）。"""
+    FULL_MARKET_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81"
     page = 1
     page_size = 5000
 
@@ -152,17 +264,12 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
             f"{API_BASE}?pn={page}&pz={page_size}&np=1"
             f"&fltt=2&invt=2&fid=f3&fs={FULL_MARKET_FS}&fields={FIELDS}"
         )
-        try:
-            raw = http_get_cached(url, ttl=3600)
-            data = json.loads(raw)
-        except Exception as e:
-            print(f"❌ 全市场 API 请求失败 (第 {page} 页): {e}", file=sys.stderr)
-            sys.exit(1)
+        raw = http_get_cached(url, ttl=3600)
+        data = json.loads(raw)
 
         if not data or "data" not in data or not data["data"]:
             if page == 1:
-                print("❌ 全市场 API 返回空数据", file=sys.stderr)
-                sys.exit(1)
+                raise ValueError("push2 API 返回空数据")
             break
 
         items = data["data"].get("diff", [])
@@ -189,8 +296,6 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
             break
         page += 1
         time.sleep(0.3)
-
-    return boards
 
 
 def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
