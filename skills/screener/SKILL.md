@@ -1,7 +1,7 @@
 ---
 name: screener
 description: A 股选股策略系统 skill。用于从内置板块库或用户给定股票池中按多因子策略筛选候选股，支持均衡精选、质量价值、成长动量、防守低波、拐点修复；优先运行 scripts/screener.py，并结合 A 股交易制度、流动性、板块轮动和风险约束解释结果。
-version: 1.8.0
+version: 1.9.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

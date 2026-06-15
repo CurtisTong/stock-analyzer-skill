@@ -1,7 +1,7 @@
 ---
 name: stock-init
 description: 初始化或刷新股票池。为每个板块拉取前 N 只活跃股票（默认 20），供 screener/sector/stock 后续分析使用。零配置可用（内置预置数据），API 失败自动 fallback。
-version: 1.8.0
+version: 1.9.0
 model: haiku
 disable-model-invocation: true
 allowed-tools: Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *)

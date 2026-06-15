@@ -1,7 +1,7 @@
 ---
 name: technical
 description: A 股纯技术分析。从 K 线和行情数据出发，输出均线、MACD（含背离）、KDJ、BOLL、量价、形态、缠论（笔-线段-中枢-买卖点）、本土战法（三阴一阳/老鸭头等）综合技术评分。纯技术视角不做基本面；优先运行 scripts/technical.py。
-version: 1.8.0
+version: 1.9.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

@@ -1,7 +1,7 @@
 ---
 name: financial-analyst
 description: 财务分析 agent。专注财务建模（DCF/杜邦分解）、盈利质量排雷与异常检测、增长可持续性判断和多情景敏感性分析。当 /stock 五层框架中的基本面分歧需要更深入的纵深财务证据链条来进行支撑时使用。
-version: 1.8.0
+version: 1.9.0
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
