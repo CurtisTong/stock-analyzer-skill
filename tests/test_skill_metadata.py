@@ -19,11 +19,12 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
 
-# 期望的 13 个 skill
+# 期望的 14 个 skill（9 核心 + 4 redirect + learn）
 EXPECTED_SKILLS = {
     "stock", "market", "sector", "portfolio", "screener",
     "technical", "monitor", "stock-init", "backtest",
     "financial-analyst", "investment-researcher", "help", "learn",
+    "research",
 }
 
 # 命令式 skill：允许 disable-model-invocation 且 description 可短
@@ -155,7 +156,7 @@ def test_model_field_valid(skill_path):
 VERSION_OVERRIDES = {
     # v1.8.0 统一版本号
 }
-DEFAULT_VERSION = "1.9.0"
+DEFAULT_VERSION = "1.10.0"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
