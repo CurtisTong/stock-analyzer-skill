@@ -519,7 +519,7 @@ def aggregate_group_votes(
         mean = statistics.mean(scores)
         cv = statistics.stdev(scores) / mean if mean > 0 and len(scores) > 1 else 0
         consistency = max(0.0, min(100.0, 100 - cv * 150))
-        confidence = consistency * 0.35 + avg * 0.65
+        confidence = consistency * 0.45 + avg * 0.55
     else:
         confidence = 50.0
 

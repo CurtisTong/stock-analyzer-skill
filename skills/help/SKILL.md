@@ -1,7 +1,7 @@
 ---
 name: help
-description: 显示所有可用的股票分析 skills 和使用说明。当用户问"有哪些功能"、"怎么用"、列出 skill 列表或查询工作流建议时触发。
-version: 1.9.0
+description: 帮助。触发词：有哪些功能、怎么用、你会什么、帮我看看有什么命令、技能列表、使用说明、新手怎么开始、我想学习投资。显示所有可用skills和使用说明。
+version: 1.10.0
 model: haiku
 disable-model-invocation: true
 ---
@@ -29,7 +29,7 @@ disable-model-invocation: true
 1. `/market quick` — 3 分钟看今天市场强弱
 2. `/screener` — 按策略筛出候选（默认均衡精选）
 3. `/stock <候选股> quick` — 快速分析一只
-4. `/technical <候选股>` — 确认买点和止损
+4. `/stock <候选股> technical` — 确认买点和止损
 
 ### 📊 我想看大盘（复盘）
 
@@ -53,8 +53,8 @@ disable-model-invocation: true
 
 1. `/stock <代码> full` — 五层完整分析
 2. `/stock <代码> debate` — 8 人专家圆桌辩论
-3. `/technical <代码>` — 技术面深度分析
-4. `/financial-analyst <代码>` — 财务建模与预测
+3. `/stock <代码> technical` — 技术面深度分析
+4. `/research financial <代码>` — 财务建模与预测
 
 ### 📈 我想看板块（行业）
 
@@ -115,8 +115,8 @@ disable-model-invocation: true
 
 首次使用请按以下步骤：
 
-1. `/stock-init` — 初始化股票池（零配置可用，无需 token）
-2. 如需全量选股，运行 `/stock-init full-market` 初始化全市场 A 股池（约 5000 只）
+1. `/screener init` — 初始化股票池（零配置可用，无需 token）
+2. 如需全量选股，运行 `/screener init full-market` 初始化全市场 A 股池（约 5000 只）
 3. 如需持仓分析，编辑 `scripts/data/portfolio.json` 添加持仓（可选）
 4. `/market quick` — 快速了解今日市场状态
 
@@ -124,14 +124,14 @@ disable-model-invocation: true
 
 ### 股票池模式
 
-| 模式         | 数据量   | 初始化命令                | 适用场景             |
-| ------------ | -------- | ------------------------- | -------------------- |
-| 主题板块池   | ~140 只  | `/stock-init`（默认）     | 板块分析、快速选股   |
-| 全市场股票池 | ~5000 只 | `/stock-init full-market` | 全量选股、多因子筛选 |
+| 模式         | 数据量   | 初始化命令                   | 适用场景             |
+| ------------ | -------- | ---------------------------- | -------------------- |
+| 主题板块池   | ~140 只  | `/screener init`（默认）     | 板块分析、快速选股   |
+| 全市场股票池 | ~5000 只 | `/screener init full-market` | 全量选股、多因子筛选 |
 
 ## 共享约定
 
-- 12 个 skill 完整命令清单：`./references/skill-catalog.md`（按需加载）
+- 9 个核心 skill（`technical`/`stock-init`/`financial-analyst`/`investment-researcher` 已合并）
 
 ## 工作流建议
 
@@ -140,7 +140,7 @@ disable-model-invocation: true
 1. `/market quick` - 了解市场状态
 2. `/screener` - 筛选候选股
 3. `/stock <候选股> quick` - 快速分析
-4. `/technical <候选股>` - 确认买点
+4. `/stock <候选股> technical` - 确认买点
 
 ### 完整分析流程
 
@@ -148,30 +148,29 @@ disable-model-invocation: true
 2. `/sector <强势板块>` - 板块分析
 3. `/screener --sector <板块>` - 板块内选股
 4. `/stock <候选股> full` - 五层分析
-5. `/technical <候选股>` - 技术确认
+5. `/stock <候选股> technical` - 技术确认
 6. `/portfolio` - 持仓调整
 
 ### 持仓检查流程
 
 1. `/portfolio health` - 检查持仓健康
 2. `/market` - 确认市场风格
-3. `/technical <弱势持仓>` - 检查是否破位
+3. `/stock <弱势持仓> technical` - 检查是否破位
 4. `/screener` - 找替代候选
 5. `/portfolio rebalance` - 调仓建议
 
 ### 高级子模式速查
 
-| Skill                    | 子模式                                                             | 用途                                                                              |
-| ------------------------ | ------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
-| `/stock`                 | `quick`（默认）/ `full` / `debate` / `debate 长线` / `debate 短线` | quick=3 分钟；full=五层；debate=8 人圆桌；长线/短线=4 人组内投票                  |
-| `/market`                | `full`（默认）/ `quick` / `intraday`                               | intraday=盘中分时复盘（5 分钟 K 线）                                              |
-| `/sector`                | `overview`（默认）/ `compare` / `stock`                            | compare=标的横向对比；stock=板块内个股深挖                                        |
-| `/portfolio`             | `health`（默认）/ `rebalance` / `compare` / `web`                  | rebalance=按 workflow 联动；web=本地录入服务                                      |
-| `/screener`              | `--strategy` 5 选 1                                                | balanced / quality_value / growth_momentum / defensive / turning_point            |
-| `/technical`             | `quick` / `full`（默认）/ `full --classify`                        | --classify 加个股分类 + 缠论 + 战法                                               |
-| `/monitor`               | `start` / `stop` / `status` / `scan` / `levels <code>` / `check`   | scan/levels/check=关键点位扫描；check 支持 `--dry-run`                            |
-| `/backtest`              | `--strategy` / `--all` / `--days N` / `--codes`                    | --all=5 策略横评；--optimize=权重优化                                             |
-| `/investment-researcher` | 自然语言                                                           | 自动按 `market` → `sector` → `financial-analyst` → `stock` → `technical` 链路串行 |
+| Skill        | 子模式                                                           | 用途                                                                                      |
+| ------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `/stock`     | `quick`/`full`/`debate`/`debate 长线`/`debate 短线`/`technical`  | quick=3 分钟；full=五层；debate=8 人圆桌；technical=纯技术分析（含缠论+战法）             |
+| `/market`    | `full`（默认）/ `quick` / `intraday`                             | intraday=盘中分时复盘（5 分钟 K 线）                                                      |
+| `/sector`    | `overview`（默认）/ `compare` / `stock`                          | compare=标的横向对比；stock=板块内个股深挖                                                |
+| `/portfolio` | `health`（默认）/ `rebalance` / `compare` / `web`                | rebalance=按 workflow 联动；web=本地录入服务                                              |
+| `/screener`  | `--strategy` 5 选 1 / `init` 子命令                              | balanced / quality_value / growth_momentum / defensive / turning_point；init=初始化股票池 |
+| `/monitor`   | `start` / `stop` / `status` / `scan` / `levels <code>` / `check` | scan/levels/check=关键点位扫描；check 支持 `--dry-run`                                    |
+| `/backtest`  | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark`  | --all=5 策略横评；--benchmark=对比基准指数                                                |
+| `/research`  | `financial <任务>` / `report <任务>`                             | financial=财务建模（排雷/杜邦/DCF）；report=全维度研究报告                                |
 
 ## 数据来源
 
@@ -191,7 +190,7 @@ disable-model-invocation: true
 
 ## 获取更多帮助
 
-- 12 个 skill 命令清单：`./references/skill-catalog.md`
-- 查看本仓库根目录的 `workflow.md` 了解 12 个 skill 的协作流程（入口选择 / 标准流水线 / 交接字段 / 决策门槛）
+- 9 个核心 skill 命令清单（`technical`/`stock-init`/`financial-analyst`/`investment-researcher` 已合并至其他 skill）
+- 查看本仓库根目录的 `workflow.md` 了解 skill 协作流程（入口选择 / 标准流水线 / 交接字段 / 决策门槛）
 - 查看本仓库根目录的 `methodology.md` 了解完整投资方法论（五层框架、专家圆桌、字段含义）
 - 查看 `README.md` 了解项目结构和安装说明

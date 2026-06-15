@@ -61,7 +61,8 @@ def _build_hist_quote(bars, i, fin, code):
 
 
 def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
-                      holding_days: int = 5, initial_capital: float = 100000):
+                      holding_days: int = 5, initial_capital: float = 100000,
+                      total_days: int = 60):
     """
     模拟策略收益（滚动窗口回测，无前瞻偏差）。
 
@@ -92,18 +93,25 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     min_history = 60  # 计算技术指标需要的最少 K 线数
 
     # 并发获取所有候选股票的 K 线历史
+    # 确保获取足够数据：历史指标 + 滚动窗口所需的全部 K 线
+    datalen = min_history + total_days + 10
+
     def _fetch_kline(code):
         ncode = normalize_quote_code(code)
-        bars = get_kline(ncode, scale=240, datalen=min_history + holding_days + 10)
+        bars = get_kline(ncode, scale=240, datalen=datalen)
         return code, bars
 
     kline_data = {}
+    # 过滤退市/停牌股：最近一条 K 线必须在 30 天内
+    from datetime import datetime, timedelta
+    stale_cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
     ex = get_shared_executor()
     futures = {ex.submit(_fetch_kline, c): c for c in codes}
     for future in as_completed(futures):
         try:
             code, bars = future.result()
-            if bars and len(bars) >= min_history:
+            if bars and len(bars) >= min_history and bars[-1].day >= stale_cutoff:
                 kline_data[code] = bars
         except Exception:
             pass
@@ -137,6 +145,15 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     # 滚动窗口回测（不再获取当前行情快照，改用历史 K 线数据）
     from screener import quality_score, valuation_score, liquidity_score
 
+    # 找到所有股票的共同数据范围：各股票 min_history 位置的最晚日期
+    # 这样可以确保滚动窗口在所有股票都有数据的日期范围内
+    common_start_date = None
+    for code, bars in kline_data.items():
+        if len(bars) >= min_history:
+            start_date = bars[min_history - 1].day  # min_history 位置的日期
+            if common_start_date is None or start_date > common_start_date:
+                common_start_date = start_date
+
     all_selections = []
 
     for code, bars in kline_data.items():
@@ -149,6 +166,11 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
         # 滚动窗口：从 min_history 位置开始，每次前进 holding_days
         i = min_history
         while i + holding_days <= len(bars):
+            # 跳过共同范围之前的日期（该股票数据早于其他股票）
+            if bars[i].day < common_start_date:
+                i += holding_days
+                continue
+
             # 用 i 及之前的数据计算动量因子（严格无前瞻）
             hist = bars[:i]
             momentum = _compute_momentum_from_bars(hist)
@@ -190,18 +212,36 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     # 按日期分组，每组取 top_n 只得分最高的股票
     from itertools import groupby
     all_selections.sort(key=lambda x: x["date"])
+
+    # 先统计每组股票数量，过滤掉股票数不足的少数日期
+    date_groups = {}
+    for date, group in groupby(all_selections, key=lambda x: x["date"]):
+        date_groups[date] = list(group)
+
+    # 保留至少有 top_n 只股票的日期（或股票数 >= 总数的一半）
+    min_stocks = min(top_n, max(3, len(kline_data) // 10))
+    valid_dates = {d for d, items in date_groups.items() if len(items) >= min_stocks}
+
     portfolio_returns = []
     portfolio_daily_returns = []
     selection_details = []
 
-    for date, group in groupby(all_selections, key=lambda x: x["date"]):
-        group_list = sorted(group, key=lambda x: x["score"], reverse=True)[:top_n]
+    for date in sorted(valid_dates):
+        group_list = sorted(date_groups[date], key=lambda x: x["score"], reverse=True)[:top_n]
         avg_ret = sum(s["return_pct"] for s in group_list) / len(group_list)
         portfolio_returns.append(avg_ret / 100)
-        # 合并日收益率用于精确回撤计算
-        for s in group_list:
-            portfolio_daily_returns.extend(s["daily_returns"])
+        # 计算组合日收益率：每天取所有股票的平均日收益（而非串联）
+        stock_daily_returns = [s["daily_returns"] for s in group_list if s["daily_returns"]]
+        if stock_daily_returns:
+            max_len = max(len(d) for d in stock_daily_returns)
+            for day_idx in range(max_len):
+                day_returns = [d[day_idx] for d in stock_daily_returns if day_idx < len(d)]
+                if day_returns:
+                    portfolio_daily_returns.append(sum(day_returns) / len(day_returns))
         selection_details.extend(group_list)
+
+    if not portfolio_returns:
+        return {"error": "回测失败，无有效数据"}
 
     avg_return = sum(portfolio_returns) / len(portfolio_returns) * 100
 
@@ -307,37 +347,40 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
                  days: int = 60, rounds: int = 5,
                  benchmark: str = None):
     """
-    运行多轮回测。
+    运行滚动窗口回测。
+
+    simulate_strategy 内部已做滚动窗口分析，返回每期收益序列。
+    本函数只需调用一次，直接使用其返回的各期收益计算统计指标。
 
     Args:
         strategy_name: 策略名称
         codes: 候选股票代码
         top_n: 每轮买入数量
         days: 回测天数
-        rounds: 回测轮数
+        rounds: 回测轮数（已弃用，保留兼容性）
         benchmark: 基准指数代码（如 "sh000300" 沪深300），用于信息比率计算
 
     Returns:
         回测报告 dict
     """
-    all_returns = []
-    all_daily_returns = []
-    round_results = []
+    holding_days = max(1, days // rounds)
+    result = simulate_strategy(strategy_name, codes, top_n, holding_days=holding_days, total_days=days)
 
-    for i in range(rounds):
-        result = simulate_strategy(strategy_name, codes, top_n, holding_days=days // rounds)
-        if "error" not in result:
-            all_returns.append(result["avg_return_pct"])
-            all_daily_returns.extend(result.get("daily_returns", []))
-            round_results.append(result)
+    if "error" in result:
+        return {"error": result["error"]}
 
-    if not all_returns:
+    # 直接使用 simulate_strategy 返回的各期收益（百分比）
+    all_returns = result["returns"]  # e.g. [-2.5, 1.3, -0.8, ...]
+    all_daily_returns = result.get("daily_returns", [])
+    total_periods = len(all_returns)
+
+    if total_periods == 0:
         return {"error": "回测失败，无有效数据"}
 
     # 获取基准收益
     benchmark_returns = _fetch_benchmark_returns(benchmark, days) if benchmark else None
 
-    # 计算统计指标
+    # 计算统计指标：累计收益（各期收益连乘）
     total_return = 1.0
     for r in all_returns:
         total_return *= (1 + r / 100)
@@ -360,12 +403,11 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         sharpe = mean_excess / std * (252 ** 0.5) if std > 0 else 0
     elif len(all_returns) > 1:
         import statistics
-        holding_days_per_round = days // rounds
-        risk_free_per_round = annual_risk_free * holding_days_per_round / 252
+        risk_free_per_round = annual_risk_free * holding_days / 252
         excess_returns = [r / 100 - risk_free_per_round for r in all_returns]
         mean_excess = sum(excess_returns) / len(excess_returns)
         std = statistics.stdev(excess_returns)
-        periods_per_year = 252 / holding_days_per_round
+        periods_per_year = 252 / holding_days
         sharpe = mean_excess / std * (periods_per_year ** 0.5) if std > 0 else 0
     else:
         sharpe = 0
@@ -400,15 +442,15 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
     annualized_return = total_return * (252 / days) if days > 0 else 0
     calmar_ratio = round(annualized_return / (max_drawdown * 100), 2) if max_drawdown > 0 else 0
 
-    # 盈亏比 = 平均盈利 / 平均亏损（基于轮次收益率）
+    # 盈亏比 = 平均盈利 / 平均亏损（基于各期收益率）
     winning_trades = [r for r in all_returns if r > 0]
     losing_trades = [r for r in all_returns if r < 0]
     avg_win = sum(winning_trades) / len(winning_trades) if winning_trades else 0
     avg_loss = abs(sum(losing_trades) / len(losing_trades)) if losing_trades else 0
     profit_loss_ratio = round(avg_win / avg_loss, 2) if avg_loss > 0 else 0
 
-    # 总交易次数 = 每轮持仓数 × 轮次数
-    total_trades = top_n * rounds
+    # 总交易次数 = 每轮持仓数 × 期数
+    total_trades = top_n * total_periods
 
     # 信息比率 = (策略年化收益 - 基准年化收益) / 跟踪误差
     information_ratio = 0
@@ -425,15 +467,15 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         information_ratio = round(mean_excess / te * (252 ** 0.5), 2) if te > 0 else 0
 
     # 换手率估算：每期买入 top_n 只，持有 holding_days，年化换手
-    holding_days_per_round = days // rounds
-    annual_turnover = (252 / holding_days_per_round) * top_n if holding_days_per_round > 0 else 0
+    annual_turnover = (252 / holding_days) * top_n if holding_days > 0 else 0
 
     # 单笔胜率时间分布：按持仓位置分段的胜率
-    win_by_position = _calc_win_by_position(round_results, holding_days_per_round) if round_results else {}
+    round_results = [result]
+    win_by_position = _calc_win_by_position(round_results, holding_days)
 
     return {
         "strategy": strategy_name,
-        "rounds": rounds,
+        "rounds": total_periods,
         "total_return_pct": round(total_return, 2),
         "avg_return_pct": round(avg_return, 2),
         "max_return_pct": round(max_return, 2),
@@ -592,14 +634,15 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
 
 
 def load_test_universe():
-    """加载测试股票池。"""
+    """加载测试股票池（过滤掉元数据 key 和非列表值）。"""
     path = DATA_DIR / "sector_stocks.json"
     if not path.exists():
         return []
     sectors = json.loads(path.read_text(encoding="utf-8"))
     all_codes = []
-    for items in sectors.values():
-        all_codes.extend(items)
+    for k, items in sectors.items():
+        if isinstance(items, list):
+            all_codes.extend(items)
     return sorted(set(all_codes))
 
 

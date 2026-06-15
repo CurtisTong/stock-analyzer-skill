@@ -1,7 +1,7 @@
 ---
 name: stock
-description: 单股分析 skill。用于 A 股个股快速分析、完整五层分析、估值/技术面/板块/风险收益比判断，以及 8 人专家圆桌多空讨论；优先使用 stock-analyzer-skill 包内 scripts/ 工具获取实时行情、财务、K 线、公告和研报数据。
-version: 1.9.0
+description: 单股分析。触发词：帮我看看XX、分析一下XX、XX怎么样、XX能买吗、看看XX的技术面、技术分析XX、XX估值如何、XX基本面、专家讨论XX。用于个股快速/完整五层分析、技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/战法）、估值判断、8人专家圆桌多空辩论。
+version: 1.10.0
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/experts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
@@ -13,7 +13,7 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 ## Usage
 
 ```text
-/stock <股票名称或代码> [quick|full|debate] [长线|短线]
+/stock <股票名称或代码> [quick|full|debate|technical] [长线|短线]
 ```
 
 - `quick`（默认）：基本面+估值+技术面，3分钟出结论
@@ -21,6 +21,7 @@ allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stoc
 - `debate`：五层分析 + 8人专家圆桌多空辩论（8 人全模式）
 - `debate 长线`：仅长线4人（巴菲特/林奇/索罗斯/段永平），适合价值投资者
 - `debate 短线`：仅短线4人（徐翔/赵老哥/炒股养家/作手新一），适合交易型选手
+- `technical`：纯技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/本土战法），不做基本面
 
 > `/stock` 不带参数时走 `quick`；需要专家圆桌必须显式写 `debate`。
 
@@ -208,6 +209,38 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 2. **仅调用对应组专家打分**：长线模式只跑巴菲特/林奇/索罗斯/段永平，短线模式只跑徐翔/赵老哥/养家/作手新一。
 3. **组内投票**：按 decide.md §七 规则——组内 ≥3/4 看多=看多，≥3/4 看空=看空，2:2=中性。
 4. **输出**：评分表（仅该组4人）+ 组内方向 + 风险 + 仓位。信心指数基于4人标准差计算。
+
+### Step 5: 技术分析（technical 模式）
+
+纯技术视角，不涉及基本面。运行 `scripts/technical.py` 获取完整技术报告：
+
+```bash
+python3 scripts/technical.py sh600989                     # 完整报告（日K 250根）
+python3 scripts/technical.py sh600989 --quick              # 快速摘要
+python3 scripts/technical.py sh600989 --classify           # 启用分类+缠论+战法+市场自适应
+python3 scripts/technical.py sh600989 --classify --no-chan # 跳过缠论（仅分类+战法）
+python3 scripts/technical.py sh600989 --scale 60           # 60分钟K线
+```
+
+输出包含：综合评分、均线系统、MACD（含背离）、KDJ、BOLL、RSI、成交量、K线形态、缠论（笔-线段-中枢-买卖点）、A股本土战法（三阴一阳/老鸭头/美人肩/双针探底/涨停双响炮/底部首板）、支撑/阻力位。
+
+**指标解读要点**：
+
+- **均线系统**：中长期趋势方向。多头排列=强势，空头=弱势，粘合=即将变盘
+- **MACD**：趋势动量。金叉+红柱放大=加速上涨，死叉+绿柱放大=加速下跌。背离是强烈反转信号
+- **KDJ**：短线超买超卖。J>100=极度超买，J<0=极度超卖。单边趋势中 KDJ 会钝化
+- **BOLL**：波动率。带宽收窄=变盘前兆，价格触轨=极端位置
+- **成交量**：量价配合=健康，量价背离=预警
+- **涨跌停分析**：封涨停时技术指标暂停参考，需等次日开盘验证
+
+**个股类型 × 指标权重**：
+
+| 类型     | 加权指标                            | 降权指标          |
+| -------- | ----------------------------------- | ----------------- |
+| 题材股   | K线形态×1.5, 涨停分析×1.5, 量比×1.3 | MACD×0.5, KDJ×0.5 |
+| 强成长股 | MACD×1.3, BOLL×1.2, 量比×1.2        | KDJ×0.4           |
+| 周期股   | MACD×1.3, KDJ×1.2, 缠论×1.3         | 均线×0.6          |
+| 蓝筹股   | 均线×1.3, BOLL×1.2, 箱体×1.1        | KDJ×0.4           |
 
 ## Guardrails
 

@@ -1,7 +1,7 @@
 ---
 name: sector
-description: A 股板块分析 skill。用于行业/主题板块全景、核心标的横向对比、板块内个股筛选、轮动位置和配置建议；优先读取 data/sector_stocks.json 与 data/sector_etf.csv，并使用 scripts/quote.py、scripts/finance.py、scripts/kline.py 获取行情、财务和走势数据。
-version: 1.9.0
+description: 板块分析。触发词：XX板块怎么样、行业分析、板块对比、XX行业谁是龙头、板块轮动、看看半导体/新能源/消费/医药板块、这个板块还能不能买、板块内哪些股票好。用于行业全景/核心标的对比/板块内筛选/轮动配置建议。
+version: 1.10.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/sector_*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

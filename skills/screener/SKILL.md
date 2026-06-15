@@ -1,9 +1,9 @@
 ---
 name: screener
-description: A 股选股策略系统 skill。用于从内置板块库或用户给定股票池中按多因子策略筛选候选股，支持均衡精选、质量价值、成长动量、防守低波、拐点修复；优先运行 scripts/screener.py，并结合 A 股交易制度、流动性、板块轮动和风险约束解释结果。
-version: 1.9.0
+description: 选股策略。触发词：推荐几只股票、帮我选股、有什么好股票、筛股票、找便宜的好公司、哪些股票值得买、初始化股票池、刷新股票池。支持5种策略（均衡/质量价值/成长动量/防守低波/拐点修复）多因子筛选，含股票池初始化。
+version: 1.10.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
 
 # Screener
@@ -14,6 +14,10 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 
 ```text
 /screener [--sector 板块] [--strategy balanced|quality_value|growth_momentum|defensive|turning_point] [--top N]
+/screener init              # 初始化/刷新股票池（原 /stock-init）
+/screener init force        # 强制重新初始化
+/screener init default      # 使用预置默认数据（离线可用）
+/screener init full-market  # 初始化全市场股票池（约 5000 只）
 ```
 
 也可直接用自然语言触发，例如"按成长动量筛资源板块前 5 名"。
@@ -40,6 +44,26 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 - 下游到 `portfolio`：当用户要买入或替换持仓时，传递候选池、剔除原因和仓位上限。
 
 输出必须包含 `strategy`、`candidates`、剔除原因和“观察/可跟踪/暂不参与”分层。
+
+### Step -1: 检查股票池（init 子命令）
+
+运行前检查股票池是否已初始化。未初始化时自动触发：
+
+```bash
+ls scripts/data/sector_stocks.json 2>/dev/null || python3 scripts/init_pool.py
+```
+
+用户显式调用 `init` 子命令时：
+
+```bash
+python3 scripts/init_pool.py                # 检测并初始化（已有数据则跳过）
+python3 scripts/init_pool.py --force        # 强制重新初始化
+python3 scripts/init_pool.py --default      # 使用预置默认数据（离线可用）
+python3 scripts/init_pool.py --full-market  # 初始化全市场 A 股池（约 5000 只）
+python3 scripts/init_pool.py --top 30       # 每板块取 Top 30
+```
+
+初始化成功后展示摘要：每板块股票数量和总计。无需配置即可使用（内置预置数据），API 失败自动 fallback。
 
 ### Step 0: 判断市场环境再选策略
 

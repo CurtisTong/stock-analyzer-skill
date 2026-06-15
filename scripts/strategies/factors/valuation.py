@@ -24,6 +24,8 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     pe_expensive = get_industry_threshold(industry, "pe_expensive", 40)
     peg_undervalued = get_industry_threshold(industry, "peg_undervalued", 0.8)
     peg_reasonable = get_industry_threshold(industry, "peg_reasonable", 1.5)
+    ps_undervalued = get_industry_threshold(industry, "ps_undervalued", 3)
+    ps_reasonable = get_industry_threshold(industry, "ps_reasonable", 8)
 
     # PE 极端值截断：超过行业 expensive 阈值 2 倍时，PE 评分为 0
     pe_cap = pe_expensive * 2
@@ -31,22 +33,23 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     score = 0
     # PE 评分（行业差异化）
     if pe <= 0:
-        # 亏损股：PB 仍可参考（净资产为正时）
-        if 0 < pb <= 1:
-            score += 20  # 破净，可能被低估
-        elif 1 < pb <= 2:
-            score += 12
-        # 亏损收窄加分
+        # 亏损股评分：不重复计算 PB（PB 在下方通用段评分）
+        # 亏损收窄加分（净利润同比为正 = 亏损在收窄）
         if growth > 0:
-            score += 10
-        # PS 评分（亏损但有收入的公司）
-        if total_cap > 0 and revenue_yoy > 0:
-            # 简化 PS：用营收增速作为 proxy
-            # 高增速亏损公司（如互联网早期）仍可给分
+            score += 12
+        # PS 评分：用营收增速作为市销率 proxy
+        # 逻辑：高增速亏损公司（如科创板早期）PS 视角可接受
+        # 低增速亏损公司（传统行业）PS 估值无意义
+        if revenue_yoy > 0:
             if revenue_yoy > 30:
-                score += 15  # 高增长亏损，PS 视角可接受
+                score += 20  # 高增长亏损，PS 视角可接受
             elif revenue_yoy > 10:
-                score += 8
+                score += 12  # 中等增长
+            else:
+                score += 5   # 低增长，给基础分
+        # 大市值亏损惩罚：大公司亏损通常意味着基本面恶化
+        if total_cap > 100 and revenue_yoy <= 0:
+            score -= 8
     elif pe > pe_cap:
         # PE 超过极端阈值，PE 评分为 0（但 PB 和 PEG 仍可评分）
         pass

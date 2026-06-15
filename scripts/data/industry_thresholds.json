@@ -11,6 +11,8 @@
     "pe_expensive": 18,
     "peg_undervalued": 0.8,
     "peg_reasonable": 1.5,
+    "ps_undervalued": 2,
+    "ps_reasonable": 5,
     "vol_threshold": 0.015,
     "notes": "银行/保险 ROE 天然 10-15%，负债率 90%+ 属正常，用资本充足率替代负债率",
     "profit_growth_excellent": 15,
@@ -29,7 +31,9 @@
     "vol_threshold": 0.012,
     "notes": "银行 ROE 天然偏低（8-12%），PE 极低（5-8倍），高负债率属正常",
     "profit_growth_excellent": 12,
-    "revenue_growth_excellent": 8
+    "revenue_growth_excellent": 8,
+    "ps_undervalued": 1,
+    "ps_reasonable": 3
   },
   "券商": {
     "roe_min": 8,
@@ -44,7 +48,9 @@
     "vol_threshold": 0.025,
     "notes": "券商 ROE 波动大（牛市高熊市低），PE 中等，周期性强",
     "profit_growth_excellent": 25,
-    "revenue_growth_excellent": 20
+    "revenue_growth_excellent": 20,
+    "ps_undervalued": 2,
+    "ps_reasonable": 6
   },
   "消费": {
     "roe_min": 15,
@@ -59,7 +65,9 @@
     "vol_threshold": 0.02,
     "notes": "白酒/食品 ROE 天然高，毛利率 60%+ 常见，估值享受溢价",
     "profit_growth_excellent": 25,
-    "revenue_growth_excellent": 20
+    "revenue_growth_excellent": 20,
+    "ps_undervalued": 3,
+    "ps_reasonable": 8
   },
   "科技": {
     "roe_min": 10,
@@ -74,7 +82,9 @@
     "vol_threshold": 0.03,
     "notes": "科技股 PE 30-50 常态，高研发投入导致短期 ROE 偏低，不能用传统标准",
     "profit_growth_excellent": 50,
-    "revenue_growth_excellent": 35
+    "revenue_growth_excellent": 35,
+    "ps_undervalued": 5,
+    "ps_reasonable": 15
   },
   "半导体": {
     "roe_min": 8,
@@ -89,7 +99,9 @@
     "vol_threshold": 0.035,
     "notes": "半导体重资产，ROE 天然偏低（8-15%），PE 容忍度高（25-80），研发投入大",
     "profit_growth_excellent": 60,
-    "revenue_growth_excellent": 40
+    "revenue_growth_excellent": 40,
+    "ps_undervalued": 6,
+    "ps_reasonable": 18
   },
   "软件": {
     "roe_min": 12,
@@ -104,7 +116,9 @@
     "vol_threshold": 0.032,
     "notes": "软件轻资产高毛利（50%+），ROE 偏高，PE 估值更激进（30-100）",
     "profit_growth_excellent": 45,
-    "revenue_growth_excellent": 30
+    "revenue_growth_excellent": 30,
+    "ps_undervalued": 8,
+    "ps_reasonable": 20
   },
   "周期": {
     "roe_min": 8,
@@ -119,7 +133,9 @@
     "vol_threshold": 0.025,
     "notes": "周期股用 3 年均值 ROE，单年高增速往往是周期顶部信号",
     "profit_growth_excellent": 30,
-    "revenue_growth_excellent": 25
+    "revenue_growth_excellent": 25,
+    "ps_undervalued": 1.5,
+    "ps_reasonable": 4
   },
   "医药": {
     "roe_min": 12,
@@ -134,7 +150,9 @@
     "vol_threshold": 0.028,
     "notes": "创新药高 PE 合理，仿制药/中药估值较低，需区分细分赛道",
     "profit_growth_excellent": 35,
-    "revenue_growth_excellent": 25
+    "revenue_growth_excellent": 25,
+    "ps_undervalued": 4,
+    "ps_reasonable": 12
   },
   "制造": {
     "roe_min": 12,
@@ -149,7 +167,9 @@
     "vol_threshold": 0.025,
     "notes": "制造业分化大，高端制造（新能源/半导体）估值高于传统制造",
     "profit_growth_excellent": 35,
-    "revenue_growth_excellent": 25
+    "revenue_growth_excellent": 25,
+    "ps_undervalued": 2,
+    "ps_reasonable": 6
   },
   "地产": {
     "roe_min": 8,
@@ -164,7 +184,9 @@
     "vol_threshold": 0.028,
     "notes": "地产用净负债率<100% 替代资产负债率，PE 天然低",
     "profit_growth_excellent": 15,
-    "revenue_growth_excellent": 10
+    "revenue_growth_excellent": 10,
+    "ps_undervalued": 0.5,
+    "ps_reasonable": 2
   },
   "能源": {
     "roe_min": 10,
@@ -179,7 +201,9 @@
     "vol_threshold": 0.022,
     "notes": "煤炭/石油周期性强，高分红低估值是常态",
     "profit_growth_excellent": 20,
-    "revenue_growth_excellent": 15
+    "revenue_growth_excellent": 15,
+    "ps_undervalued": 1,
+    "ps_reasonable": 3
   },
   "国防军工": {
     "roe_min": 8,
@@ -194,7 +218,9 @@
     "vol_threshold": 0.03,
     "notes": "军工高研发投入，ROE偏低，PE容忍度较高，受装备采购周期和地缘政治驱动",
     "profit_growth_excellent": 40,
-    "revenue_growth_excellent": 30
+    "revenue_growth_excellent": 30,
+    "ps_undervalued": 3,
+    "ps_reasonable": 10
   },
   "公用事业": {
     "roe_min": 8,
@@ -209,7 +235,9 @@
     "vol_threshold": 0.015,
     "notes": "水电煤气高负债（重资产），低波动高分红，红利策略核心标的",
     "profit_growth_excellent": 15,
-    "revenue_growth_excellent": 10
+    "revenue_growth_excellent": 10,
+    "ps_undervalued": 1.5,
+    "ps_reasonable": 4
   },
   "传媒": {
     "roe_min": 10,
@@ -224,7 +252,9 @@
     "vol_threshold": 0.03,
     "notes": "AI应用落地核心领域，游戏/影视/广告分化大，PE范围宽",
     "profit_growth_excellent": 50,
-    "revenue_growth_excellent": 30
+    "revenue_growth_excellent": 30,
+    "ps_undervalued": 3,
+    "ps_reasonable": 10
   },
   "环保": {
     "roe_min": 8,
@@ -239,7 +269,9 @@
     "vol_threshold": 0.025,
     "notes": "碳中和转型持续受益，但商业模式偏工程类，现金流和负债率是关键",
     "profit_growth_excellent": 30,
-    "revenue_growth_excellent": 25
+    "revenue_growth_excellent": 25,
+    "ps_undervalued": 2,
+    "ps_reasonable": 6
   },
   "农林牧渔": {
     "roe_min": 8,
@@ -254,7 +286,9 @@
     "vol_threshold": 0.028,
     "notes": "强周期（猪周期/粮价周期），亏损期PE无效，用PB辅助估值",
     "profit_growth_excellent": 50,
-    "revenue_growth_excellent": 30
+    "revenue_growth_excellent": 30,
+    "ps_undervalued": 1.5,
+    "ps_reasonable": 4
   },
   "默认": {
     "roe_min": 12,
@@ -269,6 +303,8 @@
     "vol_threshold": 0.025,
     "notes": "未匹配行业的默认阈值",
     "profit_growth_excellent": 40,
-    "revenue_growth_excellent": 30
+    "revenue_growth_excellent": 30,
+    "ps_undervalued": 3,
+    "ps_reasonable": 8
   }
 }

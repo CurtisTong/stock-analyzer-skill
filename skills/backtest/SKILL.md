@@ -1,7 +1,7 @@
 ---
 name: backtest
-description: 多因子选股策略回测，验证 5 种策略（均衡/质量价值/成长动量/防守低波/拐点修复）的历史胜率、累计收益、夏普比率、最大回撤、卡玛比率、盈亏比等 11 项指标。当用户要验证选股策略效果、对比策略表现或调整策略参数时触发。
-version: 1.9.0
+description: 策略回测。触发词：回测一下、策略效果怎么样、哪个策略好、验证选股策略、回测收益、对比策略表现、优化策略权重。验证5种策略的历史胜率/累计收益/夏普/最大回撤等11项指标，支持基准对比和权重优化。
+version: 1.10.0
 model: haiku
 disable-model-invocation: true
 allowed-tools: Bash(python3 scripts/backtest.py *)
@@ -21,6 +21,8 @@ allowed-tools: Bash(python3 scripts/backtest.py *)
 /backtest --strategy defensive               # 防守低波
 /backtest --strategy turning_point           # 拐点修复
 /backtest --all                              # 比较所有策略
+/backtest --benchmark sh000300               # 对比沪深300基准
+/backtest --all --benchmark sh000300         # 所有策略对比基准
 /backtest --days 120                         # 回测 120 天
 /backtest --top 10                           # 每轮选 10 只
 /backtest --codes 600519,000858,300750       # 指定股票池
@@ -44,6 +46,7 @@ python3 scripts/backtest.py [参数]
 - **最大回撤**：最大亏损幅度
 - **胜率**：正收益轮次占比
 - **夏普比率**：风险调整后收益
+- **信息比率**（`--benchmark` 模式）：超额收益/跟踪误差，衡量相对基准的主动管理能力
 - **各策略对比**（`--all` 模式）
 
 ## 策略说明

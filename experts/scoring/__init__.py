@@ -335,7 +335,7 @@ def compute_confidence_index(
     consistency = max(0.0, min(100.0, 100 - cv * 150))
     cal_adjustment = calibration_factor * 10  # 归一化后 ×10，校准贡献不超过 ±10 分
 
-    confidence = consistency * 0.35 + composite_score * 0.55 + cal_adjustment * 0.1
+    confidence = consistency * 0.45 + composite_score * 0.45 + cal_adjustment * 0.1
     return max(0.0, min(100.0, round(confidence, 1)))
 
 
