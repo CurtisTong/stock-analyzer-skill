@@ -7,6 +7,90 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.8.0] - 2026-06-15
+
+### Added
+
+- **模拟盘（虚拟持仓）**：
+  - `PortfolioManager(path, virtual=True)`：虚拟持仓模式，数据存储在 `portfolio_virtual.json`（与实盘隔离）
+  - `portfolio_web.py --virtual`：Web 服务支持虚拟/实盘切换
+  - `PortfolioManager.is_virtual` / `portfolio_type` / `data_path` 属性
+  - `skills/portfolio/SKILL.md`：虚拟持仓文档和使用说明
+
+- **事件日历模块**：
+  - `scripts/events.py`：个股事件查询（财报披露、限售解禁、分红）
+  - `fetchers/eastmoney_event.py`：东方财富事件日历数据源（已有，新增 CLI 入口）
+  - `skills/stock/SKILL.md`：事件日历文档
+
+- **统一输出模板**：
+  - `scripts/common/formatters.py`：统一格式化工具（首行结论 + 尾行数据源 + 时间戳）
+  - `skills/_shared/references/output-template.md`：12 skill 共用模板规范
+  - 12 个 SKILL.md 全部更新：Instructions 段加入模板引用
+
+- **专家合规隔离**：
+  - `experts/registry.py`：`LEGACY_ALIAS` 表 + `get_display_name()` 函数
+  - 支持未来"虚构化"专家名称，不影响评分函数和 decide.py
+
+- **校准数据同步**：
+  - `scripts/calibration_sync.py`：GitHub Gist 双向同步（`--pull` / `--push` / `--auto` / `--status`）
+  - 依赖 gh CLI，零 Python 三方依赖
+
+- **专家圆桌胜率卡片**：
+  - `experts/decide.py`：`format_debate_output()` 尾部自动附加校准胜率表
+  - 样本不足时显示"样本不足，参考价值有限"
+
+- **数据源证据链**：
+  - `scripts/common/formatters.py`：`collect_source_evidence()` 工具函数
+  - 自动从 fetcher 结果中收集成功/失败源列表
+
+- **回测胜率附加**：
+  - `scripts/stock.py --with-backtest`：附加近 60 日回测胜率（win_rate / total_return / sharpe / max_drawdown）
+  - `skills/stock/SKILL.md`：--with-backtest 文档
+
+- **结构化 JSON 日志**：
+  - `scripts/monitor.py --log-json`：输出完整 JSON（timestamp / cache / sources / summary）
+  - `scripts/monitor.py --sources`：升级为表格化健康度矩阵（名称/优先级/状态/失败次数/熔断状态）
+
+- **自审计脚本**：
+  - `scripts/dev/check_allowed_tools.py`：SKILL.md vs settings.json 一致性检查
+  - `.github/workflows/ci.yml`：接 CI 自动阻断 PR
+
+- **场景化帮助**：
+  - `skills/help/SKILL.md`：5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块）
+
+- **property-based 测试**：
+  - `tests/test_scoring_properties.py`：13 个 hypothesis 测试（direction_from_score / compute_confidence_index / score_from_dimensions / detect_market_state）
+
+- **mdBook 文档站**：
+  - `docs/book.toml` + `docs/src/`：mdBook 配置和页面
+  - `.github/workflows/docs.yml`：GitHub Pages 自动部署
+  - `docs/tutorials/walkthrough-600519.md`：12 skill 完整演练教程
+
+- **用户画像**：
+  - `docs/persona.md`：3 类核心用户画像（散户/学习者/量化爱好者）
+
+- **CHANGELOG 生成器**：
+  - `scripts/dev/gen_changelog.py`：Conventional Commits → CHANGELOG 自动生成
+
+- **mypy strict 增量**：
+  - `mypy.ini`：common/ 子包 strict 模式
+  - `scripts/common/` 全模块类型注解修复（cache / http / utils / parsers / metrics / exceptions / `__init__.py`）
+
+### Changed
+
+- `skills/screener/SKILL.md`：5 个策略名加小白注释（"啥都来点"/"找便宜的好公司"等）
+- `skills/portfolio/SKILL.md`：`rebalance` 加别名"调仓建议"
+- `scripts/portfolio_web.py`：`--open` 改为默认行为（`--no-open` 可禁用）
+- `.github/workflows/ci.yml`：覆盖率门槛 60% → 70%、增加 ruff 静态检查、增加自审计步骤
+- `scripts/monitor.py`：重构为结构化输出（check_cache_status / check_sources 返回 dict）
+
+### Fixed
+
+- `skills/screener/SKILL.md`：路径 `data/sector_stocks.json` → `scripts/data/sector_stocks.json`
+- `.claude/settings.json`：补齐 `init_pool.py` / `refresh_pool.py` / `patterns_local.py` / `classifier.py` / `events.py` / `calibration_sync.py` 权限
+- `tests/test_skill_consistency.py`：`portfolio_virtual.json` 加入 RUNTIME_DATA_FILES 白名单
+- `docs/implementation-plan-2026-q3-q4.md`：fenced code block 加 language 标识
+
 ## [1.7.0] - 2026-06-12
 
 ### Added

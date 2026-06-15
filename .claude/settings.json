@@ -38,7 +38,8 @@
       "Bash(python3 scripts/init_pool.py *)",
       "Bash(python3 scripts/refresh_pool.py *)",
       "Bash(python3 scripts/patterns_local.py *)",
-      "Bash(python3 scripts/classifier.py *)"
+      "Bash(python3 scripts/classifier.py *)",
+      "Bash(python3 scripts/events.py *)"
     ],
     "deny": ["Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(chmod 777:*)"]
   }

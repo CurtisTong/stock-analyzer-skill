@@ -1,7 +1,7 @@
 ---
 name: market
 description: A 股大盘复盘 skill。用于市场快评、完整复盘、盘中分时复盘、指数/板块 ETF/风格轮动/资金偏好判断；优先使用 stock-analyzer-skill 包内 scripts/quote.py 和 scripts/kline.py 获取实时指数与板块 ETF 数据；支持拉取美股收盘数据作为参考。
-version: 1.7.0
+version: 1.8.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/data/sector_*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---

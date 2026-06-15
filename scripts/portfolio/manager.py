@@ -122,11 +122,18 @@ class PortfolioManager:
     """持仓组合管理器。
 
     支持并发写入：通过文件锁机制防止多进程同时修改导致数据覆盖。
+    支持虚拟持仓：virtual=True 时使用 portfolio_virtual.json（模拟盘）。
     """
 
-    def __init__(self, path: Optional[str] = None):
-        self._path = Path(path) if path else _portfolio_path()
+    def __init__(self, path: Optional[str] = None, virtual: bool = False):
+        if path:
+            self._path = Path(path)
+        elif virtual:
+            self._path = _data_dir() / "portfolio_virtual.json"
+        else:
+            self._path = _portfolio_path()
         self._is_example = False
+        self._is_virtual = virtual
         self._data = self._load()
 
     def _load(self) -> dict:
@@ -176,6 +183,21 @@ class PortfolioManager:
         """重新从磁盘加载数据（用于外部修改后的同步）。"""
         with _file_lock(self._path, timeout=5.0):
             self._data = self._load()
+
+    @property
+    def is_virtual(self) -> bool:
+        """是否为虚拟持仓（模拟盘）。"""
+        return self._is_virtual
+
+    @property
+    def portfolio_type(self) -> str:
+        """返回持仓类型标签。"""
+        return "虚拟持仓" if self._is_virtual else "实盘持仓"
+
+    @property
+    def data_path(self) -> str:
+        """返回数据文件路径。"""
+        return str(self._path)
 
     def atomic_update(self, updater: callable) -> None:
         """原子性地执行数据更新操作。

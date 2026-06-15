@@ -39,7 +39,7 @@ jobs:
             --timeout=60 \
             -n auto \
             --durations=10 \
-            --cov=scripts --cov=experts --cov-fail-under=60
+            --cov=scripts --cov=experts --cov-fail-under=70
 
       - name: 跑 skill 元数据校验
         run: |
@@ -79,10 +79,13 @@ jobs:
           python-version: "3.12"
 
       - name: 安装 lint 工具
-        run: pip install black flake8
+        run: pip install black flake8 ruff
 
       - name: black 格式检查
         run: black --check scripts/ experts/ tests/
 
-      - name: flake8 静态检查
+      - name: ruff 静态检查
+        run: ruff check scripts/ experts/ --max-line-length=120
+
+      - name: flake8 静态检查（向后兼容）
         run: flake8 scripts/ experts/ --max-line-length=120

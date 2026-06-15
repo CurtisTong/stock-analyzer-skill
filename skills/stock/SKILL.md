@@ -1,7 +1,7 @@
 ---
 name: stock
 description: 单股分析 skill。用于 A 股个股快速分析、完整五层分析、估值/技术面/板块/风险收益比判断，以及 8 人专家圆桌多空讨论；优先使用 stock-analyzer-skill 包内 scripts/ 工具获取实时行情、财务、K 线、公告和研报数据。
-version: 1.7.0
+version: 1.8.0
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/experts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
@@ -61,6 +61,30 @@ python3 scripts/stock.py sh600989 --with-backtest
 ```
 
 输出 `backtest` 字段包含 `win_rate`（胜率%）、`total_return`（累计收益%）、`sharpe`（夏普比率）、`max_drawdown`（最大回撤%）。
+
+### 事件日历
+
+分析时查询近期事件（财报披露、解禁、分红），在输出顶部显示提醒：
+
+```bash
+python3 scripts/events.py sh600989              # 查询近 30 日事件
+python3 scripts/events.py sh600989 --days 60    # 查询近 60 日事件
+python3 scripts/events.py sh600989 -j           # JSON 输出
+```
+
+输出示例：
+
+```
+📅 近 30 日事件日历 (sh600989)
+
+📊 财报披露:
+  2026-06-20 - 宝丰能源 (600989)
+
+💰 分红:
+  2026-06-25 - 宝丰能源 每股 0.5000 元
+
+🎯 📊 财报披露: 2026-06-20 | 💰 分红: 2026-06-25
+```
 
 ### Step 2: 五层分析
 

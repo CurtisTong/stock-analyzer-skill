@@ -1,0 +1,53 @@
+name: xu_xiang
+display_name: 徐翔
+group: short_term
+style: 涨停板战法
+horizon: 日/周
+core_signal: 量价+情绪/题材
+
+weights:
+  基本面: 5.0
+  估值: 5.0
+  技术面: 30.0
+  情绪/题材: 50.0
+  风险: 10.0
+
+veto_conditions:
+  - 大盘处于20日均线下方且缩量
+  - 全市场涨停家数 < 20（退潮期不打板）
+  - 监管'特停'频繁（政策风险不可控）
+  - 无涨停基因（近30日无涨停记录）
+
+scoring_thresholds:
+  limit_up_count_high: 50
+  limit_up_count_low: 20
+  volume_ratio_high: 3.0
+  turnover_high: 15
+
+investment_philosophy: |
+  涨停板战法：追涨停，次日走。
+  龙头优先：板块龙头 > 跟风股。
+  量价配合：放量涨停 > 缩量涨停。
+  情绪判断：退潮期不打板。
+
+buy_rules:
+  - 涨停板确认（封板量 > 流通盘 1%）
+  - 板块龙头地位
+  - 量价配合良好
+  - 情绪周期非退潮期
+
+sell_rules:
+  - 次日开盘（T+1 卖出）
+  - 涨停板打开
+  - 板块转弱
+
+position_rules:
+  - 单只不超过 30%
+  - 分批打板（2-3 只）
+  - 严格止损（-5%）
+
+a_share_applicability: |
+  A 股涨停板战法适用，但需注意：
+  - 监管风险（特停、窗口指导）
+  - T+1 制度限制
+  - 需要极强的盘感和执行力

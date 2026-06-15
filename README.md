@@ -16,7 +16,7 @@
 
 **五层分析框架** · **8 人专家圆桌** · **27 个数据源故障转移** · **零配置开箱即用**
 
-[![Version](https://img.shields.io/badge/version-1.7.0-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.8.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.9+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Zero Deps](https://img.shields.io/badge/python_deps-stdlib_only-10b981?style=flat-square)](pyproject.toml)

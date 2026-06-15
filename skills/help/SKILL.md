@@ -1,7 +1,7 @@
 ---
 name: help
 description: 显示所有可用的股票分析 skills 和使用说明。当用户问"有哪些功能"、"怎么用"、列出 skill 列表或查询工作流建议时触发。
-version: 1.7.0
+version: 1.8.0
 model: haiku
 disable-model-invocation: true
 ---

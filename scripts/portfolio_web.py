@@ -72,6 +72,7 @@ _monitor_stop_event = threading.Event()
 _monitor_interval = 300  # 默认 5 分钟检查一次
 _monitor_last_result = None  # 最近一次监控结果
 _token: Optional[str] = None  # Bearer token（_ensure_token 初始化）
+_virtual_mode: bool = False  # 虚拟持仓模式
 
 
 # ===== Bearer Token 认证 =====
@@ -114,11 +115,13 @@ def _ok(data: Any, warn: Optional[list] = None) -> dict:
     return payload
 
 
-def _get_pm() -> PortfolioManager:
+def _get_pm(virtual: Optional[bool] = None) -> PortfolioManager:
     global _pm
+    if virtual is None:
+        virtual = _virtual_mode
     with _lock:
-        if _pm is None:
-            _pm = PortfolioManager(path=_data_file)
+        if _pm is None or _pm.is_virtual != virtual:
+            _pm = PortfolioManager(path=_data_file, virtual=virtual)
         return _pm
 
 
@@ -1177,10 +1180,12 @@ loadMonitor();
 
 
 # ===== Server 工厂 =====
-def make_server(host: str, port: int, data_file: Optional[str] = None) -> ThreadingHTTPServer:
+def make_server(host: str, port: int, data_file: Optional[str] = None,
+                virtual: bool = False) -> ThreadingHTTPServer:
     """构造 ThreadingHTTPServer 实例（不启动），供 __main__ 与测试共用。"""
-    global _data_file
+    global _data_file, _virtual_mode
     _data_file = data_file
+    _virtual_mode = virtual
     # 测试场景下允许先 reset 单例，使新 data_file 生效
     _reset_pm_for_tests()
     # 允许端口 TIME_WAIT 期间快速重启（smoke / dev 重启友好）
@@ -1211,6 +1216,8 @@ def main():
                         help="监控检查间隔秒数（默认 300）")
     parser.add_argument("--allow-public-bind", action="store_true",
                         help="允许绑定到 0.0.0.0（默认拒绝）")
+    parser.add_argument("--virtual", action="store_true", default=False,
+                        help="启动虚拟持仓模式（模拟盘）")
     args = parser.parse_args()
 
     if args.host == "0.0.0.0" and not args.allow_public_bind:
@@ -1220,7 +1227,7 @@ def main():
     # 跳过预检直接启动——ThreadingHTTPServer.allow_reuse_address 已为 True，
     # 可接管 TIME_WAIT；预检 socket 未设 SO_REUSEADDR 反而会留下 TIME_WAIT 导致 bind 失败。
     try:
-        server = make_server(args.host, args.port, args.data_file)
+        server = make_server(args.host, args.port, args.data_file, virtual=args.virtual)
     except OSError as e:
         print(f"ERROR: 无法启动 ({args.host}:{args.port}): {e}", file=sys.stderr)
         print(f"提示: 用 `lsof -i:{args.port}` 查看占用进程", file=sys.stderr)
@@ -1228,7 +1235,9 @@ def main():
 
     bound_host, bound_port = server.server_address
     token = _ensure_token()
+    mode_label = "虚拟持仓（模拟盘）" if args.virtual else "实盘持仓"
     print(f"Portfolio Web 启动: http://{bound_host}:{bound_port}/?token={token}", flush=True)
+    print(f"  模式: {mode_label}", flush=True)
     print(f"  Token: {token}", flush=True)
     print(f"  数据文件: {args.data_file or _SCRIPTS_DIR / 'data' / 'portfolio.json'}", flush=True)
 

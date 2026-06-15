@@ -153,9 +153,9 @@ def test_model_field_valid(skill_path):
 
 
 VERSION_OVERRIDES = {
-    # v1.7.0 统一版本号
+    # v1.8.0 统一版本号
 }
-DEFAULT_VERSION = "1.7.0"
+DEFAULT_VERSION = "1.8.0"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)

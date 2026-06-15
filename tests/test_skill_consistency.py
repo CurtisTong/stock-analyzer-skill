@@ -23,6 +23,7 @@ RUNTIME_DATA_FILES = {
     "sector_etf.csv",           # init_pool.py 产出
     "portfolio.json",           # 用户创建
     "portfolio_example.json",   # 项目自带的示例
+    "portfolio_virtual.json",   # 模拟盘数据（--virtual 模式创建）
     "stock_pool_backup.json",   # refresh_pool.py 备份
     "all_stocks.json",          # refresh_pool.py --full-market 产出
 }

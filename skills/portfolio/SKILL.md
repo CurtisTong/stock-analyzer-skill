@@ -1,7 +1,7 @@
 ---
 name: portfolio
 description: A 股持仓组合管理与健康检查 skill。支持持仓 CRUD（买入/加仓/减仓/清仓）、自选股管理、组合实时涨跌、仓位/板块集中度、风险预警、调仓再平衡和持仓标的对比。v2 数据模型支持成本价、数量、买入日期和标签。
-version: 1.7.0
+version: 1.8.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
 ---
@@ -44,16 +44,46 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 ### Web 录入
 
-| 操作                          | 说明                                                          | 示例                                   |
-| ----------------------------- | ------------------------------------------------------------- | -------------------------------------- |
-| `web`                         | 启动本地 Web 录入服务（127.0.0.1:8765），默认启用后台策略监控 | `/portfolio web`                       |
-| `web --port <端口>`           | 指定端口启动                                                  | `/portfolio web --port 9000`           |
-| `web --open`                  | 启动后自动打开浏览器                                          | `/portfolio web --open`                |
-| `web --no-notify`             | 启动时不推送通知（默认自动接入已配置的推送通道）              | `/portfolio web --no-notify`           |
-| `web --no-monitor`            | 禁用后台策略监控                                              | `/portfolio web --no-monitor`          |
-| `web --monitor-interval <秒>` | 监控检查间隔（默认 300 秒）                                   | `/portfolio web --monitor-interval 60` |
-| `web --stop`                  | 停止后台运行的 Web 服务                                       | `/portfolio web --stop`                |
-| `web --status`                | 查看 Web 服务运行状态                                         | `/portfolio web --status`              |
+| 操作                          | 说明                                                            | 示例                                   |
+| ----------------------------- | --------------------------------------------------------------- | -------------------------------------- |
+| `web`                         | 启动本地 Web 录入服务（127.0.0.1:8765），默认启用后台策略监控   | `/portfolio web`                       |
+| `web --port <端口>`           | 指定端口启动                                                    | `/portfolio web --port 9000`           |
+| `web --open`                  | 启动后自动打开浏览器                                            | `/portfolio web --open`                |
+| `web --no-notify`             | 启动时不推送通知（默认自动接入已配置的推送通道）                | `/portfolio web --no-notify`           |
+| `web --no-monitor`            | 禁用后台策略监控                                                | `/portfolio web --no-monitor`          |
+| `web --monitor-interval <秒>` | 监控检查间隔（默认 300 秒）                                     | `/portfolio web --monitor-interval 60` |
+| `web --stop`                  | 停止后台运行的 Web 服务                                         | `/portfolio web --stop`                |
+| `web --status`                | 查看 Web 服务运行状态                                           | `/portfolio web --status`              |
+| `web --virtual`               | 启动虚拟持仓模式（模拟盘），数据存储在 `portfolio_virtual.json` | `/portfolio web --virtual`             |
+
+### 虚拟持仓（模拟盘）
+
+使用 `--virtual` 参数启动虚拟持仓模式，适合练习和策略验证：
+
+```bash
+# 启动虚拟持仓 Web 服务
+python3 scripts/portfolio_web.py --virtual
+
+# 或通过 skill 触发
+/portfolio web --virtual
+```
+
+虚拟持仓特点：
+
+- 数据存储在 `scripts/data/portfolio_virtual.json`（与实盘隔离）
+- 支持所有 CRUD 操作（买入/减仓/清仓/加自选）
+- 不影响真实持仓数据
+- 适合验证投资策略、练习操作
+
+对比实盘和虚拟盘：
+
+```bash
+# 查看实盘
+/portfolio health
+
+# 查看虚拟盘（需先启动 --virtual Web 服务）
+/portfolio health --virtual
+```
 
 ### 自然语言
 
