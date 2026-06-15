@@ -10,6 +10,25 @@
 ## [Unreleased] - 2026-06-15
 
 ### Added
+- skill 整合 13→9、估值增强、置信度调整、文档更新
+- **dev**: 版本自动同步机制
+
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+
+### CI/CD
+- 优化所有 GitHub Actions 工作流
+- 添加 CHANGELOG 自动更新工作流
+
+### Maintenance
+- 更新测试版本号和 skill 列表到 1.10.0
+- 同步所有版本号到 1.9.0
+
+## [Unreleased] - 2026-06-15
+
+### Added
 - **dev**: 版本自动同步机制
 
 ### Documentation
