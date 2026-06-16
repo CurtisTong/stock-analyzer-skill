@@ -582,21 +582,36 @@ def main():
                         help="使用预置默认数据初始化（不访问 API）")
     parser.add_argument("--full-market", action="store_true",
                         help="拉取全市场 A 股列表（约 5000 只），保存到 all_stocks.json")
+    parser.add_argument("-j", "--json", action="store_true",
+                        help="输出机器可读 JSON 摘要")
     args = parser.parse_args()
 
     if args.full_market:
-        stocks_by_board = fetch_all_market_stocks()
-        save_all_market_stocks(stocks_by_board)
+        ret = fetch_all_market_stocks()
+        if not args.dry_run:
+            save_all_market_stocks(ret)
+        result = {"mode": "full_market", "count": len(ret) if ret else 0}
     elif args.default:
-        init_from_default(top_n=args.top, dry_run=args.dry_run)
+        ret = init_from_default(top_n=args.top, dry_run=args.dry_run)
+        result = {"mode": "default", "top_n": args.top}
     else:
-        refresh_pool(
+        ret = refresh_pool(
             sectors=args.sector,
             top_n=args.top,
             sort_by=args.sort,
             dry_run=args.dry_run,
             show_diff=args.diff,
         )
+        result = {
+            "mode": "refresh",
+            "sectors": args.sector or "all",
+            "top_n": args.top,
+            "sort_by": args.sort or "default",
+        }
+
+    if args.json:
+        import json as _json
+        print(_json.dumps({"status": "ok", **result}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

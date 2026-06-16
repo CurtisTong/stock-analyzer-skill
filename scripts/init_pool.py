@@ -143,12 +143,29 @@ def main():
                         help="使用预置默认数据（不访问 API，离线可用）")
     parser.add_argument("--full-market", action="store_true",
                         help="初始化全市场股票池（all_stocks.json，约 5000 只）")
+    parser.add_argument("-j", "--json", action="store_true",
+                        help="输出机器可读 JSON 摘要")
     args = parser.parse_args()
 
+    result = {}
     if args.full_market:
-        init_full_market(force=args.force)
+        ret = init_full_market(force=args.force)
     else:
-        init_pool(top_n=args.top, force=args.force, use_default=args.default)
+        ret = init_pool(top_n=args.top, force=args.force, use_default=args.default)
+    result = ret if isinstance(ret, dict) else {"summary": str(ret) if ret else "completed"}
+
+    if args.json:
+        print(json.dumps({
+            "status": "ok",
+            "mode": "full_market" if args.full_market else "default",
+            "args": {
+                "force": args.force,
+                "top": args.top,
+                "default": args.default,
+                "full_market": args.full_market,
+            },
+            "result": result,
+        }, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
