@@ -62,6 +62,7 @@ _register(
             "公司涉财务造假或管理层失信",
         ],
         md_path="experts/buffett.md",
+        active=False,  # v2.1.0: 合并到 value_anchor
     )
 )
 
@@ -86,6 +87,7 @@ _register(
             "公司'增长故事'被证伪（如政策突变、核心技术被替代）",
         ],
         md_path="experts/lynch.md",
+        active=True,  # v2.1.0: 独立保留
     )
 )
 
@@ -110,6 +112,7 @@ _register(
             "政策明确打压该板块（反身性向下强化）",
         ],
         md_path="experts/soros.md",
+        active=True,  # v2.1.0: 独立保留
     )
 )
 
@@ -134,6 +137,7 @@ _register(
             "管理层不诚信（'正直排第一'）",
         ],
         md_path="experts/duan_yongping.md",
+        active=False,  # v2.1.0: 合并到 value_anchor
     )
 )
 
@@ -164,6 +168,7 @@ _register(
             "无涨停基因（近30日无涨停记录）",
         ],
         md_path="experts/xu_xiang.md",
+        active=False,  # v2.1.0: 合并到 topic_leader
     )
 )
 
@@ -187,6 +192,7 @@ _register(
             "跌破20日均线（一票否决）",
         ],
         md_path="experts/zhao_laoge.md",
+        active=False,  # v2.1.0: 合并到 topic_leader
     )
 )
 
@@ -210,6 +216,7 @@ _register(
             "全市场跌停家数 > 50（恐慌弥漫）",
         ],
         md_path="experts/chaogu_yangjia.md",
+        active=False,  # v2.1.0: 合并到 emotion_tech
     )
 )
 
@@ -234,6 +241,7 @@ _register(
             "题材退潮或出现重大负面催化",
         ],
         md_path="experts/zuoshou_xinyi.md",
+        active=False,  # v2.1.0: 合并到 emotion_tech
     )
 )
 
