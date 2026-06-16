@@ -212,35 +212,15 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 ### Step 5: 技术分析（technical 模式）
 
-纯技术视角，不涉及基本面。运行 `scripts/technical.py` 获取完整技术报告：
+详见 [`/stock-technical`](../stock-technical/SKILL.md) 子模块。本步骤仅做调用入口说明。
 
 ```bash
-python3 scripts/technical.py sh600989                     # 完整报告（日K 250根）
-python3 scripts/technical.py sh600989 --quick              # 快速摘要
-python3 scripts/technical.py sh600989 --classify           # 启用分类+缠论+战法+市场自适应
-python3 scripts/technical.py sh600989 --classify --no-chan # 跳过缠论（仅分类+战法）
-python3 scripts/technical.py sh600989 --scale 60           # 60分钟K线
+python3 scripts/technical.py sh600989              # 完整报告
+python3 scripts/technical.py sh600989 --classify   # 含分类+缠论+战法
+python3 scripts/technical.py sh600989 --quick      # 快速摘要
 ```
 
-输出包含：综合评分、均线系统、MACD（含背离）、KDJ、BOLL、RSI、成交量、K线形态、缠论（笔-线段-中枢-买卖点）、A股本土战法（三阴一阳/老鸭头/美人肩/双针探底/涨停双响炮/底部首板）、支撑/阻力位。
-
-**指标解读要点**：
-
-- **均线系统**：中长期趋势方向。多头排列=强势，空头=弱势，粘合=即将变盘
-- **MACD**：趋势动量。金叉+红柱放大=加速上涨，死叉+绿柱放大=加速下跌。背离是强烈反转信号
-- **KDJ**：短线超买超卖。J>100=极度超买，J<0=极度超卖。单边趋势中 KDJ 会钝化
-- **BOLL**：波动率。带宽收窄=变盘前兆，价格触轨=极端位置
-- **成交量**：量价配合=健康，量价背离=预警
-- **涨跌停分析**：封涨停时技术指标暂停参考，需等次日开盘验证
-
-**个股类型 × 指标权重**：
-
-| 类型     | 加权指标                            | 降权指标          |
-| -------- | ----------------------------------- | ----------------- |
-| 题材股   | K线形态×1.5, 涨停分析×1.5, 量比×1.3 | MACD×0.5, KDJ×0.5 |
-| 强成长股 | MACD×1.3, BOLL×1.2, 量比×1.2        | KDJ×0.4           |
-| 周期股   | MACD×1.3, KDJ×1.2, 缠论×1.3         | 均线×0.6          |
-| 蓝筹股   | 均线×1.3, BOLL×1.2, 箱体×1.1        | KDJ×0.4           |
+输出包含：综合评分、均线系统、MACD、KDJ、BOLL、RSI、成交量、K线形态、缠论、A 股本土战法、支撑/阻力位。详见子模块文档。
 
 ## Guardrails
 
