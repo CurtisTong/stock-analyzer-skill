@@ -7,6 +7,7 @@ experts/decide.py 单元测试。
 - aggregate_group_votes: 单组模式（长线/短线）
 - format_debate_output / format_group_output: 输出格式化
 """
+
 import sys
 from pathlib import Path
 
@@ -22,7 +23,6 @@ from experts.decide import (
     format_debate_output,
     format_group_output,
 )
-
 
 # ═══════════════════════════════════════════════════════════════
 # Fixtures
@@ -302,8 +302,12 @@ class TestAggregateVotes:
     def test_calibration_factor_in_confidence(self):
         """校准因子影响信心指数。"""
         results = _bullish_long_experts() + _bullish_short_experts()
-        agg_no_cal = aggregate_votes(results, market_state=None, horizon="medium", calibration_factor=0.0)
-        agg_pos = aggregate_votes(results, market_state=None, horizon="medium", calibration_factor=0.5)
+        agg_no_cal = aggregate_votes(
+            results, market_state=None, horizon="medium", calibration_factor=0.0
+        )
+        agg_pos = aggregate_votes(
+            results, market_state=None, horizon="medium", calibration_factor=0.5
+        )
         # 正向校准应提高信心
         assert agg_pos["confidence"] >= agg_no_cal["confidence"]
 
@@ -325,10 +329,19 @@ class TestAggregateVotes:
         results = _bullish_long_experts() + _bullish_short_experts()
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         required_keys = [
-            "market_state", "long_weight", "short_weight",
-            "long_avg", "short_avg", "composite_score",
-            "direction", "confidence", "long_votes", "short_votes",
-            "position", "risk_notes", "notes",
+            "market_state",
+            "long_weight",
+            "short_weight",
+            "long_avg",
+            "short_avg",
+            "composite_score",
+            "direction",
+            "confidence",
+            "long_votes",
+            "short_votes",
+            "position",
+            "risk_notes",
+            "notes",
         ]
         for k in required_keys:
             assert k in agg, f"missing key: {k}"
@@ -430,8 +443,16 @@ class TestAggregateGroupVotes:
         """输出结构完整。"""
         experts = [_make_expert(f"e{i}", 65) for i in range(4)]
         agg = aggregate_group_votes(experts, group="long_term")
-        for k in ["group", "avg_score", "direction", "confidence",
-                  "votes", "position", "expert_results", "risk_notes"]:
+        for k in [
+            "group",
+            "avg_score",
+            "direction",
+            "confidence",
+            "votes",
+            "position",
+            "expert_results",
+            "risk_notes",
+        ]:
             assert k in agg, f"missing key: {k}"
 
 
@@ -509,3 +530,89 @@ class TestFormatGroupOutput:
         agg = aggregate_group_votes(experts, group="long_term")
         output = format_group_output(agg)
         assert "推荐仓位: 0%" in output
+
+
+# ═══════════════════════════════════════════════════════════════
+# 6. 合并型专家名兼容（v2.1.0 legacy→merged 回退）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestMergedExpertFallback:
+    """降权规则在新框架 active 专家集（用合并型名）输入下仍须触发。
+
+    buffett→value_anchor、chaogu_yangjia→emotion_tech 已在 registry 标记
+    active=False，故 aggregate_votes 必须回退到合并型名查找，否则降权规则
+    会静默失效。用对比法断言降权确实降低了组均值。
+    """
+
+    def _active_long_with_value_anchor(self, anchor_score: float):
+        """新框架长线组：用合并型名 value_anchor 替代 buffett。"""
+        return [
+            _make_expert("value_anchor", anchor_score, "long_term"),
+            _make_expert("lynch", 70, "long_term"),
+            _make_expert("soros", 70, "long_term"),
+            _make_expert("institution", 70, "long_term"),
+        ]
+
+    def _active_short_with_emotion_tech(self, emotion_score: float, **overrides):
+        """新框架短线组：用合并型名 emotion_tech 替代 chaogu_yangjia。"""
+        base = {
+            "情绪": emotion_score,
+        }
+        base.update(overrides)
+        return [
+            _make_expert(
+                "emotion_tech",
+                emotion_score,
+                "short_term",
+            ),
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("risk_manager", 70, "long_term"),  # 占位，保持总数
+        ], base
+
+    def test_buffett_downgrade_triggers_on_merged_name(self):
+        """buffett 短期看空降权：输入 value_anchor(<=39) 时长线组应被 ×0.8 降权。"""
+        from statistics import mean
+
+        # value_anchor 看空(20)，其余长线 70 → 触发短期巴菲特降权
+        experts = self._active_long_with_value_anchor(20)
+        experts += [_make_expert(f"s{i}", 70, "short_term") for i in range(4)]
+        agg = aggregate_votes(experts, horizon="short")
+
+        # 降权后 long_avg 应低于原始均值（70,70,70,20 → 降权后更低）
+        raw_long_mean = mean([70, 70, 70, 20])  # =57.5 未降权
+        # buffett/value_anchor 自身不降，其余三个 70 ×0.8=56
+        expected_after = (20 + 56 + 56 + 56) / 4  # =47.0
+        assert abs(agg["long_avg"] - round(expected_after, 1)) < 0.2
+        assert agg["long_avg"] < raw_long_mean
+
+    def test_yangjia_downgrade_triggers_on_merged_name(self):
+        """养家情绪退潮降权：输入 emotion_tech(<30) 时短线组应被 ×0.7 降权。"""
+        from statistics import mean
+
+        # 短线组：emotion_tech(25,情绪<30触发退潮) + 三个 70
+        short = [
+            _make_expert("emotion_tech", 25, "short_term"),
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("zuoshou_xinyi", 70, "short_term"),
+            _make_expert("xu_xiang", 70, "short_term"),
+        ]
+        long = [_make_expert(f"l{i}", 70, "long_term") for i in range(4)]
+        agg = aggregate_votes(long + short)
+
+        raw_short_mean = mean([25, 70, 70, 70])  # =58.75 未降权
+        # emotion_tech 自身不降，其余三个 70 ×0.7=49
+        expected_after = (25 + 49 + 49 + 49) / 4  # =43.0
+        assert abs(agg["short_avg"] - round(expected_after, 1)) < 0.2
+        assert agg["short_avg"] < raw_short_mean
+
+    def test_no_downgrade_when_score_neutral(self):
+        """value_anchor 中性分(50) 时不应触发降权，long_avg 等于原始均值。"""
+        from statistics import mean
+
+        experts = self._active_long_with_value_anchor(50)
+        experts += [_make_expert(f"s{i}", 70, "short_term") for i in range(4)]
+        agg = aggregate_votes(experts, horizon="short")
+
+        raw_long_mean = mean([50, 70, 70, 70])  # =65.0
+        assert abs(agg["long_avg"] - round(raw_long_mean, 1)) < 0.2
