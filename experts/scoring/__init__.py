@@ -34,6 +34,9 @@ from ._utils import (
 # 导入各专家评分函数
 from . import buffett, lynch, soros, duan_yongping
 from . import xu_xiang, zhao_laoge, chaogu_yangjia, zuoshou_xinyi
+# v2.1.0 扩展视角：3 个合并 + 3 个补盲区
+from . import value_anchor, topic_leader, emotion_tech
+from . import sector_specialist, institution, risk_manager
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -233,6 +236,13 @@ _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
     "zhao_laoge": zhao_laoge.score,
     "chaogu_yangjia": chaogu_yangjia.score,
     "zuoshou_xinyi": zuoshou_xinyi.score,
+    # v2.1.0 扩展视角
+    "value_anchor": value_anchor.score,
+    "topic_leader": topic_leader.score,
+    "emotion_tech": emotion_tech.score,
+    "sector_specialist": sector_specialist.score,
+    "institution": institution.score,
+    "risk_manager": risk_manager.score,
 }
 
 

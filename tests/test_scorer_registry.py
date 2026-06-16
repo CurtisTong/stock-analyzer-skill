@@ -23,10 +23,13 @@ class TestScorerRegistry:
     """验证所有专家评分函数都已注册。"""
 
     def test_all_experts_registered(self):
-        """所有 8 位专家都应在注册表中。"""
+        """v2.1.0 起：8 legacy + 6 extended = 14。"""
         expected_experts = {
             "buffett", "lynch", "soros", "duan_yongping",
             "xu_xiang", "zhao_laoge", "chaogu_yangjia", "zuoshou_xinyi",
+            # v2.1.0 扩展视角
+            "value_anchor", "topic_leader", "emotion_tech",
+            "sector_specialist", "institution", "risk_manager",
         }
         registered = set(_EXPERT_SCORING_FUNCTIONS.keys())
         assert registered == expected_experts, (
@@ -35,8 +38,8 @@ class TestScorerRegistry:
         )
 
     def test_registry_count(self):
-        """注册表应恰好有 8 个专家。"""
-        assert len(_EXPERT_SCORING_FUNCTIONS) == 8
+        """v2.1.0：14 个专家（8 legacy + 6 extended）。"""
+        assert len(_EXPERT_SCORING_FUNCTIONS) == 14
 
     def test_all_scoring_functions_callable(self):
         """所有注册的评分函数都应可调用。"""

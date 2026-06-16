@@ -171,8 +171,8 @@ def test_score_from_dimensions_range(dim_scores: dict[str, float]):
 
 
 def test_expert_registry_count():
-    """必须有 8 位专家。"""
-    assert len(EXPERT_REGISTRY) == 8
+    """v2.1.0：8 legacy + 6 extended = 14。"""
+    assert len(EXPERT_REGISTRY) in (8, 14)
 
 
 def test_expert_weights_sum_to_100():

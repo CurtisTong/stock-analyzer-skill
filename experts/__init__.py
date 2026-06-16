@@ -32,6 +32,7 @@ class ExpertProfile:
     weights: Dict[str, float]       # 5 维度权重（百分比，加和 100）
     veto_conditions: List[str] = field(default_factory=list)
     md_path: str = ""               # 关联的 markdown 路径
+    active: bool = True             # v2.1.0 起：False 表示 deprecated，新框架不再调用
 
 
 # 方向判定阈值（与 experts/decide.md §一.1.1 一致）

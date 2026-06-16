@@ -369,8 +369,15 @@ def aggregate_votes(
     market_state: Optional[dict] = None,
     horizon: str = "medium",
     calibration_factor: float = 0.0,
+    *,
+    prefer_horizon: bool = False,
 ) -> dict:
     """整合 8 位专家投票，输出最终决策（decide.md 完整规则）。
+
+    Args:
+        ...
+        prefer_horizon: True 时用户显式传了 horizon（如 `/stock debate 长线`），
+                       horizon 权重优先于 market_state；False（默认）保持向后兼容。
 
     Args:
         expert_results: 专家评分结果列表，每项包含：
@@ -416,8 +423,11 @@ def aggregate_votes(
     long_avg = statistics.mean(long_scores) if long_scores else 50
     short_avg = statistics.mean(short_scores) if short_scores else 50
 
-    # 市场环境权重
-    if market_state:
+    # 市场环境权重 vs 投资期限权重：prefer_horizon=True 时 horizon 优先
+    if prefer_horizon:
+        mkt = market_state["state"] if market_state else "震荡"
+        lw, sw = _HORIZON_WEIGHTS.get(horizon, (0.55, 0.45))
+    elif market_state:
         mkt = market_state["state"]
         lw = market_state["long_weight"]
         sw = market_state["short_weight"]
