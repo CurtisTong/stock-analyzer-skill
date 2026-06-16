@@ -104,6 +104,32 @@ def list_short_term_experts() -> List[ExpertProfile]:
     return list_experts("short_term")
 
 
+# ═══════════════════════════════════════════════════════════════
+# v2.1.0 切换 API
+# ═══════════════════════════════════════════════════════════════
+
+def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
+    """列出 active=True 的专家（v2.1.0 默认 8 人：5 合并 + lynch + soros + 3 补盲区）。
+
+    新框架默认调用此 API，legacy 8 人需显式 `list_legacy_experts()`。
+    """
+    all_experts = [p for p in EXPERT_REGISTRY.values() if p.active]
+    if group is None:
+        return all_experts
+    return [p for p in all_experts if p.group == group]
+
+
+def list_legacy_experts(group: Optional[str] = None) -> List[ExpertProfile]:
+    """列出 active=False 的 legacy 专家（原 6 人 + 待定 2 人）。
+
+    通过 `--use-legacy-experts` flag 让用户显式切回旧圆桌做 A/B 对比。
+    """
+    all_experts = [p for p in EXPERT_REGISTRY.values() if not p.active]
+    if group is None:
+        return all_experts
+    return [p for p in all_experts if p.group == group]
+
+
 __all__ = [
     "ExpertProfile",
     "EXPERT_REGISTRY",
@@ -113,6 +139,9 @@ __all__ = [
     "list_experts",
     "list_long_term_experts",
     "list_short_term_experts",
+    # v2.1.0 切换 API
+    "list_active_experts",
+    "list_legacy_experts",
     "direction_from_score",
     "apply_veto",
     "DIRECTION_THRESHOLDS",
