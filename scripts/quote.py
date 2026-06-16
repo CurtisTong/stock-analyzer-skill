@@ -11,6 +11,7 @@
 """
 import sys
 import json
+import argparse
 from common import split_codes, batchify, normalize_quote_code, parallel_map, err, DataError
 from data import get_quote, get_quotes
 
@@ -22,11 +23,13 @@ def fetch_batch(codes: list, use_cache: bool = True) -> list:
 
 
 def main():
-    if len(sys.argv) < 2:
-        err("用法: quote.py <代码|@文件> [-j] [--sources]")
-    args = sys.argv[1:]
+    parser = argparse.ArgumentParser(description="实时行情查询（多数据源自动切换）")
+    parser.add_argument("code", nargs="?", help="股票代码（如 sh600989）或 @codes.txt 文件路径")
+    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
+    parser.add_argument("--sources", action="store_true", help="显示可用数据源")
+    args = parser.parse_args()
 
-    if "--sources" in args:
+    if args.sources:
         from fetchers import get_quote_fetchers
         fetchers = get_quote_fetchers()
         print("可用行情数据源:")
@@ -34,10 +37,10 @@ def main():
             print(f"  - {f.name} (优先级 {f.priority})")
         return
 
-    json_mode = "-j" in args
-    args = [a for a in args if a not in ("-j", "--sources")]
+    if not args.code:
+        err("用法: quote.py <代码|@文件> [-j|--json] [--sources]")
 
-    codes = [normalize_quote_code(c) for c in split_codes(args[0])]
+    codes = [normalize_quote_code(c) for c in split_codes(args.code)]
     if not codes:
         err("未提供代码")
 
@@ -50,7 +53,7 @@ def main():
     else:
         all_records = fetch_batch(batches[0])
 
-    if json_mode:
+    if args.json:
         print(json.dumps(all_records, ensure_ascii=False, indent=2))
         return
 

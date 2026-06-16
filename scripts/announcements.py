@@ -8,6 +8,7 @@
 """
 import sys
 import json
+import argparse
 from datetime import datetime, timedelta
 from common import http_get, err, DataError, cache_key_for_stock, cache_get, cache_set
 
@@ -88,27 +89,28 @@ def render_reports(items: list) -> str:
     return "\n".join(lines)
 
 def main():
-    if len(sys.argv) < 2:
-        err("用法: announcements.py <代码> [reports] [-j]")
-    args = sys.argv[1:]
-    json_mode = "-j" in args
-    args = [a for a in args if a != "-j"]
-    code = args[0]
-    mode = args[1] if len(args) > 1 else "announcements"
+    parser = argparse.ArgumentParser(description="东方财富公告 + 研报")
+    parser.add_argument("code", nargs="?", help="股票代码（如 600989）")
+    parser.add_argument("mode", nargs="?", default="announcements", choices=["announcements", "reports"], help="类型：announcements（公告）或 reports（研报）")
+    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
+    args = parser.parse_args()
 
-    if mode == "reports":
-        data = fetch_reports(code)
-        if json_mode:
+    if not args.code:
+        err("用法: announcements.py <代码> [announcements|reports] [-j|--json]")
+
+    if args.mode == "reports":
+        data = fetch_reports(args.code)
+        if args.json:
             print(json.dumps(data, ensure_ascii=False, indent=2))
         else:
-            print(f"\n=== 研报 {code} ===")
+            print(f"\n=== 研报 {args.code} ===")
             print(render_reports(data))
     else:
-        data = fetch_announcements(code)
-        if json_mode:
+        data = fetch_announcements(args.code)
+        if args.json:
             print(json.dumps(data, ensure_ascii=False, indent=2))
         else:
-            print(f"\n=== 公告 {code} ===")
+            print(f"\n=== 公告 {args.code} ===")
             print(render_announcements(data))
 
 if __name__ == "__main__":

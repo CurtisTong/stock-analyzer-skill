@@ -51,13 +51,8 @@ python3 scripts/backtest.py [参数]
 
 ## 策略说明
 
-| 策略            | 特点            | 适用市场      |
-| --------------- | --------------- | ------------- |
-| balanced        | 均衡五因子      | 通用          |
-| quality_value   | 质量+价值权重高 | 震荡/下跌市   |
-| growth_momentum | 成长+动量权重高 | 上涨市        |
-| defensive       | 低波动+高质量   | 下跌/不确定市 |
-| turning_point   | 拐点信号        | 反转行情      |
+5 策略定义详见 [`../_shared/references/strategies.md`](../_shared/references/strategies.md)。
+回测场景下侧重看 `适用市场` 列选择对应策略。
 
 ## 注意事项
 

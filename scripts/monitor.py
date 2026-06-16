@@ -6,7 +6,7 @@
   python3 scripts/monitor.py --cache      # 缓存状态
   python3 scripts/monitor.py --sources    # 数据源状态（含健康度矩阵）
   python3 scripts/monitor.py --cleanup    # 清理过期缓存
-  python3 scripts/monitor.py --log-json   # 输出结构化 JSON 日志
+  python3 scripts/monitor.py --json   # 输出结构化 JSON 日志
 """
 import argparse
 import json
@@ -153,7 +153,8 @@ def main() -> None:
     parser.add_argument("--cache", action="store_true", help="显示缓存状态")
     parser.add_argument("--sources", action="store_true", help="显示数据源状态（含健康度矩阵）")
     parser.add_argument("--cleanup", action="store_true", help="清理过期缓存")
-    parser.add_argument("--log-json", action="store_true", help="输出结构化 JSON 日志")
+    parser.add_argument("--json", "--log-json", action="store_true", dest="log_json",
+                        help="输出结构化 JSON 日志（推荐 --json，--log-json 已废弃）")
     args = parser.parse_args()
 
     if args.cache:
