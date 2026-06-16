@@ -3,7 +3,7 @@ name: monitor
 description: 盘中监控。触发词：帮我盯盘、价格预警、XX到XX元提醒我、监控持仓异动、技术信号推送、数据源健康检查、涨停提醒、跌破XX元通知我。支持持仓异动/价格预警/技术信号/市场环境监控，通过Bark/企微/钉钉推送。
 version: 1.11.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/config/notification.yaml) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(./scripts/data/portfolio.json) Read(./scripts/config/notification.yaml) Read(./skills/_shared/references/*.md)
 ---
 
 # Monitor

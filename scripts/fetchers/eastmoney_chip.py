@@ -3,7 +3,9 @@ import sys
 import json
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from dev.clock import now
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -42,7 +44,7 @@ class MarginFetcher(BaseFetcher):
         # 提取纯数字代码
         pure_code = code.replace("sh", "").replace("sz", "").replace("SH", "").replace("SZ", "")
         # 考虑节假日：交易日约占自然日的 50%，故向前多取一倍天数确保覆盖
-        start_date = (datetime.now() - timedelta(days=days * 2)).strftime("%Y-%m-%d")
+        start_date = (now() - timedelta(days=days * 2)).strftime("%Y-%m-%d")
 
         url = MARGIN_URL.format(code=pure_code, start=start_date, days=days)
 

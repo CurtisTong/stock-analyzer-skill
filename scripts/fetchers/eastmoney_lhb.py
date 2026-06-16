@@ -21,11 +21,13 @@ class LhbDetailFetcher(BaseFetcher):
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取龙虎榜数据。code 为空时返回近期全部龙虎榜。"""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
+
+        from dev.clock import now
 
         days = kwargs.get("days", 7)
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        end_date = now().strftime("%Y-%m-%d")
+        start_date = (now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         url = LHB_DETAIL_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)
@@ -74,7 +76,7 @@ class LhbSeatFetcher(BaseFetcher):
         date = kwargs.get("date", "")
         if not date:
             from datetime import datetime
-            date = datetime.now().strftime("%Y-%m-%d")
+            date = now().strftime("%Y-%m-%d")
 
         plain = code.lstrip("shszSHSZbjBJ")
 

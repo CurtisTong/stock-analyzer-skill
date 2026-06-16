@@ -1,8 +1,11 @@
 """东方财富事件日历数据源（财报披露、解禁、分红）。"""
 import sys
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
+
+from dev.clock import now
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get, to_float
@@ -26,8 +29,8 @@ class EarningsCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取财报披露日历。code 为空时返回近期全部。"""
         days = kwargs.get("days", 30)
-        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = now().strftime("%Y-%m-%d")
 
         url = EARNINGS_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)
@@ -68,8 +71,8 @@ class LockupCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取限售解禁日历。"""
         days = kwargs.get("days", 30)
-        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = now().strftime("%Y-%m-%d")
 
         url = LOCKUP_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)
@@ -111,8 +114,8 @@ class DividendCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取分红日历。"""
         days = kwargs.get("days", 30)
-        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = now().strftime("%Y-%m-%d")
 
         url = DIVIDEND_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)

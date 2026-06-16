@@ -9,6 +9,8 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
+
+from dev.clock import now as _now
 from typing import Optional
 
 import yaml
@@ -204,7 +206,7 @@ class NotificationManager:
         daily_limit = throttle_cfg.get("daily_limit", 20)
 
         # 每日计数重置
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = _now().strftime("%Y-%m-%d")
         if today != self._daily_date:
             self._daily_date = today
             self._daily_count = 0
@@ -230,7 +232,7 @@ class NotificationManager:
 
         try:
             start_str, end_str = quiet.split("-")
-            now = datetime.now()
+            now = _now()
             start_h, start_m = map(int, start_str.split(":"))
             end_h, end_m = map(int, end_str.split(":"))
 
@@ -252,7 +254,7 @@ class NotificationManager:
         # 写入前检查是否需要轮转
         _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
 
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = _now().strftime("%Y-%m-%d %H:%M:%S")
         status = "OK" if success else "FAIL"
         line = f"[{ts}] [{status}] [{channel}] {title}"
         if error:
