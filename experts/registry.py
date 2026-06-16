@@ -249,15 +249,24 @@ _register(
 def _ensure_loaded() -> None:
     """注册表在模块导入时已填充，此函数仅作显式触发点。
 
-    v2.1.0 起：支持扩展视角。注册表可包含 active+legacy 专家，
-    active 数必须等于 14（8 legacy + 6 扩展），向后兼容。
+    v2.1.0 的不变量：
+    - 注册表总数 = 14（6 legacy + 8 active：2 独立保留 + 6 扩展视角）
+    - active 专家数 = 8（lynch/soros 独立 + 3 合并型 + 3 补盲区型）
+
+    legacy（active=False）指已被合并视角取代、新框架不再调用的旧专家，
+    仍保留在注册表中供向后兼容与 A/B 对比。
     """
+    total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)
-    # v2.1.0 允许扩展：8 原始 + 6 扩展 = 14 active；旧断言保留以防误删
-    if active_count not in (8, 14):
+    if total != 14:
         raise RuntimeError(
-            f"Expected 8 (legacy) or 14 (extended) active experts, "
-            f"found {active_count}: {[p.name for p in EXPERT_REGISTRY.values() if p.active]}"
+            f"Expected 14 experts in registry (6 legacy + 8 active), "
+            f"found {total}: {list(EXPERT_REGISTRY)}"
+        )
+    if active_count != 8:
+        raise RuntimeError(
+            f"Expected 8 active experts, found {active_count}: "
+            f"{[p.name for p in EXPERT_REGISTRY.values() if p.active]}"
         )
 
 

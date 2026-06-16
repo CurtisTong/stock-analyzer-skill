@@ -109,9 +109,12 @@ def list_short_term_experts() -> List[ExpertProfile]:
 # ═══════════════════════════════════════════════════════════════
 
 def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
-    """列出 active=True 的专家（v2.1.0 默认 8 人：5 合并 + lynch + soros + 3 补盲区）。
+    """列出 active=True 的专家（v2.1.0 默认 8 人）。
 
-    新框架默认调用此 API，legacy 8 人需显式 `list_legacy_experts()`。
+    构成：lynch + soros（2 独立保留）+ value_anchor/topic_leader/emotion_tech
+    （3 合并型）+ sector_specialist/institution/risk_manager（3 补盲区型）。
+
+    新框架默认调用此 API，legacy 6 人需显式 `list_legacy_experts()`。
     """
     all_experts = [p for p in EXPERT_REGISTRY.values() if p.active]
     if group is None:
@@ -120,8 +123,10 @@ def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
 
 
 def list_legacy_experts(group: Optional[str] = None) -> List[ExpertProfile]:
-    """列出 active=False 的 legacy 专家（原 6 人 + 待定 2 人）。
+    """列出 active=False 的 legacy 专家（6 人）。
 
+    legacy = 已被合并型视角取代、新框架不再调用的旧专家（buffett/
+    duan_yongping/xu_xiang/zhao_laoge/chaogu_yangjia/zuoshou_xinyi）。
     通过 `--use-legacy-experts` flag 让用户显式切回旧圆桌做 A/B 对比。
     """
     all_experts = [p for p in EXPERT_REGISTRY.values() if not p.active]

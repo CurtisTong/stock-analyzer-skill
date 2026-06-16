@@ -294,6 +294,31 @@ def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     return dim_scores.get("情绪", dim_scores.get("情绪周期", 50))
 
 
+# legacy 专家名 → 合并型专家名映射（v2.1.0）。
+# 降权规则原本绑定 legacy 名（buffett/chaogu_yangjia），但这两位已分别
+# 合并进 value_anchor / emotion_tech。本映射让降权逻辑同时认旧名与新名，
+# 避免输入新框架 active 专家集时规则静默失效。
+_LEGACY_TO_MERGED = {
+    "buffett": "value_anchor",
+    "duan_yongping": "value_anchor",
+    "chaogu_yangjia": "emotion_tech",
+    "zuoshou_xinyi": "emotion_tech",
+}
+
+
+def _find_expert(expert_by_name: Dict[str, dict], legacy_name: str) -> Optional[dict]:
+    """按 legacy 名查找专家结果，找不到则回退到其合并型专家名。
+
+    保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新 8 人
+    （active 合并型名）输入，降权规则在两种输入下都触发。
+    """
+    expert = expert_by_name.get(legacy_name)
+    if expert is not None:
+        return expert
+    merged_name = _LEGACY_TO_MERGED.get(legacy_name)
+    return expert_by_name.get(merged_name) if merged_name else None
+
+
 def _downgrade_direction(direction: str) -> str:
     """方向降一级。"""
     order = ["强烈看多", "看多", "谨慎看多", "中性", "谨慎看空", "看空", "强烈看空"]
@@ -437,8 +462,9 @@ def aggregate_votes(
 
     # 一次性构建专家查找字典，避免重复线性搜索
     expert_by_name = {r.get("name"): r for r in expert_results}
-    yangjia = expert_by_name.get("chaogu_yangjia")
-    buffett = expert_by_name.get("buffett")
+    # 通过 _find_expert 查找：旧 8 人输入认 legacy 名，新 8 人输入回退到合并型名
+    yangjia = _find_expert(expert_by_name, "chaogu_yangjia")
+    buffett = _find_expert(expert_by_name, "buffett")
 
     yangjia_score = yangjia["score"] if yangjia else 50
     buffett_score = buffett["score"] if buffett else 50
@@ -452,20 +478,22 @@ def aggregate_votes(
     #   两者并存 = "情绪看到冰点机会但其他维度不支持"，需保留机会但不降权（冰点=机会）。
     is_yangjia_ice = emotion_score >= 80 and yangjia_score < 30
 
-    # 养家情绪退潮降权（非冰点时）
-    # 优化：直接计算降权后的平均值，避免 N+1 模式
+    # 养家情绪退潮降权（非冰点时）：降权规则自身不降，其余短线 ×0.7
+    # identity_name 认旧名（chaogu_yangjia）与新合并型名（emotion_tech）
     if yangjia_score < 30 and not is_yangjia_ice:
+        identity_names = {"chaogu_yangjia", "emotion_tech"}
         total_score = sum(
-            r["score"] * (1.0 if r.get("name") == "chaogu_yangjia" else 0.7)
+            r["score"] * (1.0 if r.get("name") in identity_names else 0.7)
             for r in short_experts
         )
         short_avg = total_score / len(short_experts) if short_experts else short_avg
 
-    # 巴菲特降权（短期模式看空时）
-    # 优化：直接计算降权后的平均值
+    # 巴菲特降权（短期模式看空时）：巴菲特自身不降，其余长线 ×0.8
+    # identity_name 认旧名（buffett）与新合并型名（value_anchor）
     if buffett_score <= 39 and horizon == "short":
+        identity_names = {"buffett", "value_anchor"}
         total_score = sum(
-            r["score"] * (1.0 if r.get("name") == "buffett" else 0.8)
+            r["score"] * (1.0 if r.get("name") in identity_names else 0.8)
             for r in long_experts
         )
         long_avg = total_score / len(long_experts) if long_experts else long_avg
