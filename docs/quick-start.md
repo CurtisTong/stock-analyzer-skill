@@ -22,7 +22,7 @@ cd ~/Documents/curtis/stock-analyzer-skill
 ./install.sh
 ```
 
-`install.sh` 会在 `~/.claude/skills/` 下创建 11 个 symlink，指向本包的 `skills/` 目录。
+`install.sh` 会在 `~/.claude/skills/` 下创建 9 个 symlink，指向本包的 `skills/` 目录。
 
 重启 Claude Code 即可识别。
 
@@ -39,23 +39,23 @@ cd ~/Documents/curtis/stock-analyzer-skill
 首次使用前，初始化股票池：
 
 ```
-/stock-init
+/screener init
 ```
 
 **零配置可用**：脚本内置预置默认股票池数据，无需任何 token 或 API 密钥即可使用。
 
-> **跳过初始化会怎样？** 使用 `/stock`、`/screener`、`/sector` 等命令时，如果股票池未初始化，系统会自动触发初始化或提示先运行 `/stock-init`。
+> **跳过初始化会怎样？** 使用 `/stock`、`/screener`、`/sector` 等命令时，如果股票池未初始化，系统会自动触发初始化或提示先运行 `/screener init`。
 
 如需联网获取最新数据：
 
 ```
-/stock-init force
+/screener init force
 ```
 
 如需离线模式（不访问 API）：
 
 ```
-/stock-init default
+/screener init default
 ```
 
 ## 第一个命令
@@ -75,7 +75,7 @@ cd ~/Documents/curtis/stock-analyzer-skill
 | 专家圆桌决策     | `/stock sh600989 debate`                                       | 想看 8 位专家辩论 + 最终方向 + 仓位建议 |
 | 单组辩论         | `/stock sh600989 debate 长线` 或 `/stock sh600989 debate 短线` | 只想听某一阵营的观点                    |
 | 美股参考（盘中） | `/market full` 自动拉美股收盘                                  | 隔夜美股大跌时评估 A 股开盘情绪         |
-| 全市场股票池     | `/stock-init full-market` 一次性拉 ~5000 只 A 股               | 想做全市场扫描，不被默认 20 只限死      |
+| 全市场股票池     | `/screener init full-market` 一次性拉 ~5000 只 A 股            | 想做全市场扫描，不被默认 20 只限死      |
 | 校准报告查看     | `python3 scripts/calibration.py report`                        | 看历史专家准确率 + 当前校准因子         |
 
 ## 常见问题
@@ -106,7 +106,7 @@ curl -s "https://qt.gtimg.cn/q=sh600989" | iconv -f GBK -t UTF-8 | head -1
 
 ### 如何获取最新股票池数据？
 
-默认使用预置数据（离线可用）。如需最新数据，运行 `/stock-init force` 强制联网刷新。
+默认使用预置数据（离线可用）。如需最新数据，运行 `/screener init force` 强制联网刷新。
 
 ### smoke_test 报错怎么办？
 

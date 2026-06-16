@@ -2,7 +2,7 @@
 
 # 使用者指南
 
-掌握所有 12 个技能的用法。
+掌握所有 9 个核心技能的用法。
 
 ## 股票代码格式
 
@@ -17,19 +17,17 @@
 
 ## 技能概览
 
-| Skill                 | 命令                                          | 用途           | 模式                               |
-| --------------------- | --------------------------------------------- | -------------- | ---------------------------------- |
-| stock                 | `/stock <代码或名称> [quick\|full\|debate]`   | 单股分析       | 五层框架¹ + 8人专家圆桌²           |
-| market                | `/market [full\|quick\|intraday]`             | 大盘复盘       | 指数+板块+风格+资金                |
-| sector                | `/sector <板块> [overview\|compare\|stock]`   | 板块分析       | 标的对比+多空博弈                  |
-| portfolio             | `/portfolio [health\|rebalance\|compare]`     | 持仓健康检查   | 涨跌+支撑+风险预警                 |
-| screener              | `/screener [--sector 板块] [--strategy 策略]` | 选股策略系统   | 多因子筛选+硬过滤³+候选池          |
-| technical             | `/technical <代码> [quick\|full\|classify]`   | 纯技术分析     | 均线+MACD/KDJ/BOLL+缠论⁴+本土战法⁵ |
-| stock-init            | `/stock-init [force\|default\|top N]`         | 初始化股票池   | 零配置可用，支持离线模式           |
-| financial-analyst     | `/financial-analyst <任务>`                   | 财务分析 agent | 建模+预测+场景分析                 |
-| investment-researcher | `/investment-researcher <任务>`               | 投资研究 agent | 市场研究+尽调+估值                 |
-| backtest              | `/backtest [--strategy 策略] [--all]`         | 策略回测       | 历史胜率+收益验证                  |
-| monitor               | `/monitor scan\|levels\|check\|--cache`       | 盘中监控       | 持仓异动+价格预警推送              |
+| Skill     | 命令                                                   | 用途         | 模式                              |
+| --------- | ------------------------------------------------------ | ------------ | --------------------------------- |
+| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 8人专家圆桌²          |
+| market    | `/market [full\|quick\|intraday]`                      | 大盘复盘     | 指数+板块+风格+资金               |
+| sector    | `/sector <板块> [overview\|compare\|stock]`            | 板块分析     | 标的对比+多空博弈                 |
+| portfolio | `/portfolio [health\|rebalance\|compare]`              | 持仓健康检查 | 涨跌+支撑+风险预警                |
+| screener  | `/screener [init\|--sector 板块\|--strategy 策略]`     | 选股策略系统 | 多因子筛选+硬过滤³+候选池         |
+| research  | `/research [financial\|report] <任务>`                 | 深度研究     | 财务建模 / 市场研究 / 尽调 / 估值 |
+| backtest  | `/backtest [--strategy 策略] [--all]`                  | 策略回测     | 历史胜率+收益验证                 |
+| monitor   | `/monitor scan\|levels\|check\|--cache`                | 盘中监控     | 持仓异动+价格预警推送             |
+| help      | `/help`                                                | 使用说明     | 显示所有可用 skills               |
 
 > **术语说明**：
 >
@@ -39,16 +37,16 @@
 > - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
 > - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
 
-## 初始化股票池 (/stock-init)
+## 初始化股票池 (/screener init)
 
-命令格式：`/stock-init [force|default|top N]`
+命令格式：`/screener init [force|default|top N]`
 
 为 A 股各板块初始化前 20 只活跃股票，供选股、板块分析等 skill 使用。
 
 ### 自动初始化（推荐）
 
 ```
-/stock-init
+/screener init
 ```
 
 首次运行自动初始化，已有数据时跳过。**零配置可用**：无需任何 token 或 API 密钥。
@@ -56,7 +54,7 @@
 ### 强制刷新
 
 ```
-/stock-init force
+/screener init force
 ```
 
 强制重新初始化，联网获取最新数据。
@@ -64,7 +62,7 @@
 ### 离线模式
 
 ```
-/stock-init default
+/screener init default
 ```
 
 使用预置默认数据，不访问 API，适合离线环境。
@@ -72,7 +70,7 @@
 ### 自定义数量
 
 ```
-/stock-init top 30
+/screener init top 30
 ```
 
 每板块取 Top 30 只股票（默认 20）。
@@ -239,14 +237,14 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 返回：硬过滤结果 + 多因子评分 + 候选池 + 跟踪条件。
 
-## 纯技术分析 (/technical)
+## 纯技术分析 (/stock technical)
 
-命令格式：`/technical <代码> [--quick] [--classify]`
+命令格式：`/stock <代码> technical [--quick] [--classify]`
 
 ### 快速模式
 
 ```
-/technical sh600989 --quick
+/stock sh600989 technical --quick
 ```
 
 返回：趋势、量价、支撑阻力、技术触发和失效条件。
@@ -254,7 +252,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 ### 完整模式（默认）
 
 ```
-/technical sh600989
+/stock sh600989 technical
 ```
 
 返回：完整技术分析（均线/MACD/KDJ/BOLL/缠论/本土战法）。
@@ -262,29 +260,29 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 ### 分类模式
 
 ```
-/technical sh600989 --classify
+/stock sh600989 technical --classify
 ```
 
 返回：完整分析 + 个股类型分类 + 缠论结构 + 市场环境自适应。
 
-## 财务分析 (/financial-analyst)
+## 财务分析 (/research financial)
 
-命令格式：`/financial-analyst <任务>`
+命令格式：`/research financial <任务>`
 
 用途：建模、预测、场景分析。
 
 ```
-/financial-analyst 分析宝丰能源的财务质量
+/research financial 分析宝丰能源的财务质量
 ```
 
-## 投资研究 (/investment-researcher)
+## 投资研究 (/research report)
 
-命令格式：`/investment-researcher <任务>`
+命令格式：`/research report <任务>`
 
 用途：市场研究、尽调、估值。
 
 ```text
-/investment-researcher 宝丰能源投资价值研究
+/research report 宝丰能源投资价值研究
 ```
 
 ## 策略回测 (/backtest)
@@ -336,7 +334,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ### 自下而上验证
 
-`stock` → `financial-analyst` → `sector` → `technical` → `portfolio`
+`stock` → `research financial` → `sector` → `technical` → `portfolio`
 
 适合用户已经给定个股。先判断公司质量和估值，再看板块是否配合，最后确认技术触发。
 
@@ -350,11 +348,11 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ### 深度研究报告
 
-`investment-researcher` 作为总控，按需调用：
+`research report` 作为总控，按需调用：
 
 - `market`：宏观市场和风格
 - `sector`：行业景气和竞争格局
-- `financial-analyst`：财务质量、预测、场景
+- `research financial`：财务质量、预测、场景
 - `stock`：投资结论和风险收益比
 - `technical`：交易窗口和失效条件
 
@@ -401,11 +399,11 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ## Skill 边界说明
 
-| Skill                    | 定位   | 适用场景         |
-| ------------------------ | ------ | ---------------- |
-| `/stock`                 | 判断   | 买/卖/持有决策   |
-| `/technical`             | 技术面 | 买入时机、止损位 |
-| `/financial-analyst`     | 建模   | 估值、预测、场景 |
-| `/investment-researcher` | 报告   | 深度研究、存档   |
-| `/screener`              | 筛选   | 批量选股、候选池 |
-| `/backtest`              | 验证   | 策略历史表现     |
+| Skill                 | 定位   | 适用场景         |
+| --------------------- | ------ | ---------------- |
+| `/stock`              | 判断   | 买/卖/持有决策   |
+| `/stock technical`    | 技术面 | 买入时机、止损位 |
+| `/research financial` | 建模   | 估值、预测、场景 |
+| `/research report`    | 报告   | 深度研究、存档   |
+| `/screener`           | 筛选   | 批量选股、候选池 |
+| `/backtest`           | 验证   | 策略历史表现     |

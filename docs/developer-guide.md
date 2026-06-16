@@ -9,7 +9,7 @@ stock-analyzer-skill/
 ├── README.md                       # 项目说明
 ├── CONTRIBUTING.md                 # 贡献规范
 ├── CLAUDE.md                       # Claude Code 上下文
-├── workflow.md                     # 8 个 skill 的协作流程
+├── workflow.md                     # 9 个核心 skill 的协作流程
 ├── methodology.md                  # 完整投资方法论
 ├── install.sh                      # 一键注册到 ~/.claude/skills/
 ├── package.json                    # npm 发布配置
@@ -18,18 +18,16 @@ stock-analyzer-skill/
 │   ├── buffett.md / lynch.md / soros.md / duan_yongping.md
 │   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md
 │   └── decide.md                   # 决策整合规则
-├── .claude/skills/                 # Claude Code skill 源（11 个 skill）
+├── .claude/skills/                 # Claude Code skill 源（9 个核心 skill + 4 个 redirect）
 │   ├── stock/SKILL.md
 │   ├── market/SKILL.md
 │   ├── sector/SKILL.md
 │   ├── portfolio/SKILL.md
 │   ├── screener/SKILL.md
-│   ├── technical/SKILL.md
-│   ├── stock-init/SKILL.md
 │   ├── monitor/SKILL.md
 │   ├── backtest/SKILL.md
-│   ├── financial-analyst/SKILL.md
-│   ├── investment-researcher/SKILL.md
+│   ├── research/SKILL.md
+│   ├── learn/SKILL.md
 │   └── help/SKILL.md
 ├── .agents/skills/                 # Codex workspace skill 源
 ├── skills/                         # Claude Code skill 源（与 .claude/skills/ 一致）
@@ -290,43 +288,43 @@ class DataFetcherManager:
 
 ### 行情数据源（9 个）
 
-| 数据源 | 用途 | 编码 | 优先级 |
-|--------|------|------|--------|
-| 腾讯 qt.gtimg.cn | 实时行情、PE/PB/市值 | GBK | 10 |
-| 东财 emweb.securities.eastmoney.com | 实时行情 | UTF-8 | 9 |
-| 雪球 stock.xueqiu.com | 实时行情（v1.3.1） | UTF-8 | 8 |
-| 同花顺 quote.ths123.com | 实时行情（v1.3.1） | UTF-8 | 7 |
-| 新浪 hq.sinajs.cn | 实时行情 | GBK | 6 |
-| efinance | 实时行情 | UTF-8 | 4 |
-| akshare | 实时行情 | UTF-8 | 3 |
-| tushare | 实时行情 | UTF-8 | 2 |
-| pytdx | 实时行情 | UTF-8 | 1 |
+| 数据源                              | 用途                 | 编码  | 优先级 |
+| ----------------------------------- | -------------------- | ----- | ------ |
+| 腾讯 qt.gtimg.cn                    | 实时行情、PE/PB/市值 | GBK   | 10     |
+| 东财 emweb.securities.eastmoney.com | 实时行情             | UTF-8 | 9      |
+| 雪球 stock.xueqiu.com               | 实时行情（v1.3.1）   | UTF-8 | 8      |
+| 同花顺 quote.ths123.com             | 实时行情（v1.3.1）   | UTF-8 | 7      |
+| 新浪 hq.sinajs.cn                   | 实时行情             | GBK   | 6      |
+| efinance                            | 实时行情             | UTF-8 | 4      |
+| akshare                             | 实时行情             | UTF-8 | 3      |
+| tushare                             | 实时行情             | UTF-8 | 2      |
+| pytdx                               | 实时行情             | UTF-8 | 1      |
 
 ### K线数据源（8 个）
 
-| 数据源 | 用途 | 周期 |
-|--------|------|------|
-| 新浪 money.finance.sina.com.cn | 5/15/30/240 分钟 | ✅ |
-| 东财 | 5/15/30/60/240 分钟 | ✅ |
-| efinance | 5/15/30/60/日 | ✅ |
-| akshare | 全周期 | ✅ |
-| baostock | 日/周/月 | ✅ |
-| pytdx | 日/分时 | ✅ |
-| tushare | 全周期 | ✅ |
-| yfinance | 港股/美股 | ✅ |
+| 数据源                         | 用途                | 周期 |
+| ------------------------------ | ------------------- | ---- |
+| 新浪 money.finance.sina.com.cn | 5/15/30/240 分钟    | ✅   |
+| 东财                           | 5/15/30/60/240 分钟 | ✅   |
+| efinance                       | 5/15/30/60/日       | ✅   |
+| akshare                        | 全周期              | ✅   |
+| baostock                       | 日/周/月            | ✅   |
+| pytdx                          | 日/分时             | ✅   |
+| tushare                        | 全周期              | ✅   |
+| yfinance                       | 港股/美股           | ✅   |
 
 ### 财务数据源（3 个）
 
-| 数据源 | 用途 |
-|--------|------|
+| 数据源                              | 用途     |
+| ----------------------------------- | -------- |
 | 东财 emweb.securities.eastmoney.com | 财务摘要 |
-| efinance | 财务数据 |
-| akshare | 财务数据 |
+| efinance                            | 财务数据 |
+| akshare                             | 财务数据 |
 
 ### 资金面数据源（1 个，v1.3.1 新增）
 
-| 数据源 | 用途 |
-|--------|------|
+| 数据源                  | 用途                             |
+| ----------------------- | -------------------------------- |
 | 东财 data.eastmoney.com | 融资融券、股东户数、十大流通股东 |
 
 ### 辅助数据源
@@ -351,7 +349,7 @@ class DataFetcherManager:
 ```bash
 ln -sf ~/Documents/curtis/stock-analyzer-skill/.claude/skills/stock ~/.claude/skills/stock
 ln -sf ~/Documents/curtis/stock-analyzer-skill/.claude/skills/market ~/.claude/skills/market
-# ... 共 8 个
+# ... 共 9 个核心 + 4 个 redirect
 ```
 
 ### SKILL.md 格式
@@ -412,7 +410,6 @@ class MyCustomQuoteFetcher(BaseFetcher):
 name: my-new-skill
 description: 我的新技能 /my-new-skill
 ---
-
 # 技能说明
 ...
 ```

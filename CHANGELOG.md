@@ -7,59 +7,29 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-06-15
+## [1.10.0] - 2026-06-15
 
 ### Added
-- skill 整合 13→9、估值增强、置信度调整、文档更新
+
+- **Skill 整合 13→9**：`/technical` 合并至 `/stock technical`、`/stock-init` 合并至 `/screener init`、`/financial-analyst` + `/investment-researcher` 合并至 `/research`（旧命令保留为 redirect stub，自动跳转）
+- **估值增强**：估值因子评分逻辑优化，PE/PB 缺失时对称处理
+- **置信度调整**：`compute_confidence_index()` 公式优化，校准贡献上限 ±10 分
 - **dev**: 版本自动同步机制
 
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
+### Changed
+
+- 全量文档同步至 9 skill 结构（README / workflow / user-guide / developer-guide / product-architecture / skill-catalog / SUMMARY.md）
+- CHANGELOG 清理重复 [Unreleased] 段，合并为正式 release
 
 ### CI/CD
+
 - 优化所有 GitHub Actions 工作流
 - 添加 CHANGELOG 自动更新工作流
 
 ### Maintenance
+
 - 更新测试版本号和 skill 列表到 1.10.0
-- 同步所有版本号到 1.9.0
-
-## [Unreleased] - 2026-06-15
-
-### Added
-- **dev**: 版本自动同步机制
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-
-### CI/CD
-- 优化所有 GitHub Actions 工作流
-- 添加 CHANGELOG 自动更新工作流
-
-### Maintenance
-- 同步所有版本号到 1.9.0
-
-## [Unreleased] - 2026-06-15
-
-### Added
-- **dev**: 版本自动同步机制
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-
-### CI/CD
-- 添加 CHANGELOG 自动更新工作流
-
-### Maintenance
-- 同步所有版本号到 1.9.0
-
-## [Unreleased] - 2026-06-15
-
-### CI/CD
-- 添加 CHANGELOG 自动更新工作流
+- 同步所有版本号到 1.10.0
 
 ## [1.9.0] - 2026-06-15
 
@@ -507,12 +477,11 @@
 
 ### Planned
 
-- 支持更多数据源（如雪球、同花顺）
-- 添加历史回测功能
-- 支持港股和美股分析
-- 添加更多本土战法形态
-- 优化缠论算法
-- 添加自动化测试
+- 回测权重网格搜索优化
+- 回测模拟实盘模式
+- 港股深度支持
+- 多语言（英文）输出
+- 更多本土战法形态
 
 ---
 
