@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SectorView",
+  "description": "/sector 板块分析输出契约",
+  "type": "object",
+  "required": ["sector", "view"],
+  "properties": {
+    "sector": {"type": "string", "minLength": 1},
+    "view": {"enum": ["强配", "标配", "低配", "规避"]},
+    "rotation_stage": {"enum": ["启动", "主升", "高位", "退潮"]},
+    "core_picks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name"],
+        "properties": {
+          "code": {"type": "string"},
+          "name": {"type": "string"},
+          "thesis": {"type": "string"}
+        }
+      }
+    },
+    "comparison": {
+      "type": "array",
+      "description": "标的横向对比（仅 compare 模式）",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {"type": "string"},
+          "name": {"type": "string"},
+          "score": {"type": "number"}
+        }
+      }
+    }
+  }
+}

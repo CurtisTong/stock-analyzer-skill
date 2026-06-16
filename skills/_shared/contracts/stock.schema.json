@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StockFiveLayer",
+  "description": "/stock full 五层分析的完整输出契约",
+  "type": "object",
+  "required": ["code", "name", "fundamental", "valuation", "technical", "sentiment", "position_plan"],
+  "properties": {
+    "code": {"type": "string", "pattern": "^(sh|sz|SH|SZ)\\d{6}$"},
+    "name": {"type": "string", "minLength": 1},
+    "fundamental": {
+      "type": "object",
+      "required": ["rating"],
+      "properties": {
+        "rating": {"enum": ["A", "B", "C", "D"], "description": "基本面评级"},
+        "roe": {"type": "number", "description": "ROE (%)"},
+        "revenue_growth": {"type": "number"},
+        "fcf": {"type": "number", "description": "自由现金流"},
+        "debt_ratio": {"type": "number", "description": "资产负债率 (%)"}
+      }
+    },
+    "valuation": {
+      "type": "object",
+      "required": ["view"],
+      "properties": {
+        "view": {"enum": ["低估", "合理", "偏高", "高估", "泡沫"]},
+        "pe_pct": {"type": "number", "minimum": 0, "maximum": 100, "description": "PE 行业分位"},
+        "pb": {"type": "number"},
+        "peg": {"type": "number"}
+      }
+    },
+    "technical": {"$ref": "./technical.schema.json"},
+    "sentiment": {"type": "string", "description": "情绪定性描述"},
+    "position_plan": {
+      "type": "object",
+      "required": ["direction", "position_pct"],
+      "properties": {
+        "direction": {"enum": ["强烈看多", "看多", "中性", "看空", "强烈看空"]},
+        "position_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "staged": {"type": "boolean", "description": "是否分步建仓"}
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MarketReview",
+  "description": "/market 大盘复盘输出契约",
+  "type": "object",
+  "required": ["date", "regime", "indices", "sectors"],
+  "properties": {
+    "date": {"type": "string", "format": "date"},
+    "regime": {
+      "type": "object",
+      "required": ["state", "weight_long", "weight_short"],
+      "properties": {
+        "state": {"enum": ["牛市", "熊市", "震荡", "冰点", "亢奋"]},
+        "weight_long": {"type": "number", "minimum": 0, "maximum": 1},
+        "weight_short": {"type": "number", "minimum": 0, "maximum": 1},
+        "advance_ratio": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "indices": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "change_pct"],
+        "properties": {
+          "code": {"type": "string"},
+          "name": {"type": "string"},
+          "change_pct": {"type": "number"}
+        }
+      }
+    },
+    "sectors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "change_pct"],
+        "properties": {
+          "name": {"type": "string"},
+          "change_pct": {"type": "number"},
+          "leader": {"type": "string"}
+        }
+      }
+    },
+    "style": {
+      "type": "object",
+      "properties": {
+        "rotation": {"type": "string"},
+        "preference": {"type": "string"}
+      }
+    },
+    "tomorrow_outlook": {"type": "string"}
+  }
+}

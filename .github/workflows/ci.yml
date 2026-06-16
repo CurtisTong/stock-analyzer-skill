@@ -77,3 +77,38 @@ jobs:
         run: |
           chmod +x tests/integration/test_install.sh
           bash tests/integration/test_install.sh
+
+  smoke:
+    name: 冒烟测试
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    concurrency:
+      group: smoke-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置测试环境
+        uses: ./.github/actions/setup-test
+
+      - name: 跑 smoke_test.sh
+        run: |
+          chmod +x tests/smoke_test.sh
+          bash tests/smoke_test.sh
+
+  contracts:
+    name: Schema 契约校验
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置测试环境
+        uses: ./.github/actions/setup-test
+
+      - name: 校验 contracts/*.schema.json
+        run: |
+          python3 scripts/dev/validate_contracts.py
