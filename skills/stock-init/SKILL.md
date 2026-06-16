@@ -1,7 +1,7 @@
 ---
 name: stock-init
 description: 初始化股票池（已合并至 /screener init 子命令）
-version: 1.10.0
+version: 1.11.0
 model: haiku
 disable-model-invocation: true
 ---

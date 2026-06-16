@@ -7,9 +7,26 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-06-16
+## [Unreleased]
+
+## [1.11.0] - 2026-06-16
+
+### Added
+
+- **反追涨杀跌机制**：4 层估值约束嵌入决策引擎
+  - `signals.py` 新增估值买卖信号（PE 行业分位底/顶、PEG 偏高）
+  - `momentum.py` 新增估值衰减（PE>80%分位 → 动量×0.45，PE>65% → ×0.70）
+  - `decide.py` 新增估值硬约束（长线组估值分<20 → 仓位×0.5，<30 → ×0.7）
+- **短线专家估值权重提升**：徐翔/赵老哥/养家/作手新一估值权重从 5-8% 统一提升至 12%
+- **估值数据注入**：`technical.py` 和 `stock_analysis.py` 自动计算 PE 行业分位并注入 features
+
+### Changed
+
+- 短线组专家情绪/技术面权重相应下调（总权重保持 100%）
+- 专家 md 文件权重表同步更新
 
 ### Documentation
+
 - 全量更新文档同步至 v1.10.0 / 9 skill 结构
 
 ## [1.10.0] - 2026-06-15

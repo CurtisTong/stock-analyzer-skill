@@ -10,6 +10,7 @@
   technical.py sh600989 --classify         # 含个股分类+缠论+本土战法+市场自适应
   technical.py sh600989 --classify --no-chan  # 跳过缠论
 """
+
 import argparse
 import json
 import sys
@@ -35,7 +36,12 @@ from technical.boll import bollinger
 from technical.rsi import rsi_features
 from technical.volume import volume_analysis
 from technical.candlestick import detect_candle_patterns
-from technical.trend import support_resistance, box_detection, breakout_check, wave_state
+from technical.trend import (
+    support_resistance,
+    box_detection,
+    breakout_check,
+    wave_state,
+)
 from technical.astock import limit_analysis
 from technical.scoring import (
     composite_score,
@@ -57,10 +63,14 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
     features["rsi"] = rsi_features(closes)
     features["volume"] = volume_analysis(closes, volumes) or {}
     features["patterns"] = detect_candle_patterns(records)
-    features["support_resistance"] = support_resistance(closes, highs, lows, features["ma_system"])
+    features["support_resistance"] = support_resistance(
+        closes, highs, lows, features["ma_system"]
+    )
     features["box"] = box_detection(highs, lows, closes)
     nearest_r = features["support_resistance"].get("nearest_resistance")
-    features["breakout"] = breakout_check(closes, highs, volumes, nearest_r) if nearest_r else {}
+    features["breakout"] = (
+        breakout_check(closes, highs, volumes, nearest_r) if nearest_r else {}
+    )
     features["wave"] = wave_state(closes, highs, lows)
     features["limit_analysis"] = limit_analysis(records, board, quote)
 
@@ -70,25 +80,35 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
     # 均线序列（供本土战法使用）
     mas = {}
     for p in [5, 10, 20, 60]:
-        mas[f"ma{p}"] = [sma(closes[:i + 1], p) if i + 1 >= p else closes[i]
-                         for i in range(len(closes))]
+        mas[f"ma{p}"] = [
+            sma(closes[: i + 1], p) if i + 1 >= p else closes[i]
+            for i in range(len(closes))
+        ]
 
     # 本土战法（始终运行，计算成本低）
     try:
         from patterns_local import detect_all_local_patterns
-        local_result = detect_all_local_patterns(records, closes, highs, lows, volumes, mas,
-                                                  code=quote.get("code", ""))
+
+        local_result = detect_all_local_patterns(
+            records, closes, highs, lows, volumes, mas, code=quote.get("code", "")
+        )
         features["local_patterns"] = local_result
     except Exception:
-        features["local_patterns"] = {"patterns": [], "summary": "本土战法计算失败", "count": 0}
+        features["local_patterns"] = {
+            "patterns": [],
+            "summary": "本土战法计算失败",
+            "count": 0,
+        }
 
     # 个股分类（需要财务数据）
     if do_classify:
         try:
             from classifier import classify_stock
+
             fin_record = None
             try:
                 from finance import fetch as fetch_finance
+
                 fn_code = normalize_finance_code(quote.get("code", ""))
                 fin_data = fetch_finance(fn_code)
                 fin_record = fin_data[0] if fin_data else None
@@ -96,20 +116,65 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
                 pass
             features["classification"] = classify_stock(fin_record, quote, records)
         except Exception:
-            features["classification"] = {"type": "普通股", "confidence": "低",
-                                           "reasons": ["分类计算失败"], "priority_indicators": [],
-                                           "deprioritized": []}
+            features["classification"] = {
+                "type": "普通股",
+                "confidence": "低",
+                "reasons": ["分类计算失败"],
+                "priority_indicators": [],
+                "deprioritized": [],
+            }
 
     # 缠论分析（需要较长K线历史）
     do_chan = do_classify and not (args and getattr(args, "no_chan", False))
     if do_chan and len(records) >= 30:
         try:
             from chan import chan_full_analysis
+
             features["chan_theory"] = chan_full_analysis(records)
         except Exception:
             features["chan_theory"] = {"valid": False, "error": "缠论计算失败"}
     else:
-        features["chan_theory"] = {"valid": False, "error": "未启用" if not do_classify else "数据不足"}
+        features["chan_theory"] = {
+            "valid": False,
+            "error": "未启用" if not do_classify else "数据不足",
+        }
+
+    # 估值数据（供 signals.py 估值信号使用）
+    pe = to_float(quote.get("pe"))
+    pb = to_float(quote.get("pb"))
+    # PE 行业相对分位（简化版：基于固定阈值的分段映射）
+    # 有行业阈值时走精确计算，否则用通用阈值
+    if pe > 0:
+        try:
+            from strategies.thresholds import get_industry_threshold
+            from classifier import profile_stock
+
+            profile = profile_stock(quote)
+            industry = profile.get("industry", "默认")
+            pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
+            pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
+            pe_high = get_industry_threshold(industry, "pe_expensive", 40)
+        except Exception:
+            pe_low, pe_mid, pe_high = 15, 25, 40
+        if pe <= pe_low:
+            pe_pct = 15
+        elif pe <= pe_mid:
+            pe_pct = 15 + (pe - pe_low) / (pe_mid - pe_low) * 35
+        elif pe <= pe_high:
+            pe_pct = 50 + (pe - pe_mid) / (pe_high - pe_mid) * 30
+        else:
+            pe_pct = min(95, 80 + (pe - pe_high) / pe_high * 20)
+    else:
+        pe_pct = 50
+    # PEG
+    growth = to_float(quote.get("net_profit_yoy", 0))
+    peg = (pe / growth) if (pe > 0 and growth > 0) else 0
+    features["valuation"] = {
+        "pe": pe,
+        "pb": pb,
+        "pe_percentile": round(pe_pct, 1),
+        "peg": round(peg, 2),
+    }
 
     # 市场环境
     if do_classify:
@@ -124,9 +189,12 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
         else:
             features["market_environment"] = detect_market_environment()
     else:
-        features["market_environment"] = {"state": "震荡", "confidence": "低",
-                                           "signals": ["未启用市场检测"],
-                                           "weight_adjustments": _market_weight_adjustments("震荡")}
+        features["market_environment"] = {
+            "state": "震荡",
+            "confidence": "低",
+            "signals": ["未启用市场检测"],
+            "weight_adjustments": _market_weight_adjustments("震荡"),
+        }
 
     return features
 
@@ -134,13 +202,28 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
 def main():
     parser = argparse.ArgumentParser(description="A 股纯技术分析")
     parser.add_argument("code", help="证券代码，如 sh600989")
-    parser.add_argument("--scale", "-s", type=int, default=240, help="K线周期: 240=日K, 60=60分钟, 30=30分钟, 15=15分钟, 5=5分钟")
+    parser.add_argument(
+        "--scale",
+        "-s",
+        type=int,
+        default=240,
+        help="K线周期: 240=日K, 60=60分钟, 30=30分钟, 15=15分钟, 5=5分钟",
+    )
     parser.add_argument("--quick", "-q", action="store_true", help="快速摘要模式")
     parser.add_argument("--json", "-j", action="store_true", help="JSON 输出")
     parser.add_argument("--datalen", type=int, default=250, help="K线数量（默认250）")
-    parser.add_argument("--classify", action="store_true", help="启用个股分类+缠论+本土战法+市场自适应")
-    parser.add_argument("--no-chan", action="store_true", help="跳过缠论分析（仅与 --classify 配合）")
-    parser.add_argument("--market-index", type=str, default=None, help="市场环境参考指数（默认无，如 sh000001）")
+    parser.add_argument(
+        "--classify", action="store_true", help="启用个股分类+缠论+本土战法+市场自适应"
+    )
+    parser.add_argument(
+        "--no-chan", action="store_true", help="跳过缠论分析（仅与 --classify 配合）"
+    )
+    parser.add_argument(
+        "--market-index",
+        type=str,
+        default=None,
+        help="市场环境参考指数（默认无，如 sh000001）",
+    )
     args = parser.parse_args()
 
     code = normalize_quote_code(args.code)
@@ -162,7 +245,9 @@ def main():
         sys.exit(f"❌ {code} K 线数据不足（需≥10根，当前{len(closes)}）")
 
     # 计算所有指标
-    features = _compute_all(closes, opens, highs, lows, volumes, records, board, quote, args)
+    features = _compute_all(
+        closes, opens, highs, lows, volumes, records, board, quote, args
+    )
 
     # 综合评分（自适应）
     stock_type = "普通股"
@@ -191,14 +276,34 @@ def main():
     sr = features.get("support_resistance", {})
     nearest_support = sr.get("nearest_support")
     if nearest_support and price_num > 0:
-        features["stop_loss_pct"] = round((price_num - nearest_support) / price_num * 100, 1)
+        features["stop_loss_pct"] = round(
+            (price_num - nearest_support) / price_num * 100, 1
+        )
 
     if args.json:
-        feature_keys = {"ma_system", "macd", "kdj", "bollinger", "rsi", "volume",
-                        "patterns", "support_resistance", "box", "breakout", "wave",
-                        "limit_analysis"}
+        feature_keys = {
+            "ma_system",
+            "macd",
+            "kdj",
+            "bollinger",
+            "rsi",
+            "volume",
+            "patterns",
+            "support_resistance",
+            "box",
+            "breakout",
+            "wave",
+            "limit_analysis",
+        }
         if args.classify:
-            feature_keys.update({"classification", "chan_theory", "local_patterns", "market_environment"})
+            feature_keys.update(
+                {
+                    "classification",
+                    "chan_theory",
+                    "local_patterns",
+                    "market_environment",
+                }
+            )
         output = {
             "meta": meta,
             "score": score,

@@ -9,6 +9,7 @@
 - aggregate_votes(expert_results, market_state, horizon, calibration_factor) -> dict
 - format_debate_output(result) -> str
 """
+
 import statistics
 from typing import Dict, List, Optional
 
@@ -19,7 +20,6 @@ from experts import (
     list_short_term_experts,
 )
 from experts.scoring import compute_confidence_index
-
 
 # ═══════════════════════════════════════════════════════════════
 # 市场环境检测 (decide.md §二)
@@ -36,9 +36,9 @@ _MARKET_WEIGHTS = {
 
 # 投资期限 → 长线/短线权重映射 (decide.md §一.2)
 _HORIZON_WEIGHTS = {
-    "short":  (0.35, 0.65),   # 短期操作（<1月）
-    "medium": (0.40, 0.60),   # 中期持有（1-6月）
-    "long":   (0.70, 0.30),   # 长期投资（>6月）
+    "short": (0.35, 0.65),  # 短期操作（<1月）
+    "medium": (0.40, 0.60),  # 中期持有（1-6月）
+    "long": (0.70, 0.30),  # 长期投资（>6月）
 }
 
 # 市场状态检测阈值
@@ -89,6 +89,7 @@ def detect_market_state(
 
         try:
             from common.utils import compute_volume_ratio
+
             vol_ratio = compute_volume_ratio(volumes, recent_window=5, base_window=10)
         except ImportError:
             vol_ratio = 1.0
@@ -101,28 +102,38 @@ def detect_market_state(
         below_ma20 = price < ma20 > 0 if ma20 > 0 else False
 
         advance_ratio = breadth_data.get("advance_ratio", 0.5) if breadth_data else 0.5
-        high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
+        high_low_ratio = (
+            breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
+        )
         limit_down = breadth_data.get("limit_down_count", 0) if breadth_data else 0
         margin_ratio = breadth_data.get("margin_ratio", 0) if breadth_data else 0
         pe_percentile = index_quote.get("pe_percentile", 50)
 
-        if (advance_ratio < _MARKET_ICE_ADVANCE_RATIO
-                and limit_down > _MARKET_ICE_LIMIT_DOWN
-                and high_low_ratio < _MARKET_ICE_HIGH_LOW_RATIO):
+        if (
+            advance_ratio < _MARKET_ICE_ADVANCE_RATIO
+            and limit_down > _MARKET_ICE_LIMIT_DOWN
+            and high_low_ratio < _MARKET_ICE_HIGH_LOW_RATIO
+        ):
             state = "冰点"
-        elif (pe_percentile > _MARKET_MANIA_PE_PERCENTILE
-              and advance_ratio > _MARKET_MANIA_ADVANCE_RATIO
-              and margin_ratio > _MARKET_MANIA_MARGIN_RATIO):
+        elif (
+            pe_percentile > _MARKET_MANIA_PE_PERCENTILE
+            and advance_ratio > _MARKET_MANIA_ADVANCE_RATIO
+            and margin_ratio > _MARKET_MANIA_MARGIN_RATIO
+        ):
             state = "亢奋"
-        elif (above_ma20
-              and vol_ratio > _MARKET_BULL_VOL_RATIO
-              and advance_ratio > _MARKET_BULL_ADVANCE_RATIO
-              and high_low_ratio > _MARKET_BULL_HIGH_LOW_RATIO):
+        elif (
+            above_ma20
+            and vol_ratio > _MARKET_BULL_VOL_RATIO
+            and advance_ratio > _MARKET_BULL_ADVANCE_RATIO
+            and high_low_ratio > _MARKET_BULL_HIGH_LOW_RATIO
+        ):
             state = "牛市"
-        elif (below_ma20
-              and vol_ratio < _MARKET_BEAR_VOL_RATIO
-              and advance_ratio < _MARKET_BEAR_ADVANCE_RATIO
-              and high_low_ratio < _MARKET_BEAR_HIGH_LOW_RATIO):
+        elif (
+            below_ma20
+            and vol_ratio < _MARKET_BEAR_VOL_RATIO
+            and advance_ratio < _MARKET_BEAR_ADVANCE_RATIO
+            and high_low_ratio < _MARKET_BEAR_HIGH_LOW_RATIO
+        ):
             state = "熊市"
         else:
             state = "震荡"
@@ -150,6 +161,7 @@ def _market_state_reason(state: str) -> str:
 # ═══════════════════════════════════════════════════════════════
 # 投票整合 (decide.md §一 + §三)
 # ═══════════════════════════════════════════════════════════════
+
 
 def _count_votes(scores: List[float]) -> Dict[str, int]:
     """统计看多/看空票数。"""
@@ -186,31 +198,50 @@ def _resolve_conflict(
         direction = "强烈看空"
         position_factor = 0.0
     # 长线主导多
-    elif long_votes["bull"] >= 3 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
+    elif (
+        long_votes["bull"] >= 3
+        and short_votes["bull"] == 2
+        and short_votes["bear"] == 2
+    ):
         direction = "看多"
         position_factor = 0.8
     # 长线主导空
-    elif long_votes["bear"] >= 3 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
+    elif (
+        long_votes["bear"] >= 3
+        and short_votes["bull"] == 2
+        and short_votes["bear"] == 2
+    ):
         direction = "看空"
         position_factor = 0.0
     # 短线主导多
-    elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] >= 3:
+    elif (
+        long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] >= 3
+    ):
         direction = "谨慎看多"
         position_factor = 0.5
     # 短线主导空
-    elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bear"] >= 3:
+    elif (
+        long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bear"] >= 3
+    ):
         direction = "谨慎看空"
         position_factor = 0.3
     # 全面分歧（8 人都投票，没有中性票且 2:2:2:2）
-    elif long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] == 2 and short_votes["bear"] == 2:
+    elif (
+        long_votes["bull"] == 2
+        and long_votes["bear"] == 2
+        and short_votes["bull"] == 2
+        and short_votes["bear"] == 2
+    ):
         direction = "中性"
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
     # 极端两极分歧（4 看多 + 4 看空，没有中性票）
-    elif (long_votes["bull"] + long_votes["bear"] == 4
-          and short_votes["bull"] + short_votes["bear"] == 4
-          and (long_votes["bull"] + short_votes["bull"]) == 4
-          and (long_votes["bear"] + short_votes["bear"]) == 4):
+    elif (
+        long_votes["bull"] + long_votes["bear"] == 4
+        and short_votes["bull"] + short_votes["bear"] == 4
+        and (long_votes["bull"] + short_votes["bull"]) == 4
+        and (long_votes["bear"] + short_votes["bear"]) == 4
+    ):
         direction = "中性"
         position_factor = 0.0
         notes.append("两极分化（4 看多 + 4 看空），建议观望")
@@ -251,6 +282,7 @@ def _resolve_conflict(
 # 辅助函数：专家信息提取
 # ═══════════════════════════════════════════════════════════════
 
+
 def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     """提取养家的情绪得分。
 
@@ -276,7 +308,10 @@ def _downgrade_direction(direction: str) -> str:
 # 仓位建议 (decide.md §四)
 # ═══════════════════════════════════════════════════════════════
 
-def _compute_position(direction: str, confidence: float, position_factor: float) -> dict:
+
+def _compute_position(
+    direction: str, confidence: float, position_factor: float
+) -> dict:
     """基于方向和信心指数计算仓位建议。
 
     Returns:
@@ -327,6 +362,7 @@ def _compute_position(direction: str, confidence: float, position_factor: float)
 # ═══════════════════════════════════════════════════════════════
 # 主入口：投票整合
 # ═══════════════════════════════════════════════════════════════
+
 
 def aggregate_votes(
     expert_results: List[dict],
@@ -409,15 +445,19 @@ def aggregate_votes(
     # 养家情绪退潮降权（非冰点时）
     # 优化：直接计算降权后的平均值，避免 N+1 模式
     if yangjia_score < 30 and not is_yangjia_ice:
-        total_score = sum(r["score"] * (1.0 if r.get("name") == "chaogu_yangjia" else 0.7)
-                          for r in short_experts)
+        total_score = sum(
+            r["score"] * (1.0 if r.get("name") == "chaogu_yangjia" else 0.7)
+            for r in short_experts
+        )
         short_avg = total_score / len(short_experts) if short_experts else short_avg
 
     # 巴菲特降权（短期模式看空时）
     # 优化：直接计算降权后的平均值
     if buffett_score <= 39 and horizon == "short":
-        total_score = sum(r["score"] * (1.0 if r.get("name") == "buffett" else 0.8)
-                          for r in long_experts)
+        total_score = sum(
+            r["score"] * (1.0 if r.get("name") == "buffett" else 0.8)
+            for r in long_experts
+        )
         long_avg = total_score / len(long_experts) if long_experts else long_avg
 
     # 综合分
@@ -429,11 +469,34 @@ def aggregate_votes(
 
     # 冲突解决
     conflict = _resolve_conflict(
-        long_votes, short_votes, long_avg, short_avg,
-        buffett_score, yangjia_score, is_yangjia_ice, horizon,
+        long_votes,
+        short_votes,
+        long_avg,
+        short_avg,
+        buffett_score,
+        yangjia_score,
+        is_yangjia_ice,
+        horizon,
     )
     direction = conflict["direction"]
     position_factor = conflict["position_factor"]
+    notes = list(conflict["notes"])
+
+    # 估值硬约束（反追涨杀跌）：长线组估值维度评分过低 → 高估警示，短期也降权
+    long_valuation_scores = []
+    for r in long_experts:
+        dim = r.get("dim_scores") or {}
+        v = dim.get("估值", dim.get("valuation"))
+        if v is not None:
+            long_valuation_scores.append(v)
+    if long_valuation_scores:
+        val_avg = sum(long_valuation_scores) / len(long_valuation_scores)
+        if val_avg < 20:
+            notes.append(f"估值警报：长线组估值分仅{val_avg:.0f}（高度高估），仓位×0.5")
+            position_factor *= 0.5
+        elif val_avg < 30:
+            notes.append(f"估值偏低：长线组估值分{val_avg:.0f}（偏高估），仓位×0.7")
+            position_factor *= 0.7
 
     # 信心指数
     all_scores = long_scores + short_scores
@@ -446,7 +509,9 @@ def aggregate_votes(
     risk_notes = []
     for r in expert_results:
         if r["score"] <= 39:
-            risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
+            risk_notes.append(
+                f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}"
+            )
 
     return {
         "market_state": mkt,
@@ -463,13 +528,14 @@ def aggregate_votes(
         "position_factor": position_factor,
         "position": position,
         "risk_notes": risk_notes,
-        "notes": conflict["notes"],
+        "notes": notes,
     }
 
 
 # ═══════════════════════════════════════════════════════════════
 # 单组模式 (decide.md §七)
 # ═══════════════════════════════════════════════════════════════
+
 
 def aggregate_group_votes(
     expert_results: List[dict],
@@ -528,7 +594,9 @@ def aggregate_group_votes(
     risk_notes = []
     for r in expert_results:
         if r["score"] <= 39:
-            risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
+            risk_notes.append(
+                f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}"
+            )
 
     return {
         "group": group,
@@ -546,6 +614,7 @@ def aggregate_group_votes(
 # ═══════════════════════════════════════════════════════════════
 # 输出格式化 (decide.md §四)
 # ═══════════════════════════════════════════════════════════════
+
 
 def format_debate_output(result: dict) -> str:
     """格式化 debate 输出（decide.md §四 格式）。"""
@@ -598,7 +667,9 @@ def format_debate_output(result: dict) -> str:
     # 仓位建议
     pos = result.get("position", {})
     lines.append("## 仓位建议")
-    lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}% ({pos.get('recommendation', '-')})")
+    lines.append(
+        f"- 推荐仓位: {pos.get('position_pct', 0)}% ({pos.get('recommendation', '-')})"
+    )
     lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
     lines.append(f"- 分步建仓: {pos.get('steps', '-')}")
 
@@ -612,6 +683,7 @@ def format_debate_output(result: dict) -> str:
     # 校准胜率卡片
     try:
         from experts.calibration import get_calibration, get_calibration_report
+
         calibration = get_calibration()
         has_data = any(v.get("events", 0) > 0 for v in calibration.values())
         if has_data:
@@ -662,14 +734,14 @@ def format_debate_card(result: dict) -> str:
 
     # 生成进度条（30 字符宽）
     bar_width = 30
-    buy_bar = '█' * int(buy_pct / 100 * bar_width)
-    hold_bar = '█' * int(hold_pct / 100 * bar_width)
-    sell_bar = '█' * int(sell_pct / 100 * bar_width)
+    buy_bar = "█" * int(buy_pct / 100 * bar_width)
+    hold_bar = "█" * int(hold_pct / 100 * bar_width)
+    sell_bar = "█" * int(sell_pct / 100 * bar_width)
 
     # 填充到固定宽度
-    buy_bar = buy_bar.ljust(bar_width, '░')
-    hold_bar = hold_bar.ljust(bar_width, '░')
-    sell_bar = sell_bar.ljust(bar_width, '░')
+    buy_bar = buy_bar.ljust(bar_width, "░")
+    hold_bar = hold_bar.ljust(bar_width, "░")
+    sell_bar = sell_bar.ljust(bar_width, "░")
 
     # 找出分歧点
     dissent = _find_dissent(expert_results)
@@ -738,7 +810,9 @@ def format_group_output(result: dict) -> str:
     lines.append("")
     lines.append("## 组内汇总")
     v = result["votes"]
-    lines.append(f"- 平均分: {result['avg_score']}/100 | 看多{v['bull']}票 / 看空{v['bear']}票")
+    lines.append(
+        f"- 平均分: {result['avg_score']}/100 | 看多{v['bull']}票 / 看空{v['bear']}票"
+    )
     lines.append(f"- **最终方向: {result['direction']}**")
     lines.append(f"- 信心指数: {result['confidence']}/100")
     lines.append("")

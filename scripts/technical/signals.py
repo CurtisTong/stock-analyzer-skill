@@ -53,6 +53,25 @@ def _generate_signals(features):
         elif lp["type"] == "看跌":
             sell.append(lp["name"])
 
+    # 估值信号（反追涨杀跌核心机制）
+    valuation = features.get("valuation") or {}
+    pe = valuation.get("pe", 0)
+    pb = valuation.get("pb", 0)
+    pe_pct = valuation.get("pe_percentile", 50)  # PE 行业相对分位（0-100）
+    peg = valuation.get("peg", 0)
+
+    if pe > 0:
+        # 估值底信号：PE 行业低位 + PB 低位 → 价值区间
+        if pe_pct <= 20 and 0 < pb <= 2:
+            buy.append(f"估值底(PE行业{pe_pct:.0f}%分位,PB={pb:.1f})")
+        elif pe_pct <= 30:
+            buy.append(f"估值偏低(PE行业{pe_pct:.0f}%分位)")
+        # 估值顶信号：PE 行业高位 → 高估风险
+        if pe_pct >= 80:
+            sell.append(f"估值顶(PE行业{pe_pct:.0f}%分位)")
+        elif pe_pct >= 65 and peg > 2.5:
+            sell.append(f"估值偏高(PE行业{pe_pct:.0f}%分位,PEG={peg:.1f})")
+
     # 卖出信号
     if macd.get("signal") == -1:
         sell.append("MACD死叉")

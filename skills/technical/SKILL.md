@@ -1,7 +1,7 @@
 ---
 name: technical
 description: 纯技术分析（已合并至 /stock technical 子命令）
-version: 1.10.0
+version: 1.11.0
 model: sonnet
 ---
 

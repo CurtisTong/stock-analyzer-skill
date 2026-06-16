@@ -1,7 +1,7 @@
 ---
 name: investment-researcher
 description: 投资研究 agent 已合并至 /research report 子命令。原功能：整合 market/sector/stock/financial-analyst/technical/portfolio 多模块证据，输出综合投资研究报告。
-version: 1.10.0
+version: 1.11.0
 model: opus
 ---
 
