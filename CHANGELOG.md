@@ -9,6 +9,16 @@
 
 ## [Unreleased]
 
+### Changed · 用户体验优化（v1.12.1）
+
+- 🎯 新增 `_shared/references/welcome.md` 统一欢迎卡（4 段：心智建立 + 3 步上手 + 4 目标入口 + 退出方式），可被 `/help` 和 `/learn` 复用
+- 🆘 重写 `/help` SKILL.md：合并"5 场景入口"和"4 新手引导场景"为一张"按目标选入口"表；顶部加识别指令自动加载 welcome.md；"高级子模式速查"挪到末尾附录
+- 📚 `/learn` description 补充概念类触发词（什么是 PE/ROE/MACD/KDJ/K线、均线怎么用、估值方法、技术分析入门、什么是缠论）
+- 📖 README.md：副标题改写为"把专业 A 股分析变成 9 条对话命令"；新增"4 个常见问题 → 4 条命令"段；插入 5 行心智建立段
+- 📖 user-guide.md：顶部加 TL;DR 9 skill 一句话表 + 4 个组合使用场景提前；原"组合使用场景"段改名为"完整使用流程（自下而上 / 再平衡 / 研究报告）"
+- 🚀 `install.sh` / `install-plugin.js` 末尾新增"新手起步"提示（直接输入 `/help` 或 `/stock 贵州茅台 quick`）
+- 🧭 `docs/quick-start.md` 顶部加 README 导航行
+
 ## [1.12.0] - 2026-06-17（统一版本：V2 量化策略平台 + V2.1 维护）
 
 > 本版本将所有 Sprint 1-26 的 V2 改造合并发布为统一版本 v1.12.0

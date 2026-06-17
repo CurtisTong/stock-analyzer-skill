@@ -94,3 +94,5 @@ for s in "${SKILLS[@]}"; do
 done
 echo ""
 echo "重新启动 Claude Code 或 Codex 即可使用这些技能。"
+echo ""
+echo "🚀 新手起步：直接输入 /help 或 /stock 贵州茅台 quick"

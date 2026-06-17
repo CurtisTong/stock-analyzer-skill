@@ -12,7 +12,9 @@
         A N A L Y Z E R   ·   S K I L L
 ```
 
-## 🎯 A 股投资的 9 位分析师，常驻你的 Claude Code
+## 🎯 把专业 A 股分析变成 9 条对话命令
+
+> **不写代码也能用**——装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析。
 
 **五层分析框架** · **8 人专家圆桌** · **28 个数据源故障转移** · **零配置开箱即用**
 
@@ -33,6 +35,7 @@
 - [✨ 这是什么？](#-这是什么)
 - [🎯 核心能力](#-核心能力)
 - [🚀 30 秒上手](#-30-秒上手)
+- [❓ 4 个常见问题 → 4 条命令](#-4-个常见问题--4-条命令)
 - [🎬 效果一览](#-效果一览)
 - [👥 8 人专家圆桌（招牌功能）](#-8-人专家圆桌招牌功能)
 - [🗺️ 4 个典型场景](#-4-个典型场景)
@@ -46,6 +49,8 @@
 ---
 
 ## ✨ 这是什么？
+
+> 🎯 **一句话**：把它装进 Claude Code，用对话的方式做 A 股投资研究——不写代码、零配置、9 条命令覆盖选股 / 看盘 / 看持仓 / 研究 / 监控 / 回测 / 学习。
 
 一个把 **A 股专业分析能力** 封装成 9 条 `/xxx` 斜杠命令的 Claude Code 插件包。
 
@@ -134,20 +139,35 @@ AkShare · efinance · yfinance<br>
 
 ## 🚀 30 秒上手
 
+> ⚠️ **风险提示**：所有分析仅供参考，不构成投资建议。投资有风险，决策需谨慎。
+
+**先决条件**：需要先装 [Claude Code](https://claude.com/download)（约 2 分钟），终端输入 `claude --version` 看到版本号就 OK。
+
 ```bash
-# 1️⃣ 安装（任选一种）
+# 1️⃣ 复制下面这一行粘贴到终端，回车（30 秒）
 claude plugins marketplace add . && claude plugins install stock-analyzer
 
-# 2️⃣ 初始化股票池（仅首次）
+# 2️⃣ 初始化股票池（仅首次；网络差用 /screener init default 走预置数据）
 /screener init
 
-# 3️⃣ 开跑
-/stock sh600989 quick      # ⚡ 3 分钟快评
-/stock sh600989            # 📊 五层完整分析
-/stock sh600989 debate     # 🎤 8 人专家辩论
+# 3️⃣ 开跑（3 分钟拿到 5 层分析）
+/stock sh600519 quick
 ```
 
 > **零配置可用**：内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。
+
+<details>
+<summary>其他安装方式（npm / git clone）</summary>
+
+```bash
+# npm 全局
+npm install -g stock-analyzer-skill
+
+# 手动软链
+git clone <repo> && cd stock-analyzer-skill && ./install.sh
+```
+
+</details>
 
 ### 🎬 30 秒命令演示（C7）
 
@@ -376,6 +396,21 @@ PEG &lt; 1
 
 ---
 
+## ❓ 4 个常见问题 → 4 条命令
+
+不知道从哪开始？挑一个最贴近你的问题：
+
+| 你的问题 | 一句话命令 | 你会得到什么 |
+| --- | --- | --- |
+| 🔍 帮我分析一只股票 | `/stock sh600519` | 5 层分析（基本面 / 估值 / 技术 / 板块 / 风险收益比） |
+| 📊 今天大盘怎么样 | `/market quick` | 三大指数 + 板块 Top3 + 一句话策略 |
+| 💼 我的持仓怎么样 | `/portfolio` | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
+| 🤔 不知道买什么 | `/screener` | 5 种策略 × 5 因子筛选 → 10 只候选 + 跟踪清单 |
+
+> 💡 不写代码、零配置可用。30 秒完成 `/screener init` 初始化股票池，3 分钟跑通 `/stock sh600519 quick`。
+
+---
+
 ## 🗺️ 4 个典型场景
 
 不知道从哪个命令开始？挑一个最贴近你当前问题的：
@@ -442,22 +477,23 @@ flowchart LR
 
 ## 📋 9 个 Skill 速查
 
-| 类别        | Skill                                  | 命令                   | 一句话价值                                       |
-| :---------- | :------------------------------------- | :--------------------- | :----------------------------------------------- |
-| 🎯 **决策** | [stock](skills/stock/SKILL.md)         | `/stock <代码>`        | 单股五层分析（基本面/估值/技术/板块/风险收益比） |
-| 🌟 **专家** | [stock](skills/stock/SKILL.md)         | `/stock <代码> debate` | **8 位投资专家多空圆桌辩论**（长线 4 + 短线 4）  |
-| 🌐 **环境** | [market](skills/market/SKILL.md)       | `/market`              | 大盘快评 / 完整复盘 / 盘中分时                   |
-| 🌐 **环境** | [sector](skills/sector/SKILL.md)       | `/sector <板块>`       | 板块全景 / 标的对比 / 板块内筛选                 |
-| 🔎 **选股** | [screener](skills/screener/SKILL.md)   | `/screener`            | 5 种策略 × 5 因子维度批量选股 + 股票池初始化     |
-| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md) | `/portfolio`           | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比        |
-| 📡 **监控** | [monitor](skills/monitor/SKILL.md)     | `/monitor start`       | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
-| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)   | `/backtest`            | 策略历史回测，含卡玛比率/盈亏比/夏普             |
-| 🔬 **研究** | [research](skills/research/SKILL.md)   | `/research <任务>`     | 深度研究：财务建模 / 市场研究 / 尽调 / 估值      |
-| ❓ **辅助** | [help](skills/help/SKILL.md)           | `/help`                | 显示所有 skills 和使用说明                       |
+> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合 / monitor 监控 / backtest 验证 / research 研究 / help 帮助。
+
+| 类别        | Skill                                  | 命令                                       | 一句话价值                                       |
+| :---------- | :------------------------------------- | :----------------------------------------- | :----------------------------------------------- |
+| 🎯 **决策** | [stock](skills/stock/SKILL.md)         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 8 人圆桌辩论 · 纯技术面           |
+| 🌐 **环境** | [market](skills/market/SKILL.md)       | `/market [full\|quick\|intraday]`          | 大盘快评 / 完整复盘 / 盘中分时                   |
+| 🌐 **环境** | [sector](skills/sector/SKILL.md)       | `/sector <板块> [overview\|compare\|stock]` | 板块全景 / 标的对比 / 板块内筛选                 |
+| 🔎 **选股** | [screener](skills/screener/SKILL.md)   | `/screener [--strategy 策略]`              | 5 种策略 × 5 因子维度批量选股 + 股票池初始化     |
+| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md) | `/portfolio [health\|rebalance\|compare]`  | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比        |
+| 📡 **监控** | [monitor](skills/monitor/SKILL.md)     | `/monitor [scan\|levels\|check]`           | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
+| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)   | `/backtest [--strategy 策略] [--all]`      | 策略历史回测，含卡玛比率/盈亏比/夏普             |
+| 🔬 **研究** | [research](skills/research/SKILL.md)   | `/research [financial\|report] <任务>`     | 深度研究：财务建模 / 市场研究 / 尽调 / 估值      |
+| ❓ **辅助** | [help](skills/help/SKILL.md)           | `/help`                                    | 显示所有 skills 和使用说明                       |
 
 > 📌 **已合并命令**：`/technical` → `/stock technical`、`/stock-init` → `/screener init`、`/financial-analyst` → `/research financial`、`/investment-researcher` → `/research report`（旧命令仍可用，自动跳转）
 
-> 📌 **股票代码格式**：`sh600519`（沪） / `sz000858`（深） / `600519`（自动推断） / `贵州茅台`（按名称模糊匹配）
+> 📌 **股票代码格式**：`sh600519`（沪） / `sz000858`（深） / `600519`（自动推断） / `贵州茅台`（按名称模糊匹配）— **用代码最稳**，名称匹配在多个相似名时可能错配。
 
 ---
 
