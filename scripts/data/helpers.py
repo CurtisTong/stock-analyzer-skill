@@ -4,10 +4,13 @@
 消除 screener.py、long_term.py、alert_engine.py 等文件中重复的适配代码。
 """
 
-from concurrent.futures import ThreadPoolExecutor
+import logging
 from typing import Optional
 
+from common import get_shared_executor
 from data import get_quote, get_quotes, get_kline, get_finance
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_quote_dict(code: str) -> dict:
@@ -52,12 +55,22 @@ def fetch_stock_bundle(code: str, kline_scale: int = 240, kline_len: int = 120) 
     Returns:
         {"quote": dict|None, "kline": [dict], "finance": [dict]}
     """
-    with ThreadPoolExecutor(max_workers=3) as ex:
-        f_q = ex.submit(fetch_quote_dict_or_none, code)
-        f_k = ex.submit(fetch_kline_dicts, code, kline_scale, kline_len)
-        f_f = ex.submit(fetch_finance_dicts, code)
-    return {
-        "quote": f_q.result(),
-        "kline": f_k.result(),
-        "finance": f_f.result(),
-    }
+    ex = get_shared_executor()
+    f_q = ex.submit(fetch_quote_dict_or_none, code)
+    f_k = ex.submit(fetch_kline_dicts, code, kline_scale, kline_len)
+    f_f = ex.submit(fetch_finance_dicts, code)
+
+    result = {"quote": None, "kline": [], "finance": []}
+    try:
+        result["quote"] = f_q.result(timeout=30)
+    except Exception as e:
+        logger.warning("获取行情失败 %s: %s", code, e)
+    try:
+        result["kline"] = f_k.result(timeout=30)
+    except Exception as e:
+        logger.warning("获取K线失败 %s: %s", code, e)
+    try:
+        result["finance"] = f_f.result(timeout=30)
+    except Exception as e:
+        logger.warning("获取财务数据失败 %s: %s", code, e)
+    return result

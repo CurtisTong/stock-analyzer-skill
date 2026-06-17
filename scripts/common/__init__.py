@@ -68,6 +68,7 @@ _LAZY_IMPORTS = {
     "compute_optimal_workers": ("common.utils", "compute_optimal_workers"),
     "err": ("common.utils", "err"),
     "parallel_map": ("common.utils", "parallel_map"),
+    "parallel_fetch_dict": ("common.utils", "parallel_fetch_dict"),
     "get_shared_executor": ("common.utils", "get_shared_executor"),
     # 验证器
     "validate_code": ("common.validators", "validate_code"),
@@ -414,6 +415,7 @@ __all__ = [
     "compute_optimal_workers",
     "err",
     "parallel_map",
+    "parallel_fetch_dict",
     "get_shared_executor",
     # 异常类
     "StockAnalyzerError",

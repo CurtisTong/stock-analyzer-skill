@@ -204,17 +204,17 @@ def err(msg: str) -> None:
 
 # ---------- 并发 ----------
 
-# 模块级共享线程池（惰性初始化）
+# 模块级共享线程池（惰性初始化，统一使用 DataConfig.max_workers）
 _shared_executor = None
 _shared_executor_lock = __import__("threading").Lock()
 
 
-def get_shared_executor(max_workers: int | None = None) -> ThreadPoolExecutor:
+def get_shared_executor() -> ThreadPoolExecutor:
     """获取共享线程池，线程安全的惰性初始化。
 
-    Args:
-        max_workers: 最大线程数，首次调用时生效，后续调用忽略此参数。
-                    默认为 min(32, os.cpu_count() + 4)。
+    线程池大小统一使用 DataConfig.max_workers 配置（默认 cpu_count*2，范围 8-32）。
+    所有调用方共享同一个线程池实例，避免重复创建/销毁。
+
     Returns:
         ThreadPoolExecutor 实例（不会被 shutdown，由进程退出时自动清理）
     """
@@ -223,22 +223,29 @@ def get_shared_executor(max_workers: int | None = None) -> ThreadPoolExecutor:
         return _shared_executor
     with _shared_executor_lock:
         if _shared_executor is None:
-            if max_workers is None:
-                max_workers = min(32, (os.cpu_count() or 4) + 4)
-            _shared_executor = ThreadPoolExecutor(max_workers=max_workers)
+            from data.config import get_config
+
+            _shared_executor = ThreadPoolExecutor(max_workers=get_config().max_workers)
     return _shared_executor
 
 
 def parallel_map(
     fn: Callable[[str], Any],
     items: list[str],
-    max_workers: int = 8,
     timeout: int = 60,
 ) -> dict[str, Any]:
     """并发执行 fn(item)，返回 {item: result} 字典。
 
     超时时返回已完成的部分结果，而非抛出异常丢失所有结果。
     RateLimitError 始终向上抛出。
+
+    Args:
+        fn: 处理函数，接收单个 item 字符串
+        items: 待处理的 item 列表
+        timeout: 总超时秒数（默认 60）
+
+    Returns:
+        {item: result} 字典，失败的 item 值为 None
     """
     import logging
     from concurrent.futures import Future
@@ -246,7 +253,7 @@ def parallel_map(
 
     logger = logging.getLogger(__name__)
     results: dict[str, Any] = {}
-    ex = get_shared_executor(max_workers)
+    ex = get_shared_executor()
     futures: dict[Future[object], str] = {ex.submit(fn, item): item for item in items}  # type: ignore[arg-type]
     try:
         for future in as_completed(futures, timeout=timeout):
@@ -261,6 +268,55 @@ def parallel_map(
     except concurrent.futures.TimeoutError:
         logger.warning(
             "parallel_map 超时，返回部分结果 (%d/%d)", len(results), len(items)
+        )
+        for future in futures:
+            future.cancel()
+    return results
+
+
+def parallel_fetch_dict(
+    items: list[str],
+    fetch_fn: Callable[[str], Any],
+    timeout: int = 60,
+    label: str = "",
+) -> dict[str, Any]:
+    """通用并行获取，返回 {item: result} 字典。
+
+    与 parallel_map 类似，但更适合批量预获取场景：
+    - 失败的 item 不会出现在结果中（而非设为 None）
+    - 支持自定义 label 用于日志标识
+
+    Args:
+        items: 待获取的 item 列表
+        fetch_fn: 获取函数，接收单个 item，返回结果
+        timeout: 总超时秒数（默认 60）
+        label: 日志标识（如 "kline", "finance"）
+
+    Returns:
+        {item: result} 字典，仅包含成功获取的 item
+    """
+    import logging
+    from common.exceptions import RateLimitError
+
+    logger = logging.getLogger(__name__)
+    results: dict[str, Any] = {}
+    ex = get_shared_executor()
+    futures = {ex.submit(fetch_fn, item): item for item in items}
+    try:
+        for future in as_completed(futures, timeout=timeout):
+            item = futures[future]
+            try:
+                results[item] = future.result()
+            except RateLimitError:
+                raise
+            except Exception as e:
+                logger.warning("[%s] %s 获取失败: %s", label or "parallel", item, e)
+    except concurrent.futures.TimeoutError:
+        logger.warning(
+            "[%s] 超时，返回部分结果 (%d/%d)",
+            label or "parallel",
+            len(results),
+            len(items),
         )
         for future in futures:
             future.cancel()
@@ -298,6 +354,7 @@ __all__ = [
     "normalize_amount",
     "err",
     "parallel_map",
+    "parallel_fetch_dict",
     "get_shared_executor",
     "board_limit_pct",
 ]

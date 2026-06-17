@@ -149,9 +149,6 @@ class ScreeningService:
 
     def __init__(self):
         self.default_strategy = "balanced"
-        from common.utils import compute_optimal_workers
-
-        self.max_workers = compute_optimal_workers()
 
     def screen(
         self,
@@ -228,56 +225,35 @@ class ScreeningService:
 
     def _prefetch_finance(self, codes: List[str]) -> Dict[str, List[dict]]:
         """预获取财务数据。"""
-        from concurrent.futures import as_completed
         from data import get_finance
-        from common import normalize_finance_code
-
-        results = {}
+        from common import normalize_finance_code, parallel_fetch_dict
 
         def fetch_one(code):
             try:
                 records = get_finance(normalize_finance_code(code))
-                return code, [r.to_dict() for r in records]
-            except Exception:
-                return code, []
+                return [r.to_dict() for r in records]
+            except Exception as e:
+                logger.warning("获取财务数据失败 %s: %s", code, e)
+                return []
 
-        ex = get_shared_executor(self.max_workers)
-        futures = {ex.submit(fetch_one, c): c for c in codes}
-        for future in as_completed(futures):
-            try:
-                code, data = future.result()
-                results[code] = data
-            except Exception:
-                pass
-
-        return results
+        return parallel_fetch_dict(codes, fetch_one, label="finance")
 
     def _prefetch_kline(
         self, codes: List[str], scale: int = 240, datalen: int = 240
     ) -> Dict[str, list]:
         """预获取K线数据（并行）。"""
-        from concurrent.futures import as_completed
         from data import get_kline
-
-        results = {}
+        from common import parallel_fetch_dict
 
         def fetch_one(code):
             try:
                 bars = get_kline(code, scale=scale, datalen=datalen)
-                return code, bars
-            except Exception:
-                return code, []
+                return bars
+            except Exception as e:
+                logger.warning("获取K线失败 %s: %s", code, e)
+                return []
 
-        ex = get_shared_executor(self.max_workers)
-        futures = {ex.submit(fetch_one, c): c for c in codes}
-        for future in as_completed(futures):
-            try:
-                code, data = future.result()
-                results[code] = data
-            except Exception:
-                pass
-
-        return results
+        return parallel_fetch_dict(codes, fetch_one, label="kline")
 
     def _analyze_stock(
         self,

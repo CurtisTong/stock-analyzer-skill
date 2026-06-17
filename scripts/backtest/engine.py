@@ -2,7 +2,7 @@
 回测核心引擎：策略模拟、因子计算、收益归集。
 """
 
-from concurrent.futures import as_completed
+import logging
 from datetime import datetime, timedelta
 
 from common import (
@@ -10,10 +10,13 @@ from common import (
     normalize_quote_code,
     normalize_finance_code,
     get_shared_executor,
+    parallel_fetch_dict,
 )
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_historical_returns(code: str, days: int = 60) -> list:
@@ -92,48 +95,40 @@ def simulate_strategy(
 
     datalen = min_history + total_days + 10
 
+    # 并行获取 K 线数据
     def _fetch_kline(code):
         ncode = normalize_quote_code(code)
-        bars = get_kline(ncode, scale=240, datalen=datalen)
-        return code, bars
+        return get_kline(ncode, scale=240, datalen=datalen)
 
     kline_data = {}
     stale_cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
-    ex = get_shared_executor()
-    futures = {ex.submit(_fetch_kline, c): c for c in codes}
-    for future in as_completed(futures):
-        try:
-            code, bars = future.result()
-            if bars and len(bars) >= min_history and bars[-1].day >= stale_cutoff:
-                kline_data[code] = bars
-        except Exception:
-            pass
+    raw_kline = parallel_fetch_dict(codes, _fetch_kline, label="backtest:kline")
+    for code, bars in raw_kline.items():
+        if bars and len(bars) >= min_history and bars[-1].day >= stale_cutoff:
+            kline_data[code] = bars
 
     if not kline_data:
         return {"error": "无法获取足够的 K 线数据"}
 
-    # 并发获取财务数据
+    # 并行获取财务数据
+    fin_cache = {}
+    industry_cache = {}
+
     def _fetch_finance(code):
         industry = infer_industry("", code)
         try:
             fin_records = get_finance(normalize_finance_code(code))
             fin = fin_records[0].to_dict() if fin_records else {}
-        except Exception:
+        except Exception as e:
+            logger.warning("获取财务数据失败 %s: %s", code, e)
             fin = {}
-        return code, industry, fin
+        return industry, fin
 
-    fin_cache = {}
-    industry_cache = {}
-    ex = get_shared_executor()
-    futures = {ex.submit(_fetch_finance, c): c for c in codes}
-    for future in as_completed(futures):
-        try:
-            code, industry, fin = future.result()
-            industry_cache[code] = industry
-            fin_cache[code] = fin
-        except Exception:
-            pass
+    fin_results = parallel_fetch_dict(codes, _fetch_finance, label="backtest:finance")
+    for code, (industry, fin) in fin_results.items():
+        industry_cache[code] = industry
+        fin_cache[code] = fin
 
     # 滚动窗口回测
     from screener import quality_score, valuation_score, liquidity_score

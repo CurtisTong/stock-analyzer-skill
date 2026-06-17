@@ -122,15 +122,26 @@ def reload_config(filename: str = None):
 
 
 def safe_get(filename: str, key_path: str = None, default: Any = None) -> Any:
-    """安全获取配置值，任何异常都返回默认值。
+    """安全获取配置值，文件不存在或键缺失时返回默认值。
 
     用于替代各模块中的 try/except ImportError 回退模式。
+    配置文件格式错误会记录 warning 日志但不抛异常。
     """
+    import logging
+
+    logger = logging.getLogger(__name__)
     try:
         if key_path is None:
             return ConfigLoader.load(filename)
         return ConfigLoader.get(filename, key_path, default)
-    except Exception:
+    except FileNotFoundError:
+        return default
+    except KeyError:
+        return default
+    except TypeError:
+        return default
+    except Exception as e:
+        logger.warning("配置文件 %s 读取异常: %s", filename, e)
         return default
 
 

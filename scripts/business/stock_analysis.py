@@ -6,8 +6,9 @@
 
 import logging
 from typing import Optional, Dict, Any, List
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import as_completed
 
+from common import get_shared_executor
 from common.exceptions import InsufficientDataError, ValidationError
 from common.validators import normalize_code, validate_code
 from data import get_quote, get_kline, get_finance
@@ -52,14 +53,26 @@ class StockAnalysisService:
         }
 
         # 1. 并行获取三类数据（无依赖关系，可同时拉取）
-        with ThreadPoolExecutor(max_workers=3) as ex:
-            f_quote = ex.submit(get_quote, code)
-            f_kline = ex.submit(get_kline, code, 240, 120)
-            f_finance = ex.submit(get_finance, code) if include_finance else None
+        ex = get_shared_executor()
+        f_quote = ex.submit(get_quote, code)
+        f_kline = ex.submit(get_kline, code, 240, 120)
+        f_finance = ex.submit(get_finance, code) if include_finance else None
 
-        quote = f_quote.result()
-        kline = f_kline.result()
-        finance = f_finance.result() if f_finance else None
+        try:
+            quote = f_quote.result(timeout=30)
+        except Exception as e:
+            logger.warning("获取行情失败 %s: %s", code, e)
+            quote = None
+        try:
+            kline = f_kline.result(timeout=30)
+        except Exception as e:
+            logger.warning("获取K线失败 %s: %s", code, e)
+            kline = None
+        try:
+            finance = f_finance.result(timeout=30) if f_finance else None
+        except Exception as e:
+            logger.warning("获取财务数据失败 %s: %s", code, e)
+            finance = None
 
         # 2. 行情和画像
         if quote:
