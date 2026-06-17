@@ -23,3 +23,5 @@ scripts/data/all_stocks.json
 .claude/skills/
 .codex/skills/
 docs/superpowers/plans
+# 快照数据目录
+scripts/data/snapshots/

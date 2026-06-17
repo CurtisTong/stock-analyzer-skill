@@ -528,6 +528,11 @@ def main():
         action="store_true",
         help="禁用市场状态 overlay（保留 V1 固定权重）",
     )
+    parser.add_argument(
+        "--snapshot",
+        action="store_true",
+        help="保存本次筛选快照到 data/snapshots/（review#16）",
+    )
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 
@@ -582,6 +587,20 @@ def main():
     # 应用组合约束（除非禁用）
     if not args.no_constraints:
         rows = apply_portfolio_constraints(rows, sector_cap=args.sector_cap)
+
+    # Sprint 5 / review#16：保存选股快照（默认关闭，--snapshot 开启）
+    if args.snapshot:
+        try:
+            from snapshots import save_snapshot
+            path = save_snapshot(
+                strategy=args.strategy,
+                rows=rows,
+                codes=[q["code"] for q in quotes],
+                regime=regime.value if regime else None,
+            )
+            print(f"📸 快照已保存: {path}", flush=True)
+        except Exception as e:
+            print(f"⚠️ 快照保存失败: {e}", file=sys.stderr)
 
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))
