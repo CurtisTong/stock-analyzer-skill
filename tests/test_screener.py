@@ -1,6 +1,7 @@
 """
 screener.py 单元测试：覆盖策略配置、因子评分、硬过滤、load_universe、技术指标。
 """
+
 import argparse
 import json
 import math
@@ -28,12 +29,14 @@ from technical.core import ema
 from technical.macd import macd_full as macd_features
 from technical.rsi import rsi_features
 
+
 # 为方便测试 hard_filter 构造 args 对象
 def _make_args(**kwargs):
     defaults = {
         "min_amount": 5000,
         "min_cap": 40,
         "exclude_loss": False,
+        "exclude_board": "",
     }
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -46,13 +49,26 @@ class TestStrategies:
     """验证 5 种策略的配置完整性。"""
 
     def test_all_strategies_exist(self):
-        expected = {"balanced", "quality_value", "growth_momentum", "defensive", "turning_point"}
+        expected = {
+            "balanced",
+            "quality_value",
+            "growth_momentum",
+            "defensive",
+            "turning_point",
+        }
         assert set(STRATEGIES.keys()) == expected
 
     @pytest.mark.parametrize("name", list(STRATEGIES.keys()))
     def test_weight_sum_to_one(self, name):
         cfg = STRATEGIES[name]
-        keys = ["quality", "valuation", "momentum", "liquidity", "volatility", "dividend"]
+        keys = [
+            "quality",
+            "valuation",
+            "momentum",
+            "liquidity",
+            "volatility",
+            "dividend",
+        ]
         total = sum(cfg.get(k, 0) for k in keys)
         assert abs(total - 1.0) < 1e-9, f"{name} 权重之和 {total} != 1.0"
 
@@ -195,27 +211,43 @@ class TestQualityScore:
 
     def test_high_quality_scores_higher(self, sample_finance):
         high = quality_score(sample_finance)
-        low = quality_score({
-            "ROEJQ": "2",
-            "PARENTNETPROFITTZ": "-10",
-            "TOTALOPERATEREVETZ": "-5",
-            "XSMLL": "5",
-            "ZCFZL": "90",
-            "EPSJB": "0.1",
-            "MGJYXJJE": "0.05",
-        })
+        low = quality_score(
+            {
+                "ROEJQ": "2",
+                "PARENTNETPROFITTZ": "-10",
+                "TOTALOPERATEREVETZ": "-5",
+                "XSMLL": "5",
+                "ZCFZL": "90",
+                "EPSJB": "0.1",
+                "MGJYXJJE": "0.05",
+            }
+        )
         assert high > low
 
     def test_cashflow_bonus(self):
         # EPS > 0 且经营现金流 > 0 时有额外加分
-        with_cf = quality_score({
-            "ROEJQ": "15", "PARENTNETPROFITTZ": "20", "TOTALOPERATEREVETZ": "10",
-            "XSMLL": "30", "ZCFZL": "50", "EPSJB": "2.0", "MGJYXJJE": "3.0",
-        })
-        without_cf = quality_score({
-            "ROEJQ": "15", "PARENTNETPROFITTZ": "20", "TOTALOPERATEREVETZ": "10",
-            "XSMLL": "30", "ZCFZL": "50", "EPSJB": "2.0", "MGJYXJJE": "-1.0",
-        })
+        with_cf = quality_score(
+            {
+                "ROEJQ": "15",
+                "PARENTNETPROFITTZ": "20",
+                "TOTALOPERATEREVETZ": "10",
+                "XSMLL": "30",
+                "ZCFZL": "50",
+                "EPSJB": "2.0",
+                "MGJYXJJE": "3.0",
+            }
+        )
+        without_cf = quality_score(
+            {
+                "ROEJQ": "15",
+                "PARENTNETPROFITTZ": "20",
+                "TOTALOPERATEREVETZ": "10",
+                "XSMLL": "30",
+                "ZCFZL": "50",
+                "EPSJB": "2.0",
+                "MGJYXJJE": "-1.0",
+            }
+        )
         assert with_cf > without_cf
 
 
@@ -232,7 +264,9 @@ class TestValuationScore:
     def test_low_pe_beats_high_pe(self, sample_finance):
         low_pe = {"pe": "8", "pb": "2"}
         high_pe = {"pe": "80", "pb": "10"}
-        assert valuation_score(low_pe, sample_finance) > valuation_score(high_pe, sample_finance)
+        assert valuation_score(low_pe, sample_finance) > valuation_score(
+            high_pe, sample_finance
+        )
 
     def test_peg_bonus(self, sample_finance):
         # 低 PEG 应得到额外加分
@@ -240,7 +274,9 @@ class TestValuationScore:
         q_no_peg = {"pe": "10", "pb": "2"}
         fin_high_growth = {**sample_finance, "PARENTNETPROFITTZ": "50"}
         fin_no_growth = {**sample_finance, "PARENTNETPROFITTZ": "0"}
-        assert valuation_score(q_low_peg, fin_high_growth) > valuation_score(q_no_peg, fin_no_growth)
+        assert valuation_score(q_low_peg, fin_high_growth) > valuation_score(
+            q_no_peg, fin_no_growth
+        )
 
 
 # ====================================================================
@@ -251,8 +287,12 @@ class TestMomentumScore:
 
     def _make_features(self, **kwargs):
         defaults = {
-            "trend": 1, "ret20": 5.0, "volume_ratio": 1.2,
-            "macd_signal": 0, "rsi": 50, "vol_price_signal": 0,
+            "trend": 1,
+            "ret20": 5.0,
+            "volume_ratio": 1.2,
+            "macd_signal": 0,
+            "rsi": 50,
+            "vol_price_signal": 0,
         }
         defaults.update(kwargs)
         return defaults
@@ -276,7 +316,9 @@ class TestMomentumScore:
     def test_limit_up_no_penalty_in_momentum(self, sample_quote):
         """涨跌停扣分已移至 hard_filter，momentum_score 不再重复扣分"""
         normal = momentum_score(self._make_features(), sample_quote)
-        limit_up = momentum_score(self._make_features(), {**sample_quote, "change_pct": "9.8"})
+        limit_up = momentum_score(
+            self._make_features(), {**sample_quote, "change_pct": "9.8"}
+        )
         # momentum_score 不再对涨跌停扣分，两者应相等
         assert normal == limit_up
 
@@ -302,14 +344,20 @@ class TestLiquidityScore:
         assert 0 <= score <= 100
 
     def test_higher_amount_scores_higher(self):
-        high = liquidity_score({"amount": "200000", "total_cap": "500", "turnover": "2"})
+        high = liquidity_score(
+            {"amount": "200000", "total_cap": "500", "turnover": "2"}
+        )
         low = liquidity_score({"amount": "1000", "total_cap": "10", "turnover": "0.1"})
         assert high > low
 
     def test_ideal_turnover_gets_max_turnover_score(self):
         # 使用较小的 amount/cap 避免 clamp 到 100（amount 单位为元）
-        ideal = liquidity_score({"amount": "300000000", "total_cap": "80", "turnover": "3"})
-        extreme = liquidity_score({"amount": "300000000", "total_cap": "80", "turnover": "20"})
+        ideal = liquidity_score(
+            {"amount": "300000000", "total_cap": "80", "turnover": "3"}
+        )
+        extreme = liquidity_score(
+            {"amount": "300000000", "total_cap": "80", "turnover": "20"}
+        )
         assert ideal > extreme
 
 
@@ -326,32 +374,62 @@ class TestHardFilter:
 
     def test_st_stock_filtered(self, sample_finance):
         args = _make_args()
-        quote = {"name": "ST某某", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "ST某某",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("ST" in r for r in reasons)
 
     def test_star_st_filtered(self, sample_finance):
         args = _make_args()
-        quote = {"name": "*ST退市", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "*ST退市",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("ST" in r for r in reasons)
 
     def test_low_amount_filtered(self, sample_finance):
         args = _make_args(min_amount=5000)
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("成交额" in r for r in reasons)
 
     def test_low_cap_filtered(self, sample_finance):
         args = _make_args(min_cap=40)
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "5", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "5",
+            "change_pct": "1.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("市值" in r for r in reasons)
 
     def test_limit_up_filtered(self, sample_finance):
         args = _make_args()
         # 主板涨跌停 >= 9.5%
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "9.8"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "9.8",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("涨跌停" in r for r in reasons)
 
@@ -359,24 +437,48 @@ class TestHardFilter:
         """创业板涨跌停阈值为 19.5%"""
         args = _make_args()
         # 300xxx 是创业板
-        quote = {"name": "测试", "code": "sz300001", "amount": "1000000000", "total_cap": "100", "change_pct": "15.0"}
+        quote = {
+            "name": "测试",
+            "code": "sz300001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "15.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert not any("涨跌停" in r for r in reasons)
 
-        quote_limit = {"name": "测试", "code": "sz300001", "amount": "1000000000", "total_cap": "100", "change_pct": "20.0"}
+        quote_limit = {
+            "name": "测试",
+            "code": "sz300001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "20.0",
+        }
         reasons2 = hard_filter(quote_limit, sample_finance, args)
         assert any("涨跌停" in r for r in reasons2)
 
     def test_exclude_loss_filters_negative_eps(self):
         args = _make_args(exclude_loss=True)
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         fin = {"EPSJB": "-0.5"}
         reasons = hard_filter(quote, fin, args)
         assert any("EPS" in r for r in reasons)
 
     def test_exclude_loss_passes_positive_eps(self, sample_finance):
         args = _make_args(exclude_loss=True)
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert not any("EPS" in r for r in reasons)
 
@@ -389,7 +491,9 @@ class TestLoadUniverse:
 
     def _make_args(self, **kwargs):
         """创建 load_universe 所需的 args namespace。"""
-        defaults = dict(codes=None, sector=None, full_market=False, board_limit=0)
+        defaults = dict(
+            codes=None, sector=None, full_market=False, board_limit=0, exclude_board=""
+        )
         defaults.update(kwargs)
         return argparse.Namespace(**defaults)
 
@@ -419,6 +523,7 @@ class TestLoadUniverse:
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
         import screener
+
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args(sector="白酒"))
@@ -434,6 +539,7 @@ class TestLoadUniverse:
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
         import screener
+
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args())
@@ -446,6 +552,7 @@ class TestLoadUniverse:
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
         import screener
+
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
         # mock _try_fetch_from_mapping 返回空
         monkeypatch.setattr(screener, "_try_fetch_from_mapping", lambda s: [])
@@ -467,6 +574,7 @@ class TestLoadUniverse:
         fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
 
         import screener
+
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args(full_market=True))
@@ -484,6 +592,7 @@ class TestLoadUniverse:
         fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
 
         import screener
+
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
         # "主板" 应匹配 "主板沪"
@@ -494,6 +603,7 @@ class TestLoadUniverse:
     def test_full_market_missing_file_raises(self, monkeypatch, tmp_path):
         """全市场模式文件不存在应抛出 SystemExit。"""
         import screener
+
         monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
 
         with pytest.raises(SystemExit):
@@ -511,8 +621,9 @@ class TestPreScreenQuotes:
         defaults.update(kwargs)
         return argparse.Namespace(**defaults)
 
-    def _make_quote(self, code="sh600519", name="贵州茅台",
-                    amount=5000000000, total_cap=2000):
+    def _make_quote(
+        self, code="sh600519", name="贵州茅台", amount=5000000000, total_cap=2000
+    ):
         """创建测试用行情 dict。"""
         return {
             "code": code,
@@ -556,8 +667,8 @@ class TestPreScreenQuotes:
         """按板块差异化过滤市值。"""
         # 主板市值阈值 40 亿
         quotes = [
-            self._make_quote(code="sh600519", total_cap=30),   # 30亿 < 40亿
-            self._make_quote(code="sh600520", total_cap=50),   # 50亿 > 40亿
+            self._make_quote(code="sh600519", total_cap=30),  # 30亿 < 40亿
+            self._make_quote(code="sh600520", total_cap=50),  # 50亿 > 40亿
         ]
         result = pre_screen_quotes(quotes, self._make_args())
         assert len(result) == 1
@@ -593,7 +704,10 @@ class TestDailyFeatures:
 
         # 构造空的 KlineBar 列表 mock get_kline
         empty_bars = []
-        monkeypatch.setattr("data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: empty_bars)
+        monkeypatch.setattr(
+            "data.get_kline",
+            lambda code, scale=240, datalen=240, use_cache=True: empty_bars,
+        )
 
         result = daily_features("sh600519")
         assert result["trend"] == 0
@@ -619,7 +733,9 @@ class TestDailyFeatures:
             )
             for r in kline_uptrend
         ]
-        monkeypatch.setattr("data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: bars)
+        monkeypatch.setattr(
+            "data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: bars
+        )
 
         result = daily_features("sh600519")
         assert "trend" in result
@@ -636,26 +752,53 @@ class TestAnalyzeCode:
 
     def test_returns_all_fields(self, sample_quote, sample_finance, monkeypatch):
         import screener
+
         # mock kline 和 finance 避免网络请求
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+        monkeypatch.setattr(
+            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
+        )
+        monkeypatch.setattr(
+            screener, "_fetch_finance_dicts", lambda code: [sample_finance]
+        )
 
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
 
         expected_keys = {
-            "code", "name", "board", "score",
-            "quality", "valuation", "momentum", "liquidity",
-            "price", "change_pct", "pe", "pb",
-            "roe", "profit_growth", "ret20", "trend",
-            "rsi", "macd_signal", "vol_price", "rejected",
+            "code",
+            "name",
+            "board",
+            "score",
+            "quality",
+            "valuation",
+            "momentum",
+            "liquidity",
+            "price",
+            "change_pct",
+            "pe",
+            "pb",
+            "roe",
+            "profit_growth",
+            "ret20",
+            "trend",
+            "rsi",
+            "macd_signal",
+            "vol_price",
+            "rejected",
         }
         assert expected_keys.issubset(set(result.keys()))
 
-    def test_score_is_weighted_combination(self, sample_quote, sample_finance, monkeypatch):
+    def test_score_is_weighted_combination(
+        self, sample_quote, sample_finance, monkeypatch
+    ):
         import screener
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+
+        monkeypatch.setattr(
+            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
+        )
+        monkeypatch.setattr(
+            screener, "_fetch_finance_dicts", lambda code: [sample_finance]
+        )
 
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
@@ -673,13 +816,24 @@ class TestAnalyzeCode:
 
     def test_rejected_stock_has_reasons(self, sample_finance, monkeypatch):
         import screener
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", lambda code: [sample_finance])
+
+        monkeypatch.setattr(
+            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
+        )
+        monkeypatch.setattr(
+            screener, "_fetch_finance_dicts", lambda code: [sample_finance]
+        )
 
         st_quote = {
-            "code": "sh600001", "name": "ST测试", "price": "10",
-            "change_pct": "1.0", "pe": "15", "pb": "2",
-            "amount": "1000000000", "total_cap": "100", "turnover": "1",
+            "code": "sh600001",
+            "name": "ST测试",
+            "price": "10",
+            "change_pct": "1.0",
+            "pe": "15",
+            "pb": "2",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "turnover": "1",
         }
         args = _make_args()
         result = analyze_code(st_quote, "balanced", args)
@@ -688,13 +842,16 @@ class TestAnalyzeCode:
     def test_finance_cache_used(self, sample_quote, sample_finance, monkeypatch):
         """传入 finance_cache 时不应调用 fetch_finance。"""
         import screener
+
         call_count = {"n": 0}
 
         def _should_not_be_called(code):
             call_count["n"] += 1
             return []
 
-        monkeypatch.setattr(screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: [])
+        monkeypatch.setattr(
+            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
+        )
         monkeypatch.setattr(screener, "_fetch_finance_dicts", _should_not_be_called)
 
         args = _make_args()
@@ -791,8 +948,18 @@ class TestLiquidityBoardDiff:
 
     def test_gem_scores_higher_than_main_for_same_amount(self):
         # 创业板满分阈值更低，相同成交额得分更高
-        gem_quote = {"code": "sz300001", "amount": "20000", "total_cap": "50", "turnover": "3"}
-        main_quote = {"code": "sh600001", "amount": "20000", "total_cap": "50", "turnover": "3"}
+        gem_quote = {
+            "code": "sz300001",
+            "amount": "20000",
+            "total_cap": "50",
+            "turnover": "3",
+        }
+        main_quote = {
+            "code": "sh600001",
+            "amount": "20000",
+            "total_cap": "50",
+            "turnover": "3",
+        }
         gem_score = liquidity_score(gem_quote)
         main_score = liquidity_score(main_quote)
         assert gem_score >= main_score
@@ -806,27 +973,51 @@ class TestHardFilterExtended:
 
     def test_micro_cap_filtered(self, sample_finance):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "2", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "2",
+            "change_pct": "1.0",
+        }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("退市风险" in r for r in reasons)
 
     def test_negative_eps_filtered(self):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         fin = {"EPSJB": "-0.5"}
         reasons = hard_filter(quote, fin, args)
         assert any("EPS<0" in r for r in reasons)
 
     def test_goodwill_ratio_filtered(self):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         fin = {"EPSJB": "1.0", "GOODWILL_RATIO": "40"}
         reasons = hard_filter(quote, fin, args)
         assert any("商誉" in r for r in reasons)
 
     def test_pledge_ratio_filtered(self):
         args = _make_args()
-        quote = {"name": "测试", "code": "sh600001", "amount": "1000000000", "total_cap": "100", "change_pct": "1.0"}
+        quote = {
+            "name": "测试",
+            "code": "sh600001",
+            "amount": "1000000000",
+            "total_cap": "100",
+            "change_pct": "1.0",
+        }
         fin = {"EPSJB": "1.0", "PLEDGE_RATIO": "80"}
         reasons = hard_filter(quote, fin, args)
         assert any("质押" in r for r in reasons)

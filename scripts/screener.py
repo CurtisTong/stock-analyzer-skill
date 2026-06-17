@@ -197,7 +197,19 @@ def load_universe(args):
     # 全市场模式
     if args.full_market:
         boards = [args.sector] if args.sector else None
-        return load_full_market_universe(boards)
+        all_codes = load_full_market_universe(boards)
+
+        # 排除指定板块
+        if args.exclude_board:
+            exclude_boards = [b.strip() for b in args.exclude_board.split(",")]
+            filtered = []
+            for code in all_codes:
+                bt = board_type(code)
+                if bt not in exclude_boards:
+                    filtered.append(code)
+            return sorted(filtered)
+
+        return all_codes
 
     # 现有板块模式
     sector = args.sector
@@ -433,6 +445,11 @@ def main():
         type=int,
         default=0,
         help="全市场模式下每板块最多保留 N 只（0=不限制）",
+    )
+    parser.add_argument(
+        "--exclude-board",
+        default="北交所",
+        help="排除指定板块（如 北交所,科创板），逗号分隔，默认排除北交所",
     )
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
