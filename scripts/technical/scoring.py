@@ -2,6 +2,7 @@
 综合评分引擎和市场环境检测。
 依赖: common (to_float, clamp), signals (_generate_signals)
 """
+
 from common import clamp, to_float
 
 from .signals import _generate_signals
@@ -9,6 +10,7 @@ from .signals import _generate_signals
 # v1.3.2：权重与阈值从 config/scoring.yaml 加载；YAML 缺失时回退到代码内默认值。
 try:
     from config import get_scoring_config
+
     _USE_CONFIG = True
 except ImportError:
     _USE_CONFIG = False
@@ -17,39 +19,88 @@ except ImportError:
 # 个股类型 × 指标权重矩阵（YAML 默认值，行为与历史硬编码版本完全一致）
 _STOCK_TYPE_WEIGHTS_DEFAULT = {
     "题材股": {
-        "ma": 0.6, "macd": 0.5, "kdj": 0.5,
-        "boll": 0.8, "rsi": 1.0, "volume": 1.3,
-        "pattern": 1.5, "limit": 1.5, "chan": 0.5, "chip": 0.8,
+        "ma": 0.6,
+        "macd": 0.5,
+        "kdj": 0.5,
+        "boll": 0.8,
+        "rsi": 1.0,
+        "volume": 1.3,
+        "pattern": 1.5,
+        "limit": 1.5,
+        "chan": 0.5,
+        "chip": 0.8,
     },
     "蓝筹股": {
-        "ma": 1.3, "macd": 1.1, "kdj": 0.4,
-        "boll": 1.2, "rsi": 0.9, "volume": 0.8,
-        "pattern": 0.7, "limit": 0.3, "chan": 0.8, "chip": 1.3,
+        "ma": 1.3,
+        "macd": 1.1,
+        "kdj": 0.4,
+        "boll": 1.2,
+        "rsi": 0.9,
+        "volume": 0.8,
+        "pattern": 0.7,
+        "limit": 0.3,
+        "chan": 0.8,
+        "chip": 1.3,
     },
     "强成长股": {
-        "ma": 0.9, "macd": 1.3, "kdj": 0.4,
-        "boll": 1.2, "rsi": 0.9, "volume": 1.2,
-        "pattern": 0.8, "limit": 0.5, "chan": 0.7, "chip": 1.0,
+        "ma": 0.9,
+        "macd": 1.3,
+        "kdj": 0.4,
+        "boll": 1.2,
+        "rsi": 0.9,
+        "volume": 1.2,
+        "pattern": 0.8,
+        "limit": 0.5,
+        "chan": 0.7,
+        "chip": 1.0,
     },
     "周期股": {
-        "ma": 0.6, "macd": 1.3, "kdj": 1.2,
-        "boll": 1.0, "rsi": 0.9, "volume": 0.9,
-        "pattern": 0.7, "limit": 0.4, "chan": 1.3, "chip": 1.1,
+        "ma": 0.6,
+        "macd": 1.3,
+        "kdj": 1.2,
+        "boll": 1.0,
+        "rsi": 0.9,
+        "volume": 0.9,
+        "pattern": 0.7,
+        "limit": 0.4,
+        "chan": 1.3,
+        "chip": 1.1,
     },
     "稳成长股": {
-        "ma": 1.2, "macd": 1.1, "kdj": 0.5,
-        "boll": 1.0, "rsi": 1.0, "volume": 0.9,
-        "pattern": 1.0, "limit": 0.3, "chan": 0.8, "chip": 1.2,
+        "ma": 1.2,
+        "macd": 1.1,
+        "kdj": 0.5,
+        "boll": 1.0,
+        "rsi": 1.0,
+        "volume": 0.9,
+        "pattern": 1.0,
+        "limit": 0.3,
+        "chan": 0.8,
+        "chip": 1.2,
     },
     "防御股": {
-        "ma": 0.8, "macd": 0.9, "kdj": 0.6,
-        "boll": 1.1, "rsi": 1.1, "volume": 0.7,
-        "pattern": 0.7, "limit": 0.3, "chan": 0.9, "chip": 1.0,
+        "ma": 0.8,
+        "macd": 0.9,
+        "kdj": 0.6,
+        "boll": 1.1,
+        "rsi": 1.1,
+        "volume": 0.7,
+        "pattern": 0.7,
+        "limit": 0.3,
+        "chan": 0.9,
+        "chip": 1.0,
     },
     "普通股": {
-        "ma": 1.0, "macd": 1.0, "kdj": 1.0,
-        "boll": 1.0, "rsi": 1.0, "volume": 1.0,
-        "pattern": 1.0, "limit": 1.0, "chan": 1.0, "chip": 1.0,
+        "ma": 1.0,
+        "macd": 1.0,
+        "kdj": 1.0,
+        "boll": 1.0,
+        "rsi": 1.0,
+        "volume": 1.0,
+        "pattern": 1.0,
+        "limit": 1.0,
+        "chan": 1.0,
+        "chip": 1.0,
     },
 }
 
@@ -96,11 +147,17 @@ def composite_score(features, stock_type="普通股", market_state=None):
     # 1. 均线 20 分 × 类型权重 × 市场趋势权重
     alignment = ma.get("alignment", "")
     if _USE_CONFIG:
-        alignment_scores = get_scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
+        alignment_scores = (
+            get_scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
+        )
     else:
         alignment_scores = _ALIGNMENT_SCORES_DEFAULT
     ma_base = alignment_scores.get(alignment, 7)
-    ma_score = ma_base * type_w["ma"] * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
+    ma_score = (
+        ma_base
+        * type_w["ma"]
+        * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
+    )
     score += clamp(ma_score, 0, 30)
 
     # 2. MACD 15 分（上限 20 分，下限 0 分）
@@ -149,14 +206,12 @@ def composite_score(features, stock_type="普通股", market_state=None):
     pos = boll.get("position", 0.5)
     bw = boll.get("bandwidth_desc", "")
     boll_base = 7
-    if pos < 0.3 and "收窄" in bw:
-        boll_base = 10
+    if pos < 0.3:
+        boll_base = 10 if "收窄" in bw else 6
     elif 0.3 <= pos <= 0.7:
         boll_base = 7
     elif pos > 0.7:
         boll_base = 4
-    else:
-        boll_base = 5
     score += boll_base * type_w["boll"]
 
     # 5. RSI 10 分
@@ -199,7 +254,9 @@ def composite_score(features, stock_type="普通股", market_state=None):
             pattern_score = max(pattern_score, 13)
         if any(b in ptype for b in bearish_patterns):
             pattern_score = min(pattern_score, 3)
-    score += clamp(pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25)
+    score += clamp(
+        pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25
+    )
 
     # 8. 缠论加分项（上限 15 分）
     chan_bonus = 0
@@ -417,7 +474,12 @@ def _market_weight_adjustments(state):
     )
 
 
-_ALIGNMENT_SCORES_DEFAULT = {"多头排列": 20, "交叉震荡": 12, "空头排列": 3, "数据不足": 7}
+_ALIGNMENT_SCORES_DEFAULT = {
+    "多头排列": 20,
+    "交叉震荡": 12,
+    "空头排列": 3,
+    "数据不足": 7,
+}
 
 
 _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT = {
