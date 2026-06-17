@@ -406,13 +406,24 @@ def compute_factor_parts(fin, quote_dict, features, industry):
     }
 
 
-def compute_weighted_score(parts, strategy):
-    """按策略权重加权求和。"""
+def compute_weighted_score(parts, strategy, regime=None):
+    """按策略权重加权求和，支持 market regime overlay（Sprint 2）。
+
+    Args:
+        parts: 6 因子分 dict
+        strategy: 策略名
+        regime: 可选 RegimeState 枚举（bull/bear/range/panic）。
+                None 时不应用 overlay。
+    """
     weights = STRATEGIES[strategy]
+    if regime is not None:
+        from strategies.regime import compute_overlay_weights
+
+        weights = compute_overlay_weights(weights, regime)
     return sum(
         parts.get(k, 0) * weights.get(k, 0)
         for k in set(parts) | set(weights)
-        if k != "label"
+        if k not in ("label", "two_stage")
     )
 
 

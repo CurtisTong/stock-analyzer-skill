@@ -287,7 +287,7 @@ def volume_price_features(closes, volumes):
     }
 
 
-def _apply_factor_normalization(rows, strategy):
+def _apply_factor_normalization(rows, strategy, regime=None):
     """对所有候选股的 6 因子做 z-score 标准化并重新计算 score。
 
     解决问题（review#14）：六因子评分范围差异巨大（quality 30-85, volatility 5-95），
@@ -296,6 +296,7 @@ def _apply_factor_normalization(rows, strategy):
     Args:
         rows: analyze_code 输出的候选股列表（含 quality/valuation/momentum/liquidity/volatility/dividend 字段）
         strategy: 策略名
+        regime: 市场状态枚举（可选；如传入则加权时应用 overlay）
     """
     from business.screening_service import compute_weighted_score
 
@@ -308,7 +309,7 @@ def _apply_factor_normalization(rows, strategy):
     for row, n in zip(valid_rows, normed):
         for k in keys:
             row[k] = round(n[k], 1)
-        row["score"] = round(compute_weighted_score(n, strategy), 1)
+        row["score"] = round(compute_weighted_score(n, strategy, regime=regime), 1)
 
 
 def daily_features(code):
@@ -350,7 +351,7 @@ def prefetch_finance_all(codes):
     return results
 
 
-def analyze_code(quote, strategy, args, finance_cache=None):
+def analyze_code(quote, strategy, args, finance_cache=None, regime=None):
     code = quote["code"]
     quote_code = normalize_quote_code(code)
     if finance_cache is not None:
@@ -377,7 +378,7 @@ def analyze_code(quote, strategy, args, finance_cache=None):
                 0, parts, rejected,
             )
 
-    total = compute_weighted_score(parts, strategy)
+    total = compute_weighted_score(parts, strategy, regime=regime)
     return build_result_row(
         quote_code, quote, fin, features, industry, total, parts, rejected
     )
@@ -399,7 +400,13 @@ def apply_portfolio_constraints(
     if not rows:
         return rows
 
-    max_per_sector = max(1, int(len(rows) * sector_cap))
+    # review#15 修复：候选池 < 10 时不强制板块集中度（避免 5 只池被压成 1 只/行业）
+    min_pool_for_sector_cap = 10
+    if len(rows) >= min_pool_for_sector_cap:
+        max_per_sector = max(2, int(len(rows) * sector_cap))
+    else:
+        max_per_sector = len(rows)  # 不限制
+
     sector_count = {}
     result = []
 
@@ -494,6 +501,11 @@ def main():
         action="store_true",
         help="禁用因子 z-score 标准化（保留 V1 原始评分）",
     )
+    parser.add_argument(
+        "--no-regime",
+        action="store_true",
+        help="禁用市场状态 overlay（保留 V1 固定权重）",
+    )
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 
@@ -505,12 +517,25 @@ def main():
         quotes = pre_screen_quotes(quotes, args)
 
     finance_cache = prefetch_finance_all([q["code"] for q in quotes])
-    rows = [analyze_code(q, args.strategy, args, finance_cache) for q in quotes]
+
+    # 市场状态检测（Sprint 2 / doc#03）：4 信号 + 4 状态 + 6 因子 overlay
+    regime = None
+    if not args.no_regime:
+        try:
+            from strategies.regime import detect_signals, classify_regime
+            signals = detect_signals()
+            regime = classify_regime(signals)
+            print(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
+        except Exception as e:
+            print(f"⚠️ 市场状态检测失败: {e}", file=sys.stderr)
+            regime = None
+
+    rows = [analyze_code(q, args.strategy, args, finance_cache, regime=regime) for q in quotes]
 
     # z-score 标准化（review#14）：解决 6 因子评分尺度差异导致的隐式权重偏差
     # 默认开启；--no-normalize 保留 V1 原始分数
     if not args.no_normalize and len(rows) >= 3:
-        _apply_factor_normalization(rows, args.strategy)
+        _apply_factor_normalization(rows, args.strategy, regime=regime)
 
     rows.sort(key=lambda r: r["score"], reverse=True)
 
