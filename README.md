@@ -149,6 +149,26 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 
 > **零配置可用**：内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。
 
+### 🎬 30 秒命令演示（C7）
+
+不想安装？直接看 10 条命令走完核心流程：
+
+```bash
+# 完整可重放脚本：bash scripts/demo.sh
+$ python3 scripts/init_pool.py --default                       # 1. 初始化股票池
+$ python3 scripts/screener.py --strategy balanced --top 5    # 2. 选股
+$ python3 scripts/stock.py sh600519 quick                    # 3. 单股快评
+$ python3 scripts/backtest.py --all --benchmark sh000300     # 4. 5 策略回测对比
+$ python3 scripts/backtest.py --optimize --strategy growth_momentum  # 5. 权重优化
+$ python3 scripts/strategy_performance.py record --days 30   # 6. 月度校准
+$ python3 scripts/strategy_performance.py compare            # 7. 跨策略对比
+$ python3 scripts/screener.py --snapshot --two-stage         # 8. 两阶段管线 + 快照
+$ python3 scripts/snapshots.py list                          # 9. 列出快照
+$ python3 scripts/strategy_performance.py report              # 10. 月度报告
+```
+
+> 完整脚本：[`scripts/demo.sh`](scripts/demo.sh) · 录制 GIF 推荐工具：[terminalizer](https://github.com/ageron/terminalizer) / [vhs](https://github.com/charmbracelet/vhs)
+
 ## 🆕 v1.8.0 新增能力
 
 | 新能力                    | 怎么用                                                                         | 价值                                                 |
