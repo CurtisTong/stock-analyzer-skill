@@ -29,6 +29,7 @@ from experts.scoring import compute_confidence_index
 _MARKET_WEIGHTS = {
     "牛市": (0.40, 0.60),
     "熊市": (0.60, 0.40),
+    "防御型": (0.65, 0.35),  # 结构性分化：低波独涨、成长亏损，比熊市更偏长线
     "震荡": (0.55, 0.45),
     "冰点": (0.60, 0.40),
     "亢奋": (0.70, 0.30),
@@ -57,6 +58,11 @@ _MARKET_BULL_HIGH_LOW_RATIO = 1.5
 _MARKET_BEAR_VOL_RATIO = 0.8
 _MARKET_BEAR_ADVANCE_RATIO = 0.40
 _MARKET_BEAR_HIGH_LOW_RATIO = 0.5
+
+# 防御型市场：低波独涨、成长亏损、宽度收窄但未到冰点
+_MARKET_DEF_VOL_RATIO = 0.9
+_MARKET_DEF_ADVANCE_LOW = 0.30
+_MARKET_DEF_ADVANCE_HIGH = 0.45
 
 
 def detect_market_state(
@@ -135,6 +141,12 @@ def detect_market_state(
             and high_low_ratio < _MARKET_BEAR_HIGH_LOW_RATIO
         ):
             state = "熊市"
+        elif (
+            below_ma20
+            and vol_ratio < _MARKET_DEF_VOL_RATIO
+            and _MARKET_DEF_ADVANCE_LOW <= advance_ratio <= _MARKET_DEF_ADVANCE_HIGH
+        ):
+            state = "防御型"
         else:
             state = "震荡"
 
@@ -151,6 +163,7 @@ def _market_state_reason(state: str) -> str:
     reasons = {
         "牛市": "指数在均线上方，量能放大，市场宽度良好",
         "熊市": "指数在均线下方，量能萎缩，市场宽度收窄",
+        "防御型": "指数偏弱，低波/价值品种抗跌，成长品种承压，结构性分化",
         "震荡": "趋势不明确，等待方向选择",
         "冰点": "极度恐慌，上涨家数极少，跌停大量",
         "亢奋": "估值高位，情绪过热，杠杆偏高",
