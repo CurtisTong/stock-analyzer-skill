@@ -512,11 +512,8 @@ def render(rows, strategy, top, title=None):
             print(f"- {r['code']} {r['name']}: {', '.join(r['rejected'])}")
 
 
-def main():
-    from common.cache import cleanup_tmp_files
-
-    cleanup_tmp_files()
-
+def _build_parser():
+    """构造 screener CLI 参数解析器（V2.1 提取便于单测复用）。"""
     parser = argparse.ArgumentParser(description="A 股多因子选股器", add_help=False)
     from common.version import __version__
     parser.add_argument("-v", "--version", action="version", version=f"screener {__version__}")
@@ -571,8 +568,11 @@ def main():
         help="两阶段管线：Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排",
     )
     parser.add_argument("-j", "--json", action="store_true")
-    args = parser.parse_args()
+    return parser
 
+
+def _run_main(args):
+    """main() 核心逻辑（V2.1 提取便于单测）。"""
     codes = load_universe(args)
 
     # review#11 修复：行情与财务数据并行拉取（原来串行，总耗时 = sum）
@@ -689,6 +689,16 @@ def main():
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"
         render(rows, args.strategy, args.top, title=title)
+
+
+def main():
+    """CLI 入口：解析参数 + 委托 _run_main。"""
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+    parser = _build_parser()
+    args = parser.parse_args()
+    _run_main(args)
 
 
 if __name__ == "__main__":

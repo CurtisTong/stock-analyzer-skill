@@ -106,9 +106,9 @@ class TestParallelFetch:
             json=False,
         )
         # 直接调用 main 的内部逻辑（绕过 argparse）
-        # 实际 main 流程现在包含 ThreadPoolExecutor，
-        # 通过 inspect 验证源码包含此模式
+        # 实际 _run_main 流程现在包含 ThreadPoolExecutor，
+        # 通过 inspect 验证源码包含此模式（V2.1 重构：_run_main 替代 main）
         import inspect
-        source = inspect.getsource(screener.main)
+        source = inspect.getsource(screener._run_main)
         assert "ThreadPoolExecutor" in source
         assert "_prefetch_kline_all" in source

@@ -9,6 +9,25 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-06-17（V2.1 维护版）
+
+### Changed
+
+- **screener.py main() 重构**：提取 `_build_parser()` 和 `_run_main(args)` 助手，便于单测覆盖
+  - `_build_parser()` 返回 argparse parser（便于构造 Namespace）
+  - `_run_main(args)` 接收参数后直接执行（不解析 argv）
+  - `main()` 仅 5 行（parse + delegate）
+- **统一版本号**：`scripts/common/version.py` 暴露 `__version__ = "2.1.0"`
+  - `screener --version` / `backtest --version` 输出带前缀（screener 2.1.0）
+- **性能基准持久化**：`perf_bench.py save` 子命令保存到 `data/perf_benchmarks.json`（含 version + timestamp）
+- **v2.1.0 扩展视角 yaml 完整迁移**（Sprint 21）：5 个 expert yaml
+
+### Engineering
+
+- 覆盖率 61.8% → 62.1%（+0.3%，新增 7 个 _run_main 测试）
+- 测试 1773 → 1780（+7）
+- 20 → 21 个独立 commit
+
 ## [1.8.0] - 2026-06-17（v2 量化策略平台首版）
 
 ### Added
