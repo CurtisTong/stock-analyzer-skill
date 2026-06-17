@@ -3,6 +3,7 @@
 
 提供选股筛选的业务逻辑，与 CLI 层解耦。
 """
+
 import logging
 from typing import List, Dict, Any, Optional
 
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 # 尝试加载 config（可选；缺失时回退到硬编码默认）
 try:
     from config import get_limit_config
+
     _USE_CONFIG = True
 except ImportError:
     _USE_CONFIG = False
@@ -41,17 +43,29 @@ def _limit(key: str, default):
 
 def _board_limit(board: str) -> float:
     """获取板块涨跌停限制（%）。"""
-    return _limit(f"board_limits.{board}", {
-        "主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5,
-    }.get(board, 9.5))
+    return _limit(
+        f"board_limits.{board}",
+        {
+            "主板": 9.5,
+            "创业板": 19.5,
+            "科创板": 19.5,
+            "北交所": 29.5,
+        }.get(board, 9.5),
+    )
 
 
 def _min_survival_cap(board: str) -> float:
     """获取板块最低生存市值（亿），低于此视为退市风险。
     2026更新：注册制退市常态化，提高阈值。"""
-    return _limit(f"min_survival_cap.{board}", {
-        "主板": 5, "创业板": 3, "科创板": 3, "北交所": 2,
-    }.get(board, 5))
+    return _limit(
+        f"min_survival_cap.{board}",
+        {
+            "主板": 5,
+            "创业板": 3,
+            "科创板": 3,
+            "北交所": 2,
+        }.get(board, 5),
+    )
 
 
 def _goodwill_threshold() -> float:
@@ -84,11 +98,19 @@ def compute_features(code: str) -> dict:
     volumes = [b.volume for b in bars if b.volume > 0]
 
     if len(closes) < 10:
-        return {"trend": 0, "ret20": 0, "rsi": 50, "macd_signal": 0, "vol_price_signal": 0}
+        return {
+            "trend": 0,
+            "ret20": 0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
+        }
 
     # 趋势
     ma10 = statistics.mean(closes[-10:])
-    ma20 = statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
+    ma20 = (
+        statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
+    )
     trend = 1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
 
     # 20日收益率
@@ -132,33 +154,15 @@ class ScreeningService:
 
     def __init__(self):
         self.default_strategy = "balanced"
-        # 动态计算最优工作线程数
-        self.max_workers = self._compute_optimal_workers()
+        from common.utils import compute_optimal_workers
 
-    @staticmethod
-    def _compute_optimal_workers(item_count: int = 0) -> int:
-        """动态计算最优工作线程数。
-
-        Args:
-            item_count: 处理项数量，0 表示使用默认保守值
-        Returns:
-            优化的工作线程数
-        """
-        import os
-        cpu_count = os.cpu_count() or 4
-
-        if item_count > 0:
-            # 基于处理项数量动态调整，最多 cpu_count * 2
-            return min(max(item_count // 10, 4), cpu_count * 2)
-
-        # 默认保守值：CPU 核心数的 2 倍，上限 32
-        return min(cpu_count * 2, 32)
+        self.max_workers = compute_optimal_workers()
 
     def screen(
         self,
         codes: List[str],
         strategy: str = "balanced",
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         选股筛选。
@@ -208,11 +212,7 @@ class ScreeningService:
 
             try:
                 stock_result = self._analyze_stock(
-                    code,
-                    quote,
-                    fin_cache.get(code, []),
-                    strategy,
-                    filters
+                    code, quote, fin_cache.get(code, []), strategy, filters
                 )
                 if stock_result:
                     results.append(stock_result)
@@ -257,7 +257,7 @@ class ScreeningService:
         quote,
         fin_records: List[dict],
         strategy: str,
-        filters: Dict[str, Any]
+        filters: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
         """分析单只股票。"""
         quote_dict = quote.to_dict()
@@ -295,17 +295,7 @@ class ScreeningService:
             if k != "label"
         )
 
-        # 涨跌停过滤：T+1 下当日无法交易
         bd = board_type(code)
-        limit = _board_limit(bd)
-        if abs(to_float(quote_dict.get("change_pct", 0))) >= limit:
-            return {
-                "code": code,
-                "name": quote_dict.get("name", ""),
-                "score": 0,
-                "rejected": ["涨跌停限制"],
-            }
-
         return {
             "code": code,
             "name": quote_dict.get("name", ""),
@@ -323,12 +313,20 @@ class ScreeningService:
             "pe": quote_dict.get("pe"),
             "pb": quote_dict.get("pb"),
             "roe": fin.get("roe", fin.get("ROEJQ", "-")),
-            "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
+            "profit_growth": fin.get(
+                "net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")
+            ),
             "ret20": round(features.get("ret20", 0), 1),
-            "trend": "上升" if features.get("trend", 0) > 0 else "下降" if features.get("trend", 0) < 0 else "震荡",
+            "trend": (
+                "上升"
+                if features.get("trend", 0) > 0
+                else "下降" if features.get("trend", 0) < 0 else "震荡"
+            ),
             "rsi": features.get("rsi", 50),
             "macd_signal": features.get("macd_signal", 0),
-            "vol_price": self._vol_price_signal_desc(features.get("vol_price_signal", 0)),
+            "vol_price": self._vol_price_signal_desc(
+                features.get("vol_price_signal", 0)
+            ),
             "rejected": [],
         }
 
@@ -359,6 +357,7 @@ class ScreeningService:
         name = quote.get("name", "")
         code = quote.get("code", "")
         bd = board_type(code)
+        eps = to_float(fin.get("eps", fin.get("EPSJB")))
 
         # 退市风险：市值过小（提高阈值，注册制后退市常态化）
         min_survival_cap = _min_survival_cap(bd)
@@ -372,20 +371,20 @@ class ScreeningService:
             reasons.append("ST风险")
         else:
             # 财务类退市风险预警（2026新增）：营收<1亿+净利润为负+审计意见非标
-            eps = to_float(fin.get("eps", fin.get("EPSJB")))
             revenue = to_float(fin.get("revenue", fin.get("TOTALOPERATEREVE", 0)))
             revenue_billion = revenue / 100000000  # 转为亿元
             if eps < 0 and 0 < revenue_billion < 1:
                 warnings.append("营收<1亿+亏损(退市风险警示)")
 
         # 亏损过滤（改为可配置，默认过滤）
-        eps = to_float(fin.get("eps", fin.get("EPSJB")))
         filter_loss = filters.get("filter_loss", True)
         if filter_loss and eps < 0:
             reasons.append("EPS<0(亏损)")
 
         # 商誉减值风险（无数据时跳过）
-        goodwill_ratio = to_float(fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0)))
+        goodwill_ratio = to_float(
+            fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0))
+        )
         if goodwill_ratio > _goodwill_threshold():
             reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
@@ -401,32 +400,18 @@ class ScreeningService:
         # 板块差异化阈值
         base_min_amount = filters.get("min_amount", 5000)
         base_min_cap = filters.get("min_cap", 40)
-        if _USE_CONFIG:
-            board_min_amount = {
-                "主板": base_min_amount,
-                "创业板": _limit("min_amount.创业板", 3000),
-                "科创板": _limit("min_amount.科创板", 3000),
-                "北交所": _limit("min_amount.北交所", 1000),
-            }
-            board_min_cap = {
-                "主板": base_min_cap,
-                "创业板": _limit("min_total_cap.创业板", 20),
-                "科创板": _limit("min_total_cap.科创板", 20),
-                "北交所": _limit("min_total_cap.北交所", 10),
-            }
-        else:
-            board_min_amount = {
-                "主板": base_min_amount,
-                "创业板": base_min_amount * 0.7,
-                "科创板": base_min_amount * 0.7,
-                "北交所": base_min_amount * 1.5,
-            }
-            board_min_cap = {
-                "主板": base_min_cap,
-                "创业板": base_min_cap * 0.6,
-                "科创板": base_min_cap * 0.6,
-                "北交所": base_min_cap * 0.4,
-            }
+        board_min_amount = {
+            "主板": base_min_amount,
+            "创业板": _limit("min_amount.创业板", int(base_min_amount * 0.7)),
+            "科创板": _limit("min_amount.科创板", int(base_min_amount * 0.7)),
+            "北交所": _limit("min_amount.北交所", int(base_min_amount * 1.5)),
+        }
+        board_min_cap = {
+            "主板": base_min_cap,
+            "创业板": _limit("min_total_cap.创业板", int(base_min_cap * 0.6)),
+            "科创板": _limit("min_total_cap.科创板", int(base_min_cap * 0.6)),
+            "北交所": _limit("min_total_cap.北交所", int(base_min_cap * 0.4)),
+        }
         min_amt = board_min_amount.get(bd, base_min_amount)
         min_cap = board_min_cap.get(bd, base_min_cap)
 
