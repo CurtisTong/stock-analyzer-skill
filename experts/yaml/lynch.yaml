@@ -1,0 +1,18 @@
+name: lynch
+display_name: 彼得·林奇
+group: long_term
+style: 成长投资
+horizon: 月/季/年
+core_signal: 基本面+估值
+weights:
+  基本面: 35.0
+  估值: 28.0
+  技术面: 15.0
+  情绪: 10.0
+  风险: 12.0
+veto_conditions:
+  - PEG > 2.5（增速无法消化估值）
+  - 连续两季 ROE 下行且营收增速 < 5%
+  - 公司'增长故事'被证伪（如政策突变、核心技术被替代）
+md_path: experts/lynch.md
+active: true
