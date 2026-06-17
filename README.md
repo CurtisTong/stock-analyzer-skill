@@ -167,7 +167,7 @@ $ python3 scripts/snapshots.py list                          # 9. 列出快照
 $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 ```
 
-> 完整脚本：[`scripts/demo.sh`](scripts/demo.sh) · 录制 GIF 推荐工具：[terminalizer](https://github.com/ageron/terminalizer) / [vhs](https://github.com/charmbracelet/vhs)
+> 完整脚本：[`scripts/demo.sh`](scripts/demo.sh) · 9 个 GIF 演示：[docs/assets/](docs/assets/)
 
 ## 🆕 v1.8.0 新增能力
 
@@ -218,6 +218,8 @@ python3 scripts/portfolio_web.py
 <details open>
 <summary><b>📊 单股五层分析示例</b> — <code>/stock 贵州茅台 quick</code></summary>
 
+![单股快评 demo](docs/assets/stock-quick.gif)
+
 ```text
 🏢 贵州茅台 (sh600519) · 白酒龙头
 ─────────────────────────────────────
@@ -249,6 +251,8 @@ python3 scripts/portfolio_web.py
 <details>
 <summary><b>👥 8 人专家圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
 
+![8 人专家圆桌 demo](docs/assets/stock-debate.gif)
+
 ```text
 🎤 8 人专家圆桌 · 贵州茅台 (sh600519)
 ═══════════════════════════════════════
@@ -274,6 +278,8 @@ python3 scripts/portfolio_web.py
 
 <details>
 <summary><b>📈 大盘复盘示例</b> — <code>/market</code></summary>
+
+![大盘复盘 demo](docs/assets/market-quick.gif)
 
 ```text
 📅 2026-06-11 收盘复盘
