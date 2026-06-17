@@ -416,6 +416,59 @@ def compute_weighted_score(parts, strategy):
     )
 
 
+def normalize_factors_batch(parts_list: List[Dict[str, float]]) -> List[Dict[str, float]]:
+    """对一批股票 6 因子做 cross-sectional z-score 标准化。
+
+    每个因子的均值/方差从该批次计算，z = (x - mean) / std。
+    输出范围约为 [-3, 3]，再线性映射到 [0, 100] 保留原有 [0,100] 评分语义。
+
+    解决问题（review#14）：六因子评分范围差异巨大（quality 30-85, volatility 5-95），
+    不加标准化导致 volatility 因子隐式权重超调。
+
+    Args:
+        parts_list: 候选股 6 因子 dict 列表
+
+    Returns:
+        标准化后的 6 因子 dict 列表（顺序与输入对应）
+    """
+    if not parts_list:
+        return parts_list
+    # 单股时无 cross-sectional 信息可计算，跳过归一化
+    if len(parts_list) < 2:
+        return [dict(p) for p in parts_list]
+    import statistics
+
+    keys = ["quality", "valuation", "momentum", "liquidity", "volatility", "dividend"]
+    means = {k: statistics.mean(p.get(k, 0) for p in parts_list) for k in keys}
+    stds = {
+        k: (statistics.stdev(p.get(k, 0) for p in parts_list) or 1.0) for k in keys
+    }
+    out = []
+    for p in parts_list:
+        normed = dict(p)
+        for k in keys:
+            z = (p.get(k, 0) - means[k]) / stds[k]
+            normed[k] = max(0.0, min(100.0, 50 + z * 15))  # z=0 → 50
+        out.append(normed)
+    return out
+
+
+def compute_weighted_score_with_norm(parts_list: List[Dict[str, float]], strategy: str) -> List[float]:
+    """对批量 6 因子做归一化后加权求和。
+
+    Args:
+        parts_list: 候选股 6 因子 dict 列表
+        strategy: 策略名
+
+    Returns:
+        每只股票的加权得分列表（与输入顺序对应）
+    """
+    if not parts_list:
+        return []
+    normed = normalize_factors_batch(parts_list)
+    return [compute_weighted_score(p, strategy) for p in normed]
+
+
 def build_result_row(code, quote_dict, fin, features, industry, total, parts, rejected):
     """装配标准化结果 dict。"""
     bd = board_type(code)
@@ -457,5 +510,7 @@ __all__ = [
     "compute_features",
     "compute_factor_parts",
     "compute_weighted_score",
+    "normalize_factors_batch",
+    "compute_weighted_score_with_norm",
     "build_result_row",
 ]

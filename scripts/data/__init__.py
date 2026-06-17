@@ -235,15 +235,17 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
             "NOTICE_DATE",
             "报告日期",
             "截止日期",
+            "report_date",
         ],
-        "eps": ["EPSJB", "基本每股收益", "每股收益"],
-        "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE"],
+        "eps": ["EPSJB", "基本每股收益", "每股收益", "eps"],
+        "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE", "roe"],
         "revenue_yoy": [
             "TOTALOPERATEREVETZ",
             "营业收入同比",
             "营收同比",
             "营业总收入同比增长率",
             "营收同比(%)",
+            "revenue_yoy",
         ],
         "net_profit_yoy": [
             "PARENTNETPROFITTZ",
@@ -251,12 +253,54 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
             "净利润同比",
             "归母净利润同比增长率",
             "净利润同比(%)",
+            "net_profit_yoy",
         ],
-        "gross_margin": ["XSMLL", "销售毛利率", "毛利率", "毛利率(%)", "销售毛利率(%)"],
-        "net_margin": ["XSJLL", "销售净利率", "净利率", "净利率(%)", "销售净利率(%)"],
-        "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)"],
-        "bps": ["BPS", "每股净资产"],
-        "ocf_per_share": ["MGJYXJJE", "每股经营现金流", "每股现金流量净额"],
+        "gross_margin": [
+            "XSMLL",
+            "销售毛利率",
+            "毛利率",
+            "毛利率(%)",
+            "销售毛利率(%)",
+            "gross_margin",
+        ],
+        "net_margin": [
+            "XSJLL",
+            "销售净利率",
+            "净利率",
+            "净利率(%)",
+            "销售净利率(%)",
+            "net_margin",
+        ],
+        "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)", "debt_ratio"],
+        "bps": ["BPS", "每股净资产", "bps"],
+        "ocf_per_share": ["MGJYXJJE", "每股经营现金流", "每股现金流量净额", "ocf_per_share"],
+        # ESG/分红/治理字段（review#9+10）：当前 fetchers 未填充，保留映射占位待真实接口接入
+        "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
+        "consecutive_dividend_years": [
+            "CONSECUTIVE_DIVIDEND_YEARS",
+            "连续分红年数",
+            "LXFHNX",
+            "consecutive_dividend_years",
+        ],
+        "major_shareholder_reduction": [
+            "MAJOR_SHAREHOLDER_REDUCTION",
+            "大股东减持比例",
+            "DSGJCP",
+            "major_shareholder_reduction",
+        ],
+        "violation_penalty": [
+            "VIOLATION_PENALTY",
+            "违规处罚金额",
+            "WGCFJE",
+            "violation_penalty",
+        ],
+        "audit_opinion": [
+            "AUDIT_OPINION",
+            "审计意见类型",
+            "SJYJ",
+            "OPINION_TYPE",
+            "audit_opinion",
+        ],
     }
 
     def _find(candidates, default=""):
@@ -276,6 +320,15 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         debt_ratio=to_float(_find(FIELD_MAP["debt_ratio"])),
         bps=to_float(_find(FIELD_MAP["bps"])),
         ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
+        dividend_yield=to_float(_find(FIELD_MAP["dividend_yield"])),
+        consecutive_dividend_years=int(
+            to_float(_find(FIELD_MAP["consecutive_dividend_years"]))
+        ),
+        major_shareholder_reduction=to_float(
+            _find(FIELD_MAP["major_shareholder_reduction"])
+        ),
+        violation_penalty=to_float(_find(FIELD_MAP["violation_penalty"])),
+        audit_opinion=str(_find(FIELD_MAP["audit_opinion"])),
         source=d.get("source", ""),
         fetch_time=d.get("fetch_time") or _now_iso(),
     )

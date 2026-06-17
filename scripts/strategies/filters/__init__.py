@@ -1,6 +1,10 @@
-"""A 股预筛选阈值常量。"""
+"""
+策略过滤器：预筛选阈值 + 两阶段策略的 Stage 1 硬条件。
+"""
 
 from config.loader import safe_get
+
+from .turning_point import turning_point_filter
 
 
 def _limit(section: str, key: str, default):
@@ -33,4 +37,9 @@ PRE_SCREEN_FILTER = {
     },
 }
 
-__all__ = ["PRE_SCREEN_FILTER", "get_min_amount", "get_min_cap"]
+__all__ = [
+    "PRE_SCREEN_FILTER",
+    "get_min_amount",
+    "get_min_cap",
+    "turning_point_filter",
+]

@@ -49,6 +49,7 @@ from business.screening_service import (
     compute_features,
     compute_factor_parts,
     compute_weighted_score,
+    normalize_factors_batch,
     build_result_row,
 )
 
@@ -286,6 +287,30 @@ def volume_price_features(closes, volumes):
     }
 
 
+def _apply_factor_normalization(rows, strategy):
+    """对所有候选股的 6 因子做 z-score 标准化并重新计算 score。
+
+    解决问题（review#14）：六因子评分范围差异巨大（quality 30-85, volatility 5-95），
+    不加标准化导致 volatility 因子隐式权重超调。
+
+    Args:
+        rows: analyze_code 输出的候选股列表（含 quality/valuation/momentum/liquidity/volatility/dividend 字段）
+        strategy: 策略名
+    """
+    from business.screening_service import compute_weighted_score
+
+    valid_rows = [r for r in rows if not r.get("rejected")]
+    if len(valid_rows) < 3:
+        return
+    keys = ("quality", "valuation", "momentum", "liquidity", "volatility", "dividend")
+    parts_list = [{k: r.get(k, 0) for k in keys} for r in valid_rows]
+    normed = normalize_factors_batch(parts_list)
+    for row, n in zip(valid_rows, normed):
+        for k in keys:
+            row[k] = round(n[k], 1)
+        row["score"] = round(compute_weighted_score(n, strategy), 1)
+
+
 def daily_features(code):
     """计算技术指标特征（复用 business 层 compute_features，消除重复计算）。"""
     return compute_features(code)
@@ -339,6 +364,19 @@ def analyze_code(quote, strategy, args, finance_cache=None):
     # 推断行业，获取行业差异化阈值
     industry = infer_industry(quote.get("name", ""), quote_code)
     parts = compute_factor_parts(fin, quote, features, industry)
+
+    # 两阶段策略：Stage 1 硬条件过滤（review#2）
+    from strategies import STRATEGIES as _STRATS
+    if _STRATS.get(strategy, {}).get("two_stage"):
+        from strategies.filters.turning_point import turning_point_filter
+        pass_, reason = turning_point_filter(quote, fin, features)
+        if not pass_:
+            rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
+            return build_result_row(
+                quote_code, quote, fin, features, industry,
+                0, parts, rejected,
+            )
+
     total = compute_weighted_score(parts, strategy)
     return build_result_row(
         quote_code, quote, fin, features, industry, total, parts, rejected
@@ -451,6 +489,11 @@ def main():
         default="北交所",
         help="排除指定板块（如 北交所,科创板），逗号分隔，默认排除北交所",
     )
+    parser.add_argument(
+        "--no-normalize",
+        action="store_true",
+        help="禁用因子 z-score 标准化（保留 V1 原始评分）",
+    )
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 
@@ -463,6 +506,12 @@ def main():
 
     finance_cache = prefetch_finance_all([q["code"] for q in quotes])
     rows = [analyze_code(q, args.strategy, args, finance_cache) for q in quotes]
+
+    # z-score 标准化（review#14）：解决 6 因子评分尺度差异导致的隐式权重偏差
+    # 默认开启；--no-normalize 保留 V1 原始分数
+    if not args.no_normalize and len(rows) >= 3:
+        _apply_factor_normalization(rows, args.strategy)
+
     rows.sort(key=lambda r: r["score"], reverse=True)
 
     # 应用组合约束（除非禁用）
