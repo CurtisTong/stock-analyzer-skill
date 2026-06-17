@@ -42,47 +42,27 @@ except Exception:
 # 预警分级配置
 # ═══════════════════════════════════════════════════════════════
 
-# 预警级别定义
+# 预警类型配置（扁平化：每种类型包含级别、推送类型等全部元数据）
 ALERT_LEVELS = {
-    "urgent": {
-        "name": "紧急",
-        "notify": True,
-        "sound": True,
-        "types": [
-            "stop_loss",  # 触及止损线
-            "target_buy",  # 到达目标买入价
-            "target_sell",  # 到达目标卖出价
-            "near_limit",  # 距涨跌停 <1%
-        ],
-    },
-    "important": {
-        "name": "重要",
-        "notify": True,
-        "sound": False,
-        "types": [
-            "support_touch",  # 触及支撑位（强度=强）
-            "resistance_touch",  # 触及压力位
-            "macd_golden",  # MACD 金叉
-            "macd_dead",  # MACD 死叉
-            "ma_break",  # 均线突破
-            "take_profit",  # 持仓盈利 >20%
-        ],
-    },
-    "normal": {
-        "name": "普通",
-        "notify": False,  # 默认不推送
-        "sound": False,
-        "types": [
-            "support_touch_weak",  # 触及支撑位（强度=弱）
-        ],
-    },
+    "stop_loss": {"level": "urgent", "push_type": "risk"},
+    "target_buy": {"level": "urgent", "push_type": "price"},
+    "target_sell": {"level": "urgent", "push_type": "price"},
+    "near_limit": {"level": "urgent", "push_type": "risk"},
+    "support_touch": {"level": "important", "push_type": "break"},
+    "resistance_touch": {"level": "important", "push_type": "price"},
+    "macd_golden": {"level": "important", "push_type": "technical"},
+    "macd_dead": {"level": "important", "push_type": "technical"},
+    "ma_break": {"level": "important", "push_type": "technical"},
+    "take_profit": {"level": "important", "push_type": "portfolio"},
+    "support_touch_weak": {"level": "normal", "push_type": "break"},
 }
 
-# alert_type 到级别的映射
-_ALERT_TYPE_LEVEL = {}
-for level, config in ALERT_LEVELS.items():
-    for t in config["types"]:
-        _ALERT_TYPE_LEVEL[t] = level
+# 级别元数据（名称、通知、声音）
+_LEVEL_META = {
+    "urgent": {"name": "紧急", "notify": True, "sound": True},
+    "important": {"name": "重要", "notify": True, "sound": False},
+    "normal": {"name": "普通", "notify": False, "sound": False},
+}
 
 
 def get_alert_level(alert_type: str, urgent: bool = False) -> str:
@@ -97,7 +77,7 @@ def get_alert_level(alert_type: str, urgent: bool = False) -> str:
     """
     if urgent:
         return "urgent"
-    return _ALERT_TYPE_LEVEL.get(alert_type, "normal")
+    return ALERT_LEVELS.get(alert_type, {}).get("level", "normal")
 
 
 def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
@@ -491,7 +471,7 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
             level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(
                 alert_level, "⚪"
             )
-            body = f"{level_icon} [{ALERT_LEVELS[alert_level]['name']}]"
+            body = f"{level_icon} [{_LEVEL_META[alert_level]['name']}]"
             body += f"\n现价 {price}"
             if r.get("change_pct"):
                 body += f"（{r['change_pct']:+.2f}%）"
@@ -518,20 +498,7 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
             }
 
             if not dry_run and nm:
-                # 映射 alert_type 到 send_alert 的类型
-                type_map = {
-                    "support_touch": "break",
-                    "resistance_touch": "price",
-                    "target_buy": "price",
-                    "target_sell": "price",
-                    "macd_golden": "technical",
-                    "macd_dead": "technical",
-                    "ma_break": "technical",
-                    "near_limit": "risk",
-                    "stop_loss": "risk",
-                    "take_profit": "portfolio",
-                }
-                push_type = type_map.get(alert_type, "price")
+                push_type = ALERT_LEVELS.get(alert_type, {}).get("push_type", "price")
                 result = nm.send_alert(
                     alert_type=push_type,
                     stock_name=name,
@@ -664,10 +631,8 @@ def main():
             level_idx = args.index("--level")
             if level_idx + 1 < len(args):
                 level = args[level_idx + 1]
-                if level not in ALERT_LEVELS:
-                    print(
-                        f"无效的级别: {level}，可选: {', '.join(ALERT_LEVELS.keys())}"
-                    )
+                if level not in _LEVEL_META:
+                    print(f"无效的级别: {level}，可选: {', '.join(_LEVEL_META.keys())}")
                     sys.exit(1)
 
         summary = check_and_push(dry_run=dry_run, level=level)
@@ -675,7 +640,7 @@ def main():
             print(json.dumps(summary, ensure_ascii=False, indent=2))
         else:
             mode = "（dry-run）" if dry_run else ""
-            level_name = ALERT_LEVELS.get(level, {}).get("name", level)
+            level_name = _LEVEL_META.get(level, {}).get("name", level)
             print(f"📡 盘中检查{mode} | {summary['timestamp']}")
             print(f"推送级别: {level_name}")
             print(
