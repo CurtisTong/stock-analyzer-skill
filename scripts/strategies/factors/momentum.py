@@ -16,9 +16,17 @@ _MOMENTUM_DECAY_TABLE = {
 
 
 def _detect_quant_activity(quote: dict, features: dict) -> str:
-    """检测量化活跃度。只使用全市场成交额，无数据时返回默认。"""
+    """检测量化活跃度。review#6 修复：阈值改用动态百分位而非硬编码 12000。
+
+    优先级：
+      1. quote["market_amount_p75"] — 调用方提供的 75% 分位（推荐）
+      2. quote["market_amount"] > 12000 — 硬编码 fallback（保守）
+    """
     market_amount = to_float(quote.get("market_amount", 0))
-    if market_amount > 12000:
+    p75 = to_float(quote.get("market_amount_p75", 0))
+    if p75 > 0 and market_amount > p75:
+        return "quant_high"
+    if p75 <= 0 and market_amount > 12000:  # 兼容旧调用
         return "quant_high"
     return "quant_normal"
 

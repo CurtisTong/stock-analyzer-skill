@@ -55,3 +55,59 @@ def classify_regime(signals: Dict[str, float]) -> RegimeState:
         return RegimeState.BEAR
 
     return RegimeState.RANGE
+
+
+def _classify_for_backtest(bars) -> RegimeState:
+    """回测专用的 regime 分类器：直接用历史 K 线 bars 计算（不依赖网络）。
+
+    复用了 detect_signals 的核心计算逻辑（trend/volatility/breadth/turnover），
+    但数据源是 bars 列表（已存在的历史数据），而非 sh000300 的实时拉取。
+
+    Args:
+        bars: 已排序的历史 K 线列表（最近的 bar 在末尾）
+
+    Returns:
+        RegimeState 枚举值
+    """
+    from .detector import _zero_signals
+    import statistics
+    from common import to_float
+
+    if not bars or len(bars) < 20:
+        return classify_regime(_zero_signals())
+
+    closes = [b.close for b in bars if b.close > 0]
+    if len(closes) < 20:
+        return classify_regime(_zero_signals())
+
+    # 1. index_trend
+    ma20 = statistics.mean(closes[-20:])
+    ma60 = statistics.mean(closes[-60:]) if len(closes) >= 60 else ma20
+    trend_strength = (ma20 / ma60 - 1) * 10
+    ret20 = (closes[-1] / closes[-20] - 1) if closes[-20] > 0 else 0
+    index_trend = max(-1.0, min(1.0, trend_strength + ret20 * 2))
+
+    # 2. volatility
+    returns = []
+    for i in range(1, len(closes)):
+        if closes[i - 1] > 0:
+            returns.append((closes[i] - closes[i - 1]) / closes[i - 1])
+    recent_returns = returns[-20:]
+    daily_std = statistics.stdev(recent_returns) if len(recent_returns) >= 2 else 0
+    annualized_vol = daily_std * (252**0.5) * 100
+
+    # 3. breadth
+    breadth = sum(1 for r in recent_returns if r > 0) / len(recent_returns)
+
+    # 4. turnover
+    recent_bars = bars[-20:]
+    amounts_yi = [to_float(b.amount) / 1e8 for b in recent_bars if b.amount > 0]
+    turnover = statistics.mean(amounts_yi) if amounts_yi else 0
+
+    signals = {
+        "index_trend": index_trend,
+        "volatility": annualized_vol,
+        "breadth": breadth,
+        "turnover": turnover,
+    }
+    return classify_regime(signals)

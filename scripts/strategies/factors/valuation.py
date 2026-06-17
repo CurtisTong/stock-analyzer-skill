@@ -64,13 +64,17 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
         score += 24 - (pb - 2) / 3 * 14
 
     # PEG 评分（仅盈利股，且 PE 未超极端阈值）
+    # review#5 修复：优先用 3 年复合增速（净利 CAGR），避免单期增速被基数效应扭曲
     if 0 < pe <= pe_cap and growth > 0:
-        peg = pe / growth
-        if peg <= peg_undervalued:
-            score += 28
-        elif peg <= peg_reasonable:
-            score += 22
-        elif peg <= peg_reasonable * 1.5:
-            score += 12
+        growth_3y = to_float(fin.get("net_profit_cagr_3y", 0))
+        peg_growth = growth_3y if growth_3y > 0 else growth
+        if peg_growth > 0:
+            peg = pe / peg_growth
+            if peg <= peg_undervalued:
+                score += 28
+            elif peg <= peg_reasonable:
+                score += 22
+            elif peg <= peg_reasonable * 1.5:
+                score += 12
 
     return clamp(score)

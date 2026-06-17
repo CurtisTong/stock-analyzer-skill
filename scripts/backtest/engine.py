@@ -169,10 +169,18 @@ def simulate_strategy(
             dividend = _calc_dividend_score(hist_quote, fin, industry)
             if dividend > 0:
                 parts["dividend"] = dividend
+
+            # 策略权重应用 market regime overlay（Sprint 3 收口）
+            from strategies.regime import compute_overlay_weights, RegimeState
+            from strategies.regime.classifier import _classify_for_backtest
+
+            regime = _classify_for_backtest(bars[:i]) if i >= 60 else RegimeState.RANGE
+            effective_weights = compute_overlay_weights(weights, regime)
+
             score = sum(
-                parts.get(k, 0) * weights.get(k, 0)
-                for k in set(parts) | set(weights)
-                if k != "label"
+                parts.get(k, 0) * effective_weights.get(k, 0)
+                for k in set(parts) | set(effective_weights)
+                if k not in ("label", "two_stage")
             )
 
             entry_price = bars[i].close

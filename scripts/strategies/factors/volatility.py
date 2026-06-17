@@ -45,10 +45,13 @@ def _compute_vol_score(returns: list, industry: str) -> float:
 
 
 def volatility_score(kline_bars: list, industry: str = "默认") -> float:
-    """波动率因子评分（接受 KlineBar 对象列表）。"""
+    """波动率因子评分（接受 KlineBar 对象列表）。
+
+    review#8 修复：窗口从 20 根扩至 60 根（约 1 季度日线），降低噪声。
+    """
     if len(kline_bars) < 20:
         return 50
-    recent = kline_bars[-20:]
+    recent = kline_bars[-60:] if len(kline_bars) >= 60 else kline_bars
     returns = [
         (recent[i].close - recent[i - 1].close) / recent[i - 1].close
         for i in range(1, len(recent))
@@ -58,10 +61,13 @@ def volatility_score(kline_bars: list, industry: str = "默认") -> float:
 
 
 def volatility_from_closes(closes: list, industry: str = "默认") -> float:
-    """从收盘价列表计算波动率评分。"""
+    """从收盘价列表计算波动率评分。
+
+    review#8 修复：窗口从 20 根扩至 60 根。
+    """
     if len(closes) < 20:
         return 50
-    recent = closes[-20:]
+    recent = closes[-60:] if len(closes) >= 60 else closes
     returns = [
         (recent[i] - recent[i - 1]) / recent[i - 1]
         for i in range(1, len(recent))
