@@ -11,28 +11,26 @@
     python3 scripts/technical/long_term.py sh600519
     python3 scripts/technical/long_term.py sh600519 --json
 """
+
 import json
 import sys
 from pathlib import Path
 
-# 添加 scripts 目录到 path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from common import to_float
 from data import get_quote, get_finance
-
 
 # ═══════════════════════════════════════════════════════════════
 # 长期持有评估
 # ═══════════════════════════════════════════════════════════════
+
 
 class LongTermEvaluator:
     """长期持有评估器。"""
 
     # 维度权重
     WEIGHTS = {
-        "moat": 0.30,       # 护城河
-        "growth": 0.25,     # 成长性
+        "moat": 0.30,  # 护城河
+        "growth": 0.25,  # 成长性
         "stability": 0.25,  # 稳定性
         "valuation": 0.20,  # 估值
     }
@@ -69,10 +67,10 @@ class LongTermEvaluator:
 
         # 计算总分
         total_score = (
-            moat_score * self.WEIGHTS["moat"] +
-            growth_score * self.WEIGHTS["growth"] +
-            stability_score * self.WEIGHTS["stability"] +
-            valuation_score * self.WEIGHTS["valuation"]
+            moat_score * self.WEIGHTS["moat"]
+            + growth_score * self.WEIGHTS["growth"]
+            + stability_score * self.WEIGHTS["stability"]
+            + valuation_score * self.WEIGHTS["valuation"]
         )
         total_score = int(total_score)
 
@@ -80,10 +78,22 @@ class LongTermEvaluator:
         level = self._calc_level(total_score)
 
         # 生成结论
-        conclusion = self._generate_conclusion(total_score, level, moat_score, growth_score, stability_score, valuation_score)
+        conclusion = self._generate_conclusion(
+            total_score,
+            level,
+            moat_score,
+            growth_score,
+            stability_score,
+            valuation_score,
+        )
 
         # 合并推理链
-        reasoning = moat_reasoning + growth_reasoning + stability_reasoning + valuation_reasoning
+        reasoning = (
+            moat_reasoning
+            + growth_reasoning
+            + stability_reasoning
+            + valuation_reasoning
+        )
 
         return {
             "code": code,
@@ -93,8 +103,14 @@ class LongTermEvaluator:
             "dimensions": {
                 "moat": {"score": moat_score, "weight": self.WEIGHTS["moat"]},
                 "growth": {"score": growth_score, "weight": self.WEIGHTS["growth"]},
-                "stability": {"score": stability_score, "weight": self.WEIGHTS["stability"]},
-                "valuation": {"score": valuation_score, "weight": self.WEIGHTS["valuation"]},
+                "stability": {
+                    "score": stability_score,
+                    "weight": self.WEIGHTS["stability"],
+                },
+                "valuation": {
+                    "score": valuation_score,
+                    "weight": self.WEIGHTS["valuation"],
+                },
             },
             "reasoning": reasoning,
             "conclusion": conclusion,
@@ -164,7 +180,9 @@ class LongTermEvaluator:
         reasoning = []
 
         # 营收增长率
-        revenue_growth = to_float(finance.get("revenue_growth") or finance.get("YYZSRTBZZ") or 0)
+        revenue_growth = to_float(
+            finance.get("revenue_growth") or finance.get("YYZSRTBZZ") or 0
+        )
         if revenue_growth > 20:
             score += 20
             reasoning.append(f"✅ 营收增长 {revenue_growth:.1f}% > 20%，高成长")
@@ -178,7 +196,9 @@ class LongTermEvaluator:
             reasoning.append(f"❌ 营收增长 {revenue_growth:.1f}%，负增长")
 
         # 净利润增长率
-        profit_growth = to_float(finance.get("profit_growth") or finance.get("JLRTBZZ") or 0)
+        profit_growth = to_float(
+            finance.get("profit_growth") or finance.get("JLRTBZZ") or 0
+        )
         if profit_growth > 20:
             score += 20
             reasoning.append(f"✅ 利润增长 {profit_growth:.1f}% > 20%，高成长")
@@ -241,7 +261,7 @@ class LongTermEvaluator:
             reasoning.append(f"⚠️ 现金流数据缺失")
 
         # 分红率（简化：有分红即可）
-        dividend = to_float(finance.get(" dividend_yield") or finance.get("GXL") or 0)
+        dividend = to_float(finance.get("dividend_yield") or finance.get("GXL") or 0)
         if dividend > 3:
             score += 15
             reasoning.append(f"✅ 股息率 {dividend:.1f}% > 3%，分红慷慨")
@@ -314,19 +334,29 @@ class LongTermEvaluator:
         else:
             return "不适合"
 
-    def _generate_conclusion(self, total_score, level, moat, growth, stability, valuation) -> str:
+    def _generate_conclusion(
+        self, total_score, level, moat, growth, stability, valuation
+    ) -> str:
         """生成结论。"""
         conclusions = []
 
         # 总体结论
         if total_score >= 75:
-            conclusions.append(f"综合评分 {total_score} 分（{level}），护城河宽、成长性好、财务稳健、估值合理，非常适合长期持有。")
+            conclusions.append(
+                f"综合评分 {total_score} 分（{level}），护城河宽、成长性好、财务稳健、估值合理，非常适合长期持有。"
+            )
         elif total_score >= 60:
-            conclusions.append(f"综合评分 {total_score} 分（{level}），整体质量较好，可考虑长期持有。")
+            conclusions.append(
+                f"综合评分 {total_score} 分（{level}），整体质量较好，可考虑长期持有。"
+            )
         elif total_score >= 45:
-            conclusions.append(f"综合评分 {total_score} 分（{level}），质量一般，需谨慎考虑。")
+            conclusions.append(
+                f"综合评分 {total_score} 分（{level}），质量一般，需谨慎考虑。"
+            )
         else:
-            conclusions.append(f"综合评分 {total_score} 分（{level}），不建议长期持有。")
+            conclusions.append(
+                f"综合评分 {total_score} 分（{level}），不建议长期持有。"
+            )
 
         # 各维度亮点/风险
         if moat >= 70:

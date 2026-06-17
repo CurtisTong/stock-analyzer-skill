@@ -12,20 +12,18 @@
     python3 scripts/technical/sentiment.py
     python3 scripts/technical/sentiment.py --json
 """
+
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
 
-# 添加 scripts 目录到 path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from common.http import HttpClient
-
 
 # ═══════════════════════════════════════════════════════════════
 # 市场数据获取
 # ═══════════════════════════════════════════════════════════════
+
 
 class MarketDataFetcher:
     """市场数据获取器。"""
@@ -171,14 +169,15 @@ class MarketDataFetcher:
 # 情绪计算
 # ═══════════════════════════════════════════════════════════════
 
+
 class SentimentCalculator:
     """市场情绪计算器。"""
 
     # 权重配置
     WEIGHTS = {
-        "limit_up": 0.30,        # 涨停家数
+        "limit_up": 0.30,  # 涨停家数
         "continuous_height": 0.25,  # 连板高度
-        "broken_rate": 0.20,     # 炸板率
+        "broken_rate": 0.20,  # 炸板率
         "margin_balance": 0.25,  # 两融余额
     }
 
@@ -202,16 +201,18 @@ class SentimentCalculator:
         """
         # 计算各指标得分
         limit_up_score = self._calc_limit_up_score(market_data.get("limit_up_count", 0))
-        height_score = self._calc_height_score(market_data.get("continuous_limit_height", 0))
+        height_score = self._calc_height_score(
+            market_data.get("continuous_limit_height", 0)
+        )
         broken_score = self._calc_broken_score(market_data.get("broken_limit_rate", 0))
         margin_score = self._calc_margin_score(market_data.get("margin_balance", 0))
 
         # 加权计算总分
         total_score = (
-            limit_up_score * self.WEIGHTS["limit_up"] +
-            height_score * self.WEIGHTS["continuous_height"] +
-            broken_score * self.WEIGHTS["broken_rate"] +
-            margin_score * self.WEIGHTS["margin_balance"]
+            limit_up_score * self.WEIGHTS["limit_up"]
+            + height_score * self.WEIGHTS["continuous_height"]
+            + broken_score * self.WEIGHTS["broken_rate"]
+            + margin_score * self.WEIGHTS["margin_balance"]
         )
 
         total_score = max(0, min(100, int(total_score)))
