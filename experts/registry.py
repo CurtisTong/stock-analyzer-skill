@@ -256,6 +256,12 @@ def _ensure_loaded() -> None:
     legacy（active=False）指已被合并视角取代、新框架不再调用的旧专家，
     仍保留在注册表中供向后兼容与 A/B 对比。
 
+    合并型专家的权重映射（v2.1.0）：
+    - value_anchor = buffett(0.55) + duan_yongping(0.45)
+    - topic_leader = xu_xiang(0.5) + zhao_laoge(0.5)
+    - emotion_tech = chaogu_yangjia(0.5) + zuoshou_xinyi(0.5)
+    合并实现位于 experts/scoring/{value_anchor,topic_leader,emotion_tech}.py。
+
     Sprint 17 / D6 改造：模块加载时尝试从 experts/yaml/ 加载配置，
     yaml 优先（同名 expert 覆盖硬编码），无 yaml 时回退到硬编码。
     """

@@ -7,6 +7,12 @@
 - 计算校准因子（compute_calibration_factor）
 
 数据持久化在项目根目录 data/expert_calibration.json。
+
+校准阈值说明（v2.2.0 起显式文档化）：
+- 涨跌判定阈值默认 5.0%（A 股经验值）——超过 5% 视为预测"命中"，
+  阈值可在 `scoring.yaml` 的 `calibration.calibration_threshold_pct` 字段覆盖。
+- 校准因子范围 [-1, 1]：正值 = 专家实际胜率 > 自身评估，负值 = 反之。
+- 无校准数据时 8 位专家 rates=[0.5]*8，均值 0.5，CV=0，factor=0（保持中性）。
 """
 
 import json

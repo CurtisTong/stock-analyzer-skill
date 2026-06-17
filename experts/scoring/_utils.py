@@ -4,7 +4,7 @@
 包含所有专家共用的基础工具：安全浮点转换、数值钳制、维度评分计算等。
 """
 
-from typing import Dict
+from typing import Dict, Optional
 
 from .. import ExpertProfile
 
@@ -103,6 +103,9 @@ __all__ = [
     "_score_valuation",
     "_score_technical",
     "_score_sentiment",
+    # 通用推理链模板（v2.2.0，所有专家共用）
+    "generic_score_with_reasoning",
+    "format_generic_reasoning",
 ]
 
 
@@ -243,3 +246,119 @@ def _score_sentiment(market_features: dict) -> float:
             score -= 5
 
     return max(0, min(100, score))
+
+
+# ═══════════════════════════════════════════════════════════════
+# 通用推理链模板（v2.2.0，所有专家共用）
+# 原 buffett.py 独有 score_with_reasoning + format_reasoning 模式
+# 在 14 位专家间统一：每位专家只需把 score() 包装到 generic_score_with_reasoning
+# ═══════════════════════════════════════════════════════════════
+
+
+def _score_to_reason_label(score: float) -> str:
+    """通用分值到语义标签的映射（v2.2.0 推理链统一）。
+
+    将 0-100 维度分映射为带 emoji 的语义描述，用于 score_with_reasoning 输出。
+    """
+    if score >= 80:
+        return "✅ 优秀"
+    if score >= 60:
+        return "✅ 良好"
+    if score >= 40:
+        return "⚠️ 中性"
+    if score >= 20:
+        return "⚠️ 较弱"
+    return "❌ 较差"
+
+
+def generic_score_with_reasoning(
+    profile: "ExpertProfile",
+    score_fn,
+    stock_data: dict,
+) -> Dict[str, object]:
+    """通用 score_with_reasoning（v2.2.0）。
+
+    把任一专家的 score() 包装成"含推理链"的版本，统一 buffett 的私有模式。
+    原 buffett.py 的 score_with_reasoning 是手写 160 行；本通用模板让 13 位
+    其他专家只需 1 行调用即可获得等价输出。
+
+    Args:
+        profile: 专家人设（含 5 维度权重 + display_name + group）
+        score_fn: 专家的 score(stock_data) -> Dict[dim, 0-100]
+        stock_data: 股票数据 dict
+
+    Returns:
+        {
+            "scores": {dim: float, ...},
+            "reasoning": [str, ...],
+            "dimensions": {dim: {"score": float, "weight": float, "reason": str}, ...},
+            "display_name": str,
+            "expert_id": str,
+        }
+    """
+    scores = score_fn(stock_data)
+    reasoning = []
+    dimensions = {}
+
+    for dim, score in scores.items():
+        weight = profile.weights.get(dim, 0.0) / 100.0
+        label = _score_to_reason_label(score)
+        reason = f"{label}：{dim}维度分 {score:.0f}/100（权重 {weight:.0%}）"
+        reasoning.append(reason)
+        dimensions[dim] = {
+            "score": score,
+            "weight": weight,
+            "reason": reason,
+        }
+
+    return {
+        "scores": scores,
+        "reasoning": reasoning,
+        "dimensions": dimensions,
+        "display_name": getattr(profile, "display_name", profile.name),
+        "expert_id": profile.name,
+    }
+
+
+def format_generic_reasoning(
+    result: dict,
+    total_score: Optional[float] = None,
+) -> str:
+    """通用推理链 markdown 输出（v2.2.0）。
+
+    与 buffett.py 的 format_reasoning 等价但通用化。
+    """
+    scores = result["scores"]
+    reasoning = result["reasoning"]
+    dimensions = result["dimensions"]
+    name = result.get("display_name", result.get("expert_id", "专家"))
+
+    if total_score is None:
+        total = 0.0
+        for dim, info in dimensions.items():
+            total += info["score"] * info["weight"]
+        total_score = total
+
+    lines = [
+        f"📊 {name}评分详情",
+        "",
+        f"总分：{total_score:.0f}/100",
+        "",
+        "## 评分明细",
+        "",
+        "| 维度 | 权重 | 得分 | 推理过程 |",
+        "|------|------|------|----------|",
+    ]
+
+    for dim, info in dimensions.items():
+        lines.append(
+            f"| {dim} | {info['weight']:.0%} | {info['score']:.0f} | {info['reason']} |"
+        )
+
+    lines.append("")
+    lines.append("## 关键判断")
+    lines.append("")
+    for r in reasoning:
+        lines.append(f"- {r}")
+
+    return "\n".join(lines)

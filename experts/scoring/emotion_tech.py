@@ -18,3 +18,14 @@ def score(stock_data: dict) -> Dict[str, float]:
         [chaogu_yangjia.score(stock_data), zuoshou_xinyi.score(stock_data)],
         weights=[0.5, 0.5],
     )
+
+
+def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
+    """情绪技术复合评分（含推理链）。
+
+    v2.2.0 起统一使用 generic_score_with_reasoning 模板。
+    """
+    from experts.registry import EXPERT_REGISTRY
+    from ._utils import generic_score_with_reasoning
+    profile = EXPERT_REGISTRY["emotion_tech"]
+    return generic_score_with_reasoning(profile, score, stock_data)

@@ -1,0 +1,19 @@
+name: value_anchor
+display_name: 价值双锚（美式数据+中式文化）
+group: long_term
+style: 价值投资（合并巴菲特+段永平）
+horizon: 月/季/年
+core_signal: 基本面+估值+商业本质
+weights:
+  基本面: 40.0
+  估值: 25.0
+  技术面: 5.0
+  情绪: 5.0
+  安全边际: 25.0
+veto_conditions:
+  - ROE < 10% 或负债率 > 70%（金融业除外）
+  - FCF 连续 2 年为负
+  - 公司涉财务造假或管理层失信
+  - 商业模式看不懂（"不熟不做"）
+md_path: experts/value_anchor.md
+active: true

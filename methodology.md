@@ -2,7 +2,7 @@
 name: stock-analyzer-methodology
 description: 投资分析完整方法论——五层框架、专家讨论模式、数据源、仓位管理、决策流程
 source: 抽离自 ~/.claude/memory/investment-methodology.md
-version: 1.0
+version: 1.11.0
 ---
 
 # 投资分析方法论
@@ -80,23 +80,34 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 
 > 完整档案见 [experts/README.md](experts/README.md)，每位专家独立成文（1200-1500 字深度档）。
 
-### 长线4人（价值发现）
+### 长线4人（价值发现，legacy active=False）
 
-| 专家      | 风格      | 核心逻辑                              | 档案                                         |
-| --------- | --------- | ------------------------------------- | -------------------------------------------- |
-| 巴菲特    | 价值投资  | 好生意+好价格+长期持有，偏好高ROE低PE | [buffett.md](experts/buffett.md)             |
-| 彼得·林奇 | 成长投资  | PEG<1增速消化估值，偏好高增速合理PE   | [lynch.md](experts/lynch.md)                 |
-| 索罗斯    | 宏观/趋势 | 趋势确认+反身性，技术面+资金面        | [soros.md](experts/soros.md)                 |
-| 段永平    | 逆向投资  | 好公司+安全边际，低估值+护城河        | [duan_yongping.md](experts/duan_yongping.md) |
+| 专家      | 风格      | 核心逻辑                              | 档案                                         | 状态 |
+| --------- | --------- | ------------------------------------- | -------------------------------------------- | :--: |
+| 巴菲特    | 价值投资  | 好生意+好价格+长期持有，偏好高ROE低PE | [buffett.md](experts/buffett.md)             | legacy |
+| 彼得·林奇 | 成长投资  | PEG<1增速消化估值，偏好高增速合理PE   | [lynch.md](experts/lynch.md)                 |  active |
+| 索罗斯    | 宏观/趋势 | 趋势确认+反身性，技术面+资金面        | [soros.md](experts/soros.md)                 |  active |
+| 段永平    | 逆向投资  | 好公司+安全边际，低估值+护城河        | [duan_yongping.md](experts/duan_yongping.md) | legacy |
 
-### 短线4人（时机把握）
+### 短线4人（时机把握，legacy active=False）
 
-| 专家     | 风格       | 核心逻辑                        | 档案                                           |
-| -------- | ---------- | ------------------------------- | ---------------------------------------------- |
-| 徐翔     | 涨停板战法 | 龙头+量价配合，打板追涨         | [xu_xiang.md](experts/xu_xiang.md)             |
-| 赵老哥   | 趋势龙头   | 趋势确认+持仓周期，波段操作     | [zhao_laoge.md](experts/zhao_laoge.md)         |
-| 炒股养家 | 情绪流     | 情绪周期+板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](experts/chaogu_yangjia.md) |
-| 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓      | [zuoshou_xinyi.md](experts/zuoshou_xinyi.md)   |
+| 专家     | 风格       | 核心逻辑                        | 档案                                           | 状态 |
+| -------- | ---------- | ------------------------------- | ---------------------------------------------- | :--: |
+| 徐翔     | 涨停板战法 | 龙头+量价配合，打板追涨         | [xu_xiang.md](experts/xu_xiang.md)             | legacy |
+| 赵老哥   | 趋势龙头   | 趋势确认+持仓周期，波段操作     | [zhao_laoge.md](experts/zhao_laoge.md)         | legacy |
+| 炒股养家 | 情绪流     | 情绪周期+板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](experts/chaogu_yangjia.md) | legacy |
+| 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓      | [zuoshou_xinyi.md](experts/zuoshou_xinyi.md)   | legacy |
+
+### v2.1.0 扩展 6 人（active=True，补盲区）
+
+| 专家            | 风格                | 核心逻辑                              | 档案                                               |
+| --------------- | ------------------- | ------------------------------------- | -------------------------------------------------- |
+| 价值双锚        | 价值投资（合并）    | 巴菲特 0.55 + 段永平 0.45             | [value_anchor.md](experts/value_anchor.md)         |
+| 题材龙头        | 题材龙头（合并）    | 徐翔 0.5 + 赵老哥 0.5                 | [topic_leader.md](experts/topic_leader.md)         |
+| 情绪技术复合    | 情绪+技术（合并）   | 养家 0.5 + 作手新一 0.5               | [emotion_tech.md](experts/emotion_tech.md)         |
+| 行业专家        | 行业特异性          | 行业景气+竞争格局+行业 PE 分位        | [sector_specialist.md](experts/sector_specialist.md) |
+| 机构派          | 机构长期主义        | 高瓴/红杉/淡马锡：深度尽调+长期持有   | [institution.md](experts/institution.md)           |
+| 风险管理        | 二阶思维+周期位置   | Howard Marks 周期位置+风险预算         | [risk_manager.md](experts/risk_manager.md)         |
 
 ### 讨论流程
 
@@ -197,13 +208,13 @@ p = 胜率, b = 赔率(期望收益/最大风险)
 
 ### 2. 股票池构建
 
-| 股票池       | 用途             | 数据来源                              |
-| ------------ | ---------------- | ------------------------------------- |
-| 内置板块池   | 快速筛主题/行业  | `data/sector_stocks.json`（动态更新） |
-| 预置默认池   | 离线可用，零配置 | `data/sector_stocks.default.json`     |
-| ETF 映射池   | 判断板块强弱     | `data/sector_etf.csv`                 |
-| 用户自定义池 | 精筛自选或持仓   | `--codes` 或持仓 JSON                 |
-| 全市场池     | 后续扩展         | 需接入完整 A 股列表                   |
+| 股票池       | 用途             | 数据来源                                       |
+| ------------ | ---------------- | ---------------------------------------------- |
+| 内置板块池   | 快速筛主题/行业  | `scripts/data/sector_stocks.json`（动态更新）  |
+| 预置默认池   | 离线可用，零配置 | `scripts/data/sector_stocks.default.json`      |
+| ETF 映射池   | 判断板块强弱     | `scripts/data/sector_etf.csv`                  |
+| 用户自定义池 | 精筛自选或持仓   | `--codes` 或持仓 JSON                          |
+| 全市场池     | 后续扩展         | 需接入完整 A 股列表                            |
 
 **数据源优先级：** 东方财富 API → 预置默认数据（自动 fallback）
 
@@ -718,7 +729,7 @@ done
 | 周期陷阱 | 低价但无成长      | 贵研铂业     | 观察     |
 | 趋势向下 | 均线空头排列      | 中兴通讯     | 观望     |
 
-### 10.6 今日市场特征（2026-06-08）
+### 10.6 今日市场特征（2026-06-17）
 
 - **大盘**：沪深300ETF -2.15%，偏弱震荡
 - **板块**：有色/能源/AI板块领跌

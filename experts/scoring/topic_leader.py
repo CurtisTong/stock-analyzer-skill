@@ -18,3 +18,14 @@ def score(stock_data: dict) -> Dict[str, float]:
         [xu_xiang.score(stock_data), zhao_laoge.score(stock_data)],
         weights=[0.5, 0.5],
     )
+
+
+def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
+    """题材龙头评分（含推理链）。
+
+    v2.2.0 起统一使用 generic_score_with_reasoning 模板。
+    """
+    from experts.registry import EXPERT_REGISTRY
+    from ._utils import generic_score_with_reasoning
+    profile = EXPERT_REGISTRY["topic_leader"]
+    return generic_score_with_reasoning(profile, score, stock_data)

@@ -118,7 +118,27 @@ disable-model-invocation: true
 
 ## 🆘 获取更多帮助
 
-- 完整工作流：[`workflow.md`](../../../workflow.md)
-- 投资方法论：[`methodology.md`](../../../methodology.md)
-- 8 人专家档案：[`experts/`](../../../experts/)
-- 完整文档：[`README.md`](../../../README.md) · [`docs/user-guide.md`](../../../docs/user-guide.md) · [`docs/quick-start.md`](../../../docs/quick-start.md)
+- 完整工作流：[`workflow.md`](../../workflow.md)
+- 投资方法论：[`methodology.md`](../../methodology.md)
+- 8 人专家档案：[`experts/`](../../experts/)
+- 完整文档：[`README.md`](../../README.md) · [`docs/user-guide.md`](../../docs/user-guide.md) · [`docs/quick-start.md`](../../docs/quick-start.md)
+
+## 当用户触发此 skill 时
+
+`/help` 是 meta 索引 skill（`disable-model-invocation: true`），本身不执行分析。
+触发后流程：
+
+1. 识别用户意图：是想开始 / 想看命令清单 / 想知道怎么学。
+2. 新手 → 引用 `../_shared/references/welcome.md` 输出欢迎卡 + 给出"按目标选入口"表。
+3. 老手 → 直接给下方 9 个 skill 命令清单表。
+4. 路径不明的提问 → 给出"按目标选入口"段。
+
+不修改任何持仓/数据；不调用任何 `scripts/*.py`；不向外部 API 发送请求。
+
+## 注意事项
+
+- `/help` 是只读索引 skill，**不**修改任何文件、**不**执行投资决策。
+- 风险提示：所有分析仅供参考，**不构成投资建议**。
+- 用户问"哪个 skill 适合我"时，根据意图（看持仓/选股/回测/研究/学习）给出 1-2 个最相关的入口。
+- 9 个 skill 之间的依赖关系（market → sector → screener → stock → portfolio）详见 `workflow.md`。
+- 历史合并的 4 个 skill（`/technical` `/stock-init` `/financial-analyst` `/investment-researcher`）已删除，请使用新命令：`/stock technical` `/screener init` `/research financial` `/research report`。

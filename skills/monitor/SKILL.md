@@ -33,6 +33,9 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(./sc
 | `scan`   | 扫描持仓+自选股关键点位           | `/monitor scan`            |
 | `levels` | 查看单股关键点位                  | `/monitor levels sh600989` |
 | `check`  | 盘中检查+推送（dry-run 模式预览） | `/monitor check`           |
+| `start`  | 启动后台监控服务（持续轮询）      | `/monitor start`           |
+| `stop`   | 停止后台监控服务                  | `/monitor stop`            |
+| `status` | 查看后台监控服务运行状态          | `/monitor status`          |
 
 ### 自然语言
 
@@ -58,7 +61,7 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(./sc
 ```bash
 python3 -c "
 import sys; sys.path.insert(0, 'scripts')
-from monitor import NotificationManager
+from monitor.manager import NotificationManager
 from portfolio import PortfolioManager
 
 nm = NotificationManager()

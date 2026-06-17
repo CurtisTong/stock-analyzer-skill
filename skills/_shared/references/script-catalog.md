@@ -31,6 +31,13 @@
 | `python3 scripts/refresh_pool.py`         | 刷新股票池               |                                     |
 | `python3 scripts/monitor.py`              | 盘中监控与告警           | `--cache`、`--sources`、`--cleanup` |
 | `python3 scripts/monitor/alert_engine.py` | 策略关键点位扫描+推送    | `scan`、`levels <code>`、`check`    |
+| `python3 scripts/events.py`               | 财报/分红/解禁事件日历   | `<code> --days 30`                  |
+| `python3 scripts/stock.py`                | 五层分析业务入口（JSON） | `<code> --with-backtest`            |
+| `python3 scripts/calibration.py`          | 专家校准数据管理         | `record/verify/report/pending`      |
+| `python3 scripts/sector.py`               | 板块分析业务入口         | `<sector>`                          |
+| `python3 scripts/hot_rank.py`             | 热点榜（涨停/炸板/异动） | `top N`                             |
+| `python3 scripts/snapshots.py`            | 选股快照保存/加载        | `save/load/list`                    |
+| `python3 scripts/strategy_performance.py` | 策略表现跟踪             | `<strategy>`                        |
 
 ## JSON 输出
 

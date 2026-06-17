@@ -19,16 +19,18 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
 
-# 期望的 14 个 skill（9 核心 + 4 redirect + learn）
+# 期望的 12 个 skill（9 核心 + 3 子模块：stock-technical / portfolio-web / portfolio-natural + learn）
+# 2026-06-17 删除 4 个 deprecated skill（technical / stock-init / financial-analyst / investment-researcher），
+# 现 9 核心 + 3 子模块 + 1 learn + 1 共享
 EXPECTED_SKILLS = {
     "stock", "market", "sector", "portfolio", "portfolio-web", "portfolio-natural",
-    "screener", "technical", "stock-technical", "monitor", "stock-init", "backtest",
-    "financial-analyst", "investment-researcher", "help", "learn",
+    "screener", "stock-technical", "monitor", "backtest",
+    "help", "learn",
     "research",
 }
 
 # 命令式 skill：允许 disable-model-invocation 且 description 可短
-COMMAND_LIKE_SKILLS = {"backtest", "stock-init", "help", "monitor"}
+COMMAND_LIKE_SKILLS = {"backtest", "help", "monitor"}
 
 # 推荐的 model 值
 ALLOWED_MODELS = {"haiku", "sonnet", "opus"}

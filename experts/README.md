@@ -16,23 +16,45 @@
 
 ---
 
-## 长线 4 人（价值发现）
+## 长线 4 人（价值发现，legacy active=False）
 
-| 专家      | 风格        | 核心逻辑                                     | 档案                                 |
-| --------- | ----------- | -------------------------------------------- | ------------------------------------ |
-| 巴菲特    | 价值投资    | 好生意 + 好价格 + 长期持有，偏好高 ROE 低 PE | [buffett.md](buffett.md)             |
-| 彼得·林奇 | 成长投资    | PEG<1 增速消化估值，偏好高增速合理 PE        | [lynch.md](lynch.md)                 |
-| 索罗斯    | 宏观 / 趋势 | 趋势确认 + 反身性，技术面 + 资金面           | [soros.md](soros.md)                 |
-| 段永平    | 逆向投资    | 好公司 + 安全边际，低估值 + 护城河           | [duan_yongping.md](duan_yongping.md) |
+| 专家      | 风格        | 核心逻辑                                     | 档案                                 | 状态 |
+| --------- | ----------- | -------------------------------------------- | ------------------------------------ | :--: |
+| 巴菲特    | 价值投资    | 好生意 + 好价格 + 长期持有，偏好高 ROE 低 PE | [buffett.md](buffett.md)             | legacy |
+| 彼得·林奇 | 成长投资    | PEG<1 增速消化估值，偏好高增速合理 PE        | [lynch.md](lynch.md)                 |  active |
+| 索罗斯    | 宏观 / 趋势 | 趋势确认 + 反身性，技术面 + 资金面           | [soros.md](soros.md)                 |  active |
+| 段永平    | 逆向投资    | 好公司 + 安全边际，低估值 + 护城河           | [duan_yongping.md](duan_yongping.md) | legacy |
 
-## 短线 4 人（时机把握）
+## 短线 4 人（时机把握，legacy active=False）
 
-| 专家     | 风格       | 核心逻辑                          | 档案                                   |
-| -------- | ---------- | --------------------------------- | -------------------------------------- |
-| 徐翔     | 涨停板战法 | 龙头 + 量价配合，打板追涨         | [xu_xiang.md](xu_xiang.md)             |
-| 赵老哥   | 趋势龙头   | 趋势确认 + 持仓周期，波段操作     | [zhao_laoge.md](zhao_laoge.md)         |
-| 炒股养家 | 情绪流     | 情绪周期 + 板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](chaogu_yangjia.md) |
-| 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓        | [zuoshou_xinyi.md](zuoshou_xinyi.md)   |
+| 专家     | 风格       | 核心逻辑                          | 档案                                   | 状态 |
+| -------- | ---------- | --------------------------------- | -------------------------------------- | :--: |
+| 徐翔     | 涨停板战法 | 龙头 + 量价配合，打板追涨         | [xu_xiang.md](xu_xiang.md)             | legacy |
+| 赵老哥   | 趋势龙头   | 趋势确认 + 持仓周期，波段操作     | [zhao_laoge.md](zhao_laoge.md)         | legacy |
+| 炒股养家 | 情绪流     | 情绪周期 + 板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](chaogu_yangjia.md) | legacy |
+| 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓        | [zuoshou_xinyi.md](zuoshou_xinyi.md)   | legacy |
+
+## v2.1.0 扩展 6 人（active=True，补盲区）
+
+| 专家            | 风格                  | 核心逻辑                                  | 档案                                         |
+| --------------- | --------------------- | ----------------------------------------- | -------------------------------------------- |
+| 价值双锚        | 价值投资（合并）      | 巴菲特 0.55 + 段永平 0.45，美式数据+中式文化 | [value_anchor.md](value_anchor.md)           |
+| 题材龙头        | 题材龙头（合并）      | 徐翔 0.5 + 赵老哥 0.5，涨停基因+趋势龙头  | [topic_leader.md](topic_leader.md)           |
+| 情绪技术复合    | 情绪+技术（合并）     | 养家 0.5 + 作手新一 0.5，情绪周期+K线形态  | [emotion_tech.md](emotion_tech.md)           |
+| 行业专家        | 行业特异性            | 行业景气+竞争格局+行业 PE 分位           | [sector_specialist.md](sector_specialist.md) |
+| 机构派          | 机构长期主义          | 高瓴/红杉/淡马锡：深度尽调+长期持有      | [institution.md](institution.md)             |
+| 风险管理        | 二阶思维+周期位置     | Howard Marks 周期位置+风险预算           | [risk_manager.md](risk_manager.md)           |
+
+### 合并型专家的合并权重映射（v2.1.0 引入）
+
+| 合并型专家        | 合并来源                  | 权重      | 实现位置                         |
+| ----------------- | ------------------------- | --------- | -------------------------------- |
+| value_anchor      | buffett + duan_yongping   | 0.55+0.45 | `experts/scoring/value_anchor.py`  |
+| topic_leader      | xu_xiang + zhao_laoge     | 0.5+0.5   | `experts/scoring/topic_leader.py`  |
+| emotion_tech      | chaogu_yangjia + zuoshou_xinyi | 0.5+0.5 | `experts/scoring/emotion_tech.py` |
+| sector_specialist | 行业景气（独立视角）      | —         | `experts/scoring/sector_specialist.py` |
+| institution       | 机构长期主义（独立视角）  | —         | `experts/scoring/institution.py`   |
+| risk_manager      | 二阶思维（独立视角）      | —         | `experts/scoring/risk_manager.py`  |
 
 ---
 

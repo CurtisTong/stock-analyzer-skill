@@ -89,3 +89,14 @@ def score(stock_data: dict) -> Dict[str, float]:
         "情绪": risk_sentiment,
         "风险": core_risk,
     }
+
+
+def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
+    """风险管理评分（含推理链）。
+
+    v2.2.0 起统一使用 generic_score_with_reasoning 模板。
+    """
+    from experts.registry import EXPERT_REGISTRY
+    from ._utils import generic_score_with_reasoning
+    profile = EXPERT_REGISTRY["risk_manager"]
+    return generic_score_with_reasoning(profile, score, stock_data)

@@ -83,3 +83,14 @@ def score(stock_data: dict) -> Dict[str, float]:
         "情绪": sector_sentiment,
         "风险": competitive_moat,
     }
+
+
+def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
+    """行业专家评分（含推理链）。
+
+    v2.2.0 起统一使用 generic_score_with_reasoning 模板。
+    """
+    from experts.registry import EXPERT_REGISTRY
+    from ._utils import generic_score_with_reasoning
+    profile = EXPERT_REGISTRY["sector_specialist"]
+    return generic_score_with_reasoning(profile, score, stock_data)

@@ -178,6 +178,41 @@ def _downgrade_direction(direction: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 巴菲特降权规则（v2.2.0 收敛）
+# 原本规则分散在 _resolve_conflict 与 aggregate_votes 两处，现统一到
+# _buffett_downweight_policy 与 _apply_buffett_long_downweight 函数。
+# 行为完全保留：medium/long → 方向降一级+仓位×0.7，short → 其余长线×0.8
+# ═══════════════════════════════════════════════════════════════
+
+
+def _buffett_downweight_policy(buffett_score: float, horizon: str) -> dict:
+    """返回巴菲特降权策略（v2.2.0 收敛）。
+
+    巴菲特在两种模式下触发降权：
+    - medium/long：中长期模式下视为"否决权"，方向降一级 + 仓位×0.7
+    - short：短期模式下仅"权重警示"，其余长线专家评分×0.8
+    """
+    if buffett_score > 39:
+        return {"triggered": False, "mode": None, "factor": 1.0}
+    if horizon in ("medium", "long"):
+        return {"triggered": True, "mode": "veto", "factor": 0.7}
+    return {"triggered": True, "mode": "weight", "factor": 0.8}
+
+
+def _apply_buffett_long_downweight(long_experts: List[dict]) -> float:
+    """短期模式下，对除 buffett/value_anchor 外的长线专家×0.8 加权平均。
+
+    单一来源（v2.2.0 收敛），原 aggregate_votes 内联实现已替换为此函数。
+    """
+    identity_names = {"buffett", "value_anchor"}
+    total = sum(
+        r["score"] * (1.0 if r.get("name") in identity_names else 0.8)
+        for r in long_experts
+    )
+    return total / len(long_experts) if long_experts else 50.0
+
+
+# ═══════════════════════════════════════════════════════════════
 # 仓位建议 (decide.md §四)
 # ═══════════════════════════════════════════════════════════════
 
@@ -339,14 +374,10 @@ def aggregate_votes(
         short_avg = total_score / len(short_experts) if short_experts else short_avg
 
     # 巴菲特降权（短期模式看空时）：巴菲特自身不降，其余长线 ×0.8
-    # identity_name 认旧名（buffett）与新合并型名（value_anchor）
-    if buffett_score <= 39 and horizon == "short":
-        identity_names = {"buffett", "value_anchor"}
-        total_score = sum(
-            r["score"] * (1.0 if r.get("name") in identity_names else 0.8)
-            for r in long_experts
-        )
-        long_avg = total_score / len(long_experts) if long_experts else long_avg
+    # v2.2.0 起收敛到 _buffett_downweight_policy + _apply_buffett_long_downweight
+    buffett_policy = _buffett_downweight_policy(buffett_score, horizon)
+    if buffett_policy["triggered"] and buffett_policy["mode"] == "weight":
+        long_avg = _apply_buffett_long_downweight(long_experts)
 
     # 综合分
     composite = long_avg * lw + short_avg * sw

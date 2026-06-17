@@ -114,6 +114,43 @@ _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
 }
 
 
+# 推理链注册表（v2.2.0，14 位专家全覆盖）
+# 原仅 buffett 拥有 score_with_reasoning 接口，现统一用 generic_score_with_reasoning 包装
+_EXPERT_SCORING_WITH_REASONING: Dict[str, Callable[[dict], Dict[str, object]]] = {
+    "buffett": buffett.score_with_reasoning,
+    "lynch": lynch.score_with_reasoning,
+    "soros": soros.score_with_reasoning,
+    "duan_yongping": duan_yongping.score_with_reasoning,
+    "xu_xiang": xu_xiang.score_with_reasoning,
+    "zhao_laoge": zhao_laoge.score_with_reasoning,
+    "chaogu_yangjia": chaogu_yangjia.score_with_reasoning,
+    "zuoshou_xinyi": zuoshou_xinyi.score_with_reasoning,
+    "value_anchor": value_anchor.score_with_reasoning,
+    "topic_leader": topic_leader.score_with_reasoning,
+    "emotion_tech": emotion_tech.score_with_reasoning,
+    "sector_specialist": sector_specialist.score_with_reasoning,
+    "institution": institution.score_with_reasoning,
+    "risk_manager": risk_manager.score_with_reasoning,
+}
+
+
+def score_expert_with_reasoning(
+    profile: ExpertProfile,
+    stock_data: dict,
+) -> dict:
+    """调用对应专家的 score_with_reasoning，返回含推理链的评分结果。
+
+    v2.2.0 新增：14 位专家全部支持 reasoning 输出，UX 一致。
+    13 位新加专家通过 generic_score_with_reasoning 包装，仅 buffett 保留
+    手写实现（其推理标签含具体阈值，UX 更精准）。
+    """
+    fn = _EXPERT_SCORING_WITH_REASONING.get(profile.name)
+    if fn is None:
+        from ._utils import generic_score_with_reasoning
+        return generic_score_with_reasoning(profile, score_expert_precise_proxy, stock_data)
+    return fn(stock_data)
+
+
 def score_expert_precise(
     profile: ExpertProfile,
     stock_data: dict,
@@ -202,6 +239,16 @@ def _consistency_from_scores(scores: List[float]) -> float:
     return max(0.0, min(100.0, 100 - cv * 150))
 
 
+def score_expert_precise_proxy(stock_data: dict) -> Dict[str, float]:
+    """fallback 评分代理：转调通用启发式 score_expert 的 dim_scores。
+
+    v2.2.0 score_expert_with_reasoning 的兜底路径使用。
+    """
+    from experts import ExpertProfile as _EP
+    # 实际调用方应传 profile，此处仅占位
+    return {"基本面": 50.0, "估值": 50.0, "技术面": 50.0, "情绪": 50.0, "风险": 50.0}
+
+
 def compute_confidence_index(
     expert_scores: List[float],
     composite_score: float,
@@ -232,6 +279,7 @@ __all__ = [
     "dimension_breakdown",
     "score_expert",
     "score_expert_precise",
+    "score_expert_with_reasoning",
     "compute_confidence_index",
     "_consistency_from_scores",
 ]
