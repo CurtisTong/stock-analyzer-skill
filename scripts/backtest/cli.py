@@ -166,6 +166,13 @@ def main():
 
     print(f"📊 回测股票池: {len(codes)} 只", flush=True)
 
+    if len(codes) < args.top:
+        print(
+            f"⚠️  股票池 ({len(codes)}) 少于 top ({args.top})，"
+            f"自动调整为 top={len(codes)}",
+            flush=True,
+        )
+
     if args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
         result = optimize_weights(codes, args.strategy, args.top, args.days)

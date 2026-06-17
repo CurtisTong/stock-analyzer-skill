@@ -210,7 +210,9 @@ def simulate_strategy(
     for date, group in groupby(all_selections, key=lambda x: x["date"]):
         date_groups[date] = list(group)
 
-    min_stocks = min(top_n, max(3, len(kline_data) // 10))
+    pool_size = len(kline_data)
+    # 股票池太小时，降低入选门槛（pool=1 时 min_stocks=1）
+    min_stocks = min(top_n, max(1, pool_size, pool_size // 10 * 3))
     valid_dates = {d for d, items in date_groups.items() if len(items) >= min_stocks}
 
     portfolio_returns = []

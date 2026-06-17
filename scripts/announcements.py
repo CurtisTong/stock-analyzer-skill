@@ -11,6 +11,7 @@ import json
 import argparse
 from datetime import datetime, timedelta
 from common import http_get, err, DataError, cache_key_for_stock, cache_get, cache_set
+from common.utils import plain_code
 
 ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=10&page_index=1&ann_type=A&stock_list={code}&f_node=0"
 # 东方财富研报 API 需要 pageNo, beginTime, qType 参数
@@ -18,7 +19,8 @@ REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&pageNo=1&c
 
 def fetch_announcements(code: str, use_cache: bool = True) -> list:
     """获取公告数据，支持缓存（TTL 30 分钟）。"""
-    key = cache_key_for_stock("ann", code)
+    plain = plain_code(code)
+    key = cache_key_for_stock("ann", plain)
     if use_cache:
         cached = cache_get(key, ttl_seconds=1800)  # 30 分钟
         if cached is not None:
@@ -27,7 +29,7 @@ def fetch_announcements(code: str, use_cache: bool = True) -> list:
             except json.JSONDecodeError:
                 pass
 
-    raw = http_get(ANN_URL.format(code=code))
+    raw = http_get(ANN_URL.format(code=plain))
     try:
         data = json.loads(raw)
         result = data.get("data", {}).get("list", [])
@@ -39,7 +41,8 @@ def fetch_announcements(code: str, use_cache: bool = True) -> list:
 
 def fetch_reports(code: str, use_cache: bool = True) -> list:
     """获取研报数据，支持缓存（TTL 1 小时）。"""
-    key = cache_key_for_stock("report", code)
+    plain = plain_code(code)
+    key = cache_key_for_stock("report", plain)
     if use_cache:
         cached = cache_get(key, ttl_seconds=3600)  # 1 小时
         if cached is not None:
@@ -54,7 +57,7 @@ def fetch_reports(code: str, use_cache: bool = True) -> list:
     begin_time = begin_date.strftime("%Y-%m-%d")
     end_time = end_date.strftime("%Y-%m-%d")
 
-    url = REPORT_URL.format(code=code, begin_time=begin_time, end_time=end_time)
+    url = REPORT_URL.format(code=plain, begin_time=begin_time, end_time=end_time)
     raw = http_get(url)
     try:
         data = json.loads(raw)
