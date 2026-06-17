@@ -1,6 +1,7 @@
 """
 策略注册表：管理策略定义和权重配置。
 """
+
 from typing import Dict, Optional
 
 # ---------- 内置策略定义 ----------
@@ -59,6 +60,7 @@ STRATEGIES: Dict[str, dict] = {
 
 # ---------- 策略注册 API ----------
 
+
 def register_strategy(name: str, weights: dict, label: str = "") -> None:
     """注册新策略。
 
@@ -68,6 +70,7 @@ def register_strategy(name: str, weights: dict, label: str = "") -> None:
                  volatility 和 dividend 为可选因子（默认 0）
         label: 策略中文标签
     """
+    weights = {**weights}
     required_keys = {"quality", "valuation", "momentum", "liquidity"}
     if not required_keys.issubset(weights.keys()):
         raise ValueError(f"策略权重必须包含 {required_keys}")
