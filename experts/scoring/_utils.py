@@ -131,8 +131,10 @@ def _score_fundamentals(fin: dict) -> float:
     return round(score / 5, 1)
 
 
-def _score_valuation(quote: dict, fin: dict) -> float:
-    """估值维度：PE + PEG。"""
+def _score_valuation(quote: dict, fin: dict, industry: str = "默认") -> float:
+    """估值维度：PE + PEG。PE 段使用统一的 pe_percentile 行业差异化估值。"""
+    from strategies.factors.common import pe_percentile
+
     if not quote:
         return 50.0
     pe = float(quote.get("pe") or 0)
@@ -148,14 +150,8 @@ def _score_valuation(quote: dict, fin: dict) -> float:
 
     score = 0
     if pe > 0:
-        if pe <= 15:
-            score += 60
-        elif pe <= 25:
-            score += 45
-        elif pe <= 40:
-            score += 25
-        else:
-            score += 10
+        # pe_percentile 返回 0-100（越高越贵），反转为价值分（越高越便宜）
+        score += 100 - pe_percentile(pe, industry)
     if pb > 0 and pb <= 2:
         score += 20
     elif pb > 0 and pb <= 5:
