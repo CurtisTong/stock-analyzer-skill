@@ -3,6 +3,7 @@
 2026年 A 股市场红利因子有效性显著提升（保险/养老金增量资金偏好）。
 支持行业差异化阈值。
 """
+
 from common import to_float, clamp
 
 
@@ -26,7 +27,9 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
 
     # ---- 1. 股息率评分（60分）----
     # 方式A：直接股息率（有DPS时）
-    eps_dps_bonus = to_float(fin.get("dps") or fin.get("MGJXFH") or fin.get("每股现金分红") or 0)
+    eps_dps_bonus = to_float(
+        fin.get("dps") or fin.get("MGJXFH") or fin.get("每股现金分红") or 0
+    )
     pe = to_float(quote.get("pe", 0))
 
     dividend_yield = 0.0
@@ -53,34 +56,16 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
 
 
 def _score_dividend_yield(yield_pct: float, industry: str) -> float:
-    """股息率评分（60分满分）。
+    """股息率评分（60分满分）。"""
+    from strategies.thresholds import get_industry_threshold
 
-    各行业股息率基准不同：
-    - 银行/能源/公用事业：高股息常态，门槛更高
-    - 科技/半导体：低股息常态，门槛更低
-    """
-    industry_yield_thresholds = {
-        "银行": (5, 3, 2),      # 银行高股息常态
-        "金融": (4, 2.5, 1.5),
-        "能源": (5, 3, 2),
-        "地产": (4, 2.5, 1.5),
-        "消费": (3, 2, 1),
-        "周期": (3, 1.5, 0.8),
-        "制造": (2.5, 1.5, 0.8),
-        "医药": (2, 1, 0.5),
-        "科技": (1.5, 0.8, 0.3),
-        "半导体": (1, 0.5, 0.2),
-        "软件": (1, 0.5, 0.2),
-    }
-
-    excellent, good, fair = industry_yield_thresholds.get(
-        industry, (3, 1.5, 0.8)  # 默认
-    )
+    excellent = get_industry_threshold(industry, "dividend_yield_excellent", 3)
+    good = get_industry_threshold(industry, "dividend_yield_good", 1.5)
+    fair = get_industry_threshold(industry, "dividend_yield_fair", 0.8)
 
     if yield_pct >= excellent:
         return 60.0
     elif yield_pct >= good:
-        # 线性插值 good-excellent
         ratio = (yield_pct - good) / (excellent - good) if excellent > good else 0
         return 30.0 + ratio * 30.0
     elif yield_pct >= fair:
@@ -90,40 +75,21 @@ def _score_dividend_yield(yield_pct: float, industry: str) -> float:
         ratio = yield_pct / fair if fair > 0 else 0
         return ratio * 10.0
     else:
-        return 0.0  # 零股息
+        return 0.0
 
 
 def _count_dividend_years(fin: dict) -> int:
-    """估算连续分红年数。返回 0-10。
-
-    从财务数据中判断连续分红情况。
-    缺少逐期分红数据时通过 EPS/BPS 比率间接推断。
-    """
+    """估算连续分红年数。返回 0-10。只使用实际分红数据。"""
     if not fin:
         return 0
 
-    # 尝试获取多期现金分红数据
     dividend_records = fin.get("dividend_records", None)
     if dividend_records and isinstance(dividend_records, list):
         return min(len(dividend_records), 10)
 
-    # 通过 ROE 间接推断：盈利能力强是分红的前提
-    bps = to_float(fin.get("bps", fin.get("MGJZC", 0)))
-    eps = to_float(fin.get("eps", fin.get("EPSJB", 0)))
-
-    if bps > 0 and eps > 0:
-        roe = eps / bps * 100
-        if roe > 15:        # ROE > 15%，高盈利可能分红
-            return 5
-        elif roe > 10:      # ROE > 10%，中等盈利可能分红
-            return 3
-        elif roe > 5:       # ROE > 5%，低盈利可能不分红
-            return 1
-
-    # 检查是否有股息率数据可推断
     dps = to_float(fin.get("dps", fin.get("MGJXFH", 0)))
     if dps > 0:
-        return 2  # 有分红记录
+        return 2
 
     return 0
 
