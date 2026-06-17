@@ -20,8 +20,6 @@ def _detect_quant_activity(quote: dict, features: dict) -> str:
     market_amount = to_float(quote.get("market_amount", 0))
     if market_amount > 12000:
         return "quant_high"
-    if market_amount > 8000:
-        return "quant_normal"
     return "quant_normal"
 
 
