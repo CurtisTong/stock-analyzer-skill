@@ -56,22 +56,34 @@ from business.screening_service import (
 
 
 def _fetch_quote_dict(code: str) -> dict:
-    """获取单只行情，返回 dict（兼容旧接口）。"""
+    """获取单只行情，返回 dict（兼容旧接口）。
+
+    测试桩点（test seam）：测试通过 monkeypatch 替换此函数隔离网络依赖。
+    """
     return fetch_quote_dict(normalize_quote_code(code))
 
 
 def _fetch_batch_dicts(codes: list) -> list:
-    """批量获取行情，返回 dict 列表。"""
+    """批量获取行情，返回 dict 列表。
+
+    测试桩点（test seam）：测试通过 monkeypatch 替换此函数隔离网络依赖。
+    """
     return fetch_batch_dicts(codes)
 
 
 def _fetch_kline_dicts(code: str, limit: int = 240, scale: int = 30) -> list:
-    """获取 K 线，返回 dict 列表。"""
+    """获取 K 线，返回 dict 列表。
+
+    测试桩点（test seam）：测试通过 monkeypatch 替换此函数隔离网络依赖。
+    """
     return fetch_kline_dicts(normalize_quote_code(code), scale=scale, datalen=limit)
 
 
 def _fetch_finance_dicts(code: str) -> list:
-    """获取财务数据，返回 dict 列表。"""
+    """获取财务数据，返回 dict 列表。
+
+    测试桩点（test seam）：测试通过 monkeypatch 替换此函数隔离网络依赖。
+    """
     return fetch_finance_dicts(normalize_finance_code(code))
 
 
