@@ -4,6 +4,7 @@ import statistics
 from typing import Dict, List, Optional
 
 from experts import ExpertProfile, direction_from_score
+from experts.scoring import _consistency_from_scores
 
 # ═══════════════════════════════════════════════════════════════
 # 投票整合 (decide.md §一 + §三)
@@ -469,9 +470,7 @@ def aggregate_group_votes(
 
     # 信心指数（单组模式 §七.3）
     if scores:
-        mean = statistics.mean(scores)
-        cv = statistics.stdev(scores) / mean if mean > 0 and len(scores) > 1 else 0
-        consistency = max(0.0, min(100.0, 100 - cv * 150))
+        consistency = _consistency_from_scores(scores)
         confidence = consistency * 0.45 + avg * 0.55
     else:
         confidence = 50.0

@@ -187,6 +187,21 @@ def score_expert_precise(
 # ═══════════════════════════════════════════════════════════════
 
 
+def _consistency_from_scores(scores: List[float]) -> float:
+    """从评分列表计算一致性分数（CV→一致性映射）。
+
+    公式来源：decide.md §六.3。
+    返回 0-100，越高表示专家意见越一致。
+    """
+    if not scores:
+        return 0.0
+    mean = statistics.mean(scores)
+    if mean <= 0:
+        return 0.0
+    cv = statistics.stdev(scores) / mean if len(scores) > 1 else 0
+    return max(0.0, min(100.0, 100 - cv * 150))
+
+
 def compute_confidence_index(
     expert_scores: List[float],
     composite_score: float,
@@ -205,13 +220,7 @@ def compute_confidence_index(
     if not expert_scores:
         return 50.0
 
-    mean = statistics.mean(expert_scores)
-    if mean > 0:
-        cv = statistics.stdev(expert_scores) / mean if len(expert_scores) > 1 else 0
-    else:
-        cv = 1.0
-
-    consistency = max(0.0, min(100.0, 100 - cv * 150))
+    consistency = _consistency_from_scores(expert_scores)
     cal_adjustment = calibration_factor * 10  # 归一化后 ×10，校准贡献不超过 ±10 分
 
     confidence = consistency * 0.45 + composite_score * 0.45 + cal_adjustment * 0.1
@@ -224,4 +233,5 @@ __all__ = [
     "score_expert",
     "score_expert_precise",
     "compute_confidence_index",
+    "_consistency_from_scores",
 ]
