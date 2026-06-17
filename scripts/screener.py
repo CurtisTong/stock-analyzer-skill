@@ -366,6 +366,35 @@ def _prefetch_kline_all(codes, scale: int = 240, datalen: int = 240):
     return parallel_fetch_dict(codes, _fetch_one, label="screener:kline")
 
 
+def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
+    """Sprint 9 Phase 1：仅算 quality/valuation/liquidity（不依赖 K 线）。
+
+    用于全市场初筛，3-5 秒内完成 5000 只股票评分。
+    """
+    code = quote["code"]
+    quote_code = normalize_quote_code(code)
+    if finance_cache is not None:
+        records = finance_cache.get(quote_code, [])
+        fin = records[0] if records else {}
+    else:
+        fin = latest_finance(quote_code)
+    rejected = hard_filter(quote, fin, args)
+
+    industry = infer_industry(
+        quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
+    )
+    from business.screening_service import (
+        compute_phase1_parts, compute_weighted_score,
+    )
+    parts = compute_phase1_parts(fin, quote, industry)
+    total = compute_weighted_score(parts, args.strategy, regime=regime)
+    return build_result_row(
+        quote_code, quote, fin, {"ret20": 0, "rsi": 50, "macd_signal": 0,
+                                  "vol_price_signal": 0, "trend": 0},
+        industry, total, parts, rejected,
+    )
+
+
 def analyze_code(quote, strategy, args, finance_cache=None, regime=None, kline_cache=None):
     code = quote["code"]
     quote_code = normalize_quote_code(code)
@@ -533,6 +562,11 @@ def main():
         action="store_true",
         help="保存本次筛选快照到 data/snapshots/（review#16）",
     )
+    parser.add_argument(
+        "--two-stage",
+        action="store_true",
+        help="两阶段管线：Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排",
+    )
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 
@@ -540,6 +574,9 @@ def main():
 
     # review#11 修复：行情与财务数据并行拉取（原来串行，总耗时 = sum）
     from concurrent.futures import ThreadPoolExecutor
+    import time as _time
+
+    t_pipeline_start = _time.perf_counter()
 
     with ThreadPoolExecutor(max_workers=2) as ex:
         f_quotes = ex.submit(_fetch_batch_dicts, codes)
@@ -569,18 +606,58 @@ def main():
             print(f"⚠️ 市场状态检测失败: {e}", file=sys.stderr)
             regime = None
 
-    # review#12 修复：批量预拉 K 线（一次拉完所有候选股，复用 cache）
-    kline_cache = _prefetch_kline_all([q["code"] for q in quotes])
+    # Sprint 9 两阶段管线：Phase 1（无 K 线初筛）→ Phase 2（K 线精排）
+    # 全市场模式下显著降低 K 线获取量（5000 → top×3）
+    if args.two_stage:
+        t_p1 = _time.perf_counter()
+        rows_p1 = [
+            analyze_code_phase1(q, args, finance_cache, regime=regime)
+            for q in quotes
+        ]
+        # z-score 标准化仅在 Phase 1 维度（quality/valuation/liquidity）
+        if not args.no_normalize and len(rows_p1) >= 3:
+            _apply_factor_normalization(rows_p1, args.strategy, regime=regime)
+        # 按分数排序，取 Top N×3 进入 Phase 2
+        rows_p1.sort(key=lambda r: r.get("score", 0), reverse=True)
+        top_n_phase2 = max(args.top * 3, 10)
+        top_quotes = [q for q, r in zip(quotes, rows_p1) if r.get("score", 0) > 0][:top_n_phase2]
+        # 复用 rows_p1 中前 top_n_phase2 行的元数据
+        rows_p1_top = rows_p1[: len(top_quotes)]
+        t_p1 = _time.perf_counter() - t_p1
+        print(
+            f"⚡ Phase 1: {len(quotes)} 只 → Top {len(top_quotes)} 只 ({t_p1:.2f}s)",
+            flush=True,
+        )
 
-    rows = [
-        analyze_code(q, args.strategy, args, finance_cache, regime=regime, kline_cache=kline_cache)
-        for q in quotes
-    ]
-
-    # z-score 标准化（review#14）：解决 6 因子评分尺度差异导致的隐式权重偏差
-    # 默认开启；--no-normalize 保留 V1 原始分数
-    if not args.no_normalize and len(rows) >= 3:
-        _apply_factor_normalization(rows, args.strategy, regime=regime)
+        # Phase 2：仅对 Top N×3 拉 K 线，算 momentum/volatility/dividend
+        t_p2 = _time.perf_counter()
+        kline_cache = _prefetch_kline_all([q["code"] for q in top_quotes])
+        rows = [
+            analyze_code(q, args.strategy, args, finance_cache, regime=regime, kline_cache=kline_cache)
+            for q in top_quotes
+        ]
+        if not args.no_normalize and len(rows) >= 3:
+            _apply_factor_normalization(rows, args.strategy, regime=regime)
+        t_p2 = _time.perf_counter() - t_p2
+        print(
+            f"🎯 Phase 2: {len(rows)} 只精排 ({t_p2:.2f}s)",
+            flush=True,
+        )
+        t_total = _time.perf_counter() - t_pipeline_start
+        print(
+            f"✅ 两阶段管线完成: {t_total:.2f}s "
+            f"(节省 K 线 {len(quotes) - len(top_quotes)} 只)",
+            flush=True,
+        )
+    else:
+        # 单阶段（原行为）：一次性拉所有 K 线 + 算 6 因子
+        kline_cache = _prefetch_kline_all([q["code"] for q in quotes])
+        rows = [
+            analyze_code(q, args.strategy, args, finance_cache, regime=regime, kline_cache=kline_cache)
+            for q in quotes
+        ]
+        if not args.no_normalize and len(rows) >= 3:
+            _apply_factor_normalization(rows, args.strategy, regime=regime)
 
     rows.sort(key=lambda r: r["score"], reverse=True)
 

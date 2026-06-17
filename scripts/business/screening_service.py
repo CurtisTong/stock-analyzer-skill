@@ -93,12 +93,18 @@ def compute_features(code: str, bars=None) -> dict:
     volumes = [b.volume for b in bars if b.volume > 0]
 
     if len(closes) < 10:
+        # K 线数据不足时返回中性特征，避免下游因子函数 KeyError
         return {
             "trend": 0,
             "ret20": 0,
+            "ma10": 0,
+            "ma20": 0,
+            "volume_ratio": 1.0,
             "rsi": 50,
+            "rsi_signal": 0,
             "macd_signal": 0,
             "vol_price_signal": 0,
+            "closes": [],
         }
 
     # 趋势
@@ -408,6 +414,44 @@ def compute_factor_parts(fin, quote_dict, features, industry):
     }
 
 
+# Sprint 9 两阶段管线（Sprint 末节架构建议）：
+# Phase 1（轻量快速筛选）：仅算不依赖 K 线的因子
+#   quality / valuation / liquidity
+# Phase 2（精准评分）：在 Phase 1 Top N×3 上补 K 线依赖因子
+#   momentum / volatility / dividend
+PHASE1_FACTORS = ("quality", "valuation", "liquidity")
+PHASE2_FACTORS = ("momentum", "volatility", "dividend")
+
+
+def compute_phase1_parts(fin, quote_dict, industry: str) -> dict:
+    """Sprint 9 Phase 1：仅算 quality/valuation/liquidity（不依赖 K 线）。
+
+    适用于全市场 5000 只初筛，3-5 秒内完成。
+    """
+    return {
+        "quality": quality_score(fin, industry),
+        "valuation": valuation_score(quote_dict, fin, industry),
+        "liquidity": liquidity_score(quote_dict),
+    }
+
+
+def compute_phase2_parts(features: dict, quote_dict: dict, fin: dict, industry: str) -> dict:
+    """Sprint 9 Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
+
+    仅对 Phase 1 Top N×3 候选调用，节省 K 线获取量。
+    """
+    return {
+        "momentum": momentum_score(features, quote_dict),
+        "volatility": volatility_from_closes(features.get("closes", []), industry),
+        "dividend": dividend_score(quote_dict, fin, industry),
+    }
+
+
+def merge_phase_parts(phase1: dict, phase2: dict) -> dict:
+    """合并 Phase 1 + Phase 2 因子分。"""
+    return {**phase1, **phase2}
+
+
 def compute_weighted_score(parts, strategy, regime=None):
     """按策略权重加权求和，支持 market regime overlay（Sprint 2）。
 
@@ -491,11 +535,11 @@ def build_result_row(code, quote_dict, fin, features, industry, total, parts, re
         "board": bd,
         "industry": industry,
         "score": round(total, 1),
-        "quality": round(parts["quality"], 1),
-        "valuation": round(parts["valuation"], 1),
-        "momentum": round(parts["momentum"], 1),
-        "liquidity": round(parts["liquidity"], 1),
-        "volatility": round(parts["volatility"], 1),
+        "quality": round(parts.get("quality", 0), 1),
+        "valuation": round(parts.get("valuation", 0), 1),
+        "momentum": round(parts.get("momentum", 0), 1),
+        "liquidity": round(parts.get("liquidity", 0), 1),
+        "volatility": round(parts.get("volatility", 0), 1),
         "dividend": round(parts.get("dividend", 0), 1),
         "price": quote_dict.get("price"),
         "change_pct": quote_dict.get("change_pct"),
