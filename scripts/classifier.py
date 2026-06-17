@@ -193,8 +193,20 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
 # ── 行业推断 ──
 
 
-def infer_industry(name: str, code: str = "") -> str:
-    """根据股票名称和代码推断行业分类（关键词匹配 + 代码段推断）。"""
+def infer_industry(name: str, code: str = "", fetcher_industry: str = "") -> str:
+    """根据股票名称和代码推断行业分类（关键词匹配 + 代码段推断）。
+
+    review#13 修复：优先使用 fetcher 返回的行业字段（东方财富 API 提供），
+    避免名称推断失败时（如"中国平安"不含"保险"二字）落入"默认"。
+
+    优先级：
+      1. fetcher_industry（非空时直接返回）
+      2. 名称关键词匹配
+      3. 代码段推断（688→科技）
+      4. "默认"
+    """
+    if fetcher_industry and fetcher_industry.strip():
+        return fetcher_industry.strip()
     name = name.upper()
     # 科创板（688开头）默认归类为科技
     if code.startswith("688") or code.startswith("sh688"):

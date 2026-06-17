@@ -269,7 +269,9 @@ class ScreeningService:
         fin = fin_records[0] if fin_records else {}
 
         # 行业分类
-        industry = infer_industry(quote_dict.get("name", ""), code)
+        industry = infer_industry(
+            quote_dict.get("name", ""), code, fetcher_industry=quote_dict.get("industry", "")
+        )
 
         # 硬过滤
         rejected = self._hard_filter(quote_dict, fin, filters)

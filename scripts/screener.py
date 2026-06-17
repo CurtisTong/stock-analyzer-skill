@@ -351,7 +351,22 @@ def prefetch_finance_all(codes):
     return results
 
 
-def analyze_code(quote, strategy, args, finance_cache=None, regime=None):
+def _prefetch_kline_all(codes, scale: int = 240, datalen: int = 240):
+    """review#12：批量预拉 K 线。返回 {code: KlineBar列表}。
+
+    使用 parallel_fetch_dict 并发拉取（cache hit 时仍并发处理，避免串行磁盘 IO）。
+    K 线 TTL 6 小时，同一回测/筛选周期内同 code 仅首次真实请求。
+    """
+    from data import get_kline
+    from common import parallel_fetch_dict
+
+    def _fetch_one(code):
+        return get_kline(normalize_quote_code(code), scale=scale, datalen=datalen)
+
+    return parallel_fetch_dict(codes, _fetch_one, label="screener:kline")
+
+
+def analyze_code(quote, strategy, args, finance_cache=None, regime=None, kline_cache=None):
     code = quote["code"]
     quote_code = normalize_quote_code(code)
     if finance_cache is not None:
@@ -359,11 +374,18 @@ def analyze_code(quote, strategy, args, finance_cache=None, regime=None):
         fin = records[0] if records else {}
     else:
         fin = latest_finance(quote_code)
-    features = daily_features(quote_code)
+    # review#12 修复：复用预拉的 K 线，避免每只股票独立 get_kline 调用
+    if kline_cache is not None and quote_code in kline_cache:
+        from business.screening_service import compute_features
+        features = compute_features(quote_code, bars=kline_cache[quote_code])
+    else:
+        features = daily_features(quote_code)
     rejected = hard_filter(quote, fin, args)
 
     # 推断行业，获取行业差异化阈值
-    industry = infer_industry(quote.get("name", ""), quote_code)
+    industry = infer_industry(
+        quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
+    )
     parts = compute_factor_parts(fin, quote, features, industry)
 
     # 两阶段策略：Stage 1 硬条件过滤（review#2）
@@ -510,13 +532,25 @@ def main():
     args = parser.parse_args()
 
     codes = load_universe(args)
-    quotes = _fetch_batch_dicts(codes)
+
+    # review#11 修复：行情与财务数据并行拉取（原来串行，总耗时 = sum）
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_quotes = ex.submit(_fetch_batch_dicts, codes)
+        # 财务拉取依赖 codes 不依赖 quotes，所以也可以同时启动
+        f_finance = ex.submit(prefetch_finance_all, codes)
+        quotes = f_quotes.result()
 
     # 全市场模式预筛选（大幅减少进入六因子分析的股票数量）
     if args.full_market:
         quotes = pre_screen_quotes(quotes, args)
 
-    finance_cache = prefetch_finance_all([q["code"] for q in quotes])
+    finance_cache = f_finance.result()
+    # 财务缓存 key 是 normalize 后的代码，确保与 quote code 一致
+    finance_cache = {
+        normalize_quote_code(code): v for code, v in finance_cache.items()
+    }
 
     # 市场状态检测（Sprint 2 / doc#03）：4 信号 + 4 状态 + 6 因子 overlay
     regime = None
@@ -530,7 +564,13 @@ def main():
             print(f"⚠️ 市场状态检测失败: {e}", file=sys.stderr)
             regime = None
 
-    rows = [analyze_code(q, args.strategy, args, finance_cache, regime=regime) for q in quotes]
+    # review#12 修复：批量预拉 K 线（一次拉完所有候选股，复用 cache）
+    kline_cache = _prefetch_kline_all([q["code"] for q in quotes])
+
+    rows = [
+        analyze_code(q, args.strategy, args, finance_cache, regime=regime, kline_cache=kline_cache)
+        for q in quotes
+    ]
 
     # z-score 标准化（review#14）：解决 6 因子评分尺度差异导致的隐式权重偏差
     # 默认开启；--no-normalize 保留 V1 原始分数
