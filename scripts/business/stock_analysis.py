@@ -67,16 +67,15 @@ class StockAnalysisService:
             logger.warning(f"K线数据不足: {code}")
             result["warning"] = "K线数据不足"
         else:
-            kline_dicts = [b.to_dict() for b in kline]
-            result["kline_count"] = len(kline_dicts)
+            result["kline_count"] = len(kline)
 
             # 技术分析
             if include_technical:
-                result["technical"] = self._analyze_technical(kline_dicts)
+                result["technical"] = self._analyze_technical(kline)
 
             # 缠论分析
             if include_chan and len(kline) >= self.min_kline_days:
-                result["chan"] = self._analyze_chan(kline_dicts)
+                result["chan"] = self._analyze_chan([b.to_dict() for b in kline])
 
         # 4. 财务数据
         if include_finance:
@@ -97,64 +96,42 @@ class StockAnalysisService:
             raise ValidationError("code", code, "格式无效")
         return normalize_code(code)
 
-    def _analyze_technical(self, kline: List[dict]) -> dict:
-        """技术分析。"""
-        from technical import (
-            ma_system,
-            macd_full,
-            kdj_full,
-            bollinger,
-            rsi_features,
-            volume_analysis,
-            detect_candle_patterns,
-        )
+    def _analyze_technical(self, kline: list) -> dict:
+        """技术分析（接收 KlineBar 对象列表）。"""
+        from technical.pipeline import compute_indicators
+        from technical import ma_system, kdj_full, bollinger, detect_candle_patterns
 
-        closes = [k["close"] for k in kline if k.get("close", 0) > 0]
-        highs = [k["high"] for k in kline if k.get("high", 0) > 0]
-        lows = [k["low"] for k in kline if k.get("low", 0) > 0]
-        volumes = [k["volume"] for k in kline if k.get("volume", 0) > 0]
+        indicators = compute_indicators(kline)
+        closes = indicators.get("closes", [])
+        highs = [b.high for b in kline if b.high > 0]
+        lows = [b.low for b in kline if b.low > 0]
 
         result = {}
-
-        # 均线系统
         ma = ma_system(closes)
         result["ma"] = ma.get("alignment", "数据不足")
+        result["macd_signal"] = indicators.get("macd_signal", 0)
+        result["macd_divergence"] = ""
 
-        # MACD
-        macd = macd_full(closes) or {}
-        result["macd_signal"] = macd.get("signal", 0)
-        result["macd_divergence"] = macd.get("divergence", "")
-
-        # KDJ
         kdj = kdj_full(closes, highs, lows) or {}
         result["kdj"] = kdj.get("signal", "")
 
-        # BOLL
         boll = bollinger(closes)
         result["boll_position"] = boll.get("position", 0.5)
+        result["rsi"] = indicators.get("rsi", 50)
+        result["volume_signal"] = indicators.get("vol_price_signal", 0)
 
-        # RSI
-        rsi = rsi_features(closes)
-        result["rsi"] = rsi.get("rsi", 50)
-
-        # 成交量
-        vol = volume_analysis(closes, volumes)
-        result["volume_signal"] = vol.get("volume_price_signal", 0)
-
-        # K线形态
-        patterns = detect_candle_patterns(kline)
+        patterns = detect_candle_patterns([b.to_dict() for b in kline])
         result["patterns"] = patterns[:5] if patterns else []
 
         return result
 
-    def _analyze_chan(self, kline: List[dict]) -> dict:
+    def _analyze_chan(self, kline: list) -> dict:
         """缠论分析。"""
         from chan import chan_full_analysis
 
         try:
-            analysis = chan_full_analysis(kline)
-            return analysis
-        except Exception as e:
+            return chan_full_analysis(kline)
+        except (ValueError, KeyError, RuntimeError, TypeError) as e:
             logger.warning(f"缠论分析失败: {e}")
             return {"error": str(e)}
 
