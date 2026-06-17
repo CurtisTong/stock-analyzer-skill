@@ -178,11 +178,13 @@ class TestSyncOperations:
         captured = capsys.readouterr()
         assert "未找到" in captured.out or "不存在" in captured.out or "无" in captured.out
 
-    def test_push_no_local_file(self, capsys):
+    def test_push_no_local_file(self, capsys, tmp_path):
         """push 时无本地数据文件。"""
-        with patch.object(calibration_sync, "Path") as mock_path:
-            mock_path.return_value.exists.return_value = False
-            result = calibration_sync.push()
+        # mock _CALIBRATION_FILE 路径为不存在的临时路径
+        fake_file = tmp_path / "nonexistent.json"
+        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file):
+            with patch.object(calibration_sync, "_find_gist", return_value=None):
+                result = calibration_sync.push()
         assert result is False
 
     def test_status_no_gist(self, capsys):

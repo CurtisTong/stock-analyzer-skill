@@ -30,8 +30,8 @@ class TestInit:
 
     def test_load_default_config_when_no_file(self):
         """配置文件不存在时回退到空 dict，不抛异常。"""
-        with patch("monitor.manager._config_path") as mock_path:
-            mock_path.return_value = Path("/nonexistent/path.yaml")
+        # mock ConfigLoader.load 让它返回 {}（模拟文件不存在）
+        with patch("monitor.manager.ConfigLoader.load", return_value={}):
             mgr = NotificationManager()
         assert mgr._config == {}
 
