@@ -39,34 +39,19 @@ def momentum_score(features: dict, quote: dict) -> float:
     quant_regime = _detect_quant_activity(quote, features)
     decay = _MOMENTUM_DECAY_TABLE.get(quant_regime, 1.0)
 
-    # 估值衰减：高估值股票的动量信号可靠性低（泡沫而非趋势）
+    # 估值衰减：用统一的 pe_percentile
     pe = to_float(quote.get("pe"))
     if pe > 0:
-        # 优先用已有的 pe_percentile，否则从行业阈值估算
         pe_pct = to_float(quote.get("pe_percentile", 0))
         if pe_pct <= 0:
-            try:
-                from strategies.thresholds import get_industry_threshold
-                from classifier import infer_industry
+            from strategies.factors.common import pe_percentile
 
-                industry = infer_industry(quote.get("name", ""), quote.get("code", ""))
-                pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
-                pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
-                pe_high = get_industry_threshold(industry, "pe_expensive", 40)
-            except Exception:
-                pe_low, pe_mid, pe_high = 15, 25, 40
-            if pe <= pe_low:
-                pe_pct = 15
-            elif pe <= pe_mid:
-                pe_pct = 15 + (pe - pe_low) / (pe_mid - pe_low) * 35
-            elif pe <= pe_high:
-                pe_pct = 50 + (pe - pe_mid) / (pe_high - pe_mid) * 30
-            else:
-                pe_pct = min(95, 80 + (pe - pe_high) / pe_high * 20)
+            industry = quote.get("industry", "默认")
+            pe_pct = pe_percentile(pe, industry)
         if pe_pct > 80:
-            decay *= 0.45  # 估值极高位，动量信号大幅降权
+            decay *= 0.45
         elif pe_pct > 65:
-            decay *= 0.70  # 估值偏高，适度降权
+            decay *= 0.70
 
     # 趋势基础分：缩小上升/下降差距，避免过度敏感
     score = 40 if features["trend"] > 0 else 20 if features["trend"] == 0 else 12
