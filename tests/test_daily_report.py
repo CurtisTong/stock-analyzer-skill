@@ -41,9 +41,16 @@ _mock_http_module._get_connection = MagicMock()
 _mock_http_module._return_connection = MagicMock()
 _mock_http_module._connection_pool = {}
 _mock_http_module._pool_lock = __import__("threading").Lock()
+_original_http_module = sys.modules.get("common.http")
 sys.modules["common.http"] = _mock_http_module
 
 from portfolio.daily_report import DailyReportGenerator
+
+# 恢复原始模块，防止 mock 泄漏到其他测试模块
+if _original_http_module is not None:
+    sys.modules["common.http"] = _original_http_module
+else:
+    del sys.modules["common.http"]
 
 # ═══════════════════════════════════════════════════════════════
 # Fixtures
