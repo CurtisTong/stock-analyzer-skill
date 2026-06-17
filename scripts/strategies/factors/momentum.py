@@ -16,28 +16,13 @@ _MOMENTUM_DECAY_TABLE = {
 
 
 def _detect_quant_activity(quote: dict, features: dict) -> str:
-    """检测量化活跃度。
-
-    依据：
-    - 全市场成交额（如果 quote 有提供）> 1.2 万亿 → 量化高活跃
-    - 换手率 > 3% → 量化活跃度高
-    - 日内波动率特征
-    """
-    # 优先使用全市场成交额
+    """检测量化活跃度。只使用全市场成交额，无数据时返回默认。"""
     market_amount = to_float(quote.get("market_amount", 0))
-    if market_amount > 12000:  # 1.2万亿
+    if market_amount > 12000:
         return "quant_high"
-    if market_amount > 8000:  # 8000亿
+    if market_amount > 8000:
         return "quant_normal"
-
-    # 通过换手率推断
-    turnover = to_float(quote.get("turnover", 0))
-    if turnover > 3.0:
-        return "quant_high"
-    if turnover > 1.5:
-        return "quant_normal"
-
-    return "quant_low"
+    return "quant_normal"
 
 
 def momentum_score(features: dict, quote: dict) -> float:
