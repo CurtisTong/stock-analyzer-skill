@@ -125,42 +125,19 @@ def _get_stock_type_weights(stock_type: str) -> dict:
     )
 
 
-def composite_score(features, stock_type="普通股", market_state=None):
-    """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。"""
-    score = 0
-    ma = features.get("ma_system", {})
-    macd = features.get("macd") or {}
-    kdj = features.get("kdj") or {}
-    boll = features.get("bollinger") or {}
-    rsi_data = features.get("rsi", {})
-    vol = features.get("volume") or {}
-    patterns = features.get("patterns", [])
-
-    # 获取权重
-    type_w = _get_stock_type_weights(stock_type)
-    adj = {}
-    if market_state:
-        adj = _market_weight_adjustments(market_state)
-    else:
-        adj = _market_weight_adjustments("震荡")
-
-    # 1. 均线 20 分 × 类型权重 × 市场趋势权重
-    alignment = ma.get("alignment", "")
-    if _USE_CONFIG:
-        alignment_scores = (
-            get_scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
-        )
-    else:
-        alignment_scores = _ALIGNMENT_SCORES_DEFAULT
+def _score_ma(alignment: str, type_w: dict, adj: dict, alignment_scores: dict) -> float:
+    """均线评分（上限 30）。"""
     ma_base = alignment_scores.get(alignment, 7)
     ma_score = (
         ma_base
         * type_w["ma"]
         * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
     )
-    score += clamp(ma_score, 0, 30)
+    return clamp(ma_score, 0, 30)
 
-    # 2. MACD 15 分（上限 20 分，下限 0 分）
+
+def _score_macd(macd: dict, type_w: dict, adj: dict) -> float:
+    """MACD 评分（上限 20）。"""
     macd_signal = macd.get("signal", 0)
     bar_trend = macd.get("bar_trend", "")
     divergence = macd.get("divergence", "")
@@ -176,10 +153,11 @@ def composite_score(features, stock_type="普通股", market_state=None):
         macd_score += 8 * adj.get("divergence_bottom", 1.0)
     elif divergence == "顶背离(看跌)":
         macd_score -= 8 * adj.get("overbought", 1.0)
-    score += clamp(macd_score, 0, 20)
+    return clamp(macd_score, 0, 20)
 
-    # 3. KDJ 10 分（辅助信号：仅在震荡市/盘整时生效，其他市场降权）
-    # KDJ 与 RSI 功能重叠（超买超卖），KDJ 更适合短线震荡
+
+def _score_kdj(kdj: dict, type_w: dict, adj: dict) -> float:
+    """KDJ 评分（上限 15）。辅助信号：仅在震荡市/盘整时生效，其他市场降权。"""
     market_state_for_kdj = adj.get("trend_following", 1.0)
     kdj_active = market_state_for_kdj < 1.0  # 震荡/熊市时 KDJ 更有效
     kdj_weight = 5 if kdj.get("钝化") else (10 if kdj_active else 5)
@@ -200,9 +178,11 @@ def composite_score(features, stock_type="普通股", market_state=None):
     else:
         kdj_base = kdj_weight * 0.45
     kdj_score = kdj_base * type_w["kdj"]
-    score += clamp(kdj_score, 0, 15)
+    return clamp(kdj_score, 0, 15)
 
-    # 4. BOLL 10 分
+
+def _score_boll(boll: dict, type_w: dict) -> float:
+    """布林带评分（无独立上限，纳入总分）。"""
     pos = boll.get("position", 0.5)
     bw = boll.get("bandwidth_desc", "")
     boll_base = 7
@@ -212,9 +192,11 @@ def composite_score(features, stock_type="普通股", market_state=None):
         boll_base = 7
     elif pos > 0.7:
         boll_base = 4
-    score += boll_base * type_w["boll"]
+    return boll_base * type_w["boll"]
 
-    # 5. RSI 10 分
+
+def _score_rsi(rsi_data: dict, type_w: dict) -> float:
+    """RSI 评分（无独立上限，纳入总分）。"""
     rsi = rsi_data.get("rsi", 50)
     rsi_base = 7
     if 30 <= rsi <= 40:
@@ -229,9 +211,11 @@ def composite_score(features, stock_type="普通股", market_state=None):
         rsi_base = 3
     else:
         rsi_base = 5
-    score += rsi_base * type_w["rsi"]
+    return rsi_base * type_w["rsi"]
 
-    # 6. 成交量 15 分
+
+def _score_volume(vol: dict, type_w: dict) -> float:
+    """成交量评分（上限 20）。"""
     vp_signal = vol.get("volume_price_signal", 0)
     vr = vol.get("volume_ratio", 1)
     vol_base = 7
@@ -242,9 +226,11 @@ def composite_score(features, stock_type="普通股", market_state=None):
     vol_score = vol_base * type_w["volume"]
     if vr < 0.3:
         vol_score += 3
-    score += clamp(vol_score, 0, 20)
+    return clamp(vol_score, 0, 20)
 
-    # 7. K线形态 15 分 × 类型权重 × 市场牛市偏向
+
+def _score_patterns(patterns: list, type_w: dict, adj: dict) -> float:
+    """K线形态评分（上限 25）。"""
     bullish_patterns = ["早晨之星", "阳包阴", "锤子线", "红三兵", "假阴真阳"]
     bearish_patterns = ["黄昏之星", "阴包阳", "倒锤子", "三只乌鸦", "假阳真阴"]
     pattern_score = 7
@@ -254,13 +240,14 @@ def composite_score(features, stock_type="普通股", market_state=None):
             pattern_score = max(pattern_score, 13)
         if any(b in ptype for b in bearish_patterns):
             pattern_score = min(pattern_score, 3)
-    score += clamp(
+    return clamp(
         pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25
     )
 
-    # 8. 缠论加分项（上限 15 分）
+
+def _score_chan(chan_data: dict, adj: dict) -> float:
+    """缠论加分项（上限 15）。"""
     chan_bonus = 0
-    chan_data = features.get("chan_theory") or {}
     if chan_data.get("valid"):
         maidain = chan_data.get("maidian", {})
         buy_points = maidain.get("buy_points", [])
@@ -275,11 +262,12 @@ def composite_score(features, stock_type="普通股", market_state=None):
         beichi = chan_data.get("beichi", {})
         if beichi.get("summary", "").startswith("检测到底背驰"):
             chan_bonus += 8 * adj.get("divergence_bottom", 1.0)
-    score += clamp(chan_bonus, 0, 15)
+    return clamp(chan_bonus, 0, 15)
 
-    # 9. 本土战法加分（上限 10 分）
+
+def _score_local(local_patterns_data: dict) -> float:
+    """本土战法加分（上限 10）。"""
     local_bonus = 0
-    local_patterns_data = features.get("local_patterns") or {}
     for lp in local_patterns_data.get("patterns", []):
         pname = lp.get("name", "")
         pconf = lp.get("confidence", "中")
@@ -299,13 +287,14 @@ def composite_score(features, stock_type="普通股", market_state=None):
         if pconf == "高":
             bonus *= 1.2
         local_bonus += bonus
-    score += clamp(local_bonus, 0, 10)
+    return clamp(local_bonus, 0, 10)
 
-    # 10. 资金面加分项（上限 +10 分，下限 -5 分）
+
+def _score_chip(chip_data: dict, type_w: dict) -> float:
+    """资金面加分项（上限 +10，下限 -5）。"""
     chip_bonus = 0
-    chip_data = features.get("chip") or {}
 
-    # 10.1 融资融券信号（上限 3 分）
+    # 融资融券信号（上限 3 分）
     margin = chip_data.get("margin") or {}
     if margin.get("rzjme_5d", 0) > 0:  # 近5日融资净买入为正
         chip_bonus += 2
@@ -314,7 +303,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
     elif margin.get("rzjme_5d", 0) < 0:
         chip_bonus -= 1  # 允许负分
 
-    # 10.2 股东户数信号（上限 3 分）
+    # 股东户数信号（上限 3 分）
     holders = chip_data.get("holders") or {}
     if holders.get("concentration", "") == "持续集中":
         chip_bonus += 3
@@ -323,7 +312,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
     elif holders.get("concentration", "") == "分散":
         chip_bonus -= 1  # 允许负分
 
-    # 10.3 筹码分布信号（4分）- Phase 3 实现
+    # 筹码分布信号（4分）- Phase 3 实现
     # chip_dist = chip_data.get("chip_dist") or {}
     # profit_ratio = chip_dist.get("profit_ratio", 50)
     # if 40 <= profit_ratio <= 60:
@@ -340,11 +329,43 @@ def composite_score(features, stock_type="普通股", market_state=None):
 
     chip_score = chip_bonus * type_w.get("chip", 1.0)
     # 资金面允许负分惩罚，故下限为 -5 而非 0
-    score += clamp(chip_score, -5, 10)
+    return clamp(chip_score, -5, 10)
+
+
+def composite_score(features, stock_type="普通股", market_state=None):
+    """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。"""
+    type_w = _get_stock_type_weights(stock_type)
+    adj = _market_weight_adjustments(market_state or "震荡")
+
+    if _USE_CONFIG:
+        alignment_scores = (
+            get_scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
+        )
+    else:
+        alignment_scores = _ALIGNMENT_SCORES_DEFAULT
+
+    ma = features.get("ma_system", {})
+    macd = features.get("macd") or {}
+    kdj = features.get("kdj") or {}
+    boll = features.get("bollinger") or {}
+    rsi_data = features.get("rsi", {})
+    vol = features.get("volume") or {}
+    patterns = features.get("patterns", [])
+
+    score = 0
+    score += _score_ma(ma.get("alignment", ""), type_w, adj, alignment_scores)
+    score += _score_macd(macd, type_w, adj)
+    score += _score_kdj(kdj, type_w, adj)
+    score += _score_boll(boll, type_w)
+    score += _score_rsi(rsi_data, type_w)
+    score += _score_volume(vol, type_w)
+    score += _score_patterns(patterns, type_w, adj)
+    score += _score_chan(features.get("chan_theory") or {}, adj)
+    score += _score_local(features.get("local_patterns") or {})
+    score += _score_chip(features.get("chip") or {}, type_w)
 
     score = clamp(score, 0, 100)
 
-    # 定级（含模糊区间：边界附近标注"边界"）
     if score >= 80:
         grade = "强烈看多"
     elif score >= 75:
