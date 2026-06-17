@@ -9,7 +9,7 @@ veto_conditions 字段对应原 markdown 中的"一票否决"列表。
 """
 
 from typing import Dict, List
-from . import ExpertProfile
+from experts.types import ExpertProfile
 
 EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
 

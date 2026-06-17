@@ -16,41 +16,10 @@
 每位专家的人设、案例、引用仍以 experts/<name>.md 为权威来源，
 本模块只承载结构化字段（权重 + 否决条件 + 标签）。
 """
-from dataclasses import dataclass, field
+
 from typing import Dict, List, Optional
 
-
-@dataclass(frozen=True)
-class ExpertProfile:
-    """专家人设的结构化档案。"""
-    name: str                       # 英文短名（e.g. "buffett"）
-    display_name: str               # 中文显示名（e.g. "巴菲特"）
-    group: str                      # "long_term" | "short_term"
-    style: str                      # 风格标签（e.g. "价值投资"）
-    horizon: str                    # 持仓周期（e.g. "月/季/年"）
-    core_signal: str                # 核心信号源
-    weights: Dict[str, float]       # 5 维度权重（百分比，加和 100）
-    veto_conditions: List[str] = field(default_factory=list)
-    md_path: str = ""               # 关联的 markdown 路径
-    active: bool = True             # v2.1.0 起：False 表示 deprecated，新框架不再调用
-
-
-# 方向判定阈值（与 experts/decide.md §一.1.1 一致）
-DIRECTION_THRESHOLDS = [
-    (70, "强烈看多"),
-    (60, "看多"),
-    (40, "中性"),
-    (30, "看空"),
-    (0, "强烈看空"),
-]
-
-
-def direction_from_score(score: float) -> str:
-    """把 0-100 总分映射到方向标签。"""
-    for threshold, label in DIRECTION_THRESHOLDS:
-        if score >= threshold:
-            return label
-    return "强烈看空"
+from experts.types import ExpertProfile, DIRECTION_THRESHOLDS, direction_from_score
 
 
 def apply_veto(
@@ -76,7 +45,12 @@ def apply_veto(
 
 
 # 导入注册表（放在模块底部以利用 dataclass 定义）
-from .registry import EXPERT_REGISTRY, LEGACY_ALIAS, get_display_name, _ensure_loaded  # noqa: E402
+from .registry import (
+    EXPERT_REGISTRY,
+    LEGACY_ALIAS,
+    get_display_name,
+    _ensure_loaded,
+)  # noqa: E402
 
 _ensure_loaded()
 
@@ -107,6 +81,7 @@ def list_short_term_experts() -> List[ExpertProfile]:
 # ═══════════════════════════════════════════════════════════════
 # v2.1.0 切换 API
 # ═══════════════════════════════════════════════════════════════
+
 
 def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
     """列出 active=True 的专家（v2.1.0 默认 8 人）。
