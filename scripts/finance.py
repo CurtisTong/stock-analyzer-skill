@@ -78,7 +78,7 @@ def main():
     normalized_codes = [normalize_finance_code(c) for c in codes]
 
     if len(normalized_codes) > 1:
-        results = parallel_map(fetch, normalized_codes, max_workers=4, timeout=30)
+        results = parallel_map(fetch, normalized_codes, timeout=30)
         all_results = {k: v for k, v in results.items() if v}
     else:
         all_results = {normalized_codes[0]: fetch(normalized_codes[0])}

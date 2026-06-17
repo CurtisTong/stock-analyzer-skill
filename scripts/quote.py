@@ -62,7 +62,7 @@ def main():
     batches = list(batchify(codes, 15))
     if len(batches) > 1:
         results = parallel_map(
-            lambda b: fetch_batch(b, use_cache=True), batches, max_workers=4, timeout=30
+            lambda b: fetch_batch(b, use_cache=True), batches, timeout=30
         )
         all_records = []
         for batch in batches:
