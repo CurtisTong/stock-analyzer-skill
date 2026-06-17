@@ -1,4 +1,5 @@
 """统一缓存管理。"""
+
 import hashlib
 import json
 import os
@@ -33,7 +34,7 @@ def get(key: str, ttl_seconds: int) -> Optional[bytes]:
     return f.read_bytes()
 
 
-def set(key: str, data: bytes) -> None:
+def put(key: str, data: bytes) -> None:
     """写入缓存（原子写入：先写临时文件，再 rename）。
 
     非 Windows 平台使用 fcntl 文件锁防止多进程竞争。
@@ -61,6 +62,14 @@ def set(key: str, data: bytes) -> None:
         Path(tmp_path).unlink(missing_ok=True)
 
 
+def set(key: str, data: bytes) -> None:
+    """set 已更名为 put，保留向后兼容。"""
+    import warnings
+
+    warnings.warn("cache.set() 已更名为 cache.put()", DeprecationWarning, stacklevel=2)
+    put(key, data)
+
+
 def get_json(key: str, ttl_seconds: int) -> Any:
     """读取 JSON 缓存。"""
     raw = get(key, ttl_seconds)
@@ -74,7 +83,7 @@ def get_json(key: str, ttl_seconds: int) -> Any:
 
 def set_json(key: str, data: Any) -> None:
     """写入 JSON 缓存。"""
-    set(key, json.dumps(data, ensure_ascii=False).encode())
+    put(key, json.dumps(data, ensure_ascii=False).encode())
 
 
 def clear(prefix: str = "") -> None:
@@ -109,11 +118,14 @@ def cache_key_for_stock(prefix: str, code: str, **params: object) -> str:
     格式: {prefix}_{code}_{param_hash}
     """
     param_str = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
-    param_hash = hashlib.md5(param_str.encode()).hexdigest()[:8] if param_str else ""
+    param_hash = (
+        hashlib.sha256(param_str.encode()).hexdigest()[:12] if param_str else ""
+    )
     return f"{prefix}_{code}_{param_hash}".rstrip("_")
 
 
 # ---------- 别名：带 cache_ 前缀的导出名（与 common.__init__.py 公开符号一致） ----------
+
 
 def cache_get(key: str, ttl_seconds: int) -> Optional[bytes]:
     """get() 的别名，用于 `from common.cache import cache_get` 显式导入。"""
@@ -122,7 +134,7 @@ def cache_get(key: str, ttl_seconds: int) -> Optional[bytes]:
 
 def cache_set(key: str, data: bytes) -> None:
     """set() 的别名。"""
-    set(key, data)
+    put(key, data)
 
 
 def cache_cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
@@ -145,45 +157,30 @@ def cleanup_tmp_files() -> int:
 
 
 def cleanup_by_size(max_size_mb: int = 500, keep_newest: bool = True) -> int:
-    """按缓存目录大小清理，保留最新文件。
-
-    Args:
-        max_size_mb: 缓存目录最大允许大小（MB）
-        keep_newest: True=保留最新文件，False=保留最旧文件
-
-    Returns:
-        清理的文件数量
-    """
+    """按缓存目录大小清理，保留最新文件。"""
     import shutil
 
     _ensure_dir()
-
-    # 计算当前总大小
     files = list(CACHE_DIR.glob("*.cache"))
     if not files:
         return 0
 
-    total_size = sum(f.stat().st_size for f in files)
+    file_stats = [(f, f.stat()) for f in files]
+    total_size = sum(s.st_size for _, s in file_stats)
     max_size_bytes = max_size_mb * 1024 * 1024
 
     if total_size <= max_size_bytes:
         return 0
 
-    # 按修改时间排序
-    if keep_newest:
-        files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
-    else:
-        files.sort(key=lambda f: f.stat().st_mtime)
+    file_stats.sort(key=lambda x: x[1].st_mtime, reverse=keep_newest)
 
-    # 从最旧的开始删除，直到大小合适
     cleaned = 0
     current_size = total_size
-    for f in files:
+    for f, s in file_stats:
         if current_size <= max_size_bytes:
             break
-        file_size = f.stat().st_size
         f.unlink(missing_ok=True)
-        current_size -= file_size
+        current_size -= s.st_size
         cleaned += 1
 
     return cleaned
@@ -219,6 +216,10 @@ def get_cache_stats() -> dict[str, Any]:
     return {
         "total_files": len(files),
         "total_size_mb": round(total_size / 1024 / 1024, 2),
-        "oldest_file": datetime.fromtimestamp(min(t for _, t in files_with_time)).isoformat(),
-        "newest_file": datetime.fromtimestamp(max(t for _, t in files_with_time)).isoformat(),
+        "oldest_file": datetime.fromtimestamp(
+            min(t for _, t in files_with_time)
+        ).isoformat(),
+        "newest_file": datetime.fromtimestamp(
+            max(t for _, t in files_with_time)
+        ).isoformat(),
     }
