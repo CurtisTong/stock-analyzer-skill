@@ -9,7 +9,56 @@
 
 ## [Unreleased]
 
-## [2.1.0] - 2026-06-17（V2.1 维护版）
+## [1.12.0] - 2026-06-17（统一版本：V2 量化策略平台 + V2.1 维护）
+
+> 本版本将所有 Sprint 1-26 的 V2 改造合并发布为统一版本 v1.12.0
+> 历史 tag（v1.1.0 - v1.11.0、v2.0.0、v2.1.0）已合并到此版本。
+
+### Added
+
+- **Screener V2 量化策略平台**（Sprint 1-26 综合）：
+  - 6 因子 z-score 标准化（review#14）消除跨因子尺度差异
+  - 4 状态市场状态机（bull/bear/range/panic）自动调节策略权重（doc#03）
+  - 两阶段管线（Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排）
+  - 5 策略 V2 权重升级（balanced/quality_value/growth_momentum/defensive/turning_point）
+  - 选股快照系统（review#16）：保存/对比/列出 JSON 快照
+  - 跨策略对比子命令（strategy_performance compare）
+  - 月度校准（strategy_performance record）记录到 JSON
+  - 性能压测工具（perf_bench.py + save 子命令 JSON 持久化）
+  - 板块集中度算法修复（review#15，候选池 < 10 不强制）
+  - 因子级精修：波动率窗口 20→60 / ROE 趋势下降占比 60% / 动量阈值 p75 / PEG 用 3y CAGR / 动量趋势基础分收敛
+  - K 线批量预拉（review#12）减少 5000 次独立 IO
+  - 行情+财务并行拉取（review#11）耗时从 sum 降到 max
+  - 行业分类 fetcher_industry 优先（review#13）
+  - turning_point 两阶段模型（review#2）超跌+量能+基本面三重过滤
+  - ESG/分红 fetcher 字段映射（review#9+10）dividend_records/consecutive_dividend_years 等
+- **experts/yaml 机器可读版**（D6 落地）：13 个 expert yaml 配置 + 加载器
+  - `experts/yaml_loader.py` 支持 load/load_all/export/round_trip
+  - `experts/registry.py` 优先从 yaml 加载，向后兼容硬编码
+- **screener.py main() 重构**（V2.1）：提取 `_build_parser()` 和 `_run_main(args)` 助手
+  - `_build_parser()` 返回 argparse parser（便于构造 Namespace）
+  - `_run_main(args)` 接收参数后直接执行（不解析 argv）
+  - `main()` 仅 5 行（parse + delegate）
+- **统一版本号**：`scripts/common/version.py` 暴露 `__version__ = "1.12.0"`
+  - `screener --version` / `backtest --version` 输出带前缀
+- **C7 README 30s demo**：`scripts/demo.sh` 可重放脚本 + README demo 段
+
+### Changed
+
+- `compute_weighted_score` 支持 market regime overlay（strategy 参数 → 实时调节权重）
+- 策略权重从 V1 经验值（balanced.quality=0.23）升级到 V2（0.30）
+- `_dict_to_finance` 支持 5 个新字段（dividend_yield/consecutive_dividend_years 等）
+
+### Engineering
+
+- 覆盖率 55% → 62.1%（fail-under 60% 达标）
+- 168 测试 → 1780 测试（+1612 测试，0 失败）
+- pre-commit 钩子 + flake8 + black 格式化
+- 21 个独立 commit
+- 5 个新模块（regime / filters / snapshots / strategy_performance / perf_bench）
+- 13 个 expert yaml（V2 + V2.1.0 完整覆盖）
+
+## [1.11.0] - 2026-06-16
 
 ### Changed
 
