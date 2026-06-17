@@ -6,6 +6,7 @@
 import json
 import os
 import re
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -33,11 +34,12 @@ def _log_path() -> Path:
 
 # 日志轮转配置（可从 YAML 覆盖）
 _LOG_MAX_SIZE = 5 * 1024 * 1024  # 默认 5MB
-_LOG_MAX_FILES = 5               # 保留最近 5 个轮转文件
+_LOG_MAX_FILES = 5  # 保留最近 5 个轮转文件
 
 
-def _rotate_log_if_needed(log_path: Path, max_size: int = _LOG_MAX_SIZE,
-                          max_files: int = _LOG_MAX_FILES) -> None:
+def _rotate_log_if_needed(
+    log_path: Path, max_size: int = _LOG_MAX_SIZE, max_files: int = _LOG_MAX_FILES
+) -> None:
     """检查并执行日志轮转。
 
     Args:
@@ -133,6 +135,7 @@ class NotificationManager:
         self._throttle_log: dict[str, float] = {}  # key -> last_sent_ts
         self._daily_count = 0
         self._daily_date = ""
+        self._lock = threading.Lock()
         self._setup_channels()
 
     def _load_config(self) -> dict:
@@ -205,21 +208,22 @@ class NotificationManager:
         dedup_window = throttle_cfg.get("dedup_window", 15) * 60  # 分钟转秒
         daily_limit = throttle_cfg.get("daily_limit", 20)
 
-        # 每日计数重置
-        today = _now().strftime("%Y-%m-%d")
-        if today != self._daily_date:
-            self._daily_date = today
-            self._daily_count = 0
+        with self._lock:
+            # 每日计数重置
+            today = _now().strftime("%Y-%m-%d")
+            if today != self._daily_date:
+                self._daily_date = today
+                self._daily_count = 0
 
-        # 每日上限（紧急消息不受限）
-        if not urgent and self._daily_count >= daily_limit:
-            return False
+            # 每日上限（紧急消息不受限）
+            if not urgent and self._daily_count >= daily_limit:
+                return False
 
-        # 去重窗口（紧急消息也受去重限制，避免重复轰炸）
-        now = time.time()
-        last = self._throttle_log.get(key, 0)
-        if now - last < dedup_window:
-            return False
+            # 去重窗口（紧急消息也受去重限制，避免重复轰炸）
+            now = time.time()
+            last = self._throttle_log.get(key, 0)
+            if now - last < dedup_window:
+                return False
 
         return True
 
@@ -246,8 +250,9 @@ class NotificationManager:
         except (ValueError, AttributeError):
             return False
 
-    def _log_send(self, title: str, channel: str, success: bool,
-                  error: str = "") -> None:
+    def _log_send(
+        self, title: str, channel: str, success: bool, error: str = ""
+    ) -> None:
         """记录推送日志（带日志轮转保护）。"""
         log_path = _log_path()
 
@@ -266,11 +271,15 @@ class NotificationManager:
         except OSError:
             pass
 
-    def send(self, title: str, body: str,
-             url: Optional[str] = None,
-             group: Optional[str] = None,
-             throttle_key: Optional[str] = None,
-             urgent: bool = False) -> dict:
+    def send(
+        self,
+        title: str,
+        body: str,
+        url: Optional[str] = None,
+        group: Optional[str] = None,
+        throttle_key: Optional[str] = None,
+        urgent: bool = False,
+    ) -> dict:
         """发送通知到所有已激活通道。
 
         Args:
@@ -312,15 +321,21 @@ class NotificationManager:
                 failed += 1
 
         if sent > 0:
-            self._throttle_log[key] = time.time()
-            self._daily_count += 1
+            with self._lock:
+                self._throttle_log[key] = time.time()
+                self._daily_count += 1
 
         return {"sent": sent, "failed": failed, "results": results}
 
-    def send_alert(self, alert_type: str, stock_name: str,
-                   stock_code: str, message: str,
-                   url: Optional[str] = None,
-                   urgent: bool = False) -> dict:
+    def send_alert(
+        self,
+        alert_type: str,
+        stock_name: str,
+        stock_code: str,
+        message: str,
+        url: Optional[str] = None,
+        urgent: bool = False,
+    ) -> dict:
         """发送股票预警通知（带标准化格式）。
 
         Args:
@@ -348,5 +363,6 @@ class NotificationManager:
             title += f" ({stock_code})"
 
         throttle_key = f"{alert_type}:{stock_code}:{message[:20]}"
-        return self.send(title, body=message, url=url,
-                         throttle_key=throttle_key, urgent=urgent)
+        return self.send(
+            title, body=message, url=url, throttle_key=throttle_key, urgent=urgent
+        )
