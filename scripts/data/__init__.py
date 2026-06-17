@@ -9,6 +9,7 @@
     bars = get_kline("sh600989", scale=240, datalen=30)
     records = get_finance("SH600989")
 """
+
 import threading
 from typing import Optional
 from datetime import datetime
@@ -17,12 +18,14 @@ from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def _now_iso() -> str:
     """获取当前时间的 ISO 格式字符串。"""
     return datetime.now().isoformat()
+
 
 # v1.3.1: 缓存已迁入 common.cache，此处仅作兼容 shim（见 data.cache）
 from common import cache
@@ -31,7 +34,9 @@ from common import cache
 def _get_common_helpers():
     """延迟导入 common，避免 common.py ↔ data/__init__.py 循环导入。"""
     from common import to_float, to_int
+
     return to_float, to_int
+
 
 # 延迟导入 fetchers（避免循环导入），线程安全
 _fetchers_lock = threading.Lock()
@@ -49,6 +54,7 @@ def _load_fetchers():
         if _fetchers_loaded:
             return
         from fetchers import get_quote_manager, get_kline_manager, get_finance_manager
+
         _quote_manager = get_quote_manager()
         _kline_manager = get_kline_manager()
         _finance_manager = get_finance_manager()
@@ -81,14 +87,14 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
 def get_quotes(codes: list, use_cache: bool = True) -> list:
     """批量获取行情。"""
     from common import parallel_map
-    cfg = get_config()
-    results = parallel_map(lambda c: get_quote(c, use_cache), codes,
-                           max_workers=cfg.max_workers, timeout=30)
+
+    results = parallel_map(lambda c: get_quote(c, use_cache), codes, timeout=30)
     return [q for q in results.values() if q is not None]
 
 
-def get_kline(code: str, scale: int = 240, datalen: int = 30,
-              use_cache: bool = True) -> list:
+def get_kline(
+    code: str, scale: int = 240, datalen: int = 30, use_cache: bool = True
+) -> list:
     """获取 K 线数据。
 
     Args:
@@ -151,8 +157,12 @@ def get_finance(code: str, use_cache: bool = True) -> list:
     # 完整性校验：所有记录 eps==0 且 roe==0 说明字段映射失败，触发 fallback
     if records and all(r.eps == 0 and r.roe == 0 for r in records):
         from common.exceptions import ParseError
-        raise ParseError(str(result[:1]), "finance_field_mapping",
-                         "所有记录 eps/roe 均为 0，字段映射可能失败")
+
+        raise ParseError(
+            str(result[:1]),
+            "finance_field_mapping",
+            "所有记录 eps/roe 均为 0，字段映射可能失败",
+        )
 
     if use_cache and records:
         cache.set_json(key, [r.to_dict() for r in records])
@@ -193,6 +203,7 @@ def _normalize_volume(raw_volume: int, source: str) -> int:
     委托给 common.normalize_volume，保持单一真相源。
     """
     from common import normalize_volume
+
     return normalize_volume(raw_volume, source)
 
 
@@ -218,19 +229,31 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
     to_float, _ = _get_common_helpers()
     FIELD_MAP = {
-        "report_date": ["REPORT_DATE", "REPORTDATETIME", "NOTICE_DATE",
-                        "报告日期", "截止日期"],
+        "report_date": [
+            "REPORT_DATE",
+            "REPORTDATETIME",
+            "NOTICE_DATE",
+            "报告日期",
+            "截止日期",
+        ],
         "eps": ["EPSJB", "基本每股收益", "每股收益"],
         "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE"],
-        "revenue_yoy": ["TOTALOPERATEREVETZ", "营业收入同比", "营收同比",
-                        "营业总收入同比增长率", "营收同比(%)"],
-        "net_profit_yoy": ["PARENTNETPROFITTZ", "归母净利润同比",
-                           "净利润同比", "归母净利润同比增长率",
-                           "净利润同比(%)"],
-        "gross_margin": ["XSMLL", "销售毛利率", "毛利率",
-                         "毛利率(%)", "销售毛利率(%)"],
-        "net_margin": ["XSJLL", "销售净利率", "净利率",
-                       "净利率(%)", "销售净利率(%)"],
+        "revenue_yoy": [
+            "TOTALOPERATEREVETZ",
+            "营业收入同比",
+            "营收同比",
+            "营业总收入同比增长率",
+            "营收同比(%)",
+        ],
+        "net_profit_yoy": [
+            "PARENTNETPROFITTZ",
+            "归母净利润同比",
+            "净利润同比",
+            "归母净利润同比增长率",
+            "净利润同比(%)",
+        ],
+        "gross_margin": ["XSMLL", "销售毛利率", "毛利率", "毛利率(%)", "销售毛利率(%)"],
+        "net_margin": ["XSJLL", "销售净利率", "净利率", "净利率(%)", "销售净利率(%)"],
         "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)"],
         "bps": ["BPS", "每股净资产"],
         "ocf_per_share": ["MGJYXJJE", "每股经营现金流", "每股现金流量净额"],
