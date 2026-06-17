@@ -1,0 +1,18 @@
+name: institution
+display_name: 机构派
+group: long_term
+style: 机构长期主义
+horizon: 年/多年
+core_signal: 深度尽调+长期持有+集中持仓
+weights:
+  基本面: 50.0
+  估值: 20.0
+  技术面: 5.0
+  情绪: 5.0
+  安全边际: 20.0
+veto_conditions:
+  - 公司治理结构有问题（管理层失信）
+  - 行业空间天花板可见
+  - 管理层短视（季度业绩导向）
+md_path: experts/institution.md
+active: true

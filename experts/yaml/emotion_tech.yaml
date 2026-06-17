@@ -1,0 +1,19 @@
+name: emotion_tech
+display_name: 情绪技术复合（养家+作手新一）
+group: short_term
+style: 情绪+技术（合并炒股养家+作手新一）
+horizon: 日/周
+core_signal: 情绪周期+K线形态
+weights:
+  基本面: 6.5
+  估值: 12.0
+  技术面: 24.0
+  情绪: 46.5
+  风险: 11.0
+veto_conditions:
+  - 情绪周期处于退潮期（连续亏钱效应）
+  - 全市场跌停家数 > 50（恐慌弥漫）
+  - 非强势股（无涨停或连板历史）
+  - 调整中放量跌破前低（不是低吸是接飞刀）
+md_path: experts/emotion_tech.md
+active: true
