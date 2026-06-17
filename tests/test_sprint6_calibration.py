@@ -14,6 +14,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 from strategies.factors.momentum import momentum_score  # noqa: E402
 
 
+@pytest.fixture
+def temp_perf_file(monkeypatch):
+    """隔离 PERFORMANCE_FILE 路径。"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        import strategy_performance as sp
+        test_path = Path(tmpdir) / "strategy_performance.json"
+        monkeypatch.setattr(sp, "PERFORMANCE_FILE", test_path)
+        yield test_path
+
+
 class TestMomentumTrendRefinement:
     """review#7：动量趋势基础分收敛（40→30, 20→18, 12→15）。"""
 
@@ -59,15 +69,6 @@ class TestMomentumTrendRefinement:
 
 class TestStrategyPerformance:
     """strategy_performance.py 月度校准测试。"""
-
-    @pytest.fixture
-    def temp_perf_file(self, monkeypatch):
-        """隔离 PERFORMANCE_FILE 路径。"""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            import strategy_performance as sp
-            test_path = Path(tmpdir) / "strategy_performance.json"
-            monkeypatch.setattr(sp, "PERFORMANCE_FILE", test_path)
-            yield test_path
 
     def test_record_creates_file(self, temp_perf_file, monkeypatch):
         """record 后文件应被创建。"""
@@ -157,3 +158,64 @@ class TestPerfBench:
         assert "avg_per_round" in result
         assert "per_stock_ms" in result
         assert result["per_stock_ms"] >= 0
+
+
+class TestStrategyCompare:
+    """strategy_performance.compare 跨策略对比测试。"""
+
+    def test_compare_ranking_order(self, temp_perf_file, monkeypatch):
+        """compare 按指定指标降序排名（max_drawdown_pct 升序）。"""
+        import strategy_performance as sp
+
+        def mock_run_backtest(name, codes, top_n, days, rounds):
+            return {
+                "total_return_pct": {"balanced": 5, "growth_momentum": 10,
+                                     "defensive": 3, "turning_point": 7,
+                                     "quality_value": 4}.get(name, 0),
+                "sharpe_ratio": {"balanced": 1.0, "growth_momentum": 2.0,
+                                 "defensive": 0.5, "turning_point": 1.5,
+                                 "quality_value": 0.8}.get(name, 0),
+                "max_drawdown_pct": -1.0, "win_rate_pct": 50.0,
+                "annual_turnover": 50, "profit_loss_ratio": 1.0,
+            }
+        monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
+
+        sp.record_all(days=10, top=3, codes=["sh600519"])
+        sp.record_all(days=10, top=3, codes=["sh600519"])
+
+        # 测试 sharpe_ratio 降序
+        result = sp.compare(metric="sharpe_ratio")
+        assert result["metric"] == "sharpe_ratio"
+        assert len(result["ranking"]) == 5
+        # 第一名应是 growth_momentum (2.0)
+        assert result["ranking"][0]["strategy"] == "growth_momentum"
+        assert result["best"] == "growth_momentum"
+        # 最后应是 defensive (0.5)
+        assert result["ranking"][-1]["strategy"] == "defensive"
+        assert result["worst"] == "defensive"
+        # spread = 2.0 - 0.5 = 1.5
+        assert abs(result["spread"] - 1.5) < 0.01
+
+    def test_compare_max_drawdown_inverted(self, temp_perf_file, monkeypatch):
+        """max_drawdown_pct 是负数，越接近 0 越好（升序排名）。"""
+        import strategy_performance as sp
+
+        def mock_run_backtest(name, codes, top_n, days, rounds):
+            return {
+                "total_return_pct": 0, "sharpe_ratio": 0,
+                "max_drawdown_pct": -1.0 if name == "defensive" else -5.0,
+                "win_rate_pct": 0, "annual_turnover": 0, "profit_loss_ratio": 0,
+            }
+        monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
+
+        sp.record_all(days=10, top=3, codes=["sh600519"])
+        result = sp.compare(metric="max_drawdown_pct")
+        # defensive (-1.0) 应排在前面（回撤最小）
+        assert result["ranking"][0]["strategy"] == "defensive"
+
+    def test_compare_empty_records(self, temp_perf_file):
+        """无记录时返回空 ranking。"""
+        import strategy_performance as sp
+        result = sp.compare(metric="sharpe_ratio")
+        assert result["ranking"] == []
+        assert result["best"] is None

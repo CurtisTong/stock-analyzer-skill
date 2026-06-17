@@ -145,6 +145,64 @@ def report(month: str = None) -> Dict:
     }
 
 
+def compare(metric: str = "sharpe_ratio") -> Dict:
+    """跨策略对比指定指标（默认夏普比率），输出排名与差异。
+
+    Args:
+        metric: 比较指标（sharpe_ratio / total_return_pct / win_rate_pct / max_drawdown_pct）
+
+    Returns:
+        {
+            "metric": str,
+            "ranking": [{strategy, value, runs, label}],
+            "best": strategy_name,
+            "worst": strategy_name,
+            "spread": max - min
+        }
+    """
+    data = _load()
+    records = data.get("records", [])
+    if not records:
+        return {"metric": metric, "ranking": [], "best": None, "worst": None, "spread": 0}
+
+    # 聚合所有记录的指标
+    by_strategy: Dict[str, List[float]] = {name: [] for name in STRATEGIES}
+    for r in records:
+        for sname, sdata in r.get("strategies", {}).items():
+            if "error" in sdata:
+                continue
+            v = sdata.get(metric)
+            if v is not None:
+                by_strategy[sname].append(v)
+
+    ranking = []
+    for sname, values in by_strategy.items():
+        if not values:
+            continue
+        avg = sum(values) / len(values)
+        ranking.append({
+            "strategy": sname,
+            "label": STRATEGIES[sname].get("label", sname),
+            "value": round(avg, 3),
+            "runs": len(values),
+        })
+    # 所有指标按值降序：max_drawdown_pct 是负数，越接近 0 越好（-1 > -5）
+    ranking.sort(key=lambda x: x["value"], reverse=True)
+
+    if not ranking:
+        return {"metric": metric, "ranking": [], "best": None, "worst": None, "spread": 0}
+
+    best = ranking[0]
+    worst = ranking[-1]
+    return {
+        "metric": metric,
+        "ranking": ranking,
+        "best": best["strategy"],
+        "worst": worst["strategy"],
+        "spread": round(best["value"] - worst["value"], 3),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description="策略表现校准")
     sub = parser.add_subparsers(dest="command")
@@ -157,6 +215,15 @@ def main():
     rep_cmd = sub.add_parser("report", help="月度报告")
     rep_cmd.add_argument("--month", help="YYYY-MM 格式")
     rep_cmd.add_argument("-j", "--json", action="store_true")
+
+    cmp_cmd = sub.add_parser("compare", help="跨策略对比指标")
+    cmp_cmd.add_argument(
+        "--metric",
+        default="sharpe_ratio",
+        choices=["sharpe_ratio", "total_return_pct", "win_rate_pct", "max_drawdown_pct"],
+        help="对比指标（默认夏普比率）",
+    )
+    cmp_cmd.add_argument("-j", "--json", action="store_true")
 
     args = parser.parse_args()
 
@@ -196,6 +263,18 @@ def main():
                         f"夏普={m_data.get('sharpe_ratio')} "
                         f"胜率={m_data.get('win_rate_pct')}%"
                     )
+
+    elif args.command == "compare":
+        result = compare(metric=args.metric)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(f"跨策略对比 [{result['metric']}]:")
+            for i, r in enumerate(result["ranking"], 1):
+                print(f"  {i}. {r['strategy']:<18} {r['label']:<10} "
+                      f"avg={r['value']} (跑 {r['runs']} 次)")
+            print(f"\n  最佳: {result['best']} | 最差: {result['worst']} "
+                  f"| 差距: {result['spread']}")
 
     else:
         parser.print_help()
