@@ -1,4 +1,5 @@
 """HTTP 客户端：GET 请求、重试、编码转换、连接池复用。"""
+
 import http.client
 import random
 import socket
@@ -15,6 +16,8 @@ USER_AGENTS = [
     "stock-analyzer-skill/1.0",
 ]
 
+MAX_POOL_SIZE = 32
+
 # ---------- 连接池（keep-alive 复用） ----------
 
 _connection_pool: dict[str, http.client.HTTPConnection] = {}
@@ -22,7 +25,7 @@ _pool_lock = threading.Lock()
 
 
 def _get_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
-    """从连接池获取或创建连接（线程安全）。"""
+    """从连接池获取或创建连接（线程安全，锁内创建避免竞态）。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
     host = parsed.hostname or "localhost"
@@ -31,23 +34,18 @@ def _get_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
 
     with _pool_lock:
         conn = _connection_pool.get(pool_key)
-        if conn is not None:
-            # 检查连接是否仍然可用
-            if hasattr(conn, "sock") and conn.sock is not None:
-                return conn
-            # 连接已断开，移除
-            del _connection_pool[pool_key]
-
-    # 池外创建连接（避免持锁阻塞）
-    if scheme == "https":
-        conn = http.client.HTTPSConnection(host, port=port, timeout=timeout)
-    else:
-        conn = http.client.HTTPConnection(host, port=port, timeout=timeout)
-    return conn
+        if conn is not None and hasattr(conn, "sock") and conn.sock is not None:
+            return conn
+        if scheme == "https":
+            conn = http.client.HTTPSConnection(host, port=port, timeout=timeout)
+        else:
+            conn = http.client.HTTPConnection(host, port=port, timeout=timeout)
+        _connection_pool[pool_key] = conn
+        return conn
 
 
 def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
-    """将连接归还到连接池。"""
+    """将连接归还到连接池，池满时 close。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
     host = parsed.hostname or "localhost"
@@ -57,7 +55,13 @@ def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
     with _pool_lock:
         existing = _connection_pool.get(pool_key)
         if existing is conn:
-            return  # 已在池中
+            return
+        if len(_connection_pool) >= MAX_POOL_SIZE:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return
         if existing is not None:
             try:
                 existing.close()
@@ -66,8 +70,9 @@ def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
         _connection_pool[pool_key] = conn
 
 
-def _do_request(conn: http.client.HTTPConnection, url: str,
-                headers: dict[str, str], timeout: int) -> bytes:
+def _do_request(
+    conn: http.client.HTTPConnection, url: str, headers: dict[str, str], timeout: int
+) -> bytes:
     """执行一次 HTTP GET，返回响应体。处理非 2xx 状态码。"""
     parsed = urllib.parse.urlparse(url)
     path = parsed.path or "/"
@@ -79,21 +84,22 @@ def _do_request(conn: http.client.HTTPConnection, url: str,
     status = resp.status
 
     if status == 429:
-        # 消费响应体以保持连接可用
+        retry_after_header = resp.getheader("Retry-After")
         try:
             resp.read()
         except Exception:
             pass
-        raise RateLimitError(url)
+        raise RateLimitError(
+            url,
+            retry_after=int(retry_after_header) if retry_after_header else None,
+        )
 
     if status >= 400:
         try:
             resp.read()
         except Exception:
             pass
-        raise http.client.HTTPException(
-            f"HTTP {status} for {url}"
-        )
+        raise http.client.HTTPException(f"HTTP {status} for {url}")
 
     return resp.read()
 
@@ -128,22 +134,31 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
             return result
         except RateLimitError:
             raise
-        except (http.client.HTTPException, socket.error, OSError,
-                ConnectionResetError, BrokenPipeError) as e:
+        except (
+            http.client.HTTPException,
+            socket.error,
+            OSError,
+            ConnectionResetError,
+            BrokenPipeError,
+        ) as e:
             last_err = e
             if conn is not None:
                 _invalidate_connection(url, conn)
                 conn = None
             if attempt < max_retries - 1:
-                delay = min(1.0 * (2 ** attempt), 8.0)
+                delay = min(1.0 * (2**attempt), 8.0)
                 jitter = random.uniform(0, delay * 0.5)
                 time.sleep(delay + jitter)
 
     raise NetworkError(url, str(last_err), max_retries)
 
 
-def http_get_with_headers(url: str, headers: dict[str, str] | None = None,
-                          timeout: int = 10, max_retries: int = 3) -> bytes:
+def http_get_with_headers(
+    url: str,
+    headers: dict[str, str] | None = None,
+    timeout: int = 10,
+    max_retries: int = 3,
+) -> bytes:
     """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。"""
     req_headers = {"User-Agent": random.choice(USER_AGENTS)}
     if headers:
@@ -160,14 +175,19 @@ def http_get_with_headers(url: str, headers: dict[str, str] | None = None,
             return result
         except RateLimitError:
             raise
-        except (http.client.HTTPException, socket.error, OSError,
-                ConnectionResetError, BrokenPipeError) as e:
+        except (
+            http.client.HTTPException,
+            socket.error,
+            OSError,
+            ConnectionResetError,
+            BrokenPipeError,
+        ) as e:
             last_err = e
             if conn is not None:
                 _invalidate_connection(url, conn)
                 conn = None
             if attempt < max_retries - 1:
-                delay = min(1.0 * (2 ** attempt), 8.0)
+                delay = min(1.0 * (2**attempt), 8.0)
                 jitter = random.uniform(0, delay * 0.5)
                 time.sleep(delay + jitter)
 
@@ -180,5 +200,9 @@ def decode_gbk(data: bytes) -> str:
 
 
 __all__ = [
-    "USER_AGENTS", "http_get", "http_get_with_headers", "decode_gbk",
+    "USER_AGENTS",
+    "MAX_POOL_SIZE",
+    "http_get",
+    "http_get_with_headers",
+    "decode_gbk",
 ]

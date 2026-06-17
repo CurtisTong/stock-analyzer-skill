@@ -4,6 +4,7 @@
 聚焦纯函数：_generate_empty_report / _format_report / _parse_quote。
 避免磁盘 IO 和网络 IO。
 """
+
 import json
 import sys
 import types
@@ -16,41 +17,63 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
+
 # daily_report.py line 25 引用了不存在的 common.http.HttpClient（项目 bug）
 # 注入 mock 模块绕过，同时满足 common/__init__.py 的 import
 class _MockHttpClient:
     def __init__(self, *args, **kwargs):
         pass
+
     def get(self, *args, **kwargs):
         return b""
+
 
 _mock_http_module = types.ModuleType("common.http")
 _mock_http_module.HttpClient = _MockHttpClient
 _mock_http_module.USER_AGENTS = []
+_mock_http_module.MAX_POOL_SIZE = 32
 _mock_http_module.http_get = lambda *a, **kw: b""
 _mock_http_module.http_get_with_headers = lambda *a, **kw: b""
-_mock_http_module.decode_gbk = lambda x: x.decode("utf-8", errors="replace") if isinstance(x, bytes) else x
+_mock_http_module.decode_gbk = lambda x: (
+    x.decode("utf-8", errors="replace") if isinstance(x, bytes) else x
+)
+_mock_http_module._get_connection = MagicMock()
+_mock_http_module._return_connection = MagicMock()
+_mock_http_module._connection_pool = {}
+_mock_http_module._pool_lock = __import__("threading").Lock()
 sys.modules["common.http"] = _mock_http_module
 
 from portfolio.daily_report import DailyReportGenerator
-
 
 # ═══════════════════════════════════════════════════════════════
 # Fixtures
 # ═══════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def sample_stock_details():
     return [
         {
-            "code": "sh600989", "name": "宝丰能源", "shares": 1000, "cost_price": 18.5,
-            "current_price": 20.0, "change_pct": 2.5, "market_value": 20000,
-            "profit": 1500, "profit_rate": 8.11,
+            "code": "sh600989",
+            "name": "宝丰能源",
+            "shares": 1000,
+            "cost_price": 18.5,
+            "current_price": 20.0,
+            "change_pct": 2.5,
+            "market_value": 20000,
+            "profit": 1500,
+            "profit_rate": 8.11,
         },
         {
-            "code": "sz000807", "name": "云铝股份", "shares": 500, "cost_price": 12.0,
-            "current_price": 11.0, "change_pct": -1.5, "market_value": 5500,
-            "profit": -500, "profit_rate": -8.33,
+            "code": "sz000807",
+            "name": "云铝股份",
+            "shares": 500,
+            "cost_price": 12.0,
+            "current_price": 11.0,
+            "change_pct": -1.5,
+            "market_value": 5500,
+            "profit": -500,
+            "profit_rate": -8.33,
         },
     ]
 
@@ -58,6 +81,7 @@ def sample_stock_details():
 # ═══════════════════════════════════════════════════════════════
 # _generate_empty_report
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestGenerateEmptyReport:
     def test_returns_string(self, tmp_path):
@@ -88,6 +112,7 @@ class TestGenerateEmptyReport:
 # ═══════════════════════════════════════════════════════════════
 # _format_report
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestFormatReport:
     def test_returns_string(self, sample_stock_details):
@@ -157,6 +182,7 @@ class TestFormatReport:
 # _parse_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestParseQuote:
     def test_parses_tencent_format(self):
         """解析腾讯行情格式（35+ 字段，~ 分隔）。"""
@@ -200,6 +226,7 @@ class TestParseQuote:
 # 数学计算（generate 中嵌入的逻辑）
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestMathConstants:
     """验证 generate() 中关键数学。"""
 
@@ -229,6 +256,7 @@ class TestMathConstants:
 # generate() 端到端（mock 外部依赖）
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestGenerateE2E:
     def test_generate_empty(self, tmp_path):
         """无持仓文件应返回空报告。"""
@@ -240,13 +268,24 @@ class TestGenerateE2E:
         """含持仓时生成完整报告（mock quotes）。"""
         portfolio_file = tmp_path / "portfolio.json"
         # _load_portfolio 直接 json.load，期望顶层是 list of dict
-        portfolio_file.write_text(json.dumps([
-            {"code": "sh600989", "name": "宝丰能源", "shares": 1000, "cost_price": 18.5},
-        ]))
+        portfolio_file.write_text(
+            json.dumps(
+                [
+                    {
+                        "code": "sh600989",
+                        "name": "宝丰能源",
+                        "shares": 1000,
+                        "cost_price": 18.5,
+                    },
+                ]
+            )
+        )
         gen = DailyReportGenerator(portfolio_path=str(portfolio_file))
-        with patch.object(gen, "_fetch_quotes", return_value={
-            "sh600989": {"price": 20.0, "change_pct": 2.5}
-        }):
+        with patch.object(
+            gen,
+            "_fetch_quotes",
+            return_value={"sh600989": {"price": 20.0, "change_pct": 2.5}},
+        ):
             result = gen.generate()
         assert "持仓日报" in result
         assert "宝丰能源" in result
