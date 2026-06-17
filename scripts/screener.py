@@ -517,7 +517,10 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="A 股多因子选股器")
+    parser = argparse.ArgumentParser(description="A 股多因子选股器", add_help=False)
+    from common.version import __version__
+    parser.add_argument("-v", "--version", action="version", version=f"screener {__version__}")
+    parser.add_argument("-h", "--help", action="help", help="显示帮助")
     parser.add_argument("--strategy", choices=STRATEGIES.keys(), default="balanced")
     parser.add_argument("--sector", help="内置板块名称，支持模糊匹配")
     parser.add_argument("--codes", help="逗号分隔代码列表，优先于 --sector")

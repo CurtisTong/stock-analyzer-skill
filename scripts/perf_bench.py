@@ -97,14 +97,19 @@ def main():
     sub.add_parser("all", parents=[common], help="跑所有压测")
     sub.add_parser("screener", parents=[common], help="压测 screener")
     sub.add_parser("backtest", parents=[common], help="压测 backtest")
+    sub.add_parser("save", parents=[common], help="压测并保存到 JSON")
 
     args = parser.parse_args()
     codes = _parse_codes(args.codes)
 
+    if not args.command:
+        parser.print_help()
+        return
+
     results = []
-    if args.command in ("screener", "all"):
+    if args.command in ("screener", "all", "save"):
         results.append(("screener", bench_screener(codes, args.rounds)))
-    if args.command in ("backtest", "all"):
+    if args.command in ("backtest", "all", "save"):
         results.append(("backtest", bench_backtest(codes, args.rounds)))
 
     for name, r in results:
@@ -114,6 +119,26 @@ def main():
         else:
             for k, v in r.items():
                 print(f"  {k}: {v}")
+
+    if args.command == "save":
+        from common import DATA_DIR
+        from common.version import __version__
+        import json
+        from datetime import datetime
+        out_path = Path(DATA_DIR) / "perf_benchmarks.json"
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        record = {
+            "version": __version__,
+            "timestamp": datetime.now().isoformat(timespec="microseconds"),
+            "codes": codes,
+            "rounds": args.rounds,
+            "results": dict(results),
+        }
+        out_path.write_text(
+            json.dumps(record, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(f"\n✅ 基准已保存到 {out_path}")
 
 
 if __name__ == "__main__":

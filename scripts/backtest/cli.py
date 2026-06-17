@@ -135,7 +135,10 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="多因子选股策略回测")
+    parser = argparse.ArgumentParser(description="多因子选股策略回测", add_help=False)
+    from common.version import __version__
+    parser.add_argument("-v", "--version", action="version", version=f"backtest {__version__}")
+    parser.add_argument("-h", "--help", action="help")
     parser.add_argument(
         "--strategy", choices=STRATEGIES.keys(), default="balanced", help="回测策略"
     )
