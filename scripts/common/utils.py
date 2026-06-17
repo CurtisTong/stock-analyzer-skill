@@ -268,23 +268,14 @@ def parallel_map(
 
 
 def board_limit_pct(board: str) -> float:
-    """获取板块涨跌停限制（%），如主板 9.5、创业板 19.5。
-
-    优先从 config/limits.yaml 读取，缺失时使用硬编码默认值。
-    """
+    """获取板块涨跌停限制（%）。"""
     _DEFAULTS = {
         "主板": 9.5,
         "创业板": 19.5,
         "科创板": 19.5,
         "北交所": 29.5,
     }
-    default = _DEFAULTS.get(board, 9.5)
-    try:
-        from config.loader import ConfigLoader
-
-        return ConfigLoader.get("limits.yaml", f"board_limits.{board}", default)
-    except (ImportError, KeyError, FileNotFoundError):
-        return default
+    return _DEFAULTS.get(board, 9.5)
 
 
 __all__ = [
