@@ -9,6 +9,7 @@ A 股多因子选股器。
   screener.py --full-market --top 10                  # 全市场模式
   screener.py --full-market --sector 创业板 --top 5   # 全市场创业板
 """
+
 import argparse
 import json
 import sys
@@ -27,13 +28,21 @@ from common import (
 )
 from data import get_quote, get_quotes, get_kline, get_finance
 from classifier import infer_industry
-from strategies import STRATEGIES, quality_score, valuation_score, momentum_score, liquidity_score, volatility_from_closes, dividend_score
+from strategies import (
+    STRATEGIES,
+    quality_score,
+    valuation_score,
+    momentum_score,
+    liquidity_score,
+    volatility_from_closes,
+    dividend_score,
+)
 from strategies.thresholds import get_industry_threshold, load_industry_thresholds
 from technical.volume import volume_analysis
 from business.screening_service import compute_features
 
-
 # ---------- 数据层适配函数 ----------
+
 
 def _fetch_quote_dict(code: str) -> dict:
     """获取单只行情，返回 dict（兼容旧接口）。"""
@@ -147,6 +156,7 @@ def pre_screen_quotes(quotes, args):
     board_limit = getattr(args, "board_limit", 0)
     if board_limit > 0:
         from collections import defaultdict
+
         buckets = defaultdict(list)
         for q in result:
             buckets[board_type(q.get("code", ""))].append(q)
@@ -199,6 +209,7 @@ def _try_fetch_from_mapping(sector: str) -> list[str]:
         return []
     try:
         from refresh_pool import fetch_multiple_boards, build_sector_pool
+
         mapping = json.loads(mapping_path.read_text(encoding="utf-8"))
         # 模糊匹配板块名
         for name, cfg in mapping.items():
@@ -208,7 +219,9 @@ def _try_fetch_from_mapping(sector: str) -> list[str]:
                 bk_codes = cfg.get("bk_codes", [])
                 if not bk_codes:
                     continue
-                print(f"📡 动态获取板块 '{name}' ({', '.join(bk_codes)})...", flush=True)
+                print(
+                    f"📡 动态获取板块 '{name}' ({', '.join(bk_codes)})...", flush=True
+                )
                 stocks = fetch_multiple_boards(bk_codes)
                 if stocks:
                     pool = build_sector_pool(stocks, top_n=30)
@@ -236,7 +249,10 @@ def volume_price_features(closes, volumes):
     result = volume_analysis(closes, volumes)
     if result is None:
         return {"signal": 0, "desc": "数据不足"}
-    return {"signal": result.get("volume_price_signal", 0), "desc": result.get("volume_price", "量价中性")}
+    return {
+        "signal": result.get("volume_price_signal", 0),
+        "desc": result.get("volume_price", "量价中性"),
+    }
 
 
 def daily_features(code):
@@ -247,6 +263,7 @@ def daily_features(code):
 def hard_filter(quote, fin, args):
     """硬过滤（v1.3.1 委托给 ScreeningService 业务层）。"""
     from business.screening_service import ScreeningService
+
     filters = {
         "min_amount": args.min_amount,
         "min_cap": args.min_cap,
@@ -262,6 +279,7 @@ def prefetch_finance_all(codes):
     def _fetch_one(code):
         # data 层已有零值缓存校验，自动跳过无效缓存
         from data import get_finance
+
         records = get_finance(normalize_finance_code(code))
         return code, [r.to_dict() for r in records]
 
@@ -299,7 +317,11 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "dividend": dividend_score(quote, fin, industry),
     }
     weights = STRATEGIES[strategy]
-    total = sum(parts.get(k, 0) * weights.get(k, 0) for k in set(parts) | set(weights) if k != "label")
+    total = sum(
+        parts.get(k, 0) * weights.get(k, 0)
+        for k in set(parts) | set(weights)
+        if k != "label"
+    )
     return {
         "code": quote_code,
         "name": quote.get("name", ""),
@@ -319,16 +341,25 @@ def analyze_code(quote, strategy, args, finance_cache=None):
         "roe": fin.get("roe", fin.get("ROEJQ", "-")),
         "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
         "ret20": round(features["ret20"], 1),
-        "trend": "上升" if features["trend"] > 0 else "下降" if features["trend"] < 0 else "震荡",
+        "trend": (
+            "上升"
+            if features["trend"] > 0
+            else "下降" if features["trend"] < 0 else "震荡"
+        ),
         "rsi": features.get("rsi", 50),
         "macd_signal": features.get("macd_signal", 0),
-        "vol_price": "配合" if features.get("vol_price_signal", 0) > 0 else "背离" if features.get("vol_price_signal", 0) < 0 else "中性",
+        "vol_price": (
+            "配合"
+            if features.get("vol_price_signal", 0) > 0
+            else "背离" if features.get("vol_price_signal", 0) < 0 else "中性"
+        ),
         "rejected": rejected,
     }
 
 
-def apply_portfolio_constraints(rows: list, sector_cap: float = 0.30,
-                                trend_penalty: float = 0.70) -> list:
+def apply_portfolio_constraints(
+    rows: list, sector_cap: float = 0.30, trend_penalty: float = 0.70
+) -> list:
     """应用组合层面约束。
 
     Args:
@@ -370,7 +401,7 @@ def render(rows, strategy, top, title=None):
     rejected = [r for r in rows if r["rejected"]]
     accepted.sort(key=lambda r: r["score"], reverse=True)
 
-    label = title or STRATEGIES[strategy]['label']
+    label = title or STRATEGIES[strategy]["label"]
     print(f"策略: {label} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
@@ -378,7 +409,11 @@ def render(rows, strategy, top, title=None):
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(accepted[:top], 1):
-        macd_icon = "↑" if r.get("macd_signal", 0) > 0 else "↓" if r.get("macd_signal", 0) < 0 else "→"
+        macd_icon = (
+            "↑"
+            if r.get("macd_signal", 0) > 0
+            else "↓" if r.get("macd_signal", 0) < 0 else "→"
+        )
         print(
             f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
             f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
@@ -394,18 +429,35 @@ def render(rows, strategy, top, title=None):
 
 
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="A 股多因子选股器")
     parser.add_argument("--strategy", choices=STRATEGIES.keys(), default="balanced")
     parser.add_argument("--sector", help="内置板块名称，支持模糊匹配")
     parser.add_argument("--codes", help="逗号分隔代码列表，优先于 --sector")
     parser.add_argument("--top", type=int, default=10)
-    parser.add_argument("--min-amount", type=float, default=5000, help="最低成交额，单位万元")
-    parser.add_argument("--min-cap", type=float, default=40, help="最低总市值，单位亿元")
+    parser.add_argument(
+        "--min-amount", type=float, default=5000, help="最低成交额，单位万元"
+    )
+    parser.add_argument(
+        "--min-cap", type=float, default=40, help="最低总市值，单位亿元"
+    )
     parser.add_argument("--exclude-loss", action="store_true", help="剔除 EPS<=0 标的")
     parser.add_argument("--no-constraints", action="store_true", help="禁用组合约束")
     parser.add_argument("--sector-cap", type=float, default=0.30, help="单板块最高占比")
-    parser.add_argument("--full-market", action="store_true", help="全市场模式，从 data/all_stocks.json 加载")
-    parser.add_argument("--board-limit", type=int, default=0, help="全市场模式下每板块最多保留 N 只（0=不限制）")
+    parser.add_argument(
+        "--full-market",
+        action="store_true",
+        help="全市场模式，从 data/all_stocks.json 加载",
+    )
+    parser.add_argument(
+        "--board-limit",
+        type=int,
+        default=0,
+        help="全市场模式下每板块最多保留 N 只（0=不限制）",
+    )
     parser.add_argument("-j", "--json", action="store_true")
     args = parser.parse_args()
 

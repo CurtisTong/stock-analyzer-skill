@@ -200,6 +200,10 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
 
 
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="A 股纯技术分析")
     parser.add_argument("code", help="证券代码，如 sh600989")
     parser.add_argument(

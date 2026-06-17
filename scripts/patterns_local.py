@@ -4,13 +4,14 @@ A 股本土战法形态识别。
 包含：三阴一阳、老鸭头、美人肩、双针探底、涨停双响炮、底部首板。
 纯技术形态识别，不依赖财务数据。
 """
+
 import math
 from common import to_float, board_type as _board_type
-
 
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
 # ═══════════════════════════════════════════════════════════════
+
 
 def _sma(values, period):
     """简单移动平均。"""
@@ -18,7 +19,7 @@ def _sma(values, period):
         return []
     result = []
     for i in range(period - 1, len(values)):
-        result.append(sum(values[i - period + 1:i + 1]) / period)
+        result.append(sum(values[i - period + 1 : i + 1]) / period)
     return result
 
 
@@ -66,7 +67,9 @@ def _body_pct(open_p, close_p):
 
 def _is_limit_up(open_p, close_p, prev_close, board):
     """检测涨停（考虑板块涨跌幅限制）。"""
-    limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(board, 9.5)
+    limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(
+        board, 9.5
+    )
     chg = (close_p - prev_close) / max(prev_close, 0.001) * 100
     return chg >= limit_ratio * 0.95
 
@@ -74,6 +77,7 @@ def _is_limit_up(open_p, close_p, prev_close, board):
 # ═══════════════════════════════════════════════════════════════
 # 1. 三阴一阳 / 三阳一阴
 # ═══════════════════════════════════════════════════════════════
+
 
 def detect_sanying_yiyang(records, volumes, code=""):
     """
@@ -88,12 +92,15 @@ def detect_sanying_yiyang(records, volumes, code=""):
 
     for i in range(3, len(records)):
         r0, r1, r2, r3 = records[i - 3], records[i - 2], records[i - 1], records[i]
-        o0, c0, o1, c1, o2, c2, o3, c3 = [to_float(r.get(k)) for r in [r0, r1, r2, r3]
-                                          for k in ["open", "close"]]
+        o0, c0, o1, c1, o2, c2, o3, c3 = [
+            to_float(r.get(k)) for r in [r0, r1, r2, r3] for k in ["open", "close"]
+        ]
         v0, v1, v2, v3 = [to_float(r.get("volume")) for r in [r0, r1, r2, r3]]
 
         # ── 三阴一阳（底部洗盘结束）──
-        if all(_is_bearish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]) and _is_bullish(o3, c3):
+        if all(
+            _is_bearish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]
+        ) and _is_bullish(o3, c3):
             # 三阴实体递减
             body0, body1, body2 = abs(c0 - o0), abs(c1 - o1), abs(c2 - o2)
             if body2 < body1 < body0:
@@ -103,30 +110,40 @@ def detect_sanying_yiyang(records, volumes, code=""):
                     if v3 > max(v0, v1, v2) * 1.3:
                         # 计算覆盖力度
                         coverage = (c3 - c0) / max(abs(c0 - o0), 0.001)
-                        confidence = "高" if coverage > 0.8 and v3 > max(v0, v1, v2) * 1.5 else "中"
-                        results.append({
-                            "name": "三阴一阳",
-                            "type": "看涨",
-                            "date": r3.get("day", ""),
-                            "desc": f"连续3阴缩量洗盘后放量阳线覆盖，覆盖力度{coverage:.1%}",
-                            "confidence": confidence,
-                            "idx": i,
-                        })
+                        confidence = (
+                            "高"
+                            if coverage > 0.8 and v3 > max(v0, v1, v2) * 1.5
+                            else "中"
+                        )
+                        results.append(
+                            {
+                                "name": "三阴一阳",
+                                "type": "看涨",
+                                "date": r3.get("day", ""),
+                                "desc": f"连续3阴缩量洗盘后放量阳线覆盖，覆盖力度{coverage:.1%}",
+                                "confidence": confidence,
+                                "idx": i,
+                            }
+                        )
 
         # ── 三阳一阴（高位诱多出货）──
-        if all(_is_bullish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]) and _is_bearish(o3, c3):
+        if all(
+            _is_bullish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]
+        ) and _is_bearish(o3, c3):
             body0, body1, body2 = abs(c0 - o0), abs(c1 - o1), abs(c2 - o2)
             if body2 < body1 < body0:
                 if c3 < c1 and c3 < c0:
                     if v3 > max(v0, v1, v2) * 1.3:
-                        results.append({
-                            "name": "三阳一阴",
-                            "type": "看跌",
-                            "date": r3.get("day", ""),
-                            "desc": "连续3阳缩量上涨后放量阴线吞没",
-                            "confidence": "中",
-                            "idx": i,
-                        })
+                        results.append(
+                            {
+                                "name": "三阳一阴",
+                                "type": "看跌",
+                                "date": r3.get("day", ""),
+                                "desc": "连续3阳缩量上涨后放量阴线吞没",
+                                "confidence": "中",
+                                "idx": i,
+                            }
+                        )
 
     return results
 
@@ -135,6 +152,7 @@ def detect_sanying_yiyang(records, volumes, code=""):
 # 2. 老鸭头
 # ═══════════════════════════════════════════════════════════════
 
+
 def detect_laoyatou(records, closes, volumes, mas):
     """
     老鸭头形态：三阶段（鸭颈 → 鸭头 → 鸭嘴）。
@@ -142,7 +160,13 @@ def detect_laoyatou(records, closes, volumes, mas):
     鸭头：MA5下穿MA10形成凹坑，股价回调但未跌破MA60
     鸭嘴：MA5重新上穿MA10，放量突破前高
     """
-    if len(closes) < 60 or "ma5" not in mas or "ma10" not in mas or "ma20" not in mas or "ma60" not in mas:
+    if (
+        len(closes) < 60
+        or "ma5" not in mas
+        or "ma10" not in mas
+        or "ma20" not in mas
+        or "ma60" not in mas
+    ):
         return []
 
     ma5, ma10, ma20, ma60 = mas["ma5"], mas["ma10"], mas["ma20"], mas["ma60"]
@@ -207,7 +231,11 @@ def detect_laoyatou(records, closes, volumes, mas):
         # 验证鸭嘴：放量 + 突破前高
         head_ci = duck_head_j + cl_offset
         lookback = min(head_ci, 10)
-        prev_high = max(closes[head_ci - lookback:head_ci]) if lookback >= 1 else closes[head_ci]
+        prev_high = (
+            max(closes[head_ci - lookback : head_ci])
+            if lookback >= 1
+            else closes[head_ci]
+        )
 
         vol_recent = [volumes[k] for k in range(max(ci - 3, 0), ci + 1)]
         vol_older = [volumes[k] for k in range(max(head_ci - 3, 0), head_ci + 1)]
@@ -219,14 +247,16 @@ def detect_laoyatou(records, closes, volumes, mas):
 
         if vol_expanding and breakout:
             confidence = "高" if closes[ci] > prev_high * 1.05 else "中"
-            results.append({
-                "name": "老鸭头",
-                "type": "看涨",
-                "date": records[ci].get("day", ""),
-                "desc": f"鸭嘴确认：MA5重上MA10+放量突破前高{prev_high:.2f}",
-                "confidence": confidence,
-                "idx": ci,
-            })
+            results.append(
+                {
+                    "name": "老鸭头",
+                    "type": "看涨",
+                    "date": records[ci].get("day", ""),
+                    "desc": f"鸭嘴确认：MA5重上MA10+放量突破前高{prev_high:.2f}",
+                    "confidence": confidence,
+                    "idx": ci,
+                }
+            )
 
     return results
 
@@ -234,6 +264,7 @@ def detect_laoyatou(records, closes, volumes, mas):
 # ═══════════════════════════════════════════════════════════════
 # 3. 美人肩
 # ═══════════════════════════════════════════════════════════════
+
 
 def detect_meirenjian(records, closes, highs, lows, volumes, mas):
     """
@@ -271,8 +302,16 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
 
         # 条件2：最近 2-5 天横盘（价格振幅 2-5%，不破 MA10）
         consolidation_range = range(max(ci - 5, 0), ci)
-        price_high = max(highs[j] for j in consolidation_range) if consolidation_range else closes[ci]
-        price_low = min(lows[j] for j in consolidation_range) if consolidation_range else closes[ci]
+        price_high = (
+            max(highs[j] for j in consolidation_range)
+            if consolidation_range
+            else closes[ci]
+        )
+        price_low = (
+            min(lows[j] for j in consolidation_range)
+            if consolidation_range
+            else closes[ci]
+        )
         amplitude = (price_high - price_low) / max(price_low, 0.001) * 100
 
         if not (2 <= amplitude <= 5):
@@ -287,19 +326,31 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
         pre_vol = [volumes[j] for j in range(max(ci - 10, 0), max(ci - 5, 0))]
         if not consol_vol or not pre_vol:
             continue
-        if sum(consol_vol) / len(consol_vol) > sum(pre_vol) / max(len(pre_vol), 1) * 0.7:
+        if (
+            sum(consol_vol) / len(consol_vol)
+            > sum(pre_vol) / max(len(pre_vol), 1) * 0.7
+        ):
             continue
 
         # 条件4：今日放量突破横盘区间
-        if volumes[ci] > sum(consol_vol) / len(consol_vol) * 1.5 and closes[ci] > price_high:
-            results.append({
-                "name": "美人肩",
-                "type": "看涨",
-                "date": records[ci].get("day", ""),
-                "desc": f"横盘{len(consolidation_range)}日振幅{amplitude:.1f}%不破MA10后放量突破",
-                "confidence": "高" if volumes[ci] > sum(consol_vol) / len(consol_vol) * 2 else "中",
-                "idx": ci,
-            })
+        if (
+            volumes[ci] > sum(consol_vol) / len(consol_vol) * 1.5
+            and closes[ci] > price_high
+        ):
+            results.append(
+                {
+                    "name": "美人肩",
+                    "type": "看涨",
+                    "date": records[ci].get("day", ""),
+                    "desc": f"横盘{len(consolidation_range)}日振幅{amplitude:.1f}%不破MA10后放量突破",
+                    "confidence": (
+                        "高"
+                        if volumes[ci] > sum(consol_vol) / len(consol_vol) * 2
+                        else "中"
+                    ),
+                    "idx": ci,
+                }
+            )
 
     return results
 
@@ -307,6 +358,7 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
 # ═══════════════════════════════════════════════════════════════
 # 4. 双针探底
 # ═══════════════════════════════════════════════════════════════
+
 
 def detect_shuangzhen(records, closes, lows, volumes):
     """
@@ -319,15 +371,19 @@ def detect_shuangzhen(records, closes, lows, volumes):
     results = []
 
     for i in range(5, len(records)):
-        window = records[i - 5:i + 1]
-        w_lows = lows[i - 5:i + 1]
-        w_vol = volumes[i - 5:i + 1]
+        window = records[i - 5 : i + 1]
+        w_lows = lows[i - 5 : i + 1]
+        w_vol = volumes[i - 5 : i + 1]
 
         # 找长下影线
         needle_days = []
         for j, r in enumerate(window):
-            o, c, l, h = to_float(r.get("open")), to_float(r.get("close")), \
-                         to_float(r.get("low")), to_float(r.get("high"))
+            o, c, l, h = (
+                to_float(r.get("open")),
+                to_float(r.get("close")),
+                to_float(r.get("low")),
+                to_float(r.get("high")),
+            )
             body = abs(c - o)
             lower = min(o, c) - l
             upper = h - max(o, c)
@@ -345,17 +401,25 @@ def detect_shuangzhen(records, closes, lows, volumes):
                     if low_diff < 2:
                         # 确认缩量
                         vol_needle = [volumes[na["idx"]], volumes[nb["idx"]]]
-                        vol_others = [v for j, v in enumerate(w_vol)
-                                      if i - 5 + j not in (na["idx"], nb["idx"])]
-                        if sum(vol_needle) / 3 < sum(vol_others) / max(len(vol_others), 1) * 0.8:
-                            results.append({
-                                "name": "双针探底",
-                                "type": "看涨",
-                                "date": records[nb["idx"]].get("day", ""),
-                                "desc": f"两低点{na['low']:.2f}/{nb['low']:.2f}差异{low_diff:.1f}%，缩量触底",
-                                "confidence": "高" if low_diff < 1 else "中",
-                                "idx": nb["idx"],
-                            })
+                        vol_others = [
+                            v
+                            for j, v in enumerate(w_vol)
+                            if i - 5 + j not in (na["idx"], nb["idx"])
+                        ]
+                        if (
+                            sum(vol_needle) / 3
+                            < sum(vol_others) / max(len(vol_others), 1) * 0.8
+                        ):
+                            results.append(
+                                {
+                                    "name": "双针探底",
+                                    "type": "看涨",
+                                    "date": records[nb["idx"]].get("day", ""),
+                                    "desc": f"两低点{na['low']:.2f}/{nb['low']:.2f}差异{low_diff:.1f}%，缩量触底",
+                                    "confidence": "高" if low_diff < 1 else "中",
+                                    "idx": nb["idx"],
+                                }
+                            )
 
     return results
 
@@ -363,6 +427,7 @@ def detect_shuangzhen(records, closes, lows, volumes):
 # ═══════════════════════════════════════════════════════════════
 # 5. 涨停双响炮
 # ═══════════════════════════════════════════════════════════════
+
 
 def detect_zhangting(records, closes, volumes, code=""):
     """
@@ -378,7 +443,11 @@ def detect_zhangting(records, closes, volumes, code=""):
 
     for i in range(4, len(records)):
         r_now = records[i]
-        o_now, c_now, v_now = to_float(r_now.get("open")), to_float(r_now.get("close")), to_float(r_now.get("volume"))
+        o_now, c_now, v_now = (
+            to_float(r_now.get("open")),
+            to_float(r_now.get("close")),
+            to_float(r_now.get("volume")),
+        )
 
         # 当天必须是涨停
         prev_close_now = to_float(records[i - 1].get("close"))
@@ -392,8 +461,14 @@ def detect_zhangting(records, closes, volumes, code=""):
                 continue
 
             r_zt1 = records[zt1_idx]
-            o1, c1, v1 = to_float(r_zt1.get("open")), to_float(r_zt1.get("close")), to_float(r_zt1.get("volume"))
-            prev_close_1 = to_float(records[zt1_idx - 1].get("close")) if zt1_idx > 0 else c1
+            o1, c1, v1 = (
+                to_float(r_zt1.get("open")),
+                to_float(r_zt1.get("close")),
+                to_float(r_zt1.get("volume")),
+            )
+            prev_close_1 = (
+                to_float(records[zt1_idx - 1].get("close")) if zt1_idx > 0 else c1
+            )
 
             # 第一次涨停
             if not _is_limit_up(o1, c1, prev_close_1, board):
@@ -414,14 +489,16 @@ def detect_zhangting(records, closes, volumes, code=""):
 
             # 第二次涨停比第一次放量
             if v_now > v1 * 1.2:
-                results.append({
-                    "name": "涨停双响炮",
-                    "type": "看涨",
-                    "date": r_now.get("day", ""),
-                    "desc": f"首板{gap + 1}日前+{gap}日缩量整理+今日再封板放量",
-                    "confidence": "高" if gap == 1 and v_now > v1 * 1.5 else "中",
-                    "idx": i,
-                })
+                results.append(
+                    {
+                        "name": "涨停双响炮",
+                        "type": "看涨",
+                        "date": r_now.get("day", ""),
+                        "desc": f"首板{gap + 1}日前+{gap}日缩量整理+今日再封板放量",
+                        "confidence": "高" if gap == 1 and v_now > v1 * 1.5 else "中",
+                        "idx": i,
+                    }
+                )
                 break
 
     return results
@@ -430,6 +507,7 @@ def detect_zhangting(records, closes, volumes, code=""):
 # ═══════════════════════════════════════════════════════════════
 # 6. 底部首板
 # ═══════════════════════════════════════════════════════════════
+
 
 def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
     """
@@ -444,7 +522,9 @@ def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
 
     for i in range(10, len(records) - 3):
         r_zt = records[i]
-        o_zt, c_zt, h_zt, l_zt = [to_float(r_zt.get(k)) for k in ["open", "close", "high", "low"]]
+        o_zt, c_zt, h_zt, l_zt = [
+            to_float(r_zt.get(k)) for k in ["open", "close", "high", "low"]
+        ]
         v_zt = to_float(r_zt.get("volume"))
         prev_close = to_float(records[i - 1].get("close"))
 
@@ -453,13 +533,17 @@ def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
             continue
 
         # 涨停前处于下跌趋势（过去10天最高价低于20天前的高点）
-        recent_high = max(highs[i - 10:i]) if i >= 10 else highs[i]
-        older_high = max(highs[max(i - 20, 0):i - 10]) if i >= 20 else recent_high
+        recent_high = max(highs[i - 10 : i]) if i >= 10 else highs[i]
+        older_high = max(highs[max(i - 20, 0) : i - 10]) if i >= 20 else recent_high
         if recent_high > older_high * 0.95:
             continue
 
         # 涨停前 5 天有过下跌
-        pre_change = (closes[i - 1] - closes[i - 5]) / max(closes[i - 5], 0.001) * 100 if i >= 5 else 0
+        pre_change = (
+            (closes[i - 1] - closes[i - 5]) / max(closes[i - 5], 0.001) * 100
+            if i >= 5
+            else 0
+        )
         if pre_change > -5:
             continue
 
@@ -482,14 +566,16 @@ def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
                 rk = records[k]
                 ok, ck = to_float(rk.get("open")), to_float(rk.get("close"))
                 if _is_bullish(ok, ck) and volumes[k] > min_vol * 1.2:
-                    results.append({
-                        "name": "底部首板",
-                        "type": "看涨",
-                        "date": rk.get("day", ""),
-                        "desc": f"下跌后首板+{k - i}日缩量回踩不破涨停低点{l_zt:.2f}",
-                        "confidence": "高" if k - i <= 2 else "中",
-                        "idx": k,
-                    })
+                    results.append(
+                        {
+                            "name": "底部首板",
+                            "type": "看涨",
+                            "date": rk.get("day", ""),
+                            "desc": f"下跌后首板+{k - i}日缩量回踩不破涨停低点{l_zt:.2f}",
+                            "confidence": "高" if k - i <= 2 else "中",
+                            "idx": k,
+                        }
+                    )
                     break
 
     return results
@@ -498,6 +584,7 @@ def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
 # ═══════════════════════════════════════════════════════════════
 # 顶层整合
 # ═══════════════════════════════════════════════════════════════
+
 
 def detect_all_local_patterns(records, closes, highs, lows, volumes, mas, code=""):
     """
@@ -537,7 +624,9 @@ def detect_all_local_patterns(records, closes, highs, lows, volumes, mas, code="
     all_patterns.extend(detect_zhangting(records, closes, volumes, code))
 
     # 底部首板
-    all_patterns.extend(detect_dibu_shouban(records, closes, highs, lows, volumes, code))
+    all_patterns.extend(
+        detect_dibu_shouban(records, closes, highs, lows, volumes, code)
+    )
 
     # 按时间排序（最新的在后）
     all_patterns.sort(key=lambda p: p["idx"])
@@ -573,6 +662,10 @@ def detect_all_local_patterns(records, closes, highs, lows, volumes, mas, code="
 
 # ── 命令行快速测试 ──
 if __name__ == "__main__":
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     import sys
     import json
     from common import normalize_quote_code

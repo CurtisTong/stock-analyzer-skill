@@ -9,10 +9,18 @@
   quote.py -j sh600989                    # JSON 输出
   quote.py --sources                      # 显示可用数据源
 """
+
 import sys
 import json
 import argparse
-from common import split_codes, batchify, normalize_quote_code, parallel_map, err, DataError
+from common import (
+    split_codes,
+    batchify,
+    normalize_quote_code,
+    parallel_map,
+    err,
+    DataError,
+)
 from data import get_quote, get_quotes
 
 
@@ -23,14 +31,21 @@ def fetch_batch(codes: list, use_cache: bool = True) -> list:
 
 
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="实时行情查询（多数据源自动切换）")
-    parser.add_argument("code", nargs="?", help="股票代码（如 sh600989）或 @codes.txt 文件路径")
+    parser.add_argument(
+        "code", nargs="?", help="股票代码（如 sh600989）或 @codes.txt 文件路径"
+    )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--sources", action="store_true", help="显示可用数据源")
     args = parser.parse_args()
 
     if args.sources:
         from fetchers import get_quote_fetchers
+
         fetchers = get_quote_fetchers()
         print("可用行情数据源:")
         for f in fetchers:
@@ -46,7 +61,9 @@ def main():
 
     batches = list(batchify(codes, 15))
     if len(batches) > 1:
-        results = parallel_map(lambda b: fetch_batch(b, use_cache=True), batches, max_workers=4, timeout=30)
+        results = parallel_map(
+            lambda b: fetch_batch(b, use_cache=True), batches, max_workers=4, timeout=30
+        )
         all_records = []
         for batch in batches:
             all_records.extend(results.get(batch, []))
@@ -60,10 +77,15 @@ def main():
     if not all_records:
         print("(无数据)")
         return
-    print(f"{'代码':<10} {'名称':<10} {'现价':>8} {'涨跌%':>7} {'PE':>7} {'换手%':>6} {'市值亿':>8}")
+    print(
+        f"{'代码':<10} {'名称':<10} {'现价':>8} {'涨跌%':>7} {'PE':>7} {'换手%':>6} {'市值亿':>8}"
+    )
     print("-" * 60)
     for r in all_records:
-        print(f"{r['code']:<10} {r['name']:<10} {r['price']:>8} {r['change_pct']:>7} {r['pe']:>7} {r['turnover']:>6} {r['total_cap']:>8}")
+        print(
+            f"{r['code']:<10} {r['name']:<10} {r['price']:>8} {r['change_pct']:>7} {r['pe']:>7} {r['turnover']:>6} {r['total_cap']:>8}"
+        )
+
 
 if __name__ == "__main__":
     try:

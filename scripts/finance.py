@@ -8,6 +8,7 @@
   finance.py -j SH600989               # JSON 输出
   finance.py --sources                 # 显示可用数据源
 """
+
 import sys
 import json
 import argparse
@@ -47,6 +48,10 @@ def render_table(records: list) -> str:
 
 
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="财务数据查询（多数据源自动切换）")
     parser.add_argument("code", nargs="?", help="股票代码（如 SH600989）")
     parser.add_argument("-c", "--codes", help="批量代码（逗号分隔）")
@@ -56,6 +61,7 @@ def main():
 
     if args.sources:
         from fetchers import get_finance_fetchers
+
         fetchers = get_finance_fetchers()
         print("可用财务数据源:")
         for f in fetchers:

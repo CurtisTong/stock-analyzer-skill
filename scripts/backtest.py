@@ -7,6 +7,7 @@
   python3 scripts/backtest.py --all --top 5
   python3 scripts/backtest.py --optimize --strategy balanced
 """
+
 import argparse
 import json
 import sys
@@ -16,7 +17,13 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from common import to_float, normalize_quote_code, normalize_finance_code, DATA_DIR, get_shared_executor
+from common import (
+    to_float,
+    normalize_quote_code,
+    normalize_finance_code,
+    DATA_DIR,
+    get_shared_executor,
+)
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
@@ -60,9 +67,14 @@ def _build_hist_quote(bars, i, fin, code):
     }
 
 
-def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
-                      holding_days: int = 5, initial_capital: float = 100000,
-                      total_days: int = 60):
+def simulate_strategy(
+    strategy_name: str,
+    codes: list,
+    top_n: int = 5,
+    holding_days: int = 5,
+    initial_capital: float = 100000,
+    total_days: int = 60,
+):
     """
     模拟策略收益（滚动窗口回测，无前瞻偏差）。
 
@@ -104,6 +116,7 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     kline_data = {}
     # 过滤退市/停牌股：最近一条 K 线必须在 30 天内
     from datetime import datetime, timedelta
+
     stale_cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
 
     ex = get_shared_executor()
@@ -189,20 +202,26 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
             dividend = _calc_dividend_score(hist_quote, fin, industry)
             if dividend > 0:
                 parts["dividend"] = dividend
-            score = sum(parts.get(k, 0) * weights.get(k, 0) for k in set(parts) | set(weights) if k != "label")
+            score = sum(
+                parts.get(k, 0) * weights.get(k, 0)
+                for k in set(parts) | set(weights)
+                if k != "label"
+            )
 
             # 计算持有期收益（T+1 ~ T+holding_days）
             entry_price = bars[i].close
             exit_price = bars[i + holding_days - 1].close
             if entry_price > 0:
                 ret = (exit_price - entry_price) / entry_price
-                all_selections.append({
-                    "code": code,
-                    "date": bars[i].day,
-                    "score": round(score, 1),
-                    "return_pct": round(ret * 100, 2),
-                    "daily_returns": _calc_daily_returns(bars, i, holding_days),
-                })
+                all_selections.append(
+                    {
+                        "code": code,
+                        "date": bars[i].day,
+                        "score": round(score, 1),
+                        "return_pct": round(ret * 100, 2),
+                        "daily_returns": _calc_daily_returns(bars, i, holding_days),
+                    }
+                )
 
             i += holding_days
 
@@ -211,6 +230,7 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
 
     # 按日期分组，每组取 top_n 只得分最高的股票
     from itertools import groupby
+
     all_selections.sort(key=lambda x: x["date"])
 
     # 先统计每组股票数量，过滤掉股票数不足的少数日期
@@ -227,15 +247,21 @@ def simulate_strategy(strategy_name: str, codes: list, top_n: int = 5,
     selection_details = []
 
     for date in sorted(valid_dates):
-        group_list = sorted(date_groups[date], key=lambda x: x["score"], reverse=True)[:top_n]
+        group_list = sorted(date_groups[date], key=lambda x: x["score"], reverse=True)[
+            :top_n
+        ]
         avg_ret = sum(s["return_pct"] for s in group_list) / len(group_list)
         portfolio_returns.append(avg_ret / 100)
         # 计算组合日收益率：每天取所有股票的平均日收益（而非串联）
-        stock_daily_returns = [s["daily_returns"] for s in group_list if s["daily_returns"]]
+        stock_daily_returns = [
+            s["daily_returns"] for s in group_list if s["daily_returns"]
+        ]
         if stock_daily_returns:
             max_len = max(len(d) for d in stock_daily_returns)
             for day_idx in range(max_len):
-                day_returns = [d[day_idx] for d in stock_daily_returns if day_idx < len(d)]
+                day_returns = [
+                    d[day_idx] for d in stock_daily_returns if day_idx < len(d)
+                ]
                 if day_returns:
                     portfolio_daily_returns.append(sum(day_returns) / len(day_returns))
         selection_details.extend(group_list)
@@ -310,13 +336,14 @@ def _compute_momentum_from_bars(bars) -> float:
     else:
         vol_score = 50
 
-    return (trend_score * 0.3 + rsi_score * 0.2 + mom_score * 0.3 + vol_score * 0.2)
+    return trend_score * 0.3 + rsi_score * 0.2 + mom_score * 0.3 + vol_score * 0.2
 
 
 def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
     """计算红利因子得分（回测用，轻量版）。"""
     try:
         from strategies.factors.dividend import dividend_score
+
         return dividend_score(hist_quote, fin, industry)
     except ImportError:
         return 0.0
@@ -343,9 +370,14 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
     return 100 - 100 / (1 + rs)
 
 
-def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
-                 days: int = 60, rounds: int = 5,
-                 benchmark: str = None):
+def run_backtest(
+    strategy_name: str,
+    codes: list,
+    top_n: int = 5,
+    days: int = 60,
+    rounds: int = 5,
+    benchmark: str = None,
+):
     """
     运行滚动窗口回测。
 
@@ -364,7 +396,9 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
         回测报告 dict
     """
     holding_days = max(1, days // rounds)
-    result = simulate_strategy(strategy_name, codes, top_n, holding_days=holding_days, total_days=days)
+    result = simulate_strategy(
+        strategy_name, codes, top_n, holding_days=holding_days, total_days=days
+    )
 
     if "error" in result:
         return {"error": result["error"]}
@@ -383,7 +417,7 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
     # 计算统计指标：累计收益（各期收益连乘）
     total_return = 1.0
     for r in all_returns:
-        total_return *= (1 + r / 100)
+        total_return *= 1 + r / 100
     total_return = (total_return - 1) * 100
 
     avg_return = sum(all_returns) / len(all_returns)
@@ -396,19 +430,21 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
     # 优先使用日收益率计算（更精确），回退到轮次收益率
     if len(all_daily_returns) > 1:
         import statistics
+
         daily_rf = annual_risk_free / 252
         daily_excess = [r - daily_rf for r in all_daily_returns]
         mean_excess = sum(daily_excess) / len(daily_excess)
         std = statistics.stdev(daily_excess)
-        sharpe = mean_excess / std * (252 ** 0.5) if std > 0 else 0
+        sharpe = mean_excess / std * (252**0.5) if std > 0 else 0
     elif len(all_returns) > 1:
         import statistics
+
         risk_free_per_round = annual_risk_free * holding_days / 252
         excess_returns = [r / 100 - risk_free_per_round for r in all_returns]
         mean_excess = sum(excess_returns) / len(excess_returns)
         std = statistics.stdev(excess_returns)
         periods_per_year = 252 / holding_days
-        sharpe = mean_excess / std * (periods_per_year ** 0.5) if std > 0 else 0
+        sharpe = mean_excess / std * (periods_per_year**0.5) if std > 0 else 0
     else:
         sharpe = 0
 
@@ -440,7 +476,9 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
     # 卡玛比率 = 年化收益率 / 最大回撤
     # 假设一年 252 个交易日，按回测天数折算年化
     annualized_return = total_return * (252 / days) if days > 0 else 0
-    calmar_ratio = round(annualized_return / (max_drawdown * 100), 2) if max_drawdown > 0 else 0
+    calmar_ratio = (
+        round(annualized_return / (max_drawdown * 100), 2) if max_drawdown > 0 else 0
+    )
 
     # 盈亏比 = 平均盈利 / 平均亏损（基于各期收益率）
     winning_trades = [r for r in all_returns if r > 0]
@@ -456,15 +494,15 @@ def run_backtest(strategy_name: str, codes: list, top_n: int = 5,
     information_ratio = 0
     if benchmark_returns and len(benchmark_returns) > 1 and len(all_daily_returns) > 1:
         import statistics
+
         # 对齐长度
         min_len = min(len(all_daily_returns), len(benchmark_returns))
         excess_returns_daily = [
-            all_daily_returns[i] - benchmark_returns[i]
-            for i in range(min_len)
+            all_daily_returns[i] - benchmark_returns[i] for i in range(min_len)
         ]
         mean_excess = sum(excess_returns_daily) / len(excess_returns_daily)
         te = statistics.stdev(excess_returns_daily)
-        information_ratio = round(mean_excess / te * (252 ** 0.5), 2) if te > 0 else 0
+        information_ratio = round(mean_excess / te * (252**0.5), 2) if te > 0 else 0
 
     # 换手率估算：每期买入 top_n 只，持有 holding_days，年化换手
     annual_turnover = (252 / holding_days) * top_n if holding_days > 0 else 0
@@ -501,7 +539,10 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list:
     try:
         from data import get_kline
         from common import normalize_quote_code
-        bars = get_kline(normalize_quote_code(benchmark_code), scale=240, datalen=days + 5)
+
+        bars = get_kline(
+            normalize_quote_code(benchmark_code), scale=240, datalen=days + 5
+        )
         if not bars or len(bars) < 2:
             return None
         returns = []
@@ -519,9 +560,9 @@ def _calc_win_by_position(round_results: list, holding_days: int) -> dict:
         return {}
     thirds = max(1, holding_days // 3)
     positions = {
-        "early": {"wins": 0, "total": 0},     # 前1/3
-        "mid": {"wins": 0, "total": 0},        # 中1/3
-        "late": {"wins": 0, "total": 0},       # 后1/3
+        "early": {"wins": 0, "total": 0},  # 前1/3
+        "mid": {"wins": 0, "total": 0},  # 中1/3
+        "late": {"wins": 0, "total": 0},  # 后1/3
     }
     for res in round_results:
         dly = res.get("daily_returns", [])
@@ -536,8 +577,14 @@ def _calc_win_by_position(round_results: list, holding_days: int) -> dict:
     }
 
 
-def compare_strategies(codes: list, top_n: int = 5, days: int = 60, rounds: int = 5,
-                       benchmark: str = None, scenarios: list = None):
+def compare_strategies(
+    codes: list,
+    top_n: int = 5,
+    days: int = 60,
+    rounds: int = 5,
+    benchmark: str = None,
+    scenarios: list = None,
+):
     """比较所有策略的表现。
 
     Args:
@@ -559,7 +606,9 @@ def compare_strategies(codes: list, top_n: int = 5, days: int = 60, rounds: int 
                 label = sc.get("label", "未知")
                 sc_days = sc.get("days", days)
                 sc_rounds = sc.get("rounds", max(1, rounds // 2))
-                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark)
+                sr = run_backtest(
+                    strategy_name, codes, top_n, sc_days, sc_rounds, benchmark
+                )
                 scenario_results[label] = {
                     "total_return_pct": sr.get("total_return_pct"),
                     "sharpe_ratio": sr.get("sharpe_ratio"),
@@ -578,6 +627,7 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
     在当前权重基础上，对 quality/valuation/momentum/liquidity 各 ±5% 做网格搜索。
     """
     import copy
+
     base_keys = ["quality", "valuation", "momentum", "liquidity"]
     original_weights = {k: STRATEGIES[strategy_name][k] for k in base_keys}
 
@@ -613,11 +663,13 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
 
             score = report.get("sharpe_ratio", 0)
 
-            results.append({
-                "weights": {k: round(v, 3) for k, v in test_weights.items()},
-                "sharpe": score,
-                "return": report.get("total_return_pct", 0),
-            })
+            results.append(
+                {
+                    "weights": {k: round(v, 3) for k, v in test_weights.items()},
+                    "sharpe": score,
+                    "return": report.get("total_return_pct", 0),
+                }
+            )
 
             if score > best_score:
                 best_score = score
@@ -647,16 +699,23 @@ def load_test_universe():
 
 
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="多因子选股策略回测")
-    parser.add_argument("--strategy", choices=STRATEGIES.keys(), default="balanced",
-                        help="回测策略")
+    parser.add_argument(
+        "--strategy", choices=STRATEGIES.keys(), default="balanced", help="回测策略"
+    )
     parser.add_argument("--all", action="store_true", help="比较所有策略")
     parser.add_argument("--optimize", action="store_true", help="优化权重")
     parser.add_argument("--top", type=int, default=5, help="每轮买入数量")
     parser.add_argument("--days", type=int, default=60, help="回测天数")
     parser.add_argument("--rounds", type=int, default=5, help="回测轮数")
     parser.add_argument("--codes", help="自定义股票代码（逗号分隔）")
-    parser.add_argument("--benchmark", default=None, help="基准指数代码（如 sh000300 沪深300）")
+    parser.add_argument(
+        "--benchmark", default=None, help="基准指数代码（如 sh000300 沪深300）"
+    )
     parser.add_argument("--scenarios", action="store_true", help="运行情景分析")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
@@ -685,7 +744,10 @@ def main():
             print(f"提升: {result['improvement']:+.3f}")
 
     elif args.all:
-        print(f"\n📈 比较所有策略 (top={args.top}, days={args.days}, rounds={args.rounds})", flush=True)
+        print(
+            f"\n📈 比较所有策略 (top={args.top}, days={args.days}, rounds={args.rounds})",
+            flush=True,
+        )
         # 构建情景
         scenarios = None
         if args.scenarios:
@@ -694,8 +756,14 @@ def main():
                 {"label": "2024震荡修复", "days": 60, "rounds": 3},
                 {"label": "2022熊市", "days": 60, "rounds": 3},
             ]
-        results = compare_strategies(codes, args.top, args.days, args.rounds,
-                                     benchmark=args.benchmark, scenarios=scenarios)
+        results = compare_strategies(
+            codes,
+            args.top,
+            args.days,
+            args.rounds,
+            benchmark=args.benchmark,
+            scenarios=scenarios,
+        )
         if args.json:
             print(json.dumps(results, ensure_ascii=False, indent=2))
         else:
@@ -708,25 +776,40 @@ def main():
                 if "error" in report:
                     print(f"{name:<18} {'ERROR':>8}")
                 else:
-                    line = (f"{name:<18} {report['total_return_pct']:>8.2f} "
-                            f"{report['sharpe_ratio']:>6.2f} "
-                            f"{report.get('information_ratio', 0):>7.2f} "
-                            f"{report['max_drawdown_pct']:>8.2f} "
-                            f"{report['win_rate_pct']:>6.1f}")
+                    line = (
+                        f"{name:<18} {report['total_return_pct']:>8.2f} "
+                        f"{report['sharpe_ratio']:>6.2f} "
+                        f"{report.get('information_ratio', 0):>7.2f} "
+                        f"{report['max_drawdown_pct']:>8.2f} "
+                        f"{report['win_rate_pct']:>6.1f}"
+                    )
                     if report.get("scenarios"):
                         scenario_str = "; ".join(
-                            f"{k}:{v['total_return_pct']}%" if v.get("total_return_pct") is not None else f"{k}:?"
+                            (
+                                f"{k}:{v['total_return_pct']}%"
+                                if v.get("total_return_pct") is not None
+                                else f"{k}:?"
+                            )
                             for k, v in report["scenarios"].items()
                         )
                         line += f" {scenario_str[:30]:>30}"
                     print(line)
 
     else:
-        print(f"\n📈 回测策略: {args.strategy} (top={args.top}, days={args.days}, rounds={args.rounds})", flush=True)
+        print(
+            f"\n📈 回测策略: {args.strategy} (top={args.top}, days={args.days}, rounds={args.rounds})",
+            flush=True,
+        )
         if args.benchmark:
             print(f"   基准: {args.benchmark}")
-        report = run_backtest(args.strategy, codes, args.top, args.days, args.rounds,
-                              benchmark=args.benchmark)
+        report = run_backtest(
+            args.strategy,
+            codes,
+            args.top,
+            args.days,
+            args.rounds,
+            benchmark=args.benchmark,
+        )
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
         elif "error" in report:
@@ -745,7 +828,9 @@ def main():
             print(f"年化换手: {report.get('annual_turnover', 0)} 次")
             if report.get("win_by_position"):
                 wp = report["win_by_position"]
-                print(f"分位置胜率: 早期{wp.get('early', '-')}% / 中期{wp.get('mid', '-')}% / 后期{wp.get('late', '-')}%")
+                print(
+                    f"分位置胜率: 早期{wp.get('early', '-')}% / 中期{wp.get('mid', '-')}% / 后期{wp.get('late', '-')}%"
+                )
 
 
 if __name__ == "__main__":

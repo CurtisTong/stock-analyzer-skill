@@ -6,6 +6,7 @@
 
 此文件为兼容层，实际实现已拆分到 chan/ 模块。
 """
+
 from chan import (
     chan_merge_inclusions,
     chan_fenxing,
@@ -33,6 +34,10 @@ __all__ = [
 
 # ── 命令行快速测试 ──
 if __name__ == "__main__":
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     import sys
     import json
     from common import normalize_quote_code
