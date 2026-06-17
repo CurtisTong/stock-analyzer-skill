@@ -95,8 +95,8 @@ def main():
     common.add_argument("--rounds", type=int, default=3)
 
     sub.add_parser("all", parents=[common], help="跑所有压测")
-    s_cmd = sub.add_parser("screener", parents=[common], help="压测 screener")
-    b_cmd = sub.add_parser("backtest", parents=[common], help="压测 backtest")
+    sub.add_parser("screener", parents=[common], help="压测 screener")
+    sub.add_parser("backtest", parents=[common], help="压测 backtest")
 
     args = parser.parse_args()
     codes = _parse_codes(args.codes)

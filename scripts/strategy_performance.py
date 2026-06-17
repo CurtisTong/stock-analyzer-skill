@@ -186,7 +186,7 @@ def main():
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
-            print(f"按月报告:")
+            print("按月报告:")
             for m, sdata in result["by_month"].items():
                 print(f"\n[{m}]")
                 for sname, m_data in sdata.items():

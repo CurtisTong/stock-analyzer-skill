@@ -1,0 +1,29 @@
+# Pre-commit hooks（Sprint 7 工程化债清理）
+# 安装: pip install pre-commit
+# 启用: pre-commit install
+# 手动跑: pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        args: [--fast, --target-version=py311]
+        files: ^scripts/.*\.py$
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+        args: [--config=.flake8]
+        files: ^scripts/.*\.py$
+
+  - repo: local
+    hooks:
+      - id: pytest-sprint-tests
+        name: 跑 Sprint 1-6 核心测试
+        entry: python3 -m pytest tests/test_backtest.py tests/test_business.py tests/test_screener.py tests/test_turning_point.py tests/test_finance_normalize.py tests/test_market_regime.py tests/test_portfolio_constraints.py tests/test_factor_refinements.py tests/test_sprint4_optimizations.py tests/test_snapshots.py tests/test_sprint6_calibration.py -x -q
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [manual]

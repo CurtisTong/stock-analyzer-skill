@@ -203,7 +203,7 @@ def main():
             print(f"B: {diff['snapshot_b']} ({diff['timestamp_b']})")
             print(f"新增: {len(diff['added'])} 只 → {diff['added'][:10]}")
             print(f"退出: {len(diff['removed'])} 只 → {diff['removed'][:10]}")
-            print(f"分数变化 top 10:")
+            print("分数变化 top 10:")
             for c in diff["score_changes"][:10]:
                 print(
                     f"  {c['code']} {c['name']}: {c['score_a']} → {c['score_b']} ({c['delta']:+})"
