@@ -1,0 +1,17 @@
+name: chaogu_yangjia
+display_name: 炒股养家
+group: short_term
+style: 情绪流
+horizon: 日/周
+core_signal: 情绪/题材
+weights:
+  基本面: 5.0
+  估值: 12.0
+  技术面: 15.0
+  情绪: 58.0
+  风险: 10.0
+veto_conditions:
+  - 情绪周期处于退潮期（连续亏钱效应）
+  - 全市场跌停家数 > 50（恐慌弥漫）
+md_path: experts/chaogu_yangjia.md
+active: false

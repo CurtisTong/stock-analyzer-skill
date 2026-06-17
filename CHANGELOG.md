@@ -9,6 +9,43 @@
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-06-17（v2 量化策略平台首版）
+
+### Added
+
+- **Screener V2 量化策略平台**（15 Sprint 综合）：
+  - 6 因子 z-score 标准化（review#14）消除跨因子尺度差异
+  - 4 状态市场状态机（bull/bear/range/panic）自动调节策略权重（doc#03）
+  - 两阶段管线（Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排）
+  - 5 策略 V2 权重升级（balanced/quality_value/growth_momentum/defensive/turning_point）
+  - 选股快照系统（review#16）：保存/对比/列出 JSON 快照
+  - 跨策略对比子命令（strategy_performance compare）
+  - 月度校准（strategy_performance record）记录到 JSON
+  - 性能压测工具（perf_bench.py）
+  - 板块集中度算法修复（review#15，候选池 < 10 不强制）
+  - 因子级精修：波动率窗口 20→60 / ROE 趋势下降占比 60% / 动量阈值 p75 / PEG 用 3y CAGR / 动量趋势基础分收敛
+  - K 线批量预拉（review#12）减少 5000 次独立 IO
+  - 行情+财务并行拉取（review#11）耗时从 sum 降到 max
+  - 行业分类 fetcher_industry 优先（review#13）
+  - turning_point 两阶段模型（review#2）超跌+量能+基本面三重过滤
+  - ESG/分红 fetcher 字段映射（review#9+10）dividend_records/consecutive_dividend_years 等
+- **experts/yaml 机器可读版**（D6 落地）：8 个专家 yaml 配置 + 加载器
+  - `experts/yaml_loader.py` 支持 load/load_all/export/round_trip
+  - `experts/registry.py` 优先从 yaml 加载，向后兼容硬编码
+
+### Changed
+
+- `compute_weighted_score` 支持 market regime overlay（strategy 参数 → 实时调节权重）
+- 策略权重从 V1 经验值（balanced.quality=0.23）升级到 V2（0.30），覆盖更全面
+- `_dict_to_finance` 支持 5 个新字段（dividend_yield/consecutive_dividend_years 等）
+
+### Engineering
+
+- 覆盖率从 55% 提升到 61.8%（fail-under 60% 达标）
+- 168 测试 → 1773 测试（+1605 测试，0 失败）
+- pre-commit 钩子 + flake8 + black 格式化
+- Sprint 1-15 共 15 个独立 commit
+
 ## [1.11.0] - 2026-06-16
 
 ### Added

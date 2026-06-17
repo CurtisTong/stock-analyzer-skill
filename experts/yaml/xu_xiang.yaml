@@ -1,0 +1,19 @@
+name: xu_xiang
+display_name: 徐翔
+group: short_term
+style: 涨停板战法
+horizon: 日/周
+core_signal: 量价+情绪/题材
+weights:
+  基本面: 5.0
+  估值: 12.0
+  技术面: 30.0
+  情绪/题材: 43.0
+  风险: 10.0
+veto_conditions:
+  - 大盘处于20日均线下方且缩量
+  - 全市场涨停家数 < 20（退潮期不打板）
+  - 监管"特停"频繁（政策风险不可控）
+  - 无涨停基因（近30日无涨停记录）
+md_path: experts/xu_xiang.md
+active: false

@@ -1,0 +1,18 @@
+name: soros
+display_name: 索罗斯
+group: long_term
+style: 宏观/趋势
+horizon: 月/季/年
+core_signal: 量价+情绪/反身性
+weights:
+  基本面: 15.0
+  估值: 10.0
+  技术面: 25.0
+  情绪/反身性: 30.0
+  风险: 20.0
+veto_conditions:
+  - 市场处于"所有人同边"状态（反身性顶点信号）
+  - 流动性枯竭（两市成交额<5000亿且持续缩量）
+  - 政策明确打压该板块（反身性向下强化）
+md_path: experts/soros.md
+active: true

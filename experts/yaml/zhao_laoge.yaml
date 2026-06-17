@@ -1,0 +1,17 @@
+name: zhao_laoge
+display_name: 赵老哥
+group: short_term
+style: 趋势龙头
+horizon: 日/周
+core_signal: 量价+情绪/题材
+weights:
+  基本面: 10.0
+  估值: 12.0
+  技术面: 31.0
+  情绪/题材: 35.0
+  风险: 12.0
+veto_conditions:
+  - 龙头地位被替代（板块龙头切换）
+  - 跌破20日均线（一票否决）
+md_path: experts/zhao_laoge.md
+active: false

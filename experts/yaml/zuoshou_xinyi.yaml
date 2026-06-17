@@ -1,0 +1,18 @@
+name: zuoshou_xinyi
+display_name: 作手新一
+group: short_term
+style: 强势股低吸
+horizon: 日/周
+core_signal: 量价+情绪
+weights:
+  基本面: 8.0
+  估值: 12.0
+  技术面: 33.0
+  情绪: 35.0
+  风险: 12.0
+veto_conditions:
+  - 非强势股（无涨停或连板历史）
+  - 调整中放量跌破前低（不是低吸是接飞刀）
+  - 题材退潮或出现重大负面催化
+md_path: experts/zuoshou_xinyi.md
+active: false

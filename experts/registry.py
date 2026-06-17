@@ -255,7 +255,20 @@ def _ensure_loaded() -> None:
 
     legacy（active=False）指已被合并视角取代、新框架不再调用的旧专家，
     仍保留在注册表中供向后兼容与 A/B 对比。
+
+    Sprint 17 / D6 改造：模块加载时尝试从 experts/yaml/ 加载配置，
+    yaml 优先（同名 expert 覆盖硬编码），无 yaml 时回退到硬编码。
     """
+    # D6: yaml 优先（如果可用）
+    try:
+        from experts.yaml_loader import load_all_experts
+        yaml_experts = load_all_experts()
+        for name, profile in yaml_experts.items():
+            EXPERT_REGISTRY[name] = profile
+    except Exception:
+        # yaml 加载失败/不可用 → 保持硬编码（向后兼容）
+        pass
+
     total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)
     if total != 14:
