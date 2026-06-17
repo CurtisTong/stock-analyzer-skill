@@ -12,6 +12,7 @@ v2.1.2：实现"周期位置 + 风险预算 + 二阶思维"完整版
 - 二阶思维：情绪极端（>80 或 <20）= 警示信号
 - 估值/情绪权重低（风险管理专注"风险"而非"机会"）
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -22,7 +23,8 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     维度：风险（最高权重）+ 估值倒数（PE 越高越警示）+ 情绪倒数。
     """
-    from . import _score_fundamentals, _score_valuation, _score_technical, _score_sentiment
+    from ._utils import _score_fundamentals, _score_technical, _score_sentiment
+
     fin = stock_data.get("finance") or {}
     quote = stock_data.get("quote") or {}
     kline_features = stock_data.get("kline_features") or {}

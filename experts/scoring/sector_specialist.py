@@ -12,6 +12,7 @@ v2.1.2：实现"行业 PE 分位 + 行业景气 + 竞争格局代理"完整版
 - 竞争格局：低负债率 = 龙头优势（护城河）
 - 风险预警：PE 行业分位 >80% 减分（行业泡沫）
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -22,7 +23,8 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     维度：基本面（行业景气）+ 估值（行业 PE 分位）+ 风险（竞争格局）。
     """
-    from . import _score_fundamentals, _score_valuation, _score_technical, _score_sentiment
+    from ._utils import _score_technical, _score_sentiment
+
     fin = stock_data.get("finance") or {}
     quote = stock_data.get("quote") or {}
     kline_features = stock_data.get("kline_features") or {}

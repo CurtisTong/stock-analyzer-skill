@@ -12,6 +12,7 @@ v2.1.2：实现"长期主义 + 深度尽调代理"完整版
 - 安全边际：高 FCF/股 + 低负债率
 - 技术/情绪降权（机构不在乎短期波动）
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -22,7 +23,7 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     维度：基本面（深度尽调）+ 估值（PEG 视角）+ 安全边际（FCF）。
     """
-    from . import _score_fundamentals, _score_valuation, _score_technical, _score_sentiment
+    pass  # 通用评分函数未使用，各维度自行计算
     fin = stock_data.get("finance") or {}
     quote = stock_data.get("quote") or {}
     kline_features = stock_data.get("kline_features") or {}
