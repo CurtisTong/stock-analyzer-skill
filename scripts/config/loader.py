@@ -8,15 +8,16 @@
     - data_source.yaml: 数据源配置
     - industry_thresholds.yaml: 行业差异化阈值
 """
+
 import yaml
 from pathlib import Path
 from typing import Any, Optional
 
 
 class ConfigLoader:
-    """配置加载器，支持 YAML 配置文件（带缓存）。"""
+    """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存）。"""
 
-    _cache: dict = {}
+    _cache: dict[str, tuple[float, dict]] = {}
     _config_dir: Path = Path(__file__).parent
 
     @classmethod
@@ -31,17 +32,21 @@ class ConfigLoader:
         Returns:
             配置字典
         """
-        if use_cache and filename in cls._cache:
-            return cls._cache[filename]
-
         config_path = cls._config_dir / filename
         if not config_path.exists():
             return {}
 
+        current_mtime = config_path.stat().st_mtime
+
+        if use_cache and filename in cls._cache:
+            cached_mtime, cached_data = cls._cache[filename]
+            if current_mtime <= cached_mtime:
+                return cached_data
+
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
 
-        cls._cache[filename] = config
+        cls._cache[filename] = (current_mtime, config)
         return config
 
     @classmethod
