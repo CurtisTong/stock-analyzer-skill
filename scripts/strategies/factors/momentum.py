@@ -59,8 +59,8 @@ def momentum_score(features: dict, quote: dict) -> float:
         elif pe_pct > 65:
             decay *= 0.70
 
-    # 趋势基础分：缩小上升/下降差距，避免过度敏感
-    score = 40 if features["trend"] > 0 else 20 if features["trend"] == 0 else 12
+    # 趋势基础分：review#7 收敛（40→30, 20→18, 12→15），为量价确认信号腾出空间
+    score = 30 if features["trend"] > 0 else 18 if features["trend"] == 0 else 15
     score += clamp((ret20 + 8) / 25 * 22)
     score += clamp((volume_ratio - 0.6) / 1.4 * 12)
     score += clamp(turnover / 6 * 6)
