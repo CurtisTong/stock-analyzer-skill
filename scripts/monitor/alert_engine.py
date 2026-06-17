@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import normalize_quote_code, to_float, board_type, board_limit_pct
 from data import get_quote, get_quotes, get_kline
+from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.trend import support_resistance
@@ -90,16 +91,14 @@ def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
 
     # 实时行情
     try:
-        q = get_quote(code)
-        result["quote"] = q.to_dict() if q else None
+        result["quote"] = fetch_quote_dict_or_none(code)
     except Exception as e:
         result["error"] = f"行情获取失败: {e}"
         return result
 
     # K 线
     try:
-        bars = get_kline(code, 240, datalen)
-        records = [b.to_dict() for b in bars]
+        records = fetch_kline_dicts(code, scale=240, datalen=datalen)
     except Exception as e:
         result["error"] = f"K线获取失败: {e}"
         return result

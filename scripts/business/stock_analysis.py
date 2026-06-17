@@ -6,6 +6,7 @@
 
 import logging
 from typing import Optional, Dict, Any, List
+from concurrent.futures import ThreadPoolExecutor
 
 from common.exceptions import InsufficientDataError, ValidationError
 from common.validators import normalize_code, validate_code
@@ -50,38 +51,39 @@ class StockAnalysisService:
             "change_pct": 0,
         }
 
-        # 1. 获取实时行情
-        quote = get_quote(code)
+        # 1. 并行获取三类数据（无依赖关系，可同时拉取）
+        with ThreadPoolExecutor(max_workers=3) as ex:
+            f_quote = ex.submit(get_quote, code)
+            f_kline = ex.submit(get_kline, code, 240, 120)
+            f_finance = ex.submit(get_finance, code) if include_finance else None
+
+        quote = f_quote.result()
+        kline = f_kline.result()
+        finance = f_finance.result() if f_finance else None
+
+        # 2. 行情和画像
         if quote:
             result["name"] = quote.name
             result["price"] = quote.price
             result["change_pct"] = quote.change_pct
-
-        # 2. 行业和类型画像
-        if quote:
             result["profile"] = profile_stock(quote.to_dict())
 
-        # 3. K线数据
-        kline = get_kline(code, scale=240, datalen=120)
+        # 3. K线分析
         if not kline or len(kline) < 10:
             logger.warning(f"K线数据不足: {code}")
             result["warning"] = "K线数据不足"
         else:
             result["kline_count"] = len(kline)
 
-            # 技术分析
             if include_technical:
                 result["technical"] = self._analyze_technical(kline)
 
-            # 缠论分析
             if include_chan and len(kline) >= self.min_kline_days:
                 result["chan"] = self._analyze_chan([b.to_dict() for b in kline])
 
         # 4. 财务数据
-        if include_finance:
-            finance = get_finance(code)
-            if finance:
-                result["finance"] = self._extract_finance_summary(finance[0].to_dict())
+        if finance:
+            result["finance"] = self._extract_finance_summary(finance[0].to_dict())
 
         # 5. 综合评分
         if "technical" in result and "profile" in result:

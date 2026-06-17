@@ -4,14 +4,16 @@
 """
 
 from common import clamp, to_float
+from config.loader import safe_get
 
 from .signals import _generate_signals
 
-# v1.3.2：权重与阈值从 config/scoring.yaml 加载；YAML 缺失时回退到代码内默认值。
-try:
-    from config import get_scoring_config
-except ImportError:
-    get_scoring_config = lambda key, default=None: default
+
+def _scoring_config(key: str = None, default=None):
+    """获取评分配置，安全回退。"""
+    if key is None:
+        return safe_get("scoring.yaml")
+    return safe_get("scoring.yaml", key, default)
 
 
 # 个股类型 × 指标权重矩阵（YAML 默认值，行为与历史硬编码版本完全一致）
@@ -105,7 +107,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
 
 def _get_stock_type_weights(stock_type: str) -> dict:
     """从 YAML 读取个股类型权重；缺失时回退硬编码默认。"""
-    cfg = get_scoring_config("stock_type_weights") or {}
+    cfg = _scoring_config("stock_type_weights") or {}
     if stock_type in cfg:
         row = dict(cfg[stock_type])
         # 补全缺失的 chip 字段（向后兼容旧 YAML）
@@ -331,9 +333,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
     type_w = _get_stock_type_weights(stock_type)
     adj = _market_weight_adjustments(market_state or "震荡")
 
-    alignment_scores = (
-        get_scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
-    )
+    alignment_scores = _scoring_config("alignment_scores") or _ALIGNMENT_SCORES_DEFAULT
 
     ma = features.get("ma_system", {})
     macd = features.get("macd") or {}
@@ -477,7 +477,7 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
 
 def _market_weight_adjustments(state):
     """市场环境 → 信号权重因子。v1.3.2：从 config/scoring.yaml::market_weights 加载。"""
-    cfg = get_scoring_config("market_weights") or {}
+    cfg = _scoring_config("market_weights") or {}
     if state in cfg:
         return cfg[state]
     return _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT.get(

@@ -13,6 +13,7 @@
     python3 scripts/portfolio/daily_report.py --channel wechat
     python3 scripts/portfolio/daily_report.py --channel dingtalk
 """
+
 import json
 import sys
 from datetime import datetime
@@ -69,17 +70,19 @@ class DailyReportGenerator:
             total_value += market_value
             total_cost += cost_value
 
-            stock_details.append({
-                "code": code,
-                "name": name,
-                "shares": shares,
-                "cost_price": cost_price,
-                "current_price": current_price,
-                "change_pct": change_pct,
-                "market_value": market_value,
-                "profit": profit,
-                "profit_rate": profit_rate,
-            })
+            stock_details.append(
+                {
+                    "code": code,
+                    "name": name,
+                    "shares": shares,
+                    "cost_price": cost_price,
+                    "current_price": current_price,
+                    "change_pct": change_pct,
+                    "market_value": market_value,
+                    "profit": profit,
+                    "profit_rate": profit_rate,
+                }
+            )
 
         total_profit = total_value - total_cost
         total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0
@@ -165,7 +168,7 @@ class DailyReportGenerator:
         stock_details: list,
     ) -> str:
         """格式化日报。"""
-        date_str = datetime.now().strftime('%Y-%m-%d')
+        date_str = datetime.now().strftime("%Y-%m-%d")
 
         # 收益符号
         profit_sign = "+" if total_profit >= 0 else ""
@@ -212,9 +215,13 @@ class DailyReportGenerator:
             worst = min(stock_details, key=lambda x: x["change_pct"])
 
             if best["change_pct"] > 0:
-                lines.append(f"- 📈 {best['name']} 涨幅最大：+{best['change_pct']:.1f}%")
+                lines.append(
+                    f"- 📈 {best['name']} 涨幅最大：+{best['change_pct']:.1f}%"
+                )
             if worst["change_pct"] < 0:
-                lines.append(f"- 📉 {worst['name']} 跌幅最大：{worst['change_pct']:.1f}%")
+                lines.append(
+                    f"- 📉 {worst['name']} 跌幅最大：{worst['change_pct']:.1f}%"
+                )
 
         lines.append("")
 
@@ -243,18 +250,10 @@ class DailyReportGenerator:
 
     def _send_bark(self, report: str):
         """发送 Bark 通知。"""
-        # 从配置读取 Bark URL
-        config_path = PROJECT_ROOT / "scripts" / "config" / "notification.yaml"
-        if not config_path.exists():
-            print("Bark 配置不存在，跳过发送")
-            return
-
         try:
-            import yaml
-            with open(config_path) as f:
-                config = yaml.safe_load(f)
+            from config.loader import ConfigLoader
 
-            bark_url = config.get("bark", {}).get("url", "")
+            bark_url = ConfigLoader.get("notification.yaml", "bark.url", "")
             if not bark_url:
                 print("Bark URL 未配置，跳过发送")
                 return
@@ -267,6 +266,7 @@ class DailyReportGenerator:
             }
 
             import urllib.request
+
             req = urllib.request.Request(
                 url,
                 data=json.dumps(data).encode(),
@@ -292,7 +292,9 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="持仓日报生成器")
-    parser.add_argument("--channel", choices=["bark", "wechat", "dingtalk"], help="通知渠道")
+    parser.add_argument(
+        "--channel", choices=["bark", "wechat", "dingtalk"], help="通知渠道"
+    )
     parser.add_argument("--output", help="输出文件路径")
     args = parser.parse_args()
 

@@ -1,17 +1,10 @@
 """A 股预筛选阈值常量。"""
 
-try:
-    from config.loader import ConfigLoader
-
-    _USE_CONFIG = True
-except ImportError:
-    _USE_CONFIG = False
+from config.loader import safe_get
 
 
 def _limit(section: str, key: str, default):
-    if _USE_CONFIG:
-        return ConfigLoader.get("limits.yaml", f"{section}.{key}", default)
-    return default
+    return safe_get("limits.yaml", f"{section}.{key}", default)
 
 
 def get_min_amount(board_type: str, default: int = 5000) -> int:

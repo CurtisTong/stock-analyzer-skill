@@ -18,6 +18,7 @@ from pathlib import Path
 
 from common import to_float
 from data import get_quote, get_finance
+from data.helpers import fetch_quote_dict_or_none, fetch_finance_first
 
 # ═══════════════════════════════════════════════════════════════
 # 长期持有评估
@@ -119,16 +120,14 @@ class LongTermEvaluator:
     def _get_quote(self, code: str) -> dict:
         """获取行情数据。"""
         try:
-            q = get_quote(code)
-            return q.to_dict() if q else None
+            return fetch_quote_dict_or_none(code)
         except Exception:
             return None
 
     def _get_finance(self, code: str) -> dict:
         """获取财务数据。"""
         try:
-            f = get_finance(code)
-            return f if f else {}
+            return fetch_finance_first(code)
         except Exception:
             return {}
 

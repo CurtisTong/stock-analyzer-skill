@@ -25,20 +25,12 @@ from strategies.thresholds import get_industry_threshold
 
 logger = logging.getLogger(__name__)
 
-# 尝试加载 config（可选；缺失时回退到硬编码默认）
-try:
-    from config import get_limit_config
-
-    _USE_CONFIG = True
-except ImportError:
-    _USE_CONFIG = False
-
 
 def _limit(key: str, default):
     """读取 limits.yaml 中的阈值；无 config 时回退到硬编码默认。"""
-    if _USE_CONFIG:
-        return get_limit_config(key, default)
-    return default
+    from config.loader import safe_get
+
+    return safe_get("limits.yaml", key, default)
 
 
 def _board_limit(board: str) -> float:
@@ -80,20 +72,23 @@ def _st_prefixes() -> list:
     return _limit("st_prefixes", ["ST", "*ST"])
 
 
-def compute_features(code: str) -> dict:
+def compute_features(code: str, bars=None) -> dict:
     """计算技术指标特征（模块级函数，供 screener.py 等外部复用）。
 
     Args:
         code: 股票代码（带 sh/sz 前缀）
+        bars: 预取的 KlineBar 列表（可选，为 None 时自动获取）
     Returns:
         技术指标 dict：trend/ret20/ma10/ma20/volume_ratio/macd_signal/rsi/rsi_signal/vol_price_signal/closes
     """
     import statistics
     from technical import macd_full, rsi_features
     from technical.volume import volume_analysis as _vol_analysis
-    from data import get_kline
 
-    bars = get_kline(code, scale=240, datalen=240)
+    if bars is None:
+        from data import get_kline
+
+        bars = get_kline(code, scale=240, datalen=240)
     closes = [b.close for b in bars if b.close > 0]
     volumes = [b.volume for b in bars if b.volume > 0]
 
@@ -200,8 +195,9 @@ class ScreeningService:
         # 用 normalize_quote_code 做反向映射，保证 lookup 命中
         quote_map = {normalize_quote_code(q.code): q for q in quotes}
 
-        # 预获取财务数据
+        # 预获取财务数据和K线数据（并行）
         fin_cache = self._prefetch_finance(normalized_codes)
+        kline_cache = self._prefetch_kline(normalized_codes)
 
         # 分析每只股票
         results = []
@@ -212,7 +208,12 @@ class ScreeningService:
 
             try:
                 stock_result = self._analyze_stock(
-                    code, quote, fin_cache.get(code, []), strategy, filters
+                    code,
+                    quote,
+                    fin_cache.get(code, []),
+                    strategy,
+                    filters,
+                    kline_cache.get(code),
                 )
                 if stock_result:
                     results.append(stock_result)
@@ -251,6 +252,33 @@ class ScreeningService:
 
         return results
 
+    def _prefetch_kline(
+        self, codes: List[str], scale: int = 240, datalen: int = 240
+    ) -> Dict[str, list]:
+        """预获取K线数据（并行）。"""
+        from concurrent.futures import as_completed
+        from data import get_kline
+
+        results = {}
+
+        def fetch_one(code):
+            try:
+                bars = get_kline(code, scale=scale, datalen=datalen)
+                return code, bars
+            except Exception:
+                return code, []
+
+        ex = get_shared_executor(self.max_workers)
+        futures = {ex.submit(fetch_one, c): c for c in codes}
+        for future in as_completed(futures):
+            try:
+                code, data = future.result()
+                results[code] = data
+            except Exception:
+                pass
+
+        return results
+
     def _analyze_stock(
         self,
         code: str,
@@ -258,6 +286,7 @@ class ScreeningService:
         fin_records: List[dict],
         strategy: str,
         filters: Dict[str, Any],
+        kline_bars: list = None,
     ) -> Optional[Dict[str, Any]]:
         """分析单只股票。"""
         quote_dict = quote.to_dict()
@@ -277,7 +306,7 @@ class ScreeningService:
             }
 
         # 计算因子得分
-        features = self._compute_features(code)
+        features = self._compute_features(code, kline_bars)
 
         weights = STRATEGIES[strategy]
         parts = {
@@ -335,9 +364,9 @@ class ScreeningService:
         return "配合" if signal > 0 else "背离" if signal < 0 else "中性"
 
     @staticmethod
-    def _compute_features(code: str) -> dict:
+    def _compute_features(code: str, bars=None) -> dict:
         """计算技术指标特征（委托给模块级 compute_features）。"""
-        return compute_features(code)
+        return compute_features(code, bars=bars)
 
     def _hard_filter(self, quote: dict, fin: dict, filters: dict) -> List[str]:
         """硬过滤。

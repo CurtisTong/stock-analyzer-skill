@@ -27,6 +27,12 @@ from common import (
     to_float,
 )
 from data import get_quote, get_quotes, get_kline, get_finance
+from data.helpers import (
+    fetch_quote_dict,
+    fetch_batch_dicts,
+    fetch_kline_dicts,
+    fetch_finance_dicts,
+)
 from classifier import infer_industry
 from strategies import (
     STRATEGIES,
@@ -41,31 +47,27 @@ from strategies.thresholds import get_industry_threshold, load_industry_threshol
 from technical.volume import volume_analysis
 from business.screening_service import compute_features
 
-# ---------- 数据层适配函数 ----------
+# ---------- 数据层适配函数（委托给 data.helpers） ----------
 
 
 def _fetch_quote_dict(code: str) -> dict:
     """获取单只行情，返回 dict（兼容旧接口）。"""
-    q = get_quote(normalize_quote_code(code))
-    return q.to_dict() if q else {}
+    return fetch_quote_dict(normalize_quote_code(code))
 
 
 def _fetch_batch_dicts(codes: list) -> list:
     """批量获取行情，返回 dict 列表。"""
-    quotes = get_quotes(codes)
-    return [q.to_dict() for q in quotes]
+    return fetch_batch_dicts(codes)
 
 
 def _fetch_kline_dicts(code: str, limit: int = 240, scale: int = 30) -> list:
     """获取 K 线，返回 dict 列表。"""
-    bars = get_kline(normalize_quote_code(code), scale=scale, datalen=limit)
-    return [b.to_dict() for b in bars]
+    return fetch_kline_dicts(normalize_quote_code(code), scale=scale, datalen=limit)
 
 
 def _fetch_finance_dicts(code: str) -> list:
     """获取财务数据，返回 dict 列表。"""
-    records = get_finance(normalize_finance_code(code))
-    return [r.to_dict() for r in records]
+    return fetch_finance_dicts(normalize_finance_code(code))
 
 
 # board_type() 返回值 → all_stocks.json 中的键名映射

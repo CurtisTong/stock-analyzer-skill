@@ -14,7 +14,7 @@ from pathlib import Path
 from dev.clock import now as _now
 from typing import Optional
 
-import yaml
+from config.loader import ConfigLoader
 
 from .channels.base import NotificationChannel
 from .channels.bark import BarkChannel
@@ -141,11 +141,7 @@ class NotificationManager:
     def _load_config(self) -> dict:
         """加载通知配置，并更新日志轮转设置。"""
         global _LOG_MAX_SIZE, _LOG_MAX_FILES
-        path = _config_path()
-        config = {}
-        if path.exists():
-            text = path.read_text(encoding="utf-8")
-            config = yaml.safe_load(text) or {}
+        config = ConfigLoader.load("notification.yaml")
 
         # 从配置中读取日志轮转设置
         log_cfg = config.get("logging", {})

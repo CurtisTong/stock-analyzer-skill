@@ -119,3 +119,29 @@ def get_limit_config(key: str = None, default: Any = None) -> Any:
 def reload_config(filename: str = None):
     """重新加载配置。"""
     ConfigLoader.reload(filename)
+
+
+def safe_get(filename: str, key_path: str = None, default: Any = None) -> Any:
+    """安全获取配置值，任何异常都返回默认值。
+
+    用于替代各模块中的 try/except ImportError 回退模式。
+    """
+    try:
+        if key_path is None:
+            return ConfigLoader.load(filename)
+        return ConfigLoader.get(filename, key_path, default)
+    except Exception:
+        return default
+
+
+def get_notification_config(key: str = None, default: Any = None) -> Any:
+    """
+    获取通知配置。
+
+    Args:
+        key: 键路径（如 "bark.url"），为空时返回整个配置
+        default: 默认值
+    """
+    if key is None:
+        return ConfigLoader.load("notification.yaml")
+    return ConfigLoader.get("notification.yaml", key, default)
