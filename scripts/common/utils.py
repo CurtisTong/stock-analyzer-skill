@@ -1,10 +1,12 @@
 """工具函数：代码转换、类型转换、并发执行。"""
+
 import concurrent.futures
 import os
 import statistics
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any, Callable
 
 from common.exceptions import DataError
 
@@ -14,6 +16,7 @@ DATA_DIR = PACKAGE_ROOT / "data"
 
 # ---------- 代码转换 ----------
 
+
 def split_codes(arg: str) -> list[str]:
     """支持逗号分隔或文件路径（@file）。"""
     if arg.startswith("@"):
@@ -22,7 +25,11 @@ def split_codes(arg: str) -> list[str]:
             raise ValueError(f"文件路径不在允许范围内: {arg[1:]}")
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {arg[1:]}")
-        return [line.strip() for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        return [
+            line.strip()
+            for line in file_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
     return [c.strip() for c in arg.split(",") if c.strip()]
 
 
@@ -104,9 +111,10 @@ def is_etf(code: str) -> bool:
 
 # ---------- 类型转换 ----------
 
+
 def batchify(items: list[str], size: int = 15) -> list[list[str]]:
     """将列表按 size 分批。腾讯单次 ≤15。"""
-    return [items[i:i + size] for i in range(0, len(items), size)]
+    return [items[i : i + size] for i in range(0, len(items), size)]
 
 
 def to_float(value: object, default: float = 0.0) -> float:
@@ -134,7 +142,9 @@ def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
 
-def compute_volume_ratio(volumes: list[float], recent_window: int = 5, base_window: int = 10) -> float:
+def compute_volume_ratio(
+    volumes: list[float], recent_window: int = 5, base_window: int = 10
+) -> float:
     """计算量比（最近 N 日平均 / 基础 N 日平均）。
 
     base_window 包含 recent_window，语义为"最近 N 日放量程度"，
@@ -157,6 +167,7 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 
 # ---------- 数据单位归一化 ----------
 # 统一规范：volume=股, amount=元, total_cap/circulating_cap=亿
+
 
 def normalize_volume(raw: int | str | None, source: str) -> int:
     """将不同数据源的成交量归一化为股。
@@ -183,6 +194,7 @@ def normalize_amount(raw: object, source: str) -> float:
 
 
 # ---------- 错误处理 ----------
+
 
 def err(msg: str) -> None:
     """抛出 DataError 异常（替代原来的 sys.exit）。"""
@@ -217,7 +229,12 @@ def get_shared_executor(max_workers: int | None = None) -> ThreadPoolExecutor:
     return _shared_executor
 
 
-def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: int = 60) -> dict[str, object]:
+def parallel_map(
+    fn: Callable[[str], Any],
+    items: list[str],
+    max_workers: int = 8,
+    timeout: int = 60,
+) -> dict[str, Any]:
     """并发执行 fn(item)，返回 {item: result} 字典。
 
     超时时返回已完成的部分结果，而非抛出异常丢失所有结果。
@@ -226,8 +243,9 @@ def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: in
     import logging
     from concurrent.futures import Future
     from common.exceptions import RateLimitError
+
     logger = logging.getLogger(__name__)
-    results: dict[str, object] = {}
+    results: dict[str, Any] = {}
     ex = get_shared_executor(max_workers)
     futures: dict[Future[object], str] = {ex.submit(fn, item): item for item in items}  # type: ignore[arg-type]
     try:
@@ -241,8 +259,9 @@ def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: in
                 logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None
     except concurrent.futures.TimeoutError:
-        logger.warning("parallel_map 超时，返回部分结果 (%d/%d)",
-                       len(results), len(items))
+        logger.warning(
+            "parallel_map 超时，返回部分结果 (%d/%d)", len(results), len(items)
+        )
         for future in futures:
             future.cancel()
     return results
@@ -254,23 +273,40 @@ def board_limit_pct(board: str) -> float:
     优先从 config/limits.yaml 读取，缺失时使用硬编码默认值。
     """
     _DEFAULTS = {
-        "主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5,
+        "主板": 9.5,
+        "创业板": 19.5,
+        "科创板": 19.5,
+        "北交所": 29.5,
     }
     default = _DEFAULTS.get(board, 9.5)
     try:
         from config.loader import ConfigLoader
+
         return ConfigLoader.get("limits.yaml", f"board_limits.{board}", default)
     except (ImportError, KeyError, FileNotFoundError):
         return default
 
 
 __all__ = [
-    "PACKAGE_ROOT", "DATA_DIR",
-    "split_codes", "plain_code", "infer_exchange",
-    "normalize_quote_code", "normalize_finance_code", "to_secid",
-    "board_type", "batchify", "to_float", "to_int", "clamp",
-    "compute_volume_ratio", "compute_optimal_workers",
-    "normalize_volume", "normalize_amount",
-    "err", "parallel_map", "get_shared_executor",
+    "PACKAGE_ROOT",
+    "DATA_DIR",
+    "split_codes",
+    "plain_code",
+    "infer_exchange",
+    "normalize_quote_code",
+    "normalize_finance_code",
+    "to_secid",
+    "board_type",
+    "batchify",
+    "to_float",
+    "to_int",
+    "clamp",
+    "compute_volume_ratio",
+    "compute_optimal_workers",
+    "normalize_volume",
+    "normalize_amount",
+    "err",
+    "parallel_map",
+    "get_shared_executor",
     "board_limit_pct",
 ]
