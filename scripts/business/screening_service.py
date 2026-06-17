@@ -283,57 +283,11 @@ class ScreeningService:
 
         # 计算因子得分
         features = self._compute_features(code, kline_bars)
-
-        weights = STRATEGIES[strategy]
-        parts = {
-            "quality": quality_score(fin, industry),
-            "valuation": valuation_score(quote_dict, fin, industry),
-            "momentum": momentum_score(features, quote_dict),
-            "liquidity": liquidity_score(quote_dict),
-            "volatility": volatility_from_closes(features.get("closes", []), industry),
-            "dividend": dividend_score(quote_dict, fin, industry),
-        }
-
-        total = sum(
-            parts.get(k, 0) * weights.get(k, 0)
-            for k in set(parts) | set(weights)
-            if k != "label"
+        parts = compute_factor_parts(fin, quote_dict, features, industry)
+        total = compute_weighted_score(parts, strategy)
+        return build_result_row(
+            code, quote_dict, fin, features, industry, total, parts, []
         )
-
-        bd = board_type(code)
-        return {
-            "code": code,
-            "name": quote_dict.get("name", ""),
-            "board": bd,
-            "industry": industry,
-            "score": round(total, 1),
-            "quality": round(parts["quality"], 1),
-            "valuation": round(parts["valuation"], 1),
-            "momentum": round(parts["momentum"], 1),
-            "liquidity": round(parts["liquidity"], 1),
-            "volatility": round(parts["volatility"], 1),
-            "dividend": round(parts.get("dividend", 0), 1),
-            "price": quote_dict.get("price"),
-            "change_pct": quote_dict.get("change_pct"),
-            "pe": quote_dict.get("pe"),
-            "pb": quote_dict.get("pb"),
-            "roe": fin.get("roe", fin.get("ROEJQ", "-")),
-            "profit_growth": fin.get(
-                "net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")
-            ),
-            "ret20": round(features.get("ret20", 0), 1),
-            "trend": (
-                "上升"
-                if features.get("trend", 0) > 0
-                else "下降" if features.get("trend", 0) < 0 else "震荡"
-            ),
-            "rsi": features.get("rsi", 50),
-            "macd_signal": features.get("macd_signal", 0),
-            "vol_price": self._vol_price_signal_desc(
-                features.get("vol_price_signal", 0)
-            ),
-            "rejected": [],
-        }
 
     @staticmethod
     def _vol_price_signal_desc(signal: int) -> str:
@@ -440,4 +394,68 @@ class ScreeningService:
         return reasons
 
 
-__all__ = ["ScreeningService", "compute_features"]
+def compute_factor_parts(fin, quote_dict, features, industry):
+    """计算 6 因子得分（共享核心）。"""
+    return {
+        "quality": quality_score(fin, industry),
+        "valuation": valuation_score(quote_dict, fin, industry),
+        "momentum": momentum_score(features, quote_dict),
+        "liquidity": liquidity_score(quote_dict),
+        "volatility": volatility_from_closes(features.get("closes", []), industry),
+        "dividend": dividend_score(quote_dict, fin, industry),
+    }
+
+
+def compute_weighted_score(parts, strategy):
+    """按策略权重加权求和。"""
+    weights = STRATEGIES[strategy]
+    return sum(
+        parts.get(k, 0) * weights.get(k, 0)
+        for k in set(parts) | set(weights)
+        if k != "label"
+    )
+
+
+def build_result_row(code, quote_dict, fin, features, industry, total, parts, rejected):
+    """装配标准化结果 dict。"""
+    bd = board_type(code)
+    return {
+        "code": code,
+        "name": quote_dict.get("name", ""),
+        "board": bd,
+        "industry": industry,
+        "score": round(total, 1),
+        "quality": round(parts["quality"], 1),
+        "valuation": round(parts["valuation"], 1),
+        "momentum": round(parts["momentum"], 1),
+        "liquidity": round(parts["liquidity"], 1),
+        "volatility": round(parts["volatility"], 1),
+        "dividend": round(parts.get("dividend", 0), 1),
+        "price": quote_dict.get("price"),
+        "change_pct": quote_dict.get("change_pct"),
+        "pe": quote_dict.get("pe"),
+        "pb": quote_dict.get("pb"),
+        "roe": fin.get("roe", fin.get("ROEJQ", "-")),
+        "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
+        "ret20": round(features.get("ret20", 0), 1),
+        "trend": (
+            "上升"
+            if features.get("trend", 0) > 0
+            else "下降" if features.get("trend", 0) < 0 else "震荡"
+        ),
+        "rsi": features.get("rsi", 50),
+        "macd_signal": features.get("macd_signal", 0),
+        "vol_price": ScreeningService._vol_price_signal_desc(
+            features.get("vol_price_signal", 0)
+        ),
+        "rejected": rejected,
+    }
+
+
+__all__ = [
+    "ScreeningService",
+    "compute_features",
+    "compute_factor_parts",
+    "compute_weighted_score",
+    "build_result_row",
+]

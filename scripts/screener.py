@@ -45,7 +45,12 @@ from strategies import (
 )
 from strategies.thresholds import get_industry_threshold, load_industry_thresholds
 from technical.volume import volume_analysis
-from business.screening_service import compute_features
+from business.screening_service import (
+    compute_features,
+    compute_factor_parts,
+    compute_weighted_score,
+    build_result_row,
+)
 
 # ---------- 数据层适配函数（委托给 data.helpers） ----------
 
@@ -309,54 +314,11 @@ def analyze_code(quote, strategy, args, finance_cache=None):
 
     # 推断行业，获取行业差异化阈值
     industry = infer_industry(quote.get("name", ""), quote_code)
-
-    parts = {
-        "quality": quality_score(fin, industry),
-        "valuation": valuation_score(quote, fin, industry),
-        "momentum": momentum_score(features, quote),
-        "liquidity": liquidity_score(quote),
-        "volatility": volatility_from_closes(features.get("closes", []), industry),
-        "dividend": dividend_score(quote, fin, industry),
-    }
-    weights = STRATEGIES[strategy]
-    total = sum(
-        parts.get(k, 0) * weights.get(k, 0)
-        for k in set(parts) | set(weights)
-        if k != "label"
+    parts = compute_factor_parts(fin, quote, features, industry)
+    total = compute_weighted_score(parts, strategy)
+    return build_result_row(
+        quote_code, quote, fin, features, industry, total, parts, rejected
     )
-    return {
-        "code": quote_code,
-        "name": quote.get("name", ""),
-        "board": board_type(quote_code),
-        "industry": industry,
-        "score": round(total, 1),
-        "quality": round(parts["quality"], 1),
-        "valuation": round(parts["valuation"], 1),
-        "momentum": round(parts["momentum"], 1),
-        "liquidity": round(parts["liquidity"], 1),
-        "volatility": round(parts["volatility"], 1),
-        "dividend": round(parts.get("dividend", 0), 1),
-        "price": quote.get("price"),
-        "change_pct": quote.get("change_pct"),
-        "pe": quote.get("pe"),
-        "pb": quote.get("pb"),
-        "roe": fin.get("roe", fin.get("ROEJQ", "-")),
-        "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
-        "ret20": round(features["ret20"], 1),
-        "trend": (
-            "上升"
-            if features["trend"] > 0
-            else "下降" if features["trend"] < 0 else "震荡"
-        ),
-        "rsi": features.get("rsi", 50),
-        "macd_signal": features.get("macd_signal", 0),
-        "vol_price": (
-            "配合"
-            if features.get("vol_price_signal", 0) > 0
-            else "背离" if features.get("vol_price_signal", 0) < 0 else "中性"
-        ),
-        "rejected": rejected,
-    }
 
 
 def apply_portfolio_constraints(
