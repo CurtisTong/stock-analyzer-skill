@@ -14,11 +14,14 @@
 """
 
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 from common.http import HttpClient
+
+_EASTMONEY_UT = os.getenv("EASTMONEY_UT_TOKEN", _EASTMONEY_UT)
 
 # ═══════════════════════════════════════════════════════════════
 # 市场数据获取
@@ -46,7 +49,7 @@ class MarketDataFetcher:
             # 使用东方财富接口获取涨停数据
             url = "https://push2ex.eastmoney.com/getTopicZTPool"
             params = {
-                "ut": "7eea3edcaed734bea9cb3f86c5e6ddca",
+                "ut": _EASTMONEY_UT,
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
@@ -88,7 +91,7 @@ class MarketDataFetcher:
         try:
             url = "https://push2ex.eastmoney.com/getTopicDTPool"
             params = {
-                "ut": "7eea3edcaed734bea9cb3f86c5e6ddca",
+                "ut": _EASTMONEY_UT,
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
@@ -107,7 +110,7 @@ class MarketDataFetcher:
         try:
             url = "https://push2ex.eastmoney.com/getTopicZTPool"
             params = {
-                "ut": "7eea3edcaed734bea9cb3f86c5e6ddca",
+                "ut": _EASTMONEY_UT,
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
