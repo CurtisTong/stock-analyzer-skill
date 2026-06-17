@@ -29,12 +29,12 @@ STRATEGIES: Dict[str, dict] = {
         "label": "质量价值",
     },
     "growth_momentum": {
-        "quality": 0.18,
-        "valuation": 0.15,
-        "momentum": 0.35,
-        "liquidity": 0.12,
-        "volatility": 0.18,
-        "dividend": 0.02,
+        "quality": 0.123,
+        "valuation": 0.082,
+        "momentum": 0.512,
+        "liquidity": 0.153,
+        "volatility": 0.087,
+        "dividend": 0.043,
         "label": "成长动量",
     },
     "defensive": {
