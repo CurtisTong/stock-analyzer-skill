@@ -127,6 +127,18 @@ etf_quote = get_quote("sh510300")    # 沪深300 ETF
 
 ---
 
+## 合并型专家评分模式
+
+v2.1.0 引入的合并型专家（value_anchor/topic_leader/emotion_tech）使用 `weighted_merge()` 模式：
+
+- 内部调用多个 legacy 专家的 score() 函数
+- 按预定义权重加权平均
+- 简洁（每个约 20 行），逻辑透明
+
+新增合并型专家时遵循此模式。
+
+---
+
 ## 使用建议
 
 - **/stock 完整分析**：长线 4 人给出价值锚点，短线 4 人给出时机建议。

@@ -33,14 +33,13 @@ def apply_veto(
         profile: 专家人设档案
         stock_data: 股票数据（quote + finance 字段）
         veto_results: 预判的否决条件结果 dict（key 是条件描述，value 是
-            bool，True 表示"已触发"）。为 None 时返回全部条件列表
-            （不预判，留给调用方处理）。
+            bool，True 表示"已触发"）。为 None 时返回空列表（无否决数据）。
 
     Returns:
         已触发的否决条件描述列表。
     """
     if veto_results is None:
-        return list(profile.veto_conditions)
+        return []
     return [cond for cond, triggered in veto_results.items() if triggered]
 
 
