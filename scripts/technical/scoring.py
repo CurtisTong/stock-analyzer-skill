@@ -220,7 +220,8 @@ def _score_volume(vol: dict, type_w: dict) -> float:
     elif vp_signal == -1:
         vol_base = 3
     vol_score = vol_base * type_w["volume"]
-    if vr < 0.3:
+    # 极低量仅在量价中性或看涨时加分（放量下跌时不加分）
+    if vr < 0.3 and vp_signal >= 0:
         vol_score += 3
     return clamp(vol_score, 0, 20)
 

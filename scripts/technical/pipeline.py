@@ -18,8 +18,10 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
     """
     from technical import macd_full, rsi_features, volume_analysis
 
-    closes = [b.close for b in kline_bars if b.close > 0]
-    volumes = [b.volume for b in kline_bars if b.volume > 0]
+    # 统一过滤：整条记录的 close 和 volume 都 > 0 才保留，确保数组对齐
+    valid_bars = [b for b in kline_bars if b.close > 0 and b.volume > 0]
+    closes = [b.close for b in valid_bars]
+    volumes = [b.volume for b in valid_bars]
 
     if len(closes) < 10:
         return {

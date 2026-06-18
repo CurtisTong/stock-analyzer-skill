@@ -2,6 +2,7 @@
 technical 包：A 股纯技术分析模块化包。
 
 公开函数保持与原 technical.py 完全兼容。
+__all__ 仅包含公共 API；私有符号可通过 from technical.xxx import _yyy 导入。
 """
 
 # 数学工具与数据解析

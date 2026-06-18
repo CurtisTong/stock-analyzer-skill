@@ -17,22 +17,32 @@ import json
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
+from urllib.parse import urlencode
 
-from common.http import HttpClient
+from common import http_get
 
-_EASTMONEY_UT = os.getenv("EASTMONEY_UT_TOKEN", _EASTMONEY_UT)
+_EASTMONEY_UT = os.getenv(
+    "EASTMONEY_UT_TOKEN",
+    "fa5fd1943c7b386f172d6893dbbd4dc1",
+)
 
 # ═══════════════════════════════════════════════════════════════
 # 市场数据获取
 # ═══════════════════════════════════════════════════════════════
 
 
+def _http_get_json(url: str, params: dict | None = None) -> dict:
+    """GET 请求并解析 JSON。"""
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    raw = http_get(url, timeout=15)
+    if isinstance(raw, bytes):
+        return json.loads(raw)
+    return raw
+
+
 class MarketDataFetcher:
     """市场数据获取器。"""
-
-    def __init__(self):
-        self.http = HttpClient()
 
     def get_limit_data(self) -> dict:
         """获取涨跌停数据。
@@ -53,10 +63,7 @@ class MarketDataFetcher:
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
+            data = _http_get_json(url, params=params)
 
             pool = data.get("data", {}).get("pool", [])
             limit_up_count = len(pool)
@@ -95,11 +102,7 @@ class MarketDataFetcher:
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
-
+            data = _http_get_json(url, params=params)
             pool = data.get("data", {}).get("pool", [])
             return len(pool)
         except Exception:
@@ -114,10 +117,7 @@ class MarketDataFetcher:
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
+            data = _http_get_json(url, params=params)
 
             pool = data.get("data", {}).get("pool", [])
             if not pool:
@@ -150,10 +150,7 @@ class MarketDataFetcher:
                 "sortTypes": "-1",
                 "pageSize": 1,
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
+            data = _http_get_json(url, params=params)
 
             result = data.get("result", {})
             records = result.get("data", [])

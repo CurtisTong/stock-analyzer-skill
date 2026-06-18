@@ -256,6 +256,15 @@ class LongTermEvaluator:
             else:
                 score -= 10
                 reasoning.append(f"❌ 现金流不足：OCF/EPS {fcf_ratio:.1%} < 50%")
+        elif eps <= 0 and ocf > 0:
+            # 亏损但有现金流：可能是账面亏损（折旧等），实际经营有造血能力
+            score += 10
+            reasoning.append(
+                f"✅ 虽然账面亏损(EPS={eps:.2f})，但经营现金流为正(OCF={ocf:.2f})，造血能力尚存"
+            )
+        elif ocf <= 0:
+            score -= 10
+            reasoning.append(f"❌ 经营现金流为负(OCF={ocf:.2f})，需关注资金链风险")
         else:
             reasoning.append(f"⚠️ 现金流数据缺失")
 
