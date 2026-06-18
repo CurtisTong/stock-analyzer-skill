@@ -152,15 +152,23 @@ def _score_macd(macd: dict, type_w: dict, adj: dict) -> float:
     return clamp(macd_score, 0, 20)
 
 
-def _score_kdj(kdj: dict, type_w: dict, adj: dict) -> float:
-    """KDJ 评分（上限 15）。辅助信号：仅在震荡市/盘整时生效，其他市场降权。"""
+def _score_kdj(kdj: dict, type_w: dict, adj: dict, vol_signal: int = 0) -> float:
+    """KDJ 评分（上限 15）。辅助信号：仅在震荡市/盘整时生效，其他市场降权。
+
+    Args:
+        vol_signal: 量价信号（-1=放量下跌, 0=中性, 1=放量上涨），用于下跌趋势降权
+    """
     market_state_for_kdj = adj.get("trend_following", 1.0)
     kdj_active = market_state_for_kdj < 1.0  # 震荡/熊市时 KDJ 更有效
     kdj_weight = 5 if kdj.get("钝化") else (10 if kdj_active else 5)
     kdj_sig = kdj.get("signal", "")
+
+    # 下跌趋势降权：放量下跌时，超卖信号不可靠
+    trend_penalty = 0.5 if vol_signal == -1 else 1.0
+
     # 按关键词匹配评分（支持组合信号如"金叉+超卖"、"死叉+超买"等）
     if "金叉" in kdj_sig and "超卖" in kdj_sig:
-        kdj_base = kdj_weight
+        kdj_base = kdj_weight * trend_penalty  # 下跌趋势中超卖金叉降权
     elif "金叉" in kdj_sig:
         kdj_base = kdj_weight * 0.8
     elif "死叉" in kdj_sig and "超买" in kdj_sig:
@@ -168,7 +176,7 @@ def _score_kdj(kdj: dict, type_w: dict, adj: dict) -> float:
     elif "死叉" in kdj_sig:
         kdj_base = kdj_weight * 0.2
     elif "超卖" in kdj_sig:
-        kdj_base = kdj_weight * 0.6
+        kdj_base = kdj_weight * 0.6 * trend_penalty  # 下跌趋势中超卖降权
     elif "超买" in kdj_sig:
         kdj_base = kdj_weight * 0.3
     else:
@@ -191,22 +199,30 @@ def _score_boll(boll: dict, type_w: dict) -> float:
     return boll_base * type_w["boll"]
 
 
-def _score_rsi(rsi_data: dict, type_w: dict) -> float:
-    """RSI 评分（无独立上限，纳入总分）。"""
+def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
+    """RSI 评分（无独立上限，纳入总分）。
+
+    Args:
+        vol_signal: 量价信号（-1=放量下跌, 0=中性, 1=放量上涨），用于下跌趋势降权
+    """
     rsi = rsi_data.get("rsi", 50)
+
+    # 下跌趋势降权：放量下跌时，超卖信号不可靠
+    trend_penalty = 0.6 if vol_signal == -1 else 1.0
+
     rsi_base = 7
     if 30 <= rsi <= 40:
-        rsi_base = 10
+        rsi_base = 10 * trend_penalty  # 下跌趋势中超卖区降权
     elif 40 < rsi <= 60:
         rsi_base = 7
     elif 20 <= rsi < 30:
-        rsi_base = 8
+        rsi_base = 8 * trend_penalty  # 下跌趋势中超卖降权
     elif 60 < rsi <= 70:
         rsi_base = 5
     elif rsi > 70:
         rsi_base = 3
     else:
-        rsi_base = 5
+        rsi_base = 5 * trend_penalty  # 极度超卖也降权
     return rsi_base * type_w["rsi"]
 
 
@@ -329,8 +345,17 @@ def _score_chip(chip_data: dict, type_w: dict) -> float:
     return clamp(chip_score, -5, 10)
 
 
-def composite_score(features, stock_type="普通股", market_state=None):
-    """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。"""
+def composite_score(
+    features, stock_type="普通股", market_state=None, market_breadth=None
+):
+    """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。
+
+    Args:
+        features: 技术指标特征
+        stock_type: 股票类型
+        market_state: 市场状态
+        market_breadth: 市场宽度数据（可选）
+    """
     type_w = _get_stock_type_weights(stock_type)
     adj = _market_weight_adjustments(market_state or "震荡")
 
@@ -344,17 +369,38 @@ def composite_score(features, stock_type="普通股", market_state=None):
     vol = features.get("volume") or {}
     patterns = features.get("patterns", [])
 
+    # 获取量价信号，用于下跌趋势降权
+    vol_signal = vol.get("volume_price_signal", 0)
+
     score = 0
     score += _score_ma(ma.get("alignment", ""), type_w, adj, alignment_scores)
     score += _score_macd(macd, type_w, adj)
-    score += _score_kdj(kdj, type_w, adj)
+    score += _score_kdj(kdj, type_w, adj, vol_signal)  # 传入量价信号
     score += _score_boll(boll, type_w)
-    score += _score_rsi(rsi_data, type_w)
+    score += _score_rsi(rsi_data, type_w, vol_signal)  # 传入量价信号
     score += _score_volume(vol, type_w)
     score += _score_patterns(patterns, type_w, adj)
     score += _score_chan(features.get("chan_theory") or {}, adj)
     score += _score_local(features.get("local_patterns") or {})
     score += _score_chip(features.get("chip") or {}, type_w)
+
+    # 市场宽度惩罚（徐翔、赵老哥、养家建议）
+    if market_breadth:
+        limit_up = market_breadth.get("limit_up_count", 0)
+        limit_down = market_breadth.get("limit_down_count", 0)
+        continuous_height = market_breadth.get("continuous_limit_height", 0)
+
+        # 退潮期惩罚：涨停家数<20家
+        if limit_up < 20 and limit_up > 0:
+            score -= 5
+
+        # 冰点期惩罚：跌停>50家
+        if limit_down > 50:
+            score -= 10
+
+        # 接力生态恶化惩罚：连板高度<2板
+        if continuous_height <= 2 and continuous_height > 0:
+            score -= 3
 
     score = clamp(score, 0, 100)
 
@@ -377,7 +423,7 @@ def composite_score(features, stock_type="普通股", market_state=None):
     else:
         grade = "强烈看空"
 
-    buy_signals, sell_signals = _generate_signals(features)
+    buy_signals, sell_signals = _generate_signals(features, market_breadth)
 
     return {
         "score": round(score, 1),
