@@ -25,12 +25,12 @@ SKILLS_DIR = PROJECT_ROOT / "skills"
 EXPECTED_SKILLS = {
     "stock", "market", "sector", "portfolio", "portfolio-web", "portfolio-natural",
     "screener", "stock-technical", "monitor", "backtest",
-    "help", "learn",
+    "stock-help", "learn",
     "research",
 }
 
 # 命令式 skill：允许 disable-model-invocation 且 description 可短
-COMMAND_LIKE_SKILLS = {"backtest", "help", "monitor"}
+COMMAND_LIKE_SKILLS = {"backtest", "stock-help", "monitor"}
 
 # 推荐的 model 值
 ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
