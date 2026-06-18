@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
-# 端到端冒烟测试：7 个脚本 + 3 个 API 端点 + 8 个 skill + 可选 symlink
+# 端到端冒烟测试：7 个脚本 + 3 个 API 端点 + 13 个 skill + symlink + portfolio_web Bearer
 set -e
 
 PKG_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SCRIPTS="$PKG_ROOT/scripts"
 GLOBAL_NS="$HOME/.claude/skills"
-AGENTS_SKILLS="$PKG_ROOT/.agents/skills"
 CLAUDE_SKILLS="$PKG_ROOT/.claude/skills"
 
 pass=0
@@ -15,8 +14,8 @@ ok() { echo "  ✓ $1"; pass=$((pass+1)); }
 ko() { echo "  ✗ $1"; fail=$((fail+1)); }
 
 echo "==> 1. scripts/ 完整性"
-for f in common.py quote.py finance.py kline.py announcements.py screener.py technical.py classifier.py chan.py patterns_local.py; do
-  if [ -x "$SCRIPTS/$f" ]; then
+for f in common quote.py finance.py kline.py announcements.py screener.py technical.py classifier.py chan.py patterns_local.py stock.py chip.py; do
+  if [ -d "$SCRIPTS/$f" ] || [ -x "$SCRIPTS/$f" ]; then
     ok "$f 可执行"
   else
     ko "$f 缺失或无执行权限"
@@ -118,42 +117,39 @@ else
   echo "  ⚠ chip.py 请求超时或网络错误（可忽略）"
 fi
 
-echo "==> 4. 8 个本地 skill 定义"
-for s in stock market sector portfolio screener financial-analyst investment-researcher technical; do
-  if [ -f "$AGENTS_SKILLS/$s/SKILL.md" ] && grep -q "^---$" "$AGENTS_SKILLS/$s/SKILL.md"; then
-    ok ".agents/$s 含 frontmatter"
+echo "==> 4. 13 个本地 skill 定义"
+for s in stock market sector portfolio screener monitor backtest stock-help learn research portfolio-natural portfolio-web stock-technical; do
+  # skills/ 是源代码，.claude/skills/ 是 install.sh 创建的项目级 symlink
+  if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ] && grep -q "^---$" "$PKG_ROOT/skills/$s/SKILL.md"; then
+    ok "skills/$s 含 frontmatter"
   else
-    ko ".agents/$s 缺 SKILL.md 或 frontmatter"
+    ko "skills/$s 缺 SKILL.md 或 frontmatter"
   fi
-  # .claude/skills/ 使用 symlink，指向 skills/，无需同步检查
-  if [ -L "$CLAUDE_SKILLS/$s" ] || [ -d "$CLAUDE_SKILLS/$s" ]; then
+  if [ -L "$CLAUDE_SKILLS/$s" ] && [ -e "$CLAUDE_SKILLS/$s" ]; then
     ok ".claude/$s 已链接"
   else
     ko ".claude/$s 缺失"
   fi
 done
 
-echo "==> 4.1 SKILL.md 版本一致性 (v1.4.1 + 允许 backtest=v1.5.0)"
-EXPECTED_VERSION="version: 1.4.1"
+echo "==> 4.1 SKILL.md 版本一致性 (v1.11.0)"
+EXPECTED_VERSION="version: 1.11.0"
 VERSION_COUNT=0
-for s in stock market sector portfolio screener financial-analyst investment-researcher technical backtest help stock-init monitor; do
+for s in stock market sector portfolio screener monitor backtest stock-help learn portfolio-natural portfolio-web research stock-technical; do
   if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ]; then
     if grep -q "^$EXPECTED_VERSION" "$PKG_ROOT/skills/$s/SKILL.md"; then
-      VERSION_COUNT=$((VERSION_COUNT+1))
-    elif [ "$s" = "backtest" ] && grep -q "^version: 1.5.0" "$PKG_ROOT/skills/$s/SKILL.md"; then
-      # backtest 允许 v1.5.0
       VERSION_COUNT=$((VERSION_COUNT+1))
     fi
   fi
 done
-if [ $VERSION_COUNT -eq 12 ]; then
-  ok "12 个 SKILL.md 版本一致（11 个 v1.4.1 + backtest v1.5.0）"
+if [ $VERSION_COUNT -eq 13 ]; then
+  ok "13 个 SKILL.md 版本一致（全部 v1.11.0）"
 else
-  ko "版本不一致: 仅 $VERSION_COUNT/12"
+  ko "版本不一致: 仅 $VERSION_COUNT/13"
 fi
 
-echo "==> 5. 8 个 symlink 已注册（未安装时可失败）"
-for s in stock market sector portfolio screener financial-analyst investment-researcher technical; do
+echo "==> 5. symlink 已注册（未安装时可失败）"
+for s in stock market sector portfolio screener monitor backtest stock-help learn research; do
   if [ -L "$GLOBAL_NS/$s" ] && [ -e "$GLOBAL_NS/$s" ]; then
     ok "$s 链接有效"
   else
@@ -162,14 +158,14 @@ for s in stock market sector portfolio screener financial-analyst investment-res
 done
 
 echo "==> 6. SKILL.md 内容含核心说明"
-for s in stock market sector portfolio screener technical; do
-  if grep -qE "Usage|scripts/" "$CLAUDE_SKILLS/$s/SKILL.md"; then
-    ok "$s/SKILL.md 含 Usage"
+for s in stock market sector portfolio screener monitor backtest stock-help learn research; do
+  if grep -qE "Usage|使用方式|scripts/" "$CLAUDE_SKILLS/$s/SKILL.md"; then
+    ok "$s/SKILL.md 含 Usage/使用方式"
   else
-    ko "$s/SKILL.md 缺 Usage"
+    ko "$s/SKILL.md 缺 Usage/使用方式"
   fi
 done
-for s in financial-analyst investment-researcher; do
+for s in portfolio-natural portfolio-web stock-technical; do
   if grep -q "scripts/" "$CLAUDE_SKILLS/$s/SKILL.md"; then
     ok "$s/SKILL.md 已引用 scripts/"
   else
@@ -177,7 +173,7 @@ for s in financial-analyst investment-researcher; do
   fi
 done
 
-echo "==> 7. portfolio_web server 冒烟（临时端口 + tmp 隔离数据）"
+echo "==> 7. portfolio_web server 冒烟（临时端口 + tmp 隔离数据 + Bearer token）"
 if [ ! -f "$SCRIPTS/portfolio_web.py" ]; then
   ko "portfolio_web.py 缺失"
 else
@@ -185,7 +181,8 @@ else
   cat > "$TMPDIR/portfolio.json" <<EOF
 {"version":2,"positions":[],"watchlist":[]}
 EOF
-  python3 "$SCRIPTS/portfolio_web.py" --port 18765 --data-file "$TMPDIR/portfolio.json" > /tmp/portfolio_web_smoke.log 2>&1 &
+  # 用临时 HOME 隔离 token 文件，避免污染 ~/.config/stock-analyzer/
+  HOME="$TMPDIR" python3 "$SCRIPTS/portfolio_web.py" --port 18765 --data-file "$TMPDIR/portfolio.json" > /tmp/portfolio_web_smoke.log 2>&1 &
   SRV_PID=$!
   # 等待 server 启动（最多 3 秒）
   for i in 1 2 3 4 5 6; do
@@ -193,42 +190,55 @@ EOF
     sleep 0.5
   done
 
-  if curl -s -m 5 -o /dev/null -w "%{http_code}" "http://127.0.0.1:18765/api/health" | grep -q 200; then
-    ok "portfolio_web /api/health 返回 200"
+  # 读取 token（启动时 _ensure_token 会写到 $TMPDIR/.config/stock-analyzer/portfolio_web.token）
+  TOKEN_FILE="$TMPDIR/.config/stock-analyzer/portfolio_web.token"
+  for i in 1 2 3 4 5 6; do
+    [ -s "$TOKEN_FILE" ] && break
+    sleep 0.5
+  done
+  if [ ! -s "$TOKEN_FILE" ]; then
+    ko "portfolio_web token 文件未生成（log: /tmp/portfolio_web_smoke.log）"
   else
-    ko "portfolio_web 健康检查失败（log: /tmp/portfolio_web_smoke.log）"
+    TOKEN=$(cat "$TOKEN_FILE")
+    AUTH_HDR="Authorization: Bearer $TOKEN"
+
+    if curl -s -m 5 -o /dev/null -w "%{http_code}" "http://127.0.0.1:18765/api/health" | grep -q 200; then
+      ok "portfolio_web /api/health 返回 200"
+    else
+      ko "portfolio_web 健康检查失败（log: /tmp/portfolio_web_smoke.log）"
+    fi
+
+    if curl -s -m 5 -H "$AUTH_HDR" "http://127.0.0.1:18765/" | grep -q "<form"; then
+      ok "portfolio_web / 返回 HTML 表单"
+    else
+      ko "portfolio_web / 未返回表单页"
+    fi
+
+    RESP=$(curl -s -m 5 -X POST -H 'Content-Type: application/json' -H "$AUTH_HDR" \
+      -d '{"action":"add_position","code":"sh600989","name":"宝丰能源","cost":18.5,"quantity":1000}' \
+      "http://127.0.0.1:18765/api/positions")
+    if echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] and d['data']['quantity']==1000" 2>/dev/null; then
+      ok "portfolio_web POST add_position 落库"
+    else
+      ko "portfolio_web POST 失败: $RESP"
+    fi
+
+    LIST=$(curl -s -m 5 -H "$AUTH_HDR" "http://127.0.0.1:18765/api/positions")
+    if echo "$LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); assert any(p['code']=='sh600989' for p in d['data']['positions'])" 2>/dev/null; then
+      ok "portfolio_web GET /api/positions 读出新增项"
+    else
+      ko "portfolio_web list 读出失败"
+    fi
+
+    if curl -s -m 5 -X DELETE -H "$AUTH_HDR" "http://127.0.0.1:18765/api/positions" | grep -q '"method_not_allowed"'; then
+      ok "portfolio_web DELETE 返回 405 method_not_allowed"
+    else
+      ko "portfolio_web DELETE 未返回 405"
+    fi
   fi
 
-  if curl -s -m 5 "http://127.0.0.1:18765/" | grep -q "<form"; then
-    ok "portfolio_web / 返回 HTML 表单"
-  else
-    ko "portfolio_web / 未返回表单页"
-  fi
-
-  RESP=$(curl -s -m 5 -X POST -H 'Content-Type: application/json' \
-    -d '{"action":"add_position","code":"sh600989","name":"宝丰能源","cost":18.5,"quantity":1000}' \
-    "http://127.0.0.1:18765/api/positions")
-  if echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['ok'] and d['data']['quantity']==1000" 2>/dev/null; then
-    ok "portfolio_web POST add_position 落库"
-  else
-    ko "portfolio_web POST 失败: $RESP"
-  fi
-
-  LIST=$(curl -s -m 5 "http://127.0.0.1:18765/api/positions")
-  if echo "$LIST" | python3 -c "import sys,json; d=json.load(sys.stdin); assert any(p['code']=='sh600989' for p in d['data']['positions'])" 2>/dev/null; then
-    ok "portfolio_web GET /api/positions 读出新增项"
-  else
-    ko "portfolio_web list 读出失败"
-  fi
-
-  if curl -s -m 5 -X DELETE "http://127.0.0.1:18765/api/positions" | grep -q '"method_not_allowed"'; then
-    ok "portfolio_web DELETE 返回 405 method_not_allowed"
-  else
-    ko "portfolio_web DELETE 未返回 405"
-  fi
-
-  kill $SRV_PID 2>/dev/null
-  wait $SRV_PID 2>/dev/null
+  kill $SRV_PID 2>/dev/null || true
+  wait $SRV_PID 2>/dev/null || true
   rm -rf "$TMPDIR" /tmp/portfolio_web_smoke.log
 fi
 

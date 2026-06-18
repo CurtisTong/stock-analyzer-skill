@@ -1,12 +1,12 @@
 ---
-name: help
-description: 帮助。触发词：有哪些功能、怎么用、你会什么、帮我看看有什么命令、技能列表、使用说明、新手怎么开始、我想学习投资。显示所有可用skills和使用说明。
-version: 1.12.0
+name: stock-help
+description: Stock Analyzer 帮助。命令 `/stock-help`，触发词：/help、有哪些功能、怎么用、你会什么、帮我看看有什么命令、技能列表、使用说明、新手怎么开始、我想学习投资。显示所有可用skills和使用说明。
+version: 1.11.0
 model: haiku
 disable-model-invocation: true
 ---
 
-# /help · Stock Analyzer 帮助
+# /stock-help · Stock Analyzer 帮助
 
 > **你不需要全看——告诉我你想做什么就行**。本指南是"我大概看一下"就够了，命令清单在底部。
 >
@@ -125,7 +125,7 @@ disable-model-invocation: true
 
 ## 当用户触发此 skill 时
 
-`/help` 是 meta 索引 skill（`disable-model-invocation: true`），本身不执行分析。
+`/stock-help` 是 meta 索引 skill（`disable-model-invocation: true`），本身不执行分析。
 触发后流程：
 
 1. 识别用户意图：是想开始 / 想看命令清单 / 想知道怎么学。
@@ -137,7 +137,7 @@ disable-model-invocation: true
 
 ## 注意事项
 
-- `/help` 是只读索引 skill，**不**修改任何文件、**不**执行投资决策。
+- `/stock-help` 是只读索引 skill，**不**修改任何文件、**不**执行投资决策。
 - 风险提示：所有分析仅供参考，**不构成投资建议**。
 - 用户问"哪个 skill 适合我"时，根据意图（看持仓/选股/回测/研究/学习）给出 1-2 个最相关的入口。
 - 9 个 skill 之间的依赖关系（market → sector → screener → stock → portfolio）详见 `workflow.md`。
