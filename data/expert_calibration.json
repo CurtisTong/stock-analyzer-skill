@@ -1,0 +1,50 @@
+{
+  "predictions": [],
+  "experts": {
+    "buffett": {
+      "events": 5,
+      "correct": 4,
+      "last_updated": "2026-06-16"
+    },
+    "lynch": {
+      "events": 5,
+      "correct": 2,
+      "last_updated": "2026-06-16"
+    },
+    "soros": {
+      "events": 5,
+      "correct": 2,
+      "last_updated": "2026-06-16"
+    },
+    "duan_yongping": {
+      "events": 5,
+      "correct": 4,
+      "last_updated": "2026-06-16"
+    },
+    "xu_xiang": {
+      "events": 5,
+      "correct": 1,
+      "last_updated": "2026-06-16"
+    },
+    "zhao_laoge": {
+      "events": 5,
+      "correct": 1,
+      "last_updated": "2026-06-16"
+    },
+    "chaogu_yangjia": {
+      "events": 5,
+      "correct": 2,
+      "last_updated": "2026-06-16"
+    },
+    "zuoshou_xinyi": {
+      "events": 5,
+      "correct": 2,
+      "last_updated": "2026-06-16"
+    }
+  },
+  "_meta": {
+    "source": "backtest_2026-06-16",
+    "market_state": "防御型",
+    "note": "基于 60 天回测结论初始化：防守低波+12.61% vs 成长动量-9.46%，防御型市场下价值专家准确率高于成长/短线专家"
+  }
+}

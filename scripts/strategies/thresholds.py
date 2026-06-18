@@ -3,7 +3,10 @@
 从 data/industry_thresholds.json 加载，供因子评分使用。
 """
 import json
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _industry_thresholds = None
 
@@ -17,6 +20,9 @@ def load_industry_thresholds() -> dict:
         if path.exists():
             _industry_thresholds = json.loads(path.read_text(encoding="utf-8"))
         else:
+            logger.warning(
+                "industry_thresholds.json 缺失，所有行业差异化评分将退化为代码默认值"
+            )
             _industry_thresholds = {}
     return _industry_thresholds
 

@@ -59,7 +59,7 @@ class TestFetchHistoricalReturns:
         import backtest
 
         monkeypatch.setattr(
-            backtest, "get_kline", lambda code, scale=240, datalen=65: []
+            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: []
         )
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert result == []
@@ -69,7 +69,7 @@ class TestFetchHistoricalReturns:
 
         bars = _make_kline_bars([100.0])
         monkeypatch.setattr(
-            backtest, "get_kline", lambda code, scale=240, datalen=65: bars
+            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars
         )
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert result == []
@@ -79,7 +79,7 @@ class TestFetchHistoricalReturns:
 
         bars = _make_kline_bars([100.0, 110.0, 99.0, 108.9])
         monkeypatch.setattr(
-            backtest, "get_kline", lambda code, scale=240, datalen=65: bars
+            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars
         )
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert len(result) == 3
@@ -92,7 +92,7 @@ class TestFetchHistoricalReturns:
 
         bars = _make_kline_bars([0.0, 100.0, 110.0])
         monkeypatch.setattr(
-            backtest, "get_kline", lambda code, scale=240, datalen=65: bars
+            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars
         )
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert len(result) == 1
@@ -111,7 +111,7 @@ class TestSimulateStrategy:
         quote_obj = _make_quote_obj()
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
         # 滚动窗口需要至少 60+holding_days 根 K 线，日期必须在 stale_cutoff 内
         today = datetime.now()
 
@@ -131,7 +131,7 @@ class TestSimulateStrategy:
                 )
             return bars
 
-        monkeypatch.setattr(backtest, "get_kline", _mock_kline)
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
     def test_returns_all_fields(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
@@ -153,9 +153,9 @@ class TestSimulateStrategy:
         import backtest
 
         monkeypatch.setattr(
-            backtest, "get_kline", lambda code, scale=240, datalen=70: []
+            backtest.engine, "get_kline", lambda code, scale=240, datalen=70: []
         )
-        monkeypatch.setattr(backtest, "get_finance", lambda code: [])
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [])
 
         result = backtest.simulate_strategy("balanced", ["sh600519"])
         assert "error" in result
@@ -171,7 +171,7 @@ class TestSimulateStrategy:
         quote_obj = _make_quote_obj()
         from datetime import datetime, timedelta
 
-        monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
         today = datetime.now()
 
         def _mock_kline(code, scale=240, datalen=140):
@@ -190,7 +190,7 @@ class TestSimulateStrategy:
                 )
             return bars
 
-        monkeypatch.setattr(backtest, "get_kline", _mock_kline)
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         result = backtest.simulate_strategy(
             "balanced", ["sh600519"], top_n=1, holding_days=10
@@ -211,7 +211,7 @@ class TestSimulateStrategy:
             finance_called["count"] += 1
             return [finance_obj]
 
-        monkeypatch.setattr(backtest, "get_finance", mock_get_finance)
+        monkeypatch.setattr(backtest.engine, "get_finance", mock_get_finance)
         from datetime import datetime, timedelta
 
         today = datetime.now()
@@ -232,7 +232,7 @@ class TestSimulateStrategy:
                 )
             return bars
 
-        monkeypatch.setattr(backtest, "get_kline", _mock_kline)
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         backtest.simulate_strategy("balanced", ["sh600519"], top_n=1, holding_days=5)
         assert finance_called["count"] > 0
@@ -247,7 +247,7 @@ class TestRunBacktest:
 
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
         today = datetime.now()
 
         def _mock_kline(code, scale=240, datalen=140):
@@ -266,7 +266,7 @@ class TestRunBacktest:
                 )
             return bars
 
-        monkeypatch.setattr(backtest, "get_kline", _mock_kline)
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
     def test_returns_statistical_fields(
         self, monkeypatch, sample_finance, kline_uptrend
@@ -307,7 +307,7 @@ class TestOptimizeWeights:
 
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
         today = datetime.now()
 
         def _mock_kline(code, scale=240, datalen=140):
@@ -326,7 +326,7 @@ class TestOptimizeWeights:
                 )
             return bars
 
-        monkeypatch.setattr(backtest, "get_kline", _mock_kline)
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
     def test_restores_original_weights(
         self, monkeypatch, sample_finance, kline_uptrend
@@ -361,7 +361,7 @@ class TestOptimizeWeights:
                 raise RuntimeError("模拟异常")
             return original_run_backtest(*args, **kwargs)
 
-        monkeypatch.setattr(backtest, "run_backtest", failing_run_backtest)
+        monkeypatch.setattr(backtest.cli, "run_backtest", failing_run_backtest)
 
         with pytest.raises(RuntimeError):
             backtest.optimize_weights(["sh600519"], "balanced", top_n=1, days=10)
@@ -390,7 +390,7 @@ class TestCompareStrategies:
 
         finance_obj = _make_finance_obj()
 
-        monkeypatch.setattr(backtest, "get_finance", lambda code: [finance_obj])
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
         today = datetime.now()
 
         def _mock_kline(code, scale=240, datalen=140):
@@ -409,7 +409,7 @@ class TestCompareStrategies:
                 )
             return bars
 
-        monkeypatch.setattr(backtest, "get_kline", _mock_kline)
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         results = backtest.compare_strategies(["sh600519"], top_n=1, days=10, rounds=2)
         assert len(results) == 5

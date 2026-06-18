@@ -1,4 +1,5 @@
 """持仓绩效归因分析：个股贡献、行业贡献、风险指标。"""
+
 from dataclasses import dataclass
 from typing import Optional
 from common import to_float
@@ -7,13 +8,14 @@ from common import to_float
 @dataclass
 class PerformanceMetrics:
     """绩效指标。"""
-    total_return: float = 0.0          # 总收益率%
-    annualized_return: float = 0.0     # 年化收益率%
-    max_drawdown: float = 0.0          # 最大回撤%
-    win_rate: float = 0.0              # 胜率%
-    sharpe_ratio: float = 0.0          # 夏普比率
-    total_profit: float = 0.0          # 总盈亏（元）
-    position_count: int = 0            # 持仓数量
+
+    total_return: float = 0.0  # 总收益率%
+    annualized_return: float = 0.0  # 年化收益率%
+    max_drawdown: float = 0.0  # 最大回撤%
+    win_rate: float = 0.0  # 胜率%
+    sharpe_ratio: float = 0.0  # 夏普比率
+    total_profit: float = 0.0  # 总盈亏（元）
+    position_count: int = 0  # 持仓数量
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -22,16 +24,17 @@ class PerformanceMetrics:
 @dataclass
 class PositionContribution:
     """个股贡献。"""
+
     code: str = ""
     name: str = ""
     cost: float = 0.0
     current_price: float = 0.0
     quantity: int = 0
-    market_value: float = 0.0          # 当前市值
-    profit: float = 0.0                # 盈亏金额
-    profit_pct: float = 0.0            # 盈亏比例%
-    weight: float = 0.0               # 持仓权重%
-    contribution: float = 0.0          # 对组合的贡献%
+    market_value: float = 0.0  # 当前市值
+    profit: float = 0.0  # 盈亏金额
+    profit_pct: float = 0.0  # 盈亏比例%
+    weight: float = 0.0  # 持仓权重%
+    contribution: float = 0.0  # 对组合的贡献%
 
     def to_dict(self) -> dict:
         return self.__dict__.copy()
@@ -71,21 +74,27 @@ def calculate_position_contribution(
         cost_value = cost * quantity
         profit = market_value - cost_value
         profit_pct = (price / cost - 1) * 100 if cost > 0 else 0
-        weight = (market_value / total_market_value * 100) if total_market_value > 0 else 0
-        contribution = (profit / total_market_value * 100) if total_market_value > 0 else 0
+        weight = (
+            (market_value / total_market_value * 100) if total_market_value > 0 else 0
+        )
+        contribution = (
+            (profit / total_market_value * 100) if total_market_value > 0 else 0
+        )
 
-        contributions.append(PositionContribution(
-            code=code,
-            name=name,
-            cost=cost,
-            current_price=price,
-            quantity=quantity,
-            market_value=round(market_value, 2),
-            profit=round(profit, 2),
-            profit_pct=round(profit_pct, 2),
-            weight=round(weight, 2),
-            contribution=round(contribution, 2),
-        ))
+        contributions.append(
+            PositionContribution(
+                code=code,
+                name=name,
+                cost=cost,
+                current_price=price,
+                quantity=quantity,
+                market_value=round(market_value, 2),
+                profit=round(profit, 2),
+                profit_pct=round(profit_pct, 2),
+                weight=round(weight, 2),
+                contribution=round(contribution, 2),
+            )
+        )
 
     # 按贡献排序
     contributions.sort(key=lambda c: c.contribution, reverse=True)
@@ -130,28 +139,32 @@ def calculate_portfolio_metrics(
 
 
 def _calculate_max_drawdown(positions: list, kline_data: dict, quotes: dict) -> float:
-    """基于历史 K 线计算组合最大回撤。"""
-    # 简化实现：用各持仓的 K 线计算组合净值序列
+    """基于历史 K 线计算组合最大回撤（按日期对齐）。"""
     if not kline_data:
         return 0.0
 
-    # 构建组合净值序列
-    nav_series = []
+    # 按日期合并各持仓市值：NAV[date] = Σ(close_i × qty_i)
+    nav_by_date: dict[str, float] = {}
     for code, bars in kline_data.items():
         if not bars:
             continue
-        # 找到对应的持仓
         pos = next((p for p in positions if p.get("code") == code), None)
         if not pos:
             continue
         quantity = pos.get("quantity", 0)
+        if quantity <= 0:
+            continue
         for bar in bars:
-            nav_series.append(bar.close * quantity)
+            day = bar.day if hasattr(bar, "day") else bar.get("day", "")
+            close = bar.close if hasattr(bar, "close") else bar.get("close", 0)
+            if day:
+                nav_by_date[day] = nav_by_date.get(day, 0) + close * quantity
 
-    if len(nav_series) < 2:
+    if len(nav_by_date) < 2:
         return 0.0
 
-    # 计算最大回撤
+    # 按日期排序后计算最大回撤
+    nav_series = [nav_by_date[d] for d in sorted(nav_by_date)]
     peak = nav_series[0]
     max_dd = 0.0
     for nav in nav_series:
@@ -195,15 +208,21 @@ def format_performance_report(
     if contributions:
         best = contributions[0]
         worst = contributions[-1]
-        lines.append(f"\n**最大贡献**: {best.name} ({best.code}) +{best.contribution:.2f}%")
+        lines.append(
+            f"\n**最大贡献**: {best.name} ({best.code}) +{best.contribution:.2f}%"
+        )
         if worst.contribution < 0:
-            lines.append(f"**最大拖累**: {worst.name} ({worst.code}) {worst.contribution:.2f}%")
+            lines.append(
+                f"**最大拖累**: {worst.name} ({worst.code}) {worst.contribution:.2f}%"
+            )
 
     return "\n".join(lines)
 
 
 __all__ = [
-    "PerformanceMetrics", "PositionContribution",
-    "calculate_position_contribution", "calculate_portfolio_metrics",
+    "PerformanceMetrics",
+    "PositionContribution",
+    "calculate_position_contribution",
+    "calculate_portfolio_metrics",
     "format_performance_report",
 ]

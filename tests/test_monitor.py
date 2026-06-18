@@ -30,8 +30,8 @@ class TestInit:
 
     def test_load_default_config_when_no_file(self):
         """配置文件不存在时回退到空 dict，不抛异常。"""
-        with patch("monitor.manager._config_path") as mock_path:
-            mock_path.return_value = Path("/nonexistent/path.yaml")
+        # mock ConfigLoader.load 让它返回 {}（模拟文件不存在）
+        with patch("monitor.manager.ConfigLoader.load", return_value={}):
             mgr = NotificationManager()
         assert mgr._config == {}
 
@@ -104,22 +104,24 @@ class TestQuietHours:
     def test_outside_quiet_hours(self):
         """配置 03:00-03:01 几乎全天空闲。"""
         mgr = _make_manager({"throttle": {"quiet_hours": "03:00-03:01"}})
-        # 大多数时间不在静默时段
-        with patch("monitor.manager.datetime") as mock_dt:
-            from datetime import datetime as real_dt
-            mock_dt.now.return_value = real_dt(2026, 6, 10, 12, 0, 0)
+        # 中午 12 点不在静默时段
+        from datetime import datetime as real_dt
+        from dev import clock
+        with patch.object(clock, "_now_func", return_value=real_dt(2026, 6, 10, 12, 0, 0)):
             assert mgr._is_quiet_hours() is False
 
     def test_cross_midnight_quiet_hours(self):
         """跨午夜配置（如 22:00-06:00）。"""
-        mgr = _make_manager({"throttle": {"quiet_hours": "22:00-06:00"}})
         from datetime import datetime as real_dt
-        with patch("monitor.manager.datetime") as mock_dt:
-            # 凌晨 3 点：处于 22:00-06:00 区间内
-            mock_dt.now.return_value = real_dt(2026, 6, 10, 3, 0, 0)
+        from dev import clock
+        mgr = _make_manager({"throttle": {"quiet_hours": "22:00-06:00"}})
+        # manager 内部时间来自 dev.clock.now（注入式时钟），
+        # 故必须 patch _now_func 而非 monitor.manager.datetime。
+        # 凌晨 3 点：处于 22:00-06:00 区间内
+        with patch.object(clock, "_now_func", return_value=real_dt(2026, 6, 10, 3, 0, 0)):
             assert mgr._is_quiet_hours() is True
-            # 中午 12 点：不在静默时段
-            mock_dt.now.return_value = real_dt(2026, 6, 10, 12, 0, 0)
+        # 中午 12 点：不在静默时段
+        with patch.object(clock, "_now_func", return_value=real_dt(2026, 6, 10, 12, 0, 0)):
             assert mgr._is_quiet_hours() is False
 
     def test_invalid_quiet_hours_format_ignored(self):

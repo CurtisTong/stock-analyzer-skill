@@ -4,47 +4,14 @@ group: short_term
 style: 情绪流
 horizon: 日/周
 core_signal: 情绪/题材
-
 weights:
   基本面: 5.0
-  估值: 5.0
+  估值: 12.0
   技术面: 15.0
-  情绪: 65.0
+  情绪: 58.0
   风险: 10.0
-
 veto_conditions:
   - 情绪周期处于退潮期（连续亏钱效应）
   - 全市场跌停家数 > 50（恐慌弥漫）
-
-scoring_thresholds:
-  emotion_extreme: 80
-  emotion_low: 20
-  limit_down_high: 50
-  advance_ratio_high: 0.7
-
-investment_philosophy: |
-  情绪流：情绪周期判断是核心。
-  冰点转折：冰点期是最佳买点。
-  退潮回避：退潮期不参与。
-  题材发酵：题材确认后跟进。
-
-buy_rules:
-  - 情绪冰点转折（跌停家数 > 50 后减少）
-  - 题材确认发酵
-  - 板块龙头地位
-
-sell_rules:
-  - 情绪退潮（连续亏钱效应）
-  - 题材退潮
-  - 涨幅达标
-
-position_rules:
-  - 情绪冰点时重仓（60-80%）
-  - 情绪退潮时轻仓（10-20%）
-  - 分批建仓
-
-a_share_applicability: |
-  A 股情绪流适用，但需注意：
-  - 散户情绪波动大
-  - 政策可能打断情绪周期
-  - 需要极强的情绪感知能力
+md_path: experts/chaogu_yangjia.md
+active: false

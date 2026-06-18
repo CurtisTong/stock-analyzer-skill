@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 
 # 添加 scripts 目录到 path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import json
 import time

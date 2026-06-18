@@ -4,48 +4,15 @@ group: long_term
 style: 宏观/趋势
 horizon: 月/季/年
 core_signal: 量价+情绪/反身性
-
 weights:
   基本面: 15.0
   估值: 10.0
   技术面: 25.0
   情绪/反身性: 30.0
   风险: 20.0
-
 veto_conditions:
-  - 市场处于'所有人同边'状态（反身性顶点信号）
+  - 市场处于"所有人同边"状态（反身性顶点信号）
   - 流动性枯竭（两市成交额<5000亿且持续缩量）
   - 政策明确打压该板块（反身性向下强化）
-
-scoring_thresholds:
-  trend_strong: 0.05
-  trend_weak: -0.05
-  volume_high: 1.5
-  volume_low: 0.5
-  sentiment_extreme: 80
-
-investment_philosophy: |
-  反身性理论：市场预期会自我强化。
-  趋势确认后跟进，趋势反转时果断离场。
-  宏观判断 > 个股选择。
-
-buy_rules:
-  - 趋势确认（MA20 上行）
-  - 量能放大（量比 > 1.2）
-  - 情绪未到极端（非亢奋期）
-
-sell_rules:
-  - 趋势反转（MA20 下行）
-  - 反身性顶点信号（所有人同边）
-  - 流动性枯竭
-
-position_rules:
-  - 趋势确认后重仓（50-70%）
-  - 趋势不明时轻仓（20-30%）
-  - 止损严格执行（-8%）
-
-a_share_applicability: |
-  A 股趋势投资适用，但需注意：
-  - 政策市特征明显，趋势可能被政策打断
-  - 散户情绪波动大，反身性效应强
-  - 需关注北向资金和两融数据
+md_path: experts/soros.md
+active: true

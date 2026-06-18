@@ -1,4 +1,5 @@
 """雪球 + 同花顺数据源测试。"""
+
 import json
 import pytest
 import sys
@@ -8,13 +9,17 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
 from fetchers.xueqiu_quote import XueqiuQuoteFetcher, _to_xueqiu_symbol, _parse_quote
-from fetchers.ths_quote import ThsQuoteFetcher, _to_ths_params, _parse_quote as _ths_parse_quote
+from fetchers.ths_quote import (
+    ThsQuoteFetcher,
+    _to_ths_params,
+    _parse_quote as _ths_parse_quote,
+)
 from common.exceptions import NetworkError
-
 
 # ═══════════════════════════════════════════════════════════════
 # xueqiu_quote
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestXueqiuQuoteFetcher:
     """XueqiuQuoteFetcher 测试。"""
@@ -50,7 +55,7 @@ class TestXueqiuQuoteFetcher:
                     "turnover_rate": 0.15,
                     "pe_ttm": 25.60,
                     "pb": 8.20,
-                    "market_cap": 2260000000000,
+                    "market_capital": 2260000000000,
                 }
             }
         }
@@ -58,6 +63,14 @@ class TestXueqiuQuoteFetcher:
         assert result is not None
         assert result["name"] == "贵州茅台"
         assert result["source"] == "xueqiu"
+        # 验证字段名与 _dict_to_quote 兼容（标准化字段名）
+        assert "prev_close" in result  # 非 "pre_close"
+        assert "turnover" in result  # 非 "turnover_rate"
+        assert "total_cap" in result  # 非 "market_cap"
+        assert result["prev_close"] == 1790.00
+        assert result["turnover"] == 0.15
+        # total_cap 应为亿元（market_cap / 1e8）
+        assert result["total_cap"] == 22600.0
 
     def test_parse_quote_no_data(self):
         assert _parse_quote({}) is None
@@ -80,11 +93,14 @@ class TestXueqiuQuoteFetcher:
                     "turnover_rate": 0.15,
                     "pe_ttm": 25.60,
                     "pb": 8.20,
-                    "market_cap": 2260000000000,
+                    "market_capital": 2260000000000,
                 }
             }
         }
-        with patch("fetchers.xueqiu_quote.http_get_with_headers", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.xueqiu_quote.http_get_with_headers",
+            return_value=json.dumps(data).encode(),
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert result["name"] == "贵州茅台"
@@ -96,7 +112,10 @@ class TestXueqiuQuoteFetcher:
 
     def test_fetch_http_error(self):
         """HTTP 错误：返回 None（xueqiu 内部 catch）。"""
-        with patch("fetchers.xueqiu_quote.http_get_with_headers", side_effect=NetworkError("url", "err", 3)):
+        with patch(
+            "fetchers.xueqiu_quote.http_get_with_headers",
+            side_effect=NetworkError("url", "err", 3),
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -110,6 +129,7 @@ class TestXueqiuQuoteFetcher:
 # ths_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestThsQuoteFetcher:
     """ThsQuoteFetcher 测试。"""
 
@@ -118,7 +138,7 @@ class TestThsQuoteFetcher:
 
     def test_name_and_priority(self):
         assert self.fetcher.name == "ths_quote"
-        assert self.fetcher.priority == 7
+        assert self.fetcher.priority == 3
 
     def test_to_ths_params_sh(self):
         assert _to_ths_params("SH600519") == ("1", "600519")
@@ -163,7 +183,9 @@ class TestThsQuoteFetcher:
 
     def test_fetch_http_error(self):
         """HTTP 错误：返回 None（ths 内部 catch）。"""
-        with patch("fetchers.ths_quote.http_get", side_effect=NetworkError("url", "err", 3)):
+        with patch(
+            "fetchers.ths_quote.http_get", side_effect=NetworkError("url", "err", 3)
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 

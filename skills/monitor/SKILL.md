@@ -3,7 +3,7 @@ name: monitor
 description: 盘中监控。触发词：帮我盯盘、价格预警、XX到XX元提醒我、监控持仓异动、技术信号推送、数据源健康检查、涨停提醒、跌破XX元通知我。支持持仓异动/价格预警/技术信号/市场环境监控，通过Bark/企微/钉钉推送。
 version: 1.11.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/config/notification.yaml) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(./scripts/data/portfolio.json) Read(./scripts/config/notification.yaml) Read(./skills/_shared/references/*.md)
 ---
 
 # Monitor
@@ -33,6 +33,9 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Us
 | `scan`   | 扫描持仓+自选股关键点位           | `/monitor scan`            |
 | `levels` | 查看单股关键点位                  | `/monitor levels sh600989` |
 | `check`  | 盘中检查+推送（dry-run 模式预览） | `/monitor check`           |
+| `start`  | 启动后台监控服务（持续轮询）      | `/monitor start`           |
+| `stop`   | 停止后台监控服务                  | `/monitor stop`            |
+| `status` | 查看后台监控服务运行状态          | `/monitor status`          |
 
 ### 自然语言
 
@@ -58,7 +61,7 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(//Us
 ```bash
 python3 -c "
 import sys; sys.path.insert(0, 'scripts')
-from monitor import NotificationManager
+from monitor.manager import NotificationManager
 from portfolio import PortfolioManager
 
 nm = NotificationManager()

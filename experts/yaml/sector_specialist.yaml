@@ -1,0 +1,18 @@
+name: sector_specialist
+display_name: 行业专家
+group: long_term
+style: 行业特异性视角
+horizon: 月/季
+core_signal: 行业景气+竞争格局+估值差异
+weights:
+  基本面: 30.0
+  估值: 30.0
+  技术面: 10.0
+  情绪: 10.0
+  风险: 20.0
+veto_conditions:
+  - 行业周期顶点（PE/PB 双高）
+  - 政策风险（行业被监管打压）
+  - 技术替代风险（核心技术被颠覆）
+md_path: experts/sector_specialist.md
+active: true

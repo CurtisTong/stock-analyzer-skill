@@ -3,12 +3,16 @@ name: portfolio
 description: 持仓管理。触发词：我的持仓怎么样、帮我看看持仓、我买了XX、加仓XX、减仓XX、清仓XX、持仓健康检查、帮我调仓、自选股、持仓对比、仓位分析。支持买入/加仓/减仓/清仓CRUD、自选股管理、组合涨跌/集中度/风险预警/调仓再平衡。
 version: 1.11.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/portfolio_example.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(./scripts/data/portfolio.json) Read(./scripts/data/portfolio_example.json) Read(./skills/_shared/references/*.md)
 ---
 
 # Portfolio Management
 
 持仓组合管理与健康检查——增删改查 + 实时盈亏 + 板块分布 + 风险监控 + 调仓建议。
+
+> **本 skill 拆分**：
+> - Web 服务相关操作（`web` / `--port` / `--open` / `--stop` 等）见 [`/portfolio-web`](../portfolio-web/SKILL.md)
+> - 自然语言触发词典（"我买了 XX" / "减仓" / "清仓" 等口语化映射）见 [`/portfolio-natural`](../portfolio-natural/SKILL.md)
 
 ## Usage
 
@@ -85,14 +89,7 @@ python3 scripts/portfolio_web.py --virtual
 /portfolio health --virtual
 ```
 
-### 自然语言
-
-支持自然语言触发，例如：
-
-- "买入了 1000 股宝丰能源，成本 18.5"
-- "宝丰能源卖了 500 股"
-- "关注云铝股份，目标买入价 12"
-- "看看我的持仓"
+自然语言触发见 [`/portfolio-natural`](../portfolio-natural/SKILL.md)。
 
 ## Instructions
 
@@ -100,23 +97,7 @@ python3 scripts/portfolio_web.py --virtual
 
 输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
 
-### Web 录入命令处理
-
-当用户输入 `/portfolio web` 系列命令时，按以下方式处理：
-
-| 命令                           | 处理方式                                                         |
-| ------------------------------ | ---------------------------------------------------------------- |
-| `/portfolio web`               | `python3 scripts/portfolio_web.py`（后台启动 + 自动打开浏览器）  |
-| `/portfolio web --port <端口>` | `python3 scripts/portfolio_web.py --port <端口>`                 |
-| `/portfolio web --no-open`     | `python3 scripts/portfolio_web.py --no-open`（不自动打开浏览器） |
-| `/portfolio web --stop`        | `pkill -f "portfolio_web.py" && echo "已停止"`                   |
-| `/portfolio web --status`      | `lsof -i:8765 2>/dev/null && echo "运行中" \|\| echo "未运行"`   |
-
-**注意**：
-
-- `web` 命令默认自动打开浏览器，使用 `--no-open` 可禁用。
-- 如果端口已被占用（上一次未正常退出），提示用户先运行 `web --stop`。
-- 启动后在输出中附加一行：`浏览器访问：http://127.0.0.1:8765/`
+Web 服务相关命令（`web` / `--port` / `--stop` 等）见 [`/portfolio-web`](../portfolio-web/SKILL.md)。
 - 不要阻塞当前会话等 `serve_forever()` 结束。
 
 ## 共享约定
@@ -183,37 +164,7 @@ print('✅ 已加自选')
 - 原持仓 1000 股 @ 18.50，加仓 500 股 @ 19.00
 - 新成本 = (18.50×1000 + 19.00×500) / 1500 = 18.67
 
-## Web 录入（可选）
-
-不想每次打 CLI？启一个本地 web server，浏览器或手机都能录：
-
-```bash
-python3 scripts/portfolio_web.py           # 监听 127.0.0.1:8765
-# 浏览器打开 http://127.0.0.1:8765/
-```
-
-支持 8 个 action 的 JSON Webhook，方便外部脚本/IFTTT 推送：
-
-```bash
-curl -X POST http://127.0.0.1:8765/api/positions \
-  -H 'Content-Type: application/json' \
-  -d '{"action":"add_position","code":"sh600989","cost":18.5,"quantity":1000,"tags":["长线"]}'
-```
-
-action 列表：`add_position` / `reduce_position` / `remove_position` /
-`update_position` / `tag_position` / `untag_position` / `add_watch` / `update_watch` / `remove_watch`
-
-**注意事项**：
-
-- 默认仅监听 `127.0.0.1`，不对外暴露。
-- **谨防竞态条件**：CLI 工具与本 Web 服务**同时**写 `scripts/data/portfolio.json` 时，后写会覆盖前写（无文件锁）。建议：
-  - 把 Web 服务作为唯一录入入口。
-  - 如果 CLI 命令后的操作确认结果与预期不符，可能是被 Web 服务覆盖。
-  - 如需同时使用，建议间隔至少 1 秒，或待 Web 服务空闲时操作（[portfolio.json](scripts/data/portfolio.json) 修改时间可作为参考）。
-- `update_position` 的 `tags` 字段是**整列表覆盖**，不是合并；要追加/删除请用 `tag_position` / `untag_position`。
-- `add_watch` 的 `target_buy=0` / `target_sell=0` 会被忽略（表示"未设"）；如要显式清零，请用 web 表单/curl 时改用 `update_watch` 路径或编辑文件。
-- 股票代码必须传 `sh600989` / `sz000807` 完整形式，不归一化。
-- 详细协议与错误码见 `tests/test_portfolio_web.py`。
+Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SKILL.md)。
 
 ### 数据获取
 

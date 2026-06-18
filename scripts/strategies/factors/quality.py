@@ -30,15 +30,19 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     # ROE：相对于行业优秀值评分
     score += clamp(roe / roe_excellent * 28)
 
-    # ROE 趋势：连续下降扣分，连续上升加分
+    # ROE 趋势：review#4 修复
+    # 旧逻辑要求全序列严格单调（单期波动即打破），改为"下降期占比"
     roe_trend = fin.get("roe_trend", [])
-    if len(roe_trend) >= 2:
-        declining = all(roe_trend[i] < roe_trend[i - 1] for i in range(1, len(roe_trend)))
-        rising = all(roe_trend[i] > roe_trend[i - 1] for i in range(1, len(roe_trend)))
-        if declining:
-            score -= 8  # ROE 连续下降，基本面恶化信号
-        elif rising:
-            score += 5  # ROE 连续上升，基本面改善
+    if len(roe_trend) >= 3:
+        diffs = [
+            roe_trend[i] - roe_trend[i - 1] for i in range(1, len(roe_trend))
+        ]
+        decline_ratio = sum(1 for d in diffs if d < 0) / len(diffs)
+        rise_ratio = sum(1 for d in diffs if d > 0) / len(diffs)
+        if decline_ratio >= 0.6:  # 60% 以上期下降
+            score -= 8  # 基本面恶化
+        elif rise_ratio >= 0.6:  # 60% 以上期上升
+            score += 5  # 基本面改善
 
     profit_growth_base = get_industry_threshold(industry, "profit_growth_excellent", 40)
     score += clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0

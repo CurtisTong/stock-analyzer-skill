@@ -16,7 +16,10 @@
     "vol_threshold": 0.015,
     "notes": "银行/保险 ROE 天然 10-15%，负债率 90%+ 属正常，用资本充足率替代负债率",
     "profit_growth_excellent": 15,
-    "revenue_growth_excellent": 10
+    "revenue_growth_excellent": 10,
+    "dividend_yield_excellent": 4,
+    "dividend_yield_good": 2.5,
+    "dividend_yield_fair": 1.5
   },
   "银行": {
     "roe_min": 8,
@@ -33,7 +36,10 @@
     "profit_growth_excellent": 12,
     "revenue_growth_excellent": 8,
     "ps_undervalued": 1,
-    "ps_reasonable": 3
+    "ps_reasonable": 3,
+    "dividend_yield_excellent": 5,
+    "dividend_yield_good": 3,
+    "dividend_yield_fair": 2
   },
   "券商": {
     "roe_min": 8,
@@ -67,7 +73,10 @@
     "profit_growth_excellent": 25,
     "revenue_growth_excellent": 20,
     "ps_undervalued": 3,
-    "ps_reasonable": 8
+    "ps_reasonable": 8,
+    "dividend_yield_excellent": 3,
+    "dividend_yield_good": 2,
+    "dividend_yield_fair": 1
   },
   "科技": {
     "roe_min": 10,
@@ -84,7 +93,10 @@
     "profit_growth_excellent": 50,
     "revenue_growth_excellent": 35,
     "ps_undervalued": 5,
-    "ps_reasonable": 15
+    "ps_reasonable": 15,
+    "dividend_yield_excellent": 1.5,
+    "dividend_yield_good": 0.8,
+    "dividend_yield_fair": 0.3
   },
   "半导体": {
     "roe_min": 8,
@@ -101,7 +113,10 @@
     "profit_growth_excellent": 60,
     "revenue_growth_excellent": 40,
     "ps_undervalued": 6,
-    "ps_reasonable": 18
+    "ps_reasonable": 18,
+    "dividend_yield_excellent": 1,
+    "dividend_yield_good": 0.5,
+    "dividend_yield_fair": 0.2
   },
   "软件": {
     "roe_min": 12,
@@ -118,7 +133,10 @@
     "profit_growth_excellent": 45,
     "revenue_growth_excellent": 30,
     "ps_undervalued": 8,
-    "ps_reasonable": 20
+    "ps_reasonable": 20,
+    "dividend_yield_excellent": 1,
+    "dividend_yield_good": 0.5,
+    "dividend_yield_fair": 0.2
   },
   "周期": {
     "roe_min": 8,
@@ -135,7 +153,10 @@
     "profit_growth_excellent": 30,
     "revenue_growth_excellent": 25,
     "ps_undervalued": 1.5,
-    "ps_reasonable": 4
+    "ps_reasonable": 4,
+    "dividend_yield_excellent": 3,
+    "dividend_yield_good": 1.5,
+    "dividend_yield_fair": 0.8
   },
   "医药": {
     "roe_min": 12,
@@ -152,7 +173,10 @@
     "profit_growth_excellent": 35,
     "revenue_growth_excellent": 25,
     "ps_undervalued": 4,
-    "ps_reasonable": 12
+    "ps_reasonable": 12,
+    "dividend_yield_excellent": 2,
+    "dividend_yield_good": 1,
+    "dividend_yield_fair": 0.5
   },
   "制造": {
     "roe_min": 12,
@@ -169,7 +193,10 @@
     "profit_growth_excellent": 35,
     "revenue_growth_excellent": 25,
     "ps_undervalued": 2,
-    "ps_reasonable": 6
+    "ps_reasonable": 6,
+    "dividend_yield_excellent": 2.5,
+    "dividend_yield_good": 1.5,
+    "dividend_yield_fair": 0.8
   },
   "地产": {
     "roe_min": 8,
@@ -186,7 +213,10 @@
     "profit_growth_excellent": 15,
     "revenue_growth_excellent": 10,
     "ps_undervalued": 0.5,
-    "ps_reasonable": 2
+    "ps_reasonable": 2,
+    "dividend_yield_excellent": 4,
+    "dividend_yield_good": 2.5,
+    "dividend_yield_fair": 1.5
   },
   "能源": {
     "roe_min": 10,
@@ -203,7 +233,10 @@
     "profit_growth_excellent": 20,
     "revenue_growth_excellent": 15,
     "ps_undervalued": 1,
-    "ps_reasonable": 3
+    "ps_reasonable": 3,
+    "dividend_yield_excellent": 5,
+    "dividend_yield_good": 3,
+    "dividend_yield_fair": 2
   },
   "国防军工": {
     "roe_min": 8,
@@ -305,6 +338,9 @@
     "profit_growth_excellent": 40,
     "revenue_growth_excellent": 30,
     "ps_undervalued": 3,
-    "ps_reasonable": 8
+    "ps_reasonable": 8,
+    "dividend_yield_excellent": 3,
+    "dividend_yield_good": 1.5,
+    "dividend_yield_fair": 0.8
   }
 }

@@ -3,7 +3,7 @@ name: research
 description: 深度研究。触发词：深度研究一下XX、财务分析XX、排雷XX、DCF估值、写一份研究报告、XX的投资价值分析、对比XX和XX、XX能不能长期持有、XX的盈利质量怎么样。财务建模（DCF/杜邦/排雷）和全维度投资研究报告。
 version: 1.11.0
 model: opus
-allowed-tools: Bash(python3 scripts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/methodology.md) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/experts/*) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
 ---
 
 # 深度研究
@@ -138,16 +138,17 @@ python3 scripts/technical.py <代码> --classify
 python3 scripts/quote.py sh000001,sh510300,sh510500 -j
 ```
 
-### Step 3: 分模块分析
+### Step 3: 分模块分析（复用 `/stock full`，不重复实现）
 
-| 模块     | 分析内容                         | 输出字段             |
-| -------- | -------------------------------- | -------------------- |
-| 市场环境 | 大盘状态、风格偏好、风险偏好     | `market_regime`      |
-| 板块景气 | 行业阶段、轮动位置、核心标的对比 | `sector_view`        |
-| 基本面   | ROE/增速/毛利/负债/现金流/排雷   | `fundamental_rating` |
-| 估值     | PE/PEG/PE-ROE/历史分位/DCF 对比  | `valuation_view`     |
-| 技术面   | 趋势/支撑阻力/量价/信号          | `technical_trigger`  |
-| 风险收益 | 情景分析、概率加权、凯利仓位     | `position_plan`      |
+直接调用 [`/stock <代码> full`](../stock/SKILL.md) 取其五层分析输出（符合 `skills/_shared/contracts/stock.schema.json`）。
+
+本步骤不再重复实现基本面/估值/技术面/风险收益模块，仅在 Step 4 融合以下增量证据：
+
+| 增量模块   | 数据来源                          | 备注                              |
+| ---------- | --------------------------------- | --------------------------------- |
+| 市场环境   | `/market full` 或 `scripts/quote.py sh000001` | 叠加 `market_regime` 上下文       |
+| 板块景气   | `/sector <板块> overview`         | 叠加 `sector_view` 上下文         |
+| 持仓约束   | `/portfolio health`（如适用）     | 叠加 `position_plan` 上下文       |
 
 ### Step 4: 输出格式
 

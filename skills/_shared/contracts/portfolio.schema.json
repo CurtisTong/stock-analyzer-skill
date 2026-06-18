@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PortfolioHealth",
+  "description": "/portfolio health 与调仓建议输出契约",
+  "type": "object",
+  "required": ["total_pnl_pct", "positions"],
+  "properties": {
+    "total_pnl_pct": {"type": "number"},
+    "total_market_value": {"type": "number"},
+    "concentration": {
+      "type": "object",
+      "properties": {
+        "top1_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "top3_pct": {"type": "number", "minimum": 0, "maximum": 100}
+      }
+    },
+    "sector_distribution": {
+      "type": "object",
+      "additionalProperties": {"type": "number"}
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name", "pnl_pct"],
+        "properties": {
+          "code": {"type": "string"},
+          "name": {"type": "string"},
+          "cost_price": {"type": "number"},
+          "current_price": {"type": "number"},
+          "quantity": {"type": "number"},
+          "pnl_pct": {"type": "number"},
+          "alerts": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    },
+    "rebalance_suggestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action", "code"],
+        "properties": {
+          "action": {"enum": ["buy", "add", "reduce", "remove", "hold"]},
+          "code": {"type": "string"},
+          "reason": {"type": "string"}
+        }
+      }
+    }
+  }
+}

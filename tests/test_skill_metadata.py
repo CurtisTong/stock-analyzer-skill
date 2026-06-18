@@ -19,16 +19,18 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
 
-# 期望的 14 个 skill（9 核心 + 4 redirect + learn）
+# 期望的 12 个 skill（9 核心 + 3 子模块：stock-technical / portfolio-web / portfolio-natural + learn）
+# 2026-06-17 删除 4 个 deprecated skill（technical / stock-init / financial-analyst / investment-researcher），
+# 现 9 核心 + 3 子模块 + 1 learn + 1 共享
 EXPECTED_SKILLS = {
-    "stock", "market", "sector", "portfolio", "screener",
-    "technical", "monitor", "stock-init", "backtest",
-    "financial-analyst", "investment-researcher", "help", "learn",
+    "stock", "market", "sector", "portfolio", "portfolio-web", "portfolio-natural",
+    "screener", "stock-technical", "monitor", "backtest",
+    "help", "learn",
     "research",
 }
 
 # 命令式 skill：允许 disable-model-invocation 且 description 可短
-COMMAND_LIKE_SKILLS = {"backtest", "stock-init", "help", "monitor"}
+COMMAND_LIKE_SKILLS = {"backtest", "help", "monitor"}
 
 # 推荐的 model 值
 ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
@@ -156,7 +158,7 @@ def test_model_field_valid(skill_path):
 VERSION_OVERRIDES = {
     # v1.8.0 统一版本号
 }
-DEFAULT_VERSION = "1.11.0"
+DEFAULT_VERSION = "1.12.0"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -192,6 +194,25 @@ def test_no_stale_path_hint(skill_path):
     assert "../../.." not in text, (
         f"{skill_path.parent.name}: 仍含过期路径提示 '../../..'，Claude Code 工作目录即为项目根"
     )
+
+
+@pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
+def test_no_absolute_paths_in_allowed_tools(skill_path):
+    """SKILL.md 的 allowed-tools 不得包含绝对路径，必须以 ./ 或脚本名开头。"""
+    text = skill_path.read_text(encoding="utf-8")
+    fm = parse_frontmatter(text)
+    tools = fm.get("allowed-tools", [])
+    # 统一为列表
+    if isinstance(tools, str):
+        tools = [tools]
+    for tool in tools:
+        # 匹配 //xxx/... 或 /xxx/... 形式的绝对路径
+        assert "/Users/" not in tool, (
+            f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
+        )
+        assert not re.search(r"^/\w+/", tool), (
+            f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
+        )
 
 
 def test_shared_references_exist():

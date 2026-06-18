@@ -8,8 +8,10 @@
   finance.py -j SH600989               # JSON 输出
   finance.py --sources                 # 显示可用数据源
 """
+
 import sys
 import json
+import argparse
 from common import normalize_finance_code, parallel_map, err, DataError
 from data import get_finance
 
@@ -46,37 +48,42 @@ def render_table(records: list) -> str:
 
 
 def main():
-    if len(sys.argv) < 2:
-        err("用法: finance.py <代码> [-c codes] [-j] [--sources]")
-    args = sys.argv[1:]
+    from common.cache import cleanup_tmp_files
 
-    if "--sources" in args:
+    cleanup_tmp_files()
+
+    parser = argparse.ArgumentParser(description="财务数据查询（多数据源自动切换）")
+    parser.add_argument("code", nargs="?", help="股票代码（如 SH600989）")
+    parser.add_argument("-c", "--codes", help="批量代码（逗号分隔）")
+    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
+    parser.add_argument("--sources", action="store_true", help="显示可用数据源")
+    args = parser.parse_args()
+
+    if args.sources:
         from fetchers import get_finance_fetchers
+
         fetchers = get_finance_fetchers()
         print("可用财务数据源:")
         for f in fetchers:
             print(f"  - {f.name} (优先级 {f.priority})")
         return
 
-    json_mode = "-j" in args
-    args = [a for a in args if a not in ("-j", "--sources")]
-    if not args:
-        err("缺少代码")
-
-    if args[0] == "-c":
-        codes = args[1].split(",")
+    if args.codes:
+        codes = args.codes.split(",")
+    elif args.code:
+        codes = [args.code]
     else:
-        codes = [args[0]]
+        err("用法: finance.py <代码> [-c codes] [-j|--json] [--sources]")
 
     normalized_codes = [normalize_finance_code(c) for c in codes]
 
     if len(normalized_codes) > 1:
-        results = parallel_map(fetch, normalized_codes, max_workers=4, timeout=30)
+        results = parallel_map(fetch, normalized_codes, timeout=30)
         all_results = {k: v for k, v in results.items() if v}
     else:
         all_results = {normalized_codes[0]: fetch(normalized_codes[0])}
 
-    if json_mode:
+    if args.json:
         print(json.dumps(all_results, ensure_ascii=False, indent=2))
         return
 

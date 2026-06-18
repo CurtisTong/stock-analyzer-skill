@@ -1,6 +1,7 @@
 # 8 人专家圆桌 · 投资哲学档案库
 
-> 版本：v1.1.0（2026-06-08）
+> 版本：v2.2.0（2026-06-18）
+> 新增动量派（momentum_trader）：基于利弗莫尔关键转折点 + 理查德·丹尼斯海龟法则，补齐纯趋势跟踪视角
 > 数据接口更新：所有调用方式已适配 `scripts/data/` 和 `scripts/common/` 模块
 
 本目录是 [methodology.md §三 专家讨论模式](../methodology.md#三专家讨论模式8人圆桌) 的扩展档案库。
@@ -16,23 +17,53 @@
 
 ---
 
-## 长线 4 人（价值发现）
+## 长线 4 人（价值发现，legacy active=False）
 
-| 专家      | 风格        | 核心逻辑                                     | 档案                                 |
-| --------- | ----------- | -------------------------------------------- | ------------------------------------ |
-| 巴菲特    | 价值投资    | 好生意 + 好价格 + 长期持有，偏好高 ROE 低 PE | [buffett.md](buffett.md)             |
-| 彼得·林奇 | 成长投资    | PEG<1 增速消化估值，偏好高增速合理 PE        | [lynch.md](lynch.md)                 |
-| 索罗斯    | 宏观 / 趋势 | 趋势确认 + 反身性，技术面 + 资金面           | [soros.md](soros.md)                 |
-| 段永平    | 逆向投资    | 好公司 + 安全边际，低估值 + 护城河           | [duan_yongping.md](duan_yongping.md) |
+| 专家      | 风格        | 核心逻辑                                     | 档案                                 | 状态 |
+| --------- | ----------- | -------------------------------------------- | ------------------------------------ | :--: |
+| 巴菲特    | 价值投资    | 好生意 + 好价格 + 长期持有，偏好高 ROE 低 PE | [buffett.md](buffett.md)             | legacy |
+| 彼得·林奇 | 成长投资    | PEG<1 增速消化估值，偏好高增速合理 PE        | [lynch.md](lynch.md)                 |  active |
+| 索罗斯    | 宏观 / 趋势 | 趋势确认 + 反身性，技术面 + 资金面           | [soros.md](soros.md)                 |  active |
+| 段永平    | 逆向投资    | 好公司 + 安全边际，低估值 + 护城河           | [duan_yongping.md](duan_yongping.md) | legacy |
 
-## 短线 4 人（时机把握）
+## 短线 4 人（时机把握，legacy active=False）
 
-| 专家     | 风格       | 核心逻辑                          | 档案                                   |
-| -------- | ---------- | --------------------------------- | -------------------------------------- |
-| 徐翔     | 涨停板战法 | 龙头 + 量价配合，打板追涨         | [xu_xiang.md](xu_xiang.md)             |
-| 赵老哥   | 趋势龙头   | 趋势确认 + 持仓周期，波段操作     | [zhao_laoge.md](zhao_laoge.md)         |
-| 炒股养家 | 情绪流     | 情绪周期 + 板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](chaogu_yangjia.md) |
-| 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓        | [zuoshou_xinyi.md](zuoshou_xinyi.md)   |
+| 专家     | 风格       | 核心逻辑                          | 档案                                   | 状态 |
+| -------- | ---------- | --------------------------------- | -------------------------------------- | :--: |
+| 徐翔     | 涨停板战法 | 龙头 + 量价配合，打板追涨         | [xu_xiang.md](xu_xiang.md)             | legacy |
+| 赵老哥   | 趋势龙头   | 趋势确认 + 持仓周期，波段操作     | [zhao_laoge.md](zhao_laoge.md)         | legacy |
+| 炒股养家 | 情绪流     | 情绪周期 + 板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](chaogu_yangjia.md) | legacy |
+| 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓        | [zuoshou_xinyi.md](zuoshou_xinyi.md)   | legacy |
+
+## v2.1.0 扩展 6 人（active=True，补盲区）
+
+| 专家            | 风格                  | 核心逻辑                                  | 档案                                         |
+| --------------- | --------------------- | ----------------------------------------- | -------------------------------------------- |
+| 价值双锚        | 价值投资（合并）      | 巴菲特 0.55 + 段永平 0.45，美式数据+中式文化 | [value_anchor.md](value_anchor.md)           |
+| 题材龙头        | 题材龙头（合并）      | 徐翔 0.5 + 赵老哥 0.5，涨停基因+趋势龙头  | [topic_leader.md](topic_leader.md)           |
+| 情绪技术复合    | 情绪+技术（合并）     | 养家 0.5 + 作手新一 0.5，情绪周期+K线形态  | [emotion_tech.md](emotion_tech.md)           |
+| 行业专家        | 行业特异性            | 行业景气+竞争格局+行业 PE 分位           | [sector_specialist.md](sector_specialist.md) |
+| 机构派          | 机构长期主义          | 高瓴/红杉/淡马锡：深度尽调+长期持有      | [institution.md](institution.md)             |
+| 风险管理        | 二阶思维+周期位置     | Howard Marks 周期位置+风险预算           | [risk_manager.md](risk_manager.md)           |
+
+## v2.2.0 新增动量派（active=True，补趋势跟踪盲区）
+
+| 专家   | 风格           | 核心逻辑                                                            | 档案                                       |
+| ------ | -------------- | ------------------------------------------------------------------- | ------------------------------------------ |
+| 动量派 | 动量/趋势跟踪  | 利弗莫尔关键转折点 + 丹尼斯海龟法则：MA 多头排列 + 突破 + 严格止损  | [momentum_trader.md](momentum_trader.md)   |
+
+> **为何新增**：现有 14 位专家中，价值派（巴菲特/林奇/段永平）几乎不重技术面，A 股短线 4 人（徐翔/赵老哥/养家/作手新一）偏题材/事件驱动/情绪博弈，**纯"价格行为 + 系统化趋势跟踪 + 严格止损纪律"** 的视角空缺。动量派以 Jesse Livermore 的关键转折点理论 + Richard Dennis 的海龟交易法则为内核，填补这一独立维度。
+
+### 合并型专家的合并权重映射（v2.1.0 引入）
+
+| 合并型专家        | 合并来源                  | 权重      | 实现位置                         |
+| ----------------- | ------------------------- | --------- | -------------------------------- |
+| value_anchor      | buffett + duan_yongping   | 0.55+0.45 | `experts/scoring/value_anchor.py`  |
+| topic_leader      | xu_xiang + zhao_laoge     | 0.5+0.5   | `experts/scoring/topic_leader.py`  |
+| emotion_tech      | chaogu_yangjia + zuoshou_xinyi | 0.5+0.5 | `experts/scoring/emotion_tech.py` |
+| sector_specialist | 行业景气（独立视角）      | —         | `experts/scoring/sector_specialist.py` |
+| institution       | 机构长期主义（独立视角）  | —         | `experts/scoring/institution.py`   |
+| risk_manager      | 二阶思维（独立视角）      | —         | `experts/scoring/risk_manager.py`  |
 
 ---
 
@@ -124,6 +155,18 @@ quotes = get_quotes(["sh600989", "sz000807"])
 index_quote = get_quote("sh000001")  # 上证指数
 etf_quote = get_quote("sh510300")    # 沪深300 ETF
 ```
+
+---
+
+## 合并型专家评分模式
+
+v2.1.0 引入的合并型专家（value_anchor/topic_leader/emotion_tech）使用 `weighted_merge()` 模式：
+
+- 内部调用多个 legacy 专家的 score() 函数
+- 按预定义权重加权平均
+- 简洁（每个约 20 行），逻辑透明
+
+新增合并型专家时遵循此模式。
 
 ---
 

@@ -1,0 +1,19 @@
+name: topic_leader
+display_name: 题材龙头（短炒+趋势合并）
+group: short_term
+style: 题材龙头（合并徐翔+赵老哥）
+horizon: 日/周
+core_signal: 量价+情绪/题材+趋势
+weights:
+  基本面: 7.5
+  估值: 12.0
+  技术面: 30.5
+  情绪/题材: 39.0
+  风险: 11.0
+veto_conditions:
+  - 大盘处于20日均线下方且缩量
+  - 全市场涨停家数 < 20（退潮期不打板）
+  - 龙头地位被替代（板块龙头切换）
+  - 监管"特停"频繁（政策风险不可控）
+md_path: experts/topic_leader.md
+active: true

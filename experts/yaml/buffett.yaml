@@ -4,53 +4,15 @@ group: long_term
 style: 价值投资
 horizon: 月/季/年
 core_signal: 基本面+估值
-
 weights:
   基本面: 42.0
   估值: 28.0
   技术面: 5.0
   情绪: 5.0
   安全边际: 20.0
-
 veto_conditions:
   - ROE < 10% 或负债率 > 70%（金融业除外）
   - FCF 连续 2 年为负
   - 公司涉财务造假或管理层失信
-
-scoring_thresholds:
-  roe_excellent: 20
-  roe_good: 15
-  roe_pass: 10
-  pe_cheap: 15
-  pe_reasonable: 25
-  pe_expensive: 40
-  debt_safe: 50
-  debt_warning: 70
-  debt_danger: 80
-
-investment_philosophy: |
-  好生意 + 好价格 + 长期持有。
-  偏好高 ROE、低 PE、稳定现金流的公司。
-  护城河是核心：品牌、成本优势、网络效应、转换成本。
-
-buy_rules:
-  - ROE > 15%，连续 3 年
-  - PE < 历史中位数
-  - 自由现金流充沛
-  - 管理层诚信可靠
-
-sell_rules:
-  - 基本面恶化（ROE 连续下降）
-  - 估值严重高估（PE > 历史 90% 分位）
-  - 发现更好的投资机会
-
-position_rules:
-  - 单只不超过 30%
-  - 核心仓 60%，卫星仓 40%
-  - 保留 10% 现金
-
-a_share_applicability: |
-  A 股价值投资适用，但需注意：
-  - 散户比例高，情绪波动大
-  - 政策影响显著（行业监管、货币政策）
-  - 财报质量参差不齐，需仔细甄别
+md_path: experts/buffett.md
+active: false

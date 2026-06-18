@@ -1,4 +1,5 @@
 """HTTP 客户端：GET 请求、重试、编码转换、连接池复用。"""
+
 import http.client
 import random
 import socket
@@ -15,59 +16,71 @@ USER_AGENTS = [
     "stock-analyzer-skill/1.0",
 ]
 
+MAX_POOL_SIZE = 32
+
 # ---------- 连接池（keep-alive 复用） ----------
 
-_connection_pool: dict[str, http.client.HTTPConnection] = {}
+_connection_pool: dict[str, list[http.client.HTTPConnection]] = {}
 _pool_lock = threading.Lock()
 
 
-def _get_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
-    """从连接池获取或创建连接（线程安全）。"""
+def _pool_key(url: str) -> str:
+    """从 URL 提取连接池键。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
     host = parsed.hostname or "localhost"
     port = parsed.port or (443 if scheme == "https" else 80)
-    pool_key = f"{scheme}://{host}:{port}"
+    return f"{scheme}://{host}:{port}"
 
+
+def _create_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
+    """创建新连接。"""
+    parsed = urllib.parse.urlparse(url)
+    scheme = parsed.scheme or "https"
+    host = parsed.hostname or "localhost"
+    port = parsed.port or (443 if scheme == "https" else 80)
+    if scheme == "https":
+        return http.client.HTTPSConnection(host, port=port, timeout=timeout)
+    return http.client.HTTPConnection(host, port=port, timeout=timeout)
+
+
+def _get_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
+    """从连接池获取或创建连接（线程安全，同一 host 可复用多个连接）。"""
+    key = _pool_key(url)
     with _pool_lock:
-        conn = _connection_pool.get(pool_key)
-        if conn is not None:
-            # 检查连接是否仍然可用
+        conns = _connection_pool.get(key, [])
+        # 找到一个仍然存活的连接
+        while conns:
+            conn = conns.pop()
             if hasattr(conn, "sock") and conn.sock is not None:
                 return conn
-            # 连接已断开，移除
-            del _connection_pool[pool_key]
-
-    # 池外创建连接（避免持锁阻塞）
-    if scheme == "https":
-        conn = http.client.HTTPSConnection(host, port=port, timeout=timeout)
-    else:
-        conn = http.client.HTTPConnection(host, port=port, timeout=timeout)
-    return conn
+        # 池中无可用连接
+        pass
+    return _create_connection(url, timeout)
 
 
 def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
-    """将连接归还到连接池。"""
-    parsed = urllib.parse.urlparse(url)
-    scheme = parsed.scheme or "https"
-    host = parsed.hostname or "localhost"
-    port = parsed.port or (443 if scheme == "https" else 80)
-    pool_key = f"{scheme}://{host}:{port}"
-
+    """将连接归还到连接池，池满时 close。同一 host 保留多个连接。"""
+    key = _pool_key(url)
     with _pool_lock:
-        existing = _connection_pool.get(pool_key)
-        if existing is conn:
-            return  # 已在池中
-        if existing is not None:
+        conns = _connection_pool.get(key)
+        if conns is None:
+            _connection_pool[key] = [conn]
+        elif len(conns) < MAX_POOL_SIZE:
+            conns.append(conn)
+        else:
             try:
-                existing.close()
+                conn.close()
             except Exception:
                 pass
-        _connection_pool[pool_key] = conn
 
 
-def _do_request(conn: http.client.HTTPConnection, url: str,
-                headers: dict[str, str], timeout: int) -> bytes:
+def _do_request(
+    conn: http.client.HTTPConnection,
+    url: str,
+    headers: dict[str, str],
+    timeout: int,
+) -> bytes:
     """执行一次 HTTP GET，返回响应体。处理非 2xx 状态码。"""
     parsed = urllib.parse.urlparse(url)
     path = parsed.path or "/"
@@ -79,72 +92,41 @@ def _do_request(conn: http.client.HTTPConnection, url: str,
     status = resp.status
 
     if status == 429:
-        # 消费响应体以保持连接可用
+        retry_after_header = resp.getheader("Retry-After")
         try:
             resp.read()
         except Exception:
             pass
-        raise RateLimitError(url)
+        raise RateLimitError(
+            url,
+            retry_after=int(retry_after_header) if retry_after_header else None,
+        )
 
     if status >= 400:
         try:
             resp.read()
         except Exception:
             pass
-        raise http.client.HTTPException(
-            f"HTTP {status} for {url}"
-        )
+        raise http.client.HTTPException(f"HTTP {status} for {url}")
 
     return resp.read()
 
 
 def _invalidate_connection(url: str, conn: http.client.HTTPConnection) -> None:
-    """关闭失效连接并从池中移除。"""
+    """关闭失效连接。"""
     try:
         conn.close()
     except Exception:
         pass
-    parsed = urllib.parse.urlparse(url)
-    scheme = parsed.scheme or "https"
-    host = parsed.hostname or "localhost"
-    port = parsed.port or (443 if scheme == "https" else 80)
-    pool_key = f"{scheme}://{host}:{port}"
-    with _pool_lock:
-        _connection_pool.pop(pool_key, None)
 
 
-def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
-    """GET 请求，指数退避重试，连接池复用。429 立即抛出不重试。"""
-    headers = {"User-Agent": random.choice(USER_AGENTS)}
-    last_err = None
-    conn = None
-
-    for attempt in range(max_retries):
-        try:
-            if conn is None:
-                conn = _get_connection(url, timeout)
-            result = _do_request(conn, url, headers, timeout)
-            _return_connection(url, conn)
-            return result
-        except RateLimitError:
-            raise
-        except (http.client.HTTPException, socket.error, OSError,
-                ConnectionResetError, BrokenPipeError) as e:
-            last_err = e
-            if conn is not None:
-                _invalidate_connection(url, conn)
-                conn = None
-            if attempt < max_retries - 1:
-                delay = min(1.0 * (2 ** attempt), 8.0)
-                jitter = random.uniform(0, delay * 0.5)
-                time.sleep(delay + jitter)
-
-    raise NetworkError(url, str(last_err), max_retries)
-
-
-def http_get_with_headers(url: str, headers: dict[str, str] | None = None,
-                          timeout: int = 10, max_retries: int = 3) -> bytes:
-    """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。"""
+def _http_get_internal(
+    url: str,
+    headers: dict[str, str] | None = None,
+    timeout: int = 10,
+    max_retries: int = 3,
+) -> bytes:
+    """内部 GET 实现：指数退避重试，连接池复用。429 立即抛出不重试。"""
     req_headers = {"User-Agent": random.choice(USER_AGENTS)}
     if headers:
         req_headers.update(headers)
@@ -160,18 +142,42 @@ def http_get_with_headers(url: str, headers: dict[str, str] | None = None,
             return result
         except RateLimitError:
             raise
-        except (http.client.HTTPException, socket.error, OSError,
-                ConnectionResetError, BrokenPipeError) as e:
+        except (
+            http.client.HTTPException,
+            socket.error,
+            OSError,
+            ConnectionResetError,
+            BrokenPipeError,
+        ) as e:
             last_err = e
             if conn is not None:
                 _invalidate_connection(url, conn)
                 conn = None
             if attempt < max_retries - 1:
-                delay = min(1.0 * (2 ** attempt), 8.0)
+                delay = min(1.0 * (2**attempt), 8.0)
                 jitter = random.uniform(0, delay * 0.5)
                 time.sleep(delay + jitter)
 
     raise NetworkError(url, str(last_err), max_retries)
+
+
+def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
+    """GET 请求，指数退避重试，连接池复用。429 立即抛出不重试。"""
+    return _http_get_internal(
+        url, headers=None, timeout=timeout, max_retries=max_retries
+    )
+
+
+def http_get_with_headers(
+    url: str,
+    headers: dict[str, str] | None = None,
+    timeout: int = 10,
+    max_retries: int = 3,
+) -> bytes:
+    """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。"""
+    return _http_get_internal(
+        url, headers=headers, timeout=timeout, max_retries=max_retries
+    )
 
 
 def decode_gbk(data: bytes) -> str:
@@ -180,5 +186,9 @@ def decode_gbk(data: bytes) -> str:
 
 
 __all__ = [
-    "USER_AGENTS", "http_get", "http_get_with_headers", "decode_gbk",
+    "USER_AGENTS",
+    "MAX_POOL_SIZE",
+    "http_get",
+    "http_get_with_headers",
+    "decode_gbk",
 ]

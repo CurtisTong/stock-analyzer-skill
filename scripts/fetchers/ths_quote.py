@@ -1,8 +1,8 @@
 """同花顺行情数据源。"""
+
 import logging
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 from common import BaseFetcher, http_get, to_float
 
@@ -32,6 +32,7 @@ def _parse_quote(text: str, code: str) -> dict | None:
     try:
         # 同花顺返回格式：quote({...})
         import json
+
         start = text.find("{")
         end = text.rfind("}") + 1
         if start < 0 or end <= 0:
@@ -63,10 +64,15 @@ def _parse_quote(text: str, code: str) -> dict | None:
 
 
 class ThsQuoteFetcher(BaseFetcher):
-    """同花顺行情数据源 (优先级 7)。"""
+    """同花顺行情数据源 (优先级 3)。
+
+    注意：当前使用 K 线接口（v6/line）获取数据，返回的是最近一个完成 K 线的
+    收盘价而非实时价格。因此优先级设为较低，仅作为其他实时源均不可用时的后备。
+    盘中数据请以腾讯/东财/新浪等实时源为准。
+    """
 
     def __init__(self):
-        super().__init__("ths_quote", priority=7)
+        super().__init__("ths_quote", priority=3)
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         market, stock_code = _to_ths_params(code)

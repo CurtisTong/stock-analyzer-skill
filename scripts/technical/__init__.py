@@ -2,7 +2,9 @@
 technical 包：A 股纯技术分析模块化包。
 
 公开函数保持与原 technical.py 完全兼容。
+__all__ 仅包含公共 API；私有符号可通过 from technical.xxx import _yyy 导入。
 """
+
 # 数学工具与数据解析
 from .core import (
     sma,
@@ -14,16 +16,10 @@ from .core import (
 )
 
 # 均线系统
-from .moving_average import (
-    ma_system,
-    _MA_PERIODS,
-)
+from .moving_average import ma_system, _MA_PERIODS
 
 # MACD
-from .macd import (
-    macd_full,
-    _detect_macd_divergence,
-)
+from .macd import macd_full, _detect_macd_divergence
 
 # KDJ
 from .kdj import kdj_full
@@ -35,11 +31,7 @@ from .boll import bollinger
 from .rsi import rsi_features
 
 # 成交量
-from .volume import (
-    volume_analysis,
-    _obv_series,
-    _detect_obv_divergence,
-)
+from .volume import volume_analysis, _obv_series, _detect_obv_divergence
 
 # K 线形态
 from .candlestick import (
@@ -61,10 +53,7 @@ from .trend import (
 )
 
 # A 股特化
-from .astock import (
-    limit_analysis,
-    _count_limit_streak,
-)
+from .astock import limit_analysis, _count_limit_streak
 
 # 综合评分
 from .scoring import (
@@ -80,19 +69,17 @@ from .scoring import (
 from .signals import _generate_signals
 
 # 报告渲染
-from .report import (
-    _fmt,
-    render_report,
-    render_quick,
-)
+from .report import _fmt, render_report, render_quick
 
 __all__ = [
     # core
-    "sma", "ema", "_ema_series", "stddev", "_find_swing_points", "_parse_records",
+    "sma",
+    "ema",
+    "stddev",
     # moving_average
-    "ma_system", "_MA_PERIODS",
+    "ma_system",
     # macd
-    "macd_full", "_detect_macd_divergence",
+    "macd_full",
     # kdj
     "kdj_full",
     # boll
@@ -100,20 +87,20 @@ __all__ = [
     # rsi
     "rsi_features",
     # volume
-    "volume_analysis", "_obv_series", "_detect_obv_divergence",
+    "volume_analysis",
     # candlestick
-    "detect_candle_patterns", "_body_shadow", "_is_bullish",
-    "_candle_single", "_candle_double", "_candle_triple", "_candle_ashare",
+    "detect_candle_patterns",
     # trend
-    "support_resistance", "box_detection", "breakout_check", "wave_state",
+    "support_resistance",
+    "box_detection",
+    "breakout_check",
+    "wave_state",
     # astock
-    "limit_analysis", "_count_limit_streak",
+    "limit_analysis",
     # scoring
-    "composite_score", "detect_market_environment",
-    "_market_weight_adjustments", "_get_stock_type_weights",
-    "_STOCK_TYPE_WEIGHTS_DEFAULT", "_MARKET_WEIGHT_ADJUSTMENTS_DEFAULT",
-    # signals
-    "_generate_signals",
+    "composite_score",
+    "detect_market_environment",
     # report
-    "_fmt", "render_report", "render_quick",
+    "render_report",
+    "render_quick",
 ]

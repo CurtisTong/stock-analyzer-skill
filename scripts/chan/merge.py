@@ -43,6 +43,8 @@ def chan_merge_inclusions(records, max_merge=3):
                 merged[-1] = {
                     "high": max(prev["high"], curr["high"]),
                     "low": max(prev["low"], curr["low"]),
+                    "open": prev.get("open", curr.get("open", 0)),
+                    "close": curr.get("close", prev.get("close", 0)),
                     "date": curr["date"],
                     "idx": curr["idx"],
                 }
@@ -50,6 +52,8 @@ def chan_merge_inclusions(records, max_merge=3):
                 merged[-1] = {
                     "high": min(prev["high"], curr["high"]),
                     "low": min(prev["low"], curr["low"]),
+                    "open": prev.get("open", curr.get("open", 0)),
+                    "close": curr.get("close", prev.get("close", 0)),
                     "date": curr["date"],
                     "idx": curr["idx"],
                 }

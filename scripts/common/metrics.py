@@ -1,9 +1,10 @@
 """轻量级指标收集器：fetch 延迟、成功率、缓存命中率。"""
+
 import json
 import time
 import threading
 from pathlib import Path
-from collections import defaultdict
+from collections import defaultdict, deque
 
 
 class MetricsCollector:
@@ -12,7 +13,9 @@ class MetricsCollector:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._counters: dict[str, int] = defaultdict(int)
-        self._latencies: dict[str, list[float]] = defaultdict(list)
+        self._latencies: dict[str, deque[float]] = defaultdict(
+            lambda: deque(maxlen=1000)
+        )
         self._start_time = time.time()
 
     def record_fetch(self, source: str, success: bool, latency_ms: float) -> None:
@@ -55,11 +58,15 @@ class MetricsCollector:
                         "count": len(values),
                     }
             # 计算成功率
-            for source in set(k.split(".")[1] for k in self._counters if k.startswith("fetch.")):
+            for source in set(
+                k.split(".")[1] for k in self._counters if k.startswith("fetch.")
+            ):
                 total = self._counters.get(f"fetch.{source}.total", 0)
                 success = self._counters.get(f"fetch.{source}.success", 0)
                 if total > 0:
-                    counters[f"fetch.{source}.success_rate"] = round(success / total * 100, 1)
+                    counters[f"fetch.{source}.success_rate"] = round(
+                        success / total * 100, 1
+                    )
             # 缓存命中率
             cache_total = self._counters.get("cache.total", 0)
             cache_hit = self._counters.get("cache.hit", 0)
@@ -71,6 +78,7 @@ class MetricsCollector:
         """将指标写入 JSON 文件。"""
         if path is None:
             from common import cache
+
             path = cache.CACHE_DIR / "metrics.json"
         path.parent.mkdir(exist_ok=True)
         path.write_text(json.dumps(self.get_summary(), ensure_ascii=False, indent=2))

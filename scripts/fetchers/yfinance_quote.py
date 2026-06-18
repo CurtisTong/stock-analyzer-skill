@@ -3,9 +3,7 @@
 仅处理 us: 前缀的美股代码（如 us:^gspc、us:spy），A 股代码返回 NOT_HANDLED 不干扰现有链路。
 """
 import logging
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, NOT_HANDLED
 

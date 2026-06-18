@@ -18,8 +18,15 @@ scripts/data/expert_calibration.json
 # 运行时数据缓存
 .cache/
 scripts/data/all_stocks.json
+scripts/data/strategy_performance.json
+
+# pytest 覆盖率报告
+.coverage
+.coverage.*
 
 # 本地 skill 软链（由 install.sh 创建，不入版本控制）
 .claude/skills/
 .codex/skills/
 docs/superpowers/plans
+# 快照数据目录
+scripts/data/snapshots/

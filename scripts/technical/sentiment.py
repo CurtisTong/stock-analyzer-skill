@@ -12,26 +12,37 @@
     python3 scripts/technical/sentiment.py
     python3 scripts/technical/sentiment.py --json
 """
+
 import json
+import os
 import sys
 from datetime import datetime
-from pathlib import Path
+from urllib.parse import urlencode
 
-# 添加 scripts 目录到 path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from common import http_get
 
-from common.http import HttpClient
-
+_EASTMONEY_UT = os.getenv(
+    "EASTMONEY_UT_TOKEN",
+    "fa5fd1943c7b386f172d6893dbbd4dc1",
+)
 
 # ═══════════════════════════════════════════════════════════════
 # 市场数据获取
 # ═══════════════════════════════════════════════════════════════
 
+
+def _http_get_json(url: str, params: dict | None = None) -> dict:
+    """GET 请求并解析 JSON。"""
+    if params:
+        url = f"{url}?{urlencode(params)}"
+    raw = http_get(url, timeout=15)
+    if isinstance(raw, bytes):
+        return json.loads(raw)
+    return raw
+
+
 class MarketDataFetcher:
     """市场数据获取器。"""
-
-    def __init__(self):
-        self.http = HttpClient()
 
     def get_limit_data(self) -> dict:
         """获取涨跌停数据。
@@ -48,14 +59,11 @@ class MarketDataFetcher:
             # 使用东方财富接口获取涨停数据
             url = "https://push2ex.eastmoney.com/getTopicZTPool"
             params = {
-                "ut": "7eea3edcaed734bea9cb3f86c5e6ddca",
+                "ut": _EASTMONEY_UT,
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
+            data = _http_get_json(url, params=params)
 
             pool = data.get("data", {}).get("pool", [])
             limit_up_count = len(pool)
@@ -90,15 +98,11 @@ class MarketDataFetcher:
         try:
             url = "https://push2ex.eastmoney.com/getTopicDTPool"
             params = {
-                "ut": "7eea3edcaed734bea9cb3f86c5e6ddca",
+                "ut": _EASTMONEY_UT,
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
-
+            data = _http_get_json(url, params=params)
             pool = data.get("data", {}).get("pool", [])
             return len(pool)
         except Exception:
@@ -109,14 +113,11 @@ class MarketDataFetcher:
         try:
             url = "https://push2ex.eastmoney.com/getTopicZTPool"
             params = {
-                "ut": "7eea3edcaed734bea9cb3f86c5e6ddca",
+                "ut": _EASTMONEY_UT,
                 "dpt": "wz.ztzt",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
+            data = _http_get_json(url, params=params)
 
             pool = data.get("data", {}).get("pool", [])
             if not pool:
@@ -149,10 +150,7 @@ class MarketDataFetcher:
                 "sortTypes": "-1",
                 "pageSize": 1,
             }
-            data = self.http.get(url, params=params)
-
-            if isinstance(data, str):
-                data = json.loads(data)
+            data = _http_get_json(url, params=params)
 
             result = data.get("result", {})
             records = result.get("data", [])
@@ -171,14 +169,15 @@ class MarketDataFetcher:
 # 情绪计算
 # ═══════════════════════════════════════════════════════════════
 
+
 class SentimentCalculator:
     """市场情绪计算器。"""
 
     # 权重配置
     WEIGHTS = {
-        "limit_up": 0.30,        # 涨停家数
+        "limit_up": 0.30,  # 涨停家数
         "continuous_height": 0.25,  # 连板高度
-        "broken_rate": 0.20,     # 炸板率
+        "broken_rate": 0.20,  # 炸板率
         "margin_balance": 0.25,  # 两融余额
     }
 
@@ -202,16 +201,18 @@ class SentimentCalculator:
         """
         # 计算各指标得分
         limit_up_score = self._calc_limit_up_score(market_data.get("limit_up_count", 0))
-        height_score = self._calc_height_score(market_data.get("continuous_limit_height", 0))
+        height_score = self._calc_height_score(
+            market_data.get("continuous_limit_height", 0)
+        )
         broken_score = self._calc_broken_score(market_data.get("broken_limit_rate", 0))
         margin_score = self._calc_margin_score(market_data.get("margin_balance", 0))
 
         # 加权计算总分
         total_score = (
-            limit_up_score * self.WEIGHTS["limit_up"] +
-            height_score * self.WEIGHTS["continuous_height"] +
-            broken_score * self.WEIGHTS["broken_rate"] +
-            margin_score * self.WEIGHTS["margin_balance"]
+            limit_up_score * self.WEIGHTS["limit_up"]
+            + height_score * self.WEIGHTS["continuous_height"]
+            + broken_score * self.WEIGHTS["broken_rate"]
+            + margin_score * self.WEIGHTS["margin_balance"]
         )
 
         total_score = max(0, min(100, int(total_score)))

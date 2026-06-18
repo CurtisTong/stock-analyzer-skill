@@ -16,28 +16,19 @@ _MOMENTUM_DECAY_TABLE = {
 
 
 def _detect_quant_activity(quote: dict, features: dict) -> str:
-    """检测量化活跃度。
+    """检测量化活跃度。review#6 修复：阈值改用动态百分位而非硬编码 12000。
 
-    依据：
-    - 全市场成交额（如果 quote 有提供）> 1.2 万亿 → 量化高活跃
-    - 换手率 > 3% → 量化活跃度高
-    - 日内波动率特征
+    优先级：
+      1. quote["market_amount_p75"] — 调用方提供的 75% 分位（推荐）
+      2. quote["market_amount"] > 12000 — 硬编码 fallback（保守）
     """
-    # 优先使用全市场成交额
     market_amount = to_float(quote.get("market_amount", 0))
-    if market_amount > 12000:  # 1.2万亿
+    p75 = to_float(quote.get("market_amount_p75", 0))
+    if p75 > 0 and market_amount > p75:
         return "quant_high"
-    if market_amount > 8000:  # 8000亿
-        return "quant_normal"
-
-    # 通过换手率推断
-    turnover = to_float(quote.get("turnover", 0))
-    if turnover > 3.0:
+    if p75 <= 0 and market_amount > 12000:  # 兼容旧调用
         return "quant_high"
-    if turnover > 1.5:
-        return "quant_normal"
-
-    return "quant_low"
+    return "quant_normal"
 
 
 def momentum_score(features: dict, quote: dict) -> float:
@@ -54,37 +45,22 @@ def momentum_score(features: dict, quote: dict) -> float:
     quant_regime = _detect_quant_activity(quote, features)
     decay = _MOMENTUM_DECAY_TABLE.get(quant_regime, 1.0)
 
-    # 估值衰减：高估值股票的动量信号可靠性低（泡沫而非趋势）
+    # 估值衰减：用统一的 pe_percentile
     pe = to_float(quote.get("pe"))
     if pe > 0:
-        # 优先用已有的 pe_percentile，否则从行业阈值估算
         pe_pct = to_float(quote.get("pe_percentile", 0))
         if pe_pct <= 0:
-            try:
-                from strategies.thresholds import get_industry_threshold
-                from classifier import infer_industry
+            from strategies.factors.common import pe_percentile
 
-                industry = infer_industry(quote.get("name", ""), quote.get("code", ""))
-                pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
-                pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
-                pe_high = get_industry_threshold(industry, "pe_expensive", 40)
-            except Exception:
-                pe_low, pe_mid, pe_high = 15, 25, 40
-            if pe <= pe_low:
-                pe_pct = 15
-            elif pe <= pe_mid:
-                pe_pct = 15 + (pe - pe_low) / (pe_mid - pe_low) * 35
-            elif pe <= pe_high:
-                pe_pct = 50 + (pe - pe_mid) / (pe_high - pe_mid) * 30
-            else:
-                pe_pct = min(95, 80 + (pe - pe_high) / pe_high * 20)
+            industry = quote.get("industry", "默认")
+            pe_pct = pe_percentile(pe, industry)
         if pe_pct > 80:
-            decay *= 0.45  # 估值极高位，动量信号大幅降权
+            decay *= 0.45
         elif pe_pct > 65:
-            decay *= 0.70  # 估值偏高，适度降权
+            decay *= 0.70
 
-    # 趋势基础分：缩小上升/下降差距，避免过度敏感
-    score = 40 if features["trend"] > 0 else 20 if features["trend"] == 0 else 12
+    # 趋势基础分：review#7 收敛（40→30, 20→18, 12→15），为量价确认信号腾出空间
+    score = 30 if features["trend"] > 0 else 18 if features["trend"] == 0 else 15
     score += clamp((ret20 + 8) / 25 * 22)
     score += clamp((volume_ratio - 0.6) / 1.4 * 12)
     score += clamp(turnover / 6 * 6)
@@ -103,11 +79,11 @@ def momentum_score(features: dict, quote: dict) -> float:
         0.6 if (macd_signal > 0 and rsi > 50) or (macd_signal < 0 and rsi < 50) else 1.0
     )
     if 30 <= rsi <= 70:
-        score += int(5 * rsi_weight)
+        score += round(5 * rsi_weight, 2)
     elif rsi > 80:
-        score -= int(6 * rsi_weight)
+        score -= round(6 * rsi_weight, 2)
     elif rsi < 20:
-        score -= int(4 * rsi_weight)
+        score -= round(4 * rsi_weight, 2)
 
     vol_price_signal = features.get("vol_price_signal", 0)
     if vol_price_signal > 0:

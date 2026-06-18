@@ -67,3 +67,14 @@ def score(stock_data: dict) -> Dict[str, float]:
         margin = 0
 
     return {"基本面": base, "估值": val, "技术面": tech, "情绪": sent, "安全边际": margin}
+
+
+def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
+    """段永平评分（含推理链）。
+
+    v2.2.0 起统一使用 generic_score_with_reasoning 模板。
+    """
+    from experts.registry import EXPERT_REGISTRY
+    from ._utils import generic_score_with_reasoning
+    profile = EXPERT_REGISTRY["duan_yongping"]
+    return generic_score_with_reasoning(profile, score, stock_data)

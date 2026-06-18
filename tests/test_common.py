@@ -1,6 +1,7 @@
 """
 common.py 单元测试：覆盖熔断器、缓存、异常处理、连接池。
 """
+
 import http.client
 import threading
 import time
@@ -23,7 +24,12 @@ from common import (
     to_float,
     err,
 )
-from common.http import _get_connection, _return_connection, _connection_pool, _pool_lock
+from common.http import (
+    _get_connection,
+    _return_connection,
+    _connection_pool,
+    _pool_lock,
+)
 from common.utils import parallel_map
 
 
@@ -55,7 +61,9 @@ class TestCircuitBreaker:
         assert cb.state == CircuitState.HALF_OPEN
 
     def test_closes_after_success_in_half_open(self):
-        cb = CircuitBreaker("test", failure_threshold=2, recovery_timeout=0, half_open_max=1)
+        cb = CircuitBreaker(
+            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+        )
         cb.record_failure()
         cb.record_failure()
         time.sleep(0.01)
@@ -94,7 +102,11 @@ class TestCircuitBreaker:
             t.join()
 
         assert len(errors) == 0
-        assert cb.state in (CircuitState.CLOSED, CircuitState.OPEN, CircuitState.HALF_OPEN)
+        assert cb.state in (
+            CircuitState.CLOSED,
+            CircuitState.OPEN,
+            CircuitState.HALF_OPEN,
+        )
 
 
 # ====================================================================
@@ -187,13 +199,14 @@ class TestParallelMap:
 
     def test_parallel_map_partial_results(self):
         """超时时返回已完成的部分结果，而非抛异常。"""
+
         def task(item):
             if item in ("slow1", "slow2"):
                 time.sleep(10)  # 模拟超时任务
             return f"result_{item}"
 
         items = ["fast1", "fast2", "fast3", "slow1", "slow2"]
-        results = parallel_map(task, items, max_workers=5, timeout=1)
+        results = parallel_map(task, items, timeout=1)
 
         # 3 个快速任务应返回有效结果
         assert results["fast1"] == "result_fast1"
@@ -244,14 +257,14 @@ class TestConnectionPool:
         conn.close()
 
     def test_return_connection_pools(self):
-        """归还的连接被放入池中。"""
+        """归还的连接被放入池中（列表形式）。"""
         conn = _get_connection("https://api.example.com/test")
         # 模拟连接已建立（设置 sock）
         conn.sock = MagicMock()
         _return_connection("https://api.example.com/test", conn)
         pool_key = "https://api.example.com:443"
         assert pool_key in _connection_pool
-        assert _connection_pool[pool_key] is conn
+        assert conn in _connection_pool[pool_key]
 
     def test_get_connection_reuses_pooled(self):
         """池中有可用连接时复用。"""
@@ -296,6 +309,7 @@ class TestConnectionPool:
 # ====================================================================
 # 7. DataFetcherManager 优先级覆盖
 # ====================================================================
+
 
 class _StubFetcher(BaseFetcher):
     """测试用 fetcher，返回固定值。"""

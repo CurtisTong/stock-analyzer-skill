@@ -4,46 +4,14 @@ group: short_term
 style: 趋势龙头
 horizon: 日/周
 core_signal: 量价+情绪/题材
-
 weights:
   基本面: 10.0
-  估值: 8.0
-  技术面: 35.0
+  估值: 12.0
+  技术面: 31.0
   情绪/题材: 35.0
   风险: 12.0
-
 veto_conditions:
   - 龙头地位被替代（板块龙头切换）
   - 跌破20日均线（一票否决）
-
-scoring_thresholds:
-  trend_strong: 0.05
-  volume_ratio_high: 2.0
-  ma20_support: 0.02
-
-investment_philosophy: |
-  趋势龙头：只做板块龙头。
-  波段操作：持有 3-7 天。
-  强者恒强：追涨强势股。
-
-buy_rules:
-  - 板块龙头确认
-  - 趋势向上（MA20 上行）
-  - 量能放大（量比 > 1.5）
-  - 回踩支撑位
-
-sell_rules:
-  - 跌破 20 日均线
-  - 龙头地位被替代
-  - 板块转弱
-
-position_rules:
-  - 集中持仓（1-2 只）
-  - 单只不超过 60%
-  - 止损 -8%
-
-a_share_applicability: |
-  A 股趋势龙头适用，但需注意：
-  - 龙头切换频繁
-  - 需要快速反应能力
-  - 需关注板块轮动节奏
+md_path: experts/zhao_laoge.md
+active: false

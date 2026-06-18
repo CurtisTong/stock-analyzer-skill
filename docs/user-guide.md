@@ -2,7 +2,68 @@
 
 # 使用者指南
 
-掌握所有 9 个核心技能的用法。
+> **你不需要看完整份指南**——挑一个目标进去就行，剩下的按需翻。
+
+## 🎯 TL;DR · 9 个 skill 一句话表
+
+| 你的目标 | 命令 | 一句话价值 |
+| --- | --- | --- |
+| 🔍 找几只值得买的股票 | `/screener` | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单 |
+| 📊 看今天大盘涨跌 | `/market quick` | 三大指数 + 板块 Top3 + 一句话策略 |
+| 💼 看看我的持仓 | `/portfolio` | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
+| 🎯 分析一只股票 | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 8 人圆桌 / 纯技术面 |
+| 🌐 某个板块怎么样 | `/sector <板块>` | 板块全景 + 标的对比 + 板块内筛选 |
+| 🔬 深度研究一只股票 | `/research <任务>` | 财务建模 + 排雷 + DCF + 投资建议 |
+| 🧪 验证选股策略 | `/backtest` | 胜率 + 收益 + 夏普 + 回撤 + 基准对比 |
+| 📡 盘中盯盘（异动/预警） | `/monitor` | 持仓异动 + 价格预警 + Bark/企微/钉钉 |
+| 📚 学投资基础 | `/learn` | PE/ROE/MACD/均线/缠论 系统化学习路径 |
+
+## 🗺️ 4 个组合使用场景
+
+### 场景 A：自上而下选股（最常用）
+
+```
+market → sector → screener → stock → technical → portfolio
+```
+
+1. `/market quick` — 了解市场状态（进攻 / 均衡 / 防守）
+2. `/sector <强势板块>` — 找当前资金偏好
+3. `/screener --sector <板块> --strategy quality_value` — 板块内筛选
+4. `/stock <候选股> quick` — 快速分析候选
+5. `/stock <候选股> technical` — 确认买点 / 止损位
+6. `/portfolio` — 决定是否纳入持仓、仓位多少
+
+### 场景 B：诊断现有持仓
+
+```
+portfolio → stock → technical
+```
+
+1. `/portfolio health` — 持仓健康度（涨跌 + 板块集中度 + 风险）
+2. `/stock <持仓股> debate` — 听 8 位专家辩论
+3. `/stock <持仓股> technical` — 确认技术面是否破位
+
+### 场景 C：挖掘板块机会
+
+```
+market → sector → screener
+```
+
+1. `/market` — 看今日板块 Top3 / Bot3
+2. `/sector <板块> overview` — 板块全景
+3. `/sector <板块> compare` — 板块内核心标的横向对比
+
+### 场景 D：深度研究单股
+
+```
+stock debate → research financial → research report
+```
+
+1. `/stock <代码> debate` — 8 人圆桌 + 最终方向
+2. `/research financial <任务>` — 财务建模 / 杜邦 / DCF
+3. `/research report <任务>` — 全维度投资研究报告
+
+> 想看"持仓再平衡"等更多流程？见下方 [完整使用流程](#完整使用流程自下而上--再平衡--研究报告) 段。
 
 ## 股票代码格式
 
@@ -319,18 +380,9 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 支持 Bark、企微、钉钉等推送通知。
 
-## 组合使用场景
+## 完整使用流程（自下而上 / 再平衡 / 研究报告）
 
-### 自上而下选股
-
-`market` → `sector` → `screener` → `stock` → `technical` → `portfolio`
-
-1. `market` 给出市场状态：进攻、均衡、防守
-2. `sector` 找强弱板块和主题位置
-3. `screener` 生成候选池和剔除原因
-4. `stock` 对候选股做五层分析
-5. `technical` 给买入触发、失效位、支撑阻力
-6. `portfolio` 决定是否纳入持仓、替换谁、仓位多少
+> 顶部 TL;DR 已覆盖最常见的 4 个场景（A/B/C/D）。这里是补充流程：自下而上验证、持仓再平衡、深度研究报告。
 
 ### 自下而上验证
 

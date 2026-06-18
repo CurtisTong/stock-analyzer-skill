@@ -1,0 +1,18 @@
+name: risk_manager
+display_name: 风险管理
+group: long_term
+style: 二阶思维+周期位置
+horizon: 持续监控
+core_signal: 周期位置+风险预算+二阶思维
+weights:
+  基本面: 20.0
+  估值: 20.0
+  技术面: 20.0
+  情绪: 10.0
+  风险: 30.0
+veto_conditions:
+  - 市场周期顶部（所有人同边 + 流动性枯竭）
+  - 组合集中度过高（单一标的 > 30%）
+  - 杠杆过高
+md_path: experts/risk_manager.md
+active: true

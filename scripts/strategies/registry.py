@@ -1,6 +1,7 @@
 """
 策略注册表：管理策略定义和权重配置。
 """
+
 from typing import Dict, Optional
 
 # ---------- 内置策略定义 ----------
@@ -10,30 +11,30 @@ from typing import Dict, Optional
 
 STRATEGIES: Dict[str, dict] = {
     "balanced": {
-        "quality": 0.23,
-        "valuation": 0.18,
-        "momentum": 0.18,
-        "liquidity": 0.14,
-        "volatility": 0.18,
-        "dividend": 0.09,
+        "quality": 0.30,
+        "valuation": 0.20,
+        "momentum": 0.20,
+        "liquidity": 0.10,
+        "volatility": 0.15,
+        "dividend": 0.05,
         "label": "均衡精选",
     },
     "quality_value": {
-        "quality": 0.32,
-        "valuation": 0.28,
+        "quality": 0.30,
+        "valuation": 0.35,
         "momentum": 0.05,
         "liquidity": 0.10,
-        "volatility": 0.15,
+        "volatility": 0.10,
         "dividend": 0.10,
         "label": "质量价值",
     },
     "growth_momentum": {
-        "quality": 0.18,
-        "valuation": 0.15,
+        "quality": 0.20,
+        "valuation": 0.20,
         "momentum": 0.35,
-        "liquidity": 0.12,
-        "volatility": 0.18,
-        "dividend": 0.02,
+        "liquidity": 0.15,
+        "volatility": 0.05,
+        "dividend": 0.05,
         "label": "成长动量",
     },
     "defensive": {
@@ -46,18 +47,20 @@ STRATEGIES: Dict[str, dict] = {
         "label": "防守低波",
     },
     "turning_point": {
-        "quality": 0.18,
-        "valuation": 0.18,
-        "momentum": 0.30,
-        "liquidity": 0.14,
-        "volatility": 0.16,
-        "dividend": 0.04,
+        "quality": 0.20,
+        "valuation": 0.20,
+        "momentum": 0.20,
+        "liquidity": 0.15,
+        "volatility": 0.15,
+        "dividend": 0.10,
         "label": "拐点修复",
+        "two_stage": True,
     },
 }
 
 
 # ---------- 策略注册 API ----------
+
 
 def register_strategy(name: str, weights: dict, label: str = "") -> None:
     """注册新策略。
@@ -68,6 +71,7 @@ def register_strategy(name: str, weights: dict, label: str = "") -> None:
                  volatility 和 dividend 为可选因子（默认 0）
         label: 策略中文标签
     """
+    weights = {**weights}
     required_keys = {"quality", "valuation", "momentum", "liquidity"}
     if not required_keys.issubset(weights.keys()):
         raise ValueError(f"策略权重必须包含 {required_keys}")

@@ -1,8 +1,6 @@
 """东方财富资金流向数据源（北向资金、个股主力净流入）。"""
-import sys
 import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get, to_secid, to_float
 

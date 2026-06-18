@@ -8,6 +8,7 @@
   python3 scripts/monitor/alert_engine.py check              # 盘中检查，触发推送
   python3 scripts/monitor/alert_engine.py check --dry-run    # 只输出不推送
 """
+
 import json
 import sys
 import time
@@ -16,62 +17,82 @@ from pathlib import Path
 from typing import Optional
 
 # 添加 scripts 目录到 path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import normalize_quote_code, to_float, board_type, board_limit_pct
 from data import get_quote, get_quotes, get_kline
+from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts, fetch_quote_dict
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.trend import support_resistance
-from monitor import NotificationManager
-from portfolio import PortfolioManager
+
+# 模块级缓存（惰性初始化）
+_nm = None
+_pm = None
+
+
+def _get_nm():
+    """获取 NotificationManager 单例。"""
+    global _nm
+    if _nm is None:
+        from monitor import NotificationManager
+
+        _nm = NotificationManager()
+    return _nm
+
+
+def _get_pm():
+    """获取 PortfolioManager 单例。"""
+    global _pm
+    if _pm is None:
+        from portfolio import PortfolioManager
+
+        _pm = PortfolioManager()
+    return _pm
+
+
+def _reset_cache():
+    """重置缓存（用于测试）。"""
+    global _nm, _pm
+    _nm = None
+    _pm = None
+
+
+# 从配置加载止损/止盈阈值
+try:
+    from config.loader import ConfigLoader
+
+    _STOP_LOSS_PCT = ConfigLoader.get("limits.yaml", "stop_loss_pct", -8)
+    _TAKE_PROFIT_PCT = ConfigLoader.get("limits.yaml", "take_profit_pct", 20)
+except Exception:
+    _STOP_LOSS_PCT = -8
+    _TAKE_PROFIT_PCT = 20
 
 
 # ═══════════════════════════════════════════════════════════════
 # 预警分级配置
 # ═══════════════════════════════════════════════════════════════
 
-# 预警级别定义
+# 预警类型配置（扁平化：每种类型包含级别、推送类型等全部元数据）
 ALERT_LEVELS = {
-    "urgent": {
-        "name": "紧急",
-        "notify": True,
-        "sound": True,
-        "types": [
-            "stop_loss",           # 触及止损线
-            "target_buy",          # 到达目标买入价
-            "target_sell",         # 到达目标卖出价
-            "near_limit",          # 距涨跌停 <1%
-        ],
-    },
-    "important": {
-        "name": "重要",
-        "notify": True,
-        "sound": False,
-        "types": [
-            "support_touch",       # 触及支撑位（强度=强）
-            "resistance_touch",    # 触及压力位
-            "macd_golden",         # MACD 金叉
-            "macd_dead",           # MACD 死叉
-            "ma_break",            # 均线突破
-            "take_profit",         # 持仓盈利 >20%
-        ],
-    },
-    "normal": {
-        "name": "普通",
-        "notify": False,  # 默认不推送
-        "sound": False,
-        "types": [
-            "support_touch_weak",  # 触及支撑位（强度=弱）
-        ],
-    },
+    "stop_loss": {"level": "urgent", "push_type": "risk"},
+    "target_buy": {"level": "urgent", "push_type": "price"},
+    "target_sell": {"level": "urgent", "push_type": "price"},
+    "near_limit": {"level": "urgent", "push_type": "risk"},
+    "support_touch": {"level": "important", "push_type": "break"},
+    "resistance_touch": {"level": "important", "push_type": "price"},
+    "macd_golden": {"level": "important", "push_type": "technical"},
+    "macd_dead": {"level": "important", "push_type": "technical"},
+    "ma_break": {"level": "important", "push_type": "technical"},
+    "take_profit": {"level": "important", "push_type": "portfolio"},
+    "support_touch_weak": {"level": "normal", "push_type": "break"},
 }
 
-# alert_type 到级别的映射
-_ALERT_TYPE_LEVEL = {}
-for level, config in ALERT_LEVELS.items():
-    for t in config["types"]:
-        _ALERT_TYPE_LEVEL[t] = level
+# 级别元数据（名称、通知、声音）
+_LEVEL_META = {
+    "urgent": {"name": "紧急", "notify": True, "sound": True},
+    "important": {"name": "重要", "notify": True, "sound": False},
+    "normal": {"name": "普通", "notify": False, "sound": False},
+}
 
 
 def get_alert_level(alert_type: str, urgent: bool = False) -> str:
@@ -86,7 +107,7 @@ def get_alert_level(alert_type: str, urgent: bool = False) -> str:
     """
     if urgent:
         return "urgent"
-    return _ALERT_TYPE_LEVEL.get(alert_type, "normal")
+    return ALERT_LEVELS.get(alert_type, {}).get("level", "normal")
 
 
 def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
@@ -99,16 +120,14 @@ def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
 
     # 实时行情
     try:
-        q = get_quote(code)
-        result["quote"] = q.to_dict() if q else None
+        result["quote"] = fetch_quote_dict_or_none(code)
     except Exception as e:
         result["error"] = f"行情获取失败: {e}"
         return result
 
     # K 线
     try:
-        bars = get_kline(code, 240, datalen)
-        records = [b.to_dict() for b in bars]
+        records = fetch_kline_dicts(code, scale=240, datalen=datalen)
     except Exception as e:
         result["error"] = f"K线获取失败: {e}"
         return result
@@ -133,8 +152,9 @@ def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
     return result
 
 
-def compute_key_levels(code: str, position: Optional[dict] = None,
-                       watch: Optional[dict] = None) -> dict:
+def compute_key_levels(
+    code: str, position: Optional[dict] = None, watch: Optional[dict] = None
+) -> dict:
     """计算单只股票的关键点位集合。
 
     Args:
@@ -166,6 +186,8 @@ def compute_key_levels(code: str, position: Optional[dict] = None,
         "change_pct": 0,
         "levels": {},
         "alerts": [],
+        "position": position,
+        "watch": watch,
         "error": data.get("error"),
     }
 
@@ -262,119 +284,160 @@ def compute_key_levels(code: str, position: Optional[dict] = None,
     return result
 
 
-def _check_alerts(price: float, levels: dict,
-                  position: Optional[dict] = None,
-                  watch: Optional[dict] = None) -> list:
+def _check_alerts(
+    price: float,
+    levels: dict,
+    position: Optional[dict] = None,
+    watch: Optional[dict] = None,
+) -> list:
     """检查当前价格是否触发预警条件。"""
     alerts = []
 
-    # 支撑位触及
+    # 支撑位触及（强/弱分级）
     for s in levels.get("supports", []):
         lv = s.get("level", 0)
         if lv > 0 and price <= lv * 1.01:
-            alerts.append({
-                "type": "support_touch",
-                "level": lv,
-                "source": s.get("source", ""),
-                "message": f"触及支撑位 {lv}（{s.get('source', '')}）",
-                "urgent": s.get("strength") == "强",
-            })
+            strength = s.get("strength", "中")
+            alert_type = "support_touch" if strength == "强" else "support_touch_weak"
+            alerts.append(
+                {
+                    "type": alert_type,
+                    "level": lv,
+                    "source": s.get("source", ""),
+                    "message": f"触及{strength}支撑位 {lv}（{s.get('source', '')}）",
+                    "urgent": strength == "强",
+                }
+            )
 
     # 压力位触及
     for r in levels.get("resistances", []):
         lv = r.get("level", 0)
         if lv > 0 and price >= lv * 0.99:
-            alerts.append({
-                "type": "resistance_touch",
-                "level": lv,
-                "source": r.get("source", ""),
-                "message": f"触及压力位 {lv}（{r.get('source', '')}）",
-                "urgent": False,
-            })
+            alerts.append(
+                {
+                    "type": "resistance_touch",
+                    "level": lv,
+                    "source": r.get("source", ""),
+                    "message": f"触及压力位 {lv}（{r.get('source', '')}）",
+                    "urgent": False,
+                }
+            )
 
     # 目标买入价
     tb = levels.get("target_buy", 0)
     if tb > 0 and price <= tb:
-        alerts.append({
-            "type": "target_buy",
-            "level": tb,
-            "message": f"到达目标买入价 {tb}",
-            "urgent": True,
-        })
+        alerts.append(
+            {
+                "type": "target_buy",
+                "level": tb,
+                "message": f"到达目标买入价 {tb}",
+                "urgent": True,
+            }
+        )
 
     # 目标卖出价
     ts = levels.get("target_sell", 0)
     if ts > 0 and price >= ts:
-        alerts.append({
-            "type": "target_sell",
-            "level": ts,
-            "message": f"到达目标卖出价 {ts}",
-            "urgent": True,
-        })
+        alerts.append(
+            {
+                "type": "target_sell",
+                "level": ts,
+                "message": f"到达目标卖出价 {ts}",
+                "urgent": True,
+            }
+        )
 
     # MACD 金叉/死叉
     macd_sig = levels.get("macd_signal", "")
     if macd_sig == "金叉":
-        alerts.append({
-            "type": "macd_golden",
-            "message": "MACD 金叉",
-            "urgent": False,
-        })
+        alerts.append(
+            {
+                "type": "macd_golden",
+                "message": "MACD 金叉",
+                "urgent": False,
+            }
+        )
     elif macd_sig == "死叉":
-        alerts.append({
-            "type": "macd_dead",
-            "message": "MACD 死叉",
-            "urgent": False,
-        })
+        alerts.append(
+            {
+                "type": "macd_dead",
+                "message": "MACD 死叉",
+                "urgent": False,
+            }
+        )
 
     # 均线突破
     for mb in levels.get("ma_breaks", []):
-        alerts.append({
-            "type": "ma_break",
-            "message": mb,
-            "urgent": False,
-        })
+        alerts.append(
+            {
+                "type": "ma_break",
+                "message": mb,
+                "urgent": False,
+            }
+        )
 
     # 涨跌停附近
     if levels.get("near_limit_up"):
-        alerts.append({
-            "type": "near_limit",
-            "message": f"距涨停 <1%（涨停价 {levels.get('limit_up')}）",
-            "urgent": True,
-        })
+        alerts.append(
+            {
+                "type": "near_limit",
+                "message": f"距涨停 <1%（涨停价 {levels.get('limit_up')}）",
+                "urgent": True,
+            }
+        )
     if levels.get("near_limit_down"):
-        alerts.append({
-            "type": "near_limit",
-            "message": f"距跌停 <1%（跌停价 {levels.get('limit_down')}）",
-            "urgent": True,
-        })
+        alerts.append(
+            {
+                "type": "near_limit",
+                "message": f"距跌停 <1%（跌停价 {levels.get('limit_down')}）",
+                "urgent": True,
+            }
+        )
 
     # 持仓盈亏预警
     if position:
         cost = to_float(position.get("cost", 0))
         if cost > 0:
             pnl_pct = (price - cost) / cost * 100
-            if pnl_pct <= -8:
-                alerts.append({
-                    "type": "stop_loss",
-                    "message": f"持仓亏损 {pnl_pct:.1f}%，触及止损线",
-                    "urgent": True,
-                })
-            elif pnl_pct >= 20:
-                alerts.append({
-                    "type": "take_profit",
-                    "message": f"持仓盈利 {pnl_pct:.1f}%，可考虑止盈",
-                    "urgent": False,
-                })
+            if pnl_pct <= _STOP_LOSS_PCT:
+                alerts.append(
+                    {
+                        "type": "stop_loss",
+                        "message": f"持仓亏损 {pnl_pct:.1f}%，触及止损线",
+                        "urgent": True,
+                    }
+                )
+            elif pnl_pct >= _TAKE_PROFIT_PCT:
+                alerts.append(
+                    {
+                        "type": "take_profit",
+                        "message": f"持仓盈利 {pnl_pct:.1f}%，可考虑止盈",
+                        "urgent": False,
+                    }
+                )
 
     return alerts
 
 
 def scan_all() -> list:
     """扫描持仓+自选股，返回关键点位集合。"""
-    pm = PortfolioManager()
+    pm = _get_pm()
     positions = pm.get_positions()
     watchlist = pm.get_watchlist()
+
+    # 批量预获取行情（减少串行 HTTP 请求）
+    all_codes = [p.get("code", "") for p in positions if p.get("code")]
+    pos_codes = set(all_codes)
+    for w in watchlist:
+        code = w.get("code", "")
+        if code and code not in pos_codes:
+            all_codes.append(code)
+
+    if all_codes:
+        try:
+            get_quotes(all_codes, use_cache=True)
+        except Exception:
+            pass  # 预获取失败不阻塞后续逐股获取
 
     results = []
 
@@ -387,7 +450,6 @@ def scan_all() -> list:
         results.append(r)
 
     # 自选（去重）
-    pos_codes = {p.get("code") for p in positions}
     for w in watchlist:
         code = w.get("code", "")
         if not code or code in pos_codes:
@@ -409,7 +471,7 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
         {"scanned": int, "alerts": int, "pushed": int, "details": [...]}
     """
     results = scan_all()
-    nm = NotificationManager() if not dry_run else None
+    nm = _get_nm() if not dry_run else None
 
     # 级别阈值：只推送 >= level 的预警
     level_order = {"normal": 0, "important": 1, "urgent": 2}
@@ -451,8 +513,10 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
                 continue
 
             # 构造推送内容
-            level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(alert_level, "⚪")
-            body = f"{level_icon} [{ALERT_LEVELS[alert_level]['name']}]"
+            level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(
+                alert_level, "⚪"
+            )
+            body = f"{level_icon} [{_LEVEL_META[alert_level]['name']}]"
             body += f"\n现价 {price}"
             if r.get("change_pct"):
                 body += f"（{r['change_pct']:+.2f}%）"
@@ -479,20 +543,7 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
             }
 
             if not dry_run and nm:
-                # 映射 alert_type 到 send_alert 的类型
-                type_map = {
-                    "support_touch": "break",
-                    "resistance_touch": "price",
-                    "target_buy": "price",
-                    "target_sell": "price",
-                    "macd_golden": "technical",
-                    "macd_dead": "technical",
-                    "ma_break": "technical",
-                    "near_limit": "risk",
-                    "stop_loss": "risk",
-                    "take_profit": "portfolio",
-                }
-                push_type = type_map.get(alert_type, "price")
+                push_type = ALERT_LEVELS.get(alert_type, {}).get("push_type", "price")
                 result = nm.send_alert(
                     alert_type=push_type,
                     stock_name=name,
@@ -555,7 +606,9 @@ def render_scan(results: list) -> str:
         if macd_info:
             sig = levels.get("macd_signal", "")
             bar = macd_info.get("bar_trend", "")
-            lines.append(f"  MACD: DIF={macd_info.get('dif')} DEA={macd_info.get('dea')} | {sig or bar}")
+            lines.append(
+                f"  MACD: DIF={macd_info.get('dif')} DEA={macd_info.get('dea')} | {sig or bar}"
+            )
 
         # 目标价
         if levels.get("target_buy"):
@@ -623,8 +676,8 @@ def main():
             level_idx = args.index("--level")
             if level_idx + 1 < len(args):
                 level = args[level_idx + 1]
-                if level not in ALERT_LEVELS:
-                    print(f"无效的级别: {level}，可选: {', '.join(ALERT_LEVELS.keys())}")
+                if level not in _LEVEL_META:
+                    print(f"无效的级别: {level}，可选: {', '.join(_LEVEL_META.keys())}")
                     sys.exit(1)
 
         summary = check_and_push(dry_run=dry_run, level=level)
@@ -632,14 +685,20 @@ def main():
             print(json.dumps(summary, ensure_ascii=False, indent=2))
         else:
             mode = "（dry-run）" if dry_run else ""
-            level_name = ALERT_LEVELS.get(level, {}).get("name", level)
+            level_name = _LEVEL_META.get(level, {}).get("name", level)
             print(f"📡 盘中检查{mode} | {summary['timestamp']}")
             print(f"推送级别: {level_name}")
-            print(f"扫描: {summary['scanned']} | 预警: {summary['alerts']} | 过滤: {summary.get('filtered', 0)} | 推送: {summary['pushed']}")
+            print(
+                f"扫描: {summary['scanned']} | 预警: {summary['alerts']} | 过滤: {summary.get('filtered', 0)} | 推送: {summary['pushed']}"
+            )
             for d in summary.get("details", []):
                 status = "✅" if d.get("pushed") else "⏭️"
-                level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(d.get("level", ""), "⚪")
-                print(f"  {status} {level_icon} {d['name']}({d['code']}): {d['message']}")
+                level_icon = {"urgent": "🔴", "important": "🟡", "normal": "🟢"}.get(
+                    d.get("level", ""), "⚪"
+                )
+                print(
+                    f"  {status} {level_icon} {d['name']}({d['code']}): {d['message']}"
+                )
 
     else:
         print(f"未知命令: {cmd}")

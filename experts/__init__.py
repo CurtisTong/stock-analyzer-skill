@@ -16,40 +16,10 @@
 每位专家的人设、案例、引用仍以 experts/<name>.md 为权威来源，
 本模块只承载结构化字段（权重 + 否决条件 + 标签）。
 """
-from dataclasses import dataclass, field
+
 from typing import Dict, List, Optional
 
-
-@dataclass(frozen=True)
-class ExpertProfile:
-    """专家人设的结构化档案。"""
-    name: str                       # 英文短名（e.g. "buffett"）
-    display_name: str               # 中文显示名（e.g. "巴菲特"）
-    group: str                      # "long_term" | "short_term"
-    style: str                      # 风格标签（e.g. "价值投资"）
-    horizon: str                    # 持仓周期（e.g. "月/季/年"）
-    core_signal: str                # 核心信号源
-    weights: Dict[str, float]       # 5 维度权重（百分比，加和 100）
-    veto_conditions: List[str] = field(default_factory=list)
-    md_path: str = ""               # 关联的 markdown 路径
-
-
-# 方向判定阈值（与 experts/decide.md §一.1.1 一致）
-DIRECTION_THRESHOLDS = [
-    (70, "强烈看多"),
-    (60, "看多"),
-    (40, "中性"),
-    (30, "看空"),
-    (0, "强烈看空"),
-]
-
-
-def direction_from_score(score: float) -> str:
-    """把 0-100 总分映射到方向标签。"""
-    for threshold, label in DIRECTION_THRESHOLDS:
-        if score >= threshold:
-            return label
-    return "强烈看空"
+from experts.types import ExpertProfile, DIRECTION_THRESHOLDS, direction_from_score
 
 
 def apply_veto(
@@ -63,19 +33,23 @@ def apply_veto(
         profile: 专家人设档案
         stock_data: 股票数据（quote + finance 字段）
         veto_results: 预判的否决条件结果 dict（key 是条件描述，value 是
-            bool，True 表示"已触发"）。为 None 时返回全部条件列表
-            （不预判，留给调用方处理）。
+            bool，True 表示"已触发"）。为 None 时返回空列表（无否决数据）。
 
     Returns:
         已触发的否决条件描述列表。
     """
     if veto_results is None:
-        return list(profile.veto_conditions)
+        return []
     return [cond for cond, triggered in veto_results.items() if triggered]
 
 
 # 导入注册表（放在模块底部以利用 dataclass 定义）
-from .registry import EXPERT_REGISTRY, LEGACY_ALIAS, get_display_name, _ensure_loaded  # noqa: E402
+from .registry import (
+    EXPERT_REGISTRY,
+    LEGACY_ALIAS,
+    get_display_name,
+    _ensure_loaded,
+)  # noqa: E402
 
 _ensure_loaded()
 
@@ -103,6 +77,38 @@ def list_short_term_experts() -> List[ExpertProfile]:
     return list_experts("short_term")
 
 
+# ═══════════════════════════════════════════════════════════════
+# v2.1.0 切换 API
+# ═══════════════════════════════════════════════════════════════
+
+
+def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
+    """列出 active=True 的专家（v2.1.0 默认 8 人）。
+
+    构成：lynch + soros（2 独立保留）+ value_anchor/topic_leader/emotion_tech
+    （3 合并型）+ sector_specialist/institution/risk_manager（3 补盲区型）。
+
+    新框架默认调用此 API，legacy 6 人需显式 `list_legacy_experts()`。
+    """
+    all_experts = [p for p in EXPERT_REGISTRY.values() if p.active]
+    if group is None:
+        return all_experts
+    return [p for p in all_experts if p.group == group]
+
+
+def list_legacy_experts(group: Optional[str] = None) -> List[ExpertProfile]:
+    """列出 active=False 的 legacy 专家（6 人）。
+
+    legacy = 已被合并型视角取代、新框架不再调用的旧专家（buffett/
+    duan_yongping/xu_xiang/zhao_laoge/chaogu_yangjia/zuoshou_xinyi）。
+    通过 `--use-legacy-experts` flag 让用户显式切回旧圆桌做 A/B 对比。
+    """
+    all_experts = [p for p in EXPERT_REGISTRY.values() if not p.active]
+    if group is None:
+        return all_experts
+    return [p for p in all_experts if p.group == group]
+
+
 __all__ = [
     "ExpertProfile",
     "EXPERT_REGISTRY",
@@ -112,6 +118,9 @@ __all__ = [
     "list_experts",
     "list_long_term_experts",
     "list_short_term_experts",
+    # v2.1.0 切换 API
+    "list_active_experts",
+    "list_legacy_experts",
     "direction_from_score",
     "apply_veto",
     "DIRECTION_THRESHOLDS",

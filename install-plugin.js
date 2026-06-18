@@ -57,6 +57,8 @@ try {
   console.log("");
   console.log("使用方式：直接在 Claude Code 中输入 /skill-name 参数");
   console.log("例如：/stock 贵州茅台 quick");
+  console.log("");
+  console.log("🚀 新手起步：直接输入 /help 看完整指引，或 /stock 贵州茅台 quick 跑通第一个分析");
 } catch (error) {
   console.error("");
   console.error("⚠️  自动安装失败，请手动执行以下命令：");

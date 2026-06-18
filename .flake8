@@ -1,0 +1,17 @@
+[flake8]
+max-line-length = 100
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    .cache,
+    data/snapshots,
+    data/strategy_performance.json
+extend-ignore =
+    E203,
+    E501,
+    W503,
+    F401,
+    E402
+per-file-ignores =
+    tests/*:F811

@@ -8,15 +8,16 @@
     - data_source.yaml: 数据源配置
     - industry_thresholds.yaml: 行业差异化阈值
 """
+
 import yaml
 from pathlib import Path
 from typing import Any, Optional
 
 
 class ConfigLoader:
-    """配置加载器，支持 YAML 配置文件（带缓存）。"""
+    """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存）。"""
 
-    _cache: dict = {}
+    _cache: dict[str, tuple[float, dict]] = {}
     _config_dir: Path = Path(__file__).parent
 
     @classmethod
@@ -31,17 +32,21 @@ class ConfigLoader:
         Returns:
             配置字典
         """
-        if use_cache and filename in cls._cache:
-            return cls._cache[filename]
-
         config_path = cls._config_dir / filename
         if not config_path.exists():
             return {}
 
+        current_mtime = config_path.stat().st_mtime
+
+        if use_cache and filename in cls._cache:
+            cached_mtime, cached_data = cls._cache[filename]
+            if current_mtime <= cached_mtime:
+                return cached_data
+
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
 
-        cls._cache[filename] = config
+        cls._cache[filename] = (current_mtime, config)
         return config
 
     @classmethod
@@ -114,3 +119,40 @@ def get_limit_config(key: str = None, default: Any = None) -> Any:
 def reload_config(filename: str = None):
     """重新加载配置。"""
     ConfigLoader.reload(filename)
+
+
+def safe_get(filename: str, key_path: str = None, default: Any = None) -> Any:
+    """安全获取配置值，文件不存在或键缺失时返回默认值。
+
+    用于替代各模块中的 try/except ImportError 回退模式。
+    配置文件格式错误会记录 warning 日志但不抛异常。
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    try:
+        if key_path is None:
+            return ConfigLoader.load(filename)
+        return ConfigLoader.get(filename, key_path, default)
+    except FileNotFoundError:
+        return default
+    except KeyError:
+        return default
+    except TypeError:
+        return default
+    except Exception as e:
+        logger.warning("配置文件 %s 读取异常: %s", filename, e)
+        return default
+
+
+def get_notification_config(key: str = None, default: Any = None) -> Any:
+    """
+    获取通知配置。
+
+    Args:
+        key: 键路径（如 "bark.url"），为空时返回整个配置
+        default: 默认值
+    """
+    if key is None:
+        return ConfigLoader.load("notification.yaml")
+    return ConfigLoader.get("notification.yaml", key, default)

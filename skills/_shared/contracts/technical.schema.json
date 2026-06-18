@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TechnicalAnalysis",
+  "description": "技术分析输出（被 stock.schema.json 引用）",
+  "type": "object",
+  "required": ["trend", "support_levels", "resistance_levels"],
+  "properties": {
+    "trend": {"enum": ["uptrend", "downtrend", "sideways"]},
+    "ma_alignment": {"enum": ["bullish", "bearish", "mixed"]},
+    "macd": {
+      "type": "object",
+      "properties": {
+        "signal": {"enum": ["golden_cross", "death_cross", "neutral"]},
+        "histogram": {"type": "number"}
+      }
+    },
+    "kdj": {
+      "type": "object",
+      "properties": {
+        "k": {"type": "number"},
+        "d": {"type": "number"},
+        "j": {"type": "number"},
+        "signal": {"enum": ["oversold", "overbought", "neutral"]}
+      }
+    },
+    "support_levels": {
+      "type": "array",
+      "items": {"type": "number"}
+    },
+    "resistance_levels": {
+      "type": "array",
+      "items": {"type": "number"}
+    },
+    "next_step": {"type": "string", "description": "技术面下一步操作建议"}
+  }
+}

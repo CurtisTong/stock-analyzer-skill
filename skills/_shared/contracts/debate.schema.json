@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExpertDebate",
+  "description": "/stock debate 8 人专家圆桌输出契约",
+  "type": "object",
+  "required": ["code", "name", "experts", "aggregate", "confidence"],
+  "properties": {
+    "code": {"type": "string"},
+    "name": {"type": "string"},
+    "experts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "required": ["id", "group", "score", "direction"],
+        "properties": {
+          "id": {"type": "string"},
+          "display_name": {"type": "string"},
+          "group": {"enum": ["long_term", "short_term"]},
+          "score": {"type": "number", "minimum": 0, "maximum": 100},
+          "direction": {"enum": ["强烈看多", "看多", "中性", "看空", "强烈看空"]},
+          "reasoning": {"type": "string"},
+          "vetoed": {"type": "boolean"}
+        }
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "required": ["direction", "position_pct"],
+      "properties": {
+        "direction": {"enum": ["强烈看多", "看多", "中性", "看空", "强烈看空"]},
+        "position_pct": {"type": "number", "minimum": 0, "maximum": 100},
+        "consensus": {"enum": ["strongly_agree", "agree", "split", "strongly_disagree"]}
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "required": ["score"],
+      "properties": {
+        "score": {"type": "number", "minimum": 0, "maximum": 100},
+        "consistency": {"type": "number", "minimum": 0, "maximum": 100},
+        "calibration_factor": {"type": "number"}
+      }
+    }
+  }
+}

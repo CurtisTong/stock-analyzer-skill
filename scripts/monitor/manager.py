@@ -6,12 +6,15 @@
 import json
 import os
 import re
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
+
+from dev.clock import now as _now
 from typing import Optional
 
-import yaml
+from config.loader import ConfigLoader
 
 from .channels.base import NotificationChannel
 from .channels.bark import BarkChannel
@@ -31,11 +34,12 @@ def _log_path() -> Path:
 
 # 日志轮转配置（可从 YAML 覆盖）
 _LOG_MAX_SIZE = 5 * 1024 * 1024  # 默认 5MB
-_LOG_MAX_FILES = 5               # 保留最近 5 个轮转文件
+_LOG_MAX_FILES = 5  # 保留最近 5 个轮转文件
 
 
-def _rotate_log_if_needed(log_path: Path, max_size: int = _LOG_MAX_SIZE,
-                          max_files: int = _LOG_MAX_FILES) -> None:
+def _rotate_log_if_needed(
+    log_path: Path, max_size: int = _LOG_MAX_SIZE, max_files: int = _LOG_MAX_FILES
+) -> None:
     """检查并执行日志轮转。
 
     Args:
@@ -131,16 +135,14 @@ class NotificationManager:
         self._throttle_log: dict[str, float] = {}  # key -> last_sent_ts
         self._daily_count = 0
         self._daily_date = ""
+        self._lock = threading.Lock()
+        self._log_write_count = 0  # 写入计数器，用于批量检查轮转
         self._setup_channels()
 
     def _load_config(self) -> dict:
         """加载通知配置，并更新日志轮转设置。"""
         global _LOG_MAX_SIZE, _LOG_MAX_FILES
-        path = _config_path()
-        config = {}
-        if path.exists():
-            text = path.read_text(encoding="utf-8")
-            config = yaml.safe_load(text) or {}
+        config = ConfigLoader.load("notification.yaml")
 
         # 从配置中读取日志轮转设置
         log_cfg = config.get("logging", {})
@@ -203,21 +205,22 @@ class NotificationManager:
         dedup_window = throttle_cfg.get("dedup_window", 15) * 60  # 分钟转秒
         daily_limit = throttle_cfg.get("daily_limit", 20)
 
-        # 每日计数重置
-        today = datetime.now().strftime("%Y-%m-%d")
-        if today != self._daily_date:
-            self._daily_date = today
-            self._daily_count = 0
+        with self._lock:
+            # 每日计数重置
+            today = _now().strftime("%Y-%m-%d")
+            if today != self._daily_date:
+                self._daily_date = today
+                self._daily_count = 0
 
-        # 每日上限（紧急消息不受限）
-        if not urgent and self._daily_count >= daily_limit:
-            return False
+            # 每日上限（紧急消息不受限）
+            if not urgent and self._daily_count >= daily_limit:
+                return False
 
-        # 去重窗口（紧急消息也受去重限制，避免重复轰炸）
-        now = time.time()
-        last = self._throttle_log.get(key, 0)
-        if now - last < dedup_window:
-            return False
+            # 去重窗口（紧急消息也受去重限制，避免重复轰炸）
+            now = time.time()
+            last = self._throttle_log.get(key, 0)
+            if now - last < dedup_window:
+                return False
 
         return True
 
@@ -230,7 +233,7 @@ class NotificationManager:
 
         try:
             start_str, end_str = quiet.split("-")
-            now = datetime.now()
+            now = _now()
             start_h, start_m = map(int, start_str.split(":"))
             end_h, end_m = map(int, end_str.split(":"))
 
@@ -244,15 +247,19 @@ class NotificationManager:
         except (ValueError, AttributeError):
             return False
 
-    def _log_send(self, title: str, channel: str, success: bool,
-                  error: str = "") -> None:
-        """记录推送日志（带日志轮转保护）。"""
+    def _log_send(
+        self, title: str, channel: str, success: bool, error: str = ""
+    ) -> None:
+        """记录推送日志（带日志轮转保护，每 10 次写入检查一次轮转）。"""
         log_path = _log_path()
 
-        # 写入前检查是否需要轮转
-        _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
+        # 每 10 次写入检查一次轮转，避免高频 stat() 调用
+        self._log_write_count += 1
+        if self._log_write_count >= 10:
+            self._log_write_count = 0
+            _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
 
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = _now().strftime("%Y-%m-%d %H:%M:%S")
         status = "OK" if success else "FAIL"
         line = f"[{ts}] [{status}] [{channel}] {title}"
         if error:
@@ -264,11 +271,15 @@ class NotificationManager:
         except OSError:
             pass
 
-    def send(self, title: str, body: str,
-             url: Optional[str] = None,
-             group: Optional[str] = None,
-             throttle_key: Optional[str] = None,
-             urgent: bool = False) -> dict:
+    def send(
+        self,
+        title: str,
+        body: str,
+        url: Optional[str] = None,
+        group: Optional[str] = None,
+        throttle_key: Optional[str] = None,
+        urgent: bool = False,
+    ) -> dict:
         """发送通知到所有已激活通道。
 
         Args:
@@ -310,15 +321,21 @@ class NotificationManager:
                 failed += 1
 
         if sent > 0:
-            self._throttle_log[key] = time.time()
-            self._daily_count += 1
+            with self._lock:
+                self._throttle_log[key] = time.time()
+                self._daily_count += 1
 
         return {"sent": sent, "failed": failed, "results": results}
 
-    def send_alert(self, alert_type: str, stock_name: str,
-                   stock_code: str, message: str,
-                   url: Optional[str] = None,
-                   urgent: bool = False) -> dict:
+    def send_alert(
+        self,
+        alert_type: str,
+        stock_name: str,
+        stock_code: str,
+        message: str,
+        url: Optional[str] = None,
+        urgent: bool = False,
+    ) -> dict:
         """发送股票预警通知（带标准化格式）。
 
         Args:
@@ -346,5 +363,6 @@ class NotificationManager:
             title += f" ({stock_code})"
 
         throttle_key = f"{alert_type}:{stock_code}:{message[:20]}"
-        return self.send(title, body=message, url=url,
-                         throttle_key=throttle_key, urgent=urgent)
+        return self.send(
+            title, body=message, url=url, throttle_key=throttle_key, urgent=urgent
+        )

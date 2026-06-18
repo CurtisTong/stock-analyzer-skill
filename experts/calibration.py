@@ -7,7 +7,14 @@
 - 计算校准因子（compute_calibration_factor）
 
 数据持久化在项目根目录 data/expert_calibration.json。
+
+校准阈值说明（v2.2.0 起显式文档化）：
+- 涨跌判定阈值默认 5.0%（A 股经验值）——超过 5% 视为预测"命中"，
+  阈值可在 `scoring.yaml` 的 `calibration.calibration_threshold_pct` 字段覆盖。
+- 校准因子范围 [-1, 1]：正值 = 专家实际胜率 > 自身评估，负值 = 反之。
+- 无校准数据时 8 位专家 rates=[0.5]*8，均值 0.5，CV=0，factor=0（保持中性）。
 """
+
 import json
 import os
 import statistics
@@ -18,6 +25,7 @@ from typing import Any, Dict, List, Optional
 
 try:
     import fcntl
+
     _HAS_FCNTL = True
 except ImportError:
     _HAS_FCNTL = False
@@ -26,10 +34,12 @@ except ImportError:
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _CALIBRATION_FILE = _PROJECT_ROOT / "data" / "expert_calibration.json"
 
-_EXPERT_NAMES = [
-    "buffett", "lynch", "soros", "duan_yongping",
-    "xu_xiang", "zhao_laoge", "chaogu_yangjia", "zuoshou_xinyi",
-]
+
+def _get_all_expert_names() -> list:
+    """从注册表动态获取全部专家名。"""
+    from experts.registry import EXPERT_REGISTRY
+
+    return list(EXPERT_REGISTRY.keys())
 
 
 def _get_calibration_threshold() -> float:
@@ -40,6 +50,7 @@ def _get_calibration_threshold() -> float:
     """
     try:
         from config.loader import ConfigLoader
+
         cfg = ConfigLoader.load("scoring.yaml")
         return float(cfg.get("calibration", {}).get("calibration_threshold_pct", 5.0))
     except Exception:
@@ -51,7 +62,7 @@ def _empty_data() -> dict:
         "predictions": [],
         "experts": {
             name: {"events": 0, "correct": 0, "last_updated": None}
-            for name in _EXPERT_NAMES
+            for name in _get_all_expert_names()
         },
     }
 
@@ -113,8 +124,9 @@ def record_prediction(
     """
     ts = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     date = ts[:10]
-    verify_after = (datetime.strptime(date, "%Y-%m-%d") +
-                    timedelta(days=verify_days)).strftime("%Y-%m-%d")
+    verify_after = (
+        datetime.strptime(date, "%Y-%m-%d") + timedelta(days=verify_days)
+    ).strftime("%Y-%m-%d")
 
     pred_id = f"pred_{date.replace('-', '')}_{stock_code}"
 
@@ -197,6 +209,7 @@ def verify_predictions(
 
         # 更新专家校准数据：按每位专家自己的分数方向判定
         from experts import direction_from_score
+
         pred_direction = pred.get("direction", "")
 
         # 预测级别正确性（用组合方向，保留兼容）
@@ -216,9 +229,15 @@ def verify_predictions(
                 if actual_direction is not None:
                     expert_direction = direction_from_score(score)
                     is_correct = None
-                    if expert_direction in ("强烈看多", "看多") and actual_direction == "上涨":
+                    if (
+                        expert_direction in ("强烈看多", "看多")
+                        and actual_direction == "上涨"
+                    ):
                         is_correct = True
-                    elif expert_direction in ("看空", "强烈看空") and actual_direction == "下跌":
+                    elif (
+                        expert_direction in ("看空", "强烈看空")
+                        and actual_direction == "下跌"
+                    ):
                         is_correct = True
                     elif expert_direction == "中性" and actual_direction == "横盘":
                         is_correct = True
@@ -229,14 +248,16 @@ def verify_predictions(
                         data["experts"][expert_name]["correct"] += 1
                 data["experts"][expert_name]["last_updated"] = today
 
-        details.append({
-            "id": pred["id"],
-            "stock": pred["stock"],
-            "direction": pred_direction,
-            "actual_return": actual_return,
-            "actual_direction": actual_direction,
-            "correct": pred_correct,
-        })
+        details.append(
+            {
+                "id": pred["id"],
+                "stock": pred["stock"],
+                "direction": pred_direction,
+                "actual_return": actual_return,
+                "actual_direction": actual_direction,
+                "correct": pred_correct,
+            }
+        )
 
     _save(data)
     updated = sum(1 for d in details if d.get("correct") is not None)
@@ -254,7 +275,8 @@ def get_pending_predictions() -> List[dict]:
     data = _load()
     today = datetime.now().strftime("%Y-%m-%d")
     return [
-        p for p in data.get("predictions", [])
+        p
+        for p in data.get("predictions", [])
         if not p.get("verified") and p.get("verify_after", "") <= today
     ]
 
@@ -267,7 +289,7 @@ def compute_calibration_factor() -> float:
     """
     experts = get_calibration()
     rates = []
-    for name in _EXPERT_NAMES:
+    for name in _get_all_expert_names():
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)
@@ -301,7 +323,7 @@ def get_calibration_report() -> str:
     lines.append("| 专家 | 事件数 | 正确数 | 校准率 |")
     lines.append("|------|--------|--------|--------|")
 
-    for name in _EXPERT_NAMES:
+    for name in _get_all_expert_names():
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)

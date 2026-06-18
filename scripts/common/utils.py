@@ -1,10 +1,12 @@
 """工具函数：代码转换、类型转换、并发执行。"""
+
 import concurrent.futures
 import os
 import statistics
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import Any, Callable
 
 from common.exceptions import DataError
 
@@ -14,6 +16,7 @@ DATA_DIR = PACKAGE_ROOT / "data"
 
 # ---------- 代码转换 ----------
 
+
 def split_codes(arg: str) -> list[str]:
     """支持逗号分隔或文件路径（@file）。"""
     if arg.startswith("@"):
@@ -22,7 +25,11 @@ def split_codes(arg: str) -> list[str]:
             raise ValueError(f"文件路径不在允许范围内: {arg[1:]}")
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {arg[1:]}")
-        return [line.strip() for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        return [
+            line.strip()
+            for line in file_path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
     return [c.strip() for c in arg.split(",") if c.strip()]
 
 
@@ -104,9 +111,10 @@ def is_etf(code: str) -> bool:
 
 # ---------- 类型转换 ----------
 
+
 def batchify(items: list[str], size: int = 15) -> list[list[str]]:
     """将列表按 size 分批。腾讯单次 ≤15。"""
-    return [items[i:i + size] for i in range(0, len(items), size)]
+    return [items[i : i + size] for i in range(0, len(items), size)]
 
 
 def to_float(value: object, default: float = 0.0) -> float:
@@ -134,7 +142,9 @@ def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
 
-def compute_volume_ratio(volumes: list[float], recent_window: int = 5, base_window: int = 10) -> float:
+def compute_volume_ratio(
+    volumes: list[float], recent_window: int = 5, base_window: int = 10
+) -> float:
     """计算量比（最近 N 日平均 / 基础 N 日平均）。
 
     base_window 包含 recent_window，语义为"最近 N 日放量程度"，
@@ -157,6 +167,7 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 
 # ---------- 数据单位归一化 ----------
 # 统一规范：volume=股, amount=元, total_cap/circulating_cap=亿
+
 
 def normalize_volume(raw: int | str | None, source: str) -> int:
     """将不同数据源的成交量归一化为股。
@@ -184,6 +195,7 @@ def normalize_amount(raw: object, source: str) -> float:
 
 # ---------- 错误处理 ----------
 
+
 def err(msg: str) -> None:
     """抛出 DataError 异常（替代原来的 sys.exit）。"""
     print(f"❌ {msg}", file=sys.stderr)
@@ -192,17 +204,17 @@ def err(msg: str) -> None:
 
 # ---------- 并发 ----------
 
-# 模块级共享线程池（惰性初始化）
+# 模块级共享线程池（惰性初始化，统一使用 DataConfig.max_workers）
 _shared_executor = None
 _shared_executor_lock = __import__("threading").Lock()
 
 
-def get_shared_executor(max_workers: int | None = None) -> ThreadPoolExecutor:
+def get_shared_executor() -> ThreadPoolExecutor:
     """获取共享线程池，线程安全的惰性初始化。
 
-    Args:
-        max_workers: 最大线程数，首次调用时生效，后续调用忽略此参数。
-                    默认为 min(32, os.cpu_count() + 4)。
+    线程池大小统一使用 DataConfig.max_workers 配置（默认 cpu_count*2，范围 8-32）。
+    所有调用方共享同一个线程池实例，避免重复创建/销毁。
+
     Returns:
         ThreadPoolExecutor 实例（不会被 shutdown，由进程退出时自动清理）
     """
@@ -211,24 +223,37 @@ def get_shared_executor(max_workers: int | None = None) -> ThreadPoolExecutor:
         return _shared_executor
     with _shared_executor_lock:
         if _shared_executor is None:
-            if max_workers is None:
-                max_workers = min(32, (os.cpu_count() or 4) + 4)
-            _shared_executor = ThreadPoolExecutor(max_workers=max_workers)
+            from data.config import get_config
+
+            _shared_executor = ThreadPoolExecutor(max_workers=get_config().max_workers)
     return _shared_executor
 
 
-def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: int = 60) -> dict[str, object]:
+def parallel_map(
+    fn: Callable[[str], Any],
+    items: list[str],
+    timeout: int = 60,
+) -> dict[str, Any]:
     """并发执行 fn(item)，返回 {item: result} 字典。
 
     超时时返回已完成的部分结果，而非抛出异常丢失所有结果。
     RateLimitError 始终向上抛出。
+
+    Args:
+        fn: 处理函数，接收单个 item 字符串
+        items: 待处理的 item 列表
+        timeout: 总超时秒数（默认 60）
+
+    Returns:
+        {item: result} 字典，失败的 item 值为 None
     """
     import logging
     from concurrent.futures import Future
     from common.exceptions import RateLimitError
+
     logger = logging.getLogger(__name__)
-    results: dict[str, object] = {}
-    ex = get_shared_executor(max_workers)
+    results: dict[str, Any] = {}
+    ex = get_shared_executor()
     futures: dict[Future[object], str] = {ex.submit(fn, item): item for item in items}  # type: ignore[arg-type]
     try:
         for future in as_completed(futures, timeout=timeout):
@@ -237,40 +262,101 @@ def parallel_map(fn: object, items: list[str], max_workers: int = 8, timeout: in
                 results[item] = future.result()
             except RateLimitError:
                 raise
+            except (SystemExit, KeyboardInterrupt):
+                raise
             except Exception as e:
                 logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None
     except concurrent.futures.TimeoutError:
-        logger.warning("parallel_map 超时，返回部分结果 (%d/%d)",
-                       len(results), len(items))
+        logger.warning(
+            "parallel_map 超时，返回部分结果 (%d/%d)", len(results), len(items)
+        )
+        for future in futures:
+            future.cancel()
+    return results
+
+
+def parallel_fetch_dict(
+    items: list[str],
+    fetch_fn: Callable[[str], Any],
+    timeout: int = 60,
+    label: str = "",
+) -> dict[str, Any]:
+    """通用并行获取，返回 {item: result} 字典。
+
+    与 parallel_map 类似，但更适合批量预获取场景：
+    - 失败的 item 不会出现在结果中（而非设为 None）
+    - 支持自定义 label 用于日志标识
+
+    Args:
+        items: 待获取的 item 列表
+        fetch_fn: 获取函数，接收单个 item，返回结果
+        timeout: 总超时秒数（默认 60）
+        label: 日志标识（如 "kline", "finance"）
+
+    Returns:
+        {item: result} 字典，仅包含成功获取的 item
+    """
+    import logging
+    from common.exceptions import RateLimitError
+
+    logger = logging.getLogger(__name__)
+    results: dict[str, Any] = {}
+    ex = get_shared_executor()
+    futures = {ex.submit(fetch_fn, item): item for item in items}
+    try:
+        for future in as_completed(futures, timeout=timeout):
+            item = futures[future]
+            try:
+                results[item] = future.result()
+            except RateLimitError:
+                raise
+            except Exception as e:
+                logger.warning("[%s] %s 获取失败: %s", label or "parallel", item, e)
+    except concurrent.futures.TimeoutError:
+        logger.warning(
+            "[%s] 超时，返回部分结果 (%d/%d)",
+            label or "parallel",
+            len(results),
+            len(items),
+        )
         for future in futures:
             future.cancel()
     return results
 
 
 def board_limit_pct(board: str) -> float:
-    """获取板块涨跌停限制（%），如主板 9.5、创业板 19.5。
-
-    优先从 config/limits.yaml 读取，缺失时使用硬编码默认值。
-    """
+    """获取板块涨跌停限制（%）。"""
     _DEFAULTS = {
-        "主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5,
+        "主板": 9.5,
+        "创业板": 19.5,
+        "科创板": 19.5,
+        "北交所": 29.5,
     }
-    default = _DEFAULTS.get(board, 9.5)
-    try:
-        from config.loader import ConfigLoader
-        return ConfigLoader.get("limits.yaml", f"board_limits.{board}", default)
-    except (ImportError, KeyError, FileNotFoundError):
-        return default
+    return _DEFAULTS.get(board, 9.5)
 
 
 __all__ = [
-    "PACKAGE_ROOT", "DATA_DIR",
-    "split_codes", "plain_code", "infer_exchange",
-    "normalize_quote_code", "normalize_finance_code", "to_secid",
-    "board_type", "batchify", "to_float", "to_int", "clamp",
-    "compute_volume_ratio", "compute_optimal_workers",
-    "normalize_volume", "normalize_amount",
-    "err", "parallel_map", "get_shared_executor",
+    "PACKAGE_ROOT",
+    "DATA_DIR",
+    "split_codes",
+    "plain_code",
+    "infer_exchange",
+    "normalize_quote_code",
+    "normalize_finance_code",
+    "to_secid",
+    "board_type",
+    "batchify",
+    "to_float",
+    "to_int",
+    "clamp",
+    "compute_volume_ratio",
+    "compute_optimal_workers",
+    "normalize_volume",
+    "normalize_amount",
+    "err",
+    "parallel_map",
+    "parallel_fetch_dict",
+    "get_shared_executor",
     "board_limit_pct",
 ]

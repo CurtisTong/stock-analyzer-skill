@@ -42,21 +42,19 @@ DEFAULT_POOL_FILE = os.path.join(DATA_DIR, "sector_stocks.default.json")
 # 硬过滤阈值（v1.7.1 起从 strategies.filters 导入，保留本地 FILTER 别名向后兼容）
 from strategies.filters import PRE_SCREEN_FILTER as FILTER  # noqa: F401
 
-
 # ---------- 代码分类工具 ----------
 
+
 def _classify_board(code6: str) -> str:
-    """根据 6 位代码推断上市板块。"""
-    if code6.startswith("60"):
-        return "主板沪"
-    if code6.startswith("00"):
-        return "主板深"
-    if code6.startswith("30"):
-        return "创业板"
-    if code6.startswith("68"):
-        return "科创板"
+    """根据 6 位代码推断上市板块（与 common.board_type 输出一致）。"""
     if code6.startswith(("43", "83", "87", "88", "92")):
         return "北交所"
+    if code6.startswith("68"):
+        return "科创板"
+    if code6.startswith("30"):
+        return "创业板"
+    if code6.startswith(("60", "00")):
+        return "主板"
     return "其他"
 
 
@@ -72,6 +70,7 @@ def _infer_exchange(code6: str) -> str:
 
 
 # ---------- API 调用 ----------
+
 
 def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
     """获取板块成分股，返回 [{code, name, price, change_pct, amount, turnover, pe, cap}]"""
@@ -94,16 +93,18 @@ def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
                 if not code6 or len(code6) != 6:
                     continue
                 full_code = f"{_infer_exchange(code6)}{code6}"
-                results.append({
-                    "code": full_code,
-                    "name": item.get("f14", ""),
-                    "price": item.get("f2"),
-                    "change_pct": item.get("f3"),
-                    "amount": item.get("f6"),      # 成交额（元）
-                    "turnover": item.get("f8"),     # 换手率
-                    "pe": item.get("f9"),           # PE(动)
-                    "cap": item.get("f20"),         # 总市值（元）
-                })
+                results.append(
+                    {
+                        "code": full_code,
+                        "name": item.get("f14", ""),
+                        "price": item.get("f2"),
+                        "change_pct": item.get("f3"),
+                        "amount": item.get("f6"),  # 成交额（元）
+                        "turnover": item.get("f8"),  # 换手率
+                        "pe": item.get("f9"),  # PE(动)
+                        "cap": item.get("f20"),  # 总市值（元）
+                    }
+                )
             return results
         except Exception as e:
             if attempt < max_retries:
@@ -132,8 +133,9 @@ XUANGU_API_BASE = "https://data.eastmoney.com/dataapi/xuangu/list"
 XUANGU_FIELDS = "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,MARKET"
 
 
-def _fetch_xuangu_page(page: int = 1, page_size: int = 1000,
-                       market_filter: str = "") -> tuple[list[dict], int]:
+def _fetch_xuangu_page(
+    page: int = 1, page_size: int = 1000, market_filter: str = "", max_retries: int = 2
+) -> tuple[list[dict], int]:
     """从东方财富选股器 API 获取一页股票数据。
 
     Returns:
@@ -161,19 +163,26 @@ def _fetch_xuangu_page(page: int = 1, page_size: int = 1000,
 
     req = urllib.request.Request(url, headers=headers)
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-            data = json.loads(raw)
+    for attempt in range(max_retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode("utf-8")
+                data = json.loads(raw)
 
-            if data.get("success"):
-                records = data.get("result", {}).get("data", [])
-                total = data.get("result", {}).get("count", 0)
-                return records, total
+                if data.get("success"):
+                    records = data.get("result", {}).get("data", [])
+                    total = data.get("result", {}).get("count", 0)
+                    return records, total
+                return [], 0
+        except Exception as e:
+            if attempt < max_retries:
+                time.sleep(1)
+                continue
+            print(
+                f"  ⚠ 选股器 API 请求失败 (第 {page} 页, 重试 {max_retries} 次后放弃): {e}",
+                file=sys.stderr,
+            )
             return [], 0
-    except Exception as e:
-        print(f"  ⚠ 选股器 API 请求失败 (第 {page} 页): {e}", file=sys.stderr)
-        return [], 0
 
 
 def fetch_all_market_stocks() -> dict[str, list[str]]:
@@ -220,8 +229,7 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
 
     while True:
         stocks, total = _fetch_xuangu_page(
-            page, page_size,
-            '(SECURITY_TYPE_CODE="058001001")'
+            page, page_size, '(SECURITY_TYPE_CODE="058001001")'
         )
         if not stocks:
             break
@@ -318,6 +326,7 @@ def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
 
 # ---------- 过滤 ----------
 
+
 def is_st(name: str) -> bool:
     return "ST" in name.upper()
 
@@ -350,6 +359,7 @@ def passes_filter(stock: dict) -> tuple[bool, str]:
 
 # ---------- 排序与筛选 ----------
 
+
 def sort_stocks(stocks: list[dict], key: str = "amount") -> list[dict]:
     """排序，降序"""
     keys = {
@@ -361,7 +371,9 @@ def sort_stocks(stocks: list[dict], key: str = "amount") -> list[dict]:
     return sorted(stocks, key=keys.get(key, keys["amount"]), reverse=True)
 
 
-def build_sector_pool(stocks: list[dict], top_n: int = 20, sort_by: str = "amount") -> list[str]:
+def build_sector_pool(
+    stocks: list[dict], top_n: int = 20, sort_by: str = "amount"
+) -> list[str]:
     """过滤+排序+截取，返回代码列表"""
     filtered = []
     reasons = {}
@@ -378,8 +390,16 @@ def build_sector_pool(stocks: list[dict], top_n: int = 20, sort_by: str = "amoun
 
 # ---------- 高股息特殊处理 ----------
 
-def build_dividend_pool(all_pools: dict[str, list[str]], all_stocks: dict[str, dict]) -> list[str]:
-    """从所有板块中筛选 PE<20 且 ROE>8% 的标的"""
+
+def build_dividend_pool(
+    all_pools: dict[str, list[str]], code_to_stock: dict[str, dict]
+) -> list[str]:
+    """从所有板块中筛选 PE<20 的标的（按成交额取 Top 20）。
+
+    Args:
+        all_pools: 板块 → 代码列表的映射
+        code_to_stock: 代码 → 行情 dict 的映射（含 pe/amount）
+    """
     candidates = []
     seen = set()
     for sector, codes in all_pools.items():
@@ -389,17 +409,16 @@ def build_dividend_pool(all_pools: dict[str, list[str]], all_stocks: dict[str, d
             if code in seen:
                 continue
             seen.add(code)
-            s = all_stocks.get(code, {})
+            s = code_to_stock.get(code, {})
             pe = s.get("pe")
-            # ROE 需要额外查询，这里用 PE 作为第一轮筛选
             if pe is not None and 0 < pe < 20:
                 candidates.append(s)
-    # 按成交额排序取 Top 15
     sorted_c = sort_stocks(candidates, "amount")
     return [s["code"] for s in sorted_c[:20]]
 
 
 # ---------- 主流程 ----------
+
 
 def load_mapping() -> dict:
     with open(MAPPING_FILE, "r", encoding="utf-8") as f:
@@ -426,9 +445,14 @@ def load_current_pool() -> dict:
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
-def refresh_pool(sectors: list[str] | None = None, top_n: int = 20,
-                 sort_by: str = "amount", dry_run: bool = False,
-                 show_diff: bool = False, use_default: bool = True) -> dict:
+def refresh_pool(
+    sectors: list[str] | None = None,
+    top_n: int = 20,
+    sort_by: str = "amount",
+    dry_run: bool = False,
+    show_diff: bool = False,
+    use_default: bool = True,
+) -> dict:
     """刷新股票池，返回新池。
 
     Args:
@@ -483,14 +507,16 @@ def refresh_pool(sectors: list[str] | None = None, top_n: int = 20,
         if all_stocks_raw:
             dividend_pool = build_dividend_pool(new_pool, all_stocks_raw)
             new_pool["高股息"] = dividend_pool
-            print(f"📡 高股息: 从 {len(all_stocks_raw)} 只中筛选 {len(dividend_pool)} 只")
+            print(
+                f"📡 高股息: 从 {len(all_stocks_raw)} 只中筛选 {len(dividend_pool)} 只"
+            )
 
     # 对比
     if show_diff:
         print_diff(current, new_pool)
 
-    # 写入
-    if not dry_run and new_pool:
+    # 写入（仅当新池与当前池有差异时）
+    if not dry_run and new_pool and new_pool != current:
         output = {
             "_meta": {
                 "updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -505,6 +531,8 @@ def refresh_pool(sectors: list[str] | None = None, top_n: int = 20,
         print(f"\n✅ 已写入 {POOL_FILE} ({output['_meta']['total_stocks']} 只)")
     elif dry_run:
         print(f"\n📋 dry-run 模式，未写入")
+    elif not dry_run and new_pool == current:
+        print(f"\n📋 股票池无变化，跳过写入")
 
     return new_pool
 
@@ -536,6 +564,7 @@ def print_diff(current: dict, new_pool: dict):
 
 
 # ---------- 默认数据初始化 ----------
+
 
 def init_from_default(top_n: int = 20, dry_run: bool = False) -> dict:
     """从预置默认数据初始化股票池（不访问 API）。"""
@@ -570,33 +599,65 @@ def init_from_default(top_n: int = 20, dry_run: bool = False) -> dict:
 
 # ---------- CLI ----------
 
+
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="股票池自动刷新")
     parser.add_argument("--sector", "-s", nargs="+", help="只刷新指定板块")
-    parser.add_argument("--top", "-n", type=int, default=20, help="每板块取 Top N（默认 20）")
-    parser.add_argument("--sort", choices=["amount", "cap", "pe", "turnover"],
-                        default="amount", help="排序方式（默认 amount 成交额）")
+    parser.add_argument(
+        "--top", "-n", type=int, default=20, help="每板块取 Top N（默认 20）"
+    )
+    parser.add_argument(
+        "--sort",
+        choices=["amount", "cap", "pe", "turnover"],
+        default="amount",
+        help="排序方式（默认 amount 成交额）",
+    )
     parser.add_argument("--dry-run", action="store_true", help="只打印不写入")
     parser.add_argument("--diff", action="store_true", help="对比当前池显示变更")
-    parser.add_argument("--default", action="store_true",
-                        help="使用预置默认数据初始化（不访问 API）")
-    parser.add_argument("--full-market", action="store_true",
-                        help="拉取全市场 A 股列表（约 5000 只），保存到 all_stocks.json")
+    parser.add_argument(
+        "--default", action="store_true", help="使用预置默认数据初始化（不访问 API）"
+    )
+    parser.add_argument(
+        "--full-market",
+        action="store_true",
+        help="拉取全市场 A 股列表（约 5000 只），保存到 all_stocks.json",
+    )
+    parser.add_argument(
+        "-j", "--json", action="store_true", help="输出机器可读 JSON 摘要"
+    )
     args = parser.parse_args()
 
     if args.full_market:
-        stocks_by_board = fetch_all_market_stocks()
-        save_all_market_stocks(stocks_by_board)
+        ret = fetch_all_market_stocks()
+        if not args.dry_run:
+            save_all_market_stocks(ret)
+        result = {"mode": "full_market", "count": len(ret) if ret else 0}
     elif args.default:
-        init_from_default(top_n=args.top, dry_run=args.dry_run)
+        ret = init_from_default(top_n=args.top, dry_run=args.dry_run)
+        result = {"mode": "default", "top_n": args.top}
     else:
-        refresh_pool(
+        ret = refresh_pool(
             sectors=args.sector,
             top_n=args.top,
             sort_by=args.sort,
             dry_run=args.dry_run,
             show_diff=args.diff,
         )
+        result = {
+            "mode": "refresh",
+            "sectors": args.sector or "all",
+            "top_n": args.top,
+            "sort_by": args.sort or "default",
+        }
+
+    if args.json:
+        import json as _json
+
+        print(_json.dumps({"status": "ok", **result}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

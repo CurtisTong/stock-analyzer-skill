@@ -4,8 +4,13 @@
 """
 
 
-def _generate_signals(features):
-    """汇总买卖信号。"""
+def _generate_signals(features, market_breadth=None):
+    """汇总买卖信号。
+
+    Args:
+        features: 技术指标特征
+        market_breadth: 市场宽度数据（可选）
+    """
     buy, sell = [], []
     ma = features.get("ma_system", {})
     macd = features.get("macd") or {}
@@ -17,19 +22,72 @@ def _generate_signals(features):
     vol_vp = vol.get("volume_price_signal", 0)
     divergence = macd.get("divergence", "")
 
+    # 趋势判断（用于过滤虚假超卖信号）
+    wave = features.get("wave", "")
+    ma_alignment = ma.get("alignment", "")
+    is_downtrend = (
+        "下跌" in wave
+        or ma_alignment == "空头排列"
+        or (vol_vp == -1 and "出货" in vol_price)
+    )
+
+    # 缩量信号（作手新一建议：缩量下跌>放量下跌）
+    shrink_signal = vol.get("shrink_signal", 0)
+    shrink_desc = vol.get("shrink_desc", "")
+
+    # 市场宽度信号（徐翔、赵老哥、养家建议）
+    if market_breadth:
+        limit_up = market_breadth.get("limit_up_count", 0)
+        limit_down = market_breadth.get("limit_down_count", 0)
+        continuous_height = market_breadth.get("continuous_limit_height", 0)
+        up_ratio = market_breadth.get("up_ratio", 0)
+
+        # 退潮期信号（徐翔建议：涨停家数<20家）
+        if limit_up < 20 and limit_up > 0:
+            sell.append(f"市场退潮(涨停{limit_up}家<20)")
+
+        # 冰点期信号（养家建议：跌停>50家）
+        if limit_down > 50:
+            sell.append(f"市场冰点(跌停{limit_down}家)")
+
+        # 接力生态恶化（赵老哥建议：连板高度<2板）
+        if continuous_height <= 2 and continuous_height > 0:
+            sell.append(f"接力生态恶化(连板{continuous_height}板)")
+
+        # 普涨信号
+        if up_ratio > 2:
+            buy.append(f"市场普涨(涨跌比{up_ratio})")
+
     # 买入信号
     if macd.get("signal") == 1:
         buy.append("MACD金叉")
     if divergence == "底背离(看涨)":
         buy.append("MACD底背离")
+    # KDJ超卖金叉：下跌趋势中降级为"待确认"
     if "金叉" in kdj.get("signal", "") and "超卖" in kdj.get("signal", ""):
-        buy.append("KDJ超卖区金叉")
+        if is_downtrend:
+            buy.append("KDJ超卖区金叉(待确认-下跌趋势)")
+        else:
+            buy.append("KDJ超卖区金叉")
     if boll.get("position", 0.5) < 0.2 and "收窄" in boll.get("bandwidth_desc", ""):
         buy.append("BOLL下轨+收窄(变盘)")
+    # RSI超卖：下跌趋势中降级
     if rsi_data.get("rsi", 50) < 35:
-        buy.append(f"RSI超卖({rsi_data.get('rsi')})")
+        if is_downtrend:
+            buy.append(f"RSI超卖({rsi_data.get('rsi')})-下跌趋势待确认")
+        else:
+            buy.append(f"RSI超卖({rsi_data.get('rsi')})")
     if vol_vp == 1 and "放量上涨" in vol_price:
         buy.append("放量上涨(资金介入)")
+    # 连续缩量信号（作手新一建议）
+    if shrink_signal == 1 and "连续缩量" in shrink_desc:
+        buy.append("连续缩量(抛压减轻)")
+
+    # 趋势警告：当存在出货信号时，超卖信号不可靠
+    if is_downtrend and (
+        rsi_data.get("rsi", 50) < 35 or "超卖" in kdj.get("signal", "")
+    ):
+        sell.append("⚠️下跌趋势中超卖信号失效")
 
     # 缠论买卖点信号
     chan_data = features.get("chan_theory") or {}

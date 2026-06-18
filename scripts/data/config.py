@@ -2,6 +2,7 @@
 
 配置优先级：环境变量 > YAML 配置 > 代码默认值
 """
+
 import os
 import time
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ def _load_yaml_config() -> dict:
     """从 ConfigLoader 加载 YAML 配置（延迟导入避免循环依赖）。"""
     try:
         from config.loader import ConfigLoader
+
         return ConfigLoader.load("data_source.yaml")
     except Exception:
         return {}
@@ -20,19 +22,20 @@ def _load_yaml_config() -> dict:
 @dataclass
 class DataConfig:
     """数据层配置。"""
+
     # 缓存 TTL (秒) - 分类型配置
-    quote_cache_ttl: int = 900       # 15 分钟（盘后）
+    quote_cache_ttl: int = 900  # 15 分钟（盘后）
     intraday_quote_cache_ttl: int = 90  # 90 秒（盘中）
-    kline_cache_ttl: int = 21600     # 6 小时
-    kline_1m_cache_ttl: int = 30     # 30 秒（分钟K线）
-    kline_240m_cache_ttl: int = 3600 # 1 小时（日K线）
-    finance_cache_ttl: int = 21600   # 6 小时
-    margin_cache_ttl: int = 3600     # 1 小时（融资融券）
-    ann_cache_ttl: int = 1800        # 30 分钟
+    kline_cache_ttl: int = 21600  # 6 小时
+    kline_1m_cache_ttl: int = 30  # 30 秒（分钟K线）
+    kline_240m_cache_ttl: int = 3600  # 1 小时（日K线）
+    finance_cache_ttl: int = 21600  # 6 小时
+    margin_cache_ttl: int = 3600  # 1 小时（融资融券）
+    ann_cache_ttl: int = 1800  # 30 分钟
 
     # HTTP 超时（秒）
-    http_timeout: int = 10           # 单次 HTTP 请求超时
-    parallel_timeout: int = 30       # parallel_map 总超时
+    http_timeout: int = 10  # 单次 HTTP 请求超时
+    parallel_timeout: int = 30  # parallel_map 总超时
 
     # 熔断器
     circuit_failure_threshold: int = 5
@@ -43,6 +46,7 @@ class DataConfig:
     def max_workers(self) -> int:
         """动态计算最优工作线程数"""
         import os
+
         cpu_count = os.cpu_count() or 4
         return min(max(cpu_count * 2, 8), 32)
 
@@ -62,21 +66,39 @@ class DataConfig:
         cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
         cfg.finance_cache_ttl = cache_cfg.get("finance_ttl", cfg.finance_cache_ttl)
         cfg.ann_cache_ttl = cache_cfg.get("ann_ttl", cfg.ann_cache_ttl)
-        cfg.circuit_failure_threshold = cb_cfg.get("failure_threshold", cfg.circuit_failure_threshold)
-        cfg.circuit_recovery_timeout = cb_cfg.get("recovery_timeout", cfg.circuit_recovery_timeout)
+        cfg.circuit_failure_threshold = cb_cfg.get(
+            "failure_threshold", cfg.circuit_failure_threshold
+        )
+        cfg.circuit_recovery_timeout = cb_cfg.get(
+            "recovery_timeout", cfg.circuit_recovery_timeout
+        )
 
         # 环境变量覆盖
         cfg.http_timeout = int(os.getenv("DATA_HTTP_TIMEOUT", cfg.http_timeout))
-        cfg.parallel_timeout = int(os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout))
+        cfg.parallel_timeout = int(
+            os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout)
+        )
         cfg.quote_cache_ttl = int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl))
-        cfg.intraday_quote_cache_ttl = int(os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl))
+        cfg.intraday_quote_cache_ttl = int(
+            os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl)
+        )
         cfg.kline_cache_ttl = int(os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl))
-        cfg.kline_1m_cache_ttl = int(os.getenv("DATA_KLINE_1M_TTL", cfg.kline_1m_cache_ttl))
-        cfg.kline_240m_cache_ttl = int(os.getenv("DATA_KLINE_240M_TTL", cfg.kline_240m_cache_ttl))
-        cfg.finance_cache_ttl = int(os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl))
+        cfg.kline_1m_cache_ttl = int(
+            os.getenv("DATA_KLINE_1M_TTL", cfg.kline_1m_cache_ttl)
+        )
+        cfg.kline_240m_cache_ttl = int(
+            os.getenv("DATA_KLINE_240M_TTL", cfg.kline_240m_cache_ttl)
+        )
+        cfg.finance_cache_ttl = int(
+            os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl)
+        )
         cfg.margin_cache_ttl = int(os.getenv("DATA_MARGIN_TTL", cfg.margin_cache_ttl))
-        cfg.circuit_failure_threshold = int(os.getenv("DATA_CIRCUIT_THRESHOLD", cfg.circuit_failure_threshold))
-        cfg.circuit_recovery_timeout = int(os.getenv("DATA_CIRCUIT_TIMEOUT", cfg.circuit_recovery_timeout))
+        cfg.circuit_failure_threshold = int(
+            os.getenv("DATA_CIRCUIT_THRESHOLD", cfg.circuit_failure_threshold)
+        )
+        cfg.circuit_recovery_timeout = int(
+            os.getenv("DATA_CIRCUIT_TIMEOUT", cfg.circuit_recovery_timeout)
+        )
         # max_workers 通过 @property 动态计算，不从环境变量读取
         return cfg
 
@@ -127,8 +149,14 @@ def _load_holidays() -> set:
         return _holiday_set
     try:
         from pathlib import Path
-        path = Path(__file__).resolve().parent.parent.parent / "data" / "a_share_holidays.json"
+
+        path = (
+            Path(__file__).resolve().parent.parent.parent
+            / "data"
+            / "a_share_holidays.json"
+        )
         import json
+
         data = json.loads(path.read_text(encoding="utf-8"))
         _holiday_set = set(data.get("holidays", []))
     except Exception:
@@ -160,18 +188,23 @@ def get_source_timeout(source_type: str, source_name: str, default: int = 10) ->
     Returns:
         超时秒数
     """
-    return ConfigLoader.get("data_source.yaml",
-                            f"{source_type}.{source_name}.timeout", default)
+    return ConfigLoader.get(
+        "data_source.yaml", f"{source_type}.{source_name}.timeout", default
+    )
 
 
 _config = None
+_config_lock = __import__("threading").Lock()
 
 
 def get_config() -> DataConfig:
-    """获取全局配置单例。"""
+    """获取全局配置单例（线程安全双重检查锁）。"""
     global _config
-    if _config is None:
-        _config = DataConfig.from_env()
+    if _config is not None:
+        return _config
+    with _config_lock:
+        if _config is None:
+            _config = DataConfig.from_env()
     return _config
 
 

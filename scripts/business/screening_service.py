@@ -3,11 +3,12 @@
 
 提供选股筛选的业务逻辑，与 CLI 层解耦。
 """
+
 import logging
 from typing import List, Dict, Any, Optional
 
 from common import to_float, normalize_quote_code, board_type, get_shared_executor
-from common.exceptions import InsufficientDataError, ValidationError
+from common.exceptions import ValidationError
 from common.validators import validate_code
 from data import get_quote, get_quotes, get_kline, get_finance
 from classifier import infer_industry
@@ -24,34 +25,39 @@ from strategies.thresholds import get_industry_threshold
 
 logger = logging.getLogger(__name__)
 
-# 尝试加载 config（可选；缺失时回退到硬编码默认）
-try:
-    from config import get_limit_config
-    _USE_CONFIG = True
-except ImportError:
-    _USE_CONFIG = False
-
 
 def _limit(key: str, default):
     """读取 limits.yaml 中的阈值；无 config 时回退到硬编码默认。"""
-    if _USE_CONFIG:
-        return get_limit_config(key, default)
-    return default
+    from config.loader import safe_get
+
+    return safe_get("limits.yaml", key, default)
 
 
 def _board_limit(board: str) -> float:
     """获取板块涨跌停限制（%）。"""
-    return _limit(f"board_limits.{board}", {
-        "主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5,
-    }.get(board, 9.5))
+    return _limit(
+        f"board_limits.{board}",
+        {
+            "主板": 9.5,
+            "创业板": 19.5,
+            "科创板": 19.5,
+            "北交所": 29.5,
+        }.get(board, 9.5),
+    )
 
 
 def _min_survival_cap(board: str) -> float:
     """获取板块最低生存市值（亿），低于此视为退市风险。
     2026更新：注册制退市常态化，提高阈值。"""
-    return _limit(f"min_survival_cap.{board}", {
-        "主板": 5, "创业板": 3, "科创板": 3, "北交所": 2,
-    }.get(board, 5))
+    return _limit(
+        f"min_survival_cap.{board}",
+        {
+            "主板": 5,
+            "创业板": 3,
+            "科创板": 3,
+            "北交所": 2,
+        }.get(board, 5),
+    )
 
 
 def _goodwill_threshold() -> float:
@@ -66,29 +72,48 @@ def _st_prefixes() -> list:
     return _limit("st_prefixes", ["ST", "*ST"])
 
 
-def compute_features(code: str) -> dict:
+def compute_features(code: str, bars=None) -> dict:
     """计算技术指标特征（模块级函数，供 screener.py 等外部复用）。
 
     Args:
         code: 股票代码（带 sh/sz 前缀）
+        bars: 预取的 KlineBar 列表（可选，为 None 时自动获取）
     Returns:
         技术指标 dict：trend/ret20/ma10/ma20/volume_ratio/macd_signal/rsi/rsi_signal/vol_price_signal/closes
     """
     import statistics
     from technical import macd_full, rsi_features
     from technical.volume import volume_analysis as _vol_analysis
-    from data import get_kline
 
-    bars = get_kline(code, scale=240, datalen=240)
-    closes = [b.close for b in bars if b.close > 0]
-    volumes = [b.volume for b in bars if b.volume > 0]
+    if bars is None:
+        from data import get_kline
+
+        bars = get_kline(code, scale=240, datalen=240)
+    # 统一过滤：整条记录 close 和 volume 都 > 0 才保留，确保数组对齐
+    valid_bars = [b for b in bars if b.close > 0 and b.volume > 0]
+    closes = [b.close for b in valid_bars]
+    volumes = [b.volume for b in valid_bars]
 
     if len(closes) < 10:
-        return {"trend": 0, "ret20": 0, "rsi": 50, "macd_signal": 0, "vol_price_signal": 0}
+        # K 线数据不足时返回中性特征，避免下游因子函数 KeyError
+        return {
+            "trend": 0,
+            "ret20": 0,
+            "ma10": 0,
+            "ma20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "rsi_signal": 0,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
+            "closes": [],
+        }
 
     # 趋势
     ma10 = statistics.mean(closes[-10:])
-    ma20 = statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
+    ma20 = (
+        statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
+    )
     trend = 1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
 
     # 20日收益率
@@ -132,33 +157,12 @@ class ScreeningService:
 
     def __init__(self):
         self.default_strategy = "balanced"
-        # 动态计算最优工作线程数
-        self.max_workers = self._compute_optimal_workers()
-
-    @staticmethod
-    def _compute_optimal_workers(item_count: int = 0) -> int:
-        """动态计算最优工作线程数。
-
-        Args:
-            item_count: 处理项数量，0 表示使用默认保守值
-        Returns:
-            优化的工作线程数
-        """
-        import os
-        cpu_count = os.cpu_count() or 4
-
-        if item_count > 0:
-            # 基于处理项数量动态调整，最多 cpu_count * 2
-            return min(max(item_count // 10, 4), cpu_count * 2)
-
-        # 默认保守值：CPU 核心数的 2 倍，上限 32
-        return min(cpu_count * 2, 32)
 
     def screen(
         self,
         codes: List[str],
         strategy: str = "balanced",
-        filters: Optional[Dict[str, Any]] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
         选股筛选。
@@ -196,8 +200,9 @@ class ScreeningService:
         # 用 normalize_quote_code 做反向映射，保证 lookup 命中
         quote_map = {normalize_quote_code(q.code): q for q in quotes}
 
-        # 预获取财务数据
+        # 预获取财务数据和K线数据（并行）
         fin_cache = self._prefetch_finance(normalized_codes)
+        kline_cache = self._prefetch_kline(normalized_codes)
 
         # 分析每只股票
         results = []
@@ -212,7 +217,8 @@ class ScreeningService:
                     quote,
                     fin_cache.get(code, []),
                     strategy,
-                    filters
+                    filters,
+                    kline_cache.get(code),
                 )
                 if stock_result:
                     results.append(stock_result)
@@ -227,29 +233,35 @@ class ScreeningService:
 
     def _prefetch_finance(self, codes: List[str]) -> Dict[str, List[dict]]:
         """预获取财务数据。"""
-        from concurrent.futures import as_completed
         from data import get_finance
-        from common import normalize_finance_code
-
-        results = {}
+        from common import normalize_finance_code, parallel_fetch_dict
 
         def fetch_one(code):
             try:
                 records = get_finance(normalize_finance_code(code))
-                return code, [r.to_dict() for r in records]
-            except Exception:
-                return code, []
+                return [r.to_dict() for r in records]
+            except Exception as e:
+                logger.warning("获取财务数据失败 %s: %s", code, e)
+                return []
 
-        ex = get_shared_executor(self.max_workers)
-        futures = {ex.submit(fetch_one, c): c for c in codes}
-        for future in as_completed(futures):
+        return parallel_fetch_dict(codes, fetch_one, label="finance")
+
+    def _prefetch_kline(
+        self, codes: List[str], scale: int = 240, datalen: int = 240
+    ) -> Dict[str, list]:
+        """预获取K线数据（并行）。"""
+        from data import get_kline
+        from common import parallel_fetch_dict
+
+        def fetch_one(code):
             try:
-                code, data = future.result()
-                results[code] = data
-            except Exception:
-                pass
+                bars = get_kline(code, scale=scale, datalen=datalen)
+                return bars
+            except Exception as e:
+                logger.warning("获取K线失败 %s: %s", code, e)
+                return []
 
-        return results
+        return parallel_fetch_dict(codes, fetch_one, label="kline")
 
     def _analyze_stock(
         self,
@@ -257,14 +269,17 @@ class ScreeningService:
         quote,
         fin_records: List[dict],
         strategy: str,
-        filters: Dict[str, Any]
+        filters: Dict[str, Any],
+        kline_bars: list = None,
     ) -> Optional[Dict[str, Any]]:
         """分析单只股票。"""
         quote_dict = quote.to_dict()
         fin = fin_records[0] if fin_records else {}
 
         # 行业分类
-        industry = infer_industry(quote_dict.get("name", ""), code)
+        industry = infer_industry(
+            quote_dict.get("name", ""), code, fetcher_industry=quote_dict.get("industry", "")
+        )
 
         # 硬过滤
         rejected = self._hard_filter(quote_dict, fin, filters)
@@ -277,69 +292,21 @@ class ScreeningService:
             }
 
         # 计算因子得分
-        features = self._compute_features(code)
-
-        weights = STRATEGIES[strategy]
-        parts = {
-            "quality": quality_score(fin, industry),
-            "valuation": valuation_score(quote_dict, fin, industry),
-            "momentum": momentum_score(features, quote_dict),
-            "liquidity": liquidity_score(quote_dict),
-            "volatility": volatility_from_closes(features.get("closes", []), industry),
-            "dividend": dividend_score(quote_dict, fin, industry),
-        }
-
-        total = sum(
-            parts.get(k, 0) * weights.get(k, 0)
-            for k in set(parts) | set(weights)
-            if k != "label"
+        features = self._compute_features(code, kline_bars)
+        parts = compute_factor_parts(fin, quote_dict, features, industry)
+        total = compute_weighted_score(parts, strategy)
+        return build_result_row(
+            code, quote_dict, fin, features, industry, total, parts, []
         )
-
-        # 涨跌停过滤：T+1 下当日无法交易
-        bd = board_type(code)
-        limit = _board_limit(bd)
-        if abs(to_float(quote_dict.get("change_pct", 0))) >= limit:
-            return {
-                "code": code,
-                "name": quote_dict.get("name", ""),
-                "score": 0,
-                "rejected": ["涨跌停限制"],
-            }
-
-        return {
-            "code": code,
-            "name": quote_dict.get("name", ""),
-            "board": bd,
-            "industry": industry,
-            "score": round(total, 1),
-            "quality": round(parts["quality"], 1),
-            "valuation": round(parts["valuation"], 1),
-            "momentum": round(parts["momentum"], 1),
-            "liquidity": round(parts["liquidity"], 1),
-            "volatility": round(parts["volatility"], 1),
-            "dividend": round(parts.get("dividend", 0), 1),
-            "price": quote_dict.get("price"),
-            "change_pct": quote_dict.get("change_pct"),
-            "pe": quote_dict.get("pe"),
-            "pb": quote_dict.get("pb"),
-            "roe": fin.get("roe", fin.get("ROEJQ", "-")),
-            "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
-            "ret20": round(features.get("ret20", 0), 1),
-            "trend": "上升" if features.get("trend", 0) > 0 else "下降" if features.get("trend", 0) < 0 else "震荡",
-            "rsi": features.get("rsi", 50),
-            "macd_signal": features.get("macd_signal", 0),
-            "vol_price": self._vol_price_signal_desc(features.get("vol_price_signal", 0)),
-            "rejected": [],
-        }
 
     @staticmethod
     def _vol_price_signal_desc(signal: int) -> str:
         return "配合" if signal > 0 else "背离" if signal < 0 else "中性"
 
     @staticmethod
-    def _compute_features(code: str) -> dict:
+    def _compute_features(code: str, bars=None) -> dict:
         """计算技术指标特征（委托给模块级 compute_features）。"""
-        return compute_features(code)
+        return compute_features(code, bars=bars)
 
     def _hard_filter(self, quote: dict, fin: dict, filters: dict) -> List[str]:
         """硬过滤。
@@ -359,6 +326,7 @@ class ScreeningService:
         name = quote.get("name", "")
         code = quote.get("code", "")
         bd = board_type(code)
+        eps = to_float(fin.get("eps", fin.get("EPSJB")))
 
         # 退市风险：市值过小（提高阈值，注册制后退市常态化）
         min_survival_cap = _min_survival_cap(bd)
@@ -372,20 +340,20 @@ class ScreeningService:
             reasons.append("ST风险")
         else:
             # 财务类退市风险预警（2026新增）：营收<1亿+净利润为负+审计意见非标
-            eps = to_float(fin.get("eps", fin.get("EPSJB")))
             revenue = to_float(fin.get("revenue", fin.get("TOTALOPERATEREVE", 0)))
             revenue_billion = revenue / 100000000  # 转为亿元
             if eps < 0 and 0 < revenue_billion < 1:
                 warnings.append("营收<1亿+亏损(退市风险警示)")
 
         # 亏损过滤（改为可配置，默认过滤）
-        eps = to_float(fin.get("eps", fin.get("EPSJB")))
         filter_loss = filters.get("filter_loss", True)
         if filter_loss and eps < 0:
             reasons.append("EPS<0(亏损)")
 
         # 商誉减值风险（无数据时跳过）
-        goodwill_ratio = to_float(fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0)))
+        goodwill_ratio = to_float(
+            fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0))
+        )
         if goodwill_ratio > _goodwill_threshold():
             reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
@@ -401,32 +369,18 @@ class ScreeningService:
         # 板块差异化阈值
         base_min_amount = filters.get("min_amount", 5000)
         base_min_cap = filters.get("min_cap", 40)
-        if _USE_CONFIG:
-            board_min_amount = {
-                "主板": base_min_amount,
-                "创业板": _limit("min_amount.创业板", 3000),
-                "科创板": _limit("min_amount.科创板", 3000),
-                "北交所": _limit("min_amount.北交所", 1000),
-            }
-            board_min_cap = {
-                "主板": base_min_cap,
-                "创业板": _limit("min_total_cap.创业板", 20),
-                "科创板": _limit("min_total_cap.科创板", 20),
-                "北交所": _limit("min_total_cap.北交所", 10),
-            }
-        else:
-            board_min_amount = {
-                "主板": base_min_amount,
-                "创业板": base_min_amount * 0.7,
-                "科创板": base_min_amount * 0.7,
-                "北交所": base_min_amount * 1.5,
-            }
-            board_min_cap = {
-                "主板": base_min_cap,
-                "创业板": base_min_cap * 0.6,
-                "科创板": base_min_cap * 0.6,
-                "北交所": base_min_cap * 0.4,
-            }
+        board_min_amount = {
+            "主板": base_min_amount,
+            "创业板": _limit("min_amount.创业板", int(base_min_amount * 0.7)),
+            "科创板": _limit("min_amount.科创板", int(base_min_amount * 0.7)),
+            "北交所": _limit("min_amount.北交所", int(base_min_amount * 1.5)),
+        }
+        board_min_cap = {
+            "主板": base_min_cap,
+            "创业板": _limit("min_total_cap.创业板", int(base_min_cap * 0.6)),
+            "科创板": _limit("min_total_cap.科创板", int(base_min_cap * 0.6)),
+            "北交所": _limit("min_total_cap.北交所", int(base_min_cap * 0.4)),
+        }
         min_amt = board_min_amount.get(bd, base_min_amount)
         min_cap = board_min_cap.get(bd, base_min_cap)
 
@@ -435,9 +389,10 @@ class ScreeningService:
         if to_float(quote.get("total_cap")) < min_cap:
             reasons.append(f"市值<{min_cap:.0f}亿")
 
-        # 涨跌停过滤：T+1 下当日无法交易
-        change_pct = abs(to_float(quote.get("change_pct", 0)))
-        if change_pct >= _board_limit(bd):
+        # 涨跌停过滤：T+1 下当日无法交易（涨 ≥ 涨停 或 跌 ≤ -涨停）
+        change_pct = to_float(quote.get("change_pct", 0))
+        board_limit = _board_limit(bd)
+        if change_pct >= board_limit or change_pct <= -board_limit:
             reasons.append("涨跌停限制")
 
         # 排除亏损（来自 filters）
@@ -450,4 +405,172 @@ class ScreeningService:
         return reasons
 
 
-__all__ = ["ScreeningService", "compute_features"]
+def compute_factor_parts(fin, quote_dict, features, industry):
+    """计算 6 因子得分（共享核心）。"""
+    return {
+        "quality": quality_score(fin, industry),
+        "valuation": valuation_score(quote_dict, fin, industry),
+        "momentum": momentum_score(features, quote_dict),
+        "liquidity": liquidity_score(quote_dict),
+        "volatility": volatility_from_closes(features.get("closes", []), industry),
+        "dividend": dividend_score(quote_dict, fin, industry),
+    }
+
+
+# Sprint 9 两阶段管线（Sprint 末节架构建议）：
+# Phase 1（轻量快速筛选）：仅算不依赖 K 线的因子
+#   quality / valuation / liquidity
+# Phase 2（精准评分）：在 Phase 1 Top N×3 上补 K 线依赖因子
+#   momentum / volatility / dividend
+PHASE1_FACTORS = ("quality", "valuation", "liquidity")
+PHASE2_FACTORS = ("momentum", "volatility", "dividend")
+
+
+def compute_phase1_parts(fin, quote_dict, industry: str) -> dict:
+    """Sprint 9 Phase 1：仅算 quality/valuation/liquidity（不依赖 K 线）。
+
+    适用于全市场 5000 只初筛，3-5 秒内完成。
+    """
+    return {
+        "quality": quality_score(fin, industry),
+        "valuation": valuation_score(quote_dict, fin, industry),
+        "liquidity": liquidity_score(quote_dict),
+    }
+
+
+def compute_phase2_parts(features: dict, quote_dict: dict, fin: dict, industry: str) -> dict:
+    """Sprint 9 Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
+
+    仅对 Phase 1 Top N×3 候选调用，节省 K 线获取量。
+    """
+    return {
+        "momentum": momentum_score(features, quote_dict),
+        "volatility": volatility_from_closes(features.get("closes", []), industry),
+        "dividend": dividend_score(quote_dict, fin, industry),
+    }
+
+
+def merge_phase_parts(phase1: dict, phase2: dict) -> dict:
+    """合并 Phase 1 + Phase 2 因子分。"""
+    return {**phase1, **phase2}
+
+
+def compute_weighted_score(parts, strategy, regime=None):
+    """按策略权重加权求和，支持 market regime overlay（Sprint 2）。
+
+    Args:
+        parts: 6 因子分 dict
+        strategy: 策略名
+        regime: 可选 RegimeState 枚举（bull/bear/range/panic）。
+                None 时不应用 overlay。
+    """
+    weights = STRATEGIES[strategy]
+    if regime is not None:
+        from strategies.regime import compute_overlay_weights
+
+        weights = compute_overlay_weights(weights, regime)
+    return sum(
+        parts.get(k, 0) * weights.get(k, 0)
+        for k in set(parts) | set(weights)
+        if k not in ("label", "two_stage")
+    )
+
+
+def normalize_factors_batch(parts_list: List[Dict[str, float]]) -> List[Dict[str, float]]:
+    """对一批股票 6 因子做 cross-sectional z-score 标准化。
+
+    每个因子的均值/方差从该批次计算，z = (x - mean) / std。
+    输出范围约为 [-3, 3]，再线性映射到 [0, 100] 保留原有 [0,100] 评分语义。
+
+    解决问题（review#14）：六因子评分范围差异巨大（quality 30-85, volatility 5-95），
+    不加标准化导致 volatility 因子隐式权重超调。
+
+    Args:
+        parts_list: 候选股 6 因子 dict 列表
+
+    Returns:
+        标准化后的 6 因子 dict 列表（顺序与输入对应）
+    """
+    if not parts_list:
+        return parts_list
+    # 单股时无 cross-sectional 信息可计算，跳过归一化
+    if len(parts_list) < 2:
+        return [dict(p) for p in parts_list]
+    import statistics
+
+    keys = ["quality", "valuation", "momentum", "liquidity", "volatility", "dividend"]
+    means = {k: statistics.mean(p.get(k, 0) for p in parts_list) for k in keys}
+    stds = {
+        k: (statistics.stdev(p.get(k, 0) for p in parts_list) or 1.0) for k in keys
+    }
+    out = []
+    for p in parts_list:
+        normed = dict(p)
+        for k in keys:
+            z = (p.get(k, 0) - means[k]) / stds[k]
+            normed[k] = max(0.0, min(100.0, 50 + z * 15))  # z=0 → 50
+        out.append(normed)
+    return out
+
+
+def compute_weighted_score_with_norm(parts_list: List[Dict[str, float]], strategy: str) -> List[float]:
+    """对批量 6 因子做归一化后加权求和。
+
+    Args:
+        parts_list: 候选股 6 因子 dict 列表
+        strategy: 策略名
+
+    Returns:
+        每只股票的加权得分列表（与输入顺序对应）
+    """
+    if not parts_list:
+        return []
+    normed = normalize_factors_batch(parts_list)
+    return [compute_weighted_score(p, strategy) for p in normed]
+
+
+def build_result_row(code, quote_dict, fin, features, industry, total, parts, rejected):
+    """装配标准化结果 dict。"""
+    bd = board_type(code)
+    return {
+        "code": code,
+        "name": quote_dict.get("name", ""),
+        "board": bd,
+        "industry": industry,
+        "score": round(total, 1),
+        "quality": round(parts.get("quality", 0), 1),
+        "valuation": round(parts.get("valuation", 0), 1),
+        "momentum": round(parts.get("momentum", 0), 1),
+        "liquidity": round(parts.get("liquidity", 0), 1),
+        "volatility": round(parts.get("volatility", 0), 1),
+        "dividend": round(parts.get("dividend", 0), 1),
+        "price": quote_dict.get("price"),
+        "change_pct": quote_dict.get("change_pct"),
+        "pe": quote_dict.get("pe"),
+        "pb": quote_dict.get("pb"),
+        "roe": fin.get("roe", fin.get("ROEJQ", "-")),
+        "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
+        "ret20": round(features.get("ret20", 0), 1),
+        "trend": (
+            "上升"
+            if features.get("trend", 0) > 0
+            else "下降" if features.get("trend", 0) < 0 else "震荡"
+        ),
+        "rsi": features.get("rsi", 50),
+        "macd_signal": features.get("macd_signal", 0),
+        "vol_price": ScreeningService._vol_price_signal_desc(
+            features.get("vol_price_signal", 0)
+        ),
+        "rejected": rejected,
+    }
+
+
+__all__ = [
+    "ScreeningService",
+    "compute_features",
+    "compute_factor_parts",
+    "compute_weighted_score",
+    "normalize_factors_batch",
+    "compute_weighted_score_with_norm",
+    "build_result_row",
+]

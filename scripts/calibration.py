@@ -70,14 +70,29 @@ def cmd_verify(args):
 
 def cmd_report(args):
     """查看校准报告。"""
-    print(get_calibration_report())
+    report = get_calibration_report()
     factor = compute_calibration_factor()
+    if args.json:
+        import json as _json
+        print(_json.dumps({
+            "report": report,
+            "calibration_factor": round(factor, 4),
+        }, ensure_ascii=False, indent=2))
+        return
+    print(report)
     print(f"\n校准因子: {factor:+.4f}")
 
 
 def cmd_pending(args):
     """查看待验证预测。"""
     pending = get_pending_predictions()
+    if args.json:
+        import json as _json
+        print(_json.dumps({
+            "count": len(pending),
+            "items": pending,
+        }, ensure_ascii=False, indent=2))
+        return
     if not pending:
         print("无待验证预测")
         return
@@ -112,10 +127,12 @@ def main():
                           help="验证窗口天数 (默认30)")
 
     # report
-    sub.add_parser("report", help="查看校准报告")
+    p_report = sub.add_parser("report", help="查看校准报告")
+    p_report.add_argument("-j", "--json", action="store_true", help="输出 JSON")
 
     # pending
-    sub.add_parser("pending", help="查看待验证预测")
+    p_pending = sub.add_parser("pending", help="查看待验证预测")
+    p_pending.add_argument("-j", "--json", action="store_true", help="输出 JSON")
 
     args = parser.parse_args()
     if args.command is None:

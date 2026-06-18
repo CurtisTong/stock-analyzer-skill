@@ -4,8 +4,8 @@ A 股个股类型分类器。
 根据财务数据、行情数据和 K 线走势特征，自动判定 7 种类型。
 可被 technical.py 或其他模块 import 使用。
 """
-from common import to_float, clamp
 
+from common import to_float, clamp, board_type
 
 # ── 类型 → 推荐指标映射 ──
 
@@ -65,7 +65,9 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     confidence = "高"
 
     # 提取行情特征
-    circulating_cap = to_float(quote_record.get("circulating_cap")) if quote_record else 0
+    circulating_cap = (
+        to_float(quote_record.get("circulating_cap")) if quote_record else 0
+    )
     total_cap = to_float(quote_record.get("total_cap")) if quote_record else 0
     turnover = to_float(quote_record.get("turnover")) if quote_record else 0
 
@@ -79,14 +81,19 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     # 连板检测
     has_limit_streak = False
     if kline_records and len(kline_records) >= 10:
-        from common import board_type as _board_type
         code = quote_record.get("code", "") if quote_record else ""
-        bd = _board_type(code)
-        limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(bd, 9.5)
+        bd = board_type(code)
+        limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(
+            bd, 9.5
+        )
         for i in range(len(kline_records) - 1, max(len(kline_records) - 5, 0), -1):
             r = kline_records[i]
             prev = kline_records[i - 1] if i > 0 else r
-            chg = (to_float(r.get("close")) - to_float(prev.get("close"))) / max(to_float(prev.get("close")), 0.01) * 100
+            chg = (
+                (to_float(r.get("close")) - to_float(prev.get("close")))
+                / max(to_float(prev.get("close")), 0.01)
+                * 100
+            )
             if chg >= limit_ratio * 0.95:
                 has_limit_streak = True
                 break
@@ -96,7 +103,11 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     confidence = "低"
 
     # 1. 题材股
-    if circulating_cap > 0 and circulating_cap < 100 and (has_limit_streak or turnover > 10):
+    if (
+        circulating_cap > 0
+        and circulating_cap < 100
+        and (has_limit_streak or turnover > 10)
+    ):
         stock_type = "题材股"
         reasons.append(f"流通市值{circulating_cap:.0f}亿(小盘)")
         if has_limit_streak:
@@ -179,8 +190,21 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
 
 # ── 行业推断 ──
 
-def infer_industry(name: str, code: str = "") -> str:
-    """根据股票名称和代码推断行业分类（关键词匹配 + 代码段推断）。"""
+
+def infer_industry(name: str, code: str = "", fetcher_industry: str = "") -> str:
+    """根据股票名称和代码推断行业分类（关键词匹配 + 代码段推断）。
+
+    review#13 修复：优先使用 fetcher 返回的行业字段（东方财富 API 提供），
+    避免名称推断失败时（如"中国平安"不含"保险"二字）落入"默认"。
+
+    优先级：
+      1. fetcher_industry（非空时直接返回）
+      2. 名称关键词匹配
+      3. 代码段推断（688→科技）
+      4. "默认"
+    """
+    if fetcher_industry and fetcher_industry.strip():
+        return fetcher_industry.strip()
     name = name.upper()
     # 科创板（688开头）默认归类为科技
     if code.startswith("688") or code.startswith("sh688"):
@@ -194,40 +218,154 @@ def infer_industry(name: str, code: str = "") -> str:
     if any(kw in name for kw in ["保险", "信托", "金融", "资管", "期货"]):
         return "金融"
     # 地产
-    if any(kw in name for kw in ["地产", "置业", "置地", "房产", "万科", "保利",
-                                  "碧桂园", "融创", "恒大", "绿地", "华润置地"]):
+    if any(
+        kw in name
+        for kw in [
+            "地产",
+            "置业",
+            "置地",
+            "房产",
+            "万科",
+            "保利",
+            "碧桂园",
+            "融创",
+            "恒大",
+            "绿地",
+            "华润置地",
+        ]
+    ):
         return "地产"
     # 医药
-    if any(kw in name for kw in ["医药", "药业", "制药", "生物", "疫苗", "医疗",
-                                  "器械", "基因", "诊断", "CRO", "创新药"]):
+    if any(
+        kw in name
+        for kw in [
+            "医药",
+            "药业",
+            "制药",
+            "生物",
+            "疫苗",
+            "医疗",
+            "器械",
+            "基因",
+            "诊断",
+            "CRO",
+            "创新药",
+        ]
+    ):
         return "医药"
     # 科技子类：半导体、软件
     if any(kw in name for kw in ["半导体", "芯片", "晶圆", "封测", "存储", "EDA"]):
         return "半导体"
-    if any(kw in name for kw in ["软件", "信息", "数据", "云计算", "人工智能",
-                                  "物联网", "网络", "SaaS", "数字"]):
+    if any(
+        kw in name
+        for kw in [
+            "软件",
+            "信息",
+            "数据",
+            "云计算",
+            "人工智能",
+            "物联网",
+            "网络",
+            "SaaS",
+            "数字",
+        ]
+    ):
         return "软件"
     # 科技（其他）
-    if any(kw in name for kw in ["科技", "智能", "电子", "通信", "计算",
-                                  "技术", "威视", "光电", "机器人",
-                                  "安防", "集成", "激光", "光学", "显示", "面板"]):
+    if any(
+        kw in name
+        for kw in [
+            "科技",
+            "智能",
+            "电子",
+            "通信",
+            "计算",
+            "技术",
+            "威视",
+            "光电",
+            "机器人",
+            "安防",
+            "集成",
+            "激光",
+            "光学",
+            "显示",
+            "面板",
+        ]
+    ):
         return "科技"
     # 消费
-    if any(kw in name for kw in ["白酒", "食品", "饮料", "乳业", "调味", "啤酒",
-                                  "茅台", "五粮液", "海天", "伊利", "牧原",
-                                  "家电", "美的", "格力", "海尔"]):
+    if any(
+        kw in name
+        for kw in [
+            "白酒",
+            "食品",
+            "饮料",
+            "乳业",
+            "调味",
+            "啤酒",
+            "茅台",
+            "五粮液",
+            "海天",
+            "伊利",
+            "牧原",
+            "家电",
+            "美的",
+            "格力",
+            "海尔",
+        ]
+    ):
         return "消费"
     # 能源
-    if any(kw in name for kw in ["石油", "煤炭", "天然气", "能源", "石化", "燃气",
-                                  "中石油", "中石化", "中海油"]):
+    if any(
+        kw in name
+        for kw in [
+            "石油",
+            "煤炭",
+            "天然气",
+            "能源",
+            "石化",
+            "燃气",
+            "中石油",
+            "中石化",
+            "中海油",
+        ]
+    ):
         return "能源"
     # 周期
-    if any(kw in name for kw in ["钢铁", "有色", "铜", "铝", "锌", "黄金", "矿业",
-                                  "化工", "化纤", "水泥", "稀土", "锂"]):
+    if any(
+        kw in name
+        for kw in [
+            "钢铁",
+            "有色",
+            "铜",
+            "铝",
+            "锌",
+            "黄金",
+            "矿业",
+            "化工",
+            "化纤",
+            "水泥",
+            "稀土",
+            "锂",
+        ]
+    ):
         return "周期"
     # 制造
-    if any(kw in name for kw in ["汽车", "机械", "制造", "装备", "新能源", "电池",
-                                  "光伏", "风电", "宁德", "比亚迪"]):
+    if any(
+        kw in name
+        for kw in [
+            "汽车",
+            "机械",
+            "制造",
+            "装备",
+            "新能源",
+            "电池",
+            "光伏",
+            "风电",
+            "宁德",
+            "比亚迪",
+        ]
+    ):
         return "制造"
     # 军工
     if any(kw in name for kw in ["军工", "航天", "航空", "兵器", "船舶", "电科"]):
@@ -239,6 +377,7 @@ def infer_industry(name: str, code: str = "") -> str:
 
 
 # ── 统一画像入口 ──
+
 
 def profile_stock(quote: dict, fin: dict = None, kline_records: list = None) -> dict:
     """统一个股画像：行业 + 类型 + 指标建议。
@@ -272,6 +411,10 @@ def profile_stock(quote: dict, fin: dict = None, kline_records: list = None) -> 
 
 # ── 命令行快速测试 ──
 if __name__ == "__main__":
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     import sys
     import json
 
@@ -292,6 +435,7 @@ if __name__ == "__main__":
     fin_record = None
     try:
         from finance import fetch as fetch_finance
+
         fn_code = normalize_finance_code(code)
         fin_data = fetch_finance(fn_code)
         fin_record = fin_data[0] if fin_data else None

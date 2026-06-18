@@ -1,24 +1,16 @@
 """
 公共工具包：HTTP 请求、字段映射、工具函数、熔断器、数据源抽象。
 
-包结构:
-- common/__init__.py   # 主模块（re-export + 熔断器/数据源抽象）
-- common/cache.py      # 磁盘缓存（v1.3.1 起从 data.cache 迁入）
-- common/http.py       # HTTP 客户端
-- common/parsers.py    # 字段映射与解析
-- common/utils.py      # 工具函数
-- common/exceptions/   # 统一异常类
-- common/validators.py # 输入验证器
+采用 PEP 562 __getattr__ 懒加载，import common 时不触发子模块加载。
 """
-import json
+
 import threading
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
 
-# ---------- 子模块导入 ----------
+# ---------- 异常类（零副作用，顶层导入） ----------
 
-# 统一异常类
 from common.exceptions import (
     StockAnalyzerError,
     DataError,
@@ -35,113 +27,133 @@ from common.exceptions import (
     is_retryable_error,
 )
 
-# HTTP 客户端
-from common.http import (
-    USER_AGENTS,
-    http_get,
-    http_get_with_headers,
-    decode_gbk,
-)
-
-# 字段映射与解析
-from common.parsers import (
-    TENCENT_FIELDS,
-    parse_tencent_line,
-    SINA_QUOTE_URL,
-    parse_sina_quote_line,
-    EAST_MONEY_FIELDS,
-)
-
-# 工具函数
-from common.utils import (
-    PACKAGE_ROOT,
-    DATA_DIR,
-    split_codes,
-    plain_code,
-    infer_exchange,
-    normalize_quote_code,
-    normalize_finance_code,
-    to_secid,
-    board_type,
-    board_limit_pct,
-    is_etf,
-    batchify,
-    to_float,
-    to_int,
-    clamp,
-    normalize_volume,
-    normalize_amount,
-    err,
-    parallel_map,
-    get_shared_executor,
-)
-
-# 输入验证器
-from common.validators import (
-    validate_code,
-    normalize_code,
-    validate_codes,
-    validate_date,
-    validate_date_range,
-    validate_positive,
-    validate_in_range,
-)
-
-# 缓存（v1.3.1：从此模块向上依赖，杜绝 common ↔ data 循环）
-from common import cache
-from common.cache import (
-    CACHE_DIR,
-    cache_get,
-    cache_set,
-    cache_cleanup,
-    cache_key,
-    cache_key_for_stock,
-)
-
-# 启动时清理崩溃残留的 .tmp 文件
-cache.cleanup_tmp_files()
-
 # 向后兼容别名
 DataSourceUnavailableError = NetworkError
 DataParseError = ParseError
 
 
+# ---------- 懒加载映射 ----------
+
+_LAZY_IMPORTS = {
+    # HTTP 客户端
+    "USER_AGENTS": ("common.http", "USER_AGENTS"),
+    "http_get": ("common.http", "http_get"),
+    "http_get_with_headers": ("common.http", "http_get_with_headers"),
+    "decode_gbk": ("common.http", "decode_gbk"),
+    # 字段映射
+    "TENCENT_FIELDS": ("common.parsers", "TENCENT_FIELDS"),
+    "parse_tencent_line": ("common.parsers", "parse_tencent_line"),
+    "SINA_QUOTE_URL": ("common.parsers", "SINA_QUOTE_URL"),
+    "parse_sina_quote_line": ("common.parsers", "parse_sina_quote_line"),
+    "EAST_MONEY_FIELDS": ("common.parsers", "EAST_MONEY_FIELDS"),
+    # 工具函数
+    "PACKAGE_ROOT": ("common.utils", "PACKAGE_ROOT"),
+    "DATA_DIR": ("common.utils", "DATA_DIR"),
+    "split_codes": ("common.utils", "split_codes"),
+    "plain_code": ("common.utils", "plain_code"),
+    "infer_exchange": ("common.utils", "infer_exchange"),
+    "normalize_quote_code": ("common.utils", "normalize_quote_code"),
+    "normalize_finance_code": ("common.utils", "normalize_finance_code"),
+    "to_secid": ("common.utils", "to_secid"),
+    "board_type": ("common.utils", "board_type"),
+    "board_limit_pct": ("common.utils", "board_limit_pct"),
+    "is_etf": ("common.utils", "is_etf"),
+    "batchify": ("common.utils", "batchify"),
+    "to_float": ("common.utils", "to_float"),
+    "to_int": ("common.utils", "to_int"),
+    "clamp": ("common.utils", "clamp"),
+    "normalize_volume": ("common.utils", "normalize_volume"),
+    "normalize_amount": ("common.utils", "normalize_amount"),
+    "compute_volume_ratio": ("common.utils", "compute_volume_ratio"),
+    "compute_optimal_workers": ("common.utils", "compute_optimal_workers"),
+    "err": ("common.utils", "err"),
+    "parallel_map": ("common.utils", "parallel_map"),
+    "parallel_fetch_dict": ("common.utils", "parallel_fetch_dict"),
+    "get_shared_executor": ("common.utils", "get_shared_executor"),
+    # 验证器
+    "validate_code": ("common.validators", "validate_code"),
+    "normalize_code": ("common.validators", "normalize_code"),
+    "validate_codes": ("common.validators", "validate_codes"),
+    "validate_date": ("common.validators", "validate_date"),
+    "validate_date_range": ("common.validators", "validate_date_range"),
+    "validate_positive": ("common.validators", "validate_positive"),
+    "validate_in_range": ("common.validators", "validate_in_range"),
+    # 缓存
+    "cache": ("common.cache", None),
+    "CACHE_DIR": ("common.cache", "CACHE_DIR"),
+    "cache_get": ("common.cache", "cache_get"),
+    "cache_set": ("common.cache", "cache_set"),
+    "cache_put": ("common.cache", "put"),
+    "cache_cleanup": ("common.cache", "cache_cleanup"),
+    "cache_key": ("common.cache", "cache_key"),
+    "cache_key_for_stock": ("common.cache", "cache_key_for_stock"),
+}
+
+
+def __getattr__(name: str):
+    if name in _LAZY_IMPORTS:
+        module_path, attr = _LAZY_IMPORTS[name]
+        import importlib
+
+        mod = importlib.import_module(module_path)
+        if attr is None:
+            val = mod
+        else:
+            val = getattr(mod, attr)
+        globals()[name] = val
+        return val
+    raise AttributeError(f"module 'common' has no attribute {name!r}")
+
+
 # ---------- 带缓存的 HTTP 包装 ----------
+
 
 def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。"""
+    from common import cache, http_get
+
     key = cache.cache_key(url)
     cached = cache.get(key, ttl)
     if cached is not None:
         return cached
     data = http_get(url, timeout)
-    cache.set(key, data)
+    cache.put(key, data)
     return data
 
 
-def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 21600) -> bytes:
+def http_get_cached_keyed(
+    url: str, key: str, timeout: int = 10, ttl: int = 21600
+) -> bytes:
     """带语义缓存键的 HTTP GET。"""
+    from common import cache, http_get
+
     cached = cache.get(key, ttl)
     if cached is not None:
         return cached
     data = http_get(url, timeout)
-    cache.set(key, data)
+    cache.put(key, data)
     return data
 
 
-# ---------- 熔断器 ----------
+# ---------- 熔断器（零外部依赖，保留顶层） ----------
+
 
 class CircuitState(Enum):
-    CLOSED = "closed"        # 正常
-    OPEN = "open"            # 熔断
-    HALF_OPEN = "half_open"  # 试探
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
 
 
 class CircuitBreaker:
     """线程安全的熔断器：连续失败 N 次后熔断，超时后半开试探。"""
 
-    def __init__(self, name: str, failure_threshold: int = 5,
-                 recovery_timeout: int = 60, half_open_max: int = 3):
+    def __init__(
+        self,
+        name: str,
+        failure_threshold: int = 5,
+        recovery_timeout: int = 60,
+        half_open_max: int = 3,
+    ):
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
@@ -152,14 +164,9 @@ class CircuitBreaker:
         self.failure_count = 0
         self.last_failure_time: float = 0.0
         self.half_open_success = 0
-        self._half_open_token = False  # 半开期试探令牌，True 表示已有线程在试探
+        self._half_open_token = False
 
     def can_execute(self) -> bool:
-        """判断是否允许请求（线程安全）。
-
-        半开期通过 _half_open_token 保证只有 1 个线程能进行试探，
-        后续请求在试探完成前直接拒绝。
-        """
         with self._lock:
             if self.state == CircuitState.CLOSED:
                 return True
@@ -167,7 +174,6 @@ class CircuitBreaker:
                 if time.time() - self.last_failure_time >= self.recovery_timeout:
                     self.state = CircuitState.HALF_OPEN
                     self.half_open_success = 0
-                    # 转换线程直接消费 token，后续 HALF_OPEN 请求被拒绝
                     self._half_open_token = False
                     return True
                 return False
@@ -179,10 +185,6 @@ class CircuitBreaker:
             return False
 
     def record_success(self) -> None:
-        """记录成功（线程安全）。
-
-        半开期 1 次成功即恢复到 CLOSED。
-        """
         with self._lock:
             if self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.CLOSED
@@ -192,7 +194,6 @@ class CircuitBreaker:
                 self.failure_count = 0
 
     def record_failure(self) -> None:
-        """记录失败（线程安全）。"""
         with self._lock:
             self.failure_count += 1
             self.last_failure_time = time.time()
@@ -203,7 +204,6 @@ class CircuitBreaker:
                 self.state = CircuitState.OPEN
 
     def reset(self) -> None:
-        """重置熔断器（线程安全）。"""
         with self._lock:
             self.state = CircuitState.CLOSED
             self.failure_count = 0
@@ -211,23 +211,45 @@ class CircuitBreaker:
             self._half_open_token = False
 
 
-# 全局熔断器实例（线程安全）
 _circuit_breakers: dict[str, CircuitBreaker] = {}
 _circuit_breakers_lock = threading.Lock()
 
 
 def get_circuit_breaker(name: str, **kwargs: int) -> CircuitBreaker:
-    """获取或创建熔断器实例（线程安全）。"""
     with _circuit_breakers_lock:
         if name not in _circuit_breakers:
             _circuit_breakers[name] = CircuitBreaker(name, **kwargs)
         return _circuit_breakers[name]
 
 
-# ---------- 数据源抽象基类 ----------
+# ---------- NOT_HANDLED 哨兵（可序列化） ----------
 
-# 哨兵值：fetcher 返回此值表示"不处理该类代码"（区别于"处理失败"返回 None）
-NOT_HANDLED = object()
+
+def _get_not_handled():
+    """pickle 反序列化用：返回 NOT_HANDLED 单例。"""
+    return NOT_HANDLED
+
+
+class _NotHandled:
+    """可序列化的 NOT_HANDLED 哨兵。"""
+
+    def __repr__(self):
+        return "NOT_HANDLED"
+
+    def __reduce__(self):
+        return (_get_not_handled, ())
+
+    def __eq__(self, other):
+        return isinstance(other, _NotHandled)
+
+    def __hash__(self):
+        return hash("_NOT_HANDLED_")
+
+
+NOT_HANDLED = _NotHandled()
+
+
+# ---------- 数据源抽象基类 ----------
 
 
 class BaseFetcher(ABC):
@@ -235,106 +257,129 @@ class BaseFetcher(ABC):
 
     def __init__(self, name: str, priority: int = 0):
         self.name = name
+        self.provider = name.split("_")[0]
         self.priority = priority
-        self.circuit_breaker = get_circuit_breaker(name)
+        self.circuit_breaker = get_circuit_breaker(name, **self._load_cb_config())
+
+    @staticmethod
+    def _load_cb_config() -> dict[str, int]:
+        """从 data_source.yaml 加载熔断器配置。"""
+        try:
+            from config.loader import ConfigLoader
+
+            cb = ConfigLoader.load("data_source.yaml").get("circuit_breaker", {})
+            return {
+                "failure_threshold": cb.get("failure_threshold", 5),
+                "recovery_timeout": cb.get("recovery_timeout", 60),
+                "half_open_max": cb.get("half_open_max", 3),
+            }
+        except Exception:
+            return {}
 
     @abstractmethod
-    def fetch(self, code: str, **kwargs: object) -> dict[str, object] | list[object] | None:
+    def fetch(
+        self, code: str, **kwargs: object
+    ) -> dict[str, object] | list[object] | None:
         """获取数据。返回 None 表示失败，返回 NOT_HANDLED 表示不处理该类代码。"""
         pass
 
     def is_available(self) -> bool:
-        """检查数据源是否可用（熔断器状态）。"""
         return self.circuit_breaker.can_execute()
 
     def on_success(self) -> None:
-        """记录成功。"""
         self.circuit_breaker.record_success()
 
     def on_failure(self) -> None:
-        """记录失败。"""
         self.circuit_breaker.record_failure()
 
 
 class DataFetcherManager:
-    """数据源策略管理器：按优先级尝试，自动故障切换。
+    """数据源策略管理器：按优先级尝试，自动故障切换。"""
 
-    支持通过 source_config（来自 data_source.yaml）覆盖 fetcher 的优先级。
-    source_config 格式示例:
-        {"tencent": {"priority": 10, "enabled": true}, "eastmoney": {"priority": 8}, ...}
-    覆盖规则: fetcher.name 按 "_" 分割取首段作为 key 查找 source_config。
-    """
-
-    # 数据域后缀 → YAML 配置节名
     _DOMAIN_SECTION_MAP = {
         "quote": "quote_sources",
         "kline": "kline_sources",
         "finance": "finance_sources",
     }
 
-    def __init__(self, fetchers: list[BaseFetcher], source_config: dict[str, object] | None = None):
+    def __init__(
+        self,
+        fetchers: list[BaseFetcher],
+        source_config: dict[str, object] | None = None,
+    ):
         if source_config:
             self._apply_source_config(fetchers, source_config)
         self.fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
+        self._last_error: Exception | None = None
+
+    @property
+    def last_error(self) -> Exception | None:
+        """最后一次 fetch 失败的异常。"""
+        return self._last_error
 
     @staticmethod
-    def _apply_source_config(fetchers: list[BaseFetcher], source_config: dict[str, object]) -> None:
-        """用 YAML 配置覆盖 fetcher 优先级。
-
-        fetcher.name 格式: "{provider}_{domain}"（如 "tencent_quote"），
-        提取 provider 部分作为 source_config 的 key。
-        """
+    def _apply_source_config(
+        fetchers: list[BaseFetcher], source_config: dict[str, object]
+    ) -> None:
         for fetcher in fetchers:
-            provider = fetcher.name.split("_")[0]
-            cfg = source_config.get(provider)
+            cfg = source_config.get(fetcher.provider)
             if cfg and isinstance(cfg, dict):
                 fetcher.priority = cfg.get("priority", fetcher.priority)
 
-    def fetch(self, code: str, **kwargs: object) -> dict[str, object] | list[object] | None:
+    def fetch(
+        self, code: str, **kwargs: object
+    ) -> dict[str, object] | list[object] | None:
         """按优先级尝试各数据源。"""
-        last_error = None
+        self._last_error = None
         for fetcher in self.fetchers:
             if not fetcher.is_available():
                 continue
             try:
                 result = fetcher.fetch(code, **kwargs)
                 if result is NOT_HANDLED:
-                    continue  # 该 fetcher 不处理此类代码，跳过（不计失败）
+                    continue
                 if result is not None:
                     fetcher.on_success()
                     return result
                 fetcher.on_failure()
             except RateLimitError:
                 fetcher.on_failure()
-                raise  # 限流直接抛出
+                raise
             except Exception as e:
                 fetcher.on_failure()
-                last_error = e
+                self._last_error = e
                 continue
         return None
 
-    def fetch_with_fallback(self, code: str, fallback: object = None, **kwargs: object) -> object:
-        """带默认值的获取。"""
+    def fetch_with_fallback(
+        self, code: str, fallback: object = None, **kwargs: object
+    ) -> object:
         result = self.fetch(code, **kwargs)
         return result if result is not None else fallback
 
-    def fetch_with_cache_fallback(self, code: str, cache_prefix: str | None = None,
-                                   cache_ttl: int = 21600, fallback: object = None, **kwargs: object) -> object:
-        """带缓存降级的获取：优先实时数据 → 缓存数据 → 默认值。"""
+    def fetch_with_cache_fallback(
+        self,
+        code: str,
+        cache_prefix: str | None = None,
+        cache_ttl: int = 21600,
+        fallback: object = None,
+        **kwargs: object,
+    ) -> object:
+        from common import cache
+
         result = self.fetch(code, **kwargs)
         if result is not None:
             return result
-
-        # 尝试从缓存降级
         if cache_prefix:
             key = cache.cache_key_for_stock(cache_prefix, code, **kwargs)
             cached = cache.get(key, cache_ttl)
             if cached is not None:
                 try:
+                    import json
+
                     return json.loads(cached)
                 except (json.JSONDecodeError, Exception):
                     pass
-
         return fallback
 
 
@@ -342,34 +387,82 @@ class DataFetcherManager:
 
 __all__ = [
     # 基础设施
-    "PACKAGE_ROOT", "DATA_DIR", "USER_AGENTS",
-    "http_get", "http_get_with_headers", "http_get_cached", "http_get_cached_keyed",
+    "PACKAGE_ROOT",
+    "DATA_DIR",
+    "USER_AGENTS",
+    "http_get",
+    "http_get_with_headers",
+    "http_get_cached",
+    "http_get_cached_keyed",
     "decode_gbk",
-    # 缓存（v1.3.1 起从 data.cache 迁入）
-    "CACHE_DIR", "cache_get", "cache_set", "cache_cleanup",
-    "cache_key", "cache_key_for_stock", "cache",
-    # 字段映射与解析
-    "TENCENT_FIELDS", "parse_tencent_line",
-    "SINA_QUOTE_URL", "parse_sina_quote_line", "EAST_MONEY_FIELDS",
+    # 缓存
+    "CACHE_DIR",
+    "cache_get",
+    "cache_set",
+    "cache_put",
+    "cache_cleanup",
+    "cache_key",
+    "cache_key_for_stock",
+    "cache",
+    # 字段映射
+    "TENCENT_FIELDS",
+    "parse_tencent_line",
+    "SINA_QUOTE_URL",
+    "parse_sina_quote_line",
+    "EAST_MONEY_FIELDS",
     # 工具函数
-    "split_codes", "plain_code", "infer_exchange",
-    "normalize_quote_code", "normalize_finance_code", "to_secid",
-    "board_type", "board_limit_pct", "is_etf", "batchify", "to_float", "to_int", "clamp",
-    "normalize_volume", "normalize_amount",
-    "err", "parallel_map", "get_shared_executor",
+    "split_codes",
+    "plain_code",
+    "infer_exchange",
+    "normalize_quote_code",
+    "normalize_finance_code",
+    "to_secid",
+    "board_type",
+    "board_limit_pct",
+    "is_etf",
+    "batchify",
+    "to_float",
+    "to_int",
+    "clamp",
+    "normalize_volume",
+    "normalize_amount",
+    "compute_volume_ratio",
+    "compute_optimal_workers",
+    "err",
+    "parallel_map",
+    "parallel_fetch_dict",
+    "get_shared_executor",
     # 异常类
-    "StockAnalyzerError", "DataError", "NetworkError", "RateLimitError",
-    "ParseError", "DataUnavailableError", "BusinessError",
-    "ValidationError", "StrategyError", "InsufficientDataError",
-    "ConfigurationError", "format_error", "is_retryable_error",
+    "StockAnalyzerError",
+    "DataError",
+    "NetworkError",
+    "RateLimitError",
+    "ParseError",
+    "DataUnavailableError",
+    "BusinessError",
+    "ValidationError",
+    "StrategyError",
+    "InsufficientDataError",
+    "ConfigurationError",
+    "format_error",
+    "is_retryable_error",
     # 向后兼容别名
-    "DataSourceUnavailableError", "DataParseError",
+    "DataSourceUnavailableError",
+    "DataParseError",
     # 熔断器
-    "CircuitState", "CircuitBreaker", "get_circuit_breaker",
+    "CircuitState",
+    "CircuitBreaker",
+    "get_circuit_breaker",
     # 数据源抽象
-    "NOT_HANDLED", "BaseFetcher", "DataFetcherManager",
+    "NOT_HANDLED",
+    "BaseFetcher",
+    "DataFetcherManager",
     # 输入验证器
-    "validate_code", "normalize_code", "validate_codes",
-    "validate_date", "validate_date_range",
-    "validate_positive", "validate_in_range",
+    "validate_code",
+    "normalize_code",
+    "validate_codes",
+    "validate_date",
+    "validate_date_range",
+    "validate_positive",
+    "validate_in_range",
 ]

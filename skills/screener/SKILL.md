@@ -3,7 +3,7 @@ name: screener
 description: 选股策略。触发词：推荐几只股票、帮我选股、有什么好股票、筛股票、找便宜的好公司、哪些股票值得买、初始化股票池、刷新股票池。支持5种策略（均衡/质量价值/成长动量/防守低波/拐点修复）多因子筛选，含股票池初始化。
 version: 1.11.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/scripts/data/sector_stocks.json) Read(//Users/curtis/Documents/curtis/stock-analyzer-skill/skills/**)
+allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *) Read(./scripts/data/sector_stocks.json) Read(./skills/_shared/references/*.md)
 ---
 
 # Screener
@@ -18,6 +18,17 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 /screener init force        # 强制重新初始化
 /screener init default      # 使用预置默认数据（离线可用）
 /screener init full-market  # 初始化全市场股票池（约 5000 只）
+```
+
+## 高级选项（Sprint 2-5）
+
+```text
+--no-regime      禁用市场状态 overlay（保留 V1 固定权重）
+--no-normalize   禁用因子 z-score 标准化（保留 V1 原始分数）
+--snapshot       保存本次筛选快照到 data/snapshots/<strategy>/<date>/<hash>.json
+--full-market    全市场模式（约 5000 只股票）
+--exclude-board  排除指定板块（默认排除北交所）
+--no-constraints 禁用组合约束（板块集中度 + 趋势降权）
 ```
 
 也可直接用自然语言触发，例如"按成长动量筛资源板块前 5 名"。
@@ -102,15 +113,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 - `--min-cap 40`：主板最低市值（亿元），创业板/科创板自动 ×0.6，北交所 ×0.4
 - `--exclude-loss`：剔除 EPS<=0 标的
 
-策略含义：
-
-| 策略              | 适用市场          | 核心偏好                     | 一句话说明           |
-| ----------------- | ----------------- | ---------------------------- | -------------------- |
-| `balanced`        | 震荡/方向不明     | 质量、估值、动量、流动性均衡 | 啥都来点，不偏科     |
-| `quality_value`   | 价值修复/防守行情 | 高 ROE、低估值、现金流质量   | 找便宜的好公司       |
-| `growth_momentum` | 进攻行情/题材主线 | 增速、趋势、成交活跃度       | 追热点，买强势股     |
-| `defensive`       | 缩量弱市/避险     | 低估值、低负债、稳定质量     | 躲风头，买抗跌的     |
-| `turning_point`   | 超跌修复/拐点     | 估值安全垫 + 技术转强        | 跌多了反弹，左侧抄底 |
+策略含义详见 [`../_shared/references/strategies.md`](../_shared/references/strategies.md)。
 
 ### Step 2: 解释评分
 
@@ -122,7 +125,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 - 流动性：成交额、市值、换手适中程度。
 - 量价信号：放量上涨=资金介入、缩量下跌=抛压减轻、放量下跌=主力出货、缩量上涨=量价背离。
 
-硬过滤（自动，按板块差异化；阈值为当前值，修改需同步 `stock-init/SKILL.md` 和 `scripts/strategies/thresholds.py`）：
+硬过滤（自动，按板块差异化；阈值为当前值，修改需同步 `scripts/strategies/thresholds.py`）：
 
 - ST 名称前缀匹配
 - 成交额不足（主板 <5000 万，创业板/科创板 <3500 万，北交所 <7500 万）

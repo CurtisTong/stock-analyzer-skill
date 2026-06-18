@@ -50,6 +50,7 @@ from technical.scoring import (
 )
 from technical.report import render_report, render_quick
 from technical.core import sma
+from technical.valuation import pe_percentile_score, incremental_ma
 
 
 def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, args=None):
@@ -77,13 +78,8 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
     # ── 可选增强模块（--classify 时启用）──
     do_classify = args and getattr(args, "classify", False)
 
-    # 均线序列（供本土战法使用）
-    mas = {}
-    for p in [5, 10, 20, 60]:
-        mas[f"ma{p}"] = [
-            sma(closes[: i + 1], p) if i + 1 >= p else closes[i]
-            for i in range(len(closes))
-        ]
+    # 均线序列（供本土战法使用）— O(N) 增量计算
+    mas = {f"ma{p}": incremental_ma(closes, p) for p in [5, 10, 20, 60]}
 
     # 本土战法（始终运行，计算成本低）
     try:
@@ -142,30 +138,20 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
     # 估值数据（供 signals.py 估值信号使用）
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
-    # PE 行业相对分位（简化版：基于固定阈值的分段映射）
-    # 有行业阈值时走精确计算，否则用通用阈值
-    if pe > 0:
-        try:
-            from strategies.thresholds import get_industry_threshold
-            from classifier import profile_stock
+    # PE 行业相对分位 — 有行业阈值时走精确计算，否则用通用阈值
+    pe_low, pe_mid, pe_high = 15, 25, 40
+    try:
+        from strategies.thresholds import get_industry_threshold
+        from classifier import profile_stock
 
-            profile = profile_stock(quote)
-            industry = profile.get("industry", "默认")
-            pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
-            pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
-            pe_high = get_industry_threshold(industry, "pe_expensive", 40)
-        except Exception:
-            pe_low, pe_mid, pe_high = 15, 25, 40
-        if pe <= pe_low:
-            pe_pct = 15
-        elif pe <= pe_mid:
-            pe_pct = 15 + (pe - pe_low) / (pe_mid - pe_low) * 35
-        elif pe <= pe_high:
-            pe_pct = 50 + (pe - pe_mid) / (pe_high - pe_mid) * 30
-        else:
-            pe_pct = min(95, 80 + (pe - pe_high) / pe_high * 20)
-    else:
-        pe_pct = 50
+        profile = profile_stock(quote)
+        industry = profile.get("industry", "默认")
+        pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
+        pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
+        pe_high = get_industry_threshold(industry, "pe_expensive", 40)
+    except Exception:
+        pass
+    pe_pct = pe_percentile_score(pe, pe_low, pe_mid, pe_high)
     # PEG
     growth = to_float(quote.get("net_profit_yoy", 0))
     peg = (pe / growth) if (pe > 0 and growth > 0) else 0
@@ -200,6 +186,10 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
 
 
 def main():
+    from common.cache import cleanup_tmp_files
+
+    cleanup_tmp_files()
+
     parser = argparse.ArgumentParser(description="A 股纯技术分析")
     parser.add_argument("code", help="证券代码，如 sh600989")
     parser.add_argument(

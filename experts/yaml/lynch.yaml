@@ -4,50 +4,15 @@ group: long_term
 style: 成长投资
 horizon: 月/季/年
 core_signal: 基本面+估值
-
 weights:
   基本面: 35.0
   估值: 28.0
   技术面: 15.0
   情绪: 10.0
   风险: 12.0
-
 veto_conditions:
   - PEG > 2.5（增速无法消化估值）
   - 连续两季 ROE 下行且营收增速 < 5%
   - 公司'增长故事'被证伪（如政策突变、核心技术被替代）
-
-scoring_thresholds:
-  peg_cheap: 0.5
-  peg_reasonable: 1.0
-  peg_expensive: 2.0
-  growth_high: 30
-  growth_medium: 15
-  growth_low: 5
-
-investment_philosophy: |
-  PEG < 1 的成长股是最佳投资。
-  用生活洞察发现成长股（逛商场、用产品）。
-  增速消化估值，时间是成长股的朋友。
-
-buy_rules:
-  - PEG < 1
-  - 营收增速 > 20%
-  - ROE > 15%
-  - 行业处于成长期
-
-sell_rules:
-  - 增速放缓（PEG > 2）
-  - 增长逻辑被证伪
-  - 估值严重高估
-
-position_rules:
-  - 分散持仓（10-20 只）
-  - 单只不超过 10%
-  - 定期再平衡
-
-a_share_applicability: |
-  A 股成长投资适用，但需注意：
-  - 高增速公司估值普遍偏高
-  - 政策变化可能颠覆增长逻辑
-  - 需关注增速的可持续性
+md_path: experts/lynch.md
+active: true

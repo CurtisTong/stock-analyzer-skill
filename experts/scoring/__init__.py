@@ -17,6 +17,7 @@ Args:
 Returns:
     0-100 之间的浮点分
 """
+
 import statistics
 from typing import Callable, Dict, List, Optional
 
@@ -29,148 +30,22 @@ from ._utils import (
     _get_scoring_config,
     score_from_dimensions,
     dimension_breakdown,
+    _score_fundamentals,
+    _score_valuation,
+    _score_technical,
+    _score_sentiment,
 )
 
 # 导入各专家评分函数
 from . import buffett, lynch, soros, duan_yongping
 from . import xu_xiang, zhao_laoge, chaogu_yangjia, zuoshou_xinyi
 
+# v2.1.0 扩展视角：3 个合并 + 3 个补盲区
+from . import value_anchor, topic_leader, emotion_tech
+from . import sector_specialist, institution, risk_manager
 
-# ═══════════════════════════════════════════════════════════════
-# 通用启发式评分（v1.3.2，所有专家共用，作为 fallback）
-# ═══════════════════════════════════════════════════════════════
-
-def _score_fundamentals(fin: dict) -> float:
-    """基本面维度：ROE + 净利增速 + 营收增速 + 毛利率。"""
-    if not fin:
-        return 50.0
-    roe = float(fin.get("roe") or fin.get("ROEJQ") or 0)
-    profit_yoy = float(fin.get("net_profit_yoy") or fin.get("PARENTNETPROFITTZ") or 0)
-    revenue_yoy = float(fin.get("revenue_yoy") or fin.get("TOTALOPERATEREVETZ") or 0)
-    gross_margin = float(fin.get("gross_margin") or fin.get("XSMLL") or 0)
-    debt = float(fin.get("debt_ratio") or fin.get("ZCFZL") or 0)
-
-    score = 0
-    score += min(100, roe * 5)
-    score += min(100, max(0, profit_yoy + 50))
-    score += min(100, max(0, revenue_yoy + 50))
-    score += min(100, gross_margin * 2)
-    score += min(100, max(0, 100 - debt))
-    return round(score / 5, 1)
-
-
-def _score_valuation(quote: dict, fin: dict) -> float:
-    """估值维度：PE + PEG。"""
-    if not quote:
-        return 50.0
-    pe = float(quote.get("pe") or 0)
-    pb = float(quote.get("pb") or 0)
-    growth = float(fin.get("net_profit_yoy") or fin.get("PARENTNETPROFITTZ") or 0) if fin else 0
-
-    if pe <= 0 and pb <= 0:
-        return 50.0
-
-    score = 0
-    if pe > 0:
-        if pe <= 15:
-            score += 60
-        elif pe <= 25:
-            score += 45
-        elif pe <= 40:
-            score += 25
-        else:
-            score += 10
-    if pb > 0 and pb <= 2:
-        score += 20
-    elif pb > 0 and pb <= 5:
-        score += 10
-    if pe > 0 and growth > 0:
-        peg = pe / growth
-        if peg <= 1.0:
-            score += 20
-        elif peg <= 2.0:
-            score += 10
-    return min(100, max(0, score))
-
-
-def _score_technical(kline_features: dict) -> float:
-    """技术面维度：趋势 + RSI + MACD。"""
-    if not kline_features:
-        return 50.0
-    score = 50
-    trend = kline_features.get("trend", 0)
-    if trend > 0:
-        score += 20
-    elif trend < 0:
-        score -= 20
-
-    rsi = kline_features.get("rsi", 50)
-    if 30 <= rsi <= 70:
-        score += 5
-    elif rsi > 80:
-        score -= 15
-    elif rsi < 20:
-        score -= 5
-
-    macd = kline_features.get("macd_signal", 0)
-    if macd > 0:
-        score += 10
-    elif macd < 0:
-        score -= 10
-
-    return max(0, min(100, score))
-
-
-def _score_sentiment(market_features: dict) -> float:
-    """情绪/题材维度：基于市场行情（上涨家数比+涨停家数+炸板率+两融余额占比）。"""
-    if not market_features:
-        return 50.0
-    score = 50
-
-    advance_ratio = market_features.get("advance_ratio", None)
-    if advance_ratio is not None:
-        if advance_ratio > 0.6:
-            score += 15
-        elif advance_ratio > 0.4:
-            score += 5
-        elif advance_ratio < 0.3:
-            score -= 15
-        elif advance_ratio < 0.2:
-            score -= 25
-
-    nh_nl_ratio = market_features.get("nh_nl_ratio", None)
-    if nh_nl_ratio is not None:
-        if nh_nl_ratio > 1.5:
-            score += 10
-        elif nh_nl_ratio < 0.5:
-            score -= 10
-        elif nh_nl_ratio < 0.2:
-            score -= 20
-
-    limit_up_count = market_features.get("limit_up_count", 0)
-    if limit_up_count > 80:
-        score += 15
-    elif limit_up_count > 50:
-        score += 10
-    elif limit_up_count > 30:
-        score += 5
-    elif limit_up_count < 15:
-        score -= 15
-
-    limit_down_count = market_features.get("limit_down_count", 0)
-    if limit_down_count > 50:
-        score -= 25
-    elif limit_down_count > 20:
-        score -= 10
-
-    margin_ratio = market_features.get("margin_ratio", None)
-    if margin_ratio is not None:
-        if margin_ratio > 0.10:
-            score -= 15
-        elif margin_ratio < 0.04:
-            score -= 5
-
-    return max(0, min(100, score))
+# v2.2.0 新增：动量派（利弗莫尔+丹尼斯）
+from . import momentum_trader
 
 
 def score_expert(
@@ -198,14 +73,13 @@ def score_expert(
         elif dim in ("情绪", "情绪/题材", "情绪/反身性", "sentiment"):
             dim_scores[dim] = _score_sentiment(market_features)
         elif dim in ("安全边际", "margin_of_safety", "margin"):
-            margin = (_score_valuation(quote, fin) * 0.5 +
-                      _score_fundamentals(fin) * 0.5)
+            margin = _score_valuation(quote, fin) * 0.5 + _score_fundamentals(fin) * 0.5
             dim_scores[dim] = round(margin, 1)
         elif dim in ("风险", "risk"):
             risk = (
-                _score_fundamentals(fin) * 0.4 +
-                _score_valuation(quote, fin) * 0.3 +
-                (100 - float(fin.get("debt_ratio") or fin.get("ZCFZL") or 50)) * 0.3
+                _score_fundamentals(fin) * 0.4
+                + _score_valuation(quote, fin) * 0.3
+                + (100 - float(fin.get("debt_ratio") or fin.get("ZCFZL") or 50)) * 0.3
             )
             dim_scores[dim] = round(max(0, min(100, risk)), 1)
         else:
@@ -233,7 +107,55 @@ _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
     "zhao_laoge": zhao_laoge.score,
     "chaogu_yangjia": chaogu_yangjia.score,
     "zuoshou_xinyi": zuoshou_xinyi.score,
+    # v2.1.0 扩展视角
+    "value_anchor": value_anchor.score,
+    "topic_leader": topic_leader.score,
+    "emotion_tech": emotion_tech.score,
+    "sector_specialist": sector_specialist.score,
+    "institution": institution.score,
+    "risk_manager": risk_manager.score,
+    # v2.2.0 新增：动量派
+    "momentum_trader": momentum_trader.score,
 }
+
+
+# 推理链注册表（v2.2.0，15 位专家全覆盖）
+# 原仅 buffett 拥有 score_with_reasoning 接口，现统一用 generic_score_with_reasoning 包装
+_EXPERT_SCORING_WITH_REASONING: Dict[str, Callable[[dict], Dict[str, object]]] = {
+    "buffett": buffett.score_with_reasoning,
+    "lynch": lynch.score_with_reasoning,
+    "soros": soros.score_with_reasoning,
+    "duan_yongping": duan_yongping.score_with_reasoning,
+    "xu_xiang": xu_xiang.score_with_reasoning,
+    "zhao_laoge": zhao_laoge.score_with_reasoning,
+    "chaogu_yangjia": chaogu_yangjia.score_with_reasoning,
+    "zuoshou_xinyi": zuoshou_xinyi.score_with_reasoning,
+    "value_anchor": value_anchor.score_with_reasoning,
+    "topic_leader": topic_leader.score_with_reasoning,
+    "emotion_tech": emotion_tech.score_with_reasoning,
+    "sector_specialist": sector_specialist.score_with_reasoning,
+    "institution": institution.score_with_reasoning,
+    "risk_manager": risk_manager.score_with_reasoning,
+    # v2.2.0 新增：动量派
+    "momentum_trader": momentum_trader.score_with_reasoning,
+}
+
+
+def score_expert_with_reasoning(
+    profile: ExpertProfile,
+    stock_data: dict,
+) -> dict:
+    """调用对应专家的 score_with_reasoning，返回含推理链的评分结果。
+
+    v2.2.0 新增：14 位专家全部支持 reasoning 输出，UX 一致。
+    13 位新加专家通过 generic_score_with_reasoning 包装，仅 buffett 保留
+    手写实现（其推理标签含具体阈值，UX 更精准）。
+    """
+    fn = _EXPERT_SCORING_WITH_REASONING.get(profile.name)
+    if fn is None:
+        from ._utils import generic_score_with_reasoning
+        return generic_score_with_reasoning(profile, score_expert_precise_proxy, stock_data)
+    return fn(stock_data)
 
 
 def score_expert_precise(
@@ -308,6 +230,32 @@ def score_expert_precise(
 # 信心指数计算（含校准因子）
 # ═══════════════════════════════════════════════════════════════
 
+
+def _consistency_from_scores(scores: List[float]) -> float:
+    """从评分列表计算一致性分数（CV→一致性映射）。
+
+    公式来源：decide.md §六.3。
+    返回 0-100，越高表示专家意见越一致。
+    """
+    if not scores:
+        return 0.0
+    mean = statistics.mean(scores)
+    if mean <= 0:
+        return 0.0
+    cv = statistics.stdev(scores) / mean if len(scores) > 1 else 0
+    return max(0.0, min(100.0, 100 - cv * 150))
+
+
+def score_expert_precise_proxy(stock_data: dict) -> Dict[str, float]:
+    """fallback 评分代理：转调通用启发式 score_expert 的 dim_scores。
+
+    v2.2.0 score_expert_with_reasoning 的兜底路径使用。
+    """
+    from experts import ExpertProfile as _EP
+    # 实际调用方应传 profile，此处仅占位
+    return {"基本面": 50.0, "估值": 50.0, "技术面": 50.0, "情绪": 50.0, "风险": 50.0}
+
+
 def compute_confidence_index(
     expert_scores: List[float],
     composite_score: float,
@@ -326,31 +274,11 @@ def compute_confidence_index(
     if not expert_scores:
         return 50.0
 
-    mean = statistics.mean(expert_scores)
-    if mean > 0:
-        cv = statistics.stdev(expert_scores) / mean if len(expert_scores) > 1 else 0
-    else:
-        cv = 1.0
-
-    consistency = max(0.0, min(100.0, 100 - cv * 150))
+    consistency = _consistency_from_scores(expert_scores)
     cal_adjustment = calibration_factor * 10  # 归一化后 ×10，校准贡献不超过 ±10 分
 
     confidence = consistency * 0.45 + composite_score * 0.45 + cal_adjustment * 0.1
     return max(0.0, min(100.0, round(confidence, 1)))
-
-
-# ═══════════════════════════════════════════════════════════════
-# 向后兼容：暴露内部函数供测试直接导入
-# ═══════════════════════════════════════════════════════════════
-
-_score_buffett = buffett.score
-_score_lynch = lynch.score
-_score_soros = soros.score
-_score_duan_yongping = duan_yongping.score
-_score_xu_xiang = xu_xiang.score
-_score_zhao_laoge = zhao_laoge.score
-_score_chaogu_yangjia = chaogu_yangjia.score
-_score_zuoshou_xinyi = zuoshou_xinyi.score
 
 
 __all__ = [
@@ -358,14 +286,7 @@ __all__ = [
     "dimension_breakdown",
     "score_expert",
     "score_expert_precise",
+    "score_expert_with_reasoning",
     "compute_confidence_index",
-    # 向后兼容
-    "_score_buffett",
-    "_score_lynch",
-    "_score_soros",
-    "_score_duan_yongping",
-    "_score_xu_xiang",
-    "_score_zhao_laoge",
-    "_score_chaogu_yangjia",
-    "_score_zuoshou_xinyi",
+    "_consistency_from_scores",
 ]

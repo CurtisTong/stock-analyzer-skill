@@ -2,6 +2,7 @@
 MACD 指标（含背离检测）。
 依赖: core (ema, _ema_series, _find_swing_points)
 """
+
 from .core import ema, _ema_series, _find_swing_points
 
 
@@ -76,11 +77,16 @@ def _detect_macd_divergence(closes, dif_series, dea_series):
         last2_p = sorted(price_highs[-2:])
         if last2_p[1] - last2_p[0] >= 8:
             if c[last2_p[1]] > c[last2_p[0]]:
-                # 找到对应的 DIF 峰值
-                relevant_dif_peaks = [i for i in dif_highs if abs(i - last2_p[0]) <= 5 or abs(i - last2_p[1]) <= 5]
-                if len(relevant_dif_peaks) >= 2:
-                    relevant_dif_peaks.sort()
-                    if d[relevant_dif_peaks[-1]] < d[relevant_dif_peaks[0]]:
+                # 找到对应的 DIF 峰值（最近邻匹配，容差与 swing window 一致）
+                def _nearest_peak(peaks, target):
+                    if not peaks:
+                        return None
+                    return min(peaks, key=lambda p: abs(p - target))
+
+                p0_dif = _nearest_peak(dif_highs, last2_p[0])
+                p1_dif = _nearest_peak(dif_highs, last2_p[1])
+                if p0_dif is not None and p1_dif is not None and p0_dif != p1_dif:
+                    if d[p1_dif] < d[p0_dif]:
                         return "顶背离(看跌)"
 
     # 底背离：价格新低而 DIF 未新低
@@ -88,10 +94,16 @@ def _detect_macd_divergence(closes, dif_series, dea_series):
         last2_p = sorted(price_lows[-2:])
         if last2_p[1] - last2_p[0] >= 8:
             if c[last2_p[1]] < c[last2_p[0]]:
-                relevant_dif_lows = [i for i in dif_lows if abs(i - last2_p[0]) <= 5 or abs(i - last2_p[1]) <= 5]
-                if len(relevant_dif_lows) >= 2:
-                    relevant_dif_lows.sort()
-                    if d[relevant_dif_lows[-1]] > d[relevant_dif_lows[0]]:
+
+                def _nearest_low(lows, target):
+                    if not lows:
+                        return None
+                    return min(lows, key=lambda p: abs(p - target))
+
+                p0_dif = _nearest_low(dif_lows, last2_p[0])
+                p1_dif = _nearest_low(dif_lows, last2_p[1])
+                if p0_dif is not None and p1_dif is not None and p0_dif != p1_dif:
+                    if d[p1_dif] > d[p0_dif]:
                         return "底背离(看涨)"
 
     return None

@@ -1,8 +1,6 @@
 """通达信行情数据源（需要 pytdx 包）。"""
 import logging
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher
 from fetchers.pytdx_pool import HAS_PYTDX, get_default_pool

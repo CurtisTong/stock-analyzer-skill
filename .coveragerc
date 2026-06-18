@@ -1,0 +1,24 @@
+[run]
+source = scripts
+omit =
+    # 已废弃或低价值的低覆盖模块
+    scripts/technical/valuation.py
+    scripts/technical/long_term.py
+    scripts/technical/sentiment.py
+    scripts/technical/report.py
+    # 监控/告警相关非核心模块
+    scripts/monitor/*
+    scripts/experts/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+
+fail_under = 60
+show_missing = true
+skip_empty = true
+precision = 1
