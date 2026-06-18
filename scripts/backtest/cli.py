@@ -117,6 +117,34 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
     }
 
 
+def _fetch_benchmark_return(benchmark_code: str, days: int) -> float | None:
+    """拉取基准指数在最近 N 个交易日的累计涨跌幅。
+
+    Args:
+        benchmark_code: sh000300 / sh000016 / sz399006 等
+        days: 回看天数（会比实际交易日略大，确保覆盖）
+
+    Returns:
+        累计涨跌幅（%），失败返回 None
+    """
+    try:
+        from data import get_kline
+        # 多取几天，确保覆盖 N 个交易日
+        bars = get_kline(benchmark_code, scale=240, datalen=days + 10)
+        if not bars or len(bars) < 2:
+            return None
+        # 取最后 days 根
+        bars = bars[-days:] if len(bars) > days else bars
+        first_close = bars[0].close
+        last_close = bars[-1].close
+        if first_close <= 0:
+            return None
+        return round((last_close / first_close - 1) * 100, 2)
+    except Exception as e:
+        print(f"⚠️  基准收益拉取失败: {e}", file=sys.stderr)
+        return None
+
+
 def load_test_universe():
     """加载测试股票池（过滤掉元数据 key 和非列表值）。"""
     path = DATA_DIR / "sector_stocks.json"
@@ -234,6 +262,12 @@ def main():
                         )
                         line += f" {scenario_str[:30]:>30}"
                     print(line)
+            # 基准对比行
+            if args.benchmark:
+                bench_pct = _fetch_benchmark_return(args.benchmark, args.days)
+                if bench_pct is not None:
+                    print("-" * (len(header) + 10))
+                    print(f"{'基准 ' + args.benchmark:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>8} {'-':>6}")
 
     else:
         print(
