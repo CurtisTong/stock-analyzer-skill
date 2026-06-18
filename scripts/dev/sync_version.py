@@ -2,7 +2,8 @@
 """版本同步工具 - 从 package.json 同步版本到所有相关文件。
 
 单一版本源：package.json 的 version 字段
-自动更新：SKILL.md、plugin.json、marketplace.json、README.md、测试文件
+自动更新：SKILL.md、plugin.json、marketplace.json、README.md、测试文件、
+  methodology.md、pyproject.toml、docs/product-architecture.md
 
 用法：
   python3 scripts/dev/sync_version.py              # 同步到 package.json 版本
@@ -66,6 +67,59 @@ def update_skill_versions(version: str) -> list[Path]:
             skill_md.write_text(new_content, encoding="utf-8")
             updated.append(skill_md)
     return updated
+
+
+def update_methodology_version(version: str) -> bool:
+    """更新 methodology.md frontmatter 中的 version 字段。"""
+    path = PKG_ROOT / "methodology.md"
+    if not path.exists():
+        return False
+    content = path.read_text(encoding="utf-8")
+    new_content = re.sub(
+        r'^(version:\s*)\d+\.\d+\.\d+',
+        rf'\g<1>{version}',
+        content,
+        flags=re.MULTILINE,
+    )
+    if new_content != content:
+        path.write_text(new_content, encoding="utf-8")
+        return True
+    return False
+
+
+def update_pyproject_version(version: str) -> bool:
+    """更新 pyproject.toml [project] 段中的 version 字段。"""
+    path = PKG_ROOT / "pyproject.toml"
+    if not path.exists():
+        return False
+    content = path.read_text(encoding="utf-8")
+    new_content = re.sub(
+        r'^(version\s*=\s*")[^"]+(")',
+        rf'\g<1>{version}\2',
+        content,
+        flags=re.MULTILINE,
+    )
+    if new_content != content:
+        path.write_text(new_content, encoding="utf-8")
+        return True
+    return False
+
+
+def update_doc_header_version(version: str) -> bool:
+    """更新 docs/product-architecture.md 顶部的版本声明行。"""
+    path = PKG_ROOT / "docs" / "product-architecture.md"
+    if not path.exists():
+        return False
+    content = path.read_text(encoding="utf-8")
+    new_content = re.sub(
+        r'(版本：v)\d+\.\d+\.\d+(\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})',
+        rf'\g<1>{version}\2',
+        content,
+    )
+    if new_content != content:
+        path.write_text(new_content, encoding="utf-8")
+        return True
+    return False
 
 
 def update_readme_version(version: str) -> bool:
@@ -181,6 +235,51 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
             else:
                 result["mismatch"].append(f"tests/test_skill_metadata.py: {v}")
 
+    # 检查 methodology.md
+    methodology_path = PKG_ROOT / "methodology.md"
+    if methodology_path.exists():
+        content = methodology_path.read_text(encoding="utf-8")
+        match = re.search(r'^version:\s*(\d+\.\d+\.\d+)', content, re.MULTILINE)
+        if match:
+            v = match.group(1)
+            label = "methodology.md"
+            if v == target_version:
+                result["match"].append(label)
+            else:
+                result["mismatch"].append(f"{label}: {v}")
+        else:
+            result["missing"].append("methodology.md")
+
+    # 检查 pyproject.toml
+    pyproject_path = PKG_ROOT / "pyproject.toml"
+    if pyproject_path.exists():
+        content = pyproject_path.read_text(encoding="utf-8")
+        match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+        if match:
+            v = match.group(1)
+            label = "pyproject.toml"
+            if v == target_version:
+                result["match"].append(label)
+            else:
+                result["mismatch"].append(f"{label}: {v}")
+        else:
+            result["missing"].append("pyproject.toml")
+
+    # 检查 docs/product-architecture.md
+    doc_path = PKG_ROOT / "docs" / "product-architecture.md"
+    if doc_path.exists():
+        content = doc_path.read_text(encoding="utf-8")
+        match = re.search(r'版本：v(\d+\.\d+\.\d+)', content)
+        if match:
+            v = match.group(1)
+            label = "docs/product-architecture.md"
+            if v == target_version:
+                result["match"].append(label)
+            else:
+                result["mismatch"].append(f"{label}: {v}")
+        else:
+            result["missing"].append(label)
+
     return result
 
 
@@ -247,6 +346,24 @@ def main() -> None:
         print("   ✅ tests/test_skill_metadata.py")
     else:
         print("   ⏭️  tests/test_skill_metadata.py (已是最新)")
+
+    # 更新 methodology.md
+    if update_methodology_version(target_version):
+        print("   ✅ methodology.md")
+    else:
+        print("   ⏭️  methodology.md (已是最新)")
+
+    # 更新 pyproject.toml
+    if update_pyproject_version(target_version):
+        print("   ✅ pyproject.toml")
+    else:
+        print("   ⏭️  pyproject.toml (已是最新)")
+
+    # 更新 docs/product-architecture.md
+    if update_doc_header_version(target_version):
+        print("   ✅ docs/product-architecture.md")
+    else:
+        print("   ⏭️  docs/product-architecture.md (已是最新)")
 
     print(f"\n✅ 版本同步完成: {target_version}")
 

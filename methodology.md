@@ -2,7 +2,7 @@
 name: stock-analyzer-methodology
 description: 投资分析完整方法论——五层框架、专家讨论模式、数据源、仓位管理、决策流程
 source: 抽离自 ~/.claude/memory/investment-methodology.md
-version: 1.11.0
+version: 1.12.0
 ---
 
 # 投资分析方法论
