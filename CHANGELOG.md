@@ -7,6 +7,141 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-18
+
+### Added
+- **experts**: 新增动量派 v2.2.0——利弗莫尔+丹尼斯趋势跟踪
+- **technical**: 新增市场宽度分析 + T策略过滤器
+- **scripts**: 新增 hot_rank 热度榜 + backtest 自动基准对比
+- **cli**: Sprint 25-26 --version flag + 性能基准 JSON 持久化
+- **experts**: Sprint 14+15 覆盖测试 + D6 yaml 机器可读版
+- **strategy_performance**: Sprint 10 跨策略对比子命令
+- **snapshots**: Sprint 5 选股快照系统（review#16）
+- **regime**: 实施 Sprint 2 市场状态机 + 板块集中度修复
+- **screener**: 实施 Sprint 1 五项 P0 任务
+- **screener**: 全市场模式支持 --exclude-board 排除指定板块
+- **sector**: 新增板块查询脚本，支持并行获取与去重
+- 添加合并型专家评分模式，更新 apply_veto 函数返回逻辑，调整最终信心指数计算
+- add technical/pipeline.py shared indicator computation (B6)
+- add dividend_yield thresholds to industry_thresholds.json (C20)
+- add pe_percentile + ScoringContext in factors/common.py (A1, B5)
+
+### Fixed
+- **experts**: 修复 _resolve_conflict 两极分化分支不可达
+- **scripts**: 修复 announcements 接受 sh/sz 前缀与 backtest 单标的报错
+- **scripts**: 移除 parallel_map 已废弃的 max_workers 参数
+- apply_veto return empty list when veto_results is None (C11)
+- calibration.py dynamic expert names from registry (A2)
+- private symbols cleanup, token externalization, YAML fallback (C9, C10, C12)
+- remove sys.path hack from long_term/sentiment, fix typo (B6, B8)
+- externalize stop_loss/take_profit thresholds to config (A3)
+- NotificationManager thread safety for shared mutable state (A2)
+- BOLL scoring dead branch — pos < 0.3 without 收窄 (B7)
+- board_limit_pct remove cross-layer ConfigLoader dependency (C21)
+- to_dict use dataclasses.asdict, add FinanceRecord fields (B8, C15-16)
+- _detect_quant_activity only use market_amount (C18)
+- explicit cleanup_tmp_files in 12 CLI entry scripts (A5)
+- ConfigLoader mtime-based cache invalidation (B10)
+- parallel_map type annotation object -> Callable (C14)
+- MetricsCollector latencies bounded by deque maxlen=1000 (C13)
+- connection pool thread safety + Retry-After propagation (A1, A4)
+- cache.put rename, SHA256 keys, single-stat cleanup (A3, B9, C15)
+
+### Changed
+- **skills**: 重命名 /help 为 stock-help + smoke test 全清
+- **backtest**: 修复 silent bug + 死代码清理 + 导入优化
+- **classifier,refresh_pool**: 一致性与健壮性改进
+- **business**: 深度优化业务层——4 项一致性与健壮性改进
+- **strategies**: 深度优化筛选策略模块——6 项一致性改进
+- **chan**: 深度优化缠论模块——修复索引错位 + 逻辑改进
+- **monitor**: 深度优化监控模块——修复推送内容缺失 + 5 项改进
+- **portfolio**: 深度优化持仓管理模块——修复死锁 + 3 项架构改进 + 代码安全
+- **technical**: 深度优化技术分析模块——修复致命导入错误 + 6 项逻辑改进
+- **data**: 深度优化数据获取模块——修复 4 个运行时 bug + 7 项架构改进 + 代码整洁
+- **v2.1**: main() 重构 + 统一版本号 + v2.1.0 tag
+- **screener**: Sprint 9 两阶段管线（review 末节架构建议）
+- **screener**: Sprint 4 性能优化 + 行业分类 fallback
+- **factors**: Sprint 3 因子级精修 + backtest 接入 regime
+- **scoring**: 抽取 _consistency_from_scores 消除信心指数公式重写 (C2)
+- **scoring**: _score_valuation 复用 pe_percentile 统一 PE 估值 (B3)
+- **factors**: 清理 valuation_score 未用变量与误导注释 (B2)
+- **factors**: 移除 momentum _detect_quant_activity 死分支 (B1)
+- **screener**: 抽取共享分析核心消除 analyze_code/_analyze_stock 重复 (A1)
+- unify thread pool management and improve error handling
+- 并行数据获取、代码去重、backtest 模块拆分
+- scoring dedup score/score_with_reasoning, cleanup aliases (B5, C9, C12)
+- split decide.py into market_detector/vote_engine/formatter (B4, B7, C13)
+- extract ExpertProfile to types.py, break circular import (A3)
+- merge type_map into ALERT_LEVELS (B5, C14)
+- _compute_all extract valuation + incremental MA (A1, C13)
+- split composite_score into 10 dimension functions (B4)
+- stock_analysis use pipeline, KlineBar directly, narrow exceptions (B6, C12, C19)
+- dividend.py use industry_thresholds, remove ROE heuristic (B10, C17)
+- screening_service dedup filters, eps, board thresholds (A2, A4, B7, C14)
+- momentum.py use pe_percentile, remove inline PE logic (A1)
+- filters.py use ConfigLoader, registry copy weights, remove volatility_score (A3, B9, B11)
+- extract _compute_vol_score, deduplicate volatility functions (C13)
+- split formatters.py into glossary + exporters (B8)
+- fetcher managers thread-safe + remove sys.path hack (B6, B7)
+- common/__init__.py lazy loading + last_error + NOT_HANDLED pickle (A2, A5, B11, C16, C17)
+
+### Documentation
+- **changelog**: 记录 v1.12.1 10 模块深度审查修复
+- **experts,skills**: 深度优化投资专家档案与 SKILL 文档产品化
+- 用户体验优化 - 散户视角重构文档与引导
+- 嵌入 9 个 skill 终端 demo GIF 演示
+- **README**: Sprint 12 / C7 30s demo 段 + 可重放脚本
+- **plan**: 增加 Screener V2 规划与复盘文档
+- **screener**: 标注包装函数为测试桩点，消除 vol_price 映射重复 (A2)
+- add expert system optimization design spec — 14 issues
+- add technical+monitor layer optimization design spec — 14 issues
+- add business layer optimization design spec — 21 issues across business/strategies/data
+- add infra layer optimization design spec — 18 issues across common/fetchers/config
+- 缩短 portfolio/stock SKILL.md——引用子模块
+- 文档瘦身——portfolio/stock 拆分 + research 去重
+
+### Testing
+- **coverage**: Sprint 13 核心模块分支测试（62% / 24 新增测试）
+- Sprint 8 修复 3 个 pre-existing 测试失败
+
+### CI/CD
+- smoke_test 入 CI + 跨 skill JSON Schema 契约
+- P0 地基修复——绝对路径/hypothesis/clock 注入
+
+### Maintenance
+- **deps**: 统一版本号 1.12.0 → 1.11.0
+- **scripts**: 全量版本升级至 1.12 并扩展 sync 覆盖
+- 忽略测试产物 .coverage 与 strategy_performance.json
+- 统一版本 v2.1.0 → v1.12.0
+- **v2.0**: Sprint 20-23 收官 + 完整总结
+- **v2.0.0**: Sprint 16-19 收官 + 33/33 plan 项全部完成
+- **coverage**: Sprint 11 覆盖率提升到 61%（D5 落地）
+- **ci**: Sprint 7 工程化债清理（SKILL.md/flake8/pre-commit）
+- **v2**: Sprint 6 月度校准 + 性能压测 + black 收尾
+- **data**: 格式化 data/__init__.py（black）
+- remove dead YAML configs from experts/yaml/ (A1)
+
+### Other
+- merge: chore/skill-workflow-optimization → main
+- **strategy**: 回测优化 growth_momentum 策略权重
+- 新增防御型市场状态——回测反馈驱动专家权重调整
+- 修复 monitor 时间 mock——patch dev.clock 而非 datetime
+- 补合并型专家回退测试——3 用例覆盖降权触发与中性不触发
+- 合并型专家名兼容——_find_expert 回退 + 注册表断言强化
+- 补 portfolio/daily_report.py 0 覆盖——21 测试 + 绕过 HttpClient import bug
+- 补 calibration_sync.py 0 覆盖——19 测试 mock gh CLI
+- 补 scripts/events.py 0 覆盖——14 测试覆盖 format_events_text
+- 补 portfolio/performance.py 0 覆盖——19 测试 + property 恒等式
+- v2.1.2 补盲区 scoring 完整实现——26 测试覆盖
+- v2.1.1 合并型 scoring——继承 legacy 逻辑而非骨架
+- v2.1.0 切换 API——list_active/legacy_experts
+- 补 scripts/stock.py 0 覆盖——11 个测试覆盖 CLI/渲染/E2E
+- init_pool/refresh_pool/calibration 加 --json 输出
+- 8 → 8 真实合并——原 6 人 active=False，新框架用 5+3
+- 补 0 覆盖——clock property + contracts schema 测试
+- 8 → 14 双轨——3 合并 + 3 补盲区 + horizon 优先
+- 4 个核心脚本迁 argparse + 策略单一事实源
+
 ## [Unreleased]
 
 ### Changed · 用户体验优化（v1.12.1）
