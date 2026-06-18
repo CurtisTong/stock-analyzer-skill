@@ -9,38 +9,20 @@
 
 ## [Unreleased] - 2026-06-18
 
+### Fixed
+- **tests**: 移除 test_two_stage 硬编码 macOS 路径，改用 `Path(__file__).resolve().parent.parent` 动态获取项目根目录
+- **tests**: 更新 `EXPECTED_SKILLS` 匹配 stock-help 重命名
+- **skills**: 缩短 stock-help description 至 110 字符
+
 ### Documentation
 - auto-update CHANGELOG.md [skip ci]
+- **docs**: 修正 README/CLAUDE.md 元数据漂移（13 skills / 28 fetchers / 15 experts / python 3.11+ / pyyaml 依赖），新增 §CI 防漂移机制与 §Experts 全表（见 commit d3bbba9）
 
 ### Maintenance
-- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-## [Unreleased] - 2026-06-18
-
-### Fixed
-- **tests**: 移除 test_two_stage 硬编码 macOS 路径
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
+- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release（新增 `scripts/dev/sync_skill_test_versions.py` + pre-commit hook + setup-test action step）
 
 ### Other
 - Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
-
-## [Unreleased] - 2026-06-18
-
-### Fixed
-- **tests**: 更新 EXPECTED_SKILLS 匹配 stock-help 重命名
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-
-### Other
-- Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
-
-## [Unreleased] - 2026-06-18
-
-### Fixed
-- **skills**: 缩短 stock-help description 至 110 字符
 
 ## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
 
