@@ -10,6 +10,17 @@
 ## [Unreleased] - 2026-06-18
 
 ### Fixed
+- **tests**: 更新 EXPECTED_SKILLS 匹配 stock-help 重命名
+
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
+
+### Other
+- Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
+
+## [Unreleased] - 2026-06-18
+
+### Fixed
 - **skills**: 缩短 stock-help description 至 110 字符
 
 ## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
