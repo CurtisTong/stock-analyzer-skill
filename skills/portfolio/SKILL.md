@@ -1,7 +1,7 @@
 ---
 name: portfolio
 description: 持仓管理。触发词：我的持仓怎么样、帮我看看持仓、我买了XX、加仓XX、减仓XX、清仓XX、持仓健康检查、帮我调仓、自选股、持仓对比、仓位分析。支持买入/加仓/减仓/清仓CRUD、自选股管理、组合涨跌/集中度/风险预警/调仓再平衡。
-version: 1.11.0
+version: 1.13.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(./scripts/data/portfolio.json) Read(./scripts/data/portfolio_example.json) Read(./skills/_shared/references/*.md)
 ---
