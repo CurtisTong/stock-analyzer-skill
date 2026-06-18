@@ -50,8 +50,13 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes):
     above_zs = closes[-1] > last_zs["zg"]
     recent_low = min(closes[-5:]) if len(closes) >= 5 else closes[-1]
     if above_zs and recent_low > last_zs["zd"]:
-        # 判断是否有回踩动作：近期有低点接近中枢但不落入
-        near_zs = any(last_zs["zg"] < c < last_zs["zg"] * 1.03 for c in closes[-10:])
+        # 判断是否有回踩动作：近期价格曾接近 ZG（回踩痕迹）
+        # 回踩定义为：价格距 ZG 在 2% 以内（可略高或略低）
+        pullback_tolerance = last_zs["zg"] * 0.02
+        near_zs = any(
+            abs(c - last_zs["zg"]) <= pullback_tolerance
+            for c in closes[-10:]
+        )
         if near_zs:
             buy_points.append({
                 "type": "三买",

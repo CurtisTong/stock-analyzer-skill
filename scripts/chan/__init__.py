@@ -19,8 +19,8 @@ def chan_full_analysis(records):
     if len(records) < 30:
         return {"error": "K线数量不足(<30)，缠论分析不可靠", "valid": False}
 
-    # 提取价格数据
-    closes = [to_float(r.get("close")) for r in records if to_float(r.get("close")) > 0]
+    # 提取价格数据（不过滤零值，保持与 records 索引对齐）
+    closes = [to_float(r.get("close")) for r in records]
 
     if len(closes) < 30:
         return {"error": "有效K线不足", "valid": False}
