@@ -93,3 +93,7 @@ python3 scripts/backtest.py [参数]
 - `--optimize` 可能过拟合历史数据，建议 cross-validate 后再用于实盘。
 - 数据源失败时返回低置信度结论，不臆造历史价格。
 - 单次回测结果请至少对比 3 个市场环境（牛/震/熊）下表现再下结论。
+
+## 辅助专家引用
+
+`turning_point` 策略对应 [experts/momentum_trader.md](../../experts/momentum_trader.md)（v2.2.0 利弗莫尔 + 海龟法则）——回测入场/止损/止盈规则应与该人设对齐；策略 × 专家完整映射见 [experts/backtest_mapping.md](../../experts/backtest_mapping.md)。

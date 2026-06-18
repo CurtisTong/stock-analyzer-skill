@@ -139,7 +139,7 @@ version: 1.13.0
 
 现在请尝试技术分析：
 
-- 运行 `/technical 600519`
+- 运行 `/stock-technical 600519`
 - 观察 MACD、KDJ、均线
 - 判断当前趋势
 
@@ -195,10 +195,14 @@ version: 1.13.0
 
 #### 4.1 专家系统
 
-**8 位专家**
+**15 份专家人设（9 active + 6 legacy）**
 
-- 长线组：巴菲特、林奇、索罗斯、段永平
-- 短线组：徐翔、赵老哥、炒股养家、作手新一
+- 长线（active）：林奇（PEG 成长）、索罗斯（反身性 + 宏观）
+- 长线（legacy，已合并入 value_anchor）：巴菲特、段永平
+- 短线（legacy，已合并入 topic_leader / emotion_tech）：徐翔、赵老哥、炒股养家、作手新一
+- 扩展（active）：价值双锚、题材龙头、情绪技术复合、行业专家、机构派、风险管理与动量派（v2.2.0）
+
+> 实际 vote 引擎调用的是 9 位 active 专家；6 位 legacy 专家保留为人设档案供研究，不参与新框架计算。完整定义见 [experts/README.md](../../experts/README.md) 与 [methodology.md §三](../../methodology.md#三专家讨论模式15-份专家人设9-active--6-legacy)。
 
 **投票规则**
 
@@ -209,7 +213,7 @@ version: 1.13.0
 **实战练习**
 
 - 运行 `/stock 600519 debate`
-- 观察 8 位专家的投票
+- 观察 15 份专家的投票（9 active + 6 legacy 档案对照）
 - 理解分歧原因
 
 #### 4.2 策略回测
@@ -274,7 +278,7 @@ A: 三条铁律：
 ## 学习资源
 
 - `/stock <代码>` - 分析一只股票
-- `/technical <代码>` - 技术分析
+- `/stock-technical <代码>` - 纯技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/战法）
 - `/market` - 了解大盘
 - `/screener` - 选股
 - `/portfolio` - 持仓管理

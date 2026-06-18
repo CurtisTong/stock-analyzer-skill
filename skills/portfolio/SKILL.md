@@ -259,3 +259,7 @@ Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SK
 - 调仓建议必须包含"减/加多少、触发条件、替代标的或现金比例"，避免泛泛而谈。
 - 不要建议超过用户风险承受能力的集中仓位；单一行业或主题过重时优先提示组合风险。
 - 本 web server 与 CLI / 外部脚本同时写 `scripts/data/portfolio.json` 时，后写覆盖前写；建议 web 作为唯一录入入口。
+
+## 辅助专家引用
+
+仓位上限与集中度约束的权威来源 = [experts/risk_manager.md](../../experts/risk_manager.md) §四 仓位与止损（前 3 大 ≤ 50%、前 5 大 ≤ 70%、单一行业 ≤ 30%；总仓位牛 80-90% / 震 70% / 熊 ≤ 50% / 极度恐慌 ≤ 30-40%）；portfolio 任何"加仓到 X%"建议必须在此上限之内。

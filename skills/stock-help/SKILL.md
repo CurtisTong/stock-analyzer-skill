@@ -24,7 +24,7 @@ disable-model-invocation: true
 | 🔍 找几只值得买的股票 | `/screener` | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单 |
 | 📊 看今天大盘涨跌 | `/market quick` | 三大指数 + 板块 Top3 + 一句话策略 |
 | 💼 看看我的持仓 | `/portfolio` | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
-| 🎤 听 8 位专家辩论一只股票 | `/stock <代码> debate` | 4 长线 + 4 短线投票 + 最终方向 + 仓位 |
+| 🎤 听 15 份专家人设辩论一只股票 | `/stock <代码> debate` | 9 active（6 长线 + 3 短线）投票 + 最终方向 + 仓位 |
 | 🌐 某个板块怎么样 | `/sector <板块>` | 板块全景 + 核心标的对比 + 板块内筛选 |
 | 🔬 深度研究一只股票 | `/research <任务>` | 财务建模 + 排雷 + DCF + 投资建议 |
 | 📡 盘中盯盘（异动/预警/推送） | `/monitor` | 持仓异动 + 价格预警 + Bark/企微/钉钉 |
@@ -45,7 +45,7 @@ disable-model-invocation: true
 
 | Skill | 命令 | 用途 |
 | --- | --- | --- |
-| `/stock` | `<代码或名称> [quick\|full\|debate\|technical]` | 单股 5 层分析 / 8 人圆桌 |
+| `/stock` | `<代码或名称> [quick\|full\|debate\|technical]` | 单股 5 层分析 / 15 份专家圆桌 |
 | `/market` | `[full\|quick\|intraday]` | 大盘复盘（指数/板块/风格/资金） |
 | `/sector` | `<板块> [overview\|compare\|stock]` | 板块全景 / 标的对比 / 板块内筛选 |
 | `/portfolio` | `[health\|rebalance\|compare\|web]` | 持仓健康 / 调仓 / 模拟盘 / Web 录入 |
