@@ -83,12 +83,13 @@ def _resolve_conflict(
         direction = "中性"
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
-    # 极端两极分歧（4 看多 + 4 看空，没有中性票）
+    # 极端两极分歧（长线全多 + 短线全空，或反向；长线 4 看多 + 短线 4 看空）
     elif (
         long_votes["bull"] + long_votes["bear"] == 4
         and short_votes["bull"] + short_votes["bear"] == 4
-        and (long_votes["bull"] + short_votes["bull"]) == 4
-        and (long_votes["bear"] + short_votes["bear"]) == 4
+        and long_votes["bull"] + short_votes["bull"] == 4
+        and long_votes["bear"] + short_votes["bear"] == 4
+        and long_votes["bull"] != 2
     ):
         direction = "中性"
         position_factor = 0.0
