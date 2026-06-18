@@ -76,6 +76,7 @@ def _file_lock(path: Path, timeout: float = 10.0):
                     raise TimeoutError(f"获取锁超时: {lock_path}")
                 # 短暂等待后重试
                 import time
+
                 time.sleep(0.05)
 
         yield  # 锁获取成功，执行操作
@@ -93,21 +94,26 @@ def _file_lock(path: Path, timeout: float = 10.0):
             pass
 
 
-def _atomic_write(path: Path, data: dict) -> None:
-    """原子写入 JSON 文件（已加锁保护）。"""
-    with _file_lock(path):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(path.parent))
+def _raw_write(path: Path, data: dict) -> None:
+    """底层写入（调用方需已持锁）。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, str(path))
+    except Exception:
         try:
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            os.replace(tmp, str(path))
-        except Exception:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                pass
-            raise
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _atomic_write(path: Path, data: dict) -> None:
+    """原子写入 JSON 文件（加锁保护）。"""
+    with _file_lock(path):
+        _raw_write(path, data)
 
 
 def _atomic_read(path: Path) -> dict:
@@ -161,14 +167,16 @@ class PortfolioManager:
         """将 v1 格式迁移为 v2。"""
         positions = []
         for code in data.get("codes", []):
-            positions.append({
-                "code": code,
-                "name": "",
-                "cost": 0,
-                "quantity": 0,
-                "buy_date": "",
-                "tags": [],
-            })
+            positions.append(
+                {
+                    "code": code,
+                    "name": "",
+                    "cost": 0,
+                    "quantity": 0,
+                    "buy_date": "",
+                    "tags": [],
+                }
+            )
         return {
             "version": 2,
             "positions": positions,
@@ -209,12 +217,12 @@ class PortfolioManager:
             pm.atomic_update(lambda data: data.setdefault("positions", []).append(new_pos))
         """
         with _file_lock(self._path):
-            # 重新加载最新数据
+            # 重新加载最新数据（_load 内部不获取锁，避免死锁）
             self._data = self._load()
             # 执行更新
             self._data = updater(self._data)
-            # 写回
-            _atomic_write(self._path, self._data)
+            # 写回（使用 _raw_write，因为已持锁）
+            _raw_write(self._path, self._data)
 
     # ---------- 查询 ----------
 
@@ -231,21 +239,31 @@ class PortfolioManager:
         """返回全部自选。"""
         return self._data.get("watchlist", [])
 
-    def get_position(self, code: str) -> Optional[dict]:
-        """按代码查找持仓。"""
+    def _find_position(self, code: str) -> Optional[dict]:
+        """按代码查找持仓（内部引用，用于修改）。"""
         code = code.lower()
         for p in self.get_positions():
             if p["code"].lower() == code:
                 return p
         return None
 
-    def get_watch(self, code: str) -> Optional[dict]:
-        """按代码查找自选。"""
+    def get_position(self, code: str) -> Optional[dict]:
+        """按代码查找持仓（返回副本，防止外部意外修改内部状态）。"""
+        p = self._find_position(code)
+        return copy.deepcopy(p) if p else None
+
+    def _find_watch(self, code: str) -> Optional[dict]:
+        """按代码查找自选（内部引用，用于修改）。"""
         code = code.lower()
         for w in self.get_watchlist():
             if w["code"].lower() == code:
                 return w
         return None
+
+    def get_watch(self, code: str) -> Optional[dict]:
+        """按代码查找自选（返回副本，防止外部意外修改内部状态）。"""
+        w = self._find_watch(code)
+        return copy.deepcopy(w) if w else None
 
     def get_all_codes(self) -> list:
         """返回所有持仓 + 自选的代码列表。"""
@@ -255,12 +273,19 @@ class PortfolioManager:
 
     # ---------- 持仓操作 ----------
 
-    def add_position(self, code: str, name: str, cost: float,
-                     quantity: int, buy_date: str = "", tags: list = None,
-                     auto_save: bool = True) -> dict:
+    def add_position(
+        self,
+        code: str,
+        name: str,
+        cost: float,
+        quantity: int,
+        buy_date: str = "",
+        tags: list = None,
+        auto_save: bool = True,
+    ) -> dict:
         """添加持仓。如果已存在则加仓（加权平均成本）。"""
         code = code.lower()
-        existing = self.get_position(code)
+        existing = self._find_position(code)
 
         if existing:
             # 加仓：计算加权平均成本
@@ -295,8 +320,9 @@ class PortfolioManager:
             self.save()
         return result
 
-    def reduce_position(self, code: str, quantity: int,
-                        auto_save: bool = True) -> Optional[dict]:
+    def reduce_position(
+        self, code: str, quantity: int, auto_save: bool = True
+    ) -> Optional[dict]:
         """减仓。返回减仓后的持仓信息，如果全部卖出则移除。"""
         if quantity <= 0:
             raise ValueError("quantity must be positive")
@@ -325,11 +351,12 @@ class PortfolioManager:
                 return True
         return False
 
-    def update_position(self, code: str, auto_save: bool = True,
-                        **kwargs) -> Optional[dict]:
+    def update_position(
+        self, code: str, auto_save: bool = True, **kwargs
+    ) -> Optional[dict]:
         """更新持仓字段（cost, quantity, name, buy_date, tags）。"""
         code = code.lower()
-        p = self.get_position(code)
+        p = self._find_position(code)
         if not p:
             return None
         for key in ("cost", "quantity", "name", "buy_date", "tags"):
@@ -339,11 +366,12 @@ class PortfolioManager:
             self.save()
         return p
 
-    def tag_position(self, code: str, *tags: str,
-                     auto_save: bool = True) -> Optional[dict]:
+    def tag_position(
+        self, code: str, *tags: str, auto_save: bool = True
+    ) -> Optional[dict]:
         """给持仓添加标签。"""
         code = code.lower()
-        p = self.get_position(code)
+        p = self._find_position(code)
         if not p:
             return None
         existing = set(p.get("tags", []))
@@ -353,11 +381,12 @@ class PortfolioManager:
             self.save()
         return p
 
-    def untag_position(self, code: str, *tags: str,
-                       auto_save: bool = True) -> Optional[dict]:
+    def untag_position(
+        self, code: str, *tags: str, auto_save: bool = True
+    ) -> Optional[dict]:
         """移除持仓标签。"""
         code = code.lower()
-        p = self.get_position(code)
+        p = self._find_position(code)
         if not p:
             return None
         existing = set(p.get("tags", []))
@@ -369,12 +398,17 @@ class PortfolioManager:
 
     # ---------- 自选操作 ----------
 
-    def add_watch(self, code: str, name: str = "",
-                  target_buy: float = 0, target_sell: float = 0,
-                  auto_save: bool = True) -> dict:
+    def add_watch(
+        self,
+        code: str,
+        name: str = "",
+        target_buy: float = 0,
+        target_sell: float = 0,
+        auto_save: bool = True,
+    ) -> dict:
         """添加自选股。"""
         code = code.lower()
-        existing = self.get_watch(code)
+        existing = self._find_watch(code)
         if existing:
             if name:
                 existing["name"] = name
@@ -425,11 +459,14 @@ class PortfolioManager:
         watch = self.get_watchlist()
         lines = [f"持仓 {len(pos)} 只，自选 {len(watch)} 只"]
         if pos:
-            lines.append("持仓: " + ", ".join(
-                f"{p.get('name') or p['code']}({p['quantity']}股)" for p in pos
-            ))
+            lines.append(
+                "持仓: "
+                + ", ".join(
+                    f"{p.get('name') or p['code']}({p['quantity']}股)" for p in pos
+                )
+            )
         if watch:
-            lines.append("自选: " + ", ".join(
-                w.get('name') or w['code'] for w in watch
-            ))
+            lines.append(
+                "自选: " + ", ".join(w.get("name") or w["code"] for w in watch)
+            )
         return "\n".join(lines)

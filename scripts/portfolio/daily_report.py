@@ -18,12 +18,14 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
 # 添加项目根目录到路径
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from common.http import HttpClient
+from common import http_get
+from common.parsers import parse_tencent_line
 
 
 class DailyReportGenerator:
@@ -33,7 +35,6 @@ class DailyReportGenerator:
         if portfolio_path is None:
             portfolio_path = PROJECT_ROOT / "scripts" / "data" / "portfolio.json"
         self.portfolio_path = Path(portfolio_path)
-        self.http = HttpClient()
 
     def generate(self) -> str:
         """生成日报。"""
@@ -53,8 +54,9 @@ class DailyReportGenerator:
         for holding in portfolio:
             code = holding.get("code", "")
             name = holding.get("name", code)
-            shares = holding.get("shares", 0)
-            cost_price = holding.get("cost_price", 0)
+            # 兼容 v2 格式（quantity/cost）和旧格式（shares/cost_price）
+            quantity = holding.get("quantity") or holding.get("shares", 0)
+            cost = holding.get("cost") or holding.get("cost_price", 0)
 
             # 获取实时价格
             quote = quotes.get(code, {})
@@ -62,8 +64,8 @@ class DailyReportGenerator:
             change_pct = quote.get("change_pct", 0)
 
             # 计算市值和收益
-            market_value = shares * current_price
-            cost_value = shares * cost_price
+            market_value = quantity * current_price
+            cost_value = quantity * cost
             profit = market_value - cost_value
             profit_rate = (profit / cost_value * 100) if cost_value > 0 else 0
 
@@ -74,8 +76,8 @@ class DailyReportGenerator:
                 {
                     "code": code,
                     "name": name,
-                    "shares": shares,
-                    "cost_price": cost_price,
+                    "quantity": quantity,
+                    "cost": cost,
                     "current_price": current_price,
                     "change_pct": change_pct,
                     "market_value": market_value,
@@ -98,57 +100,93 @@ class DailyReportGenerator:
         return report
 
     def _load_portfolio(self) -> list:
-        """加载持仓数据。"""
+        """加载持仓数据（兼容 v1/v2 格式）。"""
         if not self.portfolio_path.exists():
             return []
 
         try:
             with open(self.portfolio_path, encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
         except (json.JSONDecodeError, IOError):
             return []
 
-    def _fetch_quotes(self, portfolio: list) -> dict:
-        """获取实时行情。"""
-        quotes = {}
-
-        for holding in portfolio:
-            code = holding.get("code", "")
-            if not code:
-                continue
-
-            try:
-                # 使用腾讯接口获取行情
-                url = f"http://qt.gtimg.cn/q={code}"
-                response = self.http.get(url, encoding="gbk")
-                quote = self._parse_quote(response, code)
-                if quote:
-                    quotes[code] = quote
-            except Exception:
-                # 获取失败时使用默认值
-                quotes[code] = {"price": 0, "change_pct": 0}
-
-        return quotes
+        # v2 格式：{"version": 2, "positions": [...]}
+        if isinstance(data, dict) and "positions" in data:
+            return data["positions"]
+        # v1 格式：[...] 平铺列表
+        if isinstance(data, list):
+            return data
+        return []
 
     def _parse_quote(self, response: str, code: str) -> dict:
-        """解析腾讯行情数据。"""
-        try:
-            # 腾讯行情格式：v_sh600519="1~贵州茅台~600519~1800.00~1790.00~1795.00~..."
-            parts = response.split("~")
-            if len(parts) < 35:
-                return None
-
+        """解析腾讯行情数据（兼容旧测试接口）。"""
+        rec = parse_tencent_line(response)
+        if rec:
             return {
-                "name": parts[1],
-                "code": parts[2],
-                "price": float(parts[3]) if parts[3] else 0,
-                "prev_close": float(parts[4]) if parts[4] else 0,
-                "open": float(parts[5]) if parts[5] else 0,
-                "volume": float(parts[6]) if parts[6] else 0,
-                "change_pct": float(parts[32]) if parts[32] else 0,
+                "name": rec.get("name", ""),
+                "code": rec.get("code", code),
+                "price": float(rec.get("price", 0) or 0),
+                "prev_close": float(rec.get("prev_close", 0) or 0),
+                "open": float(rec.get("open", 0) or 0),
+                "change_pct": float(rec.get("change_pct", 0) or 0),
             }
+        # 回退：手动解析短格式（测试构造的 35 字段格式）
+        try:
+            if "=" in response and '"' in response:
+                payload = response.split('"', 1)[1].rstrip('";\n')
+            else:
+                payload = response.strip('"')
+            parts = payload.split("~")
+            if len(parts) >= 33:
+                return {
+                    "name": parts[1],
+                    "code": parts[2],
+                    "price": float(parts[3]) if parts[3] else 0,
+                    "prev_close": float(parts[4]) if parts[4] else 0,
+                    "open": float(parts[5]) if parts[5] else 0,
+                    "change_pct": float(parts[32]) if parts[32] else 0,
+                }
         except (ValueError, IndexError):
-            return None
+            pass
+        return None
+
+    def _fetch_quotes(self, portfolio: list) -> dict:
+        """获取实时行情（使用腾讯接口）。"""
+        quotes = {}
+        codes = [h.get("code", "") for h in portfolio if h.get("code")]
+        if not codes:
+            return quotes
+
+        # 批量请求（腾讯支持逗号分隔）
+        batch_size = 15
+        for i in range(0, len(codes), batch_size):
+            batch = codes[i : i + batch_size]
+            url = f"https://qt.gtimg.cn/q={','.join(batch)}"
+            try:
+                raw = http_get(url, timeout=10)
+                text = raw.decode("gbk", errors="replace")
+                for line in text.strip().split(";"):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    rec = parse_tencent_line(line)
+                    if rec and rec.get("code"):
+                        code = rec["code"]
+                        # 补充交易所前缀
+                        for orig in batch:
+                            if orig.lower().endswith(code.lower()):
+                                code = orig.lower()
+                                break
+                        quotes[code] = {
+                            "name": rec.get("name", ""),
+                            "price": float(rec.get("price", 0) or 0),
+                            "change_pct": float(rec.get("change_pct", 0) or 0),
+                        }
+            except Exception:
+                for code in batch:
+                    quotes[code] = {"price": 0, "change_pct": 0}
+
+        return quotes
 
     def _generate_empty_report(self) -> str:
         """生成空持仓日报。"""
