@@ -9,7 +9,7 @@ from typing import Optional, Dict, Any, List
 from concurrent.futures import as_completed
 
 from common import get_shared_executor
-from common.exceptions import InsufficientDataError, ValidationError
+from common.exceptions import ValidationError
 from common.validators import normalize_code, validate_code
 from data import get_quote, get_kline, get_finance
 from classifier import profile_stock
@@ -185,28 +185,12 @@ class StockAnalysisService:
 
         # 估值数据注入（反追涨杀跌）
         if quote_dict:
+            from strategies.factors.common import pe_percentile
+
             pe = to_float(quote_dict.get("pe"))
             pb = to_float(quote_dict.get("pb"))
-            if pe > 0:
-                try:
-                    from strategies.thresholds import get_industry_threshold
-
-                    industry = profile.get("industry", "默认")
-                    pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
-                    pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
-                    pe_high = get_industry_threshold(industry, "pe_expensive", 40)
-                except Exception:
-                    pe_low, pe_mid, pe_high = 15, 25, 40
-                if pe <= pe_low:
-                    pe_pct = 15
-                elif pe <= pe_mid:
-                    pe_pct = 15 + (pe - pe_low) / (pe_mid - pe_low) * 35
-                elif pe <= pe_high:
-                    pe_pct = 50 + (pe - pe_mid) / (pe_high - pe_mid) * 30
-                else:
-                    pe_pct = min(95, 80 + (pe - pe_high) / pe_high * 20)
-            else:
-                pe_pct = 50
+            industry = profile.get("industry", "默认")
+            pe_pct = pe_percentile(pe, industry)
             growth = to_float(fin.get("net_profit_yoy", 0))
             peg = (pe / growth) if (pe > 0 and growth > 0) else 0
             features["valuation"] = {

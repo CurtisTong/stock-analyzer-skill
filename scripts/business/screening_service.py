@@ -8,7 +8,7 @@ import logging
 from typing import List, Dict, Any, Optional
 
 from common import to_float, normalize_quote_code, board_type, get_shared_executor
-from common.exceptions import InsufficientDataError, ValidationError
+from common.exceptions import ValidationError
 from common.validators import validate_code
 from data import get_quote, get_quotes, get_kline, get_finance
 from classifier import infer_industry
@@ -89,8 +89,10 @@ def compute_features(code: str, bars=None) -> dict:
         from data import get_kline
 
         bars = get_kline(code, scale=240, datalen=240)
-    closes = [b.close for b in bars if b.close > 0]
-    volumes = [b.volume for b in bars if b.volume > 0]
+    # 统一过滤：整条记录 close 和 volume 都 > 0 才保留，确保数组对齐
+    valid_bars = [b for b in bars if b.close > 0 and b.volume > 0]
+    closes = [b.close for b in valid_bars]
+    volumes = [b.volume for b in valid_bars]
 
     if len(closes) < 10:
         # K 线数据不足时返回中性特征，避免下游因子函数 KeyError
@@ -387,9 +389,10 @@ class ScreeningService:
         if to_float(quote.get("total_cap")) < min_cap:
             reasons.append(f"市值<{min_cap:.0f}亿")
 
-        # 涨跌停过滤：T+1 下当日无法交易
-        change_pct = abs(to_float(quote.get("change_pct", 0)))
-        if change_pct >= _board_limit(bd):
+        # 涨跌停过滤：T+1 下当日无法交易（涨 ≥ 涨停 或 跌 ≤ -涨停）
+        change_pct = to_float(quote.get("change_pct", 0))
+        board_limit = _board_limit(bd)
+        if change_pct >= board_limit or change_pct <= -board_limit:
             reasons.append("涨跌停限制")
 
         # 排除亏损（来自 filters）
