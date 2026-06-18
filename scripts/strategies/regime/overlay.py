@@ -77,4 +77,6 @@ def compute_overlay_weights(
     if total <= 0:
         return original_weights
 
-    return {k: round(v / total, 4) for k, v in adjusted.items()}
+    # 先归一化保证总和精确为 1.0，再 round 到 4 位
+    normalized = {k: v / total for k, v in adjusted.items()}
+    return {k: round(v, 4) for k, v in normalized.items()}

@@ -79,11 +79,11 @@ def momentum_score(features: dict, quote: dict) -> float:
         0.6 if (macd_signal > 0 and rsi > 50) or (macd_signal < 0 and rsi < 50) else 1.0
     )
     if 30 <= rsi <= 70:
-        score += int(5 * rsi_weight)
+        score += round(5 * rsi_weight, 2)
     elif rsi > 80:
-        score -= int(6 * rsi_weight)
+        score -= round(6 * rsi_weight, 2)
     elif rsi < 20:
-        score -= int(4 * rsi_weight)
+        score -= round(4 * rsi_weight, 2)
 
     vol_price_signal = features.get("vol_price_signal", 0)
     if vol_price_signal > 0:

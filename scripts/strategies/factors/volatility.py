@@ -8,12 +8,12 @@ from strategies.thresholds import get_industry_threshold
 
 
 def _stdev(values):
-    """计算标准差。"""
+    """总体标准差（与 technical.core.stdev 一致，除以 n 而非 n-1）。"""
     n = len(values)
     if n < 2:
         return 0.0
     mean = sum(values) / n
-    variance = sum((x - mean) ** 2 for x in values) / (n - 1)
+    variance = sum((x - mean) ** 2 for x in values) / n
     return variance**0.5
 
 

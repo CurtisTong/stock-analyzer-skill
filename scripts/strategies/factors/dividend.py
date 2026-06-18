@@ -87,10 +87,7 @@ def _count_dividend_years(fin: dict) -> int:
     if dividend_records and isinstance(dividend_records, list):
         return min(len(dividend_records), 10)
 
-    dps = to_float(fin.get("dps", fin.get("MGJXFH", 0)))
-    if dps > 0:
-        return 2
-
+    # 无完整记录时不假设连续性，返回 0 避免误导连续性评分
     return 0
 
 
