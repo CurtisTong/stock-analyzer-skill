@@ -116,7 +116,7 @@ class TestTwoStageFlag:
         import subprocess
         result = subprocess.run(
             ["python3", "scripts/screener.py", "--help"],
-            cwd="/Users/curtis/Documents/curtis/stock-analyzer-skill",
+            cwd=str(Path(__file__).resolve().parent.parent),
             capture_output=True, text=True, timeout=10,
         )
         assert result.returncode == 0
