@@ -220,9 +220,9 @@ def main():
         scenarios = None
         if args.scenarios:
             scenarios = [
-                {"label": "2025结构牛", "days": 60, "rounds": 3},
-                {"label": "2024震荡修复", "days": 60, "rounds": 3},
-                {"label": "2022熊市", "days": 60, "rounds": 3},
+                {"label": "近1月", "days": 20, "rounds": 3},
+                {"label": "近3月", "days": 60, "rounds": 3},
+                {"label": "近6月", "days": 120, "rounds": 3},
             ]
         results = compare_strategies(
             codes,

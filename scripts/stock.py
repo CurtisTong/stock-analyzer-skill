@@ -128,7 +128,15 @@ def main():
             import subprocess
 
             bt_result = subprocess.run(
-                ["python3", "scripts/backtest.py", args.code, "--days", "60", "-j"],
+                [
+                    "python3",
+                    "scripts/backtest.py",
+                    "--codes",
+                    args.code,
+                    "--days",
+                    "60",
+                    "-j",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -137,11 +145,13 @@ def main():
             if bt_result.returncode == 0:
                 bt_data = json.loads(bt_result.stdout)
                 if "balanced" in bt_data:
+                    bt = bt_data["balanced"]
+                    # 字段映射：backtest 输出 *_pct 后缀，stock.py 期望无后缀
                     result["backtest"] = {
-                        "win_rate": bt_data["balanced"].get("win_rate"),
-                        "total_return": bt_data["balanced"].get("total_return"),
-                        "sharpe": bt_data["balanced"].get("sharpe"),
-                        "max_drawdown": bt_data["balanced"].get("max_drawdown"),
+                        "win_rate": bt.get("win_rate_pct"),
+                        "total_return": bt.get("total_return_pct"),
+                        "sharpe": bt.get("sharpe_ratio"),
+                        "max_drawdown": bt.get("max_drawdown_pct"),
                     }
         except Exception as e:
             result["backtest_error"] = str(e)

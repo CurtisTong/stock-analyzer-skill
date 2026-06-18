@@ -15,6 +15,14 @@ from common import (
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
+from strategies.regime import compute_overlay_weights, RegimeState
+from strategies.regime.classifier import _classify_for_backtest
+from screener import (
+    infer_industry,
+    quality_score,
+    valuation_score,
+    liquidity_score,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +49,6 @@ def _build_hist_quote(bars, i, fin, code):
     pe = close / eps if eps > 0 else 0
     pb = close / bps if bps > 0 else 0
     total_cap = to_float(fin.get("total_cap", 0))
-    if total_cap <= 0 and bps > 0 and eps > 0:
-        total_cap = 0
     return {
         "code": code,
         "price": close,
@@ -88,8 +94,6 @@ def simulate_strategy(
     Returns:
         回测结果 dict
     """
-    from screener import infer_industry
-
     weights = STRATEGIES[strategy_name]
     min_history = 60
 
@@ -131,8 +135,6 @@ def simulate_strategy(
         fin_cache[code] = fin
 
     # 滚动窗口回测
-    from screener import quality_score, valuation_score, liquidity_score
-
     common_start_date = None
     for code, bars in kline_data.items():
         if len(bars) >= min_history:
@@ -171,9 +173,6 @@ def simulate_strategy(
                 parts["dividend"] = dividend
 
             # 策略权重应用 market regime overlay（Sprint 3 收口）
-            from strategies.regime import compute_overlay_weights, RegimeState
-            from strategies.regime.classifier import _classify_for_backtest
-
             regime = _classify_for_backtest(bars[:i]) if i >= 60 else RegimeState.RANGE
             effective_weights = compute_overlay_weights(weights, regime)
 
