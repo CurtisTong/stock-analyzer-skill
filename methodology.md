@@ -38,6 +38,21 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 
 510050(上证50), 510300(沪深300), 510500(中证500), 512010(医药), 512480(半导体), 512690(白酒), 512800(银行), 513120(港股创新药), 518880(黄金), 515030(新能源车)
 
+### 市场情绪数据源（短线策略依赖）
+
+短线专家（徐翔/赵老哥/养家/作手新一/题材龙头/情绪技术复合）的核心指标依赖市场整体情绪数据，统一由以下接口提供：
+
+| 指标 | 数据源 | 调用方式 | 主要使用专家 |
+| :--- | :--- | :--- | :--- |
+| 涨停家数 / 跌停家数 | 东方财富 push2（板块行情聚合） | `scripts/technical/sentiment.py` 或 `scripts/market_breadth.py` | 养家、徐翔、情绪技术复合 |
+| 炸板率（触板未封） | 东方财富 push2 + 龙虎榜 | `scripts/technical/sentiment.py` | 养家、题材龙头 |
+| 昨涨停今日溢价 | 东方财富 push2 历史行情 + 集合竞价 | `scripts/technical/sentiment.py` | 养家、作手新一 |
+| 两市成交额 | 上交所/深交所每日成交统计 | `scripts/quote.py` (上证指数 + 深证指数) | 索罗斯、风险管理 |
+| 北向资金净流入 | 东方财富 push2 北向资金接口 | `scripts/fetchers/eastmoney_flow.py::NorthboundFlowFetcher` | 索罗斯、机构派 |
+| 板块涨跌停共振 | 东方财富板块列表 + 个股聚合 | `scripts/market_breadth.py` | 题材龙头、赵老哥 |
+
+> **数据完整性约束**：若市场情绪数据缺失（API 失败/未订阅），短线专家评分应回退至 `experts/scoring/_utils.py:score_from_dimensions` 的中性默认值（50.0），并在 `experts/decide.md` 输出中标注"情绪数据缺失"。该规则防止"伪 API"在生产 debate 中给出虚假高分。
+
 ## 二、五层分析框架
 
 ### 第1层：基本面筛选
@@ -76,20 +91,36 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 - 凯利公式：f = p - (1-p)/b（p=胜率, b=赔率）
 - 止损/止盈位设定
 
-## 三、专家讨论模式（8人圆桌）
+### 第6层：行业差异化阈值（sector_specialist 视角）
+
+> **重要**：上述第 1-2 层的统一阈值（ROE>15%、PE 估值未分行业）适用于全市场初筛。若启用 [experts/sector_specialist.md](experts/sector_specialist.md)，需按子行业差异化：
+
+| 行业类 | ROE 门槛 | 毛利率门槛 | PE 分位 | 增速门槛 | 其他 |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| 消费（食品/家电/医药） | ≥ 15% | ≥ 40% | < 历史 5 年 40% 分位 | 营收 ≥ 10% | 品牌/渠道护城河 |
+| 科技（半导体/软件/AI） | ≥ 10% | ≥ 30% | < 历史 5 年 60% 分位 | 营收 ≥ 30% | 研发占比 ≥ 10% |
+| 医药（创新药/CXO） | ≥ 12% | ≥ 50% | < 历史 5 年 50% 分位 | 营收 ≥ 20% | CXO 在手订单 ≥ 2 年营收 |
+| 周期（有色/化工/煤炭） | ≥ 行业 70% 分位 | — | < 历史 5 年 50% 分位 | — | 商品价格历史 50-80% 分位 + 股息率 ≥ 4% |
+| 金融（银行/券商/保险） | 银行 ≥ 10% / 券商 ≥ 行业 70% 分位 | — | 银行 PB < 0.7（国有大行）/ < 1.0（股份行） | — | 不良率（银行）/ 净资产规模（券商） |
+
+> 配置文件：`scripts/data/industry_thresholds.json` 与 `experts/yaml/industry_thresholds.yaml` 同步。sector_specialist 通过 `experts/scoring/sector_specialist.py` 应用本表阈值。
+
+## 三、专家讨论模式（15 份专家人设：9 active + 6 legacy）
 
 > 完整档案见 [experts/README.md](experts/README.md)，每位专家独立成文（1200-1500 字深度档）。
 
-### 长线4人（价值发现，legacy active=False）
+### 长线（legacy active=False + active）
 
 | 专家      | 风格      | 核心逻辑                              | 档案                                         | 状态 |
 | --------- | --------- | ------------------------------------- | -------------------------------------------- | :--: |
 | 巴菲特    | 价值投资  | 好生意+好价格+长期持有，偏好高ROE低PE | [buffett.md](experts/buffett.md)             | legacy |
-| 彼得·林奇 | 成长投资  | PEG<1增速消化估值，偏好高增速合理PE   | [lynch.md](experts/lynch.md)                 |  active |
-| 索罗斯    | 宏观/趋势 | 趋势确认+反身性，技术面+资金面        | [soros.md](experts/soros.md)                 |  active |
 | 段永平    | 逆向投资  | 好公司+安全边际，低估值+护城河        | [duan_yongping.md](experts/duan_yongping.md) | legacy |
+| 彼得·林奇 | 成长投资  | PEG<1增速消化估值，偏好高增速合理PE   | [lynch.md](experts/lynch.md)                 | active |
+| 索罗斯    | 宏观/趋势 | 趋势确认+反身性，技术面+资金面        | [soros.md](experts/soros.md)                 | active |
 
-### 短线4人（时机把握，legacy active=False）
+> legacy 2 人（buffett / duan_yongping）已合并入 `value_anchor` 合并型专家；active 2 人（lynch / soros）保留独立 ID 不合并。
+
+### 短线（legacy active=False）
 
 | 专家     | 风格       | 核心逻辑                        | 档案                                           | 状态 |
 | -------- | ---------- | ------------------------------- | ---------------------------------------------- | :--: |
@@ -98,16 +129,21 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 | 炒股养家 | 情绪流     | 情绪周期+板块轮动，情绪拐点买卖 | [chaogu_yangjia.md](experts/chaogu_yangjia.md) | legacy |
 | 作手新一 | 强势股低吸 | 回调到支撑位低吸，分批建仓      | [zuoshou_xinyi.md](experts/zuoshou_xinyi.md)   | legacy |
 
-### v2.1.0 扩展 6 人（active=True，补盲区）
+> legacy 4 人已合并入 `topic_leader`（徐翔+赵老哥）与 `emotion_tech`（养家+作手新一）。
 
-| 专家            | 风格                | 核心逻辑                              | 档案                                               |
-| --------------- | ------------------- | ------------------------------------- | -------------------------------------------------- |
-| 价值双锚        | 价值投资（合并）    | 巴菲特 0.55 + 段永平 0.45             | [value_anchor.md](experts/value_anchor.md)         |
-| 题材龙头        | 题材龙头（合并）    | 徐翔 0.5 + 赵老哥 0.5                 | [topic_leader.md](experts/topic_leader.md)         |
-| 情绪技术复合    | 情绪+技术（合并）   | 养家 0.5 + 作手新一 0.5               | [emotion_tech.md](experts/emotion_tech.md)         |
-| 行业专家        | 行业特异性          | 行业景气+竞争格局+行业 PE 分位        | [sector_specialist.md](experts/sector_specialist.md) |
-| 机构派          | 机构长期主义        | 高瓴/红杉/淡马锡：深度尽调+长期持有   | [institution.md](experts/institution.md)           |
-| 风险管理        | 二阶思维+周期位置   | Howard Marks 周期位置+风险预算         | [risk_manager.md](experts/risk_manager.md)         |
+### v2.1.0 + v2.2.0 扩展 7 人（active=True，补盲区）
+
+| 专家            | 风格                | 核心逻辑                              | 档案                                               | 引入版本 |
+| --------------- | ------------------- | ------------------------------------- | -------------------------------------------------- | :---: |
+| 价值双锚        | 价值投资（合并）    | 巴菲特 0.55 + 段永平 0.45             | [value_anchor.md](experts/value_anchor.md)         | v2.1.0 |
+| 题材龙头        | 题材龙头（合并）    | 徐翔 0.5 + 赵老哥 0.5                 | [topic_leader.md](experts/topic_leader.md)         | v2.1.0 |
+| 情绪技术复合    | 情绪+技术（合并）   | 养家 0.5 + 作手新一 0.5               | [emotion_tech.md](experts/emotion_tech.md)         | v2.1.0 |
+| 行业专家        | 行业特异性          | 行业景气+竞争格局+行业 PE 分位        | [sector_specialist.md](experts/sector_specialist.md) | v2.1.0 |
+| 机构派          | 机构长期主义        | 高瓴/红杉/淡马锡：深度尽调+长期持有   | [institution.md](experts/institution.md)           | v2.1.0 |
+| 风险管理        | 二阶思维+周期位置   | Howard Marks 周期位置+风险预算         | [risk_manager.md](experts/risk_manager.md)         | v2.1.0 |
+| 动量派          | 系统化趋势跟踪      | 利弗莫尔关键转折 + 海龟交易法则       | [momentum_trader.md](experts/momentum_trader.md)   | v2.2.0 |
+
+> 完整权重与 veto 条件见 `experts/yaml/*.yaml`；与本表对齐的代码实现见 `experts/scoring/<name>.py`。
 
 ### 讨论流程
 
@@ -139,14 +175,18 @@ p = 胜率, b = 赔率(期望收益/最大风险)
 
 ### 集中度控制
 
-| 约束项         | 上限 | 理由                  |
-| -------------- | ---- | --------------------- |
-| 单只个股       | 15%  | 避免单一标的黑天鹅    |
-| 单一行业       | 30%  | 避免行业系统性风险    |
-| 前 3 大持仓    | 45%  | 保持适度分散          |
-| 总仓位（牛市） | 90%  | 保留 10% 现金应对波动 |
-| 总仓位（震荡） | 70%  | 保留 30% 现金         |
-| 总仓位（熊市） | 50%  | 保留 50% 现金         |
+> **权威来源**：[experts/risk_manager.md](experts/risk_manager.md) §四 仓位与止损（active=True，v2.1.0 起）。本表与 risk_manager 对齐。
+
+| 约束项         | 上限 | 理由                  | 权威 |
+| -------------- | ---- | --------------------- | :---: |
+| 单只个股       | 15%  | 避免单一标的黑天鹅    | methodology + risk_manager |
+| 单一行业       | 30%  | 避免行业系统性风险    | methodology + risk_manager |
+| 前 3 大持仓    | 50%  | 保持适度分散          | **risk_manager**（methodology 旧值 45% 已对齐） |
+| 前 5 大持仓    | 70%  | 集中度上限            | risk_manager（methodology 缺失，已补齐） |
+| 总仓位（牛市） | 80-90% | 现金 10-20%（保留加仓空间） | risk_manager |
+| 总仓位（震荡） | 70%  | 现金 30%（均衡）      | methodology + risk_manager |
+| 总仓位（熊市） | ≤ 50% | 现金 50%+（保留抄底空间） | methodology + risk_manager |
+| 总仓位（极度恐慌） | ≤ 30-40% | 现金 60-70%（极致逆向） | risk_manager |
 
 ### 止损铁律
 
@@ -640,14 +680,15 @@ done
 
 ## 九、关键经验
 
-1. 不追高：PE>100时风险极大
+1. 不追高：PE>100时风险极大——**本条指估值层"追高"，非指打板瞬间买入**。徐翔/赵老哥打板是"涨停瞬间封板后的封单博弈"，区别于高位追涨；短线策略（涨停基因+板块共振+流通市值 30-200 亿）的具体规则见 [experts/xu_xiang.md](experts/xu_xiang.md) §决策逻辑。
 2. 板块轮动极快：不追轮动，持有核心仓位
 3. 关键支撑位需多次测试确认，不赌单次
 4. 仓位管理比选股重要
-5. 现金是最好的期权：震荡市中30%现金是优势
+5. 现金是最好的期权：震荡市中30%现金是优势（与 [experts/risk_manager.md](experts/risk_manager.md) §四 一致）
 6. 高赔率≠无风险：仍需止损纪律
 7. 防御仓位（黄金/低估值金融）是组合压舱石
 8. 科技仓位不能为零，至少5-8%
+9. **冰点二元语义**（养家）：冰点既是"情绪退潮极端"（触发 [experts/vote_engine.py](experts/vote_engine.py) 中短线组 ×0.7 降权），也是"机会起爆点"（不降权 + 标注"冰点机会"）；权威定义见 [experts/chaogu_yangjia.md](experts/chaogu_yangjia.md) §决策逻辑（冰点判定），其余文件交叉引用此定义。
 
 ## 十、近期案例复盘总结（2026年6月）
 
