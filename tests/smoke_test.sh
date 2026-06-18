@@ -132,8 +132,8 @@ for s in stock market sector portfolio screener monitor backtest stock-help lear
   fi
 done
 
-echo "==> 4.1 SKILL.md 版本一致性 (v1.11.0)"
-EXPECTED_VERSION="version: 1.11.0"
+echo "==> 4.1 SKILL.md 版本一致性 (v1.13.0)"
+EXPECTED_VERSION="version: 1.13.0"
 VERSION_COUNT=0
 for s in stock market sector portfolio screener monitor backtest stock-help learn portfolio-natural portfolio-web research stock-technical; do
   if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ]; then
@@ -143,7 +143,7 @@ for s in stock market sector portfolio screener monitor backtest stock-help lear
   fi
 done
 if [ $VERSION_COUNT -eq 13 ]; then
-  ok "13 个 SKILL.md 版本一致（全部 v1.11.0）"
+  ok "13 个 SKILL.md 版本一致（全部 v1.13.0）"
 else
   ko "版本不一致: 仅 $VERSION_COUNT/13"
 fi
