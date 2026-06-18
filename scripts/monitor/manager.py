@@ -136,6 +136,7 @@ class NotificationManager:
         self._daily_count = 0
         self._daily_date = ""
         self._lock = threading.Lock()
+        self._log_write_count = 0  # 写入计数器，用于批量检查轮转
         self._setup_channels()
 
     def _load_config(self) -> dict:
@@ -249,11 +250,14 @@ class NotificationManager:
     def _log_send(
         self, title: str, channel: str, success: bool, error: str = ""
     ) -> None:
-        """记录推送日志（带日志轮转保护）。"""
+        """记录推送日志（带日志轮转保护，每 10 次写入检查一次轮转）。"""
         log_path = _log_path()
 
-        # 写入前检查是否需要轮转
-        _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
+        # 每 10 次写入检查一次轮转，避免高频 stat() 调用
+        self._log_write_count += 1
+        if self._log_write_count >= 10:
+            self._log_write_count = 0
+            _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
 
         ts = _now().strftime("%Y-%m-%d %H:%M:%S")
         status = "OK" if success else "FAIL"

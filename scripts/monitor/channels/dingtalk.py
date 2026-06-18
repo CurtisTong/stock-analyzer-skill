@@ -7,6 +7,7 @@
 支持关键词、加签、IP 白名单三种安全设置。
 """
 
+import base64
 import hashlib
 import hmac
 import json
@@ -46,14 +47,16 @@ class DingtalkChannel(NotificationChannel):
             string_to_sign.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).digest()
-        sign = urllib.parse.quote_plus(
-            __import__("base64").b64encode(hmac_code).decode("utf-8")
-        )
+        sign = urllib.parse.quote_plus(base64.b64encode(hmac_code).decode("utf-8"))
         return f"&timestamp={timestamp}&sign={sign}"
 
-    def send(self, title: str, body: str,
-             url: Optional[str] = None,
-             group: Optional[str] = None) -> Tuple[bool, str]:
+    def send(
+        self,
+        title: str,
+        body: str,
+        url: Optional[str] = None,
+        group: Optional[str] = None,
+    ) -> Tuple[bool, str]:
         """发送钉钉 webhook 推送。
 
         使用 markdown 格式以支持富文本。
@@ -98,7 +101,10 @@ class DingtalkChannel(NotificationChannel):
                 result = json.loads(resp.read().decode("utf-8"))
                 if result.get("errcode") == 0:
                     return True, ""
-                return False, f"dingtalk api returned errcode={result.get('errcode')}, errmsg={result.get('errmsg')}"
+                return (
+                    False,
+                    f"dingtalk api returned errcode={result.get('errcode')}, errmsg={result.get('errmsg')}",
+                )
         except urllib.error.URLError as e:
             return False, f"network error: {e.reason}"
         except json.JSONDecodeError as e:

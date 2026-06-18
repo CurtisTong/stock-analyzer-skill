@@ -17,16 +17,45 @@ from pathlib import Path
 from typing import Optional
 
 # 添加 scripts 目录到 path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import normalize_quote_code, to_float, board_type, board_limit_pct
 from data import get_quote, get_quotes, get_kline
-from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts
+from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts, fetch_quote_dict
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.trend import support_resistance
-from monitor import NotificationManager
-from portfolio import PortfolioManager
+
+# 模块级缓存（惰性初始化）
+_nm = None
+_pm = None
+
+
+def _get_nm():
+    """获取 NotificationManager 单例。"""
+    global _nm
+    if _nm is None:
+        from monitor import NotificationManager
+
+        _nm = NotificationManager()
+    return _nm
+
+
+def _get_pm():
+    """获取 PortfolioManager 单例。"""
+    global _pm
+    if _pm is None:
+        from portfolio import PortfolioManager
+
+        _pm = PortfolioManager()
+    return _pm
+
+
+def _reset_cache():
+    """重置缓存（用于测试）。"""
+    global _nm, _pm
+    _nm = None
+    _pm = None
+
 
 # 从配置加载止损/止盈阈值
 try:
@@ -157,6 +186,8 @@ def compute_key_levels(
         "change_pct": 0,
         "levels": {},
         "alerts": [],
+        "position": position,
+        "watch": watch,
         "error": data.get("error"),
     }
 
@@ -262,17 +293,19 @@ def _check_alerts(
     """检查当前价格是否触发预警条件。"""
     alerts = []
 
-    # 支撑位触及
+    # 支撑位触及（强/弱分级）
     for s in levels.get("supports", []):
         lv = s.get("level", 0)
         if lv > 0 and price <= lv * 1.01:
+            strength = s.get("strength", "中")
+            alert_type = "support_touch" if strength == "强" else "support_touch_weak"
             alerts.append(
                 {
-                    "type": "support_touch",
+                    "type": alert_type,
                     "level": lv,
                     "source": s.get("source", ""),
-                    "message": f"触及支撑位 {lv}（{s.get('source', '')}）",
-                    "urgent": s.get("strength") == "强",
+                    "message": f"触及{strength}支撑位 {lv}（{s.get('source', '')}）",
+                    "urgent": strength == "强",
                 }
             )
 
@@ -388,9 +421,23 @@ def _check_alerts(
 
 def scan_all() -> list:
     """扫描持仓+自选股，返回关键点位集合。"""
-    pm = PortfolioManager()
+    pm = _get_pm()
     positions = pm.get_positions()
     watchlist = pm.get_watchlist()
+
+    # 批量预获取行情（减少串行 HTTP 请求）
+    all_codes = [p.get("code", "") for p in positions if p.get("code")]
+    pos_codes = set(all_codes)
+    for w in watchlist:
+        code = w.get("code", "")
+        if code and code not in pos_codes:
+            all_codes.append(code)
+
+    if all_codes:
+        try:
+            get_quotes(all_codes, use_cache=True)
+        except Exception:
+            pass  # 预获取失败不阻塞后续逐股获取
 
     results = []
 
@@ -403,7 +450,6 @@ def scan_all() -> list:
         results.append(r)
 
     # 自选（去重）
-    pos_codes = {p.get("code") for p in positions}
     for w in watchlist:
         code = w.get("code", "")
         if not code or code in pos_codes:
@@ -425,7 +471,7 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
         {"scanned": int, "alerts": int, "pushed": int, "details": [...]}
     """
     results = scan_all()
-    nm = NotificationManager() if not dry_run else None
+    nm = _get_nm() if not dry_run else None
 
     # 级别阈值：只推送 >= level 的预警
     level_order = {"normal": 0, "important": 1, "urgent": 2}
