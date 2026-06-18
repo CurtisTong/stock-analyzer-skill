@@ -23,7 +23,8 @@
 - **type**：必须小写英文，取自下表。
 - **scope**：可选，表示影响范围，建议小写英文或简写。本项目常用值：
   - `*` 或省略：跨多个模块的通用变更（与项目历史风格一致）
-  - `stock` / `market` / `sector` / `portfolio` / `financial-analyst` / `investment-researcher`：对应 skill
+  - `stock` / `market` / `sector` / `portfolio` / `screener` / `monitor` / `backtest` / `research` / `technical`：对应 skill（`financial-analyst` 与 `investment-researcher` 已合并入 `research`）
+  - `experts`：专家人设（experts/*.md 与 scoring/）
   - `scripts`：底层 Python 工具
   - `data`：示例数据、配置
   - `docs`：文档（README、方法论、CHANGELOG）

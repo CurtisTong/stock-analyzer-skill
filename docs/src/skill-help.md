@@ -1,3 +1,3 @@
-# /help
+# /stock-help
 
-> 详见 [skills/help/SKILL.md](../../skills/help/SKILL.md)
+> 详见 [skills/stock-help/SKILL.md](../../skills/stock-help/SKILL.md)

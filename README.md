@@ -12,17 +12,17 @@
         A N A L Y Z E R   ·   S K I L L
 ```
 
-## 🎯 把专业 A 股分析变成 9 条对话命令
+## 🎯 把专业 A 股分析变成 13 条对话命令
 
 > **不写代码也能用**——装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析。
 
-**五层分析框架** · **8 人专家圆桌** · **28 个数据源故障转移** · **零配置开箱即用**
+**五层分析框架** · **15 份专家人设（9 active + 6 legacy）** · **28 个数据源故障转移** · **零配置开箱即用**
 
 [![Version](https://img.shields.io/badge/version-1.13.0-2563eb?style=flat-square)](CHANGELOG.md)
-[![Python](https://img.shields.io/badge/python-3.9+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
-[![Zero Deps](https://img.shields.io/badge/python_deps-stdlib_only-10b981?style=flat-square)](pyproject.toml)
-[![Skills](https://img.shields.io/badge/skills-9-8b5cf6?style=flat-square)](#-9-个-skill-速查)
+[![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
+[![Skills](https://img.shields.io/badge/skills-13-8b5cf6?style=flat-square)](#-13-个-skill-速查)
 
 [🚀 快速开始](#-30-秒上手) · [🎬 看效果](#-效果一览) · [📖 文档导航](#-文档导航) · [💬 常见问题](#-常见问题)
 
@@ -37,9 +37,9 @@
 - [🚀 30 秒上手](#-30-秒上手)
 - [❓ 4 个常见问题 → 4 条命令](#-4-个常见问题--4-条命令)
 - [🎬 效果一览](#-效果一览)
-- [👥 8 人专家圆桌（招牌功能）](#-8-人专家圆桌招牌功能)
+- [👥 15 份专家人设（招牌功能）](#-15-份专家人设招牌功能)
 - [🗺️ 4 个典型场景](#-4-个典型场景)
-- [📋 9 个 Skill 速查](#-9-个-skill-速查)
+- [📋 13 个 Skill 速查](#-13-个-skill-速查)
 - [📦 安装方式](#-安装方式)
 - [🏗️ 项目架构](#-项目架构)
 - [📖 文档导航](#-文档导航)
@@ -109,15 +109,17 @@
 </td>
 <td width="33%" align="center" valign="top">
 
-### 👥 8 人专家圆桌
+### 👥 15 份专家人设
 
-**长线 4 人**<br>
-巴菲特 · 林奇<br>
-索罗斯 · 段永平
+**长线 4 人（legacy）**<br>
+巴菲特 · 林奇 · 索罗斯 · 段永平
 
-**短线 4 人**<br>
-徐翔 · 赵老哥<br>
-养家 · 作手新一
+**短线 4 人（legacy）**<br>
+徐翔 · 赵老哥 · 养家 · 作手新一
+
+**扩展 7 人（active）**<br>
+价值双锚 · 题材龙头 · 情绪技术复合<br>
+行业专家 · 机构派 · 风控 · 动量派
 
 </td>
 <td width="33%" align="center" valign="top">
@@ -202,7 +204,7 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 | 📝 **结构化 JSON 日志**   | `monitor --log-json` / `monitor --sources`                                     | 监控输出机器可解析，数据源健康度矩阵一目了然         |
 | 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 9 skill 串联实战         |
 | 🛡️ **自审计 CI**          | 提交 PR 自动运行                                                               | SKILL.md 与 settings.json 一致性自动检查，阻断不一致 |
-| 🎯 **场景化帮助**         | `/help`                                                                        | 5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块） |
+| 🎯 **场景化帮助**         | `/stock-help`                                                                  | 5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块） |
 
 <details>
 <summary>📦 <b>v1.7.0 能力（折叠）</b></summary>
@@ -269,12 +271,12 @@ python3 scripts/portfolio_web.py
 </details>
 
 <details>
-<summary><b>👥 8 人专家圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
+<summary><b>👥 15 份专家人设圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
 
-![8 人专家圆桌 demo](docs/assets/stock-debate.gif)
+![15 份专家人设圆桌 demo](docs/assets/stock-debate.gif)
 
 ```text
-🎤 8 人专家圆桌 · 贵州茅台 (sh600519)
+🎤 15 份专家人设圆桌 · 贵州茅台 (sh600519)
 ═══════════════════════════════════════
 
 【长线阵营】
@@ -321,9 +323,9 @@ python3 scripts/portfolio_web.py
 
 ---
 
-## 👥 8 人专家圆桌（招牌功能）
+## 👥 15 份专家人设（招牌功能）
 
-> 🌟 **本包最独特的卖点**。8 位投资专家从各自框架独立打分，由 [`decide.md`](experts/decide.md) 汇总投票。
+> 🌟 **本包最独特的卖点**。15 份投资专家人设（9 active + 6 legacy）从各自框架独立打分，由 [`decide.md`](experts/decide.md) 汇总投票。legacy 6 人已合并入 active 专家，扩展 7 人补盲区。
 
 <table>
 <tr>
@@ -471,27 +473,31 @@ flowchart LR
 **适合**：每日开盘前 30 分钟做情绪判断的投资者
 **产出**：美股收盘 + VIX + 对 A 股传导路径的预判，避免隔夜黑天鹅被闷杀
 
-> 💡 9 个 skill 完整衔接流程见 [`workflow.md`](workflow.md)。
+> 💡 13 个 skill 完整衔接流程见 [`workflow.md`](workflow.md)。
 
 ---
 
-## 📋 9 个 Skill 速查
+## 📋 13 个 Skill 速查
 
-> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合 / monitor 监控 / backtest 验证 / research 研究 / help 帮助。
+> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合 / monitor 监控 / backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
 
-| 类别        | Skill                                  | 命令                                       | 一句话价值                                       |
-| :---------- | :------------------------------------- | :----------------------------------------- | :----------------------------------------------- |
-| 🎯 **决策** | [stock](skills/stock/SKILL.md)         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 8 人圆桌辩论 · 纯技术面           |
-| 🌐 **环境** | [market](skills/market/SKILL.md)       | `/market [full\|quick\|intraday]`          | 大盘快评 / 完整复盘 / 盘中分时                   |
-| 🌐 **环境** | [sector](skills/sector/SKILL.md)       | `/sector <板块> [overview\|compare\|stock]` | 板块全景 / 标的对比 / 板块内筛选                 |
-| 🔎 **选股** | [screener](skills/screener/SKILL.md)   | `/screener [--strategy 策略]`              | 5 种策略 × 5 因子维度批量选股 + 股票池初始化     |
-| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md) | `/portfolio [health\|rebalance\|compare]`  | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比        |
-| 📡 **监控** | [monitor](skills/monitor/SKILL.md)     | `/monitor [scan\|levels\|check]`           | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
-| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)   | `/backtest [--strategy 策略] [--all]`      | 策略历史回测，含卡玛比率/盈亏比/夏普             |
-| 🔬 **研究** | [research](skills/research/SKILL.md)   | `/research [financial\|report] <任务>`     | 深度研究：财务建模 / 市场研究 / 尽调 / 估值      |
-| ❓ **辅助** | [help](skills/help/SKILL.md)           | `/help`                                    | 显示所有 skills 和使用说明                       |
+| 类别        | Skill                                       | 命令                                       | 一句话价值                                       |
+| :---------- | :------------------------------------------ | :----------------------------------------- | :----------------------------------------------- |
+| 🎯 **决策** | [stock](skills/stock/SKILL.md)              | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 15 份专家圆桌辩论 · 纯技术面      |
+| 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md) | `/stock-technical <代码>`             | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法）     |
+| 🌐 **环境** | [market](skills/market/SKILL.md)            | `/market [full\|quick\|intraday]`          | 大盘快评 / 完整复盘 / 盘中分时                   |
+| 🌐 **环境** | [sector](skills/sector/SKILL.md)            | `/sector <板块> [overview\|compare\|stock]` | 板块全景 / 标的对比 / 板块内筛选                 |
+| 🔎 **选股** | [screener](skills/screener/SKILL.md)        | `/screener [--strategy 策略] [init]`       | 5 种策略 × 6 因子维度批量选股 + 股票池初始化     |
+| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)      | `/portfolio [health\|rebalance\|compare]`  | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比        |
+| 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md) | `/portfolio web [--port 8765]`          | Web 录入服务（HTTP API :8765）                   |
+| 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                    | NL → 命令映射（我买了/减仓/破位止损）            |
+| 📡 **监控** | [monitor](skills/monitor/SKILL.md)          | `/monitor [scan\|levels\|check]`           | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
+| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)        | `/backtest [--strategy 策略] [--all]`      | 策略历史回测，含卡玛比率/盈亏比/夏普             |
+| 🔬 **研究** | [research](skills/research/SKILL.md)        | `/research [financial\|report] <任务>`     | 深度研究：财务建模 / 排雷 / DCF / 估值           |
+| 📚 **学习** | [learn](skills/learn/SKILL.md)              | `/learn <概念>`                            | 学习助手：PE/ROE/MACD/K 线/缠论/新手入门        |
+| ❓ **辅助** | [stock-help](skills/stock-help/SKILL.md)    | `/stock-help`                              | 显示所有 skills 和使用说明                       |
 
-> 📌 **已合并命令**：`/technical` → `/stock technical`、`/stock-init` → `/screener init`、`/financial-analyst` → `/research financial`、`/investment-researcher` → `/research report`（旧命令仍可用，自动跳转）
+> 📌 **已合并命令**：`/help` → `/stock-help`、`/technical` → `/stock technical`、`/stock-init` → `/screener init`、`/financial-analyst` → `/research financial`、`/investment-researcher` → `/research report`（旧命令仍可用，自动跳转）
 
 > 📌 **股票代码格式**：`sh600519`（沪） / `sz000858`（深） / `600519`（自动推断） / `贵州茅台`（按名称模糊匹配）— **用代码最稳**，名称匹配在多个相似名时可能错配。
 
@@ -551,8 +557,8 @@ cd stock-analyzer-skill
 ### ✅ 验证安装
 
 ```bash
-claude skills list | grep stock     # 看到 9 个核心 skill 即成功
-/help                                # 在 Claude Code 内查看命令清单
+claude skills list | grep stock     # 看到 13 个 skill 即成功
+/stock-help                          # 在 Claude Code 内查看命令清单
 ```
 
 ---
@@ -603,7 +609,7 @@ scripts/
 <tr>
 <td>📈 <b>投资者</b></td>
 <td><a href="methodology.md">投资方法论</a></td>
-<td><a href="experts/README.md">8 人专家档案库</a></td>
+<td><a href="experts/README.md">15 份专家档案库（9 active + 6 legacy）</a></td>
 </tr>
 <tr>
 <td>🛠️ <b>二次开发者</b></td>
@@ -663,9 +669,9 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 </details>
 
 <details>
-<summary><b>Q：8 人专家投票冲突时怎么办？</b></summary>
+<summary><b>Q：15 份专家投票冲突时怎么办？</b></summary>
 
-由 [`experts/decide.md`](experts/decide.md) 定义的整合规则裁决——加权投票 + 长短线分仓建议。例如长线 4 人偏多、短线 4 人偏空，结论会是「核心仓持有、卫星仓减仓」。
+由 [`experts/decide.md`](experts/decide.md) 定义的整合规则裁决——加权投票 + 长短线分仓建议。例如长线偏多、短线偏空，结论会是「核心仓持有、卫星仓减仓」。
 
 </details>
 
