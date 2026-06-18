@@ -10,6 +10,17 @@
 ## [Unreleased] - 2026-06-18
 
 ### Fixed
+- **tests**: 移除 test_two_stage 硬编码 macOS 路径
+
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
+
+### Other
+- Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
+
+## [Unreleased] - 2026-06-18
+
+### Fixed
 - **tests**: 更新 EXPECTED_SKILLS 匹配 stock-help 重命名
 
 ### Documentation
