@@ -7,6 +7,11 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-18
+
+### Fixed
+- **skills**: 缩短 stock-help description 至 110 字符
+
 ## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
 
 ### Added · 动量派专家系统（v2.2.0）
