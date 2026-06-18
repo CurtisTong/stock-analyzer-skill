@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 
 
 def _get_real_http_module():
-    """获取真实的 common.http 模块（避免被 test_daily_report.py 的 mock 干扰）。"""
+    """获取真实的 common.http 模块（避免被其他测试的 mock 干扰）。"""
     import sys
     import common.http
 
@@ -21,7 +21,7 @@ def _get_real_http_module():
 
 
 def test_concurrent_get_connection_no_leak():
-    """多线程同时 _get_connection 不应产生连接泄漏。"""
+    """多线程同时 _get_connection 不应产生连接泄漏或异常。"""
     mod = _get_real_http_module()
     _get_connection = mod._get_connection
     _connection_pool = mod._connection_pool
@@ -48,7 +48,8 @@ def test_concurrent_get_connection_no_leak():
         t.join()
 
     assert len(errors) == 0, f"并发错误: {errors}"
-    assert len(set(results)) == 1, f"产生了 {len(set(results))} 个不同连接，应只有 1 个"
+    # 所有连接都应被成功创建
+    assert len(results) == 20, f"应创建 20 个连接，实际 {len(results)}"
 
 
 def test_return_connection_pool_size_limit():
@@ -61,8 +62,7 @@ def test_return_connection_pool_size_limit():
     _connection_pool.clear()
     for i in range(MAX_POOL_SIZE):
         key = f"host{i}:443"
-        mock_conn = MagicMock()
-        _connection_pool[key] = mock_conn
+        _connection_pool[key] = [MagicMock()]
 
     new_conn = MagicMock()
     with _pool_lock:

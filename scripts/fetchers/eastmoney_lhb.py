@@ -1,8 +1,8 @@
 """东方财富龙虎榜数据源。"""
-import sys
+
 import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 from common import BaseFetcher, http_get, to_float
 
@@ -52,10 +52,10 @@ class LhbDetailFetcher(BaseFetcher):
                 "close": to_float(r.get("CLOSE_PRICE", 0)),
                 "change_pct": to_float(r.get("CHANGE_RATE", 0)),
                 "turnover_rate": to_float(r.get("TURNOVERRATE", 0)),
-                "net_buy": to_float(r.get("NET_BUY_AMT", 0)),       # 龙虎榜净买入
-                "buy_total": to_float(r.get("BUY_AMT", 0)),          # 买入总额
-                "sell_total": to_float(r.get("SELL_AMT", 0)),        # 卖出总额
-                "reason": r.get("EXPLANATION", ""),                   # 上榜原因
+                "net_buy": to_float(r.get("NET_BUY_AMT", 0)),  # 龙虎榜净买入
+                "buy_total": to_float(r.get("BUY_AMT", 0)),  # 买入总额
+                "sell_total": to_float(r.get("SELL_AMT", 0)),  # 卖出总额
+                "reason": r.get("EXPLANATION", ""),  # 上榜原因
             }
             # 如果指定了 code，只返回该股票的记录
             if code and item["code"] != code.lstrip("shszSHSZbjBJ"):
@@ -75,7 +75,6 @@ class LhbSeatFetcher(BaseFetcher):
         """获取指定股票的龙虎榜买卖席位。"""
         date = kwargs.get("date", "")
         if not date:
-            from datetime import datetime
             date = now().strftime("%Y-%m-%d")
 
         plain = code.lstrip("shszSHSZbjBJ")
@@ -97,32 +96,46 @@ class LhbSeatFetcher(BaseFetcher):
 
         buy_seats = []
         for r in result_data:
-            buy_seats.append({
-                "name": r.get("BUYER_NAME", ""),
-                "buy_amt": to_float(r.get("BUY_AMT", 0)),
-                "buy_pct": to_float(r.get("BUY_AMT_RATIO", 0)),
-                "sell_amt": to_float(r.get("SELL_AMT", 0)),
-                "reason": r.get("EXPLANATION", ""),
-            })
+            buy_seats.append(
+                {
+                    "name": r.get("BUYER_NAME", ""),
+                    "buy_amt": to_float(r.get("BUY_AMT", 0)),
+                    "buy_pct": to_float(r.get("BUY_AMT_RATIO", 0)),
+                    "sell_amt": to_float(r.get("SELL_AMT", 0)),
+                    "reason": r.get("EXPLANATION", ""),
+                }
+            )
 
-        # 获取卖出席位
-        sell_url = buy_url.replace("RPT_BILLBOARD_DAILYDETAILSBUY", "RPT_BILLBOARD_DAILYDETAILSSELL")
-        sell_url = sell_url.replace("BUY_AMT&sortTypes=-1", "SELL_AMT&sortTypes=-1")
+        # 获取卖出席位（显式构造参数，避免字符串替换带来的隐式依赖）
+        sell_url = (
+            f"https://datacenter-web.eastmoney.com/api/data/v1/get?"
+            f"sortColumns=SELL_AMT&sortTypes=-1&pageSize=20&pageNumber=1"
+            f"&reportName=RPT_BILLBOARD_DAILYDETAILSSELL&columns=ALL"
+            f"&filter=(TRADE_DATE='{date}')(SECURITY_CODE='{plain}')"
+        )
         raw = http_get(sell_url)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            return {"type": "lhb_seat", "code": plain, "date": date, "buy_seats": buy_seats, "sell_seats": []}
+            return {
+                "type": "lhb_seat",
+                "code": plain,
+                "date": date,
+                "buy_seats": buy_seats,
+                "sell_seats": [],
+            }
 
         sell_seats = []
         if data and data.get("success") is True:
             for r in data.get("result", {}).get("data", []):
-                sell_seats.append({
-                    "name": r.get("SELLER_NAME", ""),
-                    "sell_amt": to_float(r.get("SELL_AMT", 0)),
-                    "sell_pct": to_float(r.get("SELL_AMT_RATIO", 0)),
-                    "buy_amt": to_float(r.get("BUY_AMT", 0)),
-                })
+                sell_seats.append(
+                    {
+                        "name": r.get("SELLER_NAME", ""),
+                        "sell_amt": to_float(r.get("SELL_AMT", 0)),
+                        "sell_pct": to_float(r.get("SELL_AMT_RATIO", 0)),
+                        "buy_amt": to_float(r.get("BUY_AMT", 0)),
+                    }
+                )
 
         return {
             "type": "lhb_seat",

@@ -1,8 +1,6 @@
 """腾讯 K 线数据源。"""
-import sys
 import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get
 

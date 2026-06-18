@@ -1,8 +1,8 @@
 """东方财富 K 线数据源。"""
-import sys
+
 import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 from common import BaseFetcher, http_get, to_secid
 
@@ -36,13 +36,17 @@ class EastmoneyKlineFetcher(BaseFetcher):
         for line in klines:
             parts = line.split(",")
             if len(parts) >= 6:
-                result.append({
-                    "day": parts[0],
-                    "open": parts[1],
-                    "close": parts[2],
-                    "high": parts[3],
-                    "low": parts[4],
-                    "volume": parts[5],
-                    "source": "eastmoney",
-                })
+                result.append(
+                    {
+                        "day": parts[0],
+                        "open": parts[1],
+                        "close": parts[2],
+                        "high": parts[3],
+                        "low": parts[4],
+                        "volume": parts[5],
+                        "amount": parts[6] if len(parts) > 6 else "0",
+                        "pct_chg": parts[8] if len(parts) > 8 else "0",
+                        "source": "eastmoney",
+                    }
+                )
         return result if result else None

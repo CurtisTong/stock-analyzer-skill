@@ -257,14 +257,14 @@ class TestConnectionPool:
         conn.close()
 
     def test_return_connection_pools(self):
-        """归还的连接被放入池中。"""
+        """归还的连接被放入池中（列表形式）。"""
         conn = _get_connection("https://api.example.com/test")
         # 模拟连接已建立（设置 sock）
         conn.sock = MagicMock()
         _return_connection("https://api.example.com/test", conn)
         pool_key = "https://api.example.com:443"
         assert pool_key in _connection_pool
-        assert _connection_pool[pool_key] is conn
+        assert conn in _connection_pool[pool_key]
 
     def test_get_connection_reuses_pooled(self):
         """池中有可用连接时复用。"""

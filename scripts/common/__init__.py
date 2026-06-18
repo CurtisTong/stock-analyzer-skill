@@ -259,7 +259,22 @@ class BaseFetcher(ABC):
         self.name = name
         self.provider = name.split("_")[0]
         self.priority = priority
-        self.circuit_breaker = get_circuit_breaker(name)
+        self.circuit_breaker = get_circuit_breaker(name, **self._load_cb_config())
+
+    @staticmethod
+    def _load_cb_config() -> dict[str, int]:
+        """从 data_source.yaml 加载熔断器配置。"""
+        try:
+            from config.loader import ConfigLoader
+
+            cb = ConfigLoader.load("data_source.yaml").get("circuit_breaker", {})
+            return {
+                "failure_threshold": cb.get("failure_threshold", 5),
+                "recovery_timeout": cb.get("recovery_timeout", 60),
+                "half_open_max": cb.get("half_open_max", 3),
+            }
+        except Exception:
+            return {}
 
     @abstractmethod
     def fetch(

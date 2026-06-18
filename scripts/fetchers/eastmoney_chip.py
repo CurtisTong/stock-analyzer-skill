@@ -1,5 +1,5 @@
 """东方财富筹码相关数据源（融资融券、股东户数、十大流通股东）。"""
-import sys
+
 import json
 import logging
 from pathlib import Path
@@ -7,7 +7,6 @@ from datetime import timedelta
 
 from dev.clock import now
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get, to_float, to_int, NetworkError, RateLimitError
 
@@ -21,7 +20,18 @@ MARGIN_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?report=RPT_MA
 F10_SHAREHOLDER_URL = "https://emweb.securities.eastmoney.com/PC_HSF10/ShareholderResearch/PageAjax?code={secid}"
 
 # 机构类型关键词
-_INSTITUTION_KEYWORDS = ["基金", "QFII", "社保", "券商", "保险", "信托", "银行", "证券", "资产管理", "投资公司"]
+_INSTITUTION_KEYWORDS = [
+    "基金",
+    "QFII",
+    "社保",
+    "券商",
+    "保险",
+    "信托",
+    "银行",
+    "证券",
+    "资产管理",
+    "投资公司",
+]
 
 
 class MarginFetcher(BaseFetcher):
@@ -41,8 +51,8 @@ class MarginFetcher(BaseFetcher):
             融资融券数据列表，失败返回 None
         """
         days = kwargs.get("days", 20)
-        # 提取纯数字代码
-        pure_code = code.replace("sh", "").replace("sz", "").replace("SH", "").replace("SZ", "")
+        # 提取纯数字代码（支持 sh/sz/bj 前缀，大小写无关）
+        pure_code = code.lstrip("shszSHSZbjBJ")
         # 考虑节假日：交易日约占自然日的 50%，故向前多取一倍天数确保覆盖
         start_date = (now() - timedelta(days=days * 2)).strftime("%Y-%m-%d")
 
@@ -66,19 +76,21 @@ class MarginFetcher(BaseFetcher):
         result = []
         for item in data.get("result", {}).get("data", []):
             try:
-                result.append({
-                    "date": str(item.get("TRADE_DATE", ""))[:10],
-                    "code": pure_code,
-                    "rzye": to_float(item.get("RZYE")),           # 融资余额
-                    "rqye": to_float(item.get("RQYE")),           # 融券余额
-                    "rzmre": to_float(item.get("RZMRE")),         # 融资买入额
-                    "rzche": to_float(item.get("RZCHE")),         # 融资偿还额
-                    "rzjme": to_float(item.get("RZJME")),         # 融资净买入额
-                    "rqmcl": to_float(item.get("RQMCL")),         # 融券卖出量
-                    "rqchl": to_float(item.get("RQCHL")),         # 融券偿还量
-                    "rqjmg": to_float(item.get("RQJMG")),         # 融券净卖出量
-                    "rqyl": to_float(item.get("RQYL")),           # 融券余量
-                })
+                result.append(
+                    {
+                        "date": str(item.get("TRADE_DATE", ""))[:10],
+                        "code": pure_code,
+                        "rzye": to_float(item.get("RZYE")),  # 融资余额
+                        "rqye": to_float(item.get("RQYE")),  # 融券余额
+                        "rzmre": to_float(item.get("RZMRE")),  # 融资买入额
+                        "rzche": to_float(item.get("RZCHE")),  # 融资偿还额
+                        "rzjme": to_float(item.get("RZJME")),  # 融资净买入额
+                        "rqmcl": to_float(item.get("RQMCL")),  # 融券卖出量
+                        "rqchl": to_float(item.get("RQCHL")),  # 融券偿还量
+                        "rqjmg": to_float(item.get("RQJMG")),  # 融券净卖出量
+                        "rqyl": to_float(item.get("RQYL")),  # 融券余量
+                    }
+                )
             except Exception as e:
                 logger.warning(f"MarginFetcher 数据转换异常: {item}, {e}")
                 continue
@@ -142,7 +154,9 @@ class HolderFetcher(BaseFetcher):
             return None
 
         # 按日期降序排序（确保最新的在前），避免依赖 API 返回顺序
-        gdrs_list = sorted(gdrs_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True)
+        gdrs_list = sorted(
+            gdrs_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True
+        )
 
         result = []
         prev_holder_num = 0
@@ -168,15 +182,17 @@ class HolderFetcher(BaseFetcher):
                 else:
                     concentration = "持平"
 
-                result.append({
-                    "end_date": str(item.get("END_DATE", ""))[:10],
-                    "code": secid[2:],
-                    "holder_num": holder_num,
-                    "avg_amount": avg_amount,
-                    "holder_num_change": holder_num_change,
-                    "prev_holder_num": prev_holder_num,
-                    "concentration": concentration,
-                })
+                result.append(
+                    {
+                        "end_date": str(item.get("END_DATE", ""))[:10],
+                        "code": secid[2:],
+                        "holder_num": holder_num,
+                        "avg_amount": avg_amount,
+                        "holder_num_change": holder_num_change,
+                        "prev_holder_num": prev_holder_num,
+                        "concentration": concentration,
+                    }
+                )
 
                 prev_holder_num = holder_num
             except Exception as e:
@@ -228,7 +244,9 @@ class TopHolderFetcher(BaseFetcher):
             return None
 
         # 按日期降序排序，确保最新一期在最前面
-        sdltgd_list = sorted(sdltgd_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True)
+        sdltgd_list = sorted(
+            sdltgd_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True
+        )
 
         # 获取最新一期的日期
         latest_date = str(sdltgd_list[0].get("END_DATE", ""))[:10]
@@ -247,35 +265,48 @@ class TopHolderFetcher(BaseFetcher):
                 # 判断是否为机构
                 is_institution = any(kw in holder_name for kw in _INSTITUTION_KEYWORDS)
 
-                # 变动类型：统一使用 HOLD_NUM_CHANGE（万股变化）
-                # 东方财富返回的变化量：有符号数值，正=增持，负=减持
-                change_str = str(item.get("HOLD_NUM_CHANGE", ""))
-                hold_num_change = to_float(item.get("HOLD_NUM_CHANGE", 0)) / 10000  # 转万股
+                # 变动类型：从独立状态字段获取，辅以变化量数值判断
+                change_type_raw = str(item.get("CHANGE_TYPE", "")).strip()
+                hold_num_change = (
+                    to_float(item.get("HOLD_NUM_CHANGE", 0)) / 10000
+                )  # 转万股
 
-                if "新进" in change_str:
-                    change_type = "新进"
-                    change_num = hold_num_change  # 新进时为持股数量
+                if change_type_raw:
+                    # API 返回了独立的变动类型字段（如"新进"/"增持"/"减持"/"不变"）
+                    change_type = change_type_raw
+                    change_num = hold_num_change
                 elif hold_num_change > 0:
                     change_type = "增持"
                     change_num = hold_num_change
                 elif hold_num_change < 0:
                     change_type = "减持"
-                    change_num = hold_num_change  # 已经是负数
+                    change_num = hold_num_change
                 else:
-                    change_type = "不变"
+                    # 变化量为 0 且无状态字段：可能是新进（首期无对比基准）或不变
+                    # 检查是否有持股但上期无数据的标识
+                    if str(item.get("HOLD_NUM_CHANGE", "")).strip() in (
+                        "",
+                        "0",
+                        "None",
+                    ):
+                        change_type = "不变"
+                    else:
+                        change_type = "新进"
                     change_num = 0
 
-                result.append({
-                    "end_date": item_date,
-                    "rank": to_int(item.get("HOLDER_RANK")),
-                    "holder_name": holder_name,
-                    "holder_type": holder_type,
-                    "hold_num": to_float(item.get("HOLD_NUM")) / 10000,  # 转万股
-                    "hold_ratio": to_float(item.get("HOLD_NUM_RATIO")),
-                    "change": change_num,
-                    "change_type": change_type,
-                    "is_institution": is_institution,
-                })
+                result.append(
+                    {
+                        "end_date": item_date,
+                        "rank": to_int(item.get("HOLDER_RANK")),
+                        "holder_name": holder_name,
+                        "holder_type": holder_type,
+                        "hold_num": to_float(item.get("HOLD_NUM")) / 10000,  # 转万股
+                        "hold_ratio": to_float(item.get("HOLD_NUM_RATIO")),
+                        "change": change_num,
+                        "change_type": change_type,
+                        "is_institution": is_institution,
+                    }
+                )
             except Exception as e:
                 logger.warning(f"TopHolderFetcher 数据转换异常: {item}, {e}")
                 continue

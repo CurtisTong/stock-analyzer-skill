@@ -1,7 +1,5 @@
 """腾讯行情数据源。"""
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get, decode_gbk, parse_tencent_line, normalize_volume, normalize_amount
 

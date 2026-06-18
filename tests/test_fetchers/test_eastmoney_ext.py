@@ -1,4 +1,5 @@
 """东方财富扩展数据源测试：资金流向 + 龙虎榜 + 事件日历 + 筹码。"""
+
 import json
 import pytest
 import sys
@@ -9,14 +10,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"
 
 from fetchers.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
 from fetchers.eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
-from fetchers.eastmoney_event import EarningsCalendarFetcher, LockupCalendarFetcher, DividendCalendarFetcher
+from fetchers.eastmoney_event import (
+    EarningsCalendarFetcher,
+    LockupCalendarFetcher,
+    DividendCalendarFetcher,
+)
 from fetchers.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
 from common.exceptions import NetworkError
-
 
 # ═══════════════════════════════════════════════════════════════
 # 资金流向
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestNorthboundFlowFetcher:
     def setup_method(self):
@@ -34,7 +39,9 @@ class TestNorthboundFlowFetcher:
                 "n2s": ["2025-06-10,80000,40000,40000"],
             },
         }
-        with patch("fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is not None
         assert result["type"] == "northbound"
@@ -55,12 +62,17 @@ class TestNorthboundFlowFetcher:
 
     def test_fetch_rc_not_zero(self):
         data = {"rc": -1}
-        with patch("fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is None
 
     def test_fetch_http_error(self):
-        with patch("fetchers.eastmoney_flow.http_get", side_effect=NetworkError("url", "err", 3)):
+        with patch(
+            "fetchers.eastmoney_flow.http_get",
+            side_effect=NetworkError("url", "err", 3),
+        ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("")
 
@@ -83,7 +95,9 @@ class TestStockFlowFetcher:
                 ],
             },
         }
-        with patch("fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert result["type"] == "stock_flow"
@@ -99,7 +113,9 @@ class TestStockFlowFetcher:
 
     def test_fetch_empty_klines(self):
         data = {"rc": 0, "data": {"klines": []}}
-        with patch("fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -107,6 +123,7 @@ class TestStockFlowFetcher:
 # ═══════════════════════════════════════════════════════════════
 # 龙虎榜
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestLhbDetailFetcher:
     def setup_method(self):
@@ -136,7 +153,9 @@ class TestLhbDetailFetcher:
                 ],
             },
         }
-        with patch("fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is not None
         assert result["type"] == "lhb_detail"
@@ -148,12 +167,22 @@ class TestLhbDetailFetcher:
             "success": True,
             "result": {
                 "data": [
-                    {"SECURITY_CODE": "600519", "SECURITY_NAME_ABBR": "茅台", "TRADE_DATE": "2025-06-12"},
-                    {"SECURITY_CODE": "000858", "SECURITY_NAME_ABBR": "五粮液", "TRADE_DATE": "2025-06-12"},
+                    {
+                        "SECURITY_CODE": "600519",
+                        "SECURITY_NAME_ABBR": "茅台",
+                        "TRADE_DATE": "2025-06-12",
+                    },
+                    {
+                        "SECURITY_CODE": "000858",
+                        "SECURITY_NAME_ABBR": "五粮液",
+                        "TRADE_DATE": "2025-06-12",
+                    },
                 ],
             },
         }
-        with patch("fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert len(result["items"]) == 1
@@ -166,7 +195,9 @@ class TestLhbDetailFetcher:
 
     def test_fetch_success_false(self):
         data = {"success": False}
-        with patch("fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is None
 
@@ -182,16 +213,37 @@ class TestLhbSeatFetcher:
     def test_fetch_normal(self):
         buy_data = {
             "success": True,
-            "result": {"data": [{"BUYER_NAME": "机构专用", "BUY_AMT": 50000000, "BUY_AMT_RATIO": 10.5, "SELL_AMT": 0}]},
+            "result": {
+                "data": [
+                    {
+                        "BUYER_NAME": "机构专用",
+                        "BUY_AMT": 50000000,
+                        "BUY_AMT_RATIO": 10.5,
+                        "SELL_AMT": 0,
+                    }
+                ]
+            },
         }
         sell_data = {
             "success": True,
-            "result": {"data": [{"SELLER_NAME": "某券商", "SELL_AMT": 30000000, "SELL_AMT_RATIO": 6.3, "BUY_AMT": 0}]},
+            "result": {
+                "data": [
+                    {
+                        "SELLER_NAME": "某券商",
+                        "SELL_AMT": 30000000,
+                        "SELL_AMT_RATIO": 6.3,
+                        "BUY_AMT": 0,
+                    }
+                ]
+            },
         }
-        with patch("fetchers.eastmoney_lhb.http_get", side_effect=[
-            json.dumps(buy_data).encode(),
-            json.dumps(sell_data).encode(),
-        ]):
+        with patch(
+            "fetchers.eastmoney_lhb.http_get",
+            side_effect=[
+                json.dumps(buy_data).encode(),
+                json.dumps(sell_data).encode(),
+            ],
+        ):
             result = self.fetcher.fetch("sh600519", date="2025-06-12")
         assert result is not None
         assert result["type"] == "lhb_seat"
@@ -207,6 +259,7 @@ class TestLhbSeatFetcher:
 # ═══════════════════════════════════════════════════════════════
 # 事件日历
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestEarningsCalendarFetcher:
     def setup_method(self):
@@ -230,7 +283,9 @@ class TestEarningsCalendarFetcher:
                 ],
             },
         }
-        with patch("fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is not None
         assert result["type"] == "earnings"
@@ -243,7 +298,9 @@ class TestEarningsCalendarFetcher:
 
     def test_fetch_success_false(self):
         data = {"success": False}
-        with patch("fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is None
 
@@ -272,7 +329,9 @@ class TestLockupCalendarFetcher:
                 ],
             },
         }
-        with patch("fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is not None
         assert result["type"] == "lockup"
@@ -307,7 +366,9 @@ class TestDividendCalendarFetcher:
                 ],
             },
         }
-        with patch("fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("")
         assert result is not None
         assert result["type"] == "dividend"
@@ -322,6 +383,7 @@ class TestDividendCalendarFetcher:
 # ═══════════════════════════════════════════════════════════════
 # 筹码（融资融券 + 股东户数 + 十大流通股东）
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestMarginFetcher:
     def setup_method(self):
@@ -351,7 +413,9 @@ class TestMarginFetcher:
                 ],
             },
         }
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert len(result) == 1
@@ -365,7 +429,9 @@ class TestMarginFetcher:
 
     def test_fetch_success_false(self):
         data = {"success": False}
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -395,7 +461,9 @@ class TestHolderFetcher:
                 },
             ],
         }
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert len(result) == 1
@@ -411,15 +479,30 @@ class TestHolderFetcher:
             ("非常分散", "分散"),
             ("比较分散", "分散"),
         ]:
-            data = {"gdrs": [{"END_DATE": "2025-03-31", "HOLDER_TOTAL_NUM": 100, "AVG_FREE_SHARES": 100, "TOTAL_NUM_RATIO": 0, "HOLD_FOCUS": focus}]}
-            with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+            data = {
+                "gdrs": [
+                    {
+                        "END_DATE": "2025-03-31",
+                        "HOLDER_TOTAL_NUM": 100,
+                        "AVG_FREE_SHARES": 100,
+                        "TOTAL_NUM_RATIO": 0,
+                        "HOLD_FOCUS": focus,
+                    }
+                ]
+            }
+            with patch(
+                "fetchers.eastmoney_chip.http_get",
+                return_value=json.dumps(data).encode(),
+            ):
                 result = self.fetcher.fetch("sh600519")
             assert result is not None
             assert result[0]["concentration"] == expected
 
     def test_fetch_empty_gdrs(self):
         data = {"gdrs": []}
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -451,7 +534,9 @@ class TestTopHolderFetcher:
                 },
             ],
         }
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert len(result) == 1
@@ -463,35 +548,115 @@ class TestTopHolderFetcher:
         """机构识别。"""
         data = {
             "sdltgd": [
-                {"END_DATE": "2025-03-31", "HOLDER_RANK": 1, "HOLDER_NAME": "某基金有限公司", "SHARES_TYPE": "流通A股", "HOLD_NUM": 100000, "HOLD_NUM_RATIO": 1.0, "HOLD_NUM_CHANGE": 0},
-                {"END_DATE": "2025-03-31", "HOLDER_RANK": 2, "HOLDER_NAME": "张三", "SHARES_TYPE": "流通A股", "HOLD_NUM": 50000, "HOLD_NUM_RATIO": 0.5, "HOLD_NUM_CHANGE": 0},
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 1,
+                    "HOLDER_NAME": "某基金有限公司",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 100000,
+                    "HOLD_NUM_RATIO": 1.0,
+                    "HOLD_NUM_CHANGE": 0,
+                },
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 2,
+                    "HOLDER_NAME": "张三",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 50000,
+                    "HOLD_NUM_RATIO": 0.5,
+                    "HOLD_NUM_CHANGE": 0,
+                },
             ],
         }
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert result[0]["is_institution"] is True
         assert result[1]["is_institution"] is False
 
     def test_fetch_change_types(self):
-        """变动类型：增持/减持/新进/不变。"""
+        """变动类型：增持/减持/不变（通过数值推断）。"""
         data = {
             "sdltgd": [
-                {"END_DATE": "2025-03-31", "HOLDER_RANK": 1, "HOLDER_NAME": "A", "SHARES_TYPE": "流通A股", "HOLD_NUM": 100, "HOLD_NUM_RATIO": 1.0, "HOLD_NUM_CHANGE": 5000000},
-                {"END_DATE": "2025-03-31", "HOLDER_RANK": 2, "HOLDER_NAME": "B", "SHARES_TYPE": "流通A股", "HOLD_NUM": 100, "HOLD_NUM_RATIO": 1.0, "HOLD_NUM_CHANGE": -2000000},
-                {"END_DATE": "2025-03-31", "HOLDER_RANK": 3, "HOLDER_NAME": "C", "SHARES_TYPE": "流通A股", "HOLD_NUM": 100, "HOLD_NUM_RATIO": 1.0, "HOLD_NUM_CHANGE": 0},
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 1,
+                    "HOLDER_NAME": "A",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 100,
+                    "HOLD_NUM_RATIO": 1.0,
+                    "HOLD_NUM_CHANGE": 5000000,
+                },
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 2,
+                    "HOLDER_NAME": "B",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 100,
+                    "HOLD_NUM_RATIO": 1.0,
+                    "HOLD_NUM_CHANGE": -2000000,
+                },
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 3,
+                    "HOLDER_NAME": "C",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 100,
+                    "HOLD_NUM_RATIO": 1.0,
+                    "HOLD_NUM_CHANGE": 0,
+                },
             ],
         }
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert result[0]["change_type"] == "增持"
         assert result[1]["change_type"] == "减持"
         assert result[2]["change_type"] == "不变"
 
+    def test_fetch_change_type_from_api_field(self):
+        """变动类型：通过 API 的 CHANGE_TYPE 字段识别"新进"。"""
+        data = {
+            "sdltgd": [
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 1,
+                    "HOLDER_NAME": "A",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 100,
+                    "HOLD_NUM_RATIO": 1.0,
+                    "HOLD_NUM_CHANGE": 5000000,
+                    "CHANGE_TYPE": "新进",
+                },
+                {
+                    "END_DATE": "2025-03-31",
+                    "HOLDER_RANK": 2,
+                    "HOLDER_NAME": "B",
+                    "SHARES_TYPE": "流通A股",
+                    "HOLD_NUM": 100,
+                    "HOLD_NUM_RATIO": 1.0,
+                    "HOLD_NUM_CHANGE": 3000000,
+                    "CHANGE_TYPE": "增持",
+                },
+            ],
+        }
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
+            result = self.fetcher.fetch("sh600519")
+        assert result is not None
+        assert result[0]["change_type"] == "新进"
+        assert result[1]["change_type"] == "增持"
+
     def test_fetch_empty_sdltgd(self):
         data = {"sdltgd": []}
-        with patch("fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 

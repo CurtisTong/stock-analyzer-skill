@@ -1,12 +1,10 @@
 """东方财富事件日历数据源（财报披露、解禁、分红）。"""
-import sys
 import json
 from datetime import timedelta
 from pathlib import Path
 
 from dev.clock import now
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import BaseFetcher, http_get, to_float
 

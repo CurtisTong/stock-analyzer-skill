@@ -7,12 +7,9 @@
     holders = get_holders("sh600989", periods=4)
     top_holders = get_top_holders("sh600989")
 """
-import sys
 import threading
-from pathlib import Path
 from typing import List
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from data.types import MarginData, HolderData, TopHolderRecord
 from common import to_float, to_int

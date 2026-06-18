@@ -1,15 +1,17 @@
 """雪球行情数据源。"""
+
 import logging
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 from common import BaseFetcher, http_get_with_headers, to_float
 
 logger = logging.getLogger(__name__)
 
 # 雪球行情 API
-XUEQIU_URL = "https://stock.xueqiu.com/v5/stock/quote.json?symbol={symbol}&extend=detail"
+XUEQIU_URL = (
+    "https://stock.xueqiu.com/v5/stock/quote.json?symbol={symbol}&extend=detail"
+)
 
 
 def _to_xueqiu_symbol(code: str) -> str:
@@ -37,13 +39,14 @@ def _parse_quote(data: dict) -> dict | None:
         "open": to_float(quote.get("open")),
         "high": to_float(quote.get("high")),
         "low": to_float(quote.get("low")),
-        "pre_close": to_float(quote.get("last_close")),
+        "prev_close": to_float(quote.get("last_close")),
         "volume": to_float(quote.get("volume")),
         "amount": to_float(quote.get("amount")),
-        "turnover_rate": to_float(quote.get("turnover_rate")),
+        "turnover": to_float(quote.get("turnover_rate")),
         "pe": to_float(quote.get("pe_ttm")),
         "pb": to_float(quote.get("pb")),
-        "market_cap": to_float(quote.get("market_capital")),
+        "total_cap": round(to_float(quote.get("market_capital")) / 1e8, 2),
+        "circulating_cap": 0,
         "source": "xueqiu",
     }
 
@@ -65,6 +68,7 @@ class XueqiuQuoteFetcher(BaseFetcher):
         try:
             raw = http_get_with_headers(url, headers=headers, timeout=10)
             import json
+
             data = json.loads(raw)
             return _parse_quote(data)
         except Exception as e:

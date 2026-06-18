@@ -262,6 +262,8 @@ def parallel_map(
                 results[item] = future.result()
             except RateLimitError:
                 raise
+            except (SystemExit, KeyboardInterrupt):
+                raise
             except Exception as e:
                 logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None

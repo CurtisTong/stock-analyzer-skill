@@ -16,10 +16,7 @@ from datetime import datetime
 
 from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def _now_iso() -> str:
@@ -227,7 +224,7 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
 
 def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
-    to_float, _ = _get_common_helpers()
+    to_float, to_int = _get_common_helpers()
     FIELD_MAP = {
         "report_date": [
             "REPORT_DATE",
@@ -273,7 +270,12 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         ],
         "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)", "debt_ratio"],
         "bps": ["BPS", "每股净资产", "bps"],
-        "ocf_per_share": ["MGJYXJJE", "每股经营现金流", "每股现金流量净额", "ocf_per_share"],
+        "ocf_per_share": [
+            "MGJYXJJE",
+            "每股经营现金流",
+            "每股现金流量净额",
+            "ocf_per_share",
+        ],
         # ESG/分红/治理字段（review#9+10）：当前 fetchers 未填充，保留映射占位待真实接口接入
         "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
         "consecutive_dividend_years": [
@@ -321,8 +323,8 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         bps=to_float(_find(FIELD_MAP["bps"])),
         ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
         dividend_yield=to_float(_find(FIELD_MAP["dividend_yield"])),
-        consecutive_dividend_years=int(
-            to_float(_find(FIELD_MAP["consecutive_dividend_years"]))
+        consecutive_dividend_years=to_int(
+            _find(FIELD_MAP["consecutive_dividend_years"])
         ),
         major_shareholder_reduction=to_float(
             _find(FIELD_MAP["major_shareholder_reduction"])
