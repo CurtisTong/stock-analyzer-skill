@@ -7,7 +7,19 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
+## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
+
+### Added · 动量派专家系统（v2.2.0）
+
+补齐纯趋势跟踪视角：现有 14 位专家中，价值派几乎不重技术面，短线 4 人偏题材/事件驱动/情绪博弈，纯"价格行为 + 系统化止损纪律"的视角空缺。
+
+- 🆕 **新增第 15 位 active 专家 `momentum_trader`（动量派·利弗莫尔+丹尼斯）**：`experts/registry.py` 注册表总数 14→15，active 8→9
+- 📐 **评分权重**：技术面 40% + 情绪/资金 25% + 风险 20% + 基本面 10% + 估值 5%（`experts/scoring/momentum_trader.py` 229 行）
+- 🐢 **海龟法则核心纪律**：MA 多头排列入场、关键转折点放量突破、跌破 MA20 无条件清仓、单笔风险 ≤ 2%、单一板块暴露 ≤ 25%、同时持仓 ≤ 3-4 个
+- 📊 **veto_conditions**：跌破 MA20+放量、流动性枯竭（5 日均成交额 <2 亿）、财务造假/监管处罚、连续 2 年亏损
+- 📚 **人设档案**：`experts/momentum_trader.md`（186 行）+ `experts/yaml/momentum_trader.yaml`（18 行机器可读配置）
+- 🧪 **单元测试**：`tests/test_momentum_trader.py`（208 行）覆盖多头排列/空头/流动性枯竭/亏损股/ST 等场景
+- 🔗 **分组调整**：短线 active 2→3（topic_leader + emotion_tech + momentum_trader），`experts/decide.md` 文档同步到 v2.2.0
 
 ### Changed · 用户体验优化（v1.12.1）
 
