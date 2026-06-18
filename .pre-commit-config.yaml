@@ -27,3 +27,21 @@ repos:
         pass_filenames: false
         types: [python]
         stages: [manual]
+
+      - id: sync-skill-test-versions
+        name: 同步 SKILL.md 版本到 test_skill_metadata.py
+        # bump package.json 后自动同步测试常量，避免 release CI 阻塞
+        entry: python3 scripts/dev/sync_skill_test_versions.py
+        language: system
+        pass_filenames: false
+        files: ^(package\.json|skills/.*/SKILL\.md)$
+        stages: [pre-commit]
+
+      - id: check-skill-test-versions
+        name: 检查 SKILL.md 版本与测试常量一致
+        # 提交前门禁：检测 sync 后的文件是否已 git add
+        entry: python3 scripts/dev/sync_skill_test_versions.py --check
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]

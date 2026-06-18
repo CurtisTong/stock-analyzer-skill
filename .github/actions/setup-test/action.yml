@@ -29,3 +29,10 @@ runs:
       run: |
         python -m pip install --upgrade pip
         pip install pytest pyyaml pytest-xdist pytest-timeout pytest-cov hypothesis
+
+    - name: 同步 SKILL.md 版本到测试文件
+      shell: bash
+      run: |
+        # 防止开发者 bump 版本后忘记同步 test_skill_metadata.py，
+        # 导致 release workflow 的 test job 失败阻塞 publish。
+        python3 scripts/dev/sync_skill_test_versions.py

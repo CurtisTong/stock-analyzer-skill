@@ -52,6 +52,11 @@ jobs:
       - name: 版本一致性检查
         run: python3 scripts/dev/sync_version.py --check
 
+      - name: SKILL.md 版本与测试常量一致性
+        # 防止 bump package.json 后忘记同步 test_skill_metadata.py，
+        # 导致 release workflow 的 test job 失败阻塞 publish
+        run: python3 scripts/dev/sync_skill_test_versions.py --check
+
       - name: allowed-tools 自审计
         run: python3 scripts/dev/check_allowed_tools.py --ci
 

@@ -707,6 +707,28 @@ python3 scripts/monitor.py --cleanup
 提交规范详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 Issue / PR / 建议 → [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill)。
 
+### 发版流程
+
+```bash
+# 1. bump 版本
+python3 scripts/dev/sync_version.py --version 1.14.0
+
+# 2. 同步测试常量（关键！防止 release CI 阻塞）
+python3 scripts/dev/sync_skill_test_versions.py
+
+# 3. 验证
+python3 scripts/dev/sync_skill_test_versions.py --check
+
+# 4. 提交 + 打 tag + push
+git add -A
+git commit -m "chore(release): 同步至 v1.14.0"
+git tag -a v1.14.0 -m "Release v1.14.0"
+git push origin main --tags
+```
+
+> ⚠️ `sync_skill_test_versions.py` 也会被 pre-commit hook 和 release CI 自动调用，
+> 但本地手动跑一次能更早发现问题。
+
 ---
 
 ## 📜 许可
