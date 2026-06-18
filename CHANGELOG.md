@@ -19,6 +19,108 @@
 - 🚀 `install.sh` / `install-plugin.js` 末尾新增"新手起步"提示（直接输入 `/help` 或 `/stock 贵州茅台 quick`）
 - 🧭 `docs/quick-start.md` 顶部加 README 导航行
 
+### Fixed · 10 模块深度审查（v1.12.1）
+
+本次对 10 个核心模块进行深度代码审查，共提交 10 个 commit，修复 46+ 项问题。
+所有改动均通过 1733 项单元测试（100% 通过率）。
+
+#### 数据获取模块（commit `3e4d06f`）
+
+- 🔴 **同花顺 fetcher 语义修复**：thquote 接口实际返回最近 K 线收盘价而非实时行情，优先级从 7 下调至 3 并加注释说明
+- 🔴 **雪球行情字段映射对齐**：`pre_close` → `prev_close`，`turnover_rate` → `turnover`，`market_cap` → `total_cap`（统一单位亿元）
+- 🟠 **Baostock 模块级一次性 login**：`atexit.register(bs.logout)` + 模块级 `_bs_logged_in` 锁，消除每次 fetch 的握手开销
+- 🟠 **熔断器配置接入**：`BaseFetcher` 从 `data_source.yaml` 动态读取 `failure_threshold/recovery_timeout/half_open_max`
+- 🟠 **连接池列表化**：`{key: conn}` → `{key: [conn, ...]}`，同 host 可保持多个 keep-alive 连接
+- 🟠 **HTTP 客户端去重**：`http_get` / `http_get_with_headers` 合并为 `_http_get_internal`
+- 🟡 清理 21 个 fetcher 文件的 `sys.path.insert` 样板代码
+
+#### 技术分析模块（commit `4469233`）
+
+- 🔴 **`scripts/technical/sentiment.py` 双致命错误修复**：`HttpClient` 不存在 + `_EASTMONEY_UT` 自引用 `NameError`，改用 `http_get` + `urlencode`
+- 🔴 **`scripts/technical/pipeline.py` 数组错位修复**：`closes/volumes` 独立过滤导致数组长度不一致，改为统一过滤 `valid_bars`
+- 🟠 **量价评分方向性修复**：极低量加分仅在 `vp_signal >= 0` 时生效（放量下跌时不再加分）
+- 🟠 **背离检测峰值匹配容差优化**：从区间匹配 `abs(i - target) <= 5` 改为最近邻匹配
+- 🟠 **量价分析窗口优化**：从等分窗口改为非对称窗口（近期 5 日 vs 前 20 日）
+- 🟠 **亏损公司 OCF 信号修复**：亏损但有现金流时给出"造血能力尚存"正面评价
+- 🟡 光头光脚阳线/阴线检测改用 0.1% 浮点容差
+- 🟡 `report.py` `meta['price_num']` 改用 `meta.get('price_num', 0)` 安全访问
+
+#### 持仓管理模块（commit `38fecd0`）
+
+- 🔴 **`atomic_update()` 文件锁死锁修复**：抽取 `_raw_write()` 不加锁写入，`atomic_update` 在已持锁状态下直接调用，消除 10 秒超时死锁
+- 🔴 **`daily_report.py` 导入错误修复**：`HttpClient` 不存在，改用 `http_get` + `parse_tencent_line`，批量请求行情
+- 🟠 **日报数据模型对齐 v2 格式**：兼容 `quantity/cost` 和旧 `shares/cost_price`
+- 🟠 **`max_drawdown` 日期对齐修复**：`NAV[date] = Σ(close_i × qty_i)`，不再按股票顺序错位追加
+- 🟠 **通知状态管理修复**：直接修改 `utils._notify_enabled` 而非模块级变量遮蔽
+- 🟡 `get_position`/`get_watch` 返回 `copy.deepcopy` 副本；内部操作使用 `_find_position`/`_find_watch` 获取可变引用
+
+#### 实时监控模块（commit `af99534`）
+
+- 🔴 **`compute_key_levels` 返回值修复**：增加 `position`/`watch` 键，修复推送内容缺失
+- 🟠 **`support_touch_weak` 触发修复**：按支撑位强度分级（强→`support_touch`，弱→`support_touch_weak`）
+- 🟠 **`NotificationManager`/`PortfolioManager` 单例缓存**：模块级惰性初始化
+- 🟠 **批量行情预取**：`scan_all` 预调用 `get_quotes` 预热缓存，减少逐股串行 HTTP
+- 🟡 log 轮转检查从每次写入改为每 10 次写入检查一次
+- 🟡 `dingtalk.py` 的 `__import__("base64")` 改为顶层 `import base64`
+
+#### 缠论模块（commit `b07501f`）
+
+- 🟠 **`closes` 索引对齐修复**：不再过滤零值，保持与 records 索引对齐
+- 🟠 **三买回踩检测逻辑修复**：从"站在 ZG 上方 0-3%"（实为"突破站稳"）改为"距 ZG 2% 以内"（真正的回踩）
+- 🟡 `merge` 合并后保留 `open`/`close` 字段
+
+#### 筛选策略模块（commit `cce78a8`）
+
+- 🟠 **`_stdev` 与 `technical/core.py` 一致化**：改为总体标准差（除以 n）
+- 🟠 **`_count_dividend_years` 回退逻辑修复**：无记录时返回 0，移除误导性固定 2 回退
+- 🟠 **`momentum.py` `int()` 截断改为 `round(2)`**：避免 RSI 加权系数精度丢失
+- 🟠 **`overlay.py` 归一化后精确总和为 1.0**：先除后 round
+- 🟠 **`PRE_SCREEN_FILTER` 与 `config/limits.yaml` 同步更新**
+- 🟠 **`thresholds.py` 配置文件缺失时增加 warning 日志**
+
+#### 业务层模块（commit `7493af1`）
+
+- 🟠 **删除不存在的 `backtest_service` 文档引用**
+- 🟠 **删除两个文件中未使用的 `InsufficientDataError` 导入**
+- 🟠 **`_calculate_composite_score` 复用 `strategies.pe_percentile`**，删除 15 行重复 PE 分位逻辑
+- 🟠 **`_hard_filter` 涨跌停判断修复**：从 `abs() >= limit` 改为双向 `>= limit OR <= -limit`
+- 🟠 **`compute_features` 统一过滤 `close > 0 and volume > 0`**，消除数组错位
+
+#### classifier + refresh_pool 模块（commit `4cd9100`）
+
+- 🟠 **`_classify_board` 与 `common.board_type` 对齐**：输出从"主板沪/主板深"统一为"主板"
+- 🟠 **`_fetch_xuangu_page` 增加 `max_retries=2` 重试逻辑**
+- 🟠 **`build_dividend_pool` 参数名重命名 + 注释对齐**
+- 🟠 **`refresh_pool` 增加 diff guard**：新池与当前池相同时跳过写入
+- 🟡 `classifier.py` 顶部统一导入 `board_type`
+
+#### 回测引擎模块（commit `7716611`）
+
+- 🔴 **`stock.py --with-backtest` silent bug 修复**：字段名映射 `win_rate_pct → win_rate` 等 4 个字段，子进程传参从位置参数改为 `--codes`
+- 🟠 **`_build_hist_quote` 死分支删除**：`total_cap` 已是 0 又再赋 0
+- 🟠 **`simulate_strategy` 循环内 3 处 `from import` 提到文件顶部**
+- 🟡 场景标签从误导性年份改为时间窗口（近1月/近3月/近6月）
+
+#### 投资专家模块（commit `fd86cf4`）
+
+- 🟠 **`_resolve_conflict` 4:4 两极分化分支可达性修复**：增加 `long_votes["bull"] != 2` 守卫，避免 2:2:2:2 全面分歧分支抢先匹配
+
+### 测试结果
+
+```text
+1733 passed, 45 skipped, 0 failed in ~35s
+```
+
+### 累计统计
+
+| 维度 | 数值 |
+| --- | --- |
+| 审查模块数 | 10 |
+| 提交 commit 数 | 10 |
+| 修复问题数 | 46+ |
+| 代码变更 | 1277 insertions, 420 deletions（净 +857 行） |
+| 测试通过率 | 100% |
+
 ## [1.12.0] - 2026-06-17（统一版本：V2 量化策略平台 + V2.1 维护）
 
 > 本版本将所有 Sprint 1-26 的 V2 改造合并发布为统一版本 v1.12.0
