@@ -18,10 +18,10 @@ from experts import (
 
 
 class TestExpertSwitchAPI:
-    def test_list_active_returns_8(self):
-        """v2.1.0 active 数 = 8（5 合并 + lynch + soros + 3 补盲区）。"""
+    def test_list_active_returns_9(self):
+        """v2.2.0 active 数 = 9（v2.1.0 的 8 + 动量派）。"""
         active = list_active_experts()
-        assert len(active) == 8, f"expected 8, got {len(active)}"
+        assert len(active) == 9, f"expected 9, got {len(active)}"
         assert all(p.active for p in active)
 
     def test_list_legacy_returns_at_least_6(self):
@@ -30,10 +30,10 @@ class TestExpertSwitchAPI:
         assert len(legacy) >= 6
         assert all(not p.active for p in legacy)
 
-    def test_list_experts_returns_14(self):
-        """list_experts() 返回 14（active + legacy）。"""
+    def test_list_experts_returns_15(self):
+        """list_experts() 返回 15（active + legacy）。"""
         all_experts = list_experts()
-        assert len(all_experts) == 14
+        assert len(all_experts) == 15
 
     def test_active_and_legacy_disjoint(self):
         """active 和 legacy 不重叠。"""
@@ -51,11 +51,11 @@ class TestExpertSwitchAPI:
         assert active_ids | legacy_ids == registry_ids
 
     def test_filter_by_group(self):
-        """group 过滤：长线 active = 6（lynch/soros/value_anchor/sector_specialist/institution/risk_manager），短线 active = 2（topic_leader/emotion_tech）。"""
+        """group 过滤：长线 active = 6，短线 active = 3（topic_leader/emotion_tech/momentum_trader）。"""
         long_active = list_active_experts("long_term")
         short_active = list_active_experts("short_term")
         assert len(long_active) == 6, f"long_term active expected 6, got {len(long_active)}"
-        assert len(short_active) == 2, f"short_term active expected 2, got {len(short_active)}"
+        assert len(short_active) == 3, f"short_term active expected 3, got {len(short_active)}"
 
     def test_legacy_long_term_count(self):
         """long_term legacy = 4（buffett/lynch/soros/duan_yongping，其中 lynch/soros 已 active）。"""
@@ -74,3 +74,13 @@ class TestExpertSwitchAPI:
         legacy_names = {p.name for p in list_legacy_experts()}
         duplicates = active_names & legacy_names
         assert not duplicates, f"duplicates: {duplicates}"
+
+    def test_momentum_trader_is_active_short_term(self):
+        """v2.2.0：动量派必须存在且 active=True / group=short_term。"""
+        active = list_active_experts("short_term")
+        names = {p.name for p in active}
+        assert "momentum_trader" in names
+        profile = next(p for p in active if p.name == "momentum_trader")
+        assert profile.style == "动量/趋势跟踪"
+        assert profile.weights["技术面"] == 40.0
+        assert profile.weights["情绪/资金"] == 25.0

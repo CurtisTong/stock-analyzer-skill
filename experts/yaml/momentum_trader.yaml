@@ -1,0 +1,19 @@
+name: momentum_trader
+display_name: 动量派（利弗莫尔+丹尼斯）
+group: short_term
+style: 动量/趋势跟踪
+horizon: 日/周/月
+core_signal: 趋势强度+关键转折点突破+量价配合
+weights:
+  基本面: 10.0
+  估值: 5.0
+  技术面: 40.0
+  情绪/资金: 25.0
+  风险: 20.0
+veto_conditions:
+  - 跌破MA20且当日放量（趋势反转确认，动量派核心纪律）
+  - 流动性枯竭（近5日日均成交额<2亿元，无法按规则止损）
+  - 财务造假或被监管处罚（基本信任丧失）
+  - 连续2年亏损（避免价值陷阱+退市风险）
+md_path: experts/momentum_trader.md
+active: true

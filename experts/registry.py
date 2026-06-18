@@ -249,9 +249,10 @@ _register(
 def _ensure_loaded() -> None:
     """注册表在模块导入时已填充，此函数仅作显式触发点。
 
-    v2.1.0 的不变量：
-    - 注册表总数 = 14（6 legacy + 8 active：2 独立保留 + 6 扩展视角）
-    - active 专家数 = 8（lynch/soros 独立 + 3 合并型 + 3 补盲区型）
+    v2.2.0 的不变量：
+    - 注册表总数 = 15（6 legacy + 9 active：2 独立保留 + 3 合并型 + 3 补盲区 + 1 动量派）
+    - active 专家数 = 9（lynch/soros 独立 + value_anchor/topic_leader/emotion_tech
+      + sector_specialist/institution/risk_manager + momentum_trader）
 
     legacy（active=False）指已被合并视角取代、新框架不再调用的旧专家，
     仍保留在注册表中供向后兼容与 A/B 对比。
@@ -261,6 +262,10 @@ def _ensure_loaded() -> None:
     - topic_leader = xu_xiang(0.5) + zhao_laoge(0.5)
     - emotion_tech = chaogu_yangjia(0.5) + zuoshou_xinyi(0.5)
     合并实现位于 experts/scoring/{value_anchor,topic_leader,emotion_tech}.py。
+
+    v2.2.0 新增动量派（momentum_trader）：基于利弗莫尔的关键转折点理论 +
+    理查德·丹尼斯的海龟交易法则，补齐纯趋势跟踪视角。技术面 40% + 情绪/资金 25%
+    + 风险 20% + 基本面 10% + 估值 5%，持仓周期日/周/月，属短线派扩展。
 
     Sprint 17 / D6 改造：模块加载时尝试从 experts/yaml/ 加载配置，
     yaml 优先（同名 expert 覆盖硬编码），无 yaml 时回退到硬编码。
@@ -277,14 +282,14 @@ def _ensure_loaded() -> None:
 
     total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)
-    if total != 14:
+    if total != 15:
         raise RuntimeError(
-            f"Expected 14 experts in registry (6 legacy + 8 active), "
+            f"Expected 15 experts in registry (6 legacy + 9 active), "
             f"found {total}: {list(EXPERT_REGISTRY)}"
         )
-    if active_count != 8:
+    if active_count != 9:
         raise RuntimeError(
-            f"Expected 8 active experts, found {active_count}: "
+            f"Expected 9 active experts, found {active_count}: "
             f"{[p.name for p in EXPERT_REGISTRY.values() if p.active]}"
         )
 
@@ -443,6 +448,38 @@ _register(
             "杠杆过高",
         ],
         md_path="experts/risk_manager.md",
+        active=True,
+    )
+)
+
+
+# ═══════════════════════════════════════════════════════════════
+# v2.2.0 新增：动量派（利弗莫尔 + 理查德·丹尼斯）
+# 补齐纯趋势跟踪视角，与短线 4 人差异化（短线 4 人偏事件驱动/情绪博弈）
+# ═══════════════════════════════════════════════════════════════
+
+_register(
+    ExpertProfile(
+        name="momentum_trader",
+        display_name="动量派（利弗莫尔+丹尼斯）",
+        group="short_term",
+        style="动量/趋势跟踪",
+        horizon="日/周/月",
+        core_signal="趋势强度+关键转折点突破+量价配合",
+        weights={
+            "基本面": 10.0,
+            "估值": 5.0,
+            "技术面": 40.0,
+            "情绪/资金": 25.0,
+            "风险": 20.0,
+        },
+        veto_conditions=[
+            "跌破MA20且当日放量（趋势反转确认，动量派核心纪律）",
+            "流动性枯竭（近5日日均成交额<2亿元，无法按规则止损）",
+            "财务造假或被监管处罚（基本信任丧失）",
+            "连续2年亏损（避免价值陷阱+退市风险）",
+        ],
+        md_path="experts/momentum_trader.md",
         active=True,
     )
 )

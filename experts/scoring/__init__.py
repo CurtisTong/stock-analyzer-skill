@@ -44,6 +44,9 @@ from . import xu_xiang, zhao_laoge, chaogu_yangjia, zuoshou_xinyi
 from . import value_anchor, topic_leader, emotion_tech
 from . import sector_specialist, institution, risk_manager
 
+# v2.2.0 新增：动量派（利弗莫尔+丹尼斯）
+from . import momentum_trader
+
 
 def score_expert(
     profile: ExpertProfile,
@@ -111,10 +114,12 @@ _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
     "sector_specialist": sector_specialist.score,
     "institution": institution.score,
     "risk_manager": risk_manager.score,
+    # v2.2.0 新增：动量派
+    "momentum_trader": momentum_trader.score,
 }
 
 
-# 推理链注册表（v2.2.0，14 位专家全覆盖）
+# 推理链注册表（v2.2.0，15 位专家全覆盖）
 # 原仅 buffett 拥有 score_with_reasoning 接口，现统一用 generic_score_with_reasoning 包装
 _EXPERT_SCORING_WITH_REASONING: Dict[str, Callable[[dict], Dict[str, object]]] = {
     "buffett": buffett.score_with_reasoning,
@@ -131,6 +136,8 @@ _EXPERT_SCORING_WITH_REASONING: Dict[str, Callable[[dict], Dict[str, object]]] =
     "sector_specialist": sector_specialist.score_with_reasoning,
     "institution": institution.score_with_reasoning,
     "risk_manager": risk_manager.score_with_reasoning,
+    # v2.2.0 新增：动量派
+    "momentum_trader": momentum_trader.score_with_reasoning,
 }
 
 

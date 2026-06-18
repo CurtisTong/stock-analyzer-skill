@@ -24,7 +24,7 @@ class TestScorerRegistry:
     """验证所有专家评分函数都已注册。"""
 
     def test_all_experts_registered(self):
-        """v2.1.0 起：8 legacy + 6 extended = 14。"""
+        """v2.2.0 起：8 legacy + 6 extended + 1 momentum = 15。"""
         expected_experts = {
             "buffett",
             "lynch",
@@ -41,6 +41,8 @@ class TestScorerRegistry:
             "sector_specialist",
             "institution",
             "risk_manager",
+            # v2.2.0 新增：动量派
+            "momentum_trader",
         }
         registered = set(_EXPERT_SCORING_FUNCTIONS.keys())
         assert registered == expected_experts, (
@@ -49,8 +51,8 @@ class TestScorerRegistry:
         )
 
     def test_registry_count(self):
-        """v2.1.0：14 个专家（8 legacy + 6 extended）。"""
-        assert len(_EXPERT_SCORING_FUNCTIONS) == 14
+        """v2.2.0：15 个专家（8 legacy + 6 extended + 1 momentum）。"""
+        assert len(_EXPERT_SCORING_FUNCTIONS) == 15
 
     def test_all_scoring_functions_callable(self):
         """所有注册的评分函数都应可调用。"""

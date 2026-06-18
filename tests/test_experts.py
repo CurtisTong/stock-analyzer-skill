@@ -93,12 +93,13 @@ def _parse_md_weights(md_path: Path) -> dict:
 # 1. EXPERT_REGISTRY 完整性
 # ═══════════════════════════════════════════════════════════════
 class TestRegistryIntegrity:
-    def test_exactly_8_or_14_experts(self):
-        """v2.1.0 起：8 legacy + 6 extended = 14。允许 8（仅 legacy）作过渡。"""
+    def test_exactly_8_or_14_or_15_experts(self):
+        """v2.2.0 起：8 legacy + 6 extended + 1 momentum = 15。允许 8/14 作过渡。"""
         assert len(EXPERT_REGISTRY) in (
             8,
             14,
-        ), f"Expected 8 or 14 experts, got {len(EXPERT_REGISTRY)}"
+            15,
+        ), f"Expected 8/14/15 experts, got {len(EXPERT_REGISTRY)}"
 
     def test_all_have_required_fields(self):
         for name, p in EXPERT_REGISTRY.items():
@@ -207,9 +208,9 @@ class TestExpertLookup:
     def test_get_nonexistent_returns_none(self):
         assert get_expert("nobody") is None
 
-    def test_list_all_returns_8_or_14(self):
-        """v2.1.0 起：list_experts() 返回 8 legacy 或 14 extended。"""
-        assert len(list_experts()) in (8, 14)
+    def test_list_all_returns_8_or_14_or_15(self):
+        """v2.2.0 起：list_experts() 返回 8 legacy / 14 extended / 15 extended+动量。"""
+        assert len(list_experts()) in (8, 14, 15)
 
     def test_list_long_term_returns_4_or_8(self):
         """v2.1.0：长线原 4 + value_anchor + sector_specialist + institution + risk_manager = 8。"""
@@ -217,16 +218,16 @@ class TestExpertLookup:
         assert len(experts) in (4, 8), f"expected 4 or 8, got {len(experts)}"
         assert all(e.group == "long_term" for e in experts)
 
-    def test_list_short_term_returns_4_or_5(self):
-        """v2.1.0：短线原 4 + topic_leader + emotion_tech = 5/6（含原 4 与合并）。"""
+    def test_list_short_term_returns_4_to_7(self):
+        """v2.2.0：短线原 4 + topic_leader + emotion_tech + momentum_trader = 4/5/6/7。"""
         experts = list_short_term_experts()
-        assert len(experts) in (4, 5, 6), f"expected 4/5/6, got {len(experts)}"
+        assert len(experts) in (4, 5, 6, 7), f"expected 4/5/6/7, got {len(experts)}"
         assert all(e.group == "short_term" for e in experts)
 
     def test_list_by_group(self):
         lt = list_experts("long_term")
         st = list_experts("short_term")
-        assert len(lt) + len(st) in (8, 14)
+        assert len(lt) + len(st) in (8, 14, 15)
 
 
 # ═══════════════════════════════════════════════════════════════
