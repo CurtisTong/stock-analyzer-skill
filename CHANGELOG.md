@@ -9,6 +9,14 @@
 
 ## [Unreleased] - 2026-06-18
 
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
+
+### Maintenance
+- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
+
+## [Unreleased] - 2026-06-18
+
 ### Fixed
 - **tests**: 移除 test_two_stage 硬编码 macOS 路径
 
