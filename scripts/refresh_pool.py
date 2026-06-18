@@ -46,17 +46,15 @@ from strategies.filters import PRE_SCREEN_FILTER as FILTER  # noqa: F401
 
 
 def _classify_board(code6: str) -> str:
-    """根据 6 位代码推断上市板块。"""
-    if code6.startswith("60"):
-        return "主板沪"
-    if code6.startswith("00"):
-        return "主板深"
-    if code6.startswith("30"):
-        return "创业板"
-    if code6.startswith("68"):
-        return "科创板"
+    """根据 6 位代码推断上市板块（与 common.board_type 输出一致）。"""
     if code6.startswith(("43", "83", "87", "88", "92")):
         return "北交所"
+    if code6.startswith("68"):
+        return "科创板"
+    if code6.startswith("30"):
+        return "创业板"
+    if code6.startswith(("60", "00")):
+        return "主板"
     return "其他"
 
 
@@ -136,7 +134,7 @@ XUANGU_FIELDS = "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,MARKET"
 
 
 def _fetch_xuangu_page(
-    page: int = 1, page_size: int = 1000, market_filter: str = ""
+    page: int = 1, page_size: int = 1000, market_filter: str = "", max_retries: int = 2
 ) -> tuple[list[dict], int]:
     """从东方财富选股器 API 获取一页股票数据。
 
@@ -165,19 +163,26 @@ def _fetch_xuangu_page(
 
     req = urllib.request.Request(url, headers=headers)
 
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-            data = json.loads(raw)
+    for attempt in range(max_retries + 1):
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read().decode("utf-8")
+                data = json.loads(raw)
 
-            if data.get("success"):
-                records = data.get("result", {}).get("data", [])
-                total = data.get("result", {}).get("count", 0)
-                return records, total
+                if data.get("success"):
+                    records = data.get("result", {}).get("data", [])
+                    total = data.get("result", {}).get("count", 0)
+                    return records, total
+                return [], 0
+        except Exception as e:
+            if attempt < max_retries:
+                time.sleep(1)
+                continue
+            print(
+                f"  ⚠ 选股器 API 请求失败 (第 {page} 页, 重试 {max_retries} 次后放弃): {e}",
+                file=sys.stderr,
+            )
             return [], 0
-    except Exception as e:
-        print(f"  ⚠ 选股器 API 请求失败 (第 {page} 页): {e}", file=sys.stderr)
-        return [], 0
 
 
 def fetch_all_market_stocks() -> dict[str, list[str]]:
@@ -387,9 +392,14 @@ def build_sector_pool(
 
 
 def build_dividend_pool(
-    all_pools: dict[str, list[str]], all_stocks: dict[str, dict]
+    all_pools: dict[str, list[str]], code_to_stock: dict[str, dict]
 ) -> list[str]:
-    """从所有板块中筛选 PE<20 且 ROE>8% 的标的"""
+    """从所有板块中筛选 PE<20 的标的（按成交额取 Top 20）。
+
+    Args:
+        all_pools: 板块 → 代码列表的映射
+        code_to_stock: 代码 → 行情 dict 的映射（含 pe/amount）
+    """
     candidates = []
     seen = set()
     for sector, codes in all_pools.items():
@@ -399,12 +409,10 @@ def build_dividend_pool(
             if code in seen:
                 continue
             seen.add(code)
-            s = all_stocks.get(code, {})
+            s = code_to_stock.get(code, {})
             pe = s.get("pe")
-            # ROE 需要额外查询，这里用 PE 作为第一轮筛选
             if pe is not None and 0 < pe < 20:
                 candidates.append(s)
-    # 按成交额排序取 Top 15
     sorted_c = sort_stocks(candidates, "amount")
     return [s["code"] for s in sorted_c[:20]]
 
@@ -507,8 +515,8 @@ def refresh_pool(
     if show_diff:
         print_diff(current, new_pool)
 
-    # 写入
-    if not dry_run and new_pool:
+    # 写入（仅当新池与当前池有差异时）
+    if not dry_run and new_pool and new_pool != current:
         output = {
             "_meta": {
                 "updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
@@ -523,6 +531,8 @@ def refresh_pool(
         print(f"\n✅ 已写入 {POOL_FILE} ({output['_meta']['total_stocks']} 只)")
     elif dry_run:
         print(f"\n📋 dry-run 模式，未写入")
+    elif not dry_run and new_pool == current:
+        print(f"\n📋 股票池无变化，跳过写入")
 
     return new_pool
 

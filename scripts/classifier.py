@@ -5,7 +5,7 @@ A 股个股类型分类器。
 可被 technical.py 或其他模块 import 使用。
 """
 
-from common import to_float, clamp
+from common import to_float, clamp, board_type
 
 # ── 类型 → 推荐指标映射 ──
 
@@ -81,10 +81,8 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     # 连板检测
     has_limit_streak = False
     if kline_records and len(kline_records) >= 10:
-        from common import board_type as _board_type
-
         code = quote_record.get("code", "") if quote_record else ""
-        bd = _board_type(code)
+        bd = board_type(code)
         limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(
             bd, 9.5
         )
