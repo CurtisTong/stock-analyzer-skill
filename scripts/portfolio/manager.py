@@ -17,7 +17,6 @@ v2 数据模型：
 import copy
 import json
 import os
-import sys
 import tempfile
 from datetime import datetime
 from contextlib import contextmanager

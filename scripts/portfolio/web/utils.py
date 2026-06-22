@@ -3,14 +3,14 @@
 
 提供认证、通知、数据解析等工具函数。
 """
+
 import json
+import logging
 import os
 import secrets
 import stat
-import sys
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -79,6 +79,7 @@ def _get_pm(virtual: Optional[bool] = None):
     with _lock:
         if _pm is None or _pm.is_virtual != virtual:
             from portfolio import PortfolioManager
+
             _pm = PortfolioManager(path=_data_file, virtual=virtual)
         return _pm
 
@@ -128,12 +129,13 @@ def _get_notifier():
         return _nm
     try:
         from monitor.manager import NotificationManager
+
         nm = NotificationManager()
         if nm.get_active_channels():
             _nm = nm
             return _nm
-    except Exception:
-        pass
+    except Exception as e:
+        logging.getLogger(__name__).debug("通知管理器初始化失败: %s", e)
     return None
 
 
@@ -144,11 +146,13 @@ def _notify_async(title: str, body: str) -> None:
     nm = _get_notifier()
     if nm is None:
         return
+
     def _send():
         try:
             nm.send(title, body, throttle_key=f"portfolio_web:{title}")
-        except Exception:
-            pass
+        except Exception as e:
+            logging.getLogger(__name__).debug("异步通知发送失败: %s", e)
+
     threading.Thread(target=_send, daemon=True).start()
 
 
@@ -161,8 +165,10 @@ def _format_notify(action: str, result: dict, body: dict) -> tuple:
         name = (data or {}).get("name") or code
         qty = (data or {}).get("quantity", 0)
         cost = (data or {}).get("cost", 0)
-        return (f"📈 加仓: {name} {code}",
-                f"+{qty}股 @¥{cost}，标签: {', '.join((data or {}).get('tags', [])) or '无'}")
+        return (
+            f"📈 加仓: {name} {code}",
+            f"+{qty}股 @¥{cost}，标签: {', '.join((data or {}).get('tags', [])) or '无'}",
+        )
 
     if action == "reduce_position":
         name = body.get("_name") or code
@@ -192,9 +198,11 @@ def _format_notify(action: str, result: dict, body: dict) -> tuple:
         tb = (data or {}).get("target_buy", 0)
         ts = (data or {}).get("target_sell", 0)
         parts = []
-        if tb: parts.append(f"目标买¥{tb}")
-        if ts: parts.append(f"目标卖¥{ts}")
-        return (f"👁 加自选: {name} {code}", ', '.join(parts) or "已添加")
+        if tb:
+            parts.append(f"目标买¥{tb}")
+        if ts:
+            parts.append(f"目标卖¥{ts}")
+        return (f"👁 加自选: {name} {code}", ", ".join(parts) or "已添加")
 
     if action == "remove_watch":
         return (f"👁 删自选: {code}", "已移除" if data else "未找到")
@@ -240,6 +248,7 @@ def _collect_code_name_map() -> list:
 def _is_trading_hours() -> bool:
     """检查当前是否在交易时段。"""
     from data.config import is_trading_hours as _official_is_trading_hours
+
     return _official_is_trading_hours()
 
 
@@ -247,6 +256,7 @@ def _monitor_loop():
     """后台监控线程。"""
     global _monitor_last_result
     import importlib
+
     try:
         alert_engine = importlib.import_module("monitor.alert_engine")
     except ImportError:

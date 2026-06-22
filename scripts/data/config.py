@@ -3,8 +3,10 @@
 配置优先级：环境变量 > YAML 配置 > 代码默认值
 """
 
+import logging
 import os
-import time
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from datetime import date, datetime  # 顶层导入，便于测试 patch
 
@@ -15,7 +17,8 @@ def _load_yaml_config() -> dict:
         from config.loader import ConfigLoader
 
         return ConfigLoader.load("data_source.yaml")
-    except Exception:
+    except Exception as e:
+        logger.debug("加载 YAML 数据源配置失败，使用空配置: %s", e)
         return {}
 
 
@@ -159,8 +162,9 @@ def _load_holidays() -> set:
 
         data = json.loads(path.read_text(encoding="utf-8"))
         _holiday_set = set(data.get("holidays", []))
-    except Exception:
-        _holiday_set = set()  # 文件缺失/解析失败时降级为空集
+    except Exception as e:
+        logger.debug("加载节假日文件失败，降级为空集: %s", e)
+        _holiday_set = set()
     return _holiday_set
 
 

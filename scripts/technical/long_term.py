@@ -13,8 +13,6 @@
 """
 
 import json
-import sys
-from pathlib import Path
 
 from common import to_float
 from data import get_quote, get_finance

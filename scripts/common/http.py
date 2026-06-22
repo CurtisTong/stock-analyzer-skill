@@ -1,11 +1,14 @@
 """HTTP 客户端：GET 请求、重试、编码转换、连接池复用。"""
 
 import http.client
+import logging
 import random
 import socket
 import threading
 import time
 import urllib.parse
+
+logger = logging.getLogger(__name__)
 
 from common.exceptions import RateLimitError, NetworkError
 
@@ -71,8 +74,8 @@ def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
         else:
             try:
                 conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("关闭溢出连接失败: %s", e)
 
 
 def _do_request(
@@ -95,8 +98,8 @@ def _do_request(
         retry_after_header = resp.getheader("Retry-After")
         try:
             resp.read()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("读取 429 响应体失败: %s", e)
         raise RateLimitError(
             url,
             retry_after=int(retry_after_header) if retry_after_header else None,
@@ -105,8 +108,8 @@ def _do_request(
     if status >= 400:
         try:
             resp.read()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("读取 HTTP %d 响应体失败: %s", status, e)
         raise http.client.HTTPException(f"HTTP {status} for {url}")
 
     return resp.read()
@@ -116,8 +119,8 @@ def _invalidate_connection(url: str, conn: http.client.HTTPConnection) -> None:
     """关闭失效连接。"""
     try:
         conn.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("关闭失效连接失败: %s", e)
 
 
 def _http_get_internal(

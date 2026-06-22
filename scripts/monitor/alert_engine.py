@@ -10,16 +10,17 @@
 """
 
 import json
+import logging
 import sys
-import time
 from datetime import datetime
-from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 # 添加 scripts 目录到 path
 
 from common import normalize_quote_code, to_float, board_type, board_limit_pct
-from data import get_quote, get_quotes, get_kline
+from data import get_quotes
 from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts, fetch_quote_dict
 from technical.moving_average import ma_system
 from technical.macd import macd_full
@@ -63,7 +64,8 @@ try:
 
     _STOP_LOSS_PCT = ConfigLoader.get("limits.yaml", "stop_loss_pct", -8)
     _TAKE_PROFIT_PCT = ConfigLoader.get("limits.yaml", "take_profit_pct", 20)
-except Exception:
+except Exception as e:
+    logger.debug("加载止损/止盈配置失败，使用默认值: %s", e)
     _STOP_LOSS_PCT = -8
     _TAKE_PROFIT_PCT = 20
 
@@ -436,8 +438,8 @@ def scan_all() -> list:
     if all_codes:
         try:
             get_quotes(all_codes, use_cache=True)
-        except Exception:
-            pass  # 预获取失败不阻塞后续逐股获取
+        except Exception as e:
+            logger.debug("批量预获取行情失败，将逐股获取: %s", e)
 
     results = []
 

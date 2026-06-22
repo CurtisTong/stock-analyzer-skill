@@ -3,15 +3,20 @@
 
 根据 action 调用对应的 PortfolioManager 方法。
 """
-from typing import Any, Optional
 
 from .utils import _err, _ok, _parse_float, _parse_int, _to_bool_str_list
 
 # action 白名单
 ALLOWED_ACTIONS = {
-    "add_position", "reduce_position", "remove_position",
-    "update_position", "tag_position", "untag_position",
-    "add_watch", "remove_watch", "update_watch",
+    "add_position",
+    "reduce_position",
+    "remove_position",
+    "update_position",
+    "tag_position",
+    "untag_position",
+    "add_watch",
+    "remove_watch",
+    "update_watch",
 }
 
 POSITION_UPDATE_FIELDS = {"cost", "quantity", "name", "buy_date", "tags"}
@@ -35,8 +40,9 @@ def dispatch(pm, body: dict) -> dict:
     if not action:
         return _err("missing_action", 400, "'action' field is required")
     if action not in ALLOWED_ACTIONS:
-        return _err("unknown_action", 400,
-                    f"action must be one of {sorted(ALLOWED_ACTIONS)}")
+        return _err(
+            "unknown_action", 400, f"action must be one of {sorted(ALLOWED_ACTIONS)}"
+        )
 
     code = body.get("code")
     if not code or not isinstance(code, str):
@@ -86,8 +92,7 @@ def _do_add_position(pm, body: dict, code: str) -> dict:
     buy_date = body.get("buy_date", "") or ""
     tags = _to_bool_str_list(body.get("tags")) or []
 
-    result = pm.add_position(code, name, cost, qty,
-                             buy_date=buy_date, tags=tags)
+    result = pm.add_position(code, name, cost, qty, buy_date=buy_date, tags=tags)
     return _ok(result)
 
 
@@ -119,8 +124,11 @@ def _do_update_position(pm, body: dict, code: str) -> dict:
             extra[k] = v
 
     if not extra:
-        return _err("no_update_fields", 400,
-                    f"at least one of {sorted(POSITION_UPDATE_FIELDS)} is required")
+        return _err(
+            "no_update_fields",
+            400,
+            f"at least one of {sorted(POSITION_UPDATE_FIELDS)} is required",
+        )
 
     if "cost" in extra:
         c = _parse_float(extra["cost"])
@@ -135,7 +143,9 @@ def _do_update_position(pm, body: dict, code: str) -> dict:
     if "tags" in extra:
         tags = _to_bool_str_list(extra["tags"])
         if tags is None:
-            return _err("invalid_tags", 400, "'tags' must be list or comma-separated string")
+            return _err(
+                "invalid_tags", 400, "'tags' must be list or comma-separated string"
+            )
         extra["tags"] = tags
 
     result = pm.update_position(code, **extra)
@@ -163,26 +173,45 @@ def _do_add_watch(pm, body: dict, code: str) -> dict:
     target_buy = 0
     target_sell = 0
     if target_buy_raw is not None:
-        if isinstance(target_buy_raw, bool) or not isinstance(target_buy_raw, (int, float)):
-            return _err("invalid_target_buy", 400, "'target_buy' must be a number (omit or null to skip)")
+        if isinstance(target_buy_raw, bool) or not isinstance(
+            target_buy_raw, (int, float)
+        ):
+            return _err(
+                "invalid_target_buy",
+                400,
+                "'target_buy' must be a number (omit or null to skip)",
+            )
         if target_buy_raw == 0:
-            return _err("invalid_target_buy", 400,
-                        "'target_buy=0' is ignored by PortfolioManager; omit the field to leave unchanged")
+            return _err(
+                "invalid_target_buy",
+                400,
+                "'target_buy=0' is ignored by PortfolioManager; omit the field to leave unchanged",
+            )
         if target_buy_raw < 0:
             return _err("invalid_target_buy", 400, "'target_buy' must be > 0")
         target_buy = float(target_buy_raw)
     if target_sell_raw is not None:
-        if isinstance(target_sell_raw, bool) or not isinstance(target_sell_raw, (int, float)):
-            return _err("invalid_target_sell", 400, "'target_sell' must be a number (omit or null to skip)")
+        if isinstance(target_sell_raw, bool) or not isinstance(
+            target_sell_raw, (int, float)
+        ):
+            return _err(
+                "invalid_target_sell",
+                400,
+                "'target_sell' must be a number (omit or null to skip)",
+            )
         if target_sell_raw == 0:
-            return _err("invalid_target_sell", 400,
-                        "'target_sell=0' is ignored by PortfolioManager; omit the field to leave unchanged")
+            return _err(
+                "invalid_target_sell",
+                400,
+                "'target_sell=0' is ignored by PortfolioManager; omit the field to leave unchanged",
+            )
         if target_sell_raw < 0:
             return _err("invalid_target_sell", 400, "'target_sell' must be > 0")
         target_sell = float(target_sell_raw)
 
-    result = pm.add_watch(code, name=name,
-                          target_buy=target_buy, target_sell=target_sell)
+    result = pm.add_watch(
+        code, name=name, target_buy=target_buy, target_sell=target_sell
+    )
     return _ok(result)
 
 
@@ -199,17 +228,26 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
         if k in body:
             extra[k] = body[k]
     if not extra:
-        return _err("no_update_fields", 400,
-                    "at least one of name/target_buy/target_sell is required")
+        return _err(
+            "no_update_fields",
+            400,
+            "at least one of name/target_buy/target_sell is required",
+        )
     if "target_buy" in extra:
         if extra["target_buy"] == 0:
-            return _err("invalid_target_buy", 400,
-                        "'target_buy=0' is ignored by PortfolioManager; omit to leave unchanged")
+            return _err(
+                "invalid_target_buy",
+                400,
+                "'target_buy=0' is ignored by PortfolioManager; omit to leave unchanged",
+            )
         extra["target_buy"] = _parse_float(extra["target_buy"]) or 0
     if "target_sell" in extra:
         if extra["target_sell"] == 0:
-            return _err("invalid_target_sell", 400,
-                        "'target_sell=0' is ignored by PortfolioManager; omit to leave unchanged")
+            return _err(
+                "invalid_target_sell",
+                400,
+                "'target_sell=0' is ignored by PortfolioManager; omit to leave unchanged",
+            )
         extra["target_sell"] = _parse_float(extra["target_sell"]) or 0
 
     existing = pm.get_watch(code)
@@ -218,6 +256,10 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
     name = extra.get("name", "") or ""
     tb = extra.get("target_buy", 0)
     ts = extra.get("target_sell", 0)
-    result = pm.add_watch(code, name=name or existing.get("name", ""),
-                          target_buy=tb or 0, target_sell=ts or 0)
+    result = pm.add_watch(
+        code,
+        name=name or existing.get("name", ""),
+        target_buy=tb or 0,
+        target_sell=ts or 0,
+    )
     return _ok(result)

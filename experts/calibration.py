@@ -16,6 +16,7 @@
 """
 
 import json
+import logging
 import os
 import statistics
 import tempfile
@@ -53,8 +54,9 @@ def _get_calibration_threshold() -> float:
 
         cfg = ConfigLoader.load("scoring.yaml")
         return float(cfg.get("calibration", {}).get("calibration_threshold_pct", 5.0))
-    except Exception:
-        return 5.0  # 配置缺失时降级到原默认值
+    except Exception as e:
+        logging.getLogger(__name__).debug("校准阈值配置加载失败，使用默认 5.0%%: %s", e)
+        return 5.0
 
 
 def _empty_data() -> dict:
@@ -199,8 +201,10 @@ def verify_predictions(
                     actual_direction = "下跌"
                 else:
                     actual_direction = "横盘"
-            except Exception:
-                pass
+            except Exception as e:
+                logging.getLogger(__name__).debug(
+                    "获取 %s 实际收益率失败: %s", pred["stock"], e
+                )
 
         pred["verified"] = True
         pred["actual_return"] = actual_return

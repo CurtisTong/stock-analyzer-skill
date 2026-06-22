@@ -3,6 +3,7 @@
 
 Property-based 测试（如果 hypothesis 已装）+ 基础行为测试。
 """
+
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -76,7 +77,9 @@ try:
     from hypothesis import given, settings
     from hypothesis import strategies as st
 
-    @given(st.datetimes(min_value=datetime(2000, 1, 1), max_value=datetime(2099, 12, 31)))
+    @given(
+        st.datetimes(min_value=datetime(2000, 1, 1), max_value=datetime(2099, 12, 31))
+    )
     @settings(max_examples=50, deadline=None)
     def test_freeze_preserves_any_datetime(target):
         """任何 datetime 都能被 freeze/unfreeze。"""
@@ -87,7 +90,8 @@ try:
             clock.unfreeze()
 
 except ImportError:
-    # hypothesis 未装时跳过 property test
+    import pytest
+
+    @pytest.mark.skip(reason="hypothesis 未安装")
     def test_freeze_preserves_any_datetime():
         pass
-

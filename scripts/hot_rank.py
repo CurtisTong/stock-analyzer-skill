@@ -16,19 +16,19 @@
 
 输出到 stdout + 快照文件（data/snapshots/hot_rank/YYYY-MM-DD/）。
 """
+
 import argparse
 import json
 import math
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from common import DATA_DIR, parallel_map
-from data import get_quotes, get_quote, get_kline
+from data import get_quote, get_kline
 from snapshots import list_snapshots, load_snapshot
-
 
 HOT_RANK_DIR = Path(DATA_DIR) / "snapshots" / "hot_rank"
 
@@ -65,22 +65,33 @@ def _hot_score(amount: float, turnover: float) -> float:
     return amount * math.log1p(max(turnover, 0))
 
 
-def _fetch_quotes_batched(codes: list, batch: int = 600, per_timeout: int = 180) -> list:
+def _fetch_quotes_batched(
+    codes: list, batch: int = 600, per_timeout: int = 180
+) -> list:
     """分批并行拉 quote，每批用更长的 timeout 避免大池子超时。"""
     from data import get_quote
+
     all_quotes = []
     total = len(codes)
     for i in range(0, total, batch):
         sub = codes[i : i + batch]
-        results = parallel_map(lambda c: get_quote(c, use_cache=True), sub, timeout=per_timeout)
+        results = parallel_map(
+            lambda c: get_quote(c, use_cache=True), sub, timeout=per_timeout
+        )
         all_quotes.extend([q for q in results.values() if q is not None])
-        print(f"  · {min(i + batch, total)}/{total} ({sum(1 for v in results.values() if v is not None)} 成功)", flush=True)
+        print(
+            f"  · {min(i + batch, total)}/{total} ({sum(1 for v in results.values() if v is not None)} 成功)",
+            flush=True,
+        )
     return all_quotes
 
 
 def rank_today(codes: list, top: int = 100) -> list:
     """单日热度榜：实时成交额 × 换手率。"""
-    print(f"📡 拉取 {len(codes)} 只股票实时行情（分批 600，timeout 180s/批）...", flush=True)
+    print(
+        f"📡 拉取 {len(codes)} 只股票实时行情（分批 600，timeout 180s/批）...",
+        flush=True,
+    )
     all_quotes = _fetch_quotes_batched(codes)
     eligible = _filter_eligible(all_quotes)
     print(f"✅ 有效样本: {len(eligible)} 只（已过滤 ST/停牌/无成交）", flush=True)
@@ -94,7 +105,10 @@ def rank_today(codes: list, top: int = 100) -> list:
 
 def rank_recent_days(codes: list, days: int, top: int = 100) -> list:
     """多日热度榜：粗筛 + 拉 K 线 + 近 N 日累计成交额排序。"""
-    print(f"📊 多日榜模式: 先用单日成交额粗筛 Top {top * 3}，再算近 {days} 日累计", flush=True)
+    print(
+        f"📊 多日榜模式: 先用单日成交额粗筛 Top {top * 3}，再算近 {days} 日累计",
+        flush=True,
+    )
     rough = rank_today(codes, top=top * 3)
     target_codes = [q.code for q in rough]
 
@@ -112,15 +126,17 @@ def rank_recent_days(codes: list, days: int, top: int = 100) -> list:
         recent_amount = sum((b.amount or 0) for b in bars)
         # 退而用：单日换手率作 turnover 代理（K线无 turnover 字段）
         hot = recent_amount * math.log1p(max(q.turnover, 1))
-        rows.append({
-            "code": q.code,
-            "name": q.name,
-            "price": q.price,
-            "change_pct": q.change_pct,
-            "amount_1d": q.amount,
-            "amount_recent": recent_amount,
-            "hot_score": hot,
-        })
+        rows.append(
+            {
+                "code": q.code,
+                "name": q.name,
+                "price": q.price,
+                "change_pct": q.change_pct,
+                "amount_1d": q.amount,
+                "amount_recent": recent_amount,
+                "hot_score": hot,
+            }
+        )
 
     rows.sort(key=lambda r: r["hot_score"], reverse=True)
     return rows[:top]
@@ -143,9 +159,13 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
     rough = rank_today(codes, top=top * 3)
     target_codes = [q.code for q in rough]
 
-    print(f"📡 拉取 {len(target_codes)} 只的 K 线（直调 sina fetcher 绕开 manager）...", flush=True)
+    print(
+        f"📡 拉取 {len(target_codes)} 只的 K 线（直调 sina fetcher 绕开 manager）...",
+        flush=True,
+    )
     from fetchers.sina_kline import SinaKlineFetcher
     import time as _t
+
     fetcher = SinaKlineFetcher()
     kline_map = {}
     succ_count = 0
@@ -172,19 +192,29 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
         if not bar or bar.volume <= 0:
             continue
         # 新浪 K 线 volume 单位 = 股，amount 字段为空 → 用 volume × avg_price 估算（元）
-        avg_price = (bar.high + bar.low) / 2 if (bar.high and bar.low) else (bar.close or q.price)
+        avg_price = (
+            (bar.high + bar.low) / 2
+            if (bar.high and bar.low)
+            else (bar.close or q.price)
+        )
         amount_est = bar.volume * avg_price
         # turnover = 成交额 / 流通市值
-        turnover = (amount_est / (q.circulating_cap * 1e8) * 100) if q.circulating_cap > 0 else 1
-        rows.append({
-            "code": q.code,
-            "name": q.name,
-            "price": getattr(bar, "close", 0) or q.price,
-            "change_pct": getattr(bar, "pct_chg", 0) or 0,
-            "amount_1d": round(amount_est, 0),
-            "turnover_est": round(turnover, 2),
-            "hot_score": _hot_score(amount_est, turnover),
-        })
+        turnover = (
+            (amount_est / (q.circulating_cap * 1e8) * 100)
+            if q.circulating_cap > 0
+            else 1
+        )
+        rows.append(
+            {
+                "code": q.code,
+                "name": q.name,
+                "price": getattr(bar, "close", 0) or q.price,
+                "change_pct": getattr(bar, "pct_chg", 0) or 0,
+                "amount_1d": round(amount_est, 0),
+                "turnover_est": round(turnover, 2),
+                "hot_score": _hot_score(amount_est, turnover),
+            }
+        )
 
     rows.sort(key=lambda r: r["hot_score"], reverse=True)
     return rows[:top]
@@ -232,7 +262,9 @@ def _load_window_snapshots(n_days: int) -> dict:
             code = row.get("code")
             if not code:
                 continue
-            entry = counter.setdefault(code, {"count": 0, "name": row.get("name", ""), "latest_score": 0})
+            entry = counter.setdefault(
+                code, {"count": 0, "name": row.get("name", ""), "latest_score": 0}
+            )
             entry["count"] += 1
             entry["latest_score"] = max(entry["latest_score"], row.get("hot_score", 0))
     return counter
@@ -286,12 +318,19 @@ def main():
     ap.add_argument("--top", type=int, default=100, help="输出 Top N（默认 100）")
     ap.add_argument("--days", type=int, default=1, help="N 日累计热度（默认 1=单日）")
     ap.add_argument(
-        "--merge", type=int, default=0, metavar="N",
+        "--merge",
+        type=int,
+        default=0,
+        metavar="N",
         help="合并最近 N 个交易日快照（出现次数≥⌊N/2⌋+1）",
     )
-    ap.add_argument("--min-appear", type=int, default=None, help="合并模式下最低出现次数")
     ap.add_argument(
-        "--historical", metavar="YYYY-MM-DD", default=None,
+        "--min-appear", type=int, default=None, help="合并模式下最低出现次数"
+    )
+    ap.add_argument(
+        "--historical",
+        metavar="YYYY-MM-DD",
+        default=None,
         help="历史某日热度榜（用 K 线回放）",
     )
     ap.add_argument("-j", "--json", action="store_true", help="JSON 输出")
@@ -299,6 +338,7 @@ def main():
 
     if args.version:
         from common import __version__
+
         print(f"hot_rank {__version__}")
         return
 
@@ -307,7 +347,9 @@ def main():
         if args.json:
             print(json.dumps(rows, ensure_ascii=False, indent=2))
             return
-        print(f"📅 合并最近 {args.merge} 个交易日快照，出现 ≥ {args.min_appear or (args.merge // 2 + 1)} 次")
+        print(
+            f"📅 合并最近 {args.merge} 个交易日快照，出现 ≥ {args.min_appear or (args.merge // 2 + 1)} 次"
+        )
         _print_table(
             rows,
             cols=["code", "name", "appear_count", "appear_ratio", "latest_score"],
@@ -338,8 +380,25 @@ def main():
     if args.historical:
         _print_table(
             rows,
-            cols=["code", "name", "price", "change_pct", "turnover_est", "amount_1d", "hot_score"],
-            headers=["#", "代码", "名称", "收盘", "涨跌%", "换手%(估)", "成交额(元)", "热度分"],
+            cols=[
+                "code",
+                "name",
+                "price",
+                "change_pct",
+                "turnover_est",
+                "amount_1d",
+                "hot_score",
+            ],
+            headers=[
+                "#",
+                "代码",
+                "名称",
+                "收盘",
+                "涨跌%",
+                "换手%(估)",
+                "成交额(元)",
+                "热度分",
+            ],
             top=args.top,
         )
     elif args.days > 1:
@@ -352,8 +411,25 @@ def main():
     else:
         _print_table(
             rows,
-            cols=["code", "name", "price", "change_pct", "turnover", "amount", "hot_score"],
-            headers=["#", "代码", "名称", "现价", "涨跌%", "换手%", "成交额(元)", "热度分"],
+            cols=[
+                "code",
+                "name",
+                "price",
+                "change_pct",
+                "turnover",
+                "amount",
+                "hot_score",
+            ],
+            headers=[
+                "#",
+                "代码",
+                "名称",
+                "现价",
+                "涨跌%",
+                "换手%",
+                "成交额(元)",
+                "热度分",
+            ],
             top=args.top,
         )
     print(f"数据时间: {datetime.now().isoformat(timespec='seconds')}")

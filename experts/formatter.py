@@ -1,8 +1,10 @@
 """决策输出格式化。"""
 
-from typing import Dict, List
+import logging
 
 from experts import direction_from_score
+
+logger = logging.getLogger(__name__)
 
 
 def format_debate_output(result: dict) -> str:
@@ -86,8 +88,8 @@ def format_debate_output(result: dict) -> str:
                 correct = rec.get("correct", 0)
                 rate = f"{correct/events:.0%}" if events > 0 else "样本不足"
                 lines.append(f"| {name} | {events} | {correct} | {rate} |")
-    except Exception:
-        pass  # 校准数据不可用时静默跳过
+    except Exception as e:
+        logger.debug("校准数据不可用，跳过胜率卡片: %s", e)
 
     return "\n".join(lines)
 

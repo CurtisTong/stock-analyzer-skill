@@ -9,6 +9,7 @@
 
 Property-based 测试（hypothesis 可选）覆盖数学不变量。
 """
+
 import sys
 from pathlib import Path
 
@@ -24,10 +25,10 @@ from portfolio.performance import (
     PerformanceMetrics,
 )
 
-
 # ═══════════════════════════════════════════════════════════════
 # Fixtures
 # ═══════════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def sample_positions():
@@ -50,6 +51,7 @@ def sample_quotes():
 # ═══════════════════════════════════════════════════════════════
 # PositionContribution 计算
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestPositionContribution:
     def test_returns_list(self, sample_positions, sample_quotes):
@@ -104,6 +106,7 @@ class TestPositionContribution:
 # ═══════════════════════════════════════════════════════════════
 # PortfolioMetrics 计算
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestPortfolioMetrics:
     def test_returns_metrics_object(self, sample_positions, sample_quotes):
@@ -162,6 +165,7 @@ class TestPortfolioMetrics:
 # 数学恒等式 property test
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestPerformanceInvariants:
     """数学不变量测试（hypothesis 可选）。"""
 
@@ -171,7 +175,9 @@ class TestPerformanceInvariants:
         total_weight = sum(c.weight for c in contributions)
         assert abs(total_weight - 100.0) < 0.01
 
-    def test_total_profit_equals_market_value_minus_cost(self, sample_positions, sample_quotes):
+    def test_total_profit_equals_market_value_minus_cost(
+        self, sample_positions, sample_quotes
+    ):
         """total_profit = total_market_value - total_cost。"""
         contributions = calculate_position_contribution(sample_positions, sample_quotes)
         total_mv = sum(c.market_value for c in contributions)
@@ -210,8 +216,12 @@ try:
     from hypothesis import strategies as st
 
     @given(
-        cost=st.floats(min_value=1.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-        price=st.floats(min_value=0.5, max_value=2000.0, allow_nan=False, allow_infinity=False),
+        cost=st.floats(
+            min_value=1.0, max_value=1000.0, allow_nan=False, allow_infinity=False
+        ),
+        price=st.floats(
+            min_value=0.5, max_value=2000.0, allow_nan=False, allow_infinity=False
+        ),
         quantity=st.integers(min_value=1, max_value=10000),
     )
     @settings(max_examples=100, deadline=None)
@@ -226,8 +236,12 @@ try:
         assert abs(contributions[0].profit - round(expected, 2)) < 0.1
 
     @given(
-        cost=st.floats(min_value=1.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-        price=st.floats(min_value=0.5, max_value=2000.0, allow_nan=False, allow_infinity=False),
+        cost=st.floats(
+            min_value=1.0, max_value=1000.0, allow_nan=False, allow_infinity=False
+        ),
+        price=st.floats(
+            min_value=0.5, max_value=2000.0, allow_nan=False, allow_infinity=False
+        ),
     )
     @settings(max_examples=100, deadline=None)
     def test_profit_pct_formula(cost, price):
@@ -239,8 +253,12 @@ try:
         assert abs(contributions[0].profit_pct - round(expected, 2)) < 0.1
 
 except ImportError:
+    import pytest
+
+    @pytest.mark.skip(reason="hypothesis 未安装")
     def test_profit_equals_mv_minus_cv():
         pass
 
+    @pytest.mark.skip(reason="hypothesis 未安装")
     def test_profit_pct_formula():
         pass

@@ -2,26 +2,24 @@
 数据源健康检查与监控。
 提供数据源状态查询、缓存命中率、熔断器状态等功能。
 """
-import os
-import sys
-from pathlib import Path
-
-# 添加 scripts 目录到 path
 
 import json
-import time
+import os
+import sys
 from datetime import datetime
-
-from common import get_circuit_breaker, CircuitState
 
 
 def get_fetcher_health() -> dict:
     """获取所有数据源的熔断器健康状态。"""
     from fetchers import (
-        get_quote_fetchers, get_kline_fetchers, get_finance_fetchers,
-        get_flow_fetchers, get_lhb_fetchers, get_event_fetchers,
+        get_quote_fetchers,
+        get_kline_fetchers,
+        get_finance_fetchers,
+        get_flow_fetchers,
+        get_lhb_fetchers,
+        get_event_fetchers,
     )
-    
+
     categories = {
         "行情": get_quote_fetchers,
         "K线": get_kline_fetchers,
@@ -30,25 +28,27 @@ def get_fetcher_health() -> dict:
         "龙虎榜": get_lhb_fetchers,
         "事件日历": get_event_fetchers,
     }
-    
+
     result = {"timestamp": datetime.now().isoformat(), "sources": {}}
-    
+
     for cat_name, fetcher_fn in categories.items():
         try:
             fetchers = fetcher_fn()
             result["sources"][cat_name] = []
             for f in fetchers:
                 cb = f.circuit_breaker
-                result["sources"][cat_name].append({
-                    "name": f.name,
-                    "priority": f.priority,
-                    "state": cb.state.value,
-                    "failure_count": cb.failure_count,
-                    "available": cb.can_execute(),
-                })
+                result["sources"][cat_name].append(
+                    {
+                        "name": f.name,
+                        "priority": f.priority,
+                        "state": cb.state.value,
+                        "failure_count": cb.failure_count,
+                        "available": cb.can_execute(),
+                    }
+                )
         except Exception as e:
             result["sources"][cat_name] = {"error": str(e)}
-    
+
     return result
 
 
@@ -96,7 +96,9 @@ def get_cache_stats() -> dict:
 
     # 阈值告警
     if total_mb > max_size_mb:
-        stats["warnings"].append(f"⚠️ 缓存大小 {total_mb}MB 超过阈值 {max_size_mb}MB，建议执行 --cleanup")
+        stats["warnings"].append(
+            f"⚠️ 缓存大小 {total_mb}MB 超过阈值 {max_size_mb}MB，建议执行 --cleanup"
+        )
     if stats["total_files"] > 2000:
         stats["warnings"].append(f"⚠️ 缓存文件数 {stats['total_files']} 过多，建议清理")
 
@@ -115,12 +117,12 @@ def health_check() -> dict:
 def print_health_report():
     """打印健康检查报告。"""
     report = health_check()
-    
+
     print("=" * 60)
     print("📊 stock-analyzer-skill 健康检查报告")
     print(f"时间: {report['timestamp']}")
     print("=" * 60)
-    
+
     # 数据源状态
     print("\n🔌 数据源状态:")
     print("-" * 40)
@@ -132,9 +134,13 @@ def print_health_report():
         else:
             for s in sources:
                 status = "✅ 可用" if s.get("available") else "❌ 熔断"
-                state_icon = {"closed": "🟢", "open": "🔴", "half_open": "🟡"}.get(s.get("state", ""), "⚪")
-                print(f"  {state_icon} {s['name']:<20} {status:<10} 失败:{s.get('failure_count', 0)}")
-    
+                state_icon = {"closed": "🟢", "open": "🔴", "half_open": "🟡"}.get(
+                    s.get("state", ""), "⚪"
+                )
+                print(
+                    f"  {state_icon} {s['name']:<20} {status:<10} 失败:{s.get('failure_count', 0)}"
+                )
+
     # 缓存状态
     print("\n💾 缓存状态:")
     print("-" * 40)
@@ -144,7 +150,9 @@ def print_health_report():
     else:
         print(f"  缓存目录: {cache_stats.get('cache_dir', 'N/A')}")
         print(f"  总文件数: {cache_stats.get('total_files', 0)}")
-        print(f"  总大小: {cache_stats.get('total_size_mb', 0)} MB / {cache_stats.get('max_size_mb', 500)} MB")
+        print(
+            f"  总大小: {cache_stats.get('total_size_mb', 0)} MB / {cache_stats.get('max_size_mb', 500)} MB"
+        )
         print(f"  按类型:")
         for prefix, data in cache_stats.get("by_prefix", {}).items():
             print(f"    - {prefix}: {data['count']} 个 ({data['size_mb']} MB)")
@@ -161,9 +169,11 @@ def print_health_report():
 
 if __name__ == "__main__":
     import sys
+
     args = sys.argv[1:]
     if "--cleanup" in args:
         from common import cache
+
         max_age = 86400  # 默认 24 小时
         for i, a in enumerate(args):
             if a == "--max-age" and i + 1 < len(args):

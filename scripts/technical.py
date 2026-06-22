@@ -13,8 +13,11 @@
 
 import argparse
 import json
+import logging
 import sys
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from common import (
     board_type,
@@ -89,7 +92,8 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
             records, closes, highs, lows, volumes, mas, code=quote.get("code", "")
         )
         features["local_patterns"] = local_result
-    except Exception:
+    except Exception as e:
+        logger.debug("本土战法计算失败: %s", e)
         features["local_patterns"] = {
             "patterns": [],
             "summary": "本土战法计算失败",
@@ -108,10 +112,11 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
                 fn_code = normalize_finance_code(quote.get("code", ""))
                 fin_data = fetch_finance(fn_code)
                 fin_record = fin_data[0] if fin_data else None
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("财务数据获取失败: %s", e)
             features["classification"] = classify_stock(fin_record, quote, records)
-        except Exception:
+        except Exception as e:
+            logger.debug("个股分类计算失败: %s", e)
             features["classification"] = {
                 "type": "普通股",
                 "confidence": "低",
@@ -127,7 +132,8 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
             from chan import chan_full_analysis
 
             features["chan_theory"] = chan_full_analysis(records)
-        except Exception:
+        except Exception as e:
+            logger.debug("缠论计算失败: %s", e)
             features["chan_theory"] = {"valid": False, "error": "缠论计算失败"}
     else:
         features["chan_theory"] = {
@@ -149,8 +155,8 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
         pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
         pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
         pe_high = get_industry_threshold(industry, "pe_expensive", 40)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("PE 行业阈值获取失败，使用默认值: %s", e)
     pe_pct = pe_percentile_score(pe, pe_low, pe_mid, pe_high)
     # PEG
     growth = to_float(quote.get("net_profit_yoy", 0))
@@ -170,7 +176,8 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
                 idx_quotes = fetch_batch([normalize_quote_code(market_index)])
                 idx_quote = idx_quotes[0] if idx_quotes else None
                 features["market_environment"] = detect_market_environment(idx_quote)
-            except Exception:
+            except Exception as e:
+                logger.debug("市场指数获取失败，使用默认检测: %s", e)
                 features["market_environment"] = detect_market_environment()
         else:
             features["market_environment"] = detect_market_environment()

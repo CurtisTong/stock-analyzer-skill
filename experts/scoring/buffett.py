@@ -5,7 +5,7 @@
 精确复现 experts/buffett.md §九 评分矩阵中的阈值规则。
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict
 
 from ._utils import _safe_float, _get_clamp
 

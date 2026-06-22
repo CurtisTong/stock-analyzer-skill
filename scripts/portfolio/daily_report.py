@@ -15,6 +15,7 @@
 """
 
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -182,7 +183,8 @@ class DailyReportGenerator:
                             "price": float(rec.get("price", 0) or 0),
                             "change_pct": float(rec.get("change_pct", 0) or 0),
                         }
-            except Exception:
+            except Exception as e:
+                logging.getLogger(__name__).debug("批量行情获取失败: %s", e)
                 for code in batch:
                     quotes[code] = {"price": 0, "change_pct": 0}
 

@@ -8,8 +8,11 @@ veto_conditions 字段对应原 markdown 中的"一票否决"列表。
 如果人设文档更新，只需修改本文件；experts/*.md 是叙事/案例来源。
 """
 
-from typing import Dict, List
+import logging
+
 from experts.types import ExpertProfile
+
+logger = logging.getLogger(__name__)
 
 EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
 
@@ -273,12 +276,12 @@ def _ensure_loaded() -> None:
     # D6: yaml 优先（如果可用）
     try:
         from experts.yaml_loader import load_all_experts
+
         yaml_experts = load_all_experts()
         for name, profile in yaml_experts.items():
             EXPERT_REGISTRY[name] = profile
-    except Exception:
-        # yaml 加载失败/不可用 → 保持硬编码（向后兼容）
-        pass
+    except Exception as e:
+        logger.debug("YAML 专家配置加载失败，回退到硬编码: %s", e)
 
     total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)

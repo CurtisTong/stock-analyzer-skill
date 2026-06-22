@@ -1,7 +1,6 @@
 """持仓绩效归因分析：个股贡献、行业贡献、风险指标。"""
 
 from dataclasses import dataclass
-from typing import Optional
 from common import to_float
 
 

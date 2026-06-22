@@ -3,8 +3,6 @@
 负责通道注册、消息分发、频率控制和推送日志。
 """
 
-import json
-import os
 import re
 import threading
 import time
