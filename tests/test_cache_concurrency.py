@@ -1,10 +1,12 @@
 """缓存并发安全测试。"""
+
 import os
 import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 
 # 使用临时目录隔离测试缓存
 @pytest.fixture
@@ -18,7 +20,7 @@ def isolated_cache(tmp_path):
 
 def test_concurrent_writes_same_key(isolated_cache):
     """10 个线程同时写同一 key，最终值是某一线程的有效写入。"""
-    from scripts.common.cache import set, get
+    from scripts.common.cache import put, get
 
     key = "concurrent_test_key"
     num_threads = 10
@@ -27,9 +29,11 @@ def test_concurrent_writes_same_key(isolated_cache):
 
     def writer(value):
         barrier.wait()  # 所有线程同时出发
-        set(key, value)
+        put(key, value)
 
-    threads = [threading.Thread(target=writer, args=(results[i],)) for i in range(num_threads)]
+    threads = [
+        threading.Thread(target=writer, args=(results[i],)) for i in range(num_threads)
+    ]
     for t in threads:
         t.start()
     for t in threads:
@@ -42,7 +46,7 @@ def test_concurrent_writes_same_key(isolated_cache):
 
 def test_no_tmp_files_remaining(isolated_cache):
     """并发写入后不应有 .tmp 残留文件。"""
-    from scripts.common.cache import set
+    from scripts.common.cache import put
 
     key = "tmp_cleanup_test"
     num_threads = 10
@@ -50,7 +54,7 @@ def test_no_tmp_files_remaining(isolated_cache):
 
     def writer(i):
         barrier.wait()
-        set(key, f"data_{i}".encode())
+        put(key, f"data_{i}".encode())
 
     threads = [threading.Thread(target=writer, args=(i,)) for i in range(num_threads)]
     for t in threads:
