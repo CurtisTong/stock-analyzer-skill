@@ -7,6 +7,23 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-22
+
+### Fixed
+- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
+- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
+
+### Documentation
+- **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
+- **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+
+### Maintenance
+- **version**: bump version to v1.13.1
+- **tests**: 同步 smoke_test 期望版本至 v1.13.0
+- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
+
 ## [Unreleased] - 2026-06-18
 
 ### Fixed
