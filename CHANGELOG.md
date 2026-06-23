@@ -10,6 +10,39 @@
 ## [Unreleased] - 2026-06-23
 
 ### Added
+- **strategies/factors**: Phase 2 架构重构 + 因子增强
+- **screener/portfolio/experts**: Phase 1 基础修复 + 体验优化
+- **screener**: 新增筹码因子 + 宏观门控模块
+
+### Fixed
+- P0-P2 优化 — 注册表日志、投票边界测试、TradeLog 集成、brief 文档与阈值透明化
+- **scripts**: 修复静默异常捕获 + 清理未使用导入 + 补充测试覆盖
+- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
+- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
+
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+- **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
+- **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+
+### Testing
+- **data/strategies/fetchers**: 补充 data 层、regime detector、筹码 fetcher 测试
+- 新增 13 个测试文件覆盖未测试模块 + 修复 cache DeprecationWarning
+
+### Maintenance
+- **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
+- **version**: bump version to v1.13.1
+- **tests**: 同步 smoke_test 期望版本至 v1.13.0
+- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
+
+## [Unreleased] - 2026-06-23
+
+### Added
 - **screener**: 新增筹码因子 + 宏观门控模块
 
 ### Fixed
