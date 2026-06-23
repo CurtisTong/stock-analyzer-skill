@@ -16,11 +16,25 @@ import screener  # noqa: E402
 def _make_args(**overrides):
     """构造默认 Namespace。"""
     defaults = dict(
-        strategy="balanced", sector=None, codes="sh600519,sh600989",
-        top=5, min_amount=5000, min_cap=40, exclude_loss=False,
-        no_constraints=True, sector_cap=0.30, full_market=False,
-        board_limit=0, exclude_board="北交所", no_normalize=True,
-        no_regime=True, snapshot=False, two_stage=False, json=False,
+        strategy="balanced",
+        sector=None,
+        codes="sh600519,sh600989",
+        top=5,
+        min_amount=5000,
+        min_cap=40,
+        exclude_loss=False,
+        no_constraints=True,
+        sector_cap=0.30,
+        full_market=False,
+        board_limit=0,
+        exclude_board="北交所",
+        no_normalize=True,
+        no_regime=True,
+        no_chip=False,
+        no_macro=True,
+        snapshot=False,
+        two_stage=False,
+        json=False,
     )
     defaults.update(overrides)
     return argparse.Namespace(**defaults)
@@ -30,10 +44,20 @@ def _make_args(**overrides):
 def mock_data_layer(monkeypatch):
     """Mock 整个数据层（不真实拉取）。"""
     quote_dict = {
-        "sh600519": {"code": "sh600519", "name": "贵州茅台",
-                     "amount": 100000_0000, "total_cap": 22000, "pe": 25},
-        "sh600989": {"code": "sh600989", "name": "宝钢股份",
-                     "amount": 50000_0000, "total_cap": 1500, "pe": 8},
+        "sh600519": {
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "amount": 100000_0000,
+            "total_cap": 22000,
+            "pe": 25,
+        },
+        "sh600989": {
+            "code": "sh600989",
+            "name": "宝钢股份",
+            "amount": 50000_0000,
+            "total_cap": 1500,
+            "pe": 8,
+        },
     }
 
     def mock_load_universe(args):
@@ -48,13 +72,20 @@ def mock_data_layer(monkeypatch):
     def mock_prefetch_kline(codes):
         return {}
 
-    def mock_analyze(quote, strategy, args, finance_cache=None, regime=None, kline_cache=None):
-        return {"code": quote["code"], "name": quote["name"], "score": 80.0, "rejected": []}
+    def mock_analyze(
+        quote, strategy, args, finance_cache=None, regime=None, kline_cache=None
+    ):
+        return {
+            "code": quote["code"],
+            "name": quote["name"],
+            "score": 80.0,
+            "rejected": [],
+        }
 
     def mock_apply(rows, **k):
         return rows
 
-    def mock_render(rows, strategy, top, title=None):
+    def mock_render(rows, strategy, top, title=None, show_chip=True):
         pass
 
     monkeypatch.setattr(screener, "load_universe", mock_load_universe)
@@ -82,6 +113,7 @@ class TestRunMainSingleStage:
     def test_json_output(self, mock_data_layer, capsys):
         """--json 输出 JSON。"""
         import json
+
         screener._run_main(_make_args(json=True))
         captured = capsys.readouterr()
         # JSON 应至少包含 sh600519 的一条记录
@@ -94,8 +126,12 @@ class TestRunMainSingleStage:
         """--snapshot 标志不崩溃（即使无 save_snapshot）。"""
         # mock save_snapshot 让它失败
         import snapshots
-        monkeypatch.setattr(snapshots, "save_snapshot",
-                           lambda **k: (_ for _ in ()).throw(Exception("mock fail")))
+
+        monkeypatch.setattr(
+            snapshots,
+            "save_snapshot",
+            lambda **k: (_ for _ in ()).throw(Exception("mock fail")),
+        )
         screener._run_main(_make_args(snapshot=True))
         captured = capsys.readouterr()
         # 错误输出到 stderr

@@ -384,18 +384,29 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
     )
     from business.screening_service import (
-        compute_phase1_parts, compute_weighted_score,
+        compute_phase1_parts,
+        compute_weighted_score,
     )
+
     parts = compute_phase1_parts(fin, quote, industry)
+    if getattr(args, "no_chip", False):
+        parts["chip"] = 50  # 禁用时给中性分
     total = compute_weighted_score(parts, args.strategy, regime=regime)
     return build_result_row(
-        quote_code, quote, fin, {"ret20": 0, "rsi": 50, "macd_signal": 0,
-                                  "vol_price_signal": 0, "trend": 0},
-        industry, total, parts, rejected,
+        quote_code,
+        quote,
+        fin,
+        {"ret20": 0, "rsi": 50, "macd_signal": 0, "vol_price_signal": 0, "trend": 0},
+        industry,
+        total,
+        parts,
+        rejected,
     )
 
 
-def analyze_code(quote, strategy, args, finance_cache=None, regime=None, kline_cache=None):
+def analyze_code(
+    quote, strategy, args, finance_cache=None, regime=None, kline_cache=None
+):
     code = quote["code"]
     quote_code = normalize_quote_code(code)
     if finance_cache is not None:
@@ -406,6 +417,7 @@ def analyze_code(quote, strategy, args, finance_cache=None, regime=None, kline_c
     # review#12 修复：复用预拉的 K 线，避免每只股票独立 get_kline 调用
     if kline_cache is not None and quote_code in kline_cache:
         from business.screening_service import compute_features
+
         features = compute_features(quote_code, bars=kline_cache[quote_code])
     else:
         features = daily_features(quote_code)
@@ -416,17 +428,27 @@ def analyze_code(quote, strategy, args, finance_cache=None, regime=None, kline_c
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
     )
     parts = compute_factor_parts(fin, quote, features, industry)
+    if getattr(args, "no_chip", False):
+        parts["chip"] = 50  # 禁用时给中性分
 
     # 两阶段策略：Stage 1 硬条件过滤（review#2）
     from strategies import STRATEGIES as _STRATS
+
     if _STRATS.get(strategy, {}).get("two_stage"):
         from strategies.filters.turning_point import turning_point_filter
+
         pass_, reason = turning_point_filter(quote, fin, features)
         if not pass_:
             rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
             return build_result_row(
-                quote_code, quote, fin, features, industry,
-                0, parts, rejected,
+                quote_code,
+                quote,
+                fin,
+                features,
+                industry,
+                0,
+                parts,
+                rejected,
             )
 
     total = compute_weighted_score(parts, strategy, regime=regime)
@@ -480,7 +502,7 @@ def apply_portfolio_constraints(
     return result
 
 
-def render(rows, strategy, top, title=None):
+def render(rows, strategy, top, title=None, show_chip=True):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
     accepted.sort(key=lambda r: r["score"], reverse=True)
@@ -489,7 +511,12 @@ def render(rows, strategy, top, title=None):
     print(f"策略: {label} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
-    header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
+
+    # 表头：根据 show_chip 决定是否显示筹码列
+    if show_chip:
+        header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动 | 筹码 | PE | ROE | RSI | 20日% | 趋势 | 量价"
+    else:
+        header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(accepted[:top], 1):
@@ -498,12 +525,24 @@ def render(rows, strategy, top, title=None):
             if r.get("macd_signal", 0) > 0
             else "↓" if r.get("macd_signal", 0) < 0 else "→"
         )
-        print(
-            f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
-            f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
-            f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
-            f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
-        )
+        if show_chip:
+            from business.risk_warning import chip_emoji
+
+            chip_val = r.get("chip", 50)
+            chip_display = f"{chip_emoji(chip_val)}{chip_val:>3}"
+            print(
+                f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
+                f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
+                f"{r['momentum']:>5} | {r['liquidity']:>5} | {chip_display:>5} | {r['pe']:>6} | "
+                f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
+            )
+        else:
+            print(
+                f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
+                f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
+                f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
+                f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
+            )
 
     if rejected:
         print()
@@ -516,7 +555,10 @@ def _build_parser():
     """构造 screener CLI 参数解析器（V2.1 提取便于单测复用）。"""
     parser = argparse.ArgumentParser(description="A 股多因子选股器", add_help=False)
     from common.version import __version__
-    parser.add_argument("-v", "--version", action="version", version=f"screener {__version__}")
+
+    parser.add_argument(
+        "-v", "--version", action="version", version=f"screener {__version__}"
+    )
     parser.add_argument("-h", "--help", action="help", help="显示帮助")
     parser.add_argument("--strategy", choices=STRATEGIES.keys(), default="balanced")
     parser.add_argument("--sector", help="内置板块名称，支持模糊匹配")
@@ -558,6 +600,16 @@ def _build_parser():
         help="禁用市场状态 overlay（保留 V1 固定权重）",
     )
     parser.add_argument(
+        "--no-chip",
+        action="store_true",
+        help="禁用筹码因子（chip）评分",
+    )
+    parser.add_argument(
+        "--no-macro",
+        action="store_true",
+        help="禁用宏观安全垫检查",
+    )
+    parser.add_argument(
         "--snapshot",
         action="store_true",
         help="保存本次筛选快照到 data/snapshots/（review#16）",
@@ -593,15 +645,14 @@ def _run_main(args):
 
     finance_cache = f_finance.result()
     # 财务缓存 key 是 normalize 后的代码，确保与 quote code 一致
-    finance_cache = {
-        normalize_quote_code(code): v for code, v in finance_cache.items()
-    }
+    finance_cache = {normalize_quote_code(code): v for code, v in finance_cache.items()}
 
-    # 市场状态检测（Sprint 2 / doc#03）：4 信号 + 4 状态 + 6 因子 overlay
+    # 市场状态检测（Sprint 2 / doc#03）：4 信号 + 4 状态 + 7 因子 overlay
     regime = None
     if not args.no_regime:
         try:
             from strategies.regime import detect_signals, classify_regime
+
             signals = detect_signals()
             regime = classify_regime(signals)
             print(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
@@ -609,13 +660,29 @@ def _run_main(args):
             print(f"⚠️ 市场状态检测失败: {e}", file=sys.stderr)
             regime = None
 
+    # 宏观安全垫检查
+    macro_state = None
+    if not getattr(args, "no_macro", False):
+        try:
+            from strategies.macro import MacroSafetyGate
+
+            gate = MacroSafetyGate()
+            macro_state, macro_msg = gate.check()
+            print(macro_msg, flush=True)
+            if macro_state.value == "RED":
+                print("⚠️ 系统性风险，暂停选股", flush=True)
+                if not args.json:
+                    return
+        except Exception as e:
+            print(f"⚠️ 宏观安全垫检查失败: {e}", file=sys.stderr)
+            macro_state = None
+
     # Sprint 9 两阶段管线：Phase 1（无 K 线初筛）→ Phase 2（K 线精排）
     # 全市场模式下显著降低 K 线获取量（5000 → top×3）
     if args.two_stage:
         t_p1 = _time.perf_counter()
         rows_p1 = [
-            analyze_code_phase1(q, args, finance_cache, regime=regime)
-            for q in quotes
+            analyze_code_phase1(q, args, finance_cache, regime=regime) for q in quotes
         ]
         # z-score 标准化仅在 Phase 1 维度（quality/valuation/liquidity）
         if not args.no_normalize and len(rows_p1) >= 3:
@@ -623,7 +690,9 @@ def _run_main(args):
         # 按分数排序，取 Top N×3 进入 Phase 2
         rows_p1.sort(key=lambda r: r.get("score", 0), reverse=True)
         top_n_phase2 = max(args.top * 3, 10)
-        top_quotes = [q for q, r in zip(quotes, rows_p1) if r.get("score", 0) > 0][:top_n_phase2]
+        top_quotes = [q for q, r in zip(quotes, rows_p1) if r.get("score", 0) > 0][
+            :top_n_phase2
+        ]
         # 复用 rows_p1 中前 top_n_phase2 行的元数据
         rows_p1_top = rows_p1[: len(top_quotes)]
         t_p1 = _time.perf_counter() - t_p1
@@ -636,7 +705,14 @@ def _run_main(args):
         t_p2 = _time.perf_counter()
         kline_cache = _prefetch_kline_all([q["code"] for q in top_quotes])
         rows = [
-            analyze_code(q, args.strategy, args, finance_cache, regime=regime, kline_cache=kline_cache)
+            analyze_code(
+                q,
+                args.strategy,
+                args,
+                finance_cache,
+                regime=regime,
+                kline_cache=kline_cache,
+            )
             for q in top_quotes
         ]
         if not args.no_normalize and len(rows) >= 3:
@@ -653,10 +729,17 @@ def _run_main(args):
             flush=True,
         )
     else:
-        # 单阶段（原行为）：一次性拉所有 K 线 + 算 6 因子
+        # 单阶段（原行为）：一次性拉所有 K 线 + 算 7 因子
         kline_cache = _prefetch_kline_all([q["code"] for q in quotes])
         rows = [
-            analyze_code(q, args.strategy, args, finance_cache, regime=regime, kline_cache=kline_cache)
+            analyze_code(
+                q,
+                args.strategy,
+                args,
+                finance_cache,
+                regime=regime,
+                kline_cache=kline_cache,
+            )
             for q in quotes
         ]
         if not args.no_normalize and len(rows) >= 3:
@@ -672,6 +755,7 @@ def _run_main(args):
     if args.snapshot:
         try:
             from snapshots import save_snapshot
+
             path = save_snapshot(
                 strategy=args.strategy,
                 rows=rows,
@@ -688,7 +772,8 @@ def _run_main(args):
         title = None
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"
-        render(rows, args.strategy, args.top, title=title)
+        show_chip = not getattr(args, "no_chip", False)
+        render(rows, args.strategy, args.top, title=title, show_chip=show_chip)
 
 
 def main():

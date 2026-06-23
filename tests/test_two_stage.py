@@ -23,7 +23,7 @@ class TestPhaseFactorSplit:
 
     def test_phase1_factors_dont_depend_on_kline(self):
         """Phase 1 仅包含不依赖 K 线的因子。"""
-        assert set(PHASE1_FACTORS) == {"quality", "valuation", "liquidity"}
+        assert set(PHASE1_FACTORS) == {"quality", "valuation", "liquidity", "chip"}
         # 确保不包含 K 线依赖的因子
         assert "momentum" not in PHASE1_FACTORS
         assert "volatility" not in PHASE1_FACTORS
@@ -34,10 +34,16 @@ class TestPhaseFactorSplit:
         assert "volatility" in PHASE2_FACTORS
         assert "dividend" in PHASE2_FACTORS
 
-    def test_phase1_parts_3_keys(self):
-        """Phase 1 返回 3 因子。"""
+    def test_phase1_parts_4_keys(self):
+        """Phase 1 返回 4 因子（含 chip）。"""
         fin = {"eps": 1.0, "roe": 15.0, "net_profit_yoy": 20.0}
-        quote = {"pe": 20, "pb": 3, "total_cap": 100, "amount": 50000}
+        quote = {
+            "pe": 20,
+            "pb": 3,
+            "total_cap": 100,
+            "amount": 50000,
+            "code": "sh600519",
+        }
         parts = compute_phase1_parts(fin, quote, "默认")
         assert set(parts.keys()) == set(PHASE1_FACTORS)
         assert "momentum" not in parts
@@ -49,8 +55,12 @@ class TestPhaseFactorSplit:
         quote = {"pe": 20, "pb": 3, "total_cap": 100, "amount": 50000, "turnover": 1.0}
         features = {
             "closes": [10.0 + i * 0.1 for i in range(60)],
-            "ret20": 0, "volume_ratio": 1.0, "rsi": 50, "macd_signal": 0,
-            "vol_price_signal": 0, "trend": 0,
+            "ret20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
+            "trend": 0,
         }
         parts = compute_phase2_parts(features, quote, fin, "默认")
         assert set(parts.keys()) == set(PHASE2_FACTORS)
@@ -63,8 +73,17 @@ class TestPhaseFactorSplit:
         p2 = {"momentum": 65, "volatility": 55, "dividend": 45}
         merged = merge_phase_parts(p1, p2)
         assert len(merged) == 6
-        assert all(k in merged for k in ("quality", "valuation", "liquidity",
-                                          "momentum", "volatility", "dividend"))
+        assert all(
+            k in merged
+            for k in (
+                "quality",
+                "valuation",
+                "liquidity",
+                "momentum",
+                "volatility",
+                "dividend",
+            )
+        )
 
 
 class TestAnalyzeCodePhase1:
@@ -85,15 +104,24 @@ class TestAnalyzeCodePhase1:
         monkeypatch.setattr("data.get_kline", mock_get_kline)
 
         quote = {
-            "code": "sh600519", "name": "贵州茅台",
-            "pe": 25, "pb": 5, "total_cap": 22000, "amount": 100000,
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "pe": 25,
+            "pb": 5,
+            "total_cap": 22000,
+            "amount": 100000,
         }
         fin_cache = {"sh600519": [{"eps": 50, "roe": 30}]}
 
         import argparse
+
         args = argparse.Namespace(
-            min_amount=5000, min_cap=40, exclude_loss=False, no_regime=True,
-            strategy="balanced", no_normalize=True,
+            min_amount=5000,
+            min_cap=40,
+            exclude_loss=False,
+            no_regime=True,
+            strategy="balanced",
+            no_normalize=True,
         )
         result = analyze_code_phase1(quote, args, finance_cache=fin_cache)
         # 应有 3 因子（quality/valuation/liquidity），K 线依赖因子为 0 占位
@@ -114,10 +142,13 @@ class TestTwoStageFlag:
     def test_flag_in_help(self):
         """--two-stage 应出现在 screener --help。"""
         import subprocess
+
         result = subprocess.run(
             ["python3", "scripts/screener.py", "--help"],
             cwd=str(Path(__file__).resolve().parent.parent),
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         assert result.returncode == 0
         assert "--two-stage" in result.stdout

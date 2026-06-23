@@ -14,7 +14,7 @@ class TestOverlayMatrix:
             assert state in OVERLAY_MATRIX
 
     def test_all_factors_covered(self):
-        """每个状态都包含 6 个因子。"""
+        """每个状态都包含 7 个因子。"""
         expected = {
             "quality",
             "valuation",
@@ -22,6 +22,7 @@ class TestOverlayMatrix:
             "liquidity",
             "volatility",
             "dividend",
+            "chip",
         }
         for state, weights in OVERLAY_MATRIX.items():
             assert set(weights.keys()) == expected

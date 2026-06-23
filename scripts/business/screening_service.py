@@ -20,6 +20,8 @@ from strategies import (
     liquidity_score,
     volatility_from_closes,
     dividend_score,
+    chip_score_static,
+    chip_score_dynamic,
 )
 from strategies.thresholds import get_industry_threshold
 
@@ -278,7 +280,9 @@ class ScreeningService:
 
         # 行业分类
         industry = infer_industry(
-            quote_dict.get("name", ""), code, fetcher_industry=quote_dict.get("industry", "")
+            quote_dict.get("name", ""),
+            code,
+            fetcher_industry=quote_dict.get("industry", ""),
         )
 
         # 硬过滤
@@ -406,7 +410,7 @@ class ScreeningService:
 
 
 def compute_factor_parts(fin, quote_dict, features, industry):
-    """计算 6 因子得分（共享核心）。"""
+    """计算 7 因子得分（共享核心）。"""
     return {
         "quality": quality_score(fin, industry),
         "valuation": valuation_score(quote_dict, fin, industry),
@@ -414,6 +418,7 @@ def compute_factor_parts(fin, quote_dict, features, industry):
         "liquidity": liquidity_score(quote_dict),
         "volatility": volatility_from_closes(features.get("closes", []), industry),
         "dividend": dividend_score(quote_dict, fin, industry),
+        "chip": chip_score_dynamic(quote_dict.get("code", "")),
     }
 
 
@@ -422,23 +427,27 @@ def compute_factor_parts(fin, quote_dict, features, industry):
 #   quality / valuation / liquidity
 # Phase 2（精准评分）：在 Phase 1 Top N×3 上补 K 线依赖因子
 #   momentum / volatility / dividend
-PHASE1_FACTORS = ("quality", "valuation", "liquidity")
+PHASE1_FACTORS = ("quality", "valuation", "liquidity", "chip")
 PHASE2_FACTORS = ("momentum", "volatility", "dividend")
 
 
 def compute_phase1_parts(fin, quote_dict, industry: str) -> dict:
-    """Sprint 9 Phase 1：仅算 quality/valuation/liquidity（不依赖 K 线）。
+    """Sprint 9 Phase 1：算 quality/valuation/liquidity/chip（不依赖 K 线）。
 
     适用于全市场 5000 只初筛，3-5 秒内完成。
+    chip 使用静态评分（仅股东户数变化率，零网络开销）。
     """
     return {
         "quality": quality_score(fin, industry),
         "valuation": valuation_score(quote_dict, fin, industry),
         "liquidity": liquidity_score(quote_dict),
+        "chip": chip_score_static(quote_dict.get("code", "")),
     }
 
 
-def compute_phase2_parts(features: dict, quote_dict: dict, fin: dict, industry: str) -> dict:
+def compute_phase2_parts(
+    features: dict, quote_dict: dict, fin: dict, industry: str
+) -> dict:
     """Sprint 9 Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
 
     仅对 Phase 1 Top N×3 候选调用，节省 K 线获取量。
@@ -476,7 +485,9 @@ def compute_weighted_score(parts, strategy, regime=None):
     )
 
 
-def normalize_factors_batch(parts_list: List[Dict[str, float]]) -> List[Dict[str, float]]:
+def normalize_factors_batch(
+    parts_list: List[Dict[str, float]],
+) -> List[Dict[str, float]]:
     """对一批股票 6 因子做 cross-sectional z-score 标准化。
 
     每个因子的均值/方差从该批次计算，z = (x - mean) / std。
@@ -486,10 +497,10 @@ def normalize_factors_batch(parts_list: List[Dict[str, float]]) -> List[Dict[str
     不加标准化导致 volatility 因子隐式权重超调。
 
     Args:
-        parts_list: 候选股 6 因子 dict 列表
+        parts_list: 候选股 7 因子 dict 列表
 
     Returns:
-        标准化后的 6 因子 dict 列表（顺序与输入对应）
+        标准化后的 7 因子 dict 列表（顺序与输入对应）
     """
     if not parts_list:
         return parts_list
@@ -498,11 +509,17 @@ def normalize_factors_batch(parts_list: List[Dict[str, float]]) -> List[Dict[str
         return [dict(p) for p in parts_list]
     import statistics
 
-    keys = ["quality", "valuation", "momentum", "liquidity", "volatility", "dividend"]
+    keys = [
+        "quality",
+        "valuation",
+        "momentum",
+        "liquidity",
+        "volatility",
+        "dividend",
+        "chip",
+    ]
     means = {k: statistics.mean(p.get(k, 0) for p in parts_list) for k in keys}
-    stds = {
-        k: (statistics.stdev(p.get(k, 0) for p in parts_list) or 1.0) for k in keys
-    }
+    stds = {k: (statistics.stdev(p.get(k, 0) for p in parts_list) or 1.0) for k in keys}
     out = []
     for p in parts_list:
         normed = dict(p)
@@ -513,7 +530,9 @@ def normalize_factors_batch(parts_list: List[Dict[str, float]]) -> List[Dict[str
     return out
 
 
-def compute_weighted_score_with_norm(parts_list: List[Dict[str, float]], strategy: str) -> List[float]:
+def compute_weighted_score_with_norm(
+    parts_list: List[Dict[str, float]], strategy: str
+) -> List[float]:
     """对批量 6 因子做归一化后加权求和。
 
     Args:
@@ -544,6 +563,7 @@ def build_result_row(code, quote_dict, fin, features, industry, total, parts, re
         "liquidity": round(parts.get("liquidity", 0), 1),
         "volatility": round(parts.get("volatility", 0), 1),
         "dividend": round(parts.get("dividend", 0), 1),
+        "chip": round(parts.get("chip", 50), 1),
         "price": quote_dict.get("price"),
         "change_pct": quote_dict.get("change_pct"),
         "pe": quote_dict.get("pe"),

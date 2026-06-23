@@ -14,5 +14,8 @@ from .factors import (
     momentum_score,
     liquidity_score,
     dividend_score,
+    chip_score_static,
+    chip_score_dynamic,
+    chip_details,
 )
 from .factors.volatility import volatility_from_closes

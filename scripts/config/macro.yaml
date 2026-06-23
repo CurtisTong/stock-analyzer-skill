@@ -1,0 +1,17 @@
+# 宏观安全垫配置
+# 阈值设计原则：极端保守，避免误报
+# GREEN:  VIX < 25 且 TLT > 85
+# YELLOW: VIX 25-35 或 TLT 80-85（任一触发）
+# RED:    VIX > 35 或 TLT < 80（任一触发）
+
+enabled: true
+
+thresholds:
+  vix_yellow: 25      # VIX > 25 → 避险升温
+  vix_red: 35         # VIX > 35 → 系统性风险
+  tlt_yellow: 85      # TLT < 85 → 美债承压
+  tlt_red: 80         # TLT < 80 → 信用危机
+
+# 数据源配置
+data_source: yfinance
+cache_ttl: 300        # 缓存 5 分钟

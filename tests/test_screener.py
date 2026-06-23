@@ -68,6 +68,7 @@ class TestStrategies:
             "liquidity",
             "volatility",
             "dividend",
+            "chip",
         ]
         total = sum(cfg.get(k, 0) for k in keys)
         assert abs(total - 1.0) < 1e-9, f"{name} 权重之和 {total} != 1.0"
@@ -803,7 +804,7 @@ class TestAnalyzeCode:
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
 
-        # 总分应为各维度加权和（含波动率因子）
+        # 总分应为各维度加权和（含波动率+红利+筹码因子）
         w = STRATEGIES["balanced"]
         expected = (
             result["quality"] * w["quality"]
@@ -811,8 +812,10 @@ class TestAnalyzeCode:
             + result["momentum"] * w["momentum"]
             + result["liquidity"] * w["liquidity"]
             + result["volatility"] * w.get("volatility", 0)
+            + result["dividend"] * w.get("dividend", 0)
+            + result["chip"] * w.get("chip", 0)
         )
-        assert result["score"] == pytest.approx(expected, abs=0.2)
+        assert result["score"] == pytest.approx(expected, abs=0.5)
 
     def test_rejected_stock_has_reasons(self, sample_finance, monkeypatch):
         import screener

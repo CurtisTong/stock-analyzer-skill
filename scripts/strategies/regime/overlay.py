@@ -16,7 +16,7 @@ from typing import Dict
 
 from .classifier import RegimeState
 
-# 6 因子顺序：quality / valuation / momentum / liquidity / volatility / dividend
+# 7 因子顺序：quality / valuation / momentum / liquidity / volatility / dividend / chip
 OVERLAY_MATRIX: Dict[RegimeState, Dict[str, float]] = {
     RegimeState.BULL: {
         "quality": 1.0,
@@ -25,6 +25,7 @@ OVERLAY_MATRIX: Dict[RegimeState, Dict[str, float]] = {
         "liquidity": 1.0,
         "volatility": 1.0,
         "dividend": 1.0,
+        "chip": 0.8,  # 牛市筹码降权（趋势驱动，筹码次要）
     },
     RegimeState.BEAR: {
         "quality": 1.2,
@@ -33,6 +34,7 @@ OVERLAY_MATRIX: Dict[RegimeState, Dict[str, float]] = {
         "liquidity": 1.0,
         "volatility": 1.2,
         "dividend": 1.0,
+        "chip": 1.4,  # 熊市筹码加权（看主力动向更重要）
     },
     RegimeState.RANGE: {
         "quality": 1.1,
@@ -41,6 +43,7 @@ OVERLAY_MATRIX: Dict[RegimeState, Dict[str, float]] = {
         "liquidity": 1.0,
         "volatility": 1.0,
         "dividend": 1.0,
+        "chip": 1.0,  # 震荡正常权重
     },
     RegimeState.PANIC: {
         "quality": 1.3,
@@ -49,6 +52,7 @@ OVERLAY_MATRIX: Dict[RegimeState, Dict[str, float]] = {
         "liquidity": 1.2,
         "volatility": 1.3,
         "dividend": 1.1,
+        "chip": 1.6,  # 冰点筹码极度加权（恐慌中看主力动向）
     },
 }
 
