@@ -30,6 +30,9 @@ def _resolve_conflict(
 ) -> dict:
     """冲突解决规则（decide.md §三）。
 
+    v2.2.0 适配：长线组 6 人、短线组 3 人。
+    统一 67% 多数阈值：长线 ≥4/6，短线 ≥2/3。
+
     Returns:
         {"direction": str, "position_factor": float, "notes": list}
     """
@@ -37,63 +40,53 @@ def _resolve_conflict(
     direction = "中性"
     position_factor = 1.0
 
-    # 双一致看多
-    if long_votes["bull"] >= 3 and short_votes["bull"] >= 3:
+    # 分歧检测（组内无多数方向）
+    long_divergent = long_votes["bull"] < 4 and long_votes["bear"] < 4
+    short_divergent = short_votes["bull"] < 2 and short_votes["bear"] < 2
+
+    # 双一致看多：长线 ≥4/6 看多 + 短线 ≥2/3 看多
+    if long_votes["bull"] >= 4 and short_votes["bull"] >= 2:
         direction = "强烈看多"
         position_factor = 1.0
-    # 双一致看空
-    elif long_votes["bear"] >= 3 and short_votes["bear"] >= 3:
+    # 双一致看空：长线 ≥4/6 看空 + 短线 ≥2/3 看空
+    elif long_votes["bear"] >= 4 and short_votes["bear"] >= 2:
         direction = "强烈看空"
         position_factor = 0.0
-    # 长线主导多
-    elif (
-        long_votes["bull"] >= 3
-        and short_votes["bull"] == 2
-        and short_votes["bear"] == 2
-    ):
+    # 长线主导多：长线 ≥4/6 看多 + 短线分歧
+    elif long_votes["bull"] >= 4 and short_divergent:
         direction = "看多"
         position_factor = 0.8
-    # 长线主导空
-    elif (
-        long_votes["bear"] >= 3
-        and short_votes["bull"] == 2
-        and short_votes["bear"] == 2
-    ):
+    # 长线主导空：长线 ≥4/6 看空 + 短线分歧
+    elif long_votes["bear"] >= 4 and short_divergent:
         direction = "看空"
         position_factor = 0.0
-    # 短线主导多
-    elif (
-        long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bull"] >= 3
-    ):
+    # 短线主导多：长线分歧 + 短线 ≥2/3 看多
+    elif long_divergent and short_votes["bull"] >= 2:
         direction = "谨慎看多"
         position_factor = 0.5
-    # 短线主导空
-    elif (
-        long_votes["bull"] == 2 and long_votes["bear"] == 2 and short_votes["bear"] >= 3
-    ):
+    # 短线主导空：长线分歧 + 短线 ≥2/3 看空
+    elif long_divergent and short_votes["bear"] >= 2:
         direction = "谨慎看空"
         position_factor = 0.3
-    # 全面分歧（8 人都投票，没有中性票且 2:2:2:2）
-    elif (
-        long_votes["bull"] == 2
-        and long_votes["bear"] == 2
-        and short_votes["bull"] == 2
-        and short_votes["bear"] == 2
-    ):
+    # 全面分歧：两组均无多数方向
+    elif long_divergent and short_divergent:
         direction = "中性"
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
-    # 极端两极分歧（长线全多 + 短线全空，或反向；长线 4 看多 + 短线 4 看空）
+    # 极端两极分化：一组全多 + 另一组全空（6+3=9 人全部投票且方向对立）
     elif (
-        long_votes["bull"] + long_votes["bear"] == 4
-        and short_votes["bull"] + short_votes["bear"] == 4
-        and long_votes["bull"] + short_votes["bull"] == 4
-        and long_votes["bear"] + short_votes["bear"] == 4
-        and long_votes["bull"] != 2
+        long_votes["bull"] + long_votes["bear"] == 6
+        and short_votes["bull"] + short_votes["bear"] == 3
+        and (
+            (long_votes["bull"] >= 5 and short_votes["bear"] >= 2)
+            or (long_votes["bear"] >= 5 and short_votes["bull"] >= 2)
+        )
     ):
         direction = "中性"
         position_factor = 0.0
-        notes.append("两极分化（4 看多 + 4 看空），建议观望")
+        total_bull = long_votes["bull"] + short_votes["bull"]
+        total_bear = long_votes["bear"] + short_votes["bear"]
+        notes.append(f"两极分化（{total_bull} 看多 + {total_bear} 看空），建议观望")
     else:
         # 按综合分判断
         avg = (long_avg + short_avg) / 2

@@ -96,6 +96,56 @@ def render_text(result: dict) -> str:
     return "\n".join(lines)
 
 
+def render_brief(result: dict) -> str:
+    """brief 模式：一句话结论 + 关键数据表 + 操作建议（<500字）。"""
+    lines = []
+    code = result.get("code", "")
+    name = result.get("name", "(未知)")
+    price = result.get("price", 0)
+    change_pct = result.get("change_pct", 0)
+
+    # 一句话结论
+    s = result.get("score", {})
+    grade = s.get("grade", "?")
+    score_val = s.get("score", 0)
+    lines.append(
+        f"{code} {name} | 现价 {price} ({change_pct:+.2f}%) | "
+        f"综合评分 {score_val:.1f} 评级 {grade}"
+    )
+
+    # 关键数据表（紧凑单行）
+    parts = []
+    t = result.get("technical", {})
+    if t:
+        parts.append(f"MA:{t.get('ma', '?')}")
+        parts.append(f"RSI:{t.get('rsi', 0):.0f}")
+        parts.append(f"MACD:{t.get('macd_signal', 0):+d}")
+    fin = result.get("finance", {})
+    if fin:
+        parts.append(f"ROE:{fin.get('roe', 0):.1f}%")
+        parts.append(f"净利YoY:{fin.get('net_profit_yoy', 0):+.0f}%")
+    if parts:
+        lines.append(" | ".join(parts))
+
+    # 操作建议
+    buy = s.get("buy_signals", [])
+    sell = s.get("sell_signals", [])
+    if score_val >= 75:
+        action = "关注买入"
+    elif score_val >= 55:
+        action = "观望"
+    else:
+        action = "谨慎回避"
+    advice_parts = [action]
+    if buy:
+        advice_parts.append(f"买入信号: {buy[0]}")
+    if sell:
+        advice_parts.append(f"卖出信号: {sell[0]}")
+    lines.append(" → ".join(advice_parts))
+
+    return "\n".join(lines)
+
+
 def main():
     from common.cache import cleanup_tmp_files
 
@@ -111,6 +161,11 @@ def main():
         "--with-backtest",
         action="store_true",
         help="附加近 60 日回测胜率（需运行 backtest.py）",
+    )
+    parser.add_argument(
+        "--brief",
+        action="store_true",
+        help="简要模式：一句话结论 + 关键数据 + 操作建议",
     )
     args = parser.parse_args()
 
@@ -158,6 +213,8 @@ def main():
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    elif args.brief:
+        print(render_brief(result))
     else:
         print(render_text(result))
 

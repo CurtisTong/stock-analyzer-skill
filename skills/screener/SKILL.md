@@ -56,15 +56,40 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 
 输出必须包含 `strategy`、`candidates`、剔除原因和“观察/可跟踪/暂不参与”分层。
 
-### Step -1: 检查股票池（init 子命令）
+### Step -1: 自动初始化股票池
 
-运行前检查股票池是否已初始化。未初始化时自动触发：
+**每次运行 screener 前自动执行**，无需用户手动 init。检测股票池是否已初始化，未初始化时自动使用预置数据（离线可用，30 秒内完成）。
+
+**自动检测逻辑（Claude 执行）：**
 
 ```bash
-ls scripts/data/sector_stocks.json 2>/dev/null || python3 scripts/init_pool.py
+python3 -c "
+import json, os
+f = 'scripts/data/sector_stocks.json'
+if not os.path.exists(f):
+    exit(1)
+try:
+    data = json.load(open(f))
+    sectors = {k:v for k,v in data.items() if not k.startswith('_')}
+    total = sum(len(v) for v in sectors.values())
+    if len(sectors) < 10 or total < 100:
+        exit(1)
+    print(f'✅ 股票池已就绪：{len(sectors)} 个板块，{total} 只股票')
+except:
+    exit(1)
+"
 ```
 
-用户显式调用 `init` 子命令时：
+**Claude 执行规范：**
+
+1. 运行上述检测脚本
+2. 若退出码为 0，直接进入 Step 0（跳过初始化）
+3. 若退出码非 0，先输出提示：`⏳ 正在加载 A 股数据（离线预置，约 10 秒）...`
+4. 然后运行 `python3 scripts/init_pool.py --default`
+5. 初始化完成后继续正常流程（Step 0）
+6. 若初始化失败，提示用户手动运行 `/screener init` 并终止
+
+**用户显式调用 `init` 子命令时：**
 
 ```bash
 python3 scripts/init_pool.py                # 检测并初始化（已有数据则跳过）

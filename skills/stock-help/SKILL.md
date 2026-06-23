@@ -19,41 +19,51 @@ disable-model-invocation: true
 
 ## 🎯 按目标选入口
 
-| 你的目标 | 命令 | 会得到什么 |
-| --- | --- | --- |
-| 🔍 找几只值得买的股票 | `/screener` | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单 |
-| 📊 看今天大盘涨跌 | `/market quick` | 三大指数 + 板块 Top3 + 一句话策略 |
-| 💼 看看我的持仓 | `/portfolio` | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
+| 你的目标                        | 命令                   | 会得到什么                                        |
+| ------------------------------- | ---------------------- | ------------------------------------------------- |
+| 🔍 找几只值得买的股票           | `/screener`            | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单           |
+| 📊 看今天大盘涨跌               | `/market quick`        | 三大指数 + 板块 Top3 + 一句话策略                 |
+| 💼 看看我的持仓                 | `/portfolio`           | 涨跌 + 板块集中度 + 风险预警 + 调仓建议           |
 | 🎤 听 15 份专家人设辩论一只股票 | `/stock <代码> debate` | 9 active（6 长线 + 3 短线）投票 + 最终方向 + 仓位 |
-| 🌐 某个板块怎么样 | `/sector <板块>` | 板块全景 + 核心标的对比 + 板块内筛选 |
-| 🔬 深度研究一只股票 | `/research <任务>` | 财务建模 + 排雷 + DCF + 投资建议 |
-| 📡 盘中盯盘（异动/预警/推送） | `/monitor` | 持仓异动 + 价格预警 + Bark/企微/钉钉 |
-| 🧪 验证选股策略的历史表现 | `/backtest` | 胜率 + 收益 + 夏普 + 回撤 + 基准对比 |
-| 📚 学投资基础（PE/ROE/MACD） | `/learn` | 系统化学习路径，从概念到策略 |
+| 🌐 某个板块怎么样               | `/sector <板块>`       | 板块全景 + 核心标的对比 + 板块内筛选              |
+| 🔬 深度研究一只股票             | `/research <任务>`     | 财务建模 + 排雷 + DCF + 投资建议                  |
+| 📡 盘中盯盘（异动/预警/推送）   | `/monitor`             | 持仓异动 + 价格预警 + Bark/企微/钉钉              |
+| 🧪 验证选股策略的历史表现       | `/backtest`            | 胜率 + 收益 + 夏普 + 回撤 + 基准对比              |
+| 📚 学投资基础（PE/ROE/MACD）    | `/learn`               | 系统化学习路径，从概念到策略                      |
 
 ## 🚀 第一次使用
 
 3 步走：
 
-1. `/screener init` — 初始化股票池（首次需要，30 秒，零配置）
-2. `/stock sh600519 quick` — 分析一只股票（3 分钟跑通）
-3. `/market quick` — 看今天市场
+1. `/stock sh600519 quick` — 分析一只股票（3 分钟跑通，自动初始化股票池）
+2. `/market quick` — 看今天市场
+3. `/screener` — 找几只值得买的股票
 
-> 跳步不会出错——系统会在需要时提示你。完整 3 步说明见 `_shared/references/welcome.md`。
+> 跳步不会出错——系统会在需要时自动初始化股票池，无需手动操作。
+
+### 🆕 新手推荐路径
+
+如果你是第一次使用，建议按以下顺序：
+
+1. **先看一只股票**：`/stock 贵州茅台 quick` → 了解五层分析框架
+2. **听专家辩论**：`/stock 贵州茅台 debate` → 了解 8 人圆桌投票
+3. **看今天市场**：`/market quick` → 了解大盘状态
+4. **选几只股票**：`/screener` → 了解多因子选股
+5. **学投资知识**：`/learn` → 系统化学习路径
 
 ## 9 个 Skill 一句话速查
 
-| Skill | 命令 | 用途 |
-| --- | --- | --- |
-| `/stock` | `<代码或名称> [quick\|full\|debate\|technical]` | 单股 5 层分析 / 15 份专家圆桌 |
-| `/market` | `[full\|quick\|intraday]` | 大盘复盘（指数/板块/风格/资金） |
-| `/sector` | `<板块> [overview\|compare\|stock]` | 板块全景 / 标的对比 / 板块内筛选 |
-| `/portfolio` | `[health\|rebalance\|compare\|web]` | 持仓健康 / 调仓 / 模拟盘 / Web 录入 |
-| `/screener` | `[--sector 板块] [--strategy 策略]` | 5 策略 × 5 因子批量选股 + 股票池 init |
-| `/research` | `[financial\|report] <任务>` | 财务建模 / 全维度研究报告 |
-| `/backtest` | `[--strategy 策略] [--all]` | 策略历史胜率 + 收益 + 夏普 + 回撤 |
-| `/monitor` | `[scan\|levels\|check\|--cache]` | 盘中异动 + 价格预警 + 推送 |
-| `/learn` | `[basics\|valuation\|technical\|strategy\|risk]` | 系统化投资学习路径 |
+| Skill        | 命令                                             | 用途                                  |
+| ------------ | ------------------------------------------------ | ------------------------------------- |
+| `/stock`     | `<代码或名称> [quick\|full\|debate\|technical]`  | 单股 5 层分析 / 15 份专家圆桌         |
+| `/market`    | `[full\|quick\|intraday]`                        | 大盘复盘（指数/板块/风格/资金）       |
+| `/sector`    | `<板块> [overview\|compare\|stock]`              | 板块全景 / 标的对比 / 板块内筛选      |
+| `/portfolio` | `[health\|rebalance\|compare\|web]`              | 持仓健康 / 调仓 / 模拟盘 / Web 录入   |
+| `/screener`  | `[--sector 板块] [--strategy 策略]`              | 5 策略 × 5 因子批量选股 + 股票池 init |
+| `/research`  | `[financial\|report] <任务>`                     | 财务建模 / 全维度研究报告             |
+| `/backtest`  | `[--strategy 策略] [--all]`                      | 策略历史胜率 + 收益 + 夏普 + 回撤     |
+| `/monitor`   | `[scan\|levels\|check\|--cache]`                 | 盘中异动 + 价格预警 + 推送            |
+| `/learn`     | `[basics\|valuation\|technical\|strategy\|risk]` | 系统化投资学习路径                    |
 
 > 📌 股票代码格式：`sh600519`（沪）/ `sz000858`（深）/ `600519`（自动推断）/ `贵州茅台`（名称模糊匹配）
 
@@ -104,17 +114,17 @@ disable-model-invocation: true
 
 ## 📚 高级子模式速查（附录）
 
-| Skill | 子模式 | 用途 |
-| --- | --- | --- |
-| `/stock` | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=8 人圆桌；technical=纯技术分析 |
-| `/market` | `full`（默认）/ `quick` / `intraday` | intraday=盘中分时（5 分钟 K 线） |
-| `/sector` | `overview`（默认）/ `compare` / `stock` | compare=标的横向对比；stock=板块内个股深挖 |
-| `/portfolio` | `health`（默认）/ `rebalance` / `compare` / `web` | rebalance=按 workflow 联动；web=本地录入服务 |
-| `/screener` | `--strategy` 5 选 1 / `init` 子命令 | balanced / quality_value / growth_momentum / defensive / turning_point |
-| `/monitor` | `start` / `stop` / `status` / `scan` / `levels` / `check` | scan/levels/check=关键点位；check 支持 `--dry-run` |
-| `/backtest` | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark` | --all=5 策略横评；--benchmark=对比基准指数 |
-| `/research` | `financial <任务>` / `report <任务>` | financial=财务建模；report=全维度研究报告 |
-| `/learn` | `basics` / `valuation` / `technical` / `strategy` / `risk` | 5 个 Level 主题 |
+| Skill        | 子模式                                                                    | 用途                                                                   |
+| ------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `/stock`     | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=8 人圆桌；technical=纯技术分析         |
+| `/market`    | `full`（默认）/ `quick` / `intraday`                                      | intraday=盘中分时（5 分钟 K 线）                                       |
+| `/sector`    | `overview`（默认）/ `compare` / `stock`                                   | compare=标的横向对比；stock=板块内个股深挖                             |
+| `/portfolio` | `health`（默认）/ `rebalance` / `compare` / `web`                         | rebalance=按 workflow 联动；web=本地录入服务                           |
+| `/screener`  | `--strategy` 5 选 1 / `init` 子命令                                       | balanced / quality_value / growth_momentum / defensive / turning_point |
+| `/monitor`   | `start` / `stop` / `status` / `scan` / `levels` / `check`                 | scan/levels/check=关键点位；check 支持 `--dry-run`                     |
+| `/backtest`  | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark`           | --all=5 策略横评；--benchmark=对比基准指数                             |
+| `/research`  | `financial <任务>` / `report <任务>`                                      | financial=财务建模；report=全维度研究报告                              |
+| `/learn`     | `basics` / `valuation` / `technical` / `strategy` / `risk`                | 5 个 Level 主题                                                        |
 
 ## 🆘 获取更多帮助
 

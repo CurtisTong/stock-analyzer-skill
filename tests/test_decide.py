@@ -43,40 +43,44 @@ def _make_expert(name: str, score: float, group: str = None, reason: str = ""):
 
 
 def _bullish_long_experts():
-    """4 位看多长线专家。"""
+    """6 位看多长线专家。"""
     return [
         _make_expert("buffett", 75, "long_term"),
         _make_expert("lynch", 72, "long_term"),
         _make_expert("soros", 70, "long_term"),
-        _make_expert("duan_yongping", 68, "long_term"),
+        _make_expert("value_anchor", 68, "long_term"),
+        _make_expert("sector_specialist", 65, "long_term"),
+        _make_expert("institution", 62, "long_term"),
     ]
 
 
 def _bullish_short_experts():
-    """4 位看多短线专家。"""
+    """3 位看多短线专家。"""
     return [
-        _make_expert("xu_xiang", 70, "short_term"),
-        _make_expert("zhao_laoge", 72, "short_term"),
-        _make_expert("chaogu_yangjia", 65, "short_term"),
-        _make_expert("zuoshou_xinyi", 68, "short_term"),
+        _make_expert("topic_leader", 70, "short_term"),
+        _make_expert("emotion_tech", 65, "short_term"),
+        _make_expert("momentum_trader", 68, "short_term"),
     ]
 
 
 def _bearish_long_experts():
+    """6 位看空长线专家。"""
     return [
         _make_expert("buffett", 25, "long_term"),
         _make_expert("lynch", 30, "long_term"),
         _make_expert("soros", 28, "long_term"),
-        _make_expert("duan_yongping", 35, "long_term"),
+        _make_expert("value_anchor", 35, "long_term"),
+        _make_expert("sector_specialist", 32, "long_term"),
+        _make_expert("institution", 20, "long_term"),
     ]
 
 
 def _bearish_short_experts():
+    """3 位看空短线专家。"""
     return [
-        _make_expert("xu_xiang", 30, "short_term"),
-        _make_expert("zhao_laoge", 25, "short_term"),
-        _make_expert("chaogu_yangjia", 32, "short_term"),
-        _make_expert("zuoshou_xinyi", 28, "short_term"),
+        _make_expert("topic_leader", 30, "short_term"),
+        _make_expert("emotion_tech", 25, "short_term"),
+        _make_expert("momentum_trader", 28, "short_term"),
     ]
 
 
@@ -176,13 +180,13 @@ class TestDetectMarketState:
 
 class TestAggregateVotes:
     def test_double_bull_8_bullish(self):
-        """8 人全看多：强烈看多，position_factor=1.0。"""
+        """9 人全看多（6长+3短）：强烈看多，position_factor=1.0。"""
         results = _bullish_long_experts() + _bullish_short_experts()
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert agg["direction"] == "强烈看多"
         assert agg["position_factor"] == 1.0
-        assert agg["long_votes"]["bull"] == 4
-        assert agg["short_votes"]["bull"] == 4
+        assert agg["long_votes"]["bull"] == 6
+        assert agg["short_votes"]["bull"] == 3
 
     def test_double_bear_8_bearish(self):
         """8 人全看空：强烈看空，position_factor=0.0。"""
@@ -192,14 +196,13 @@ class TestAggregateVotes:
         assert agg["position_factor"] == 0.0
 
     def test_long_dominate_bull(self):
-        """长线 4 看多 + 短线 2/2 中性：看多，position_factor=0.8。"""
-        long_exp = _bullish_long_experts()
-        # 短线组 2 看多 + 2 看空
+        """长线 ≥4/6 看多 + 短线分歧：看多，position_factor=0.8。"""
+        long_exp = _bullish_long_experts()  # 6 long, all bullish (62-75)
+        # 短线组 1 看多 + 1 看空 + 1 中性 = 分歧
         short_exp = [
-            _make_expert("xu_xiang", 70, "short_term"),
-            _make_expert("zhao_laoge", 72, "short_term"),
-            _make_expert("chaogu_yangjia", 30, "short_term"),
-            _make_expert("zuoshou_xinyi", 28, "short_term"),
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("emotion_tech", 50, "short_term"),
+            _make_expert("momentum_trader", 30, "short_term"),
         ]
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
@@ -207,18 +210,21 @@ class TestAggregateVotes:
         assert agg["position_factor"] == 0.8
 
     def test_full_dissent_neutral(self):
-        """长线 2/2 + 短线 2/2：中性，position_factor=0.0。"""
+        """长线分歧(3:3) + 短线分歧(1:1:1)：中性，position_factor=0.0。"""
+        # 长线组 3 看多 + 3 看空 = 分歧
         long_exp = [
             _make_expert("buffett", 70, "long_term"),
             _make_expert("lynch", 72, "long_term"),
-            _make_expert("soros", 30, "long_term"),
-            _make_expert("duan_yongping", 28, "long_term"),
+            _make_expert("soros", 65, "long_term"),
+            _make_expert("value_anchor", 30, "long_term"),
+            _make_expert("sector_specialist", 28, "long_term"),
+            _make_expert("institution", 35, "long_term"),
         ]
+        # 短线组 1 看多 + 1 看空 + 1 中性 = 分歧
         short_exp = [
-            _make_expert("xu_xiang", 70, "short_term"),
-            _make_expert("zhao_laoge", 72, "short_term"),
-            _make_expert("chaogu_yangjia", 30, "short_term"),
-            _make_expert("zuoshou_xinyi", 28, "short_term"),
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("emotion_tech", 30, "short_term"),
+            _make_expert("momentum_trader", 50, "short_term"),
         ]
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
@@ -227,26 +233,22 @@ class TestAggregateVotes:
         assert any("分歧" in n for n in agg["notes"])
 
     def test_extreme_polarization_neutral(self):
-        """v1.7.1 修复：4 看多 + 4 看空（两极分化，无中性票）应判为中性而非按综合分兜底。
-
-        场景：长线 4 全看多 + 短线 4 全看空（或反向），不应让综合分决定方向。
-        """
-        # 长线全看多 + 短线全看空
+        """长线 6 全看多 + 短线 3 全看空（两极分化）应判为中性。"""
         long_exp = [
             _make_expert("buffett", 75, "long_term"),
             _make_expert("lynch", 72, "long_term"),
             _make_expert("soros", 70, "long_term"),
-            _make_expert("duan_yongping", 68, "long_term"),
+            _make_expert("value_anchor", 68, "long_term"),
+            _make_expert("sector_specialist", 65, "long_term"),
+            _make_expert("institution", 62, "long_term"),
         ]
         short_exp = [
-            _make_expert("xu_xiang", 25, "short_term"),
-            _make_expert("zhao_laoge", 28, "short_term"),
-            _make_expert("chaogu_yangjia", 30, "short_term"),
-            _make_expert("zuoshou_xinyi", 22, "short_term"),
+            _make_expert("topic_leader", 25, "short_term"),
+            _make_expert("emotion_tech", 28, "short_term"),
+            _make_expert("momentum_trader", 30, "short_term"),
         ]
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
-        # 两极分化应判中性，不被综合分（≈51）误判为"看多"
         assert agg["direction"] == "中性", f"期望中性，实际 {agg['direction']}"
         assert agg["position_factor"] == 0.0
         assert any("两极" in n or "分化" in n for n in agg["notes"])
@@ -257,12 +259,13 @@ class TestAggregateVotes:
             _make_expert("buffett", 30, "long_term"),  # 看空
             _make_expert("lynch", 72, "long_term"),
             _make_expert("soros", 70, "long_term"),
-            _make_expert("duan_yongping", 68, "long_term"),
+            _make_expert("value_anchor", 68, "long_term"),
+            _make_expert("sector_specialist", 65, "long_term"),
+            _make_expert("institution", 62, "long_term"),
         ]
         short_exp = _bullish_short_experts()
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="long")
-        # 应有巴菲特否决权提示
         assert any("巴菲特" in n for n in agg["notes"])
 
     def test_yangjia_ice_no_downgrade(self):
@@ -270,13 +273,12 @@ class TestAggregateVotes:
         long_exp = _bullish_long_experts()
         short_exp = _bullish_short_experts()
         # 设置养家为冰点期
-        yangjia = next(e for e in short_exp if e["name"] == "chaogu_yangjia")
+        yangjia = next(e for e in short_exp if e["name"] == "emotion_tech")
         yangjia["score"] = 20
-        yangjia["breakdown"] = {"情绪": 90.0}  # 需要 breakdown 才会进入冰点判定
-        yangjia["dim_scores"] = {"情绪": 90, "情绪周期": 90}  # 情绪周期维度高
+        yangjia["breakdown"] = {"情绪": 90.0}
+        yangjia["dim_scores"] = {"情绪": 90, "情绪周期": 90}
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
-        # 应有冰点期提示（不降权）
         assert any("冰点" in n for n in agg["notes"])
 
     def test_horizon_long_increases_long_weight(self):
@@ -352,12 +354,13 @@ class TestAggregateVotes:
             _make_expert("buffett", 25, "long_term"),
             _make_expert("lynch", 72, "long_term"),
             _make_expert("soros", 70, "long_term"),
-            _make_expert("duan_yongping", 68, "long_term"),
+            _make_expert("value_anchor", 68, "long_term"),
+            _make_expert("sector_specialist", 65, "long_term"),
+            _make_expert("institution", 62, "long_term"),
         ]
         short_exp = _bullish_short_experts()
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
-        # 至少 1 条风险提示（巴菲特 25 分）
         assert len(agg["risk_notes"]) >= 1
 
 

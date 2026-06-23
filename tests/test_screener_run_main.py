@@ -35,6 +35,7 @@ def _make_args(**overrides):
         snapshot=False,
         two_stage=False,
         json=False,
+        brief=False,
     )
     defaults.update(overrides)
     return argparse.Namespace(**defaults)

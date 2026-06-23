@@ -12,11 +12,11 @@
         A N A L Y Z E R   ·   S K I L L
 ```
 
-## 🎯 把专业 A 股分析变成 13 条对话命令
+## 🎯 给会写代码的投资者准备的 A 股分析套件
 
-> **不写代码也能用**——装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析。
+> 装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析 + 8 人专家圆桌辩论。
 
-**五层分析框架** · **15 份专家人设（9 active + 6 legacy）** · **28 个数据源故障转移** · **零配置开箱即用**
+**五层分析框架** · **15 份专家人设（9 active）** · **28 个数据源故障转移** · **零依赖开箱即用**
 
 [![Version](https://img.shields.io/badge/version-1.13.1-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
@@ -402,12 +402,12 @@ PEG &lt; 1
 
 不知道从哪开始？挑一个最贴近你的问题：
 
-| 你的问题 | 一句话命令 | 你会得到什么 |
-| --- | --- | --- |
+| 你的问题            | 一句话命令        | 你会得到什么                                         |
+| ------------------- | ----------------- | ---------------------------------------------------- |
 | 🔍 帮我分析一只股票 | `/stock sh600519` | 5 层分析（基本面 / 估值 / 技术 / 板块 / 风险收益比） |
-| 📊 今天大盘怎么样 | `/market quick` | 三大指数 + 板块 Top3 + 一句话策略 |
-| 💼 我的持仓怎么样 | `/portfolio` | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
-| 🤔 不知道买什么 | `/screener` | 5 种策略 × 5 因子筛选 → 10 只候选 + 跟踪清单 |
+| 📊 今天大盘怎么样   | `/market quick`   | 三大指数 + 板块 Top3 + 一句话策略                    |
+| 💼 我的持仓怎么样   | `/portfolio`      | 涨跌 + 板块集中度 + 风险预警 + 调仓建议              |
+| 🤔 不知道买什么     | `/screener`       | 5 种策略 × 5 因子筛选 → 10 只候选 + 跟踪清单         |
 
 > 💡 不写代码、零配置可用。30 秒完成 `/screener init` 初始化股票池，3 分钟跑通 `/stock sh600519 quick`。
 
@@ -481,21 +481,21 @@ flowchart LR
 
 > 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合 / monitor 监控 / backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
 
-| 类别        | Skill                                       | 命令                                       | 一句话价值                                       |
-| :---------- | :------------------------------------------ | :----------------------------------------- | :----------------------------------------------- |
-| 🎯 **决策** | [stock](skills/stock/SKILL.md)              | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 15 份专家圆桌辩论 · 纯技术面      |
-| 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md) | `/stock-technical <代码>`             | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法）     |
-| 🌐 **环境** | [market](skills/market/SKILL.md)            | `/market [full\|quick\|intraday]`          | 大盘快评 / 完整复盘 / 盘中分时                   |
-| 🌐 **环境** | [sector](skills/sector/SKILL.md)            | `/sector <板块> [overview\|compare\|stock]` | 板块全景 / 标的对比 / 板块内筛选                 |
-| 🔎 **选股** | [screener](skills/screener/SKILL.md)        | `/screener [--strategy 策略] [init]`       | 5 种策略 × 6 因子维度批量选股 + 股票池初始化     |
-| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)      | `/portfolio [health\|rebalance\|compare]`  | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比        |
-| 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md) | `/portfolio web [--port 8765]`          | Web 录入服务（HTTP API :8765）                   |
-| 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                    | NL → 命令映射（我买了/减仓/破位止损）            |
-| 📡 **监控** | [monitor](skills/monitor/SKILL.md)          | `/monitor [scan\|levels\|check]`           | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送     |
-| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)        | `/backtest [--strategy 策略] [--all]`      | 策略历史回测，含卡玛比率/盈亏比/夏普             |
-| 🔬 **研究** | [research](skills/research/SKILL.md)        | `/research [financial\|report] <任务>`     | 深度研究：财务建模 / 排雷 / DCF / 估值           |
-| 📚 **学习** | [learn](skills/learn/SKILL.md)              | `/learn <概念>`                            | 学习助手：PE/ROE/MACD/K 线/缠论/新手入门        |
-| ❓ **辅助** | [stock-help](skills/stock-help/SKILL.md)    | `/stock-help`                              | 显示所有 skills 和使用说明                       |
+| 类别        | Skill                                                  | 命令                                             | 一句话价值                                   |
+| :---------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------- |
+| 🎯 **决策** | [stock](skills/stock/SKILL.md)                         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 15 份专家圆桌辩论 · 纯技术面  |
+| 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md)     | `/stock-technical <代码>`                        | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） |
+| 🌐 **环境** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
+| 🌐 **环境** | [sector](skills/sector/SKILL.md)                       | `/sector <板块> [overview\|compare\|stock]`      | 板块全景 / 标的对比 / 板块内筛选             |
+| 🔎 **选股** | [screener](skills/screener/SKILL.md)                   | `/screener [--strategy 策略] [init]`             | 5 种策略 × 6 因子维度批量选股 + 股票池初始化 |
+| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance\|compare]`        | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比    |
+| 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md)         | `/portfolio web [--port 8765]`                   | Web 录入服务（HTTP API :8765）               |
+| 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                                 | NL → 命令映射（我买了/减仓/破位止损）        |
+| 📡 **监控** | [monitor](skills/monitor/SKILL.md)                     | `/monitor [scan\|levels\|check]`                 | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送 |
+| 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                   | `/backtest [--strategy 策略] [--all]`            | 策略历史回测，含卡玛比率/盈亏比/夏普         |
+| 🔬 **研究** | [research](skills/research/SKILL.md)                   | `/research [financial\|report] <任务>`           | 深度研究：财务建模 / 排雷 / DCF / 估值       |
+| 📚 **学习** | [learn](skills/learn/SKILL.md)                         | `/learn <概念>`                                  | 学习助手：PE/ROE/MACD/K 线/缠论/新手入门     |
+| ❓ **辅助** | [stock-help](skills/stock-help/SKILL.md)               | `/stock-help`                                    | 显示所有 skills 和使用说明                   |
 
 > 📌 **已合并命令**：`/help` → `/stock-help`、`/technical` → `/stock technical`、`/stock-init` → `/screener init`、`/financial-analyst` → `/research financial`、`/investment-researcher` → `/research report`（旧命令仍可用，自动跳转）
 

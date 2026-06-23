@@ -32,6 +32,10 @@ from data.helpers import (
     fetch_batch_dicts,
     fetch_kline_dicts,
     fetch_finance_dicts,
+    fetch_finance_first,
+    prefetch_finance_all as _prefetch_finance_all_helper,
+    prefetch_kline_all as _prefetch_kline_all_helper,
+    volume_price_features as _volume_price_features,
 )
 from classifier import infer_industry
 from strategies import (
@@ -266,25 +270,13 @@ def _try_fetch_from_mapping(sector: str) -> list[str]:
 
 
 def latest_finance(code):
-    records = _fetch_finance_dicts(code)
-    return records[0] if records else {}
+    """获取最新财务数据（委托给 data.helpers）。"""
+    return fetch_finance_first(normalize_finance_code(code))
 
 
 def volume_price_features(closes, volumes):
-    """量价关系分析。返回 (vol_price_signal, description)。
-    signal: 1=配合良好, 0=中性, -1=背离警报。
-
-    v1.3.2：已并入 technical.volume.volume_analysis，本函数保留为薄包装以兼容旧调用。
-    """
-    if len(closes) < 6 or len(volumes) < 6:
-        return {"signal": 0, "desc": "数据不足"}
-    result = volume_analysis(closes, volumes)
-    if result is None:
-        return {"signal": 0, "desc": "数据不足"}
-    return {
-        "signal": result.get("volume_price_signal", 0),
-        "desc": result.get("volume_price", "量价中性"),
-    }
+    """量价关系分析（委托给 data.helpers）。"""
+    return _volume_price_features(closes, volumes)
 
 
 def _apply_factor_normalization(rows, strategy, regime=None):
@@ -330,40 +322,13 @@ def hard_filter(quote, fin, args):
 
 
 def prefetch_finance_all(codes):
-    """并发拉取所有股票的财务数据。"""
-    results = {}
-
-    def _fetch_one(code):
-        # data 层已有零值缓存校验，自动跳过无效缓存
-        from data import get_finance
-
-        records = get_finance(normalize_finance_code(code))
-        return code, [r.to_dict() for r in records]
-
-    ex = get_shared_executor()
-    futures = {ex.submit(_fetch_one, c): c for c in codes}
-    for future in as_completed(futures):
-        try:
-            code, data = future.result()
-            results[code] = data
-        except Exception:
-            results[futures[future]] = []
-    return results
+    """并发拉取所有股票的财务数据（委托给 data.helpers）。"""
+    return _prefetch_finance_all_helper(codes)
 
 
 def _prefetch_kline_all(codes, scale: int = 240, datalen: int = 240):
-    """review#12：批量预拉 K 线。返回 {code: KlineBar列表}。
-
-    使用 parallel_fetch_dict 并发拉取（cache hit 时仍并发处理，避免串行磁盘 IO）。
-    K 线 TTL 6 小时，同一回测/筛选周期内同 code 仅首次真实请求。
-    """
-    from data import get_kline
-    from common import parallel_fetch_dict
-
-    def _fetch_one(code):
-        return get_kline(normalize_quote_code(code), scale=scale, datalen=datalen)
-
-    return parallel_fetch_dict(codes, _fetch_one, label="screener:kline")
+    """批量预拉 K 线（委托给 data.helpers）。"""
+    return _prefetch_kline_all_helper(codes, scale=scale, datalen=datalen)
 
 
 def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
@@ -551,6 +516,52 @@ def render(rows, strategy, top, title=None, show_chip=True):
             print(f"- {r['code']} {r['name']}: {', '.join(r['rejected'])}")
 
 
+def render_brief(rows, strategy, top, title=None):
+    """brief 模式：一句话结论 + 精简表格 + 操作建议（<500字）。"""
+    accepted = [r for r in rows if not r["rejected"]]
+    rejected = [r for r in rows if r["rejected"]]
+    accepted.sort(key=lambda r: r["score"], reverse=True)
+
+    label = title or STRATEGIES[strategy]["label"]
+    top_rows = accepted[:top]
+
+    # 一句话结论
+    if not top_rows:
+        print(f"策略 {label}: 无符合条件标的（剔除 {len(rejected)} 只）")
+        return
+    best = top_rows[0]
+    print(
+        f"策略 {label} | 入选 {len(accepted)} 剔除 {len(rejected)} | "
+        f"首选 {best['code']} {best['name']} (评分 {best['score']})"
+    )
+
+    # 精简表格（仅核心列）
+    header = "排名 | 代码 | 名称 | 总分 | 质量 | 估值 | 动量 | 趋势"
+    print(header)
+    print("-" * len(header))
+    for idx, r in enumerate(top_rows, 1):
+        macd_icon = (
+            "↑"
+            if r.get("macd_signal", 0) > 0
+            else "↓" if r.get("macd_signal", 0) < 0 else "→"
+        )
+        print(
+            f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | "
+            f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
+            f"{r['momentum']:>5} | {r['trend']}{macd_icon}"
+        )
+
+    # 操作建议
+    strong = [r for r in top_rows if r["score"] >= 70]
+    watch = [r for r in top_rows if 55 <= r["score"] < 70]
+    if strong:
+        names = ", ".join(f"{r['name']}" for r in strong[:3])
+        print(f"→ 建议关注: {names}")
+    if watch:
+        names = ", ".join(f"{r['name']}" for r in watch[:3])
+        print(f"→ 可观望: {names}")
+
+
 def _build_parser():
     """构造 screener CLI 参数解析器（V2.1 提取便于单测复用）。"""
     parser = argparse.ArgumentParser(description="A 股多因子选股器", add_help=False)
@@ -620,6 +631,11 @@ def _build_parser():
         help="两阶段管线：Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排",
     )
     parser.add_argument("-j", "--json", action="store_true")
+    parser.add_argument(
+        "--brief",
+        action="store_true",
+        help="简要模式：一句话结论 + 精简表格 + 操作建议",
+    )
     return parser
 
 
@@ -772,8 +788,11 @@ def _run_main(args):
         title = None
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"
-        show_chip = not getattr(args, "no_chip", False)
-        render(rows, args.strategy, args.top, title=title, show_chip=show_chip)
+        if args.brief:
+            render_brief(rows, args.strategy, args.top, title=title)
+        else:
+            show_chip = not getattr(args, "no_chip", False)
+            render(rows, args.strategy, args.top, title=title, show_chip=show_chip)
 
 
 def main():
