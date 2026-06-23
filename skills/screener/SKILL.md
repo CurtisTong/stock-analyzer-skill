@@ -23,6 +23,7 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 ## 高级选项（Sprint 2-5）
 
 ```text
+--brief          精简模式：一句话结论 + 核心表格 + 操作建议（<500字）
 --no-regime      禁用市场状态 overlay（保留 V1 固定权重）
 --no-normalize   禁用因子 z-score 标准化（保留 V1 原始分数）
 --snapshot       保存本次筛选快照到 data/snapshots/<strategy>/<date>/<hash>.json

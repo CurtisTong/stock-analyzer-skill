@@ -551,9 +551,14 @@ def render_brief(rows, strategy, top, title=None):
             f"{r['momentum']:>5} | {r['trend']}{macd_icon}"
         )
 
-    # 操作建议
-    strong = [r for r in top_rows if r["score"] >= 70]
-    watch = [r for r in top_rows if 55 <= r["score"] < 70]
+    # 操作建议（基于分数分布的相对分层）
+    scores = [r["score"] for r in top_rows]
+    scores_sorted = sorted(scores)
+    n = len(scores_sorted)
+    p75 = scores_sorted[int(n * 0.75)] if n >= 4 else scores_sorted[-1]
+    p50 = scores_sorted[int(n * 0.5)] if n >= 2 else scores_sorted[0]
+    strong = [r for r in top_rows if r["score"] >= max(p75, 50)]
+    watch = [r for r in top_rows if max(p50, 50) <= r["score"] < max(p75, 50)]
     if strong:
         names = ", ".join(f"{r['name']}" for r in strong[:3])
         print(f"→ 建议关注: {names}")

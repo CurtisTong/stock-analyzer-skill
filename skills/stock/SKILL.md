@@ -22,6 +22,7 @@ allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.m
 - `debate 长线`：仅长线4人（巴菲特/林奇/索罗斯/段永平），适合价值投资者
 - `debate 短线`：仅短线4人（徐翔/赵老哥/炒股养家/作手新一），适合交易型选手
 - `technical`：纯技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/本土战法），不做基本面
+- `--brief`：精简模式，一句话结论 + 关键数据 + 操作建议（<500字），可与上述模式组合
 
 > `/stock` 不带参数时走 `quick`；需要专家圆桌必须显式写 `debate`。
 

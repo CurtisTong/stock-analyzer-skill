@@ -128,6 +128,11 @@ def list_phase_factors(phase: int) -> List[str]:
     return [name for name, desc in _FACTORS.items() if desc.phase.value == phase]
 
 
+def clear_factors() -> None:
+    """清空注册表（仅用于测试隔离）。"""
+    _FACTORS.clear()
+
+
 def get_factor_keys() -> List[str]:
     """获取所有因子名（用于 normalize_factors_batch 等场景）。"""
     return list(_FACTORS.keys())
@@ -173,8 +178,9 @@ def compute_all_factors(fin, quote, features, industry, code) -> dict:
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:
             result[name] = desc.compute_fn(**kwargs)
-        except Exception:
-            result[name] = 50  # 失败时给中性分
+        except Exception as e:
+            logger.warning("因子 %s 计算异常，使用默认分 50: %s", name, e)
+            result[name] = 50
     return result
 
 
@@ -191,6 +197,9 @@ def compute_phase_factors(phase, fin, quote, features, industry, code) -> dict:
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:
             result[name] = desc.compute_fn(**kwargs)
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "因子 %s 计算异常(phase=%d)，使用默认分 50: %s", name, phase, e
+            )
             result[name] = 50
     return result

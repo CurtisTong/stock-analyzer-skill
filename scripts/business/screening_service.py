@@ -394,9 +394,15 @@ class ScreeningService:
         min_cap = board_min_cap.get(bd, base_min_cap)
 
         if to_float(quote.get("amount")) / 10000 < min_amt:
-            reasons.append(f"成交额<{min_amt:.0f}万")
+            label = f"成交额<{min_amt:.0f}万"
+            if bd != "主板":
+                label += f"({bd}阈值)"
+            reasons.append(label)
         if to_float(quote.get("total_cap")) < min_cap:
-            reasons.append(f"市值<{min_cap:.0f}亿")
+            label = f"市值<{min_cap:.0f}亿"
+            if bd != "主板":
+                label += f"({bd}阈值)"
+            reasons.append(label)
 
         # 涨跌停过滤：T+1 下当日无法交易（涨 ≥ 涨停 或 跌 ≤ -涨停）
         change_pct = to_float(quote.get("change_pct", 0))

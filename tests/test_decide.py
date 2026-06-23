@@ -232,6 +232,54 @@ class TestAggregateVotes:
         assert agg["position_factor"] == 0.0
         assert any("分歧" in n for n in agg["notes"])
 
+    def test_short_mild_bull_neutral(self):
+        """短线组 (bull=1, bear=0, neutral=2) + 长线分歧 → 中性（回归基线）。"""
+        # 长线组 3 看多 + 3 看空 = 分歧
+        long_exp = [
+            _make_expert("buffett", 70, "long_term"),
+            _make_expert("lynch", 72, "long_term"),
+            _make_expert("soros", 65, "long_term"),
+            _make_expert("value_anchor", 30, "long_term"),
+            _make_expert("sector_specialist", 28, "long_term"),
+            _make_expert("institution", 35, "long_term"),
+        ]
+        # 短线组 1 看多 + 0 看空 + 2 中性(50分) = 无多数方向
+        short_exp = [
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("emotion_tech", 50, "short_term"),
+            _make_expert("momentum_trader", 50, "short_term"),
+        ]
+        results = long_exp + short_exp
+        agg = aggregate_votes(results, market_state=None, horizon="medium")
+        assert agg["short_votes"]["bull"] == 1
+        assert agg["short_votes"]["bear"] == 0
+        # 当前逻辑：bull<2 且 bear<2 → 分歧，配合长线分歧 → 中性
+        assert agg["direction"] == "中性"
+        assert agg["position_factor"] == 0.0
+
+    def test_short_mild_bear_neutral(self):
+        """短线组 (bull=0, bear=1, neutral=2) + 长线分歧 → 中性（对称性验证）。"""
+        long_exp = [
+            _make_expert("buffett", 70, "long_term"),
+            _make_expert("lynch", 72, "long_term"),
+            _make_expert("soros", 65, "long_term"),
+            _make_expert("value_anchor", 30, "long_term"),
+            _make_expert("sector_specialist", 28, "long_term"),
+            _make_expert("institution", 35, "long_term"),
+        ]
+        # 短线组 0 看多 + 1 看空 + 2 中性
+        short_exp = [
+            _make_expert("topic_leader", 30, "short_term"),
+            _make_expert("emotion_tech", 50, "short_term"),
+            _make_expert("momentum_trader", 50, "short_term"),
+        ]
+        results = long_exp + short_exp
+        agg = aggregate_votes(results, market_state=None, horizon="medium")
+        assert agg["short_votes"]["bull"] == 0
+        assert agg["short_votes"]["bear"] == 1
+        assert agg["direction"] == "中性"
+        assert agg["position_factor"] == 0.0
+
     def test_extreme_polarization_neutral(self):
         """长线 6 全看多 + 短线 3 全看空（两极分化）应判为中性。"""
         long_exp = [

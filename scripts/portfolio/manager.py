@@ -322,7 +322,7 @@ class PortfolioManager:
     def reduce_position(
         self, code: str, quantity: int, auto_save: bool = True
     ) -> Optional[dict]:
-        """减仓。返回减仓后的持仓信息，如果全部卖出则移除。"""
+        """减仓。返回减仓后的持仓信息，如果全部卖出则移除并记录交易日志。"""
         if quantity <= 0:
             raise ValueError("quantity must be positive")
         code = code.lower()
@@ -331,6 +331,13 @@ class PortfolioManager:
             if p["code"].lower() == code:
                 p["quantity"] -= quantity
                 if p["quantity"] <= 0:
+                    self._record_trade_log(
+                        code,
+                        p.get("name", ""),
+                        p.get("cost", 0),
+                        quantity,
+                        reason="reduce_to_zero",
+                    )
                     positions.pop(i)
                     return None
                 if auto_save:
@@ -339,16 +346,47 @@ class PortfolioManager:
         return None
 
     def remove_position(self, code: str, auto_save: bool = True) -> bool:
-        """清仓（移除持仓）。"""
+        """清仓（移除持仓）并记录交易日志。"""
         code = code.lower()
         positions = self._data.get("positions", [])
         for i, p in enumerate(positions):
             if p["code"].lower() == code:
+                self._record_trade_log(
+                    code,
+                    p.get("name", ""),
+                    p.get("cost", 0),
+                    p.get("quantity", 0),
+                    reason="manual",
+                )
                 positions.pop(i)
                 if auto_save:
                     self.save()
                 return True
         return False
+
+    def _record_trade_log(
+        self,
+        code: str,
+        name: str,
+        cost: float,
+        quantity: int,
+        reason: str = "manual",
+    ) -> None:
+        """记录交易日志（异常隔离，不影响持仓操作）。"""
+        try:
+            from portfolio.trade_log import TradeLog
+
+            tl = TradeLog()
+            tl.record(
+                code=code,
+                name=name,
+                cost=cost,
+                quantity=quantity,
+                sell_price=0,
+                reason=reason,
+            )
+        except Exception:
+            pass  # 交易日志失败不阻塞持仓操作
 
     def update_position(
         self, code: str, auto_save: bool = True, **kwargs
