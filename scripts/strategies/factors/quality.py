@@ -4,6 +4,7 @@
 
 2026 更新：新增 ESG/治理维度——分红记录、大股东减持、违规处罚、审计意见。
 """
+
 from common import to_float, clamp
 from strategies.thresholds import get_industry_threshold
 
@@ -34,9 +35,7 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     # 旧逻辑要求全序列严格单调（单期波动即打破），改为"下降期占比"
     roe_trend = fin.get("roe_trend", [])
     if len(roe_trend) >= 3:
-        diffs = [
-            roe_trend[i] - roe_trend[i - 1] for i in range(1, len(roe_trend))
-        ]
+        diffs = [roe_trend[i] - roe_trend[i - 1] for i in range(1, len(roe_trend))]
         decline_ratio = sum(1 for d in diffs if d < 0) / len(diffs)
         rise_ratio = sum(1 for d in diffs if d > 0) / len(diffs)
         if decline_ratio >= 0.6:  # 60% 以上期下降
@@ -45,9 +44,17 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
             score += 5  # 基本面改善
 
     profit_growth_base = get_industry_threshold(industry, "profit_growth_excellent", 40)
-    score += clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
-    revenue_growth_base = get_industry_threshold(industry, "revenue_growth_excellent", 30)
-    score += clamp(revenue_growth / revenue_growth_base * 16) if revenue_growth_base > 0 else 0
+    score += (
+        clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
+    )
+    revenue_growth_base = get_industry_threshold(
+        industry, "revenue_growth_excellent", 30
+    )
+    score += (
+        clamp(revenue_growth / revenue_growth_base * 16)
+        if revenue_growth_base > 0
+        else 0
+    )
     # 毛利率：相对于行业最低值评分
     if gross_margin_min > 0:
         score += clamp(gross_margin / (gross_margin_min * 2) * 16)
@@ -58,10 +65,67 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     if eps > 0 and cashflow > 0:
         score += clamp((cashflow / eps) * 6, 0, 6)
 
+    # 盈利质量子维度（2026 新增）：区分高质量/低质量盈利
+    score += _earnings_quality_score(fin, eps)
+
     # ESG/治理维度：合计 ±12 分（2026新增）
     score += _esg_score(fin)
 
     return clamp(score)
+
+
+def _earnings_quality_score(fin: dict, eps: float) -> float:
+    """盈利质量子维度（±8 分）。
+
+    维度：
+    - 经营现金流/净利润比（+0~+4）：>0.8 利润含金量高
+    - 应收账款/营收比（-2~+2）：<30% 收入质量好
+    - 非经常性损益/净利润（-2~0）：<20% 利润真实
+    """
+    if not fin or eps <= 0:
+        return 0
+
+    eq_score = 0.0
+
+    # 1. 经营现金流/净利润比（+0~+4）
+    ocf = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE", 0)))
+    if eps > 0 and ocf > 0:
+        ocf_eps_ratio = ocf / eps
+        if ocf_eps_ratio >= 1.2:
+            eq_score += 4.0
+        elif ocf_eps_ratio >= 0.8:
+            eq_score += 3.0
+        elif ocf_eps_ratio >= 0.5:
+            eq_score += 1.5
+        # <0.5 不加分
+
+    # 2. 应收账款/营收比（-2~+2）
+    revenue = to_float(fin.get("revenue", fin.get("TOTALOPERATEREVETZ", 0)))
+    receivable = to_float(fin.get("accounts_receivable", fin.get("ACCOUNTS_RECE", 0)))
+    if revenue > 0 and receivable > 0:
+        ar_ratio = receivable / revenue * 100
+        if ar_ratio < 15:
+            eq_score += 2.0
+        elif ar_ratio < 30:
+            eq_score += 1.0
+        elif ar_ratio > 60:
+            eq_score -= 2.0
+        elif ar_ratio > 45:
+            eq_score -= 1.0
+
+    # 3. 非经常性损益/净利润（-2~0）
+    net_profit = to_float(fin.get("net_profit", fin.get("PARENTNETPROFIT", 0)))
+    non_recurring = to_float(
+        fin.get("non_recurring_gain", fin.get("DEDUCT_PARENTNETPROFIT", 0))
+    )
+    if net_profit > 0 and non_recurring != 0:
+        nr_ratio = abs(non_recurring) / net_profit * 100
+        if nr_ratio > 50:
+            eq_score -= 2.0
+        elif nr_ratio > 20:
+            eq_score -= 1.0
+
+    return clamp(eq_score, -8, 8)
 
 
 def _esg_score(fin: dict) -> float:
@@ -89,18 +153,18 @@ def _esg_score(fin: dict) -> float:
 
     # 2. 大股东减持记录（-6~0）
     major_reduction = to_float(fin.get("major_shareholder_reduction", 0))
-    if major_reduction > 5:      # 大股东减持超过 5%
+    if major_reduction > 5:  # 大股东减持超过 5%
         esg_score -= 6.0
-    elif major_reduction > 2:    # 减持 2%-5%
+    elif major_reduction > 2:  # 减持 2%-5%
         esg_score -= 3.0
-    elif major_reduction > 0:    # 有小幅减持
+    elif major_reduction > 0:  # 有小幅减持
         esg_score -= 1.0
 
     # 3. 违规处罚记录（-6~0）
     violation_penalty = to_float(fin.get("violation_penalty", 0))
-    if violation_penalty >= 3:     # 3 次及以上违规
+    if violation_penalty >= 3:  # 3 次及以上违规
         esg_score -= 6.0
-    elif violation_penalty >= 1:   # 1-2 次违规
+    elif violation_penalty >= 1:  # 1-2 次违规
         esg_score -= 3.0
 
     # 4. 审计意见（-3~+2）

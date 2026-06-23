@@ -8,6 +8,7 @@
   python3 scripts/events.py sh600519 --days 60    # 查询近 60 日事件
   python3 scripts/events.py sh600519 -j           # JSON 输出
 """
+
 import argparse
 import json
 import sys
@@ -52,8 +53,12 @@ def fetch_events(code: str, days: int = 30) -> dict:
             data = fetcher.fetch(code, days=days)
             if data and data.get("items"):
                 result[data["type"]] = data["items"]
-        except Exception:
-            pass  # 静默跳过失败的 fetcher
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "事件 fetcher %s 失败 %s: %s", fetcher.__class__.__name__, code, e
+            )
 
     # 生成摘要
     summary_parts = []
@@ -84,7 +89,9 @@ def format_events_text(events: dict) -> str:
     if events["earnings"]:
         lines.append("📊 财报披露:")
         for item in events["earnings"]:
-            lines.append(f"  {item.get('disclosure_date', '?')} - {item.get('name', '?')} ({item.get('code', '?')})")
+            lines.append(
+                f"  {item.get('disclosure_date', '?')} - {item.get('name', '?')} ({item.get('code', '?')})"
+            )
         lines.append("")
 
     if events["lockup"]:
@@ -92,7 +99,9 @@ def format_events_text(events: dict) -> str:
         for item in events["lockup"]:
             cap = item.get("lift_market_cap", 0)
             cap_str = f"{cap:.1f}亿" if cap > 0 else "?"
-            lines.append(f"  {item.get('free_date', '?')} - {item.get('name', '?')} 解禁市值 {cap_str}")
+            lines.append(
+                f"  {item.get('free_date', '?')} - {item.get('name', '?')} 解禁市值 {cap_str}"
+            )
         lines.append("")
 
     if events["dividend"]:
@@ -100,7 +109,9 @@ def format_events_text(events: dict) -> str:
         for item in events["dividend"]:
             bonus = item.get("bonus_per_share", 0)
             bonus_str = f"每股 {bonus:.4f} 元" if bonus > 0 else "?"
-            lines.append(f"  {item.get('ex_date', '?')} - {item.get('name', '?')} {bonus_str}")
+            lines.append(
+                f"  {item.get('ex_date', '?')} - {item.get('name', '?')} {bonus_str}"
+            )
         lines.append("")
 
     if not (events["earnings"] or events["lockup"] or events["dividend"]):

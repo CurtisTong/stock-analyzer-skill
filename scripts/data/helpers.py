@@ -74,3 +74,64 @@ def fetch_stock_bundle(code: str, kline_scale: int = 240, kline_len: int = 120) 
     except Exception as e:
         logger.warning("获取财务数据失败 %s: %s", code, e)
     return result
+
+
+def prefetch_finance_all(codes: list) -> dict:
+    """并发拉取所有股票的财务数据。
+
+    Returns:
+        {code: [finance_dict, ...]} 映射
+    """
+    from concurrent.futures import as_completed
+    from common import normalize_finance_code
+
+    results = {}
+
+    def _fetch_one(code):
+        records = get_finance(normalize_finance_code(code))
+        return code, [r.to_dict() for r in records]
+
+    ex = get_shared_executor()
+    futures = {ex.submit(_fetch_one, c): c for c in codes}
+    for future in as_completed(futures):
+        try:
+            code, data = future.result()
+            results[code] = data
+        except Exception:
+            results[futures[future]] = []
+    return results
+
+
+def prefetch_kline_all(codes: list, scale: int = 240, datalen: int = 240) -> dict:
+    """批量预拉 K 线（并行）。
+
+    Returns:
+        {code: [KlineBar, ...]} 映射
+    """
+    from common import parallel_fetch_dict, normalize_quote_code
+    from data import get_kline as _get_kline  # 函数内导入支持 monkeypatch
+
+    def _fetch_one(code):
+        return _get_kline(normalize_quote_code(code), scale=scale, datalen=datalen)
+
+    return parallel_fetch_dict(codes, _fetch_one, label="screener:kline")
+
+
+def volume_price_features(closes: list, volumes: list) -> dict:
+    """量价关系分析。
+
+    Returns:
+        {"signal": int, "desc": str}
+        signal: 1=配合良好, 0=中性, -1=背离警报
+    """
+    from technical.volume import volume_analysis
+
+    if len(closes) < 6 or len(volumes) < 6:
+        return {"signal": 0, "desc": "数据不足"}
+    result = volume_analysis(closes, volumes)
+    if result is None:
+        return {"signal": 0, "desc": "数据不足"}
+    return {
+        "signal": result.get("volume_price_signal", 0),
+        "desc": result.get("volume_price", "量价中性"),
+    }

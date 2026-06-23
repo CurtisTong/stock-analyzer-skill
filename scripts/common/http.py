@@ -1,4 +1,8 @@
-"""HTTP 客户端：GET 请求、重试、编码转换、连接池复用。"""
+"""HTTP 客户端：GET 请求、重试、编码转换、连接池复用。
+
+优先使用 requests（可选依赖，连接池复用 + 自动编码），
+缺失时降级为 http.client（stdlib）。
+"""
 
 import http.client
 import logging
@@ -10,7 +14,46 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 
+# 尝试导入 requests（可选依赖）
+try:
+    import requests as _requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+    _HAS_REQUESTS = True
+except ImportError:
+    _HAS_REQUESTS = False
+
 from common.exceptions import RateLimitError, NetworkError
+
+# ---------- requests 连接池（可选） ----------
+
+_session = None
+_session_lock = threading.Lock()
+
+
+def _get_session():
+    """获取或创建 requests Session（线程安全，连接池复用）。"""
+    global _session
+    if _session is not None:
+        return _session
+    with _session_lock:
+        if _session is not None:
+            return _session
+        _session = _requests.Session()
+        retry = Retry(
+            total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]
+        )
+        adapter = HTTPAdapter(
+            max_retries=retry,
+            pool_connections=32,
+            pool_maxsize=32,
+        )
+        _session.mount("http://", adapter)
+        _session.mount("https://", adapter)
+        _session.headers.update({"User-Agent": "stock-analyzer-skill/1.0"})
+        return _session
+
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -164,8 +207,39 @@ def _http_get_internal(
     raise NetworkError(url, str(last_err), max_retries)
 
 
+def _http_get_requests(
+    url: str,
+    headers: dict[str, str] | None = None,
+    timeout: int = 10,
+) -> bytes:
+    """requests 版本的 GET 请求（连接池复用 + 自动编码）。"""
+    session = _get_session()
+    req_headers = {}
+    if headers:
+        req_headers.update(headers)
+
+    resp = session.get(url, headers=req_headers, timeout=timeout)
+
+    if resp.status_code == 429:
+        retry_after = resp.headers.get("Retry-After")
+        raise RateLimitError(url, retry_after=int(retry_after) if retry_after else None)
+
+    resp.raise_for_status()
+    return resp.content
+
+
 def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
-    """GET 请求，指数退避重试，连接池复用。429 立即抛出不重试。"""
+    """GET 请求，指数退避重试，连接池复用。429 立即抛出不重试。
+
+    优先使用 requests（可选依赖），缺失时降级为 http.client。
+    """
+    if _HAS_REQUESTS:
+        try:
+            return _http_get_requests(url, timeout=timeout)
+        except RateLimitError:
+            raise
+        except Exception as e:
+            logger.debug("requests 请求失败，降级到 http.client: %s", e)
     return _http_get_internal(
         url, headers=None, timeout=timeout, max_retries=max_retries
     )
@@ -178,6 +252,13 @@ def http_get_with_headers(
     max_retries: int = 3,
 ) -> bytes:
     """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。"""
+    if _HAS_REQUESTS:
+        try:
+            return _http_get_requests(url, headers=headers, timeout=timeout)
+        except RateLimitError:
+            raise
+        except Exception as e:
+            logger.debug("requests 请求失败，降级到 http.client: %s", e)
     return _http_get_internal(
         url, headers=headers, timeout=timeout, max_retries=max_retries
     )

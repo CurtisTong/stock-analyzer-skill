@@ -105,12 +105,37 @@ def get_cache_stats() -> dict:
     return stats
 
 
+def get_data_source_summary() -> dict:
+    """获取数据源可用性摘要。"""
+    fetcher_health = get_fetcher_health()
+    total = 0
+    available = 0
+    tripped = 0
+
+    for cat, sources in fetcher_health.get("sources", {}).items():
+        if isinstance(sources, list):
+            for s in sources:
+                total += 1
+                if s.get("available"):
+                    available += 1
+                elif s.get("state") == "open":
+                    tripped += 1
+
+    return {
+        "total": total,
+        "available": available,
+        "tripped": tripped,
+        "availability_pct": round(available / total * 100, 1) if total > 0 else 0,
+    }
+
+
 def health_check() -> dict:
     """执行完整健康检查。"""
     return {
         "timestamp": datetime.now().isoformat(),
         "fetcher_health": get_fetcher_health(),
         "cache_stats": get_cache_stats(),
+        "data_source_summary": get_data_source_summary(),
     }
 
 
@@ -122,6 +147,14 @@ def print_health_report():
     print("📊 stock-analyzer-skill 健康检查报告")
     print(f"时间: {report['timestamp']}")
     print("=" * 60)
+
+    # 数据源摘要
+    summary = report.get("data_source_summary", {})
+    print(
+        f"\n📊 数据源摘要: {summary.get('available', 0)}/{summary.get('total', 0)} 可用"
+        f" ({summary.get('availability_pct', 0)}%)"
+        f" | 熔断: {summary.get('tripped', 0)}"
+    )
 
     # 数据源状态
     print("\n🔌 数据源状态:")

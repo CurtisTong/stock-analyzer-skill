@@ -68,6 +68,9 @@ def simulate_strategy(
     holding_days: int = 5,
     initial_capital: float = 100000,
     total_days: int = 60,
+    commission: float = 0.00025,
+    stamp_tax: float = 0.001,
+    slippage: float = 0.001,
 ):
     """
     模拟策略收益（滚动窗口回测，无前瞻偏差）。
@@ -186,6 +189,9 @@ def simulate_strategy(
             exit_price = bars[i + holding_days - 1].close
             if entry_price > 0:
                 ret = (exit_price - entry_price) / entry_price
+                # 扣除交易成本：佣金(双向) + 印花税(卖出) + 滑点(双向)
+                total_cost = commission * 2 + stamp_tax + slippage * 2
+                ret -= total_cost
                 all_selections.append(
                     {
                         "code": code,

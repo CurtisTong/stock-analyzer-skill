@@ -35,7 +35,7 @@ class TestPhaseFactorSplit:
         assert "dividend" in PHASE2_FACTORS
 
     def test_phase1_parts_4_keys(self):
-        """Phase 1 返回 4 因子（含 chip）。"""
+        """Phase 1 返回 Phase 1 因子（含 chip/event/analyst）。"""
         fin = {"eps": 1.0, "roe": 15.0, "net_profit_yoy": 20.0}
         quote = {
             "pe": 20,
@@ -45,7 +45,9 @@ class TestPhaseFactorSplit:
             "code": "sh600519",
         }
         parts = compute_phase1_parts(fin, quote, "默认")
-        assert set(parts.keys()) == set(PHASE1_FACTORS)
+        # Phase 1 因子：quality, valuation, liquidity, chip + 新增 event, analyst
+        for k in PHASE1_FACTORS:
+            assert k in parts, f"缺少 Phase 1 因子: {k}"
         assert "momentum" not in parts
         assert "volatility" not in parts
 

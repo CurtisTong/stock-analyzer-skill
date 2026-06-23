@@ -439,8 +439,10 @@ if __name__ == "__main__":
         fn_code = normalize_finance_code(code)
         fin_data = fetch_finance(fn_code)
         fin_record = fin_data[0] if fin_data else None
-    except Exception:
-        pass
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).debug("获取财务数据失败 %s: %s", code, e)
 
     result = classify_stock(fin_record, quote, records)
     print(json.dumps(result, ensure_ascii=False, indent=2))

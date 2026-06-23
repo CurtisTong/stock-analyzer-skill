@@ -254,7 +254,10 @@ def _load_source_config(section: str) -> dict:
         from config.loader import ConfigLoader
 
         return ConfigLoader.load("data_source.yaml").get(section, {})
-    except Exception:
+    except Exception as e:
+        import logging
+
+        logging.getLogger(__name__).debug("加载数据源配置 %s 失败: %s", section, e)
         return {}
 
 

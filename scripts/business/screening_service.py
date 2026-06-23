@@ -24,6 +24,11 @@ from strategies import (
     chip_score_dynamic,
 )
 from strategies.thresholds import get_industry_threshold
+from strategies.factors.registry import (
+    compute_all_factors,
+    compute_phase_factors,
+    get_factor_keys,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -410,21 +415,14 @@ class ScreeningService:
 
 
 def compute_factor_parts(fin, quote_dict, features, industry):
-    """计算 7 因子得分（共享核心）。"""
-    return {
-        "quality": quality_score(fin, industry),
-        "valuation": valuation_score(quote_dict, fin, industry),
-        "momentum": momentum_score(features, quote_dict),
-        "liquidity": liquidity_score(quote_dict),
-        "volatility": volatility_from_closes(features.get("closes", []), industry),
-        "dividend": dividend_score(quote_dict, fin, industry),
-        "chip": chip_score_dynamic(quote_dict.get("code", "")),
-    }
+    """计算所有因子得分（自动发现已注册因子）。"""
+    code = quote_dict.get("code", "")
+    return compute_all_factors(fin, quote_dict, features, industry, code)
 
 
 # Sprint 9 两阶段管线（Sprint 末节架构建议）：
 # Phase 1（轻量快速筛选）：仅算不依赖 K 线的因子
-#   quality / valuation / liquidity
+#   quality / valuation / liquidity / chip(static)
 # Phase 2（精准评分）：在 Phase 1 Top N×3 上补 K 线依赖因子
 #   momentum / volatility / dividend
 PHASE1_FACTORS = ("quality", "valuation", "liquidity", "chip")
@@ -437,12 +435,11 @@ def compute_phase1_parts(fin, quote_dict, industry: str) -> dict:
     适用于全市场 5000 只初筛，3-5 秒内完成。
     chip 使用静态评分（仅股东户数变化率，零网络开销）。
     """
-    return {
-        "quality": quality_score(fin, industry),
-        "valuation": valuation_score(quote_dict, fin, industry),
-        "liquidity": liquidity_score(quote_dict),
-        "chip": chip_score_static(quote_dict.get("code", "")),
-    }
+    code = quote_dict.get("code", "")
+    parts = compute_phase_factors(1, fin, quote_dict, {}, industry, code)
+    # Phase 1 chip 使用静态评分
+    parts["chip"] = chip_score_static(code)
+    return parts
 
 
 def compute_phase2_parts(
@@ -451,12 +448,13 @@ def compute_phase2_parts(
     """Sprint 9 Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
 
     仅对 Phase 1 Top N×3 候选调用，节省 K 线获取量。
+    chip 在 Phase 1 已用静态评分，Phase 2 不重复计算。
     """
-    return {
-        "momentum": momentum_score(features, quote_dict),
-        "volatility": volatility_from_closes(features.get("closes", []), industry),
-        "dividend": dividend_score(quote_dict, fin, industry),
-    }
+    code = quote_dict.get("code", "")
+    parts = compute_phase_factors(2, fin, quote_dict, features, industry, code)
+    # chip 已在 Phase 1 用静态评分，移除 Phase 2 的动态评分
+    parts.pop("chip", None)
+    return parts
 
 
 def merge_phase_parts(phase1: dict, phase2: dict) -> dict:
@@ -509,15 +507,7 @@ def normalize_factors_batch(
         return [dict(p) for p in parts_list]
     import statistics
 
-    keys = [
-        "quality",
-        "valuation",
-        "momentum",
-        "liquidity",
-        "volatility",
-        "dividend",
-        "chip",
-    ]
+    keys = get_factor_keys()  # 从注册表自动获取，不再硬编码
     means = {k: statistics.mean(p.get(k, 0) for p in parts_list) for k in keys}
     stds = {k: (statistics.stdev(p.get(k, 0) for p in parts_list) or 1.0) for k in keys}
     out = []

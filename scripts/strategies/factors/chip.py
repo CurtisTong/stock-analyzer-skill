@@ -31,7 +31,7 @@ def chip_score_static(code: str) -> float:
 
 
 def chip_score_dynamic(code: str) -> float:
-    """Phase 2 动态评分：融合融资融券趋势 + 机构持仓变化。需网络请求。
+    """Phase 2 动态评分：融合融资融券趋势 + 机构持仓变化 + 北向资金。需网络请求。
 
     Args:
         code: 股票代码（如 sh600989）
@@ -48,6 +48,10 @@ def chip_score_dynamic(code: str) -> float:
     # 机构持仓变化（十大流通）
     inst_score = _score_institution_change(code)
     base += inst_score
+
+    # 北向资金净买入（2026 新增）
+    northbound_score = _score_northbound_flow(code)
+    base += northbound_score
 
     return clamp(base)
 
@@ -170,3 +174,42 @@ def _score_institution_change(code: str) -> float:
     inst_down = sum(1 for t in top if t.is_institution and t.change_type == "减持")
 
     return (inst_up - inst_down) * 8
+
+
+def _score_northbound_flow(code: str) -> float:
+    """北向资金净买入评分（±12分）。
+
+    连续 5 日/20 日净买入作为加分信号。
+    北向资金是 A 股最重要的"聪明钱"信号之一。
+    """
+    try:
+        from data.flow import get_northbound_flow
+
+        flow = get_northbound_flow(code, days=20)
+    except Exception:
+        return 0
+
+    if not flow or len(flow) < 3:
+        return 0
+
+    net_5d = sum(f.get("net_buy", 0) for f in flow[:5])
+    net_20d = sum(f.get("net_buy", 0) for f in flow[:20])
+    pos_5d = sum(1 for f in flow[:5] if f.get("net_buy", 0) > 0)
+
+    score = 0.0
+
+    # 连续 5 日净买入
+    if pos_5d >= 5:
+        score += 8.0
+    elif pos_5d >= 4:
+        score += 5.0
+    elif pos_5d <= 0:
+        score -= 5.0
+
+    # 20 日累计净买入
+    if net_20d > 0:
+        score += 4.0
+    elif net_20d < 0:
+        score -= 3.0
+
+    return clamp(score, -12, 12)

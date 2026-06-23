@@ -448,6 +448,83 @@ class PortfolioManager:
         """导出所有持仓代码列表（兼容旧接口）。"""
         return [p["code"] for p in self.get_positions()]
 
+    def check_concentration(
+        self,
+        single_stock_limit: float = 0.20,
+        top3_limit: float = 0.50,
+        industry_limit: float = 0.30,
+    ) -> dict:
+        """检查持仓集中度。
+
+        Args:
+            single_stock_limit: 单一标的上限（默认 20%）
+            top3_limit: 前 3 大持仓上限（默认 50%）
+            industry_limit: 单一行业上限（默认 30%）
+
+        Returns:
+            {"warnings": [str], "details": {"single": {...}, "top3": {...}, "industry": {...}}}
+        """
+        positions = self.get_positions()
+        if not positions:
+            return {"warnings": [], "details": {}}
+
+        total_value = sum(p.get("cost", 0) * p.get("quantity", 0) for p in positions)
+        if total_value <= 0:
+            return {"warnings": [], "details": {}}
+
+        warnings = []
+        details = {}
+
+        # 单一标的集中度
+        stock_pcts = []
+        for p in positions:
+            value = p.get("cost", 0) * p.get("quantity", 0)
+            pct = value / total_value
+            stock_pcts.append(
+                {"code": p["code"], "name": p.get("name", ""), "pct": pct}
+            )
+        stock_pcts.sort(key=lambda x: x["pct"], reverse=True)
+
+        if stock_pcts:
+            top1 = stock_pcts[0]
+            details["single"] = {
+                "code": top1["code"],
+                "pct": round(top1["pct"] * 100, 1),
+            }
+            if top1["pct"] > single_stock_limit:
+                warnings.append(
+                    f"单一标的集中度 {top1['pct']*100:.1f}% > {single_stock_limit*100:.0f}%"
+                    f"（{top1['name'] or top1['code']}）"
+                )
+
+        # 前 3 大持仓集中度
+        top3_value = sum(s["pct"] for s in stock_pcts[:3])
+        details["top3"] = {"pct": round(top3_value * 100, 1)}
+        if top3_value > top3_limit:
+            warnings.append(
+                f"前3大持仓集中度 {top3_value*100:.1f}% > {top3_limit*100:.0f}%"
+            )
+
+        # 行业集中度
+        industry_values = {}
+        for p in positions:
+            # 从 tags 中提取行业标签
+            tags = p.get("tags", [])
+            industry = tags[0] if tags else "未分类"
+            value = p.get("cost", 0) * p.get("quantity", 0)
+            industry_values[industry] = industry_values.get(industry, 0) + value
+
+        industry_pcts = {k: v / total_value for k, v in industry_values.items()}
+        details["industry"] = {k: round(v * 100, 1) for k, v in industry_pcts.items()}
+
+        for ind, pct in industry_pcts.items():
+            if pct > industry_limit:
+                warnings.append(
+                    f"行业集中度 {ind}: {pct*100:.1f}% > {industry_limit*100:.0f}%"
+                )
+
+        return {"warnings": warnings, "details": details}
+
     def to_dict(self) -> dict:
         """返回完整数据副本。"""
         return copy.deepcopy(self._data)
