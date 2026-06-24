@@ -46,14 +46,15 @@ class TestMarginFetcher:
         assert f.name == "margin"
         assert f.priority == 5
 
-    def test_fetch_returns_none_on_network_error(self):
+    def test_fetch_propagates_network_error(self):
+        """NetworkError 应传播到 DataFetcherManager 统一处理故障转移。"""
         f = MarginFetcher()
         with patch(
             "fetchers.eastmoney_chip.http_get",
             side_effect=NetworkError("http://example.com", "网络错误"),
         ):
-            result = f.fetch("sh600989")
-        assert result is None
+            with pytest.raises(NetworkError):
+                f.fetch("sh600989")
 
     def test_fetch_returns_none_on_invalid_json(self):
         f = MarginFetcher()

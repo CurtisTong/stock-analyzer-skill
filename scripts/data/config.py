@@ -66,8 +66,16 @@ class DataConfig:
         cfg.http_timeout = http_cfg.get("connect_timeout", cfg.http_timeout)
         cfg.parallel_timeout = http_cfg.get("read_timeout", cfg.parallel_timeout)
         cfg.quote_cache_ttl = cache_cfg.get("quote_ttl", cfg.quote_cache_ttl)
+        cfg.intraday_quote_cache_ttl = cache_cfg.get(
+            "intraday_quote_ttl", cfg.intraday_quote_cache_ttl
+        )
         cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
+        cfg.kline_1m_cache_ttl = cache_cfg.get("kline_1m_ttl", cfg.kline_1m_cache_ttl)
+        cfg.kline_240m_cache_ttl = cache_cfg.get(
+            "kline_240m_ttl", cfg.kline_240m_cache_ttl
+        )
         cfg.finance_cache_ttl = cache_cfg.get("finance_ttl", cfg.finance_cache_ttl)
+        cfg.margin_cache_ttl = cache_cfg.get("margin_ttl", cfg.margin_cache_ttl)
         cfg.ann_cache_ttl = cache_cfg.get("ann_ttl", cfg.ann_cache_ttl)
         cfg.circuit_failure_threshold = cb_cfg.get(
             "failure_threshold", cfg.circuit_failure_threshold

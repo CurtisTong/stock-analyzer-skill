@@ -180,11 +180,11 @@ class TestDetectMarketState:
 
 class TestAggregateVotes:
     def test_double_bull_8_bullish(self):
-        """9 人全看多（6长+3短）：强烈看多，position_factor=1.0。"""
+        """9 人全看多（6长+3短）：强烈看多，巴菲特>=70触发强势确认×1.1。"""
         results = _bullish_long_experts() + _bullish_short_experts()
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert agg["direction"] == "强烈看多"
-        assert agg["position_factor"] == 1.0
+        assert agg["position_factor"] == 1.1  # 巴菲特(75)>=70 → 仓位×1.1
         assert agg["long_votes"]["bull"] == 6
         assert agg["short_votes"]["bull"] == 3
 
@@ -196,7 +196,7 @@ class TestAggregateVotes:
         assert agg["position_factor"] == 0.0
 
     def test_long_dominate_bull(self):
-        """长线 ≥4/6 看多 + 短线分歧：看多，position_factor=0.8。"""
+        """长线 ≥4/6 看多 + 短线分歧：看多→强烈看多（巴菲特>=70确认），position_factor=0.88。"""
         long_exp = _bullish_long_experts()  # 6 long, all bullish (62-75)
         # 短线组 1 看多 + 1 看空 + 1 中性 = 分歧
         short_exp = [
@@ -206,8 +206,9 @@ class TestAggregateVotes:
         ]
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
-        assert agg["direction"] == "看多"
-        assert agg["position_factor"] == 0.8
+        # 巴菲特(75)>=70 + 方向"看多" → 升级为"强烈看多"，仓位×1.1
+        assert agg["direction"] == "强烈看多"
+        assert abs(agg["position_factor"] - 0.88) < 0.01
 
     def test_full_dissent_neutral(self):
         """长线分歧(3:3) + 短线分歧(1:1:1)：中性，position_factor=0.0。"""

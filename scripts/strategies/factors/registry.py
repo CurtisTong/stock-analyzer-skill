@@ -174,6 +174,7 @@ def compute_all_factors(fin, quote, features, industry, code) -> dict:
     替代原 compute_factor_parts() 中的硬编码映射。
     """
     result = {}
+    degraded = []
     for name, desc in _FACTORS.items():
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:
@@ -181,6 +182,9 @@ def compute_all_factors(fin, quote, features, industry, code) -> dict:
         except Exception as e:
             logger.warning("因子 %s 计算异常，使用默认分 50: %s", name, e)
             result[name] = 50
+            degraded.append(name)
+    if degraded:
+        logger.warning("以下因子计算失败，已降级为中性分 50: %s", degraded)
     return result
 
 
@@ -190,6 +194,7 @@ def compute_phase_factors(phase, fin, quote, features, industry, code) -> dict:
     替代原 compute_phase1_parts() / compute_phase2_parts() 中的硬编码映射。
     """
     result = {}
+    degraded = []
     target = Phase(phase) if isinstance(phase, int) else phase
     for name, desc in _FACTORS.items():
         if desc.phase != target:
@@ -202,4 +207,7 @@ def compute_phase_factors(phase, fin, quote, features, industry, code) -> dict:
                 "因子 %s 计算异常(phase=%d)，使用默认分 50: %s", name, phase, e
             )
             result[name] = 50
+            degraded.append(name)
+    if degraded:
+        logger.warning("Phase%d 以下因子计算失败，已降级: %s", phase, degraded)
     return result

@@ -1,7 +1,7 @@
 ---
 name: screener
 description: 选股策略。触发词：推荐几只股票、帮我选股、有什么好股票、筛股票、找便宜的好公司、哪些股票值得买、初始化股票池、刷新股票池。支持5种策略（均衡/质量价值/成长动量/防守低波/拐点修复）多因子筛选，含股票池初始化。
-version: 1.13.1
+version: 1.14.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *) Read(./scripts/data/sector_stocks.json) Read(./skills/_shared/references/*.md)
 ---

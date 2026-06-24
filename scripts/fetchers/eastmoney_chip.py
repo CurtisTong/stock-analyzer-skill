@@ -8,7 +8,7 @@ from datetime import timedelta
 from dev.clock import now
 
 
-from common import BaseFetcher, http_get, to_float, to_int, NetworkError, RateLimitError
+from common import BaseFetcher, http_get, to_float, to_int
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +58,10 @@ class MarginFetcher(BaseFetcher):
 
         url = MARGIN_URL.format(code=pure_code, start=start_date, days=days)
 
+        # NetworkError / RateLimitError 不在此捕获，由 DataFetcherManager 统一处理故障转移
+        raw = http_get(url)
         try:
-            raw = http_get(url)
             data = json.loads(raw)
-        except (NetworkError, RateLimitError) as e:
-            logger.warning(f"MarginFetcher 网络异常: {code}, {e}")
-            self.on_failure()
-            return None
         except json.JSONDecodeError as e:
             logger.warning(f"MarginFetcher JSON 解析失败: {code}, {e}")
             return None
@@ -95,10 +92,7 @@ class MarginFetcher(BaseFetcher):
                 logger.warning(f"MarginFetcher 数据转换异常: {item}, {e}")
                 continue
 
-        if result:
-            self.on_success()
-            return result
-        return None
+        return result if result else None
 
 
 def _get_secid(code: str) -> str:
@@ -134,13 +128,9 @@ class HolderFetcher(BaseFetcher):
 
         url = F10_SHAREHOLDER_URL.format(secid=secid)
 
+        raw = http_get(url)
         try:
-            raw = http_get(url)
             data = json.loads(raw)
-        except (NetworkError, RateLimitError) as e:
-            logger.warning(f"HolderFetcher 网络异常: {code}, {e}")
-            self.on_failure()
-            return None
         except json.JSONDecodeError as e:
             logger.warning(f"HolderFetcher JSON 解析失败: {code}, {e}")
             return None
@@ -199,8 +189,6 @@ class HolderFetcher(BaseFetcher):
                 logger.warning(f"HolderFetcher 数据转换异常: {item}, {e}")
                 continue
 
-        if result:
-            self.on_success()
         return result if result else None
 
 
@@ -224,13 +212,9 @@ class TopHolderFetcher(BaseFetcher):
 
         url = F10_SHAREHOLDER_URL.format(secid=secid)
 
+        raw = http_get(url)
         try:
-            raw = http_get(url)
             data = json.loads(raw)
-        except (NetworkError, RateLimitError) as e:
-            logger.warning(f"TopHolderFetcher 网络异常: {code}, {e}")
-            self.on_failure()
-            return None
         except json.JSONDecodeError as e:
             logger.warning(f"TopHolderFetcher JSON 解析失败: {code}, {e}")
             return None
@@ -311,8 +295,6 @@ class TopHolderFetcher(BaseFetcher):
                 logger.warning(f"TopHolderFetcher 数据转换异常: {item}, {e}")
                 continue
 
-        if result:
-            self.on_success()
         return result if result else None
 
 

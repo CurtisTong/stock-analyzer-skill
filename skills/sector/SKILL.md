@@ -1,7 +1,7 @@
 ---
 name: sector
 description: 板块分析。触发词：XX板块怎么样、行业分析、板块对比、XX行业谁是龙头、板块轮动、看看半导体/新能源/消费/医药板块、这个板块还能不能买、板块内哪些股票好。用于行业全景/核心标的对比/板块内筛选/轮动配置建议。
-version: 1.13.1
+version: 1.14.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/*) Read(./data/sector_*) Read(./skills/_shared/references/*.md)
 ---

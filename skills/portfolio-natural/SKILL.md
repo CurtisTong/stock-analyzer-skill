@@ -1,7 +1,7 @@
 ---
 name: portfolio-natural
 description: 持仓自然语言触发词典。触发词：我的持仓怎么样、帮我看看持仓、我买了XX、加仓XX、减仓XX、清仓XX、持仓健康检查、帮我调仓、卖了一半、止盈了、破位止损、再加一手。从 portfolio 拆分：仅覆盖自然语言 → 命令的映射规则。短描述适合 haiku。
-version: 1.13.1
+version: 1.14.0
 model: sonnet
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/portfolio_web.py *) Read(./scripts/data/portfolio.json) Read(./skills/_shared/references/*.md)
 ---

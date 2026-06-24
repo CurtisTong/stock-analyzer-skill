@@ -8,7 +8,6 @@ from data.types import (
     MarginData,
     HolderData,
     TopHolderRecord,
-    ChipDistribution,
 )
 
 
@@ -141,28 +140,3 @@ class TestTopHolderRecord:
         d = thr.to_dict()
         assert d["rank"] == 1
         assert d["is_institution"] is True
-
-
-class TestChipDistribution:
-    """ChipDistribution 数据类型测试。"""
-
-    def test_default_distribution_is_empty_list(self):
-        cd = ChipDistribution()
-        assert cd.distribution == []
-
-    def test_to_dict(self):
-        cd = ChipDistribution(
-            code="sh600989",
-            current_price=18.5,
-            avg_cost=17.0,
-            profit_ratio=65.0,
-        )
-        d = cd.to_dict()
-        assert d["code"] == "sh600989"
-        assert d["profit_ratio"] == 65.0
-
-    def test_custom_distribution(self):
-        cd = ChipDistribution(
-            distribution=[{"price": 18.0, "pct": 5.0}, {"price": 19.0, "pct": 3.0}]
-        )
-        assert len(cd.distribution) == 2

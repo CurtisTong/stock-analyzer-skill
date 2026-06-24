@@ -138,7 +138,10 @@ cache:
   quote_ttl: 900          # 15分钟（盘后）
   intraday_quote_ttl: 90  # 90秒（盘中）
   kline_ttl: 21600        # 6小时
+  kline_1m_ttl: 30        # 30秒（分钟K线）
+  kline_240m_ttl: 3600    # 1小时（日K线）
   finance_ttl: 21600      # 6小时
+  margin_ttl: 3600        # 1小时（融资融券）
   ann_ttl: 1800           # 30分钟
   max_size: 1000          # 最大缓存文件数
   max_age: 604800         # 7天

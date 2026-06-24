@@ -136,26 +136,5 @@ class TopHolderRecord:
         return asdict(self)
 
 
-@dataclass
-class ChipDistribution:
-    """筹码分布数据结构。"""
-
-    code: str = ""
-    date: str = ""
-    current_price: float = 0.0
-    cost_90_low: float = 0.0  # 90%筹码集中价格下限
-    cost_90_high: float = 0.0  # 90%筹码集中价格上限
-    cost_70_low: float = 0.0  # 70%筹码集中价格下限
-    cost_70_high: float = 0.0  # 70%筹码集中价格上限
-    avg_cost: float = 0.0  # 加权平均成本
-    profit_ratio: float = 0.0  # 当前价位获利盘比例(%)
-    chip_peak: float = 0.0  # 筹码峰值价格
-    concentration_90: float = 0.0  # 90%筹码集中度（价差/均价）
-    distribution: List[Dict] | None = None  # 各价格区间分布 [{price, pct}]
-
-    def __post_init__(self):
-        if self.distribution is None:
-            self.distribution = []
-
-    def to_dict(self) -> dict:
-        return asdict(self)
+# ChipDistribution 已移除（v1.14.0）：全项目零实例化，technical/scoring.py 对应评分逻辑已注释。
+# 如需筹码分布功能，可从 git 历史恢复（commit 之前版本）。

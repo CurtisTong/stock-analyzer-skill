@@ -1,7 +1,7 @@
 {
   "name": "stock-analyzer",
   "description": "A 股分析 skill 包，包含 12 个专业分析工具：单股分析、大盘复盘、板块分析、持仓检查、选股策略、技术分析、实时监控、股票池初始化、策略回测、财务分析、投资研究、帮助",
-  "version": "1.13.1",
+  "version": "1.14.0",
   "author": {
     "name": "curtis"
   },

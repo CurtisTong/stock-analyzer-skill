@@ -46,3 +46,7 @@ pledge_ratio_danger: 85
 # 连续亏损检测
 loss_years_warning: 2
 loss_years_danger: 3
+
+# 止损止盈阈值 (%)
+stop_loss_pct: -8
+take_profit_pct: 20

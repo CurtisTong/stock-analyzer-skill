@@ -6,7 +6,11 @@
     - scoring.yaml: 评分配置
     - limits.yaml: 涨跌停/市值限制配置
     - data_source.yaml: 数据源配置
-    - industry_thresholds.yaml: 行业差异化阈值
+    - notification.yaml: 通知配置
+    - macro.yaml: 宏观安全门阈值
+
+注意: 行业差异化阈值已迁移至 data/industry_thresholds.json（v1.3.2），
+由 strategies.thresholds.get_industry_threshold 加载。
 """
 
 import yaml

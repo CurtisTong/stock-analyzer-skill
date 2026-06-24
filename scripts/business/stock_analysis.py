@@ -56,7 +56,7 @@ class StockAnalysisService:
         # 1. 并行获取三类数据（无依赖关系，可同时拉取）
         ex = get_shared_executor()
         f_quote = ex.submit(get_quote, code)
-        f_kline = ex.submit(get_kline, code, 240, 120)
+        f_kline = ex.submit(get_kline, code, 240, 240)
         f_finance = ex.submit(get_finance, code) if include_finance else None
 
         try:
@@ -132,7 +132,8 @@ class StockAnalysisService:
         from technical import ma_system, kdj_full, bollinger, detect_candle_patterns
 
         indicators = compute_indicators(kline)
-        closes = indicators.get("closes", [])
+        # 与 screening_service.compute_features 保持一致：过滤 close=0 的无效记录
+        closes = [c for c in indicators.get("closes", []) if c > 0]
         highs = [b.high for b in kline if b.high > 0]
         lows = [b.low for b in kline if b.low > 0]
 

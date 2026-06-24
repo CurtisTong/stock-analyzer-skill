@@ -98,7 +98,7 @@ def _resolve_conflict(
         else:
             position_factor = 0.0
 
-    # 巴菲特否决权（中长期模式）
+    # 巴菲特否决权 / 强势确认（中长期模式）
     if buffett_score <= 39:
         if horizon in ("medium", "long"):
             notes.append("巴菲特否决权触发：中长期模式下方向至少降一级")
@@ -106,6 +106,12 @@ def _resolve_conflict(
             position_factor *= 0.7
         else:
             notes.append("巴菲特看空，短期模式下不触发否决权，长线组降权×0.8")
+    elif buffett_score >= 70 and horizon in ("medium", "long") and "看多" in direction:
+        # 对称处理：巴菲特强烈看多时，已看多的方向升一级，仓位×1.1
+        # 不把中性/看空升级为看多，避免改变方向性质
+        notes.append("巴菲特强势确认：中长期模式下方向升一级，仓位×1.1")
+        direction = _upgrade_direction(direction)
+        position_factor *= 1.1
 
     # 养家情绪周期降权
     if yangjia_score < 30 and not is_yangjia_ice:
@@ -167,6 +173,16 @@ def _downgrade_direction(direction: str) -> str:
     try:
         idx = order.index(direction)
         return order[min(idx + 1, len(order) - 1)]
+    except ValueError:
+        return "中性"
+
+
+def _upgrade_direction(direction: str) -> str:
+    """方向升一级。"""
+    order = ["强烈看多", "看多", "谨慎看多", "中性", "谨慎看空", "看空", "强烈看空"]
+    try:
+        idx = order.index(direction)
+        return order[max(idx - 1, 0)]
     except ValueError:
         return "中性"
 

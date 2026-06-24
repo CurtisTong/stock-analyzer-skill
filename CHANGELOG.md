@@ -70,11 +70,39 @@
 
 ## [Unreleased]
 
+### Planned
+
+- 回测权重网格搜索优化
+- 回测模拟实盘模式
+- 港股深度支持
+- 多语言（英文）输出
+- 更多本土战法形态
+
+## [1.14.0] - 2026-06-24（回测增强 + 估值模型 + 事件驱动 + 架构重构）
+
+### 🌟 用户亮点
+
+- **回测 ASCII 可视化**：`/backtest` 结果以终端图表展示，无需额外依赖
+- **DCF 简易估值模型**：新增贴现现金流估值，辅助判断内在价值
+- **EV/EBITDA 估值指标**：补充企业价值/息税折旧前利润估值维度
+- **回测止损止盈**：支持设置止损/止盈比例，更贴近实盘交易
+- **涨跌停过滤**：回测中可排除涨跌停无法买入的场景，结果更真实
+- **事件驱动因子**：大股东增减持 + 监管处罚因子纳入回测引擎
+- **盘前简报**：`/monitor briefing` 一键查看市场状态 + 持仓概要 + 关键价位
+- **行业归因分析**：持仓收益按行业拆解归因，定位收益来源
+- **筹码因子**：选股新增筹码集中度 + 宏观门控过滤
+
 ### Added
 
+- **backtest**: 新增 ASCII 可视化模块 + CLI 集成
+- **backtest**: 新增止损止盈逻辑 + 涨跌停过滤 + 筹码/分析师/事件因子集成
+- **估值**: 新增 DCF 简易估值模型 + EV/EBITDA 估值指标
+- **events**: 新增大股东增减持 + 监管处罚事件因子
 - **screener**: 新增筹码因子 + 宏观门控模块
 - **monitor**: 新增 `/monitor briefing` 盘前简报（市场状态+持仓概要+关键价位）
 - **portfolio/performance**: 新增行业归因分析（SectorAttribution）
+- **strategies/factors**: Phase 2 架构重构 + 因子增强
+- **common**: 新增 CLI 基座模块 + FIELD_MAP 提升为模块级常量
 
 ### Fixed
 
@@ -87,11 +115,14 @@
 - **business/stock_analysis**: 数据缺失时显式提示（data_warnings）
 - **screener**: 结果为空时提示 /screener init 引导
 - **strategies/factors/dividend**: 分红率按行业差异化（银行30%、科技15%等）
+- **experts/vote_engine**: 投票边界测试 + TradeLog 集成 + 注册表日志修复
 
 ### Changed
 
 - **stock.py**: render_text 可视化增强（emoji+分隔线+颜色图标）
 - **common/cache**: 缓存惰性清理（每 50 次写入检查，超 500MB 自动清理）
+- **common**: 拆分 `__init__.py` 上帝模块为子模块
+- **fetcher**: 工厂函数缓存单例化（性能优化）
 - **methodology**: 策略权重文档对齐代码（五因子→七因子模型）
 - **stock-help**: SKILL.md 分层展示（核心/进阶/辅助 13 个 skill）
 - **learn**: SKILL.md 补全 `model: haiku`
@@ -104,6 +135,11 @@
 
 ### Testing
 
+- **backtest**: 补充策略表现校准模块测试（10 个用例）+ 性能压测（5 个用例）
+- **screener**: 补充股票池刷新模块测试（25 个用例）
+- **research**: 补充公告/研报模块测试（17 个用例）
+- **strategies**: 补充分析师预期因子测试（19 个用例）
+- **common**: 补充 metrics 模块测试（8 个用例）
 - **data/strategies/fetchers**: 补充 data 层、regime detector、筹码 fetcher 测试
 - 新增 13 个测试文件覆盖未测试模块 + 修复 cache DeprecationWarning
 - **test_data_fetcher_manager_e2e**: 新增 `test_none_return_does_not_trigger_circuit_breaker`
@@ -111,16 +147,9 @@
 ### Maintenance
 
 - **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
-- **version**: bump version to v1.13.1
+- **version**: bump version to v1.14.0
 - **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release（新增 `scripts/dev/sync_skill_test_versions.py` + pre-commit hook + setup-test action step）
-
-### Planned
-
-- 回测权重网格搜索优化
-- 回测模拟实盘模式
-- 港股深度支持
-- 多语言（英文）输出
-- 更多本土战法形态
+- **ci**: PR 触发集成测试和冒烟测试
 
 ## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
 

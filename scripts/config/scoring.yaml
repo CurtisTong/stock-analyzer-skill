@@ -153,6 +153,8 @@ stock_type_weights:
     chip: 1.0
 
 # 默认行业阈值
+# 注意：代码实际从 data/industry_thresholds.json 加载（strategies.thresholds.get_industry_threshold），
+# 此处配置未被读取，仅供文档参考
 industry_defaults:
   pe_undervalued: 15
   pe_reasonable: 25
@@ -166,14 +168,12 @@ industry_defaults:
   revenue_growth_excellent: 30
 
 # 专家评分参数
+# 注意：soros.market_liquidity_floor_yi 当前未被代码读取，仅供文档参考
 experts:
   soros:
     market_liquidity_floor_yi: 7000  # 两市日均成交额（亿元），低于此值视为流动性枯竭
 
 # 校准阈值（v1.7.1 起可配置）
-# 实际收益率超过 ±calibration_threshold_pct 视为"显著涨跌"，否则视为"横盘"。
-# 不同行业波动率差异大，可按需调整：
-#   - 银行/公用事业等低波动：可降至 3%
-#   - 半导体/小盘题材等高波动：可升至 8-10%
+# 注意：calibration_threshold_pct 当前未被代码读取，校准系统使用 data/expert_calibration.json
 calibration:
   calibration_threshold_pct: 5  # 涨跌判定阈值（%），原硬编码值

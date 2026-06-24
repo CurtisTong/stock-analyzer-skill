@@ -274,6 +274,8 @@ _FINANCE_FIELD_MAP = {
         "ocf_per_share",
     ],
     # ESG/分红/治理字段：当前 fetchers 未填充，保留映射占位待真实接口接入
+    # 注意：goodwill/pledge_ratio/goodwill_ratio 在 FinanceRecord 中定义但无数据源，
+    # screening_service._hard_filter 读取时永远为 0，需接入资产负债表/质押 API 后才能生效
     "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
     "consecutive_dividend_years": [
         "CONSECUTIVE_DIVIDEND_YEARS",

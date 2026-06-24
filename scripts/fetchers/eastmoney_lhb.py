@@ -73,6 +73,8 @@ class LhbSeatFetcher(BaseFetcher):
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         """获取指定股票的龙虎榜买卖席位。"""
+        from dev.clock import now
+
         date = kwargs.get("date", "")
         if not date:
             date = now().strftime("%Y-%m-%d")

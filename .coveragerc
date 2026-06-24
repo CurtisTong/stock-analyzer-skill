@@ -6,9 +6,6 @@ omit =
     scripts/technical/long_term.py
     scripts/technical/sentiment.py
     scripts/technical/report.py
-    # 监控/告警相关非核心模块
-    scripts/monitor/*
-    scripts/experts/*
 
 [report]
 exclude_lines =
