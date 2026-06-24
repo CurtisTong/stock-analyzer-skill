@@ -1,7 +1,7 @@
-"""事件因子评分：财报披露、限售解禁、分红事件的风险/机会评估。
+"""事件因子评分：财报披露、限售解禁、分红、增减持、违规的风险/机会评估。
 
-2026 新增：将 events.py 的事件数据纳入多因子选股管道。
-事件因子作为风险修正维度，解禁前降权、分红前加分。
+将 events.py 的事件数据纳入多因子选股管道。
+事件因子作为风险修正维度，解禁前降权、分红前加分、违规降权。
 """
 
 from common import clamp
@@ -15,6 +15,8 @@ def event_score(code: str) -> float:
     - 限售解禁（-20~0）：解禁前 30 日降权
     - 分红事件（0~+10）：高股息分红加分
     - 财报披露（-5~+5）：财报前观望，财报后加分
+    - 大股东增减持（-15~+15）：增持加分，减持降权
+    - 监管处罚（-30~0）：违规/立案调查降权
 
     Args:
         code: 股票代码（如 sh600519）
@@ -83,6 +85,47 @@ def event_score(code: str) -> float:
             elif -7 <= days_until < 0:
                 score += 3  # 财报刚披露
                 break
+
+    # 4. 大股东增减持（-15~+15）
+    shareholder = events.get("shareholder", [])
+    if shareholder:
+        today = datetime.now().strftime("%Y-%m-%d")
+        recent_changes = [
+            item
+            for item in shareholder
+            if _days_between(today, item.get("end_date", "")) >= -90
+        ]
+        if recent_changes:
+            total_ratio = sum(item.get("change_ratio", 0) for item in recent_changes)
+            if total_ratio > 1.0:
+                score += 15  # 大比例增持
+            elif total_ratio > 0.3:
+                score += 8
+            elif total_ratio < -1.0:
+                score -= 15  # 大比例减持
+            elif total_ratio < -0.3:
+                score -= 8
+
+    # 5. 监管处罚（-30~0）
+    violation = events.get("violation", [])
+    if violation:
+        today = datetime.now().strftime("%Y-%m-%d")
+        recent_violations = [
+            item
+            for item in violation
+            if _days_between(today, item.get("punish_date", "")) >= -180
+        ]
+        if recent_violations:
+            # 严重程度按内容关键词判断
+            for item in recent_violations:
+                content = item.get("content", "") + item.get("reason", "")
+                if "立案" in content or "调查" in content:
+                    score -= 30  # 立案调查，重大风险
+                elif "处罚" in content or "罚款" in content:
+                    score -= 15  # 行政处罚
+                elif "警示" in content or "关注" in content:
+                    score -= 5  # 轻微警示
+                break  # 只看最近一次
 
     return clamp(score)
 

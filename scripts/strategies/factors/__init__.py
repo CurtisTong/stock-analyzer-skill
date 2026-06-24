@@ -87,7 +87,7 @@ register_factor(
     phase=1,
     args_style="code",
     label="事件",
-    default_weight=0.0,
+    default_weight=0.08,
 )
 
 register_factor(

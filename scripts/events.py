@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """个股事件日历查询。
 
-查询指定股票的近期事件（财报披露、解禁、分红），用于 stock 分析时附加事件提醒。
+查询指定股票的近期事件（财报披露、解禁、分红、增减持、违规），用于 stock 分析时附加事件提醒。
 
 用法：
   python3 scripts/events.py sh600519              # 查询近 30 日事件
@@ -21,6 +21,8 @@ from fetchers.eastmoney_event import (
     EarningsCalendarFetcher,
     LockupCalendarFetcher,
     DividendCalendarFetcher,
+    ShareholderChangeFetcher,
+    ViolationFetcher,
 )
 
 
@@ -32,7 +34,8 @@ def fetch_events(code: str, days: int = 30) -> dict:
         days: 查询天数（默认 30）
 
     Returns:
-        {"earnings": [...], "lockup": [...], "dividend": [...], "summary": str}
+        {"earnings": [...], "lockup": [...], "dividend": [...],
+         "shareholder": [...], "violation": [...], "summary": str}
     """
     result = {
         "code": code,
@@ -40,17 +43,38 @@ def fetch_events(code: str, days: int = 30) -> dict:
         "earnings": [],
         "lockup": [],
         "dividend": [],
+        "shareholder": [],
+        "violation": [],
     }
 
-    fetchers = [
+    # 日历类 fetcher（code 为空时返回近期全部）
+    calendar_fetchers = [
         EarningsCalendarFetcher(),
         LockupCalendarFetcher(),
         DividendCalendarFetcher(),
     ]
 
-    for fetcher in fetchers:
+    for fetcher in calendar_fetchers:
         try:
             data = fetcher.fetch(code, days=days)
+            if data and data.get("items"):
+                result[data["type"]] = data["items"]
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "事件 fetcher %s 失败 %s: %s", fetcher.__class__.__name__, code, e
+            )
+
+    # 个股类 fetcher（需要指定 code）
+    stock_fetchers = [
+        ShareholderChangeFetcher(),
+        ViolationFetcher(),
+    ]
+
+    for fetcher in stock_fetchers:
+        try:
+            data = fetcher.fetch(code)
             if data and data.get("items"):
                 result[data["type"]] = data["items"]
         except Exception as e:
@@ -71,6 +95,13 @@ def fetch_events(code: str, days: int = 30) -> dict:
     if result["dividend"]:
         nearest = result["dividend"][0]
         summary_parts.append(f"💰 分红: {nearest.get('ex_date', '?')}")
+    if result["shareholder"]:
+        nearest = result["shareholder"][0]
+        direction = "增持" if nearest.get("direction") == "increase" else "减持"
+        summary_parts.append(f"👤 大股东{direction}: {nearest.get('end_date', '?')}")
+    if result["violation"]:
+        nearest = result["violation"][0]
+        summary_parts.append(f"⚠️ 违规: {nearest.get('punish_date', '?')}")
 
     if summary_parts:
         result["summary"] = " | ".join(summary_parts)
@@ -114,7 +145,29 @@ def format_events_text(events: dict) -> str:
             )
         lines.append("")
 
-    if not (events["earnings"] or events["lockup"] or events["dividend"]):
+    if events.get("shareholder"):
+        lines.append("👤 大股东增减持:")
+        for item in events["shareholder"][:3]:  # 最多显示 3 条
+            direction = "增持" if item.get("direction") == "increase" else "减持"
+            ratio = item.get("change_ratio", 0)
+            lines.append(
+                f"  {item.get('end_date', '?')} - {item.get('holder_name', '?')} {direction} {ratio:+.2f}%"
+            )
+        lines.append("")
+
+    if events.get("violation"):
+        lines.append("⚠️ 监管处罚:")
+        for item in events["violation"][:3]:  # 最多显示 3 条
+            lines.append(
+                f"  {item.get('punish_date', '?')} - {item.get('reason', '?')[:30]}"
+            )
+        lines.append("")
+
+    has_events = any(
+        events.get(k)
+        for k in ["earnings", "lockup", "dividend", "shareholder", "violation"]
+    )
+    if not has_events:
         lines.append(f"近 {events['query_days']} 日无重大事件")
 
     lines.append(f"\n🎯 {events['summary']}")

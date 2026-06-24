@@ -1,4 +1,5 @@
-"""东方财富事件日历数据源（财报披露、解禁、分红）。"""
+"""东方财富事件日历数据源（财报披露、解禁、分红、增减持、违规）。"""
+
 import json
 from datetime import timedelta
 from pathlib import Path
@@ -16,6 +17,12 @@ LOCKUP_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=F
 
 # 分红日历 API
 DIVIDEND_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=EX_DIVIDEND_DATE&sortTypes=1&pageSize=50&pageNumber=1&reportName=RPT_SHAREBONUS_DET&columns=SECURITY_CODE,SECURITY_NAME_ABBR,EX_DIVIDEND_DATE,PRETAX_BONUS_RMB,PLAN_NOTICE_DATE,REG_DATE&filter=(EX_DIVIDEND_DATE>='{start_date}')(EX_DIVIDEND_DATE<='{end_date}')"
+
+# 大股东增减持 API（东董监高及持股变动）
+SHAREHOLDER_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=END_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_SHARE_HOLDER_INCREASE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,END_DATE,HOLDER_NAME,CHANGE_NUM,CHANGE_RATIO,AVERAGE_PRICE,CHANGE_SHARES_AFTER&filter=(SECURITY_CODE='{code}')"
+
+# 监管处罚/违规记录 API
+VIOLATION_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=PUNISH_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_PUNISH_DETAIL&columns=SECURITY_CODE,SECURITY_NAME_ABBR,PUNISH_DATE,PUNISH_CONTENT,PUNISH_REASON,REGULATOR&filter=(SECURITY_CODE='{code}')"
 
 
 class EarningsCalendarFetcher(BaseFetcher):
@@ -146,4 +153,96 @@ class DividendCalendarFetcher(BaseFetcher):
         return {"type": "dividend", "items": items}
 
 
-__all__ = ["EarningsCalendarFetcher", "LockupCalendarFetcher", "DividendCalendarFetcher"]
+class ShareholderChangeFetcher(BaseFetcher):
+    """大股东增减持数据源。"""
+
+    def __init__(self):
+        super().__init__("shareholder_change", priority=5)
+
+    def fetch(self, code: str = "", **kwargs) -> dict | None:
+        """获取大股东增减持数据。需要指定 code。"""
+        if not code:
+            return None
+        clean_code = code.lstrip("shszSHSZbjBJ")
+        url = SHAREHOLDER_URL.format(code=clean_code)
+        raw = http_get(url)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+
+        if not data or data.get("success") is not True:
+            return None
+
+        result_data = data.get("result", {}).get("data", [])
+        if not result_data:
+            return None
+
+        items = []
+        for r in result_data:
+            change_num = to_float(r.get("CHANGE_NUM", 0))
+            items.append(
+                {
+                    "code": r.get("SECURITY_CODE", ""),
+                    "name": r.get("SECURITY_NAME_ABBR", ""),
+                    "holder_name": r.get("HOLDER_NAME", ""),
+                    "end_date": r.get("END_DATE", "")[:10],
+                    "change_num": change_num,
+                    "change_ratio": to_float(r.get("CHANGE_RATIO", 0)),
+                    "avg_price": to_float(r.get("AVERAGE_PRICE", 0)),
+                    "shares_after": to_float(r.get("CHANGE_SHARES_AFTER", 0)),
+                    "direction": "increase" if change_num > 0 else "decrease",
+                }
+            )
+
+        return {"type": "shareholder", "items": items}
+
+
+class ViolationFetcher(BaseFetcher):
+    """监管处罚/违规记录数据源。"""
+
+    def __init__(self):
+        super().__init__("violation", priority=5)
+
+    def fetch(self, code: str = "", **kwargs) -> dict | None:
+        """获取监管处罚记录。需要指定 code。"""
+        if not code:
+            return None
+        clean_code = code.lstrip("shszSHSZbjBJ")
+        url = VIOLATION_URL.format(code=clean_code)
+        raw = http_get(url)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+
+        if not data or data.get("success") is not True:
+            return None
+
+        result_data = data.get("result", {}).get("data", [])
+        if not result_data:
+            return None
+
+        items = []
+        for r in result_data:
+            items.append(
+                {
+                    "code": r.get("SECURITY_CODE", ""),
+                    "name": r.get("SECURITY_NAME_ABBR", ""),
+                    "punish_date": r.get("PUNISH_DATE", "")[:10],
+                    "content": r.get("PUNISH_CONTENT", ""),
+                    "reason": r.get("PUNISH_REASON", ""),
+                    "regulator": r.get("REGULATOR", ""),
+                }
+            )
+
+        return {"type": "violation", "items": items}
+
+
+__all__ = [
+    "EarningsCalendarFetcher",
+    "LockupCalendarFetcher",
+    "DividendCalendarFetcher",
+    "ShareholderChangeFetcher",
+    "ViolationFetcher",
+]
