@@ -18,7 +18,6 @@ from .types import Quote, KlineBar, FinanceRecord
 from .config import get_config
 
 
-
 def _now_iso() -> str:
     """获取当前时间的 ISO 格式字符串。"""
     return datetime.now().isoformat()
@@ -222,88 +221,92 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
     )
 
 
+# 财务字段映射表（模块级常量，避免每次调用重建）
+_FINANCE_FIELD_MAP = {
+    "report_date": [
+        "REPORT_DATE",
+        "REPORTDATETIME",
+        "NOTICE_DATE",
+        "报告日期",
+        "截止日期",
+        "report_date",
+    ],
+    "eps": ["EPSJB", "基本每股收益", "每股收益", "eps"],
+    "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE", "roe"],
+    "revenue_yoy": [
+        "TOTALOPERATEREVETZ",
+        "营业收入同比",
+        "营收同比",
+        "营业总收入同比增长率",
+        "营收同比(%)",
+        "revenue_yoy",
+    ],
+    "net_profit_yoy": [
+        "PARENTNETPROFITTZ",
+        "归母净利润同比",
+        "净利润同比",
+        "归母净利润同比增长率",
+        "净利润同比(%)",
+        "net_profit_yoy",
+    ],
+    "gross_margin": [
+        "XSMLL",
+        "销售毛利率",
+        "毛利率",
+        "毛利率(%)",
+        "销售毛利率(%)",
+        "gross_margin",
+    ],
+    "net_margin": [
+        "XSJLL",
+        "销售净利率",
+        "净利率",
+        "净利率(%)",
+        "销售净利率(%)",
+        "net_margin",
+    ],
+    "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)", "debt_ratio"],
+    "bps": ["BPS", "每股净资产", "bps"],
+    "ocf_per_share": [
+        "MGJYXJJE",
+        "每股经营现金流",
+        "每股现金流量净额",
+        "ocf_per_share",
+    ],
+    # ESG/分红/治理字段：当前 fetchers 未填充，保留映射占位待真实接口接入
+    "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
+    "consecutive_dividend_years": [
+        "CONSECUTIVE_DIVIDEND_YEARS",
+        "连续分红年数",
+        "LXFHNX",
+        "consecutive_dividend_years",
+    ],
+    "major_shareholder_reduction": [
+        "MAJOR_SHAREHOLDER_REDUCTION",
+        "大股东减持比例",
+        "DSGJCP",
+        "major_shareholder_reduction",
+    ],
+    "violation_penalty": [
+        "VIOLATION_PENALTY",
+        "违规处罚金额",
+        "WGCFJE",
+        "violation_penalty",
+    ],
+    "audit_opinion": [
+        "AUDIT_OPINION",
+        "审计意见类型",
+        "SJYJ",
+        "OPINION_TYPE",
+        "audit_opinion",
+    ],
+}
+
+
 def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
     to_float, to_int = _get_common_helpers()
-    FIELD_MAP = {
-        "report_date": [
-            "REPORT_DATE",
-            "REPORTDATETIME",
-            "NOTICE_DATE",
-            "报告日期",
-            "截止日期",
-            "report_date",
-        ],
-        "eps": ["EPSJB", "基本每股收益", "每股收益", "eps"],
-        "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE", "roe"],
-        "revenue_yoy": [
-            "TOTALOPERATEREVETZ",
-            "营业收入同比",
-            "营收同比",
-            "营业总收入同比增长率",
-            "营收同比(%)",
-            "revenue_yoy",
-        ],
-        "net_profit_yoy": [
-            "PARENTNETPROFITTZ",
-            "归母净利润同比",
-            "净利润同比",
-            "归母净利润同比增长率",
-            "净利润同比(%)",
-            "net_profit_yoy",
-        ],
-        "gross_margin": [
-            "XSMLL",
-            "销售毛利率",
-            "毛利率",
-            "毛利率(%)",
-            "销售毛利率(%)",
-            "gross_margin",
-        ],
-        "net_margin": [
-            "XSJLL",
-            "销售净利率",
-            "净利率",
-            "净利率(%)",
-            "销售净利率(%)",
-            "net_margin",
-        ],
-        "debt_ratio": ["ZCFZL", "资产负债率", "资产负债率(%)", "debt_ratio"],
-        "bps": ["BPS", "每股净资产", "bps"],
-        "ocf_per_share": [
-            "MGJYXJJE",
-            "每股经营现金流",
-            "每股现金流量净额",
-            "ocf_per_share",
-        ],
-        # ESG/分红/治理字段（review#9+10）：当前 fetchers 未填充，保留映射占位待真实接口接入
-        "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
-        "consecutive_dividend_years": [
-            "CONSECUTIVE_DIVIDEND_YEARS",
-            "连续分红年数",
-            "LXFHNX",
-            "consecutive_dividend_years",
-        ],
-        "major_shareholder_reduction": [
-            "MAJOR_SHAREHOLDER_REDUCTION",
-            "大股东减持比例",
-            "DSGJCP",
-            "major_shareholder_reduction",
-        ],
-        "violation_penalty": [
-            "VIOLATION_PENALTY",
-            "违规处罚金额",
-            "WGCFJE",
-            "violation_penalty",
-        ],
-        "audit_opinion": [
-            "AUDIT_OPINION",
-            "审计意见类型",
-            "SJYJ",
-            "OPINION_TYPE",
-            "audit_opinion",
-        ],
-    }
+    FIELD_MAP = _FINANCE_FIELD_MAP
 
     def _find(candidates, default=""):
         for k in candidates:
