@@ -185,22 +185,24 @@ def simulate_strategy(
                 if k not in ("label", "two_stage")
             )
 
-            entry_price = bars[i].close
-            exit_price = bars[i + holding_days - 1].close
-            if entry_price > 0:
-                ret = (exit_price - entry_price) / entry_price
-                # 扣除交易成本：佣金(双向) + 印花税(卖出) + 滑点(双向)
-                total_cost = commission * 2 + stamp_tax + slippage * 2
-                ret -= total_cost
-                all_selections.append(
-                    {
-                        "code": code,
-                        "date": bars[i].day,
-                        "score": round(score, 1),
-                        "return_pct": round(ret * 100, 2),
-                        "daily_returns": _calc_daily_returns(bars, i, holding_days),
-                    }
-                )
+            # 止损止盈逻辑：-8% 止损，+20% 止盈
+            ret, actual_days, exit_reason = _calc_return_with_stop_loss(
+                bars, i, holding_days, stop_loss=-0.08, take_profit=0.20
+            )
+            # 扣除交易成本：佣金(双向) + 印花税(卖出) + 滑点(双向)
+            total_cost = commission * 2 + stamp_tax + slippage * 2
+            ret -= total_cost
+            all_selections.append(
+                {
+                    "code": code,
+                    "date": bars[i].day,
+                    "score": round(score, 1),
+                    "return_pct": round(ret * 100, 2),
+                    "daily_returns": _calc_daily_returns(bars, i, actual_days),
+                    "exit_reason": exit_reason,
+                    "holding_days": actual_days,
+                }
+            )
 
             i += holding_days
 
@@ -267,6 +269,44 @@ def _calc_daily_returns(bars, start, holding_days):
         if j > 0 and bars[j - 1].close > 0:
             returns.append((bars[j].close - bars[j - 1].close) / bars[j - 1].close)
     return returns
+
+
+def _calc_return_with_stop_loss(
+    bars, start, holding_days, stop_loss=-0.08, take_profit=0.20
+):
+    """计算带止损止盈的持有期收益。
+
+    Args:
+        bars: K 线数据
+        start: 起始索引
+        holding_days: 持有天数
+        stop_loss: 止损阈值（默认 -8%）
+        take_profit: 止盈阈值（默认 +20%）
+
+    Returns:
+        (return_pct, exit_day, exit_reason)
+    """
+    entry_price = bars[start].close
+    if entry_price <= 0:
+        return 0.0, holding_days, "invalid"
+
+    for day in range(holding_days):
+        idx = start + day
+        if idx >= len(bars):
+            break
+        current_price = bars[idx].close
+        pnl = (current_price - entry_price) / entry_price
+
+        if pnl <= stop_loss:
+            return pnl, day + 1, "stop_loss"
+        if pnl >= take_profit:
+            return pnl, day + 1, "take_profit"
+
+    # 未触发止损止盈，持有到期
+    exit_idx = min(start + holding_days - 1, len(bars) - 1)
+    exit_price = bars[exit_idx].close
+    ret = (exit_price - entry_price) / entry_price
+    return ret, holding_days, "normal"
 
 
 def _compute_momentum_from_bars(bars) -> float:
