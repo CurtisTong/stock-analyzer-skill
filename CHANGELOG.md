@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD024 -->
+<!-- markdownlint-disable MD024 MD033 -->
 
 # Changelog
 
@@ -114,115 +114,88 @@
 - **version**: bump version to v1.13.1
 - **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release（新增 `scripts/dev/sync_skill_test_versions.py` + pre-commit hook + setup-test action step）
 
+### Planned
+
+- 回测权重网格搜索优化
+- 回测模拟实盘模式
+- 港股深度支持
+- 多语言（英文）输出
+- 更多本土战法形态
+
 ## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
 
-### Added · 动量派专家系统（v2.2.0）
+### ⚠️ 升级须知
 
-补齐纯趋势跟踪视角：现有 14 位专家中，价值派几乎不重技术面，短线 4 人偏题材/事件驱动/情绪博弈，纯"价格行为 + 系统化止损纪律"的视角空缺。
+- **建议立即升级**：持仓管理存在死锁 bug（`atomic_update` 卡死 10 秒）、技术分析情绪指标无法使用（`sentiment.py` 双致命错误），本次修复后恢复正常
+- 无需清理缓存，向后兼容
+- 1733 项测试 100% 通过
 
-- 🆕 **新增第 15 位 active 专家 `momentum_trader`（动量派·利弗莫尔+丹尼斯）**：`experts/registry.py` 注册表总数 14→15，active 8→9
-- 📐 **评分权重**：技术面 40% + 情绪/资金 25% + 风险 20% + 基本面 10% + 估值 5%（`experts/scoring/momentum_trader.py` 229 行）
-- 🐢 **海龟法则核心纪律**：MA 多头排列入场、关键转折点放量突破、跌破 MA20 无条件清仓、单笔风险 ≤ 2%、单一板块暴露 ≤ 25%、同时持仓 ≤ 3-4 个
-- 📊 **veto_conditions**：跌破 MA20+放量、流动性枯竭（5 日均成交额 <2 亿）、财务造假/监管处罚、连续 2 年亏损
-- 📚 **人设档案**：`experts/momentum_trader.md`（186 行）+ `experts/yaml/momentum_trader.yaml`（18 行机器可读配置）
-- 🧪 **单元测试**：`tests/test_momentum_trader.py`（208 行）覆盖多头排列/空头/流动性枯竭/亏损股/ST 等场景
-- 🔗 **分组调整**：短线 active 2→3（topic_leader + emotion_tech + momentum_trader），`experts/decide.md` 文档同步到 v2.2.0
+### 🌟 用户亮点
 
-### Changed · 用户体验优化（v1.12.1）
+- **新增第 15 位投资专家「动量派」**：基于利弗莫尔+海龟交易法则，专注价格行为 + 系统化止损纪律。通过 `/stock <代码> debate` 调用
+- **新手引导优化**：`/help` 重写为"按目标选入口"表，`/learn` 补充更多概念触发词（PE/ROE/MACD/K线等）
+- **持仓管理修复**：不再出现卡死，日报推送恢复正常
+- **监控推送修复**：关键点位推送内容完整（之前会缺失持仓/自选信息）
+- **回测修复**：`/stock --with-backtest` 胜率等指标正确显示
+- **选股优化**：分红率按行业差异化（银行 30%、科技 15% 等），结果为空时自动引导 `/screener init`
 
-- 🎯 新增 `_shared/references/welcome.md` 统一欢迎卡（4 段：心智建立 + 3 步上手 + 4 目标入口 + 退出方式），可被 `/help` 和 `/learn` 复用
-- 🆘 重写 `/help` SKILL.md：合并"5 场景入口"和"4 新手引导场景"为一张"按目标选入口"表；顶部加识别指令自动加载 welcome.md；"高级子模式速查"挪到末尾附录
-- 📚 `/learn` description 补充概念类触发词（什么是 PE/ROE/MACD/KDJ/K线、均线怎么用、估值方法、技术分析入门、什么是缠论）
-- 📖 README.md：副标题改写为"把专业 A 股分析变成 9 条对话命令"；新增"4 个常见问题 → 4 条命令"段；插入 5 行心智建立段
-- 📖 user-guide.md：顶部加 TL;DR 9 skill 一句话表 + 4 个组合使用场景提前；原"组合使用场景"段改名为"完整使用流程（自下而上 / 再平衡 / 研究报告）"
-- 🚀 `install.sh` / `install-plugin.js` 末尾新增"新手起步"提示（直接输入 `/help` 或 `/stock 贵州茅台 quick`）
-- 🧭 `docs/quick-start.md` 顶部加 README 导航行
+### Changed · 用户体验优化
 
-### Fixed · 10 模块深度审查（v1.12.1）
+- 新增 `_shared/references/welcome.md` 统一欢迎卡，可被 `/help` 和 `/learn` 复用
+- README.md 副标题改写为"把专业 A 股分析变成 9 条对话命令"
+- `install.sh` 末尾新增"新手起步"提示
 
-本次对 10 个核心模块进行深度代码审查，共提交 10 个 commit，修复 46+ 项问题。
-所有改动均通过 1733 项单元测试（100% 通过率）。
+### Fixed · 10 模块深度审查
 
-#### 数据获取模块（commit `3e4d06f`）
+本次对 10 个核心模块进行深度代码审查，共修复 46+ 项问题。
 
-- 🔴 **同花顺 fetcher 语义修复**：thquote 接口实际返回最近 K 线收盘价而非实时行情，优先级从 7 下调至 3 并加注释说明
-- 🔴 **雪球行情字段映射对齐**：`pre_close` → `prev_close`，`turnover_rate` → `turnover`，`market_cap` → `total_cap`（统一单位亿元）
-- 🟠 **Baostock 模块级一次性 login**：`atexit.register(bs.logout)` + 模块级 `_bs_logged_in` 锁，消除每次 fetch 的握手开销
-- 🟠 **熔断器配置接入**：`BaseFetcher` 从 `data_source.yaml` 动态读取 `failure_threshold/recovery_timeout/half_open_max`
-- 🟠 **连接池列表化**：`{key: conn}` → `{key: [conn, ...]}`，同 host 可保持多个 keep-alive 连接
-- 🟠 **HTTP 客户端去重**：`http_get` / `http_get_with_headers` 合并为 `_http_get_internal`
-- 🟡 清理 21 个 fetcher 文件的 `sys.path.insert` 样板代码
+<details>
+<summary>🔴 8 项致命修复（点击展开）</summary>
 
-#### 技术分析模块（commit `4469233`）
+| 模块     | 问题                                                           | 修复                                     |
+| -------- | -------------------------------------------------------------- | ---------------------------------------- |
+| 数据获取 | 同花顺 fetcher 返回 K 线收盘价而非实时行情                     | 优先级下调 + 注释说明                    |
+| 数据获取 | 雪球行情字段映射错误                                           | 对齐 `prev_close`/`turnover`/`total_cap` |
+| 技术分析 | `sentiment.py` 双致命错误（`HttpClient` 不存在 + `NameError`） | 改用 `http_get` + `urlencode`            |
+| 技术分析 | `pipeline.py` 数组错位（closes/volumes 长度不一致）            | 统一过滤 `valid_bars`                    |
+| 持仓管理 | `atomic_update()` 文件锁死锁                                   | 抽取 `_raw_write()` 避免重入             |
+| 持仓管理 | `daily_report.py` 导入错误                                     | 改用 `http_get` + `parse_tencent_line`   |
+| 监控     | `compute_key_levels` 返回值缺失                                | 增加 `position`/`watch` 键               |
+| 回测     | `stock.py --with-backtest` 字段名映射错误                      | 4 个字段名对齐                           |
 
-- 🔴 **`scripts/technical/sentiment.py` 双致命错误修复**：`HttpClient` 不存在 + `_EASTMONEY_UT` 自引用 `NameError`，改用 `http_get` + `urlencode`
-- 🔴 **`scripts/technical/pipeline.py` 数组错位修复**：`closes/volumes` 独立过滤导致数组长度不一致，改为统一过滤 `valid_bars`
-- 🟠 **量价评分方向性修复**：极低量加分仅在 `vp_signal >= 0` 时生效（放量下跌时不再加分）
-- 🟠 **背离检测峰值匹配容差优化**：从区间匹配 `abs(i - target) <= 5` 改为最近邻匹配
-- 🟠 **量价分析窗口优化**：从等分窗口改为非对称窗口（近期 5 日 vs 前 20 日）
-- 🟠 **亏损公司 OCF 信号修复**：亏损但有现金流时给出"造血能力尚存"正面评价
-- 🟡 光头光脚阳线/阴线检测改用 0.1% 浮点容差
-- 🟡 `report.py` `meta['price_num']` 改用 `meta.get('price_num', 0)` 安全访问
+</details>
 
-#### 持仓管理模块（commit `38fecd0`）
+<details>
+<summary>🟠 28 项重要修复（点击展开）</summary>
 
-- 🔴 **`atomic_update()` 文件锁死锁修复**：抽取 `_raw_write()` 不加锁写入，`atomic_update` 在已持锁状态下直接调用，消除 10 秒超时死锁
-- 🔴 **`daily_report.py` 导入错误修复**：`HttpClient` 不存在，改用 `http_get` + `parse_tencent_line`，批量请求行情
-- 🟠 **日报数据模型对齐 v2 格式**：兼容 `quantity/cost` 和旧 `shares/cost_price`
-- 🟠 **`max_drawdown` 日期对齐修复**：`NAV[date] = Σ(close_i × qty_i)`，不再按股票顺序错位追加
-- 🟠 **通知状态管理修复**：直接修改 `utils._notify_enabled` 而非模块级变量遮蔽
-- 🟡 `get_position`/`get_watch` 返回 `copy.deepcopy` 副本；内部操作使用 `_find_position`/`_find_watch` 获取可变引用
+- **数据获取**：Baostock 模块级一次性 login、熔断器配置接入、连接池列表化、HTTP 客户端去重
+- **技术分析**：量价评分方向性修复、背离检测容差优化、量价分析窗口优化、亏损公司 OCF 信号修复
+- **持仓管理**：日报数据模型对齐 v2、`max_drawdown` 日期对齐、通知状态管理修复
+- **监控**：支撑位强度分级、单例缓存、批量行情预取
+- **缠论**：`closes` 索引对齐、三买回踩检测逻辑修复
+- **筛选策略**：`_stdev` 一致化、分红年数回退逻辑修复、RSI 精度修复、归一化精确总和
+- **业务层**：涨跌停判断修复、数组错位消除、PE 分位逻辑复用
+- **分类器**：板块类型对齐、重试逻辑、diff guard
+- **回测**：死分支删除、循环内导入提升
+- **专家系统**：4:4 两极分化分支可达性修复
 
-#### 实时监控模块（commit `af99534`）
+</details>
 
-- 🔴 **`compute_key_levels` 返回值修复**：增加 `position`/`watch` 键，修复推送内容缺失
-- 🟠 **`support_touch_weak` 触发修复**：按支撑位强度分级（强→`support_touch`，弱→`support_touch_weak`）
-- 🟠 **`NotificationManager`/`PortfolioManager` 单例缓存**：模块级惰性初始化
-- 🟠 **批量行情预取**：`scan_all` 预调用 `get_quotes` 预热缓存，减少逐股串行 HTTP
-- 🟡 log 轮转检查从每次写入改为每 10 次写入检查一次
-- 🟡 `dingtalk.py` 的 `__import__("base64")` 改为顶层 `import base64`
+<details>
+<summary>🟡 10 项轻微修复（点击展开）</summary>
 
-#### 缠论模块（commit `b07501f`）
+- 清理 21 个 fetcher 文件的 `sys.path.insert` 样板代码
+- 光头光脚阳线/阴线检测改用 0.1% 浮点容差
+- `report.py` 安全访问 `meta.get('price_num', 0)`
+- log 轮转检查频率优化（每次 → 每 10 次）
+- `dingtalk.py` 动态导入改为顶层导入
+- `merge` 合并后保留 `open`/`close` 字段
+- `thresholds.py` 配置缺失时增加 warning 日志
+- `classifier.py` 顶部统一导入
+- 场景标签从年份改为时间窗口（近1月/近3月/近6月）
+- `get_position`/`get_watch` 返回深拷贝副本
 
-- 🟠 **`closes` 索引对齐修复**：不再过滤零值，保持与 records 索引对齐
-- 🟠 **三买回踩检测逻辑修复**：从"站在 ZG 上方 0-3%"（实为"突破站稳"）改为"距 ZG 2% 以内"（真正的回踩）
-- 🟡 `merge` 合并后保留 `open`/`close` 字段
-
-#### 筛选策略模块（commit `cce78a8`）
-
-- 🟠 **`_stdev` 与 `technical/core.py` 一致化**：改为总体标准差（除以 n）
-- 🟠 **`_count_dividend_years` 回退逻辑修复**：无记录时返回 0，移除误导性固定 2 回退
-- 🟠 **`momentum.py` `int()` 截断改为 `round(2)`**：避免 RSI 加权系数精度丢失
-- 🟠 **`overlay.py` 归一化后精确总和为 1.0**：先除后 round
-- 🟠 **`PRE_SCREEN_FILTER` 与 `config/limits.yaml` 同步更新**
-- 🟠 **`thresholds.py` 配置文件缺失时增加 warning 日志**
-
-#### 业务层模块（commit `7493af1`）
-
-- 🟠 **删除不存在的 `backtest_service` 文档引用**
-- 🟠 **删除两个文件中未使用的 `InsufficientDataError` 导入**
-- 🟠 **`_calculate_composite_score` 复用 `strategies.pe_percentile`**，删除 15 行重复 PE 分位逻辑
-- 🟠 **`_hard_filter` 涨跌停判断修复**：从 `abs() >= limit` 改为双向 `>= limit OR <= -limit`
-- 🟠 **`compute_features` 统一过滤 `close > 0 and volume > 0`**，消除数组错位
-
-#### classifier + refresh_pool 模块（commit `4cd9100`）
-
-- 🟠 **`_classify_board` 与 `common.board_type` 对齐**：输出从"主板沪/主板深"统一为"主板"
-- 🟠 **`_fetch_xuangu_page` 增加 `max_retries=2` 重试逻辑**
-- 🟠 **`build_dividend_pool` 参数名重命名 + 注释对齐**
-- 🟠 **`refresh_pool` 增加 diff guard**：新池与当前池相同时跳过写入
-- 🟡 `classifier.py` 顶部统一导入 `board_type`
-
-#### 回测引擎模块（commit `7716611`）
-
-- 🔴 **`stock.py --with-backtest` silent bug 修复**：字段名映射 `win_rate_pct → win_rate` 等 4 个字段，子进程传参从位置参数改为 `--codes`
-- 🟠 **`_build_hist_quote` 死分支删除**：`total_cap` 已是 0 又再赋 0
-- 🟠 **`simulate_strategy` 循环内 3 处 `from import` 提到文件顶部**
-- 🟡 场景标签从误导性年份改为时间窗口（近1月/近3月/近6月）
-
-#### 投资专家模块（commit `fd86cf4`）
-
-- 🟠 **`_resolve_conflict` 4:4 两极分化分支可达性修复**：增加 `long_votes["bull"] != 2` 守卫，避免 2:2:2:2 全面分歧分支抢先匹配
+</details>
 
 ### 测试结果
 
@@ -240,112 +213,54 @@
 | 代码变更       | 1277 insertions, 420 deletions（净 +857 行） |
 | 测试通过率     | 100%                                         |
 
+> **emoji 分级说明**：🔴 致命（功能不可用）🟠 重要（结果不准确）🟡 轻微（代码质量）
+
 ## [1.12.0] - 2026-06-17（统一版本：V2 量化策略平台 + V2.1 维护）
 
 > 本版本将所有 Sprint 1-26 的 V2 改造合并发布为统一版本 v1.12.0
 > 历史 tag（v1.1.0 - v1.11.0、v2.0.0、v2.1.0）已合并到此版本。
 
+### 🌟 用户亮点
+
+- **选股策略全面升级**：5 策略（均衡/质量价值/成长动量/防守低波/拐点修复）权重优化，选股更精准
+- **市场状态自适应**：自动识别牛市/熊市/震荡/恐慌 4 种状态，动态调节策略权重
+- **选股快照**：保存/对比/列出历史选股结果，方便回溯验证
+- **跨策略对比**：`strategy_performance compare` 一键对比 5 策略的夏普/胜率/回撤
+- **专家配置 YAML 化**：13 位专家配置从硬编码迁移到 YAML，便于自定义调参
+- **选股性能提升**：K 线批量预拉 + 行情财务并行拉取，大幅减少等待时间
+
+<details>
+<summary>🔧 技术详情（点击展开）</summary>
+
 ### Added
 
 - **Screener V2 量化策略平台**（Sprint 1-26 综合）：
-  - 6 因子 z-score 标准化（review#14）消除跨因子尺度差异
-  - 4 状态市场状态机（bull/bear/range/panic）自动调节策略权重（doc#03）
+  - 6 因子 z-score 标准化消除跨因子尺度差异
+  - 4 状态市场状态机（bull/bear/range/panic）自动调节策略权重
   - 两阶段管线（Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排）
-  - 5 策略 V2 权重升级（balanced/quality_value/growth_momentum/defensive/turning_point）
-  - 选股快照系统（review#16）：保存/对比/列出 JSON 快照
-  - 跨策略对比子命令（strategy_performance compare）
-  - 月度校准（strategy_performance record）记录到 JSON
-  - 性能压测工具（perf_bench.py + save 子命令 JSON 持久化）
-  - 板块集中度算法修复（review#15，候选池 < 10 不强制）
-  - 因子级精修：波动率窗口 20→60 / ROE 趋势下降占比 60% / 动量阈值 p75 / PEG 用 3y CAGR / 动量趋势基础分收敛
-  - K 线批量预拉（review#12）减少 5000 次独立 IO
-  - 行情+财务并行拉取（review#11）耗时从 sum 降到 max
-  - 行业分类 fetcher_industry 优先（review#13）
-  - turning_point 两阶段模型（review#2）超跌+量能+基本面三重过滤
-  - ESG/分红 fetcher 字段映射（review#9+10）dividend_records/consecutive_dividend_years 等
-- **experts/yaml 机器可读版**（D6 落地）：13 个 expert yaml 配置 + 加载器
-  - `experts/yaml_loader.py` 支持 load/load_all/export/round_trip
-  - `experts/registry.py` 优先从 yaml 加载，向后兼容硬编码
-- **screener.py main() 重构**（V2.1）：提取 `_build_parser()` 和 `_run_main(args)` 助手
-  - `_build_parser()` 返回 argparse parser（便于构造 Namespace）
-  - `_run_main(args)` 接收参数后直接执行（不解析 argv）
-  - `main()` 仅 5 行（parse + delegate）
+  - 因子级精修：波动率窗口 20→60 / ROE 趋势下降占比 60% / 动量阈值 p75 / PEG 用 3y CAGR
+  - turning_point 两阶段模型：超跌+量能+基本面三重过滤
+  - ESG/分红 fetcher 字段映射
+- **experts/yaml 机器可读版**：13 个 expert yaml 配置 + 加载器
+- **screener.py main() 重构**：提取 `_build_parser()` 和 `_run_main(args)` 助手
 - **统一版本号**：`scripts/common/version.py` 暴露 `__version__ = "1.12.0"`
-  - `screener --version` / `backtest --version` 输出带前缀
 - **C7 README 30s demo**：`scripts/demo.sh` 可重放脚本 + README demo 段
 
 ### Changed
 
-- `compute_weighted_score` 支持 market regime overlay（strategy 参数 → 实时调节权重）
-- 策略权重从 V1 经验值（balanced.quality=0.23）升级到 V2（0.30）
-- `_dict_to_finance` 支持 5 个新字段（dividend_yield/consecutive_dividend_years 等）
+- `compute_weighted_score` 支持 market regime overlay
+- 策略权重从 V1 经验值升级到 V2
+- `_dict_to_finance` 支持 5 个新字段
 
 ### Engineering
 
 - 覆盖率 55% → 62.1%（fail-under 60% 达标）
 - 168 测试 → 1780 测试（+1612 测试，0 失败）
-- pre-commit 钩子 + flake8 + black 格式化
-- 21 个独立 commit
 - 5 个新模块（regime / filters / snapshots / strategy_performance / perf_bench）
-- 13 个 expert yaml（V2 + V2.1.0 完整覆盖）
 
-## [1.11.0] - 2026-06-16
+</details>
 
-### Changed
-
-- **screener.py main() 重构**：提取 `_build_parser()` 和 `_run_main(args)` 助手，便于单测覆盖
-  - `_build_parser()` 返回 argparse parser（便于构造 Namespace）
-  - `_run_main(args)` 接收参数后直接执行（不解析 argv）
-  - `main()` 仅 5 行（parse + delegate）
-- **统一版本号**：`scripts/common/version.py` 暴露 `__version__ = "2.1.0"`
-  - `screener --version` / `backtest --version` 输出带前缀（screener 2.1.0）
-- **性能基准持久化**：`perf_bench.py save` 子命令保存到 `data/perf_benchmarks.json`（含 version + timestamp）
-- **v2.1.0 扩展视角 yaml 完整迁移**（Sprint 21）：5 个 expert yaml
-
-### Engineering
-
-- 覆盖率 61.8% → 62.1%（+0.3%，新增 7 个 \_run_main 测试）
-- 测试 1773 → 1780（+7）
-- 20 → 21 个独立 commit
-
-## [1.8.0] - 2026-06-17（v2 量化策略平台首版）
-
-### Added
-
-- **Screener V2 量化策略平台**（15 Sprint 综合）：
-  - 6 因子 z-score 标准化（review#14）消除跨因子尺度差异
-  - 4 状态市场状态机（bull/bear/range/panic）自动调节策略权重（doc#03）
-  - 两阶段管线（Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排）
-  - 5 策略 V2 权重升级（balanced/quality_value/growth_momentum/defensive/turning_point）
-  - 选股快照系统（review#16）：保存/对比/列出 JSON 快照
-  - 跨策略对比子命令（strategy_performance compare）
-  - 月度校准（strategy_performance record）记录到 JSON
-  - 性能压测工具（perf_bench.py）
-  - 板块集中度算法修复（review#15，候选池 < 10 不强制）
-  - 因子级精修：波动率窗口 20→60 / ROE 趋势下降占比 60% / 动量阈值 p75 / PEG 用 3y CAGR / 动量趋势基础分收敛
-  - K 线批量预拉（review#12）减少 5000 次独立 IO
-  - 行情+财务并行拉取（review#11）耗时从 sum 降到 max
-  - 行业分类 fetcher_industry 优先（review#13）
-  - turning_point 两阶段模型（review#2）超跌+量能+基本面三重过滤
-  - ESG/分红 fetcher 字段映射（review#9+10）dividend_records/consecutive_dividend_years 等
-- **experts/yaml 机器可读版**（D6 落地）：8 个专家 yaml 配置 + 加载器
-  - `experts/yaml_loader.py` 支持 load/load_all/export/round_trip
-  - `experts/registry.py` 优先从 yaml 加载，向后兼容硬编码
-
-### Changed
-
-- `compute_weighted_score` 支持 market regime overlay（strategy 参数 → 实时调节权重）
-- 策略权重从 V1 经验值（balanced.quality=0.23）升级到 V2（0.30），覆盖更全面
-- `_dict_to_finance` 支持 5 个新字段（dividend_yield/consecutive_dividend_years 等）
-
-### Engineering
-
-- 覆盖率从 55% 提升到 61.8%（fail-under 60% 达标）
-- 168 测试 → 1773 测试（+1605 测试，0 失败）
-- pre-commit 钩子 + flake8 + black 格式化
-- Sprint 1-15 共 15 个独立 commit
-
-## [1.11.0] - 2026-06-16
+## [1.11.0] - 2026-06-16（反追涨杀跌 + screener 重构 + yaml 迁移）
 
 ### Added
 
@@ -358,12 +273,22 @@
 
 ### Changed
 
+- **screener.py main() 重构**：提取 `_build_parser()` 和 `_run_main(args)` 助手，便于单测覆盖
+- **统一版本号**：`scripts/common/version.py` 暴露 `__version__ = "2.1.0"`
+- **性能基准持久化**：`perf_bench.py save` 子命令保存到 `data/perf_benchmarks.json`
+- **v2.1.0 扩展视角 yaml 完整迁移**（Sprint 21）：5 个 expert yaml
 - 短线组专家情绪/技术面权重相应下调（总权重保持 100%）
 - 专家 md 文件权重表同步更新
 
 ### Documentation
 
 - 全量更新文档同步至 v1.10.0 / 9 skill 结构
+
+### Engineering
+
+- 覆盖率 61.8% → 62.1%（+0.3%，新增 7 个 \_run_main 测试）
+- 测试 1773 → 1780（+7）
+- 20 → 21 个独立 commit
 
 ## [1.10.0] - 2026-06-15
 
@@ -498,87 +423,56 @@
 
 ## [1.7.0] - 2026-06-12
 
-### Added
+### 🌟 用户亮点
+
+- **专家圆桌决策引擎**：`/stock <代码> debate` 时，8 位专家自动投票 + 冲突解决 + 仓位建议，输出结构化辩论报告
+- **市场状态自动识别**：牛市/熊市/震荡/冰点/亢奋 5 种状态，自动调节专家权重（如冰点时防守专家加权）
+- **文档全面修复**：12 个 SKILL.md 深度审查，修复数据路径错误、默认行为歧义等用户会踩的坑
+- **新增用户指南**：`docs/user-guide.md`，按场景引导上手
+
+<details>
+<summary>🔧 技术详情（点击展开）</summary>
 
 - 专家圆桌决策引擎 `experts/decide.py`（decide.md 代码化）：
-  - `detect_market_state()`：市场环境检测（牛市/熊市/震荡/冰点/亢奋），基于价格均线偏移、量能比、市场宽度指标综合判定
-  - `aggregate_votes()`：8 位专家加权投票聚合，整合市场状态权重 × 投资期限权重，输出净多/净空/方向/强度/共识度/仓位建议/信心指数
-  - `aggregate_group_votes()`：长线-only / 短线-only 单组模式投票聚合（decide.md §七）
-  - `format_debate_output()`：结构化辩论报告格式化，含方向分布、共识评估、仓位上沿/下沿
-  - `_MARKET_WEIGHTS` / `_HORIZON_WEIGHTS`：双权重矩阵（市场状态 × 投资期限），支持短线/中线/长线三种周期
-  - `_market_state_reason()`：把市场状态判定结果翻译成一句话自然语言（"指数在均线上方，量能放大…"），便于 debate 输出回显给用户
-  - 冲突解决（decide.md §三）：双一致看多/空、长线主导、短线主导、巴菲特否决权（中长期模式）、养家情绪周期降权/冰点特殊处理
-- 单元测试 `tests/test_decide.py`（486 行）：market_state / aggregate_votes / format_output 全链路覆盖，含判势多场景、冰点孤例、共识判断置信边界、全零输入防护
-- 数据层动态线程数与分类型缓存：
-  - `scripts/data/config.py::DataConfig.max_workers`：动态计算（`cpu_count * 2`，下界 8，上界 32），替代旧硬编码 8 线程
-  - 分类型缓存 TTL：`quote_cache_ttl`（盘后 900s）/ `intraday_quote_cache_ttl`（盘中 90s）/ `kline_cache_ttl`（6h）/ `finance_cache_ttl`（6h）/ `margin_cache_ttl`（1h）/ `ann_cache_ttl`（30min）等均按数据类型差异化
-  - `scripts/common/utils.py::FetcherConfig` dataclass：统一 Fetcher 配置契约（`max_workers` / `timeout` / `retries`）
-  - 错误透传机制：Fetcher 级异常统一包装为 `DataError`，携带原始异常链（`__cause__`），便于定位上游数据源问题
-- 文档一致性与用户专家审查修复（P0-P3 全部）：
-  - `skills/_shared/references/alert-thresholds.md`：新增预警与告警阈值共享表，`portfolio` 和 `monitor` 共用同一份权威源
-  - 12 个 SKILL.md 全量深度审查修复（P0-P2 问题）
-  - `skills/help/SKILL.md`："高级子模式速查"表 + "9 个 skill" → "12 个 skill" 修正
-  - `skills/stock/SKILL.md`：`/stock` 参数默认行为明确、短线团专家首次出现补全全名、calibration 步骤加版本说明
-  - `skills/portfolio/SKILL.md`：数据路径修正（4 处）、allowed-tools 增补、rebalance 模式联动作业说明
-  - `workflow.md`：决策门槛表加"触发 skill"列
-  - 新增 `docs/user-guide.md` 用户指南文档
-
-### Changed
-
-- `scripts/screener.py`：同步 `data/__init__.py` 动态线程 API，分类型缓存适配
-- `tests/test_business.py` / `tests/test_screener.py`：同步新配置接口与缓存策略
+  - `detect_market_state()` / `aggregate_votes()` / `format_debate_output()`
+  - 双权重矩阵（市场状态 × 投资期限），支持短线/中线/长线
+  - 冲突解决：巴菲特否决权、养家情绪周期降权、冰点特殊处理
+- 数据层动态线程数与分类型缓存（按数据类型差异化 TTL）
+- 文档一致性修复（P0-P3 全部）
 
 ### Fixed
 
-- 文档一致性与用户跑不下去的坑（用户专家审查报告 P0 必修）
-  - `skills/stock/SKILL.md`：移除 `debate (默认全模式)` 的双重"默认"声明，附提示"需要专家圆桌必须显式写 `debate`"
-  - `skills/portfolio/SKILL.md`（4 处）+ `skills/monitor/SKILL.md`（2 处）：数据路径 `data/portfolio.json` → `scripts/data/portfolio.json`（与实际文件位置一致）
-  - `skills/portfolio/SKILL.md`：`allowed-tools` 增补 `Bash(lsof -i:8765 *)` 与 `web --status` 内部命令对齐
-  - `skills/stock/SKILL.md`：短线团专家首次出现补全为"**炒股养家**（养家）"，跨文档统一
-  - `skills/stock/SKILL.md`：第 5 步 `calibration` 记录加"需要 1.6.0+" 版本说明
-  - `workflow.md`：决策门槛表加"触发 skill"列，绑定每条门槛的主动核对 / 先行调用方
+- `skills/stock/SKILL.md`：移除 `debate` 双重"默认"声明
+- `skills/portfolio/SKILL.md`（4 处）+ `skills/monitor/SKILL.md`（2 处）：数据路径修正
+- `skills/stock/SKILL.md`：短线团专家首次出现补全全名
+
+</details>
 
 ## [1.6.0] - 2026-06-12
 
-### Added
+### 🌟 用户亮点
 
-- 专家评分硬编码体系（替代 LLM 推理 markdown）：
-  - `experts/scoring.py::score_expert_precise()`：8 位专家专属评分函数（`_score_buffett` / `_score_lynch` / `_score_soros` / `_score_duan_yongping` / `_score_xu_xiang` / `_score_zhao_laoge` / `_score_chaogu_yangjia` / `_score_zuoshou_xinyi`），精确复现 `experts/*.md §九` 评分矩阵阈值规则，输出量化基线参考；缺失函数自动回退到 `score_expert` 并标记 `method="fallback"`
-  - `experts/scoring.py::compute_confidence_index()`：信心指数计算含校准因子（公式 `consistency*0.35 + composite*0.55 + cal*0.1`，校准贡献上限 ±10 分）
-- 校准数据自动回写机制：
-  - `experts/calibration.py`：`record_prediction` / `verify_predictions` / `get_calibration` / `get_pending_predictions` / `compute_calibration_factor` / `get_calibration_report` 6 个 API，落地 `data/expert_calibration.json`，`tempfile.mkstemp + os.replace` 原子写入并发安全；同日同股按 `pred_YYYYMMDD_<code>` ID 去重覆盖
-  - `scripts/calibration.py` CLI 入口：`record` / `verify` / `report` / `pending` 4 个子命令
-  - 校准因子归一化到 `[-1, 1]`，公式 `mean × (1 − min(CV, 0.5))`
-- 全市场股票池支持（~5000 只 A 股全覆盖）：
-  - `scripts/refresh_pool.py::fetch_all_market_stocks()`：按板块归档到 `data/all_stocks.json`（主板沪 / 主板深 / 创业板 / 科创板 / 北交所），分页 `page_size=5000`，排除 ST 与未分类板块
-  - `--full-market` 参数在 `refresh_pool.py` / `screener.py` / `init_pool.py` 三处贯通：refresh 拉取并保存全量、screener 加载全市场 universe 后预筛、init 智能跳过已存在数据（除非 `--force`）
-  - `scripts/screener.py::load_full_market_universe(boards=None)` + `_BOARD_KEY_MAP`：按 `board_type()` 映射到 all_stocks.json 键名，支持子集筛选
-  - `scripts/screener.py::pre_screen_quotes()`：大池高效预筛，复用 `refresh_pool.FILTER` 统一阈值（成交额 主板 5000 万 / 创业科创 3500 万 / 北交所 7500 万；总市值 主板 40 亿 / 创业科创 24 亿 / 北交所 16 亿），支持 `--board-limit` 按板块分桶截取
-- 美股收盘数据接入（大盘分析新增美股参考板块）：
-  - `scripts/fetchers/yfinance_quote.py::YfinanceQuoteFetcher`（priority=6）：基于 `yfinance` 包，识别 `us:` 前缀，未安装包时返回 `NOT_HANDLED`；字段对齐 `Quote` 数据类型（price/prev_close/change_pct/pe/pb/total_cap 等）
-  - `scripts/fetchers/yfinance_kline.py` 同步支持 `us:` 前缀
-  - `scripts/common/__init__.py::NOT_HANDLED` 哨兵值：与 `None` 失败语义区分，`DataFetcherManager.fetch` 遇到 `NOT_HANDLED` 跳过且不计熔断失败，A 股 / 美股跨域数据源安全共存
-  - 典型用法：`python3 scripts/quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq`（标普500 / 纳指 / 道指 / VIX / SPY / QQQ）
-- npm 自动发布 workflow：
-  - 新增 `.github/workflows/release.yml`：`v*` tag push 触发，Python 3.11/3.12 矩阵测试 → `npm publish` → `softprops/action-gh-release@v2` 创建 GitHub Release（`body_path: CHANGELOG.md` + `generate_release_notes`）
-  - 需要配置 `NPM_TOKEN` secret；流程：`git tag v1.6.0 → git push --tags → 自动测试 → npm publish → GitHub Release`
-- 单元测试新增 ~126 个：
-  - `tests/test_calibration.py`（267 行）：record/verify/compute_factor/report 全链路覆盖
-  - `tests/test_scoring.py`（338 行）：8 位专家专属评分函数边界测试
-  - `tests/test_yfinance_us.py`（242 行）：US 前缀识别、NOT_HANDLED 短路、字段映射、熔断隔离 19 个用例
-  - `tests/test_screener.py` 新增 `TestPreScreenQuotes` 和全市场 universe 用例
+- **美股数据接入**：`/market` 大盘分析新增美股参考（标普500/纳指/道指/VIX/SPY/QQQ），需安装 `yfinance` 包
+- **全市场选股**：`/screener --full-market` 覆盖 ~5000 只 A 股，支持按板块筛选（主板/创业板/科创板/北交所）
+- **专家量化评分**：`/stock debate` 新增量化基线参考，8 位专家各有专属评分函数，与 LLM 推理分差 >15 时自动提示
+- **校准数据回写**：debate 后自动记录预测，下次分析时显示校准因子（如 `校准因子: +0.15`）
+- **npm 自动发布**：`git tag v1.6.0 → git push --tags` 自动测试 → npm publish → GitHub Release
+
+<details>
+<summary>🔧 技术详情（点击展开）</summary>
+
+- 专家评分硬编码体系：`experts/scoring.py` 8 位专家专属评分函数 + 信心指数计算
+- 校准数据自动回写：`experts/calibration.py` 6 个 API，原子写入并发安全
+- 全市场股票池：`refresh_pool.py --full-market` 按板块归档，`screener.py` 高效预筛
+- 美股数据源：`yfinance_quote.py` / `yfinance_kline.py`，`NOT_HANDLED` 哨兵值隔离 A 股/美股
+- 单元测试新增 ~126 个（calibration / scoring / yfinance / screener）
 
 ### Changed
 
-- `skills/stock/SKILL.md` debate 流程新增 2 个步骤：
-  - 「量化基线参考」：调用 `experts.scoring.score_expert_precise()` 获取量化分，与 LLM 推理分差 >15 时需说明分歧
-  - 「记录校准数据」：debate 完成后调用 `python3 scripts/calibration.py record --stock <代码> --direction <方向> --scores '{...}'` 写入校准库；输出附带当前校准因子（示例 `校准因子: +0.15`）
-- `skills/market/SKILL.md`：
-  - 数据获取段加入美股收盘命令与 `us:` 前缀约定（`us:^gspc` = 标普500、`us:spy` = SPY ETF）
-  - 新增「美股参考」段：包含 VIX 避险阈值、美股板块映射 A 股（科技→半导体、银行→金融）、美联储/美债收益率对北向资金影响
-- `skills/stock-init/SKILL.md` / `skills/screener/SKILL.md` / `skills/help/SKILL.md`：同步 `--full-market` 命令与流程说明
-- `package.json`：移除不存在的 `"main": "index.js"` 字段（避免 npm 安装时入口报错）
-- `scripts/refresh_pool.py`：去重 `_infer_exchange` 推断逻辑，统一前缀生成路径
+- `skills/stock/SKILL.md` debate 流程新增「量化基线参考」和「记录校准数据」步骤
+- `skills/market/SKILL.md` 新增「美股参考」段（VIX 避险阈值、美股板块映射 A 股）
+
+</details>
 
 ## [1.5.0] - 2026-06-11
 
@@ -830,16 +724,6 @@
 - 零外部 Python 库：只用 stdlib（urllib + json + pathlib）
 - 支持 Codex（.agents/skills/）和 Claude Code（.claude/skills/）两套入口
 - 所有数据 API 在国内直连，无须代理
-
-## [Unreleased]
-
-### Planned
-
-- 回测权重网格搜索优化
-- 回测模拟实盘模式
-- 港股深度支持
-- 多语言（英文）输出
-- 更多本土战法形态
 
 ---
 
