@@ -7,110 +7,51 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-06-23
+## [Unreleased]
 
 ### Added
+
 - **screener**: 新增筹码因子 + 宏观门控模块
+- **monitor**: 新增 `/monitor briefing` 盘前简报（市场状态+持仓概要+关键价位）
+- **portfolio/performance**: 新增行业归因分析（SectorAttribution）
 
 ### Fixed
+
 - **scripts**: 修复静默异常捕获 + 清理未使用导入 + 补充测试覆盖
-- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
-- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
+- **data/config**: 修复 `get_source_timeout()` NameError（缺少 ConfigLoader 导入）
+- **experts/registry**: 补充 `from typing import Dict`（Python 3.11/3.12 兼容）
+- **common**: CircuitBreaker 误触修复（None 返回不触发熔断，仅异常触发）
+- **README**: 修复虚假安装命令（plugins marketplace → ./install.sh）
+- **CLI**: quote/kline/finance/stock/screener 错误提示接入 format_error()
+- **business/stock_analysis**: 数据缺失时显式提示（data_warnings）
+- **screener**: 结果为空时提示 /screener init 引导
+- **strategies/factors/dividend**: 分红率按行业差异化（银行30%、科技15%等）
+
+### Changed
+
+- **stock.py**: render_text 可视化增强（emoji+分隔线+颜色图标）
+- **common/cache**: 缓存惰性清理（每 50 次写入检查，超 500MB 自动清理）
+- **methodology**: 策略权重文档对齐代码（五因子→七因子模型）
+- **stock-help**: SKILL.md 分层展示（核心/进阶/辅助 13 个 skill）
+- **learn**: SKILL.md 补全 `model: haiku`
 
 ### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
+
 - **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
 - **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
+- **docs**: 修正 README/CLAUDE.md 元数据漂移（13 skills / 28 fetchers / 15 experts / python 3.11+ / pyyaml 依赖）
 
 ### Testing
+
 - **data/strategies/fetchers**: 补充 data 层、regime detector、筹码 fetcher 测试
 - 新增 13 个测试文件覆盖未测试模块 + 修复 cache DeprecationWarning
+- **test_data_fetcher_manager_e2e**: 新增 `test_none_return_does_not_trigger_circuit_breaker`
 
 ### Maintenance
+
 - **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
 - **version**: bump version to v1.13.1
-- **tests**: 同步 smoke_test 期望版本至 v1.13.0
-- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-## [Unreleased] - 2026-06-22
-
-### Fixed
-- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
-- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
-- **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-
-### Testing
-- 新增 13 个测试文件覆盖未测试模块 + 修复 cache DeprecationWarning
-
-### Maintenance
-- **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
-- **version**: bump version to v1.13.1
-- **tests**: 同步 smoke_test 期望版本至 v1.13.0
-- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-## [Unreleased] - 2026-06-22
-
-### Fixed
-- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
-- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
-- **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-
-### Maintenance
-- **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
-- **version**: bump version to v1.13.1
-- **tests**: 同步 smoke_test 期望版本至 v1.13.0
-- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-## [Unreleased] - 2026-06-22
-
-### Fixed
-- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
-- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
-
-### Documentation
-- **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
-- **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-
-### Maintenance
-- **version**: bump version to v1.13.1
-- **tests**: 同步 smoke_test 期望版本至 v1.13.0
-- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-## [Unreleased] - 2026-06-18
-
-### Fixed
-- **tests**: 移除 test_two_stage 硬编码 macOS 路径，改用 `Path(__file__).resolve().parent.parent` 动态获取项目根目录
-- **tests**: 更新 `EXPECTED_SKILLS` 匹配 stock-help 重命名
-- **skills**: 缩短 stock-help description 至 110 字符
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- **docs**: 修正 README/CLAUDE.md 元数据漂移（13 skills / 28 fetchers / 15 experts / python 3.11+ / pyyaml 依赖），新增 §CI 防漂移机制与 §Experts 全表（见 commit d3bbba9）
-
-### Maintenance
 - **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release（新增 `scripts/dev/sync_skill_test_versions.py` + pre-commit hook + setup-test action step）
-
-### Other
-- Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
 
 ## [1.13.0] - 2026-06-18（动量派专家 + 用户体验优化 + 10 模块深度审查）
 
@@ -230,13 +171,13 @@
 
 ### 累计统计
 
-| 维度 | 数值 |
-| --- | --- |
-| 审查模块数 | 10 |
-| 提交 commit 数 | 10 |
-| 修复问题数 | 46+ |
-| 代码变更 | 1277 insertions, 420 deletions（净 +857 行） |
-| 测试通过率 | 100% |
+| 维度           | 数值                                         |
+| -------------- | -------------------------------------------- |
+| 审查模块数     | 10                                           |
+| 提交 commit 数 | 10                                           |
+| 修复问题数     | 46+                                          |
+| 代码变更       | 1277 insertions, 420 deletions（净 +857 行） |
+| 测试通过率     | 100%                                         |
 
 ## [1.12.0] - 2026-06-17（统一版本：V2 量化策略平台 + V2.1 维护）
 
@@ -302,7 +243,7 @@
 
 ### Engineering
 
-- 覆盖率 61.8% → 62.1%（+0.3%，新增 7 个 _run_main 测试）
+- 覆盖率 61.8% → 62.1%（+0.3%，新增 7 个 \_run_main 测试）
 - 测试 1773 → 1780（+7）
 - 20 → 21 个独立 commit
 

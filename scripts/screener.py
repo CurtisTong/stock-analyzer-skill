@@ -528,6 +528,11 @@ def render_brief(rows, strategy, top, title=None):
     # 一句话结论
     if not top_rows:
         print(f"策略 {label}: 无符合条件标的（剔除 {len(rejected)} 只）")
+        print()
+        print("可能原因:")
+        print("  1. 股票池未初始化 → 运行 /screener init 或 /screener init default")
+        print("  2. 筛选条件过严 → 尝试其他策略（如 balanced）")
+        print("  3. 市场休市无数据 → 交易时段重试")
         return
     best = top_rows[0]
     print(
@@ -647,6 +652,15 @@ def _build_parser():
 def _run_main(args):
     """main() 核心逻辑（V2.1 提取便于单测）。"""
     codes = load_universe(args)
+
+    # 股票池为空时给出明确引导
+    if not codes:
+        print("❌ 股票池为空，无法选股。")
+        print()
+        print("请先初始化股票池:")
+        print("  /screener init          # 联网获取最新数据")
+        print("  /screener init default  # 使用预置数据（离线可用）")
+        return
 
     # review#11 修复：行情与财务数据并行拉取（原来串行，总耗时 = sum）
     from concurrent.futures import ThreadPoolExecutor

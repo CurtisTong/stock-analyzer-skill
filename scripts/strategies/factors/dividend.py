@@ -36,8 +36,9 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
     if price > 0 and eps_dps_bonus > 0:
         dividend_yield = eps_dps_bonus / price * 100
     elif price > 0 and pe > 0:
-        # PE 倒数作为股息率近似（保守：假设30%分红率）
-        dividend_yield = (1 / pe) * 0.3 * 100
+        # PE 倒数作为股息率近似（按行业差异化分红率）
+        payout_ratio = _get_industry_payout_ratio(industry)
+        dividend_yield = (1 / pe) * payout_ratio * 100
 
     yield_score = _score_dividend_yield(dividend_yield, industry)
 
@@ -53,6 +54,46 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
 
     total = yield_score + continuity_score + stability_score
     return clamp(total)
+
+
+# 行业默认分红率（无 DPS 数据时用于估算股息率）
+# 银行/公用事业高分红，科技/成长股低分红
+_INDUSTRY_PAYOUT_RATIOS = {
+    "银行": 0.30,
+    "金融": 0.30,
+    "保险": 0.30,
+    "证券": 0.25,
+    "公用事业": 0.35,
+    "电力": 0.35,
+    "交通运输": 0.30,
+    "消费": 0.40,
+    "食品饮料": 0.40,
+    "医药": 0.20,
+    "科技": 0.15,
+    "电子": 0.15,
+    "计算机": 0.15,
+    "通信": 0.20,
+    "周期": 0.25,
+    "钢铁": 0.25,
+    "煤炭": 0.30,
+    "有色金属": 0.20,
+    "地产": 0.20,
+    "建筑": 0.20,
+    "军工": 0.10,
+    "新能源": 0.10,
+    "汽车": 0.15,
+}
+
+
+def _get_industry_payout_ratio(industry: str) -> float:
+    """获取行业默认分红率。模糊匹配，未匹配返回 0.25（保守中值）。"""
+    if not industry:
+        return 0.25
+    industry_lower = industry.lower()
+    for key, ratio in _INDUSTRY_PAYOUT_RATIOS.items():
+        if key.lower() in industry_lower or industry_lower in key.lower():
+            return ratio
+    return 0.25  # 未匹配行业用保守中值
 
 
 def _score_dividend_yield(yield_pct: float, industry: str) -> float:
