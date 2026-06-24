@@ -72,7 +72,6 @@ jobs:
   integration:
     name: 集成测试
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     needs: test
 
     steps:
@@ -86,7 +85,6 @@ jobs:
   smoke:
     name: 冒烟测试
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     needs: test
     concurrency:
       group: smoke-${{ github.ref }}
