@@ -19,17 +19,29 @@ disable-model-invocation: true
 
 ## 🎯 按目标选入口
 
+### 核心（日常必用）
+
 | 你的目标                        | 命令                   | 会得到什么                                        |
 | ------------------------------- | ---------------------- | ------------------------------------------------- |
-| 🔍 找几只值得买的股票           | `/screener`            | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单           |
 | 📊 看今天大盘涨跌               | `/market quick`        | 三大指数 + 板块 Top3 + 一句话策略                 |
-| 💼 看看我的持仓                 | `/portfolio`           | 涨跌 + 板块集中度 + 风险预警 + 调仓建议           |
+| 🔍 找几只值得买的股票           | `/screener`            | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单           |
 | 🎤 听 15 份专家人设辩论一只股票 | `/stock <代码> debate` | 9 active（6 长线 + 3 短线）投票 + 最终方向 + 仓位 |
-| 🌐 某个板块怎么样               | `/sector <板块>`       | 板块全景 + 核心标的对比 + 板块内筛选              |
-| 🔬 深度研究一只股票             | `/research <任务>`     | 财务建模 + 排雷 + DCF + 投资建议                  |
-| 📡 盘中盯盘（异动/预警/推送）   | `/monitor`             | 持仓异动 + 价格预警 + Bark/企微/钉钉              |
-| 🧪 验证选股策略的历史表现       | `/backtest`            | 胜率 + 收益 + 夏普 + 回撤 + 基准对比              |
-| 📚 学投资基础（PE/ROE/MACD）    | `/learn`               | 系统化学习路径，从概念到策略                      |
+
+### 进阶（组合管理）
+
+| 你的目标                  | 命令               | 会得到什么                              |
+| ------------------------- | ------------------ | --------------------------------------- |
+| 💼 看看我的持仓           | `/portfolio`       | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
+| 🌐 某个板块怎么样         | `/sector <板块>`   | 板块全景 + 核心标的对比 + 板块内筛选    |
+| 🔬 深度研究一只股票       | `/research <任务>` | 财务建模 + 排雷 + DCF + 投资建议        |
+| 🧪 验证选股策略的历史表现 | `/backtest`        | 胜率 + 收益 + 夏普 + 回撤 + 基准对比    |
+
+### 辅助（按需使用）
+
+| 你的目标                      | 命令       | 会得到什么                           |
+| ----------------------------- | ---------- | ------------------------------------ |
+| 📡 盘中盯盘（异动/预警/推送） | `/monitor` | 持仓异动 + 价格预警 + Bark/企微/钉钉 |
+| 📚 学投资基础（PE/ROE/MACD）  | `/learn`   | 系统化学习路径，从概念到策略         |
 
 ## 🚀 第一次使用
 
@@ -51,7 +63,9 @@ disable-model-invocation: true
 4. **选几只股票**：`/screener` → 了解多因子选股
 5. **学投资知识**：`/learn` → 系统化学习路径
 
-## 9 个 Skill 一句话速查
+## 13 个 Skill 一句话速查
+
+### 核心 9 个
 
 | Skill        | 命令                                             | 用途                                  |
 | ------------ | ------------------------------------------------ | ------------------------------------- |
@@ -64,6 +78,15 @@ disable-model-invocation: true
 | `/backtest`  | `[--strategy 策略] [--all]`                      | 策略历史胜率 + 收益 + 夏普 + 回撤     |
 | `/monitor`   | `[scan\|levels\|check\|--cache]`                 | 盘中异动 + 价格预警 + 推送            |
 | `/learn`     | `[basics\|valuation\|technical\|strategy\|risk]` | 系统化投资学习路径                    |
+
+### 变体 4 个
+
+| Skill                | 命令                        | 用途                              |
+| -------------------- | --------------------------- | --------------------------------- |
+| `/stock-technical`   | `<代码> [指标\|战法\|缠论]` | 纯技术面分析（从 stock 拆出）     |
+| `/portfolio-web`     | `--port 8765`               | Web 录入服务（从 portfolio 拆出） |
+| `/portfolio-natural` | `<自然语言>`                | 自然语言 → 命令映射               |
+| `/stock-help`        |                             | 本帮助页（meta 索引）             |
 
 > 📌 股票代码格式：`sh600519`（沪）/ `sz000858`（深）/ `600519`（自动推断）/ `贵州茅台`（名称模糊匹配）
 
@@ -108,23 +131,24 @@ disable-model-invocation: true
 
 ## 共享约定
 
-- 9 个核心 skill（`technical` / `stock-init` / `financial-analyst` / `investment-researcher` 已合并至其他 skill，旧命令仍可用）
+- 13 个 skill = 9 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
 - 所有分析仅供参考，不构成投资建议
 - 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（28 个，熔断器自动故障转移）
 
 ## 📚 高级子模式速查（附录）
 
-| Skill        | 子模式                                                                    | 用途                                                                   |
-| ------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `/stock`     | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=8 人圆桌；technical=纯技术分析         |
-| `/market`    | `full`（默认）/ `quick` / `intraday`                                      | intraday=盘中分时（5 分钟 K 线）                                       |
-| `/sector`    | `overview`（默认）/ `compare` / `stock`                                   | compare=标的横向对比；stock=板块内个股深挖                             |
-| `/portfolio` | `health`（默认）/ `rebalance` / `compare` / `web`                         | rebalance=按 workflow 联动；web=本地录入服务                           |
-| `/screener`  | `--strategy` 5 选 1 / `init` 子命令                                       | balanced / quality_value / growth_momentum / defensive / turning_point |
-| `/monitor`   | `start` / `stop` / `status` / `scan` / `levels` / `check`                 | scan/levels/check=关键点位；check 支持 `--dry-run`                     |
-| `/backtest`  | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark`           | --all=5 策略横评；--benchmark=对比基准指数                             |
-| `/research`  | `financial <任务>` / `report <任务>`                                      | financial=财务建模；report=全维度研究报告                              |
-| `/learn`     | `basics` / `valuation` / `technical` / `strategy` / `risk`                | 5 个 Level 主题                                                        |
+| Skill              | 子模式                                                                    | 用途                                                                   |
+| ------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `/stock`           | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=8 人圆桌；technical=纯技术分析         |
+| `/market`          | `full`（默认）/ `quick` / `intraday`                                      | intraday=盘中分时（5 分钟 K 线）                                       |
+| `/sector`          | `overview`（默认）/ `compare` / `stock`                                   | compare=标的横向对比；stock=板块内个股深挖                             |
+| `/portfolio`       | `health`（默认）/ `rebalance` / `compare` / `web`                         | rebalance=按 workflow 联动；web=本地录入服务                           |
+| `/screener`        | `--strategy` 5 选 1 / `init` 子命令                                       | balanced / quality_value / growth_momentum / defensive / turning_point |
+| `/monitor`         | `start` / `stop` / `status` / `scan` / `levels` / `check`                 | scan/levels/check=关键点位；check 支持 `--dry-run`                     |
+| `/backtest`        | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark`           | --all=5 策略横评；--benchmark=对比基准指数                             |
+| `/research`        | `financial <任务>` / `report <任务>`                                      | financial=财务建模；report=全维度研究报告                              |
+| `/learn`           | `basics` / `valuation` / `technical` / `strategy` / `risk`                | 5 个 Level 主题                                                        |
+| `/stock-technical` | `均线` / `MACD` / `KDJ` / `BOLL` / `RSI` / `缠论` / `战法`                | 纯技术面分析（从 stock 拆出的变体）                                    |
 
 ## 🆘 获取更多帮助
 
@@ -150,5 +174,5 @@ disable-model-invocation: true
 - `/stock-help` 是只读索引 skill，**不**修改任何文件、**不**执行投资决策。
 - 风险提示：所有分析仅供参考，**不构成投资建议**。
 - 用户问"哪个 skill 适合我"时，根据意图（看持仓/选股/回测/研究/学习）给出 1-2 个最相关的入口。
-- 9 个 skill 之间的依赖关系（market → sector → screener → stock → portfolio）详见 `workflow.md`。
+- 13 个 skill 之间的依赖关系（market → sector → screener → stock → portfolio）详见 `workflow.md`。
 - 历史合并的 4 个 skill（`/technical` `/stock-init` `/financial-analyst` `/investment-researcher`）已删除，请使用新命令：`/stock technical` `/screener init` `/research financial` `/research report`。

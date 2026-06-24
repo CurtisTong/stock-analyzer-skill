@@ -8,6 +8,7 @@ DataFetcherManager 故障转移 E2E 测试。
 4. NOT_HANDLED 跳过不计失败
 5. RateLimitError 直接抛出
 """
+
 import json
 import time
 from unittest.mock import MagicMock, patch
@@ -38,14 +39,22 @@ def clear_circuit_breakers():
 class MockFetcher(BaseFetcher):
     """可配置的 Mock Fetcher。"""
 
-    def __init__(self, name: str, priority: int = 0,
-                 fail: bool = False, not_handled: bool = False,
-                 rate_limit: bool = False, result: dict = None):
+    def __init__(
+        self,
+        name: str,
+        priority: int = 0,
+        fail: bool = False,
+        not_handled: bool = False,
+        rate_limit: bool = False,
+        result: dict = None,
+        raise_on_fail: bool = False,
+    ):
         super().__init__(name, priority)
         self._fail = fail
         self._not_handled = not_handled
         self._rate_limit = rate_limit
         self._result = result or {"source": name, "data": "ok"}
+        self._raise_on_fail = raise_on_fail
         self.call_count = 0
 
     def fetch(self, code: str, **kwargs) -> dict | None:
@@ -55,6 +64,8 @@ class MockFetcher(BaseFetcher):
         if self._not_handled:
             return NOT_HANDLED
         if self._fail:
+            if self._raise_on_fail:
+                raise ConnectionError(f"{self.name} connection failed")
             return None
         return self._result
 
@@ -138,8 +149,10 @@ class TestAllFailToCacheFallback:
 
         mgr = DataFetcherManager([fetcher])
 
-        with patch("common.cache.get") as mock_cache_get, \
-             patch("common.cache.cache_key_for_stock") as mock_key:
+        with (
+            patch("common.cache.get") as mock_cache_get,
+            patch("common.cache.cache_key_for_stock") as mock_key,
+        ):
             mock_key.return_value = "cache_key"
             mock_cache_get.return_value = json.dumps(cached_data).encode()
 
@@ -157,8 +170,10 @@ class TestAllFailToCacheFallback:
 
         mgr = DataFetcherManager([fetcher])
 
-        with patch("common.cache.get") as mock_cache_get, \
-             patch("common.cache.cache_key_for_stock") as mock_key:
+        with (
+            patch("common.cache.get") as mock_cache_get,
+            patch("common.cache.cache_key_for_stock") as mock_key,
+        ):
             mock_key.return_value = "cache_key"
             mock_cache_get.return_value = None
 
@@ -175,9 +190,7 @@ class TestAllFailToCacheFallback:
         mgr = DataFetcherManager([fetcher])
 
         with patch("common.cache.get") as mock_cache_get:
-            result = mgr.fetch_with_cache_fallback(
-                "sh600989", cache_prefix="quote"
-            )
+            result = mgr.fetch_with_cache_fallback("sh600989", cache_prefix="quote")
 
         assert result["source"] == "f1"
         mock_cache_get.assert_not_called()
@@ -388,10 +401,19 @@ class TestEdgeCases:
         assert f1.circuit_breaker.failure_count == 0
 
     def test_fetch_records_failure_on_circuit_breaker(self):
-        """失败后熔断器增加失败计数。"""
-        f1 = MockFetcher("f1", priority=10, fail=True)
+        """异常后熔断器增加失败计数。"""
+        f1 = MockFetcher("f1", priority=10, fail=True, raise_on_fail=True)
 
         mgr = DataFetcherManager([f1])
         mgr.fetch("sh600989")
 
         assert f1.circuit_breaker.failure_count == 1
+
+    def test_none_return_does_not_trigger_circuit_breaker(self):
+        """返回 None（数据不存在）不触发熔断器失败计数。"""
+        f1 = MockFetcher("f1", priority=10, fail=True)  # 返回 None，不抛异常
+
+        mgr = DataFetcherManager([f1])
+        mgr.fetch("sh600989")
+
+        assert f1.circuit_breaker.failure_count == 0

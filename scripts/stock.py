@@ -29,55 +29,68 @@ def render_text(result: dict) -> str:
     price = result.get("price", 0)
     change_pct = result.get("change_pct", 0)
 
-    lines.append(f"=== {code} {name} ===")
-    lines.append(f"现价: {price}    涨跌: {change_pct:+.2f}%")
+    # 标题行
+    trend_icon = "🟢" if change_pct >= 0 else "🔴"
+    lines.append(f"{'━' * 40}")
+    lines.append(f"{trend_icon} {name}（{code}）")
+    lines.append(f"   现价 {price:.2f}  涨跌 {change_pct:+.2f}%")
+    lines.append(f"{'━' * 40}")
+
+    # 数据缺失警告
+    for w in result.get("data_warnings", []):
+        lines.append(f"  {w}")
     if "warning" in result:
-        lines.append(f"⚠ {result['warning']}")
-    lines.append("")
+        lines.append(f"  ⚠ {result['warning']}")
 
     # 1. 行业画像
     if "profile" in result:
         p = result["profile"]
-        lines.append(
-            f"【行业画像】类型: {p.get('type', '?')}  行业: {p.get('industry', '?')}"
-        )
+        lines.append(f"\n🏷 行业画像")
+        lines.append(f"   类型: {p.get('type', '?')}  行业: {p.get('industry', '?')}")
 
-    # 2. K 线
+    # 2. K 线 + 缠论
     if "kline_count" in result:
-        lines.append(f"\n【K 线】已加载 {result['kline_count']} 根")
+        lines.append(f"\n📈 K 线（{result['kline_count']} 根）")
     if "chan" in result:
         chan = result["chan"]
         if chan.get("valid"):
             lines.append(
-                f"【缠论】分型 {chan.get('fenxing_count', 0)}  笔 {chan.get('bi_count', 0)}  "
-                f"中枢 {chan.get('zhongshu_count', 0)}  当前位置: {chan.get('current_position', '?')}"
+                f"   缠论: 分型{chan.get('fenxing_count', 0)} 笔{chan.get('bi_count', 0)} "
+                f"中枢{chan.get('zhongshu_count', 0)}  位置: {chan.get('current_position', '?')}"
             )
         else:
-            lines.append(f"【缠论】{chan.get('error', '数据不足')}")
+            lines.append(f"   缠论: {chan.get('error', '数据不足')}")
 
     # 3. 技术面
     if "technical" in result:
         t = result["technical"]
+        ma_icon = {"多头": "🟢", "空头": "🔴", "交叉": "🟡"}.get(t.get("ma", ""), "⚪")
+        lines.append(f"\n📊 技术面")
         lines.append(
-            f"\n【技术面】均线 {t.get('ma', '?')}  "
+            f"   均线 {ma_icon}{t.get('ma', '?')}  "
             f"MACD {t.get('macd_signal', 0):+d}  "
             f"KDJ {t.get('kdj', '?')}  "
-            f"RSI {t.get('rsi', 0):.1f}  "
-            f"BOLL 位置 {t.get('boll_position', 0.5):.2f}  "
+            f"RSI {t.get('rsi', 0):.1f}"
+        )
+        lines.append(
+            f"   BOLL 位置 {t.get('boll_position', 0.5):.2f}  "
             f"量价 {t.get('volume_signal', 0):+d}"
         )
         if t.get("patterns"):
             lines.append(
-                f"        形态: {', '.join(p.get('name', str(p)) for p in t['patterns'][:3])}"
+                f"   形态: {', '.join(p.get('name', str(p)) for p in t['patterns'][:3])}"
             )
 
     # 4. 财务摘要
     if "finance" in result:
         f = result["finance"]
+        lines.append(f"\n💰 财务")
         lines.append(
-            f"\n【财务】EPS {f.get('eps', 0):.2f}  ROE {f.get('roe', 0):.2f}%  "
-            f"净利同比 {f.get('net_profit_yoy', 0):+.2f}%  "
-            f"营收同比 {f.get('revenue_yoy', 0):+.2f}%  "
+            f"   EPS {f.get('eps', 0):.2f}  ROE {f.get('roe', 0):.2f}%  "
+            f"净利同比 {f.get('net_profit_yoy', 0):+.2f}%"
+        )
+        lines.append(
+            f"   营收同比 {f.get('revenue_yoy', 0):+.2f}%  "
             f"毛利率 {f.get('gross_margin', 0):.2f}%  "
             f"负债率 {f.get('debt_ratio', 0):.2f}%"
         )
@@ -85,14 +98,17 @@ def render_text(result: dict) -> str:
     # 5. 综合评分
     if "score" in result:
         s = result["score"]
-        lines.append(
-            f"\n【综合评分】{s.get('score', 0):.1f}  评级: {s.get('grade', '?')}"
-        )
+        score_val = s.get("score", 0)
+        grade = s.get("grade", "?")
+        score_icon = "🟢" if score_val >= 70 else "🟡" if score_val >= 50 else "🔴"
+        lines.append(f"\n{'━' * 40}")
+        lines.append(f"{score_icon} 综合评分: {score_val:.1f}  评级: {grade}")
         if s.get("buy_signals"):
-            lines.append(f"        买入信号: {'; '.join(s['buy_signals'][:3])}")
+            lines.append(f"   📌 买入信号: {'; '.join(s['buy_signals'][:3])}")
         if s.get("sell_signals"):
-            lines.append(f"        卖出信号: {'; '.join(s['sell_signals'][:3])}")
+            lines.append(f"   ⚠️ 卖出信号: {'; '.join(s['sell_signals'][:3])}")
 
+    lines.append(f"{'━' * 40}")
     return "\n".join(lines)
 
 
@@ -220,4 +236,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        from common.exceptions import format_error
+
+        print(f"❌ {format_error(e)}", file=sys.stderr)
+        sys.exit(1)

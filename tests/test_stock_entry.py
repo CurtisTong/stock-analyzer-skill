@@ -4,6 +4,7 @@
 策略：mock StockAnalysisService.analyze 避免真实网络请求，
 聚焦 CLI 参数解析 + JSON/文本渲染 + 错误处理。
 """
+
 import json
 import sys
 from pathlib import Path
@@ -19,12 +20,14 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 # 1. 参数解析
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestStockArgparse:
     """验证 stock.py CLI 参数。"""
 
     def test_help(self, capsys):
         """--help 应正常输出。"""
         from scripts import stock
+
         with patch("sys.argv", ["stock.py", "--help"]):
             with pytest.raises(SystemExit):
                 stock.main()
@@ -34,16 +37,21 @@ class TestStockArgparse:
     def test_required_code_arg(self, capsys):
         """code 参数必填。"""
         from scripts import stock
+
         with patch("sys.argv", ["stock.py"]):
             with pytest.raises(SystemExit):
                 stock.main()
         captured = capsys.readouterr()
         # argparse 报错到 stderr
-        assert "required" in captured.err or "the following arguments are required" in captured.err
+        assert (
+            "required" in captured.err
+            or "the following arguments are required" in captured.err
+        )
 
     def test_json_flag_parsed(self):
         """--json 应被 argparse 识别。"""
         import argparse
+
         parser = argparse.ArgumentParser()
         parser.add_argument("code")
         parser.add_argument("-j", "--json", action="store_true")
@@ -55,12 +63,15 @@ class TestStockArgparse:
     def test_no_finance_flag(self):
         """--no-finance 应被识别。"""
         import argparse
+
         parser = argparse.ArgumentParser()
         parser.add_argument("code")
         parser.add_argument("--no-finance", action="store_true")
         parser.add_argument("--no-technical", action="store_true")
         parser.add_argument("--no-chan", action="store_true")
-        args = parser.parse_args(["sh600989", "--no-finance", "--no-technical", "--no-chan"])
+        args = parser.parse_args(
+            ["sh600989", "--no-finance", "--no-technical", "--no-chan"]
+        )
         assert args.no_finance is True
         assert args.no_technical is True
         assert args.no_chan is True
@@ -70,12 +81,14 @@ class TestStockArgparse:
 # 2. render_text 渲染
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestStockRenderText:
     """验证五层分析结果的文本渲染。"""
 
     def test_render_minimal_result(self):
         """最小结果应正常渲染。"""
         from scripts.stock import render_text
+
         result = {
             "code": "sh600989",
             "name": "宝丰能源",
@@ -91,6 +104,7 @@ class TestStockRenderText:
     def test_render_with_warning(self):
         """含 warning 字段应显示 ⚠。"""
         from scripts.stock import render_text
+
         result = {
             "code": "sh600989",
             "name": "宝丰能源",
@@ -105,6 +119,7 @@ class TestStockRenderText:
     def test_render_with_profile(self):
         """含 profile 字段应渲染行业画像。"""
         from scripts.stock import render_text
+
         result = {
             "code": "sh600989",
             "name": "宝丰能源",
@@ -122,6 +137,7 @@ class TestStockRenderText:
 # 3. main 端到端（mock 业务层）
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestStockMainE2E:
     """完整 main 调用（mock 业务层避免网络）。"""
 
@@ -138,6 +154,7 @@ class TestStockMainE2E:
         mock_svc_cls.return_value = mock_svc
 
         from scripts import stock
+
         with patch("sys.argv", ["stock.py", "sh600989", "-j"]):
             stock.main()
 
@@ -160,22 +177,33 @@ class TestStockMainE2E:
         mock_svc_cls.return_value = mock_svc
 
         from scripts import stock
+
         with patch("sys.argv", ["stock.py", "sh600989"]):
             stock.main()
 
         captured = capsys.readouterr()
-        # 文本输出含标题
-        assert "sh600989 宝丰能源" in captured.out
+        # 文本输出含标题（新格式：名称（代码））
+        assert "宝丰能源" in captured.out
+        assert "sh600989" in captured.out
 
     @patch("scripts.stock.StockAnalysisService")
     def test_main_passes_options(self, mock_svc_cls):
         """--no-* 选项应传递给业务层。"""
         mock_svc = MagicMock()
-        mock_svc.analyze.return_value = {"code": "sh600989", "name": "x", "price": 1, "change_pct": 0}
+        mock_svc.analyze.return_value = {
+            "code": "sh600989",
+            "name": "x",
+            "price": 1,
+            "change_pct": 0,
+        }
         mock_svc_cls.return_value = mock_svc
 
         from scripts import stock
-        with patch("sys.argv", ["stock.py", "sh600989", "--no-finance", "--no-technical", "--no-chan"]):
+
+        with patch(
+            "sys.argv",
+            ["stock.py", "sh600989", "--no-finance", "--no-technical", "--no-chan"],
+        ):
             stock.main()
 
         # 验证 analyze 被调用时包含正确参数
@@ -194,6 +222,7 @@ class TestStockMainE2E:
         mock_svc_cls.return_value = mock_svc
 
         from scripts import stock
+
         with patch("sys.argv", ["stock.py", "", "-j"]):
             stock.main()
 

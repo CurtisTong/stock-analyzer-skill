@@ -50,6 +50,7 @@ class StockAnalysisService:
             "name": "",
             "price": 0,
             "change_pct": 0,
+            "data_warnings": [],
         }
 
         # 1. 并行获取三类数据（无依赖关系，可同时拉取）
@@ -62,16 +63,25 @@ class StockAnalysisService:
             quote = f_quote.result(timeout=30)
         except Exception as e:
             logger.warning("获取行情失败 %s: %s", code, e)
+            result["data_warnings"].append(
+                f"⚠ 行情数据获取失败（{type(e).__name__}），以下分析可能不完整"
+            )
             quote = None
         try:
             kline = f_kline.result(timeout=30)
         except Exception as e:
             logger.warning("获取K线失败 %s: %s", code, e)
+            result["data_warnings"].append(
+                f"⚠ K线数据获取失败（{type(e).__name__}），技术面分析将跳过"
+            )
             kline = None
         try:
             finance = f_finance.result(timeout=30) if f_finance else None
         except Exception as e:
             logger.warning("获取财务数据失败 %s: %s", code, e)
+            result["data_warnings"].append(
+                f"⚠ 财务数据获取失败（{type(e).__name__}），基本面分析将跳过"
+            )
             finance = None
 
         # 2. 行情和画像
@@ -85,6 +95,9 @@ class StockAnalysisService:
         if not kline or len(kline) < 10:
             logger.warning(f"K线数据不足: {code}")
             result["warning"] = "K线数据不足"
+            result["data_warnings"].append(
+                f"⚠ K线数据不足（{len(kline) if kline else 0}根，需≥10根），技术面分析将跳过"
+            )
         else:
             result["kline_count"] = len(kline)
 
@@ -97,6 +110,8 @@ class StockAnalysisService:
         # 4. 财务数据
         if finance:
             result["finance"] = self._extract_finance_summary(finance[0].to_dict())
+        elif include_finance:
+            result["data_warnings"].append("⚠ 财务数据不可用，基本面分析将跳过")
 
         # 5. 综合评分
         if "technical" in result and "profile" in result:

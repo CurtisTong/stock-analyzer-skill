@@ -146,11 +146,11 @@ AkShare · efinance · yfinance<br>
 **先决条件**：需要先装 [Claude Code](https://claude.com/download)（约 2 分钟），终端输入 `claude --version` 看到版本号就 OK。
 
 ```bash
-# 1️⃣ 复制下面这一行粘贴到终端，回车（30 秒）
-claude plugins marketplace add . && claude plugins install stock-analyzer
+# 1️⃣ 克隆项目并安装（约 30 秒）
+git clone <repo> && cd stock-analyzer-skill && ./install.sh
 
-# 2️⃣ 初始化股票池（仅首次；网络差用 /screener init default 走预置数据）
-/screener init
+# 2️⃣ 初始化股票池（仅首次；网络差用 default 走预置数据）
+/screener init default
 
 # 3️⃣ 开跑（3 分钟拿到 5 层分析）
 /stock sh600519 quick
@@ -159,14 +159,11 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 > **零配置可用**：内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。
 
 <details>
-<summary>其他安装方式（npm / git clone）</summary>
+<summary>其他安装方式（npm）</summary>
 
 ```bash
-# npm 全局
+# npm 全局（自动运行 install.sh）
 npm install -g stock-analyzer-skill
-
-# 手动软链
-git clone <repo> && cd stock-analyzer-skill && ./install.sh
 ```
 
 </details>
@@ -509,20 +506,19 @@ flowchart LR
 <tr>
 <th width="33%">⭐ 推荐方式</th>
 <th width="33%">📦 npm 全局</th>
-<th width="33%">🔗 手动软链</th>
 </tr>
 <tr>
 <td valign="top">
 
-**Claude Code Plugin**
+**git clone + install.sh**
 
 ```bash
-claude plugins marketplace add .
-claude plugins install stock-analyzer
+git clone <repo> && cd stock-analyzer-skill
+./install.sh
 ```
 
-✅ 自动注册<br>
-✅ 重启即用
+✅ 自动软链到 ~/.claude/skills/<br>
+✅ 支持 Claude Code + Codex
 
 </td>
 <td valign="top">

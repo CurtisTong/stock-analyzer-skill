@@ -218,10 +218,131 @@ def format_performance_report(
     return "\n".join(lines)
 
 
+@dataclass
+class SectorAttribution:
+    """行业归因结果。"""
+
+    sector: str = ""
+    weight: float = 0.0  # 持仓权重%
+    contribution: float = 0.0  # 对组合贡献%
+    profit_pct: float = 0.0  # 行业收益率%
+    position_count: int = 0  # 持仓数量
+    positions: list = None  # 个股明细
+
+    def __post_init__(self):
+        if self.positions is None:
+            self.positions = []
+
+    def to_dict(self) -> dict:
+        d = self.__dict__.copy()
+        d["positions"] = [
+            p.to_dict() if hasattr(p, "to_dict") else p for p in self.positions
+        ]
+        return d
+
+
+def calculate_sector_attribution(
+    positions: list,
+    quotes: dict,
+) -> list[SectorAttribution]:
+    """按行业归因：将持仓按行业分组，计算各行业的贡献。
+
+    不需要基准指数数据，纯粹展示"收益从哪些行业来"。
+    行业信息从 profile_stock() 获取，未知行业归入"其他"。
+
+    Args:
+        positions: 持仓列表 [{code, name, cost, quantity, industry?}]
+        quotes: 行情数据 {code: {price, ...}}
+    """
+    # 计算个股贡献
+    contributions = calculate_position_contribution(positions, quotes)
+    contrib_map = {c.code: c for c in contributions}
+
+    # 按行业分组
+    sector_data: dict[str, dict] = {}
+    for pos in positions:
+        code = pos.get("code", "")
+        if not code:
+            continue
+        # 优先用持仓自带的 industry 字段，否则标记为"其他"
+        sector = pos.get("industry", "") or "其他"
+        if sector not in sector_data:
+            sector_data[sector] = {"positions": [], "total_value": 0, "total_cost": 0}
+        c = contrib_map.get(code)
+        if c:
+            sector_data[sector]["positions"].append(c)
+            sector_data[sector]["total_value"] += c.market_value
+            sector_data[sector]["total_cost"] += c.cost * c.quantity
+
+    # 计算总市值
+    total_value = sum(d["total_value"] for d in sector_data.values())
+    if total_value <= 0:
+        return []
+
+    # 构造归因结果
+    results = []
+    for sector, data in sector_data.items():
+        weight = data["total_value"] / total_value * 100
+        sector_cost = data["total_cost"]
+        sector_profit = data["total_value"] - sector_cost
+        sector_return = (sector_profit / sector_cost * 100) if sector_cost > 0 else 0
+        contribution = sector_profit / total_value * 100
+
+        results.append(
+            SectorAttribution(
+                sector=sector,
+                weight=round(weight, 1),
+                contribution=round(contribution, 2),
+                profit_pct=round(sector_return, 2),
+                position_count=len(data["positions"]),
+                positions=data["positions"],
+            )
+        )
+
+    # 按贡献排序
+    results.sort(key=lambda s: s.contribution, reverse=True)
+    return results
+
+
+def format_sector_attribution(attributions: list[SectorAttribution]) -> str:
+    """格式化行业归因报告。"""
+    if not attributions:
+        return "暂无持仓数据，无法生成行业归因。"
+
+    lines = []
+    lines.append("## 📊 行业归因分析\n")
+    lines.append("| 行业 | 权重 | 收益率 | 贡献 | 持仓数 |")
+    lines.append("|------|------|--------|------|--------|")
+
+    for a in attributions:
+        sign = "+" if a.profit_pct >= 0 else ""
+        contrib_sign = "+" if a.contribution >= 0 else ""
+        lines.append(
+            f"| {a.sector} | {a.weight:.1f}% | {sign}{a.profit_pct:.1f}% | {contrib_sign}{a.contribution:.2f}% | {a.position_count} |"
+        )
+
+    # 贡献最大/最小行业
+    if len(attributions) >= 1:
+        best = attributions[0]
+        lines.append(
+            f"\n**最大贡献行业**: {best.sector}（+{best.contribution:.2f}%，权重{best.weight:.1f}%）"
+        )
+        worst = attributions[-1]
+        if worst.contribution < 0:
+            lines.append(
+                f"**最大拖累行业**: {worst.sector}（{worst.contribution:.2f}%，权重{worst.weight:.1f}%）"
+            )
+
+    return "\n".join(lines)
+
+
 __all__ = [
     "PerformanceMetrics",
     "PositionContribution",
+    "SectorAttribution",
     "calculate_position_contribution",
     "calculate_portfolio_metrics",
+    "calculate_sector_attribution",
     "format_performance_report",
+    "format_sector_attribution",
 ]

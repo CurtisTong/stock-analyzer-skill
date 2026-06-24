@@ -160,9 +160,10 @@ def run_health_check(log_json: bool = False) -> None:
 
 
 def main() -> None:
-    from common.cache import cleanup_tmp_files
+    from common.cache import cleanup_tmp_files, cleanup_by_size
 
     cleanup_tmp_files()
+    cleanup_by_size(max_size_mb=500)  # 启动时惰性清理超限缓存
 
     parser = argparse.ArgumentParser(description="数据源健康检查和缓存监控")
     parser.add_argument("--cache", action="store_true", help="显示缓存状态")

@@ -17,6 +17,11 @@ if _USE_FCNTL:
 _DEFAULT_CACHE_DIR = Path(__file__).resolve().parent.parent.parent / ".cache"
 CACHE_DIR = Path(os.getenv("STOCK_CACHE_DIR", str(_DEFAULT_CACHE_DIR)))
 
+# 惰性清理：每 N 次写入检查一次缓存大小
+_WRITE_COUNTER = 0
+_CLEANUP_INTERVAL = 50  # 每 50 次写入检查一次
+_MAX_CACHE_MB = 500  # 缓存上限
+
 
 def _ensure_dir() -> None:
     CACHE_DIR.mkdir(exist_ok=True)
@@ -38,7 +43,16 @@ def put(key: str, data: bytes) -> None:
     """写入缓存（原子写入：先写临时文件，再 rename）。
 
     非 Windows 平台使用 fcntl 文件锁防止多进程竞争。
+    每 _CLEANUP_INTERVAL 次写入自动检查缓存大小，超限则清理。
     """
+    global _WRITE_COUNTER
+    _WRITE_COUNTER += 1
+    if _WRITE_COUNTER >= _CLEANUP_INTERVAL:
+        _WRITE_COUNTER = 0
+        try:
+            cleanup_by_size(max_size_mb=_MAX_CACHE_MB)
+        except Exception:
+            pass  # 清理失败不影响写入
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
     fd, tmp_path = tempfile.mkstemp(dir=CACHE_DIR, suffix=".tmp")

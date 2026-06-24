@@ -280,7 +280,14 @@ class BaseFetcher(ABC):
     def fetch(
         self, code: str, **kwargs: object
     ) -> dict[str, object] | list[object] | None:
-        """获取数据。返回 None 表示失败，返回 NOT_HANDLED 表示不处理该类代码。"""
+        """获取数据。
+
+        返回值语义：
+        - 非 None: 成功获取数据
+        - None: 数据不存在（如新股无财务数据），不触发熔断
+        - NOT_HANDLED: 不处理该类代码，跳过
+        - 抛出异常: 获取失败，触发熔断
+        """
         pass
 
     def is_available(self) -> bool:
@@ -329,7 +336,11 @@ class DataFetcherManager:
     def fetch(
         self, code: str, **kwargs: object
     ) -> dict[str, object] | list[object] | None:
-        """按优先级尝试各数据源。"""
+        """按优先级尝试各数据源。
+
+        返回 None 表示所有源都无数据（非失败）。
+        仅在异常时触发熔断，None 返回不触发。
+        """
         self._last_error = None
         for fetcher in self.fetchers:
             if not fetcher.is_available():
@@ -341,7 +352,7 @@ class DataFetcherManager:
                 if result is not None:
                     fetcher.on_success()
                     return result
-                fetcher.on_failure()
+                # None 表示数据不存在，不触发熔断，尝试下一个源
             except RateLimitError:
                 fetcher.on_failure()
                 raise

@@ -192,6 +192,8 @@ def get_source_timeout(source_type: str, source_name: str, default: int = 10) ->
     Returns:
         超时秒数
     """
+    from config.loader import ConfigLoader
+
     return ConfigLoader.get(
         "data_source.yaml", f"{source_type}.{source_name}.timeout", default
     )

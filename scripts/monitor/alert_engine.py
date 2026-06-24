@@ -639,6 +639,142 @@ def render_levels(code: str) -> str:
     return render_scan([r])
 
 
+def daily_briefing(as_json: bool = False) -> dict:
+    """盘前简报：市场状态 + 持仓概要 + 关键价位。
+
+    组合 market quick + portfolio health + alert levels，
+    输出一份结构化晨报，适合每日 9:15 自动运行。
+
+    Returns:
+        {"market": {...}, "portfolio": {...}, "alerts": [...], "summary": str}
+    """
+    from data import get_quote
+    from portfolio import PortfolioManager
+
+    result = {
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "market": {},
+        "portfolio": {},
+        "alerts": [],
+        "summary": "",
+    }
+
+    # 1. 市场状态（三大指数）
+    indices = {
+        "sh000001": "上证指数",
+        "sz399001": "深证成指",
+        "sz399006": "创业板指",
+    }
+    market_lines = []
+    for code, name in indices.items():
+        try:
+            q = get_quote(code)
+            if q:
+                price = q.price if hasattr(q, "price") else 0
+                change = q.change_pct if hasattr(q, "change_pct") else 0
+                icon = "🟢" if change >= 0 else "🔴"
+                market_lines.append(f"{icon} {name}: {price:.2f} ({change:+.2f}%)")
+                result["market"][code] = {
+                    "name": name,
+                    "price": price,
+                    "change_pct": change,
+                }
+        except Exception as e:
+            market_lines.append(f"⚪ {name}: 获取失败 ({e})")
+
+    # 2. 持仓概要
+    pm = PortfolioManager()
+    positions = pm.get_positions()
+    pos_lines = []
+    total_cost = 0
+    total_value = 0
+    for pos in positions:
+        code = pos.get("code", "")
+        name = pos.get("name", code)
+        cost = to_float(pos.get("cost", 0))
+        qty = to_float(pos.get("quantity", 0))
+        if not code or cost <= 0 or qty <= 0:
+            continue
+        try:
+            q = get_quote(code)
+            price = (q.price if hasattr(q, "price") else 0) if q else 0
+        except Exception:
+            price = 0
+        pos_cost = cost * qty
+        pos_value = price * qty
+        pnl_pct = (price - cost) / cost * 100 if cost > 0 else 0
+        icon = "🟢" if pnl_pct >= 0 else "🔴"
+        total_cost += pos_cost
+        total_value += pos_value
+        pos_lines.append(
+            f"  {icon} {name}({code}): {price:.2f} 成本{cost:.2f} {pnl_pct:+.1f}%"
+        )
+
+    total_pnl = total_value - total_cost
+    total_pnl_pct = (total_pnl / total_cost * 100) if total_cost > 0 else 0
+    result["portfolio"] = {
+        "count": len(positions),
+        "total_cost": round(total_cost, 2),
+        "total_value": round(total_value, 2),
+        "total_pnl": round(total_pnl, 2),
+        "total_pnl_pct": round(total_pnl_pct, 2),
+    }
+
+    # 3. 关键价位（仅持仓）
+    alert_lines = []
+    for pos in positions:
+        code = pos.get("code", "")
+        if not code:
+            continue
+        try:
+            r = compute_key_levels(code, position=pos)
+            alerts = r.get("alerts", [])
+            if alerts:
+                name = pos.get("name", code)
+                for a in alerts[:2]:  # 每只最多取 2 个最重要的
+                    alert_lines.append(f"  ⚠️ {name}: {a.get('message', '')}")
+        except Exception:
+            pass
+
+    result["alerts"] = alert_lines
+
+    # 4. 组装输出
+    lines = [
+        f"📊 盘前简报 | {result['timestamp']}",
+        "",
+        "━━ 市场状态 ━━",
+    ]
+    lines.extend(market_lines)
+
+    lines.append("")
+    lines.append(f"━━ 持仓概要（{len(positions)} 只）━━")
+    if pos_lines:
+        lines.extend(pos_lines)
+        pnl_icon = "🟢" if total_pnl >= 0 else "🔴"
+        lines.append(f"  {pnl_icon} 总盈亏: {total_pnl:+,.0f} ({total_pnl_pct:+.1f}%)")
+    else:
+        lines.append("  （暂无持仓）")
+
+    if alert_lines:
+        lines.append("")
+        lines.append("━━ 关键预警 ━━")
+        lines.extend(alert_lines)
+
+    lines.append("")
+    lines.append("━━ 建议 ━━")
+    if not positions:
+        lines.append("  📌 无持仓，可运行 /screener 选股")
+    elif total_pnl_pct < -5:
+        lines.append("  ⚠️ 组合浮亏较大，关注止损位")
+    elif total_pnl_pct > 10:
+        lines.append("  📈 组合浮盈良好，注意止盈纪律")
+    else:
+        lines.append("  ✅ 组合状态正常，保持纪律")
+
+    result["summary"] = "\n".join(lines)
+    return result
+
+
 def main():
     args = sys.argv[1:]
     if not args:
@@ -646,6 +782,7 @@ def main():
         print("  alert_engine.py scan [--json]                  # 扫描全部标的")
         print("  alert_engine.py levels <code>                  # 单股关键点位")
         print("  alert_engine.py check [--dry-run] [--level L]  # 盘中检查+推送")
+        print("  alert_engine.py briefing [--json]              # 盘前简报")
         print("")
         print("推送级别 (--level):")
         print("  urgent    - 只推送紧急预警（止损、涨跌停附近）")
@@ -701,6 +838,13 @@ def main():
                 print(
                     f"  {status} {level_icon} {d['name']}({d['code']}): {d['message']}"
                 )
+
+    elif cmd == "briefing":
+        result = daily_briefing(as_json="--json" in args)
+        if "--json" in args:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print(result["summary"])
 
     else:
         print(f"未知命令: {cmd}")

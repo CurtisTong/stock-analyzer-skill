@@ -96,4 +96,12 @@ if __name__ == "__main__":
     try:
         main()
     except DataError as e:
+        from common.exceptions import format_error
+
+        print(f"❌ {format_error(e)}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        from common.exceptions import format_error
+
+        print(f"❌ {format_error(e)}", file=sys.stderr)
         sys.exit(1)

@@ -9,6 +9,7 @@ veto_conditions 字段对应原 markdown 中的"一票否决"列表。
 """
 
 import logging
+from typing import Dict
 
 from experts.types import ExpertProfile
 

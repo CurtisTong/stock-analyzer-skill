@@ -28,14 +28,15 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(./sc
 
 **实时监控**（`scripts/monitor/alert_engine.py`）— 盘中预警与推送：
 
-| 操作     | 说明                              | 示例                       |
-| -------- | --------------------------------- | -------------------------- |
-| `scan`   | 扫描持仓+自选股关键点位           | `/monitor scan`            |
-| `levels` | 查看单股关键点位                  | `/monitor levels sh600989` |
-| `check`  | 盘中检查+推送（dry-run 模式预览） | `/monitor check`           |
-| `start`  | 启动后台监控服务（持续轮询）      | `/monitor start`           |
-| `stop`   | 停止后台监控服务                  | `/monitor stop`            |
-| `status` | 查看后台监控服务运行状态          | `/monitor status`          |
+| 操作       | 说明                              | 示例                       |
+| ---------- | --------------------------------- | -------------------------- |
+| `scan`     | 扫描持仓+自选股关键点位           | `/monitor scan`            |
+| `levels`   | 查看单股关键点位                  | `/monitor levels sh600989` |
+| `check`    | 盘中检查+推送（dry-run 模式预览） | `/monitor check`           |
+| `briefing` | 盘前简报（市场+持仓+关键价位）    | `/monitor briefing`        |
+| `start`    | 启动后台监控服务（持续轮询）      | `/monitor start`           |
+| `stop`     | 停止后台监控服务                  | `/monitor stop`            |
+| `status`   | 查看后台监控服务运行状态          | `/monitor status`          |
 
 ### 自然语言
 
@@ -116,6 +117,9 @@ python3 scripts/monitor/alert_engine.py check --dry-run
 
 # 盘中检查 + 推送
 python3 scripts/monitor/alert_engine.py check
+
+# 盘前简报（市场状态 + 持仓概要 + 关键价位）
+python3 scripts/monitor/alert_engine.py briefing
 ```
 
 #### 关键点位类型
