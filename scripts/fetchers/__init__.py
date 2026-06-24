@@ -22,6 +22,10 @@ from common import BaseFetcher, DataFetcherManager
 
 logger = logging.getLogger(__name__)
 
+# 工厂函数缓存：避免每次调用创建新的 fetcher 实例（含 CircuitBreaker）
+_fetcher_cache: dict[str, list] = {}
+_cache_lock = threading.Lock()
+
 
 def _try_import(module_name, class_name):
     """尝试导入模块，失败返回 None。"""
@@ -41,39 +45,45 @@ def _try_import(module_name, class_name):
 
 
 def get_quote_fetchers() -> list:
-    """获取所有可用的行情数据源。"""
-    fetchers = []
+    """获取所有可用的行情数据源（缓存单例）。"""
+    if "quote" in _fetcher_cache:
+        return _fetcher_cache["quote"]
+    with _cache_lock:
+        if "quote" in _fetcher_cache:
+            return _fetcher_cache["quote"]
+        fetchers = []
 
-    # 直接 HTTP 数据源（无依赖）
-    from .tencent_quote import TencentQuoteFetcher
-    from .eastmoney_quote import EastmoneyQuoteFetcher
-    from .sina_quote import SinaQuoteFetcher
-    from .xueqiu_quote import XueqiuQuoteFetcher
-    from .ths_quote import ThsQuoteFetcher
+        # 直接 HTTP 数据源（无依赖）
+        from .tencent_quote import TencentQuoteFetcher
+        from .eastmoney_quote import EastmoneyQuoteFetcher
+        from .sina_quote import SinaQuoteFetcher
+        from .xueqiu_quote import XueqiuQuoteFetcher
+        from .ths_quote import ThsQuoteFetcher
 
-    fetchers.extend(
-        [
-            TencentQuoteFetcher(),
-            EastmoneyQuoteFetcher(),
-            SinaQuoteFetcher(),
-            XueqiuQuoteFetcher(),
-            ThsQuoteFetcher(),
-        ]
-    )
+        fetchers.extend(
+            [
+                TencentQuoteFetcher(),
+                EastmoneyQuoteFetcher(),
+                SinaQuoteFetcher(),
+                XueqiuQuoteFetcher(),
+                ThsQuoteFetcher(),
+            ]
+        )
 
-    # 可选依赖数据源
-    for mod, cls in [
-        ("efinance_quote", "EfinanceQuoteFetcher"),
-        ("akshare_quote", "AkshareQuoteFetcher"),
-        ("tushare_quote", "TushareQuoteFetcher"),
-        ("pytdx_quote", "PytdxQuoteFetcher"),
-        ("yfinance_quote", "YfinanceQuoteFetcher"),
-    ]:
-        c = _try_import(mod, cls)
-        if c:
-            fetchers.append(c())
+        # 可选依赖数据源
+        for mod, cls in [
+            ("efinance_quote", "EfinanceQuoteFetcher"),
+            ("akshare_quote", "AkshareQuoteFetcher"),
+            ("tushare_quote", "TushareQuoteFetcher"),
+            ("pytdx_quote", "PytdxQuoteFetcher"),
+            ("yfinance_quote", "YfinanceQuoteFetcher"),
+        ]:
+            c = _try_import(mod, cls)
+            if c:
+                fetchers.append(c())
 
-    return fetchers
+        _fetcher_cache["quote"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -82,30 +92,36 @@ def get_quote_fetchers() -> list:
 
 
 def get_kline_fetchers() -> list:
-    """获取所有可用的 K 线数据源。"""
-    fetchers = []
+    """获取所有可用的 K 线数据源（缓存单例）。"""
+    if "kline" in _fetcher_cache:
+        return _fetcher_cache["kline"]
+    with _cache_lock:
+        if "kline" in _fetcher_cache:
+            return _fetcher_cache["kline"]
+        fetchers = []
 
-    from .sina_kline import SinaKlineFetcher
-    from .eastmoney_kline import EastmoneyKlineFetcher
-    from .tencent_kline import TencentKlineFetcher
+        from .sina_kline import SinaKlineFetcher
+        from .eastmoney_kline import EastmoneyKlineFetcher
+        from .tencent_kline import TencentKlineFetcher
 
-    fetchers.extend(
-        [SinaKlineFetcher(), EastmoneyKlineFetcher(), TencentKlineFetcher()]
-    )
+        fetchers.extend(
+            [SinaKlineFetcher(), EastmoneyKlineFetcher(), TencentKlineFetcher()]
+        )
 
-    for mod, cls in [
-        ("efinance_kline", "EfinanceKlineFetcher"),
-        ("akshare_kline", "AkshareKlineFetcher"),
-        ("tushare_kline", "TushareKlineFetcher"),
-        ("baostock_kline", "BaostockKlineFetcher"),
-        ("yfinance_kline", "YfinanceKlineFetcher"),
-        ("pytdx_kline", "PytdxKlineFetcher"),
-    ]:
-        c = _try_import(mod, cls)
-        if c:
-            fetchers.append(c())
+        for mod, cls in [
+            ("efinance_kline", "EfinanceKlineFetcher"),
+            ("akshare_kline", "AkshareKlineFetcher"),
+            ("tushare_kline", "TushareKlineFetcher"),
+            ("baostock_kline", "BaostockKlineFetcher"),
+            ("yfinance_kline", "YfinanceKlineFetcher"),
+            ("pytdx_kline", "PytdxKlineFetcher"),
+        ]:
+            c = _try_import(mod, cls)
+            if c:
+                fetchers.append(c())
 
-    return fetchers
+        _fetcher_cache["kline"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -114,22 +130,28 @@ def get_kline_fetchers() -> list:
 
 
 def get_finance_fetchers() -> list:
-    """获取所有可用的财务数据源。"""
-    fetchers = []
+    """获取所有可用的财务数据源（缓存单例）。"""
+    if "finance" in _fetcher_cache:
+        return _fetcher_cache["finance"]
+    with _cache_lock:
+        if "finance" in _fetcher_cache:
+            return _fetcher_cache["finance"]
+        fetchers = []
 
-    from .eastmoney_finance import EastmoneyFinanceFetcher
+        from .eastmoney_finance import EastmoneyFinanceFetcher
 
-    fetchers.append(EastmoneyFinanceFetcher())
+        fetchers.append(EastmoneyFinanceFetcher())
 
-    for mod, cls in [
-        ("efinance_finance", "EfinanceFinanceFetcher"),
-        ("akshare_finance", "AkshareFinanceFetcher"),
-    ]:
-        c = _try_import(mod, cls)
-        if c:
-            fetchers.append(c())
+        for mod, cls in [
+            ("efinance_finance", "EfinanceFinanceFetcher"),
+            ("akshare_finance", "AkshareFinanceFetcher"),
+        ]:
+            c = _try_import(mod, cls)
+            if c:
+                fetchers.append(c())
 
-    return fetchers
+        _fetcher_cache["finance"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════
