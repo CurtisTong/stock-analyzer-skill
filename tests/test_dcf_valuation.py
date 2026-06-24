@@ -1,11 +1,16 @@
-"""DCF 估值模型测试。"""
+"""DCF + EV/EBITDA 估值模型测试。"""
 
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from strategies.factors.dcf import dcf_valuation, dcf_score
+from strategies.factors.dcf import (
+    dcf_valuation,
+    dcf_score,
+    ev_ebitda_valuation,
+    ev_ebitda_score,
+)
 
 
 class TestDcfValuation:
@@ -118,3 +123,73 @@ class TestDcfScore:
         fin = {"eps": 5.0, "ocf_per_share": 7.0}
         score = dcf_score(100, fin, "默认")
         assert 20 <= score <= 90
+
+
+class TestEvEbitdaValuation:
+    """ev_ebitda_valuation 函数测试。"""
+
+    def test_basic_valuation(self):
+        """基本 EV/EBITDA 计算。"""
+        fin = {"operating_profit": 10.0}
+        quote = {"total_cap": 100.0}
+        result = ev_ebitda_valuation(50, fin, quote)
+        assert result["method"] == "ev_ebitda"
+        assert result["ev"] == 100.0
+        assert result["ebitda"] == 13.0  # 10.0 * 1.3
+        assert result["ev_ebitda"] == 7.69  # 100 / 13
+
+    def test_no_data_returns_error(self):
+        """无数据时返回错误。"""
+        result = ev_ebitda_valuation(100, {}, {})
+        assert result.get("error") == "无可用 EBITDA 数据"
+
+    def test_negative_ebitda(self):
+        """营业利润为负且无 EPS 时返回错误。"""
+        fin = {"operating_profit": -5.0}
+        quote = {"total_cap": 100.0}
+        result = ev_ebitda_valuation(50, fin, quote)
+        assert result.get("error") is not None  # 无可用数据
+
+    def test_alternative_field_names(self):
+        """支持东财原始字段名。"""
+        fin = {"YYLR": 10.0}
+        quote = {"total_cap": 100.0}
+        result = ev_ebitda_valuation(50, fin, quote)
+        assert result["ev_ebitda"] > 0
+
+    def test_eps_fallback(self):
+        """营业利润不可用时回退到 EPS。"""
+        fin = {"eps": 5.0}
+        quote = {"total_cap": 100.0}
+        result = ev_ebitda_valuation(50, fin, quote)
+        assert result["ev_ebitda"] > 0
+
+
+class TestEvEbitdaScore:
+    """ev_ebitda_score 函数测试。"""
+
+    def test_undervalued(self):
+        """低 EV/EBITDA 得 70 分。"""
+        fin = {"operating_profit": 20.0}
+        quote = {"total_cap": 100.0}
+        score = ev_ebitda_score(50, fin, quote)
+        assert score == 70  # ratio = 100/26 ≈ 3.85 < 8
+
+    def test_reasonable(self):
+        """合理 EV/EBITDA 得 50 分。"""
+        fin = {"operating_profit": 8.0}
+        quote = {"total_cap": 100.0}
+        score = ev_ebitda_score(50, fin, quote)
+        assert score == 50  # ratio = 100/10.4 ≈ 9.6, 8-12 range
+
+    def test_overvalued(self):
+        """高 EV/EBITDA 得 20 分。"""
+        fin = {"operating_profit": 2.0}
+        quote = {"total_cap": 100.0}
+        score = ev_ebitda_score(50, fin, quote)
+        assert score == 20  # ratio = 100/2.6 ≈ 38.5 > 18
+
+    def test_no_data_neutral(self):
+        """无数据返回中性分 50。"""
+        score = ev_ebitda_score(100, {}, {})
+        assert score == 50

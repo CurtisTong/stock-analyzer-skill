@@ -154,3 +154,116 @@ def dcf_score(price: float, fin: dict, industry: str = "默认") -> float:
         return 40
     else:
         return 20
+
+
+# ═══════════════════════════════════════════════════════════════
+# EV/EBITDA 估值（企业价值/息税折旧摊销前利润）
+# ═══════════════════════════════════════════════════════════════
+
+
+def ev_ebitda_valuation(
+    price: float,
+    fin: dict,
+    quote: dict = None,
+) -> dict:
+    """EV/EBITDA 估值。
+
+    EV = 市值 + 有息负债 - 现金
+    EBITDA ≈ 净利润 + 所得税 + 利息 + 折旧摊销（近似：净利润 / (1-税率) + 折旧）
+
+    A 股数据限制：折旧摊销数据不完整，使用以下近似：
+    - EBITDA ≈ 营业利润 × 1.3（粗略估计折旧摊销占比）
+    - 回退到 EPS × 总股本 × 1.3
+
+    Args:
+        price: 当前股价
+        fin: 财务 dict
+        quote: 行情 dict（含 total_cap）
+
+    Returns:
+        {
+            "ev_ebitda": EV/EBITDA 比值,
+            "ev": 企业价值,
+            "ebitda": EBITDA,
+            "method": "ev_ebitda",
+        }
+    """
+    # 市值（亿元）
+    total_cap = to_float((quote or {}).get("total_cap", 0))
+
+    # 简化：EV ≈ 市值（忽略有息负债和现金，A 股数据不完整）
+    ev = total_cap
+
+    # EBITDA 近似
+    # 方式 1：用营业利润
+    operating_profit = to_float(fin.get("operating_profit", fin.get("YYLR", 0)))
+    if operating_profit > 0:
+        ebitda = operating_profit * 1.3  # 粗略估计折旧摊销占比 30%
+    else:
+        # 方式 2：用 EPS × 1.3
+        eps = to_float(fin.get("eps", fin.get("EPSJB", 0)))
+        if eps > 0 and total_cap > 0:
+            # total_cap 是亿元，price 是元
+            shares = total_cap * 1e8 / price if price > 0 else 0
+            ebitda = eps * shares * 1.3 / 1e8  # 转回亿元
+        else:
+            return {
+                "ev_ebitda": 0,
+                "ev": ev,
+                "ebitda": 0,
+                "method": "ev_ebitda",
+                "error": "无可用 EBITDA 数据",
+            }
+
+    if ebitda <= 0:
+        return {
+            "ev_ebitda": 0,
+            "ev": ev,
+            "ebitda": 0,
+            "method": "ev_ebitda",
+            "error": "EBITDA 为负或零",
+        }
+
+    ev_ebitda = round(ev / ebitda, 2)
+
+    return {
+        "ev_ebitda": ev_ebitda,
+        "ev": round(ev, 2),
+        "ebitda": round(ebitda, 2),
+        "method": "ev_ebitda",
+    }
+
+
+def ev_ebitda_score(
+    price: float, fin: dict, quote: dict = None, industry: str = "默认"
+) -> float:
+    """EV/EBITDA 估值评分（0-100，50=合理估值）。
+
+    行业差异化阈值：
+    - < 8: 低估（70 分）
+    - 8-12: 合理（50 分）
+    - 12-18: 偏高（35 分）
+    - > 18: 高估（20 分）
+    """
+    from strategies.thresholds import get_industry_threshold
+
+    result = ev_ebitda_valuation(price, fin, quote)
+
+    if result.get("error"):
+        return 50  # 无数据给中性分
+
+    ratio = result["ev_ebitda"]
+    low = get_industry_threshold(industry, "ev_ebitda_low", 8)
+    mid = get_industry_threshold(industry, "ev_ebitda_mid", 12)
+    high = get_industry_threshold(industry, "ev_ebitda_high", 18)
+
+    if ratio <= 0:
+        return 50
+    elif ratio < low:
+        return 70
+    elif ratio < mid:
+        return 50
+    elif ratio < high:
+        return 35
+    else:
+        return 20
