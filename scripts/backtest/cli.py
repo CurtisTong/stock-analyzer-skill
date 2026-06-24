@@ -129,6 +129,7 @@ def _fetch_benchmark_return(benchmark_code: str, days: int) -> float | None:
     """
     try:
         from data import get_kline
+
         # 多取几天，确保覆盖 N 个交易日
         bars = get_kline(benchmark_code, scale=240, datalen=days + 10)
         if not bars or len(bars) < 2:
@@ -165,7 +166,10 @@ def main():
 
     parser = argparse.ArgumentParser(description="多因子选股策略回测", add_help=False)
     from common.version import __version__
-    parser.add_argument("-v", "--version", action="version", version=f"backtest {__version__}")
+
+    parser.add_argument(
+        "-v", "--version", action="version", version=f"backtest {__version__}"
+    )
     parser.add_argument("-h", "--help", action="help")
     parser.add_argument(
         "--strategy", choices=STRATEGIES.keys(), default="balanced", help="回测策略"
@@ -267,7 +271,9 @@ def main():
                 bench_pct = _fetch_benchmark_return(args.benchmark, args.days)
                 if bench_pct is not None:
                     print("-" * (len(header) + 10))
-                    print(f"{'基准 ' + args.benchmark:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>8} {'-':>6}")
+                    print(
+                        f"{'基准 ' + args.benchmark:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>8} {'-':>6}"
+                    )
 
     else:
         print(
@@ -305,6 +311,25 @@ def main():
                 print(
                     f"分位置胜率: 早期{wp.get('early', '-')}% / 中期{wp.get('mid', '-')}% / 后期{wp.get('late', '-')}%"
                 )
+
+            # ASCII 可视化
+            try:
+                from .visualize import render_return_curve, render_drawdown_chart
+
+                # 从 round_details 提取收益序列
+                round_details = report.get("round_details", [{}])
+                returns = round_details[0].get("returns", []) if round_details else []
+                if not returns:
+                    returns = [report.get("avg_return_pct", 0)] * report.get(
+                        "rounds", 1
+                    )
+
+                print()
+                print(render_return_curve(returns, width=50, height=10))
+                print()
+                print(render_drawdown_chart(returns, width=50, height=6))
+            except Exception:
+                pass  # 可视化失败不影响主流程
 
 
 if __name__ == "__main__":
