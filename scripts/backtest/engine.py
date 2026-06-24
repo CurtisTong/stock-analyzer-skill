@@ -162,6 +162,11 @@ def simulate_strategy(
                 i += holding_days
                 continue
 
+            # 跳过涨跌停和停牌日
+            if _is_limit_or_suspended(bars, i):
+                i += 1
+                continue
+
             hist = bars[:i]
             momentum = _compute_momentum_from_bars(hist)
             hist_quote = _build_hist_quote(bars, i, fin, code)
@@ -186,12 +191,8 @@ def simulate_strategy(
                 pass
 
             # 事件因子（解禁/分红/增减持/违规）
-            try:
-                event = _event_score(code)
-                if event != 50:  # 50 是中性分，有事件信号时才加入
-                    parts["event"] = event
-            except Exception:
-                pass
+            # 注意：event_score 涉及网络请求，回测中禁用以避免超时
+            # 如需启用，请确保事件数据已预加载到缓存
 
             # 策略权重应用 market regime overlay（Sprint 3 收口）
             regime = _classify_for_backtest(bars[:i]) if i >= 60 else RegimeState.RANGE
@@ -399,3 +400,43 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
         return 100.0
     rs = avg_gain / avg_loss
     return 100 - 100 / (1 + rs)
+
+
+def _is_limit_or_suspended(bars, idx):
+    """检查指定日期是否涨跌停或停牌。
+
+    涨跌停判断：当日涨跌幅接近 ±10%（普通股）或 ±20%（创业板/科创板）。
+    停牌判断：成交量为 0。
+
+    Args:
+        bars: K 线数据
+        idx: 当前索引
+
+    Returns:
+        True 表示应跳过该日
+    """
+    if idx <= 0 or idx >= len(bars):
+        return False
+
+    bar = bars[idx]
+    prev = bars[idx - 1]
+    prev_close = prev.close if hasattr(prev, "close") else prev.get("close", 0)
+    bar_close = bar.close if hasattr(bar, "close") else bar.get("close", 0)
+    volume = bar.volume if hasattr(bar, "volume") else bar.get("volume", 0)
+
+    # 停牌：成交量为 0 且价格无变化（真正的停牌）
+    if volume <= 0 and bar_close == prev_close:
+        return True
+
+    # 涨跌停：涨跌幅接近 ±10% 或 ±20%
+    if prev_close > 0 and bar_close > 0:
+        change_pct = (bar_close - prev_close) / prev_close
+        # 创业板/科创板 20% 涨跌幅
+        code = getattr(bar, "code", "") or (
+            bar.get("code", "") if isinstance(bar, dict) else ""
+        )
+        limit = 0.195 if code.startswith(("sz300", "sz301", "sh688")) else 0.095
+        if abs(change_pct) >= limit:
+            return True
+
+    return False
