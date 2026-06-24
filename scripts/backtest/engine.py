@@ -15,6 +15,8 @@ from common import (
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
+from strategies.factors.chip import chip_score_dynamic as _chip_score
+from strategies.factors.event import event_score as _event_score
 from strategies.regime import compute_overlay_weights, RegimeState
 from strategies.regime.classifier import _classify_for_backtest
 from screener import (
@@ -174,6 +176,22 @@ def simulate_strategy(
             dividend = _calc_dividend_score(hist_quote, fin, industry)
             if dividend > 0:
                 parts["dividend"] = dividend
+
+            # 筹码因子（融资融券/股东户数/十大流通）
+            try:
+                chip = _chip_score(hist_quote, fin, industry)
+                if chip > 0:
+                    parts["chip"] = chip
+            except Exception:
+                pass
+
+            # 事件因子（解禁/分红/增减持/违规）
+            try:
+                event = _event_score(code)
+                if event != 50:  # 50 是中性分，有事件信号时才加入
+                    parts["event"] = event
+            except Exception:
+                pass
 
             # 策略权重应用 market regime overlay（Sprint 3 收口）
             regime = _classify_for_backtest(bars[:i]) if i >= 60 else RegimeState.RANGE
