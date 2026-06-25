@@ -2,7 +2,7 @@
   "strategies": {
     "ma_volume_combined": {
       "name": "MA + 成交量组合策略",
-      "version": "1.0.0",
+      "version": "1.14.1",
       "description": "基于 5 只股票回测优化的 MA10/MA21 金叉 + 放量突破组合策略",
       "author": "stock-analyzer-skill",
       "parameters": {
@@ -48,7 +48,7 @@
     },
     "san_yin_yi_yang": {
       "name": "三阴一阳战法",
-      "version": "2.0.0",
+      "version": "1.14.1",
       "description": "基于量比、跌幅、反弹比例三维评分的优化版",
       "parameters": {
         "vol_ratio_min": {

@@ -1,7 +1,7 @@
 ---
 name: stock-help
 description: Stock Analyzer 帮助。命令 `/stock-help`，触发词：/help、有哪些功能、怎么用、你会什么、帮我看看有什么命令、技能列表、使用说明、新手怎么开始、投资入门。显示所有可用skills和使用说明。
-version: 1.14.0
+version: 1.14.1
 model: haiku
 disable-model-invocation: true
 ---

@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from common import DATA_DIR  # noqa: E402
 
-SNAPSHOT_VERSION = "1.0.0"
+SNAPSHOT_VERSION = "1.14.1"
 
 
 def _snapshot_path(strategy: str, date_str: str, hash_id: str) -> Path:

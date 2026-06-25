@@ -198,7 +198,7 @@ def get_strategy_params():
     """返回策略推荐参数"""
     return {
         "name": "MA_Volume_Combined",
-        "version": "1.0.0",
+        "version": "1.14.1",
         "description": "MA10/MA21 金叉 + 放量突破组合策略",
         "parameters": {
             "ma_short": 10,

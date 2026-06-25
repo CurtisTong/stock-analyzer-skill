@@ -18,7 +18,7 @@
 
 **五层分析框架** · **15 份专家人设（9 active）** · **28 个数据源故障转移** · **零依赖开箱即用**
 
-[![Version](https://img.shields.io/badge/version-1.14.0-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.14.1-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
@@ -713,7 +713,7 @@ Issue / PR / 建议 → [GitHub Repo](https://github.com/CurtisTong/stock-analyz
 
 ```bash
 # 1. bump 版本
-python3 scripts/dev/sync_version.py --version 1.14.0
+python3 scripts/dev/sync_version.py --version 1.14.1
 
 # 2. 同步测试常量（关键！防止 release CI 阻塞）
 python3 scripts/dev/sync_skill_test_versions.py
@@ -723,8 +723,8 @@ python3 scripts/dev/sync_skill_test_versions.py --check
 
 # 4. 提交 + 打 tag + push
 git add -A
-git commit -m "chore(release): 同步至 v1.14.0"
-git tag -a v1.14.0 -m "Release v1.14.0"
+git commit -m "chore(release): 同步至 v1.14.1"
+git tag -a v1.14.1 -m "Release v1.14.1"
 git push origin main --tags
 ```
 
@@ -741,7 +741,7 @@ MIT License © curtis
 
 ---
 
-**v1.14.0** · 2026-06-24 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.14.1** · 2026-06-24 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

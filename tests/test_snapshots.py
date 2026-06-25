@@ -11,7 +11,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from snapshots import save_snapshot, load_snapshot, diff_snapshots, list_snapshots  # noqa: E402
+from snapshots import (
+    save_snapshot,
+    load_snapshot,
+    diff_snapshots,
+    list_snapshots,
+)  # noqa: E402
 
 
 def _make_row(code, name, score, **kwargs):
@@ -41,8 +46,10 @@ def temp_snapshots_dir(monkeypatch):
     """临时快照目录（隔离真实 DATA_DIR）。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         from common import DATA_DIR as _real_dir
+
         # 临时覆盖 DATA_DIR（snapshots 内部用 Path(DATA_DIR) 计算）
         import snapshots as _s
+
         monkeypatch.setattr(_s, "DATA_DIR", tmpdir)
         yield tmpdir
 
@@ -62,7 +69,7 @@ class TestSaveSnapshot:
         rows = [_make_row("sh600519", "贵州茅台", 80.0)]
         path = save_snapshot("balanced", rows, ["sh600519"], regime="bull")
         data = load_snapshot(path)
-        assert data["version"] == "1.0.0"
+        assert data["version"] == "1.14.1"
         assert data["strategy"] == "balanced"
         assert data["regime"] == "bull"
         assert data["pool_size"] == 1
