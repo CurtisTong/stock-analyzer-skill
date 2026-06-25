@@ -320,7 +320,7 @@ class PortfolioManager:
         return result
 
     def reduce_position(
-        self, code: str, quantity: int, auto_save: bool = True
+        self, code: str, quantity: int, auto_save: bool = True, sell_price: float = None
     ) -> Optional[dict]:
         """减仓。返回减仓后的持仓信息，如果全部卖出则移除并记录交易日志。"""
         if quantity <= 0:
@@ -337,9 +337,20 @@ class PortfolioManager:
                         p.get("cost", 0),
                         quantity,
                         reason="reduce_to_zero",
+                        sell_price=sell_price,
                     )
                     positions.pop(i)
                     return None
+                # 部分减仓也记录交易日志
+                if sell_price:
+                    self._record_trade_log(
+                        code,
+                        p.get("name", ""),
+                        p.get("cost", 0),
+                        quantity,
+                        reason="partial_reduce",
+                        sell_price=sell_price,
+                    )
                 if auto_save:
                     self.save()
                 return p
@@ -371,6 +382,7 @@ class PortfolioManager:
         cost: float,
         quantity: int,
         reason: str = "manual",
+        sell_price: float = None,
     ) -> None:
         """记录交易日志（异常隔离，不影响持仓操作）。"""
         try:
@@ -382,7 +394,7 @@ class PortfolioManager:
                 name=name,
                 cost=cost,
                 quantity=quantity,
-                sell_price=0,
+                sell_price=sell_price or 0,
                 reason=reason,
             )
         except Exception:

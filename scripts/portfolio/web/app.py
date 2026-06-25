@@ -24,7 +24,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from .dispatch import dispatch
 from .templates import INDEX_HTML_TEMPLATE
@@ -51,7 +51,7 @@ from .utils import (
 
 __all__ = ["make_server", "Handler", "VERSION"]
 
-VERSION = "1.9.0"
+VERSION = "2.0.0"
 
 # 模块级状态
 _data_file = None
@@ -113,10 +113,16 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def _check_auth(self) -> bool:
-        """校验 Authorization: Bearer <token>。"""
+        """校验 Authorization: Bearer <token> 或 URL ?token=<token>。"""
         token = _ensure_token()
+        # 优先检查 Authorization 头（API 调用）
         auth = self.headers.get("Authorization", "")
         if auth.startswith("Bearer ") and auth[7:].strip() == token:
+            return True
+        # 回退检查 URL query parameter（浏览器首次导航）
+        qs = parse_qs(urlparse(self.path).query)
+        url_token = (qs.get("token") or [None])[0]
+        if url_token and url_token.strip() == token:
             return True
         self._write_json(
             HTTPStatus.UNAUTHORIZED,
@@ -138,6 +144,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._serve_list()
             elif path == "/api/monitor":
                 self._serve_monitor()
+            elif path == "/api/trades":
+                self._serve_trades()
             elif path.startswith("/api/positions/"):
                 self._serve_get_one(path[len("/api/positions/") :])
             elif path == "/favicon.ico":
@@ -270,19 +278,83 @@ class Handler(BaseHTTPRequestHandler):
         self._write(HTTPStatus.OK, body, "text/html; charset=utf-8")
 
     def _serve_list(self):
-        """列表接口。"""
-        from .utils import _lock
+        """列表接口（附带实时行情）。"""
+        from .utils import _lock, _virtual_mode
 
         with _lock:
             pm = _get_pm()
             data = pm.to_dict()
             summary = pm.summary()
+
+        positions = data.get("positions", [])
+        watchlist = data.get("watchlist", [])
+
+        # 批量获取实时行情
+        all_codes = [p["code"] for p in positions] + [w["code"] for w in watchlist]
+        quote_map = {}
+        if all_codes:
+            try:
+                from data import get_quotes
+
+                quotes = get_quotes(all_codes, use_cache=True)
+                quote_map = {q.code: q for q in quotes if q}
+            except Exception:
+                pass  # 行情获取失败不影响列表
+
+        # 为持仓附加行情数据
+        for p in positions:
+            q = quote_map.get(p["code"])
+            if q:
+                p["current_price"] = round(q.price, 3) if q.price else None
+                p["change_pct"] = round(q.change_pct, 2) if q.change_pct else None
+                cost = p.get("cost", 0)
+                qty = p.get("quantity", 0)
+                if q.price and cost and qty:
+                    p["market_value"] = round(q.price * qty, 2)
+                    p["profit_pct"] = (
+                        round((q.price - cost) / cost * 100, 2) if cost else 0
+                    )
+                    p["profit_amount"] = round((q.price - cost) * qty, 2)
+                else:
+                    p["market_value"] = None
+                    p["profit_pct"] = None
+                    p["profit_amount"] = None
+            else:
+                p["current_price"] = None
+                p["change_pct"] = None
+                p["market_value"] = None
+                p["profit_pct"] = None
+                p["profit_amount"] = None
+
+        # 为自选附加行情数据
+        for w in watchlist:
+            q = quote_map.get(w["code"])
+            if q:
+                w["current_price"] = round(q.price, 3) if q.price else None
+                w["change_pct"] = round(q.change_pct, 2) if q.change_pct else None
+                tb = w.get("target_buy", 0)
+                ts = w.get("target_sell", 0)
+                if q.price and tb:
+                    w["buy_gap_pct"] = round((q.price - tb) / tb * 100, 2)
+                else:
+                    w["buy_gap_pct"] = None
+                if q.price and ts:
+                    w["sell_gap_pct"] = round((q.price - ts) / ts * 100, 2)
+                else:
+                    w["sell_gap_pct"] = None
+            else:
+                w["current_price"] = None
+                w["change_pct"] = None
+                w["buy_gap_pct"] = None
+                w["sell_gap_pct"] = None
+
         payload = {
             "ok": True,
             "data": {
-                "positions": data.get("positions", []),
-                "watchlist": data.get("watchlist", []),
+                "positions": positions,
+                "watchlist": watchlist,
                 "summary": summary,
+                "virtual": _virtual_mode,
             },
         }
         self._write_json(HTTPStatus.OK, payload)
@@ -316,6 +388,28 @@ class Handler(BaseHTTPRequestHandler):
             },
         }
         self._write_json(HTTPStatus.OK, payload)
+
+    def _serve_trades(self):
+        """交易日志接口。"""
+        try:
+            from portfolio.trade_log import TradeLog
+
+            tl = TradeLog()
+            history = tl.query()
+            stats = tl.stats()
+            payload = {
+                "ok": True,
+                "data": {
+                    "history": history[-50:],  # 最近 50 条
+                    "stats": stats,
+                },
+            }
+            self._write_json(HTTPStatus.OK, payload)
+        except Exception as e:
+            self._write_json(
+                HTTPStatus.OK,
+                {"ok": True, "data": {"history": [], "stats": {}}},
+            )
 
     def do_PUT(self):
         self._send_method_not_allowed("GET, POST")

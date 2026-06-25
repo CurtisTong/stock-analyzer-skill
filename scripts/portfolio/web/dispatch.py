@@ -104,7 +104,8 @@ def _do_reduce_position(pm, body: dict, code: str) -> dict:
     if qty <= 0:
         return _err("invalid_quantity", 400, "'quantity' must be > 0")
 
-    result = pm.reduce_position(code, qty)
+    sell_price = _parse_float(body.get("sell_price"))
+    result = pm.reduce_position(code, qty, sell_price=sell_price)
     return _ok(result, warn=["position_removed"] if result is None else None)
 
 
