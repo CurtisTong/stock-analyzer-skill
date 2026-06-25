@@ -5,6 +5,7 @@ import json
 import os
 import platform
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
@@ -19,6 +20,7 @@ CACHE_DIR = Path(os.getenv("STOCK_CACHE_DIR", str(_DEFAULT_CACHE_DIR)))
 
 # 惰性清理：每 N 次写入检查一次缓存大小
 _WRITE_COUNTER = 0
+_WRITE_LOCK = threading.Lock()
 _CLEANUP_INTERVAL = 50  # 每 50 次写入检查一次
 _MAX_CACHE_MB = 500  # 缓存上限
 
@@ -54,9 +56,13 @@ def put(key: str, data: bytes) -> None:
     """
     _validate_key(key)
     global _WRITE_COUNTER
-    _WRITE_COUNTER += 1
-    if _WRITE_COUNTER >= _CLEANUP_INTERVAL:
-        _WRITE_COUNTER = 0
+    need_cleanup = False
+    with _WRITE_LOCK:
+        _WRITE_COUNTER += 1
+        if _WRITE_COUNTER >= _CLEANUP_INTERVAL:
+            _WRITE_COUNTER = 0
+            need_cleanup = True
+    if need_cleanup:
         try:
             cleanup_by_size(max_size_mb=_MAX_CACHE_MB)
         except Exception:

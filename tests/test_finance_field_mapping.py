@@ -1,6 +1,7 @@
 """
 财务字段映射测试：验证 akshare/efinance 中文字段名能正确映射到 FinanceRecord。
 """
+
 import pytest
 import sys
 from pathlib import Path
@@ -135,9 +136,8 @@ class TestDictToFinanceEdgeCases:
 class TestFinanceCompletenessCheck:
     """完整性校验测试（get_finance 中的 eps/roe 全零检查）。"""
 
-    def test_all_zero_triggers_parse_error(self):
-        """所有记录 eps==0 且 roe==0 应触发 ParseError。"""
-        from common.exceptions import ParseError
+    def test_all_zero_returns_records(self):
+        """所有记录 eps==0 且 roe==0 应返回记录（新股无数据场景）而非抛异常。"""
         import data as data_mod
         from unittest.mock import MagicMock
 
@@ -154,8 +154,9 @@ class TestFinanceCompletenessCheck:
         try:
             data_mod._finance_manager = mock_mgr
             data_mod._fetchers_loaded = True
-            with pytest.raises(ParseError):
-                data_mod.get_finance("test_code", use_cache=False)
+            records = data_mod.get_finance("test_code", use_cache=False)
+            assert len(records) == 2
+            assert all(r.eps == 0 and r.roe == 0 for r in records)
         finally:
             data_mod._finance_manager = original_mgr
             data_mod._fetchers_loaded = original_loaded

@@ -142,7 +142,12 @@ def get_finance(code: str, use_cache: bool = True) -> list:
             # 校验缓存有效性：至少有一个非零数据点
             if any(r.eps != 0 or r.roe != 0 for r in records):
                 return records
-            # 零值缓存视为无效，忽略并重新拉取
+            # 零值缓存：可能是新股无数据或字段映射失败
+            # 使用短 TTL 缓存避免重复网络请求
+            zero_key = f"{key}_zero"
+            zero_cached = cache.get_json(zero_key, 300)  # 5 分钟短缓存
+            if zero_cached:
+                return [_dict_to_finance(r) for r in zero_cached]
 
     result = _finance_manager.fetch(code)
     if not result:
@@ -150,15 +155,13 @@ def get_finance(code: str, use_cache: bool = True) -> list:
 
     records = [_dict_to_finance(r) for r in result]
 
-    # 完整性校验：所有记录 eps==0 且 roe==0 说明字段映射失败，触发 fallback
+    # 完整性校验：所有记录 eps==0 且 roe==0 可能是字段映射失败或新股无数据
+    # 使用短 TTL 缓存避免重复网络请求
     if records and all(r.eps == 0 and r.roe == 0 for r in records):
-        from common.exceptions import ParseError
-
-        raise ParseError(
-            str(result[:1]),
-            "finance_field_mapping",
-            "所有记录 eps/roe 均为 0，字段映射可能失败",
-        )
+        if use_cache:
+            zero_key = f"{key}_zero"
+            cache.set_json(zero_key, [r.to_dict() for r in records])
+        return records
 
     if use_cache and records:
         cache.set_json(key, [r.to_dict() for r in records])
