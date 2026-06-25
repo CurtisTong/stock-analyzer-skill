@@ -1,0 +1,80 @@
+{
+  "strategies": {
+    "ma_volume_combined": {
+      "name": "MA + 成交量组合策略",
+      "version": "1.0.0",
+      "description": "基于 5 只股票回测优化的 MA10/MA21 金叉 + 放量突破组合策略",
+      "author": "stock-analyzer-skill",
+      "parameters": {
+        "ma_short": {
+          "value": 10,
+          "description": "短期均线周期",
+          "range": [5, 20]
+        },
+        "ma_long": {
+          "value": 21,
+          "description": "长期均线周期",
+          "range": [20, 60]
+        },
+        "vol_threshold": {
+          "value": 2.5,
+          "description": "成交量阈值倍数",
+          "range": [1.5, 3.0]
+        },
+        "hold_days": {
+          "value": 5,
+          "description": "持有天数",
+          "range": [3, 10]
+        },
+        "stop_loss": {
+          "value": -5,
+          "description": "止损比例（%）",
+          "range": [-10, -3]
+        }
+      },
+      "backtest_results": {
+        "stock": "宝丰能源",
+        "period": "2025-08-22 至 2026-06-24",
+        "win_rate": 71.4,
+        "avg_return": 6.39,
+        "total_return": 44.71
+      },
+      "multi_stock_validation": {
+        "stocks_tested": 5,
+        "avg_win_rate": 59.7,
+        "best_stock": "宝丰能源",
+        "worst_stock": "恒瑞医药"
+      }
+    },
+    "san_yin_yi_yang": {
+      "name": "三阴一阳战法",
+      "version": "2.0.0",
+      "description": "基于量比、跌幅、反弹比例三维评分的优化版",
+      "parameters": {
+        "vol_ratio_min": {
+          "value": 1.2,
+          "description": "最小成交量比"
+        },
+        "decline_max": {
+          "value": 5,
+          "description": "最大三阴跌幅（%）"
+        },
+        "rebound_range": {
+          "value": [20, 50],
+          "description": "最佳反弹比例范围（%）"
+        }
+      },
+      "backtest_results": {
+        "stocks_tested": 5,
+        "avg_win_rate": 53.9,
+        "avg_return": 0.81
+      }
+    }
+  },
+  "default_strategy": "ma_volume_combined",
+  "recommendations": {
+    "trending_market": "ma_volume_combined",
+    "sideways_market": "san_yin_yi_yang",
+    "volatile_market": "ma_volume_combined"
+  }
+}

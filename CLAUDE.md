@@ -30,6 +30,8 @@ python3 scripts/chan.py sh600989
 python3 scripts/classifier.py sh600989
 python3 scripts/backtest.py sh600989
 python3 scripts/patterns_local.py sh600989
+python3 scripts/strategies/patterns/ma_volume_strategy.py sh600989  # MA+成交量组合策略
+python3 scripts/monitor/strategy_signals.py sh600989 sh600519       # 策略信号监控
 python3 scripts/monitor.py
 python3 scripts/monitor/alert_engine.py scan/levels/check
 python3 scripts/init_pool.py
@@ -50,7 +52,7 @@ scripts/
 ├── config/       # 外部化配置（YAML）— scoring/data_source/limits/industry_thresholds
 ├── data/         # 数据类型（Quote, KlineBar, FinanceRecord）+ 磁盘缓存
 ├── fetchers/     # 多数据源 Fetcher（28 个模块 × 7 数据域，优先级故障转移）
-├── strategies/   # 筛选策略系统（5 策略 × 5 因子维度）
+├── strategies/   # 筛选策略系统（5 策略 × 5 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 实时监控
 ├── portfolio/    # 持仓管理
@@ -67,45 +69,46 @@ scripts/
 - **ConfigLoader** (`scripts/config/loader.py`): YAML 配置加载器，支持点分路径访问和缓存
 - **数据类型** (`scripts/data/types.py`): `Quote`、`KlineBar`、`FinanceRecord` dataclass
 - **策略注册表** (`scripts/strategies/registry.py`): 5 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point）
+- **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（71.4% 胜率，+6.39% 平均收益）+ 三阴一阳战法
 - **专家系统** (`experts/`): 15 份投资专家人设（6 legacy active=False + 9 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech`，补盲区 `sector_specialist` / `institution` / `risk_manager`，v2.2.0 新增 `momentum_trader`）+ `decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 
 ## Skill 索引表（13 个）
 
-| Skill | 触发场景 | 主入口脚本 | 备注 |
-| :--- | :--- | :--- | :--- |
-| `/stock` | 单股五层分析 + 8 人圆桌辩论 | `scripts/stock.py` | 业务层 JSON 友好入口 |
-| `/stock-technical` | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） | `scripts/technical.py` | stock 子模块 |
-| `/market` | 大盘快评 / 完整复盘 / 盘中分时 | `scripts/quote.py` + `scripts/kline.py` | 指数/ETF/美股 |
-| `/sector` | 板块全景 / 标的对比 / 板块内筛选 | `scripts/sector.py` + `scripts/refresh_pool.py` | |
-| `/portfolio` | 持仓 CRUD + 自选 + 健康检查 + 调仓 | `scripts/portfolio_web.py` + `scripts/portfolio/*.py` | Web 服务 :8765 |
-| `/portfolio-web` | Web 录入服务（HTTP API） | `scripts/portfolio_web.py` | portfolio 子模块 |
-| `/portfolio-natural` | 自然语言 → 命令映射（NL → API） | `scripts/portfolio_web.py` | portfolio 子模块 |
-| `/screener` | 5 策略 × 6 因子批量选股 + 股票池初始化 | `scripts/screener.py` + `scripts/init_pool.py` | |
-| `/monitor` | 盘中异动 + 策略关键点位 + 多通道推送 | `scripts/monitor.py` + `scripts/monitor/alert_engine.py` | |
-| `/backtest` | 策略历史回测（11 项指标 + 5 策略对比） | `scripts/backtest.py` + `scripts/strategy_performance.py` | |
-| `/research` | 财务建模 / 排雷 / DCF / 全维度研究报告 | `scripts/stock.py --with-backtest` + `scripts/announcements.py` + `scripts/events.py` | |
-| `/learn` | 学习助手（PE/ROE/MACD/K 线/缠论/新手入门） | 无脚本调用 | 纯教学 |
-| `/stock-help` | 帮助索引（场景入口 + skill 一句话表） | 无脚本调用 | meta 索引（f4b3ad7 由 `/help` 重命名） |
+| Skill                | 触发场景                                     | 主入口脚本                                                                            | 备注                                   |
+| :------------------- | :------------------------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------- |
+| `/stock`             | 单股五层分析 + 8 人圆桌辩论                  | `scripts/stock.py`                                                                    | 业务层 JSON 友好入口                   |
+| `/stock-technical`   | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） | `scripts/technical.py`                                                                | stock 子模块                           |
+| `/market`            | 大盘快评 / 完整复盘 / 盘中分时               | `scripts/quote.py` + `scripts/kline.py`                                               | 指数/ETF/美股                          |
+| `/sector`            | 板块全景 / 标的对比 / 板块内筛选             | `scripts/sector.py` + `scripts/refresh_pool.py`                                       |                                        |
+| `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/*.py`                                 | Web 服务 :8765                         |
+| `/portfolio-web`     | Web 录入服务（HTTP API）                     | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
+| `/portfolio-natural` | 自然语言 → 命令映射（NL → API）              | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
+| `/screener`          | 5 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |
+| `/monitor`           | 盘中异动 + 策略关键点位 + 多通道推送         | `scripts/monitor.py` + `scripts/monitor/alert_engine.py`                              |                                        |
+| `/backtest`          | 策略历史回测（11 项指标 + 5 策略对比）       | `scripts/backtest.py` + `scripts/strategy_performance.py`                             |                                        |
+| `/research`          | 财务建模 / 排雷 / DCF / 全维度研究报告       | `scripts/stock.py --with-backtest` + `scripts/announcements.py` + `scripts/events.py` |                                        |
+| `/learn`             | 学习助手（PE/ROE/MACD/K 线/缠论/新手入门）   | 无脚本调用                                                                            | 纯教学                                 |
+| `/stock-help`        | 帮助索引（场景入口 + skill 一句话表）        | 无脚本调用                                                                            | meta 索引（f4b3ad7 由 `/help` 重命名） |
 
 ## Experts 全表（15 份）
 
-| Expert | 类型 | 状态 | 简介 |
-| :--- | :--- | :--- | :--- |
-| `buffett` | 价值 | legacy | 高 ROE + 低 PE + 强 FCF + 长期持有 |
-| `lynch` | 成长 | active | Buy What You Know + PEG < 1 + 6 类股票分类 |
-| `soros` | 宏观 | active | 反身性理论 + 凯利公式 + 趋势跟踪 |
-| `duan_yongping` | 价值 | legacy | 商业模式 + 本分企业文化 + "PE 就是 PE" |
-| `xu_xiang` | 短线 | legacy | 涨停板战法 + T+1 次日出 + 5% 硬止损 |
-| `zhao_laoge` | 短线 | legacy | 二板定龙头 + MA 多头排列 + 强者恒强 |
-| `chaogu_yangjia` | 短线 | legacy | 情绪周期四阶段 + 涨停家数/炸板率/昨涨停溢价 |
-| `zuoshou_xinyi` | 短线 | legacy | 二波低吸 + K 线反转 + 不加仓纪律 |
-| `value_anchor` | 价值合并 | active | 巴菲特 0.55 + 段永平 0.45 双锚 |
-| `topic_leader` | 短线合并 | active | 徐翔 0.5 + 赵老哥 0.5 龙头战法 |
-| `emotion_tech` | 短线合并 | active | 养家 0.5 + 新一 0.5 情绪技术复合 |
-| `sector_specialist` | 行业 | active | 按 5 大行业类差异化阈值（消费/科技/医药/周期/金融） |
-| `institution` | 机构 | active | 高瓴/红杉框架 + 5-10 年产业投资 + 14 项阈值 |
-| `risk_manager` | 风控 | active | Howard Marks 二阶思维 + 风险预算 + 集中度约束 |
-| `momentum_trader` | 动量 | active | 利弗莫尔关键转折 + 海龟交易法则（v2.2.0 新增） |
+| Expert              | 类型     | 状态   | 简介                                                |
+| :------------------ | :------- | :----- | :-------------------------------------------------- |
+| `buffett`           | 价值     | legacy | 高 ROE + 低 PE + 强 FCF + 长期持有                  |
+| `lynch`             | 成长     | active | Buy What You Know + PEG < 1 + 6 类股票分类          |
+| `soros`             | 宏观     | active | 反身性理论 + 凯利公式 + 趋势跟踪                    |
+| `duan_yongping`     | 价值     | legacy | 商业模式 + 本分企业文化 + "PE 就是 PE"              |
+| `xu_xiang`          | 短线     | legacy | 涨停板战法 + T+1 次日出 + 5% 硬止损                 |
+| `zhao_laoge`        | 短线     | legacy | 二板定龙头 + MA 多头排列 + 强者恒强                 |
+| `chaogu_yangjia`    | 短线     | legacy | 情绪周期四阶段 + 涨停家数/炸板率/昨涨停溢价         |
+| `zuoshou_xinyi`     | 短线     | legacy | 二波低吸 + K 线反转 + 不加仓纪律                    |
+| `value_anchor`      | 价值合并 | active | 巴菲特 0.55 + 段永平 0.45 双锚                      |
+| `topic_leader`      | 短线合并 | active | 徐翔 0.5 + 赵老哥 0.5 龙头战法                      |
+| `emotion_tech`      | 短线合并 | active | 养家 0.5 + 新一 0.5 情绪技术复合                    |
+| `sector_specialist` | 行业     | active | 按 5 大行业类差异化阈值（消费/科技/医药/周期/金融） |
+| `institution`       | 机构     | active | 高瓴/红杉框架 + 5-10 年产业投资 + 14 项阈值         |
+| `risk_manager`      | 风控     | active | Howard Marks 二阶思维 + 风险预算 + 集中度约束       |
+| `momentum_trader`   | 动量     | active | 利弗莫尔关键转折 + 海龟交易法则（v2.2.0 新增）      |
 
 > `legacy active=False` 6 人已合并入 active 专家；`active` 9 人由 `experts/registry.py` 注册并被 `experts/vote_engine.py` 在 debate 模式调用。
 

@@ -164,6 +164,22 @@ def render_report(features, score, signals, meta):
         for lp in local_p["patterns"]:
             icon = "↑" if lp["type"] == "看涨" else "↓"
             lines.append(f"  {icon} {lp['name']} ({lp['confidence']}): {lp['desc']}")
+            # 展示量化指标
+            metrics = lp.get("metrics", {})
+            if metrics:
+                vol_ratio = metrics.get("vol_ratio", 0)
+                total_decline = metrics.get("total_decline", 0)
+                rebound_ratio = metrics.get("rebound_ratio", 0)
+                if vol_ratio > 0:
+                    detail_parts = []
+                    if vol_ratio > 0:
+                        detail_parts.append(f"量比{vol_ratio:.1f}x")
+                    if total_decline != 0:
+                        detail_parts.append(f"跌幅{total_decline:.1f}%")
+                    if rebound_ratio > 0:
+                        detail_parts.append(f"反弹{rebound_ratio:.0f}%")
+                    if detail_parts:
+                        lines.append(f"    → {' | '.join(detail_parts)}")
         lines.append(f"  {local_p.get('summary', '')}")
     elif local_p:
         lines.append(f"\n## A股本土战法\n  {local_p.get('summary', '未检测到形态')}")

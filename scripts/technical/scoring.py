@@ -283,27 +283,57 @@ def _score_chan(chan_data: dict, adj: dict) -> float:
 
 
 def _score_local(local_patterns_data: dict) -> float:
-    """本土战法加分（上限 10）。"""
+    """本土战法加分（上限 10）。
+
+    v2 优化：三阴一阳使用量化指标（量比、跌幅、反弹比例）动态评分。
+    """
     local_bonus = 0
     for lp in local_patterns_data.get("patterns", []):
         pname = lp.get("name", "")
         pconf = lp.get("confidence", "中")
+        metrics = lp.get("metrics", {})
         bonus = 0
+
         if pname == "老鸭头":
             bonus = 8
         elif pname == "美人肩":
             bonus = 6
         elif pname == "三阴一阳":
+            # 基础分
             bonus = 5
+            # 量比加分（核心因子，回测验证胜率提升显著）
+            vol_ratio = metrics.get("vol_ratio", 0)
+            if vol_ratio >= 1.5:
+                bonus += 2
+            elif vol_ratio >= 1.2:
+                bonus += 1
+            # 跌幅控制加分（小幅下跌后反弹更可靠）
+            total_decline = abs(metrics.get("total_decline", 0))
+            if total_decline < 3:
+                bonus += 1
+            # 反弹比例加分（中等反弹最佳）
+            rebound = metrics.get("rebound_ratio", 0)
+            if 20 <= rebound <= 50:
+                bonus += 1
+        elif pname == "三阳一阴":
+            # 看跌信号扣分
+            vol_ratio = metrics.get("vol_ratio", 0)
+            bonus = -5 if vol_ratio >= 1.5 else -3
         elif pname == "涨停双响炮":
             bonus = 7
         elif pname == "底部首板":
             bonus = 6
         elif pname == "双针探底":
             bonus = 5
+
+        # 置信度调整
         if pconf == "高":
             bonus *= 1.2
+        elif pconf == "低":
+            bonus *= 0.5
+
         local_bonus += bonus
+
     return clamp(local_bonus, 0, 10)
 
 
