@@ -16,8 +16,12 @@ class TestRegisterStrategy:
         registry.register_strategy(
             "test_full",
             {
-                "quality": 0.3, "valuation": 0.2, "momentum": 0.2,
-                "liquidity": 0.1, "volatility": 0.1, "dividend": 0.1,
+                "quality": 0.3,
+                "valuation": 0.2,
+                "momentum": 0.2,
+                "liquidity": 0.1,
+                "volatility": 0.1,
+                "dividend": 0.1,
             },
             label="完整测试",
         )
@@ -38,7 +42,9 @@ class TestRegisterStrategy:
             registry.register_strategy(
                 "test_sum",
                 {
-                    "quality": 0.5, "valuation": 0.5, "momentum": 0.5,
+                    "quality": 0.5,
+                    "valuation": 0.5,
+                    "momentum": 0.5,
                     "liquidity": 0.5,  # 总和 2.0
                 },
             )
@@ -48,7 +54,9 @@ class TestRegisterStrategy:
         registry.register_strategy(
             "test_optional",
             {
-                "quality": 0.3, "valuation": 0.3, "momentum": 0.2,
+                "quality": 0.3,
+                "valuation": 0.3,
+                "momentum": 0.2,
                 "liquidity": 0.2,  # 总和 1.0
             },
         )
@@ -76,9 +84,13 @@ class TestListStrategies:
     """list_strategies 测试。"""
 
     def test_returns_all_builtin(self):
-        """返回 5 个内置策略。"""
+        """返回 6 个内置策略。"""
         names = registry.list_strategies()
         assert set(names) == {
-            "balanced", "quality_value", "growth_momentum",
-            "defensive", "turning_point",
+            "balanced",
+            "quality_value",
+            "growth_momentum",
+            "defensive",
+            "turning_point",
+            "ma_volume_momentum",
         }

@@ -55,6 +55,7 @@ class TestStrategies:
             "growth_momentum",
             "defensive",
             "turning_point",
+            "ma_volume_momentum",
         }
         assert set(STRATEGIES.keys()) == expected
 

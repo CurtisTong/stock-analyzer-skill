@@ -19,6 +19,7 @@ def temp_perf_file(monkeypatch):
     """隔离 PERFORMANCE_FILE 路径。"""
     with tempfile.TemporaryDirectory() as tmpdir:
         import strategy_performance as sp
+
         test_path = Path(tmpdir) / "strategy_performance.json"
         monkeypatch.setattr(sp, "PERFORMANCE_FILE", test_path)
         yield test_path
@@ -30,8 +31,12 @@ class TestMomentumTrendRefinement:
     def test_trend_up_base_is_30(self):
         """趋势上升基础分 30（从 40 收敛）。"""
         features = {
-            "trend": 1, "ret20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "macd_signal": 0, "vol_price_signal": 0,
+            "trend": 1,
+            "ret20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
         }
         quote = {"turnover": 1.0, "market_amount": 1000}
         score = momentum_score(features, quote)
@@ -42,8 +47,12 @@ class TestMomentumTrendRefinement:
     def test_trend_down_base_is_15(self):
         """趋势下降基础分 15（从 12 略提升）。"""
         features = {
-            "trend": -1, "ret20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "macd_signal": 0, "vol_price_signal": 0,
+            "trend": -1,
+            "ret20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
         }
         quote = {"turnover": 1.0, "market_amount": 1000}
         score = momentum_score(features, quote)
@@ -53,8 +62,12 @@ class TestMomentumTrendRefinement:
     def test_trend_neutral_base_is_18(self):
         """趋势中性基础分 18（从 20 略降）。"""
         features = {
-            "trend": 0, "ret20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "macd_signal": 0, "vol_price_signal": 0,
+            "trend": 0,
+            "ret20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
         }
         quote = {"turnover": 1.0, "market_amount": 1000}
         score = momentum_score(features, quote)
@@ -84,6 +97,7 @@ class TestStrategyPerformance:
                 "win_rate_pct": 60.0,
                 "annual_turnover": 50,
             }
+
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
         record = sp.record_all(days=10, top=3, codes=["sh600519"])
@@ -105,6 +119,7 @@ class TestStrategyPerformance:
                 "win_rate_pct": 55.0,
                 "annual_turnover": 40,
             }
+
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
         sp.record_all(days=10, top=3, codes=["sh600519"])
@@ -125,10 +140,13 @@ class TestStrategyPerformance:
 
         def mock_run_backtest(name, codes, top_n, days, rounds):
             return {
-                "total_return_pct": 3.0, "sharpe_ratio": 1.0,
-                "max_drawdown_pct": -2.5, "win_rate_pct": 58.0,
+                "total_return_pct": 3.0,
+                "sharpe_ratio": 1.0,
+                "max_drawdown_pct": -2.5,
+                "win_rate_pct": 58.0,
                 "annual_turnover": 45,
             }
+
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
         sp.record_all(days=10, top=3, codes=["sh600519"])
@@ -149,6 +167,7 @@ class TestPerfBench:
         # mock analyze_code 避免网络
         def mock_analyze(*a, **k):
             return {"code": "x", "score": 50, "rejected": []}
+
         monkeypatch.setattr(screener, "analyze_code", mock_analyze)
 
         result = bench_screener(["sh600519", "sh600989"], rounds=2)
@@ -169,15 +188,26 @@ class TestStrategyCompare:
 
         def mock_run_backtest(name, codes, top_n, days, rounds):
             return {
-                "total_return_pct": {"balanced": 5, "growth_momentum": 10,
-                                     "defensive": 3, "turning_point": 7,
-                                     "quality_value": 4}.get(name, 0),
-                "sharpe_ratio": {"balanced": 1.0, "growth_momentum": 2.0,
-                                 "defensive": 0.5, "turning_point": 1.5,
-                                 "quality_value": 0.8}.get(name, 0),
-                "max_drawdown_pct": -1.0, "win_rate_pct": 50.0,
-                "annual_turnover": 50, "profit_loss_ratio": 1.0,
+                "total_return_pct": {
+                    "balanced": 5,
+                    "growth_momentum": 10,
+                    "defensive": 3,
+                    "turning_point": 7,
+                    "quality_value": 4,
+                }.get(name, 0),
+                "sharpe_ratio": {
+                    "balanced": 1.0,
+                    "growth_momentum": 2.0,
+                    "defensive": 0.5,
+                    "turning_point": 1.5,
+                    "quality_value": 0.8,
+                }.get(name, 0),
+                "max_drawdown_pct": -1.0,
+                "win_rate_pct": 50.0,
+                "annual_turnover": 50,
+                "profit_loss_ratio": 1.0,
             }
+
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
         sp.record_all(days=10, top=3, codes=["sh600519"])
@@ -186,15 +216,15 @@ class TestStrategyCompare:
         # 测试 sharpe_ratio 降序
         result = sp.compare(metric="sharpe_ratio")
         assert result["metric"] == "sharpe_ratio"
-        assert len(result["ranking"]) == 5
+        assert len(result["ranking"]) == 6
         # 第一名应是 growth_momentum (2.0)
         assert result["ranking"][0]["strategy"] == "growth_momentum"
         assert result["best"] == "growth_momentum"
-        # 最后应是 defensive (0.5)
-        assert result["ranking"][-1]["strategy"] == "defensive"
-        assert result["worst"] == "defensive"
-        # spread = 2.0 - 0.5 = 1.5
-        assert abs(result["spread"] - 1.5) < 0.01
+        # 最后应是 ma_volume_momentum (0.0)
+        assert result["ranking"][-1]["strategy"] == "ma_volume_momentum"
+        assert result["worst"] == "ma_volume_momentum"
+        # spread = 2.0 - 0.0 = 2.0
+        assert abs(result["spread"] - 2.0) < 0.01
 
     def test_compare_max_drawdown_inverted(self, temp_perf_file, monkeypatch):
         """max_drawdown_pct 是负数，越接近 0 越好（升序排名）。"""
@@ -202,10 +232,14 @@ class TestStrategyCompare:
 
         def mock_run_backtest(name, codes, top_n, days, rounds):
             return {
-                "total_return_pct": 0, "sharpe_ratio": 0,
+                "total_return_pct": 0,
+                "sharpe_ratio": 0,
                 "max_drawdown_pct": -1.0 if name == "defensive" else -5.0,
-                "win_rate_pct": 0, "annual_turnover": 0, "profit_loss_ratio": 0,
+                "win_rate_pct": 0,
+                "annual_turnover": 0,
+                "profit_loss_ratio": 0,
             }
+
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
         sp.record_all(days=10, top=3, codes=["sh600519"])
@@ -216,6 +250,7 @@ class TestStrategyCompare:
     def test_compare_empty_records(self, temp_perf_file):
         """无记录时返回空 ranking。"""
         import strategy_performance as sp
+
         result = sp.compare(metric="sharpe_ratio")
         assert result["ranking"] == []
         assert result["best"] is None

@@ -412,12 +412,13 @@ class TestCompareStrategies:
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         results = backtest.compare_strategies(["sh600519"], top_n=1, days=10, rounds=2)
-        assert len(results) == 5
+        assert len(results) == 6
         assert "balanced" in results
         assert "quality_value" in results
         assert "growth_momentum" in results
         assert "defensive" in results
         assert "turning_point" in results
+        assert "ma_volume_momentum" in results
 
 
 # ═══════════════════════════════════════════════════════════════
