@@ -142,8 +142,7 @@ class TestRsiFeatures:
 
     def test_short_data_returns_default(self):
         result = rsi_features([50.0] * 10, period=14)
-        assert result["rsi"] == 50
-        assert result["signal"] == 0
+        assert result is None
 
     def test_all_gains_gives_100(self):
         # 全涨序列 -> RSI=100, 超买

@@ -1,8 +1,11 @@
 """东方财富财务数据源。"""
+
 import json
-from pathlib import Path
+import logging
 
 from common import BaseFetcher, http_get
+
+logger = logging.getLogger(__name__)
 
 URL = "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZBAjaxNew?type=0&code={code}"
 
@@ -18,8 +21,10 @@ class EastmoneyFinanceFetcher(BaseFetcher):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
+            logger.debug("东方财富财务 JSON 解析失败: %s", code)
             return None
         if not data or "data" not in data or not data["data"]:
+            logger.debug("东方财富财务无数据: %s", code)
             return None
         result = data["data"][:4]
         for r in result:

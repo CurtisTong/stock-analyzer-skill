@@ -448,6 +448,7 @@ function profitClass(v) { return v > 0 ? "positive" : v < 0 ? "negative" : "neut
 function fmtPct(v) { return v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(2) + "%"; }
 function fmtPrice(v) { return v == null ? "—" : v.toFixed(2); }
 function fmtMoney(v) { return v == null ? "—" : "¥" + v.toLocaleString("zh-CN", {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+function escapeHTML(s) { if (s == null) return ""; return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
 
 // ── 加载持仓列表 ──
 async function loadList() {
@@ -480,10 +481,12 @@ function renderPositions(rows) {
   for (const p of rows) {
     const pc = profitClass(p.profit_pct);
     const cc = profitClass(p.change_pct);
-    const tags = (p.tags||[]).map(t => '<span class="code-tag">'+t+'</span>').join("");
-    h += '<tr data-code="'+p.code+'">'
-      + '<td data-label="代码"><span class="code-tag">'+p.code+'</span></td>'
-      + '<td data-label="名称">'+(p.name||"—")+'</td>'
+    const ec = escapeHTML(p.code);
+    const en = escapeHTML(p.name||"—");
+    const tags = (p.tags||[]).map(t => '<span class="code-tag">'+escapeHTML(t)+'</span>').join("");
+    h += '<tr data-code="'+ec+'">'
+      + '<td data-label="代码"><span class="code-tag">'+ec+'</span></td>'
+      + '<td data-label="名称">'+en+'</td>'
       + '<td data-label="现价" class="'+pc+'">'+fmtPrice(p.current_price)+'</td>'
       + '<td data-label="涨跌" class="'+cc+'">'+fmtPct(p.change_pct)+'</td>'
       + '<td data-label="成本">'+fmtPrice(p.cost)+'</td>'
@@ -492,9 +495,9 @@ function renderPositions(rows) {
       + '<td data-label="浮盈" class="'+pc+'">'+(p.profit_pct!=null?fmtPct(p.profit_pct):"—")+'<br><span style="font-size:11px">'+(p.profit_amount!=null?fmtMoney(p.profit_amount):"")+'</span></td>'
       + '<td data-label="标签">'+(tags||"—")+'</td>'
       + '<td><div class="row-actions">'
-      + '<button class="btn-row" onclick="fillAction(\''+p.code+'\',\'reduce_position\')">减仓</button>'
-      + '<button class="btn-row" onclick="fillAction(\''+p.code+'\',\'update_position\')">编辑</button>'
-      + '<button class="btn-row danger" onclick="fillAction(\''+p.code+'\',\'remove_position\')">清仓</button>'
+      + '<button class="btn-row" onclick="fillAction(this.closest(\'tr\').dataset.code,\'reduce_position\')">减仓</button>'
+      + '<button class="btn-row" onclick="fillAction(this.closest(\'tr\').dataset.code,\'update_position\')">编辑</button>'
+      + '<button class="btn-row danger" onclick="fillAction(this.closest(\'tr\').dataset.code,\'remove_position\')">清仓</button>'
       + '</div></td></tr>';
   }
   h += '</table>';
@@ -513,9 +516,11 @@ function renderWatch(rows) {
   for (const w of rows) {
     const bg = profitClass(w.buy_gap_pct);
     const sg = profitClass(w.sell_gap_pct);
-    h += '<tr data-code="'+w.code+'">'
-      + '<td data-label="代码"><span class="code-tag">'+w.code+'</span></td>'
-      + '<td data-label="名称">'+(w.name||"—")+'</td>'
+    const wc = escapeHTML(w.code);
+    const wn = escapeHTML(w.name||"—");
+    h += '<tr data-code="'+wc+'">'
+      + '<td data-label="代码"><span class="code-tag">'+wc+'</span></td>'
+      + '<td data-label="名称">'+wn+'</td>'
       + '<td data-label="现价">'+fmtPrice(w.current_price)+'</td>'
       + '<td data-label="涨跌" class="'+profitClass(w.change_pct)+'">'+fmtPct(w.change_pct)+'</td>'
       + '<td data-label="目标买">'+(w.target_buy||"—")+'</td>'
@@ -523,8 +528,8 @@ function renderWatch(rows) {
       + '<td data-label="目标卖">'+(w.target_sell||"—")+'</td>'
       + '<td data-label="距卖" class="'+sg+'">'+fmtPct(w.sell_gap_pct)+'</td>'
       + '<td><div class="row-actions">'
-      + '<button class="btn-row" onclick="fillAction(\''+w.code+'\',\'update_watch\')">编辑</button>'
-      + '<button class="btn-row danger" onclick="fillAction(\''+w.code+'\',\'remove_watch\')">删除</button>'
+      + '<button class="btn-row" onclick="fillAction(this.closest(\'tr\').dataset.code,\'update_watch\')">编辑</button>'
+      + '<button class="btn-row danger" onclick="fillAction(this.closest(\'tr\').dataset.code,\'remove_watch\')">删除</button>'
       + '</div></td></tr>';
   }
   h += '</table>';
@@ -591,11 +596,11 @@ async function loadTrades() {
     let h = '<table><tr><th>日期</th><th>代码</th><th>名称</th><th>成本</th><th>卖出</th><th>数量</th><th>盈亏</th><th>原因</th></tr>';
     for (const t of history.slice().reverse()) {
       const pnl = (t.sell_price && t.cost) ? (t.sell_price - t.cost) * t.quantity : null;
-      const reason = {manual:"手动清仓",reduce_to_zero:"减仓归零",partial_reduce:"部分减仓"}[t.reason] || t.reason;
+      const reason = escapeHTML({manual:"手动清仓",reduce_to_zero:"减仓归零",partial_reduce:"部分减仓"}[t.reason] || t.reason);
       h += '<tr>'
         + '<td data-label="日期">'+(t.date||"—")+'</td>'
-        + '<td data-label="代码"><span class="code-tag">'+(t.code||"")+'</span></td>'
-        + '<td data-label="名称">'+(t.name||"—")+'</td>'
+        + '<td data-label="代码"><span class="code-tag">'+escapeHTML(t.code||"")+'</span></td>'
+        + '<td data-label="名称">'+escapeHTML(t.name||"—")+'</td>'
         + '<td data-label="成本">'+fmtPrice(t.cost)+'</td>'
         + '<td data-label="卖出">'+fmtPrice(t.sell_price)+'</td>'
         + '<td data-label="数量">'+(t.quantity||0)+'</td>'
@@ -636,7 +641,7 @@ async function loadMonitor() {
     let h = '<table><tr><th>标的</th><th>类型</th><th>预警</th><th>价格</th><th>状态</th></tr>';
     for (const a of lr.details) {
       const icon = a.pushed ? "✅" : "⏭️";
-      h += '<tr><td data-label="标的"><span class="code-tag">'+a.code+'</span> '+(a.name||"")+'</td><td data-label="类型">'+(typeMap[a.type]||a.type)+'</td><td data-label="预警">'+a.message+'</td><td data-label="价格">'+a.price+'</td><td data-label="状态">'+icon+'</td></tr>';
+      h += '<tr><td data-label="标的"><span class="code-tag">'+escapeHTML(a.code)+'</span> '+escapeHTML(a.name||"")+'</td><td data-label="类型">'+escapeHTML(typeMap[a.type]||a.type)+'</td><td data-label="预警">'+escapeHTML(a.message)+'</td><td data-label="价格">'+escapeHTML(a.price)+'</td><td data-label="状态">'+icon+'</td></tr>';
     }
     h += '</table>';
     h += '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted)">扫描: '+lr.scanned+' | 预警: '+lr.alerts+' | 推送: '+lr.pushed+' · '+lr.timestamp+'</div>';

@@ -239,62 +239,69 @@ class TestConnectionPool:
 
     def test_get_connection_returns_https(self):
         """HTTPS URL 创建 HTTPSConnection。"""
-        conn = _get_connection("https://api.example.com/test")
+        conn = _get_connection(
+            "https://api.example.com:443", "https", "api.example.com", 443
+        )
         assert isinstance(conn, http.client.HTTPSConnection)
         conn.close()
 
     def test_get_connection_returns_http(self):
         """HTTP URL 创建 HTTPConnection。"""
-        conn = _get_connection("http://api.example.com/test")
+        conn = _get_connection(
+            "http://api.example.com:80", "http", "api.example.com", 80
+        )
         assert isinstance(conn, http.client.HTTPConnection)
         conn.close()
 
     def test_get_connection_with_port(self):
         """带端口的 URL 使用指定端口。"""
-        conn = _get_connection("https://api.example.com:8443/test")
+        conn = _get_connection(
+            "https://api.example.com:8443", "https", "api.example.com", 8443
+        )
         assert conn.host == "api.example.com"
         assert conn.port == 8443
         conn.close()
 
     def test_return_connection_pools(self):
         """归还的连接被放入池中（列表形式）。"""
-        conn = _get_connection("https://api.example.com/test")
-        # 模拟连接已建立（设置 sock）
+        key = "https://api.example.com:443"
+        conn = _get_connection(key, "https", "api.example.com", 443)
         conn.sock = MagicMock()
-        _return_connection("https://api.example.com/test", conn)
-        pool_key = "https://api.example.com:443"
-        assert pool_key in _connection_pool
-        assert conn in _connection_pool[pool_key]
+        _return_connection(key, conn)
+        assert key in _connection_pool
+        assert conn in _connection_pool[key]
 
     def test_get_connection_reuses_pooled(self):
         """池中有可用连接时复用。"""
-        conn = _get_connection("https://api.example.com/test")
-        conn.sock = MagicMock()  # 模拟已连接
-        _return_connection("https://api.example.com/test", conn)
-        conn2 = _get_connection("https://api.example.com/test")
+        key = "https://api.example.com:443"
+        conn = _get_connection(key, "https", "api.example.com", 443)
+        conn.sock = MagicMock()
+        _return_connection(key, conn)
+        conn2 = _get_connection(key, "https", "api.example.com", 443)
         assert conn2 is conn
 
     def test_get_connection_evicts_stale(self):
         """池中连接已断开时创建新连接。"""
-        conn = _get_connection("https://api.example.com/test")
+        key = "https://api.example.com:443"
+        conn = _get_connection(key, "https", "api.example.com", 443)
         conn.sock = MagicMock()
-        _return_connection("https://api.example.com/test", conn)
-        # 模拟连接断开
+        _return_connection(key, conn)
         conn.sock = None
-        conn2 = _get_connection("https://api.example.com/test")
+        conn2 = _get_connection(key, "https", "api.example.com", 443)
         assert conn2 is not conn
         conn2.close()
 
     def test_pool_thread_safety(self):
         """并发访问连接池无异常。"""
         errors = []
+        key = "https://api.example.com:443"
 
         def worker():
             try:
                 for _ in range(50):
-                    conn = _get_connection("https://api.example.com/test")
+                    conn = _get_connection(key, "https", "api.example.com", 443)
                     conn.sock = MagicMock()
-                    _return_connection("https://api.example.com/test", conn)
+                    _return_connection(key, conn)
             except Exception as e:
                 errors.append(e)
 

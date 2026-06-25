@@ -14,6 +14,7 @@
 """
 
 import argparse
+import hmac
 import json
 import sys
 import threading
@@ -113,17 +114,19 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def _check_auth(self) -> bool:
-        """校验 Authorization: Bearer <token> 或 URL ?token=<token>。"""
+        """校验 Authorization: Bearer <token>（API）或 URL ?token=<token>（仅页面导航）。"""
         token = _ensure_token()
-        # 优先检查 Authorization 头（API 调用）
+        # 优先检查 Authorization 头（API 调用，常量时间比较防时序攻击）
         auth = self.headers.get("Authorization", "")
-        if auth.startswith("Bearer ") and auth[7:].strip() == token:
+        if auth.startswith("Bearer ") and hmac.compare_digest(auth[7:].strip(), token):
             return True
-        # 回退检查 URL query parameter（浏览器首次导航）
-        qs = parse_qs(urlparse(self.path).query)
-        url_token = (qs.get("token") or [None])[0]
-        if url_token and url_token.strip() == token:
-            return True
+        # 回退检查 URL query parameter（仅限页面导航，不用于 API）
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/":
+            qs = parse_qs(urlparse(self.path).query)
+            url_token = (qs.get("token") or [None])[0]
+            if url_token and hmac.compare_digest(url_token.strip(), token):
+                return True
         self._write_json(
             HTTPStatus.UNAUTHORIZED,
             _err("unauthorized", 401, "missing or invalid Bearer token"),

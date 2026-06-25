@@ -4,10 +4,14 @@
 NOT_HANDLED 哨兵（标记不处理的代码）。
 """
 
+import re
 from abc import ABC, abstractmethod
 
 from common.circuit_breaker import get_circuit_breaker
 from common.exceptions import RateLimitError
+
+# 股票代码安全白名单：允许字母、数字、下划线、点号、冒号、脱字符（美股指数如 us:^gspc）
+_SAFE_CODE_PATTERN = re.compile(r"^[a-zA-Z0-9_.:^]+$")
 
 # ---------- NOT_HANDLED 哨兵（可序列化） ----------
 
@@ -128,6 +132,8 @@ class DataFetcherManager:
         返回 None 表示所有源都无数据（非失败）。
         仅在异常时触发熔断，None 返回不触发。
         """
+        if not code or not _SAFE_CODE_PATTERN.match(str(code)):
+            return None
         self._last_error = None
         for fetcher in self.fetchers:
             if not fetcher.is_available():

@@ -1,4 +1,5 @@
 """背驰检测。"""
+
 from technical.core import _ema_series
 from .area import _macd_area  # v1.3.2: was chan/macd.py
 
@@ -13,15 +14,23 @@ def chan_beichi(bi_list, zs_list, closes):
         return {"trend_beichi": None, "range_beichi": [], "summary": "数据不足"}
 
     # 计算 DIF/DEA 序列
+    # ema12 比 ema26 多 14 个元素（warmup 差异），需对齐到相同时间点
     ema12 = _ema_series(closes, 12)
     ema26 = _ema_series(closes, 26)
-    min_len = min(len(ema12), len(ema26))
-    dif_series = [ema12[i] - ema26[i] for i in range(min_len)]
+    offset = len(ema12) - len(ema26)  # = 14
+    dif_series = [ema12[offset + i] - ema26[i] for i in range(len(ema26))]
     dea_series = _ema_series(dif_series, 9)
-    # v1.3.2: dea_series 比 dif_series 短 8 元素（EMA 9 的 warmup），
-    # 裁剪 dif_series 到 dea_series 长度以保持索引对齐。
+    # dea_series 比 dif_series 短 8 元素（EMA 9 的 warmup），
+    # 记录偏移量以便后续索引映射。
+    _dif_offset = len(closes) - len(
+        dif_series
+    )  # dif_series[0] 对应 closes[_dif_offset]
+    _dea_offset = len(closes) - len(
+        dea_series
+    )  # dea_series[0] 对应 closes[_dea_offset]
+    # 将 dif_series 对齐到 dea_series 的时间范围
     if len(dea_series) < len(dif_series):
-        dif_series = dif_series[-len(dea_series):]
+        dif_series = dif_series[-len(dea_series) :]
 
     result = {"trend_beichi": None, "range_beichi": [], "summary": ""}
 
@@ -47,21 +56,31 @@ def chan_beichi(bi_list, zs_list, closes):
                 break
 
         if entry_bi and exit_bi and entry_bi["direction"] == exit_bi["direction"]:
-            e_start, e_end = entry_bi["start_idx"], entry_bi["end_idx"]
-            x_start, x_end = exit_bi["start_idx"], exit_bi["end_idx"]
+            # bi 索引基于 closes 数组，需映射到 trim 后的 dif_series 索引
+            e_start = entry_bi["start_idx"] - _dea_offset
+            e_end = entry_bi["end_idx"] - _dea_offset
+            x_start = exit_bi["start_idx"] - _dea_offset
+            x_end = exit_bi["end_idx"] - _dea_offset
 
-            if e_end < len(dif_series) and x_end < len(dif_series):
-                entry_area = _macd_area(dif_series, dea_series,
-                                        min(e_start, len(dif_series) - 1),
-                                        min(e_end, len(dif_series) - 1))
-                exit_area = _macd_area(dif_series, dea_series,
-                                       min(x_start, len(dif_series) - 1),
-                                       min(x_end, len(dif_series) - 1))
+            if (
+                0 <= e_start
+                and e_end < len(dif_series)
+                and 0 <= x_start
+                and x_end < len(dif_series)
+            ):
+                entry_area = _macd_area(dif_series, dea_series, e_start, e_end)
+                exit_area = _macd_area(dif_series, dea_series, x_start, x_end)
 
                 if exit_area < entry_area:
-                    if entry_bi["direction"] == "down" and exit_bi["low"] < entry_bi["low"]:
+                    if (
+                        entry_bi["direction"] == "down"
+                        and exit_bi["low"] < entry_bi["low"]
+                    ):
                         result["trend_beichi"] = "底背驰(看涨)"
-                    elif entry_bi["direction"] == "up" and exit_bi["high"] > entry_bi["high"]:
+                    elif (
+                        entry_bi["direction"] == "up"
+                        and exit_bi["high"] > entry_bi["high"]
+                    ):
                         result["trend_beichi"] = "顶背驰(看跌)"
 
     # ── 盘整背驰：检查每个中枢的进入段 vs 离开段 ──
@@ -87,33 +106,41 @@ def chan_beichi(bi_list, zs_list, closes):
                 break
 
         if entry_bi and exit_bi:
-            e_start, e_end = entry_bi["start_idx"], entry_bi["end_idx"]
-            x_start, x_end = exit_bi["start_idx"], exit_bi["end_idx"]
+            # bi 索引基于 closes 数组，需映射到 trim 后的 dif_series 索引
+            e_start = entry_bi["start_idx"] - _dea_offset
+            e_end = entry_bi["end_idx"] - _dea_offset
+            x_start = exit_bi["start_idx"] - _dea_offset
+            x_end = exit_bi["end_idx"] - _dea_offset
 
-            if e_end < len(dif_series) and x_end < len(dif_series):
-                entry_area = _macd_area(dif_series, dea_series,
-                                        min(e_start, len(dif_series) - 1),
-                                        min(e_end, len(dif_series) - 1))
-                exit_area = _macd_area(dif_series, dea_series,
-                                       min(x_start, len(dif_series) - 1),
-                                       min(x_end, len(dif_series) - 1))
+            if (
+                0 <= e_start
+                and e_end < len(dif_series)
+                and 0 <= x_start
+                and x_end < len(dif_series)
+            ):
+                entry_area = _macd_area(dif_series, dea_series, e_start, e_end)
+                exit_area = _macd_area(dif_series, dea_series, x_start, x_end)
 
                 # 离开段面积 < 进入段面积 = 盘整背驰
                 if exit_area < entry_area * 0.8:  # 允许 20% 容差
                     zs_mid = zs.get("mid", 0)
                     last_close = closes[-1]
                     if last_close > zs.get("zg", 0):
-                        result["range_beichi"].append({
-                            "zs_idx": zs_idx,
-                            "type": "盘整背驰(看跌)",
-                            "desc": f"中枢上方离开力度衰减(面积比{exit_area/max(entry_area,0.01):.2f})",
-                        })
+                        result["range_beichi"].append(
+                            {
+                                "zs_idx": zs_idx,
+                                "type": "盘整背驰(看跌)",
+                                "desc": f"中枢上方离开力度衰减(面积比{exit_area/max(entry_area,0.01):.2f})",
+                            }
+                        )
                     elif last_close < zs.get("zd", 0):
-                        result["range_beichi"].append({
-                            "zs_idx": zs_idx,
-                            "type": "盘整背驰(看涨)",
-                            "desc": f"中枢下方离开力度衰减(面积比{exit_area/max(entry_area,0.01):.2f})",
-                        })
+                        result["range_beichi"].append(
+                            {
+                                "zs_idx": zs_idx,
+                                "type": "盘整背驰(看涨)",
+                                "desc": f"中枢下方离开力度衰减(面积比{exit_area/max(entry_area,0.01):.2f})",
+                            }
+                        )
 
     summary_parts = []
     if result["trend_beichi"]:

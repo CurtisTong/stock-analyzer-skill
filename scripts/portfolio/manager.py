@@ -14,105 +14,33 @@ v2 数据模型：
 向后兼容 v1 格式（只有 codes 列表）。
 """
 
-import copy
 import json
-import os
-import tempfile
 from datetime import datetime
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Optional
 
-
-def _data_dir() -> Path:
-    """返回 scripts/data 目录。"""
-    return Path(__file__).resolve().parent.parent / "data"
+from portfolio._file_utils import (
+    atomic_write,
+    data_dir,
+    file_lock,
+    raw_write,
+    today as _today,
+)
 
 
 def _portfolio_path() -> Path:
-    return _data_dir() / "portfolio.json"
+    return data_dir() / "portfolio.json"
 
 
 def _example_path() -> Path:
-    return _data_dir() / "portfolio_example.json"
+    return data_dir() / "portfolio_example.json"
 
 
-def _today() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
-
-
-def _lock_path(path: Path) -> Path:
-    """返回与数据文件对应的锁文件路径。"""
-    return path.parent / f".{path.stem}.lock"
-
-
-@contextmanager
-def _file_lock(path: Path, timeout: float = 10.0):
-    """基于文件锁的并发保护机制。
-
-    Args:
-        path: 数据文件路径
-        timeout: 获取锁超时时间（秒）
-
-    Raises:
-        TimeoutError: 获取锁超时
-        OSError: 锁文件操作失败
-    """
-    lock_path = _lock_path(path)
-    lock_fd = None
-    start_time = datetime.now().timestamp()
-
-    try:
-        # 尝试获取锁
-        while True:
-            try:
-                # O_CREAT | O_EXCL: 原子创建，如果已存在则失败
-                lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                break
-            except FileExistsError:
-                # 锁已存在，检查是否超时
-                if datetime.now().timestamp() - start_time > timeout:
-                    raise TimeoutError(f"获取锁超时: {lock_path}")
-                # 短暂等待后重试
-                import time
-
-                time.sleep(0.05)
-
-        yield  # 锁获取成功，执行操作
-
-    finally:
-        # 释放锁
-        if lock_fd is not None:
-            try:
-                os.close(lock_fd)
-            except OSError:
-                pass
-        try:
-            os.unlink(str(lock_path))
-        except OSError:
-            pass
-
-
-def _raw_write(path: Path, data: dict) -> None:
-    """底层写入（调用方需已持锁）。"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(path.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
-def _atomic_write(path: Path, data: dict) -> None:
-    """原子写入 JSON 文件（加锁保护）。"""
-    with _file_lock(path):
-        _raw_write(path, data)
+# 向后兼容别名
+_data_dir = data_dir
+_file_lock = file_lock
+_raw_write = raw_write
+_atomic_write = atomic_write
 
 
 def _atomic_read(path: Path) -> dict:
@@ -247,9 +175,9 @@ class PortfolioManager:
         return None
 
     def get_position(self, code: str) -> Optional[dict]:
-        """按代码查找持仓（返回副本，防止外部意外修改内部状态）。"""
+        """按代码查找持仓（返回浅副本，防止外部意外修改内部状态）。"""
         p = self._find_position(code)
-        return copy.deepcopy(p) if p else None
+        return dict(p) if p else None
 
     def _find_watch(self, code: str) -> Optional[dict]:
         """按代码查找自选（内部引用，用于修改）。"""
@@ -260,9 +188,9 @@ class PortfolioManager:
         return None
 
     def get_watch(self, code: str) -> Optional[dict]:
-        """按代码查找自选（返回副本，防止外部意外修改内部状态）。"""
+        """按代码查找自选（返回浅副本，防止外部意外修改内部状态）。"""
         w = self._find_watch(code)
-        return copy.deepcopy(w) if w else None
+        return dict(w) if w else None
 
     def get_all_codes(self) -> list:
         """返回所有持仓 + 自选的代码列表。"""
@@ -576,8 +504,13 @@ class PortfolioManager:
         return {"warnings": warnings, "details": details}
 
     def to_dict(self) -> dict:
-        """返回完整数据副本。"""
-        return copy.deepcopy(self._data)
+        """返回完整数据浅副本（positions/watchlist 为新列表，元素为共享引用）。"""
+        d = dict(self._data)
+        if "positions" in d:
+            d["positions"] = list(d["positions"])
+        if "watchlist" in d:
+            d["watchlist"] = list(d["watchlist"])
+        return d
 
     def summary(self) -> str:
         """返回持仓摘要文本。"""

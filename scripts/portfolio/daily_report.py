@@ -17,6 +17,7 @@
 import json
 import logging
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
@@ -152,7 +153,7 @@ class DailyReportGenerator:
         return None
 
     def _fetch_quotes(self, portfolio: list) -> dict:
-        """获取实时行情（使用腾讯接口）。"""
+        """获取实时行情（使用腾讯接口，并行批量请求）。"""
         quotes = {}
         codes = [h.get("code", "") for h in portfolio if h.get("code")]
         if not codes:
@@ -160,9 +161,12 @@ class DailyReportGenerator:
 
         # 批量请求（腾讯支持逗号分隔）
         batch_size = 15
-        for i in range(0, len(codes), batch_size):
-            batch = codes[i : i + batch_size]
+        batches = [codes[i : i + batch_size] for i in range(0, len(codes), batch_size)]
+        logger = logging.getLogger(__name__)
+
+        def _fetch_batch(batch: list) -> dict:
             url = f"https://qt.gtimg.cn/q={','.join(batch)}"
+            result = {}
             try:
                 raw = http_get(url, timeout=10)
                 text = raw.decode("gbk", errors="replace")
@@ -173,20 +177,29 @@ class DailyReportGenerator:
                     rec = parse_tencent_line(line)
                     if rec and rec.get("code"):
                         code = rec["code"]
-                        # 补充交易所前缀
                         for orig in batch:
                             if orig.lower().endswith(code.lower()):
                                 code = orig.lower()
                                 break
-                        quotes[code] = {
+                        result[code] = {
                             "name": rec.get("name", ""),
                             "price": float(rec.get("price", 0) or 0),
                             "change_pct": float(rec.get("change_pct", 0) or 0),
                         }
             except Exception as e:
-                logging.getLogger(__name__).debug("批量行情获取失败: %s", e)
+                logger.debug("批量行情获取失败: %s", e)
                 for code in batch:
-                    quotes[code] = {"price": 0, "change_pct": 0}
+                    result[code] = {"price": 0, "change_pct": 0}
+            return result
+
+        # 并行获取所有批次
+        with ThreadPoolExecutor(max_workers=min(len(batches), 4)) as executor:
+            futures = {executor.submit(_fetch_batch, b): b for b in batches}
+            for future in as_completed(futures):
+                try:
+                    quotes.update(future.result())
+                except Exception as e:
+                    logger.debug("批次行情获取异常: %s", e)
 
         return quotes
 

@@ -1,9 +1,9 @@
 """
 MACD 指标（含背离检测）。
-依赖: core (ema, _ema_series, _find_swing_points)
+依赖: core (_ema_series, _find_swing_points)
 """
 
-from .core import ema, _ema_series, _find_swing_points
+from .core import _ema_series, _find_swing_points
 
 
 def macd_full(closes):
@@ -11,16 +11,16 @@ def macd_full(closes):
     if len(closes) < 34:
         return None
 
-    # DIF/DEA
-    ema12 = ema(closes, 12)
-    ema26 = ema(closes, 26)
-    dif = ema12 - ema26
-
-    # 计算 DIF 序列
+    # 计算 EMA 序列（ema12 比 ema26 多 14 个元素，需对齐）
     ema12_series = _ema_series(closes, 12)
     ema26_series = _ema_series(closes, 26)
-    min_len = min(len(ema12_series), len(ema26_series))
-    dif_series = [ema12_series[i] - ema26_series[i] for i in range(min_len)]
+    offset = len(ema12_series) - len(ema26_series)  # = 14
+    dif_series = [
+        ema12_series[offset + i] - ema26_series[i] for i in range(len(ema26_series))
+    ]
+
+    # 当前值取序列末尾
+    dif = dif_series[-1] if dif_series else 0.0
 
     dea_series = _ema_series(dif_series, 9)
     dea = dea_series[-1] if dea_series else dif
@@ -62,11 +62,12 @@ def macd_full(closes):
 
 def _detect_macd_divergence(closes, dif_series, dea_series):
     """检测 MACD 顶背离/底背离。"""
-    if len(closes) < 60 or len(dif_series) < 60:
+    if len(dif_series) < 60:
         return None
 
-    lookback = min(60, len(closes))
-    c = closes[-lookback:]
+    # dif_series 比 closes 短 25 个元素（EMA26 warmup），需对齐到相同时间段
+    lookback = min(60, len(dif_series))
+    c = closes[-lookback - (len(closes) - len(dif_series)) :][:lookback]
     d = dif_series[-lookback:]
 
     price_highs, price_lows = _find_swing_points(c, window=5)

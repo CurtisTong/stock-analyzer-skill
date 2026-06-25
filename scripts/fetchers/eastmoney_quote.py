@@ -1,8 +1,11 @@
 """东方财富行情数据源。"""
+
 import json
-from pathlib import Path
+import logging
 
 from common import BaseFetcher, http_get, to_secid, normalize_volume, normalize_amount
+
+logger = logging.getLogger(__name__)
 
 EASTMONEY_QUOTE_URL = "https://push2.eastmoney.com/api/qt/stock/get?secid={secid}&fields=f43,f44,f45,f46,f47,f48,f50,f51,f52,f55,f57,f58,f60,f116,f117,f162,f167,f168,f169,f170"
 
@@ -34,11 +37,14 @@ class EastmoneyQuoteFetcher(BaseFetcher):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
+            logger.debug("东方财富行情 JSON 解析失败: %s", code)
             return None
         if not data or data.get("rc") != 0 or "data" not in data:
+            logger.debug("东方财富行情无数据: %s", code)
             return None
         d = data["data"]
         if not d:
+            logger.debug("东方财富行情 data 为空: %s", code)
             return None
 
         code_str = str(d.get("f57", ""))

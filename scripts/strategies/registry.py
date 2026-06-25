@@ -5,10 +5,12 @@
 from typing import Dict, Optional
 
 # ---------- 内置策略定义 ----------
-# 七因子：quality / valuation / momentum / liquidity / volatility / dividend / chip
+# 九因子：quality / valuation / momentum / liquidity / volatility / dividend / chip / event / analyst
 # volatility 为 A 股低波动异象因子，低波动得高分
 # dividend 为红利因子（2026新增），股息率+分红连续性+分红率稳定性
 # chip 为筹码因子（2026新增），股东户数变化率+融资融券趋势
+# event 为事件因子（待调优），当前权重 0.0
+# analyst 为分析师预期因子（待调优），当前权重 0.0
 
 STRATEGIES: Dict[str, dict] = {
     "balanced": {
@@ -19,6 +21,8 @@ STRATEGIES: Dict[str, dict] = {
         "volatility": 0.15,
         "dividend": 0.05,
         "chip": 0.10,
+        "event": 0.0,
+        "analyst": 0.0,
         "label": "均衡精选",
     },
     "quality_value": {
@@ -29,6 +33,8 @@ STRATEGIES: Dict[str, dict] = {
         "volatility": 0.10,
         "dividend": 0.10,
         "chip": 0.05,
+        "event": 0.0,
+        "analyst": 0.0,
         "label": "质量价值",
     },
     "growth_momentum": {
@@ -39,6 +45,8 @@ STRATEGIES: Dict[str, dict] = {
         "volatility": 0.05,
         "dividend": 0.05,
         "chip": 0.10,
+        "event": 0.0,
+        "analyst": 0.0,
         "label": "成长动量",
     },
     "defensive": {
@@ -49,6 +57,8 @@ STRATEGIES: Dict[str, dict] = {
         "volatility": 0.20,
         "dividend": 0.10,
         "chip": 0.20,
+        "event": 0.0,
+        "analyst": 0.0,
         "label": "防守低波",
     },
     "turning_point": {
@@ -59,6 +69,8 @@ STRATEGIES: Dict[str, dict] = {
         "volatility": 0.15,
         "dividend": 0.10,
         "chip": 0.10,
+        "event": 0.0,
+        "analyst": 0.0,
         "label": "拐点修复",
         "two_stage": True,
     },

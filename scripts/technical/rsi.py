@@ -7,7 +7,7 @@ RSI 指标（Wilder 平滑方法）。
 def rsi_features(closes, period=14):
     """RSI 计算（Wilder 指数平滑，与通达信/同花顺一致）。"""
     if len(closes) < period + 1:
-        return {"rsi": 50, "signal": 0}
+        return None
 
     # 计算涨跌序列
     gains, losses = [], []

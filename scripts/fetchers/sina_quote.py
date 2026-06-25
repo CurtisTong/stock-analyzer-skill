@@ -1,7 +1,17 @@
 """新浪行情数据源。"""
-from pathlib import Path
 
-from common import BaseFetcher, parse_sina_quote_line, http_get_with_headers, decode_gbk, normalize_volume, normalize_amount
+import logging
+
+from common import (
+    BaseFetcher,
+    parse_sina_quote_line,
+    http_get_with_headers,
+    decode_gbk,
+    normalize_volume,
+    normalize_amount,
+)
+
+logger = logging.getLogger(__name__)
 
 SINA_URL = "https://hq.sinajs.cn/list={codes}"
 
@@ -14,7 +24,9 @@ class SinaQuoteFetcher(BaseFetcher):
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         url = SINA_URL.format(codes=code)
-        raw = http_get_with_headers(url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=8)
+        raw = http_get_with_headers(
+            url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=8
+        )
         text = decode_gbk(raw)
         for line in text.strip().split("\n"):
             line = line.strip()
@@ -26,4 +38,5 @@ class SinaQuoteFetcher(BaseFetcher):
                 rec["volume"] = normalize_volume(rec["volume"], "sina")
                 rec["amount"] = normalize_amount(rec["amount"], "sina")
                 return rec
+        logger.debug("新浪行情无数据: %s", code)
         return None

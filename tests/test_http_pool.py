@@ -36,7 +36,9 @@ def test_concurrent_get_connection_no_leak():
                 mock_conn = MagicMock()
                 mock_conn.sock = MagicMock()
                 mock_cls.return_value = mock_conn
-                conn = _get_connection("https://example.com/test")
+                conn = _get_connection(
+                    "https://example.com:443", "https", "example.com", 443
+                )
                 results.append(id(conn))
         except Exception as e:
             errors.append(e)

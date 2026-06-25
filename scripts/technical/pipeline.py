@@ -61,7 +61,7 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         result["volume_ratio"] = recent_vol / base_vol if base_vol else 1
 
     if all_indicators or "rsi" in indicators:
-        rsi_data = rsi_features(closes)
+        rsi_data = rsi_features(closes) or {}
         result["rsi"] = round(rsi_data.get("rsi", 50), 1)
         result["rsi_signal"] = rsi_data.get("signal", 0)
 

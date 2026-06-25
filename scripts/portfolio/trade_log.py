@@ -15,93 +15,32 @@
 """
 
 import json
-import os
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-
-def _data_dir() -> Path:
-    """返回 scripts/data 目录。"""
-    return Path(__file__).resolve().parent.parent / "data"
+from portfolio._file_utils import (
+    atomic_write,
+    data_dir,
+    file_lock,
+    raw_write,
+    today as _today,
+)
 
 
 def _trade_log_path() -> Path:
-    return _data_dir() / "trade_log.json"
-
-
-def _today() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
+    return data_dir() / "trade_log.json"
 
 
 def _now_iso() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
 
-def _lock_path(path: Path) -> Path:
-    """返回与数据文件对应的锁文件路径。"""
-    return path.parent / f".{path.stem}.lock"
-
-
-def _file_lock(path: Path, timeout: float = 10.0):
-    """基于文件锁的并发保护机制（与 manager.py 保持一致）。"""
-    from contextlib import contextmanager
-
-    @contextmanager
-    def _lock():
-        lock_path = _lock_path(path)
-        lock_fd = None
-        start_time = datetime.now().timestamp()
-
-        try:
-            while True:
-                try:
-                    lock_fd = os.open(
-                        str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY
-                    )
-                    break
-                except FileExistsError:
-                    if datetime.now().timestamp() - start_time > timeout:
-                        raise TimeoutError(f"获取锁超时: {lock_path}")
-                    import time
-
-                    time.sleep(0.05)
-            yield
-        finally:
-            if lock_fd is not None:
-                try:
-                    os.close(lock_fd)
-                except OSError:
-                    pass
-            try:
-                os.unlink(str(lock_path))
-            except OSError:
-                pass
-
-    return _lock()
-
-
-def _raw_write(path: Path, data: dict) -> None:
-    """底层写入（调用方需已持锁）。"""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(suffix=".json", dir=str(path.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, str(path))
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
-
-
-def _atomic_write(path: Path, data: dict) -> None:
-    """原子写入 JSON 文件（加锁保护）。"""
-    with _file_lock(path):
-        _raw_write(path, data)
+# 向后兼容别名
+_data_dir = data_dir
+_file_lock = file_lock
+_raw_write = raw_write
+_atomic_write = atomic_write
 
 
 class TradeLog:

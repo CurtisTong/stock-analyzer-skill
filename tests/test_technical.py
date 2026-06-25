@@ -2,6 +2,7 @@
 technical.py 单元测试。
 覆盖纯计算函数，不测试网络请求相关逻辑。
 """
+
 import math
 import pytest
 
@@ -42,7 +43,6 @@ from technical import (
     _STOCK_TYPE_WEIGHTS_DEFAULT,
 )
 
-
 # ═══════════════════════════════════════════════════════════════
 # 1. 数学工具函数
 # ═══════════════════════════════════════════════════════════════
@@ -56,11 +56,11 @@ class TestSMA:
         assert sma([10, 20, 30], 3) == 20.0
 
     def test_period_greater_than_length(self):
-        # 数据不足时用全部数据的均值
-        assert sma([10, 20], 5) == 15.0
+        # 数据不足时返回 None
+        assert sma([10, 20], 5) is None
 
     def test_empty(self):
-        assert sma([], 5) == 0
+        assert sma([], 5) is None
 
     def test_single_value(self):
         assert sma([42], 1) == 42.0
@@ -530,14 +530,24 @@ class TestCandleAShare:
     def test_fake_bullish(self):
         """假阳真阴：收阳但比昨收低。"""
         prev = {"open": 10.0, "close": 12.0, "high": 12.5, "low": 9.5}
-        curr = {"open": 11.0, "close": 11.5, "high": 12.0, "low": 10.5}  # 阳线但 close < prev.close
+        curr = {
+            "open": 11.0,
+            "close": 11.5,
+            "high": 12.0,
+            "low": 10.5,
+        }  # 阳线但 close < prev.close
         result = _candle_ashare(prev, curr)
         assert result == "假阳真阴(收阳但实际下跌)"
 
     def test_fake_bearish(self):
         """假阴真阳：收阴但比昨收高。"""
         prev = {"open": 12.0, "close": 10.0, "high": 12.5, "low": 9.5}
-        curr = {"open": 11.0, "close": 10.5, "high": 11.5, "low": 10.0}  # 阴线但 close > prev.close
+        curr = {
+            "open": 11.0,
+            "close": 10.5,
+            "high": 11.5,
+            "low": 10.0,
+        }  # 阴线但 close > prev.close
         result = _candle_ashare(prev, curr)
         assert result == "假阴真阳(收阴但实际上涨)"
 
@@ -550,7 +560,12 @@ class TestCandleAShare:
 
 class TestDetectCandlePatterns:
     def test_insufficient_data(self):
-        assert detect_candle_patterns([{"day": "d1", "open": 10, "high": 11, "low": 9, "close": 10}]) == []
+        assert (
+            detect_candle_patterns(
+                [{"day": "d1", "open": 10, "high": 11, "low": 9, "close": 10}]
+            )
+            == []
+        )
 
     def test_returns_list(self, kline_uptrend):
         patterns = detect_candle_patterns(kline_uptrend)
@@ -616,7 +631,15 @@ class TestVolumeAnalysis:
         closes = [r["close"] for r in kline_sideways]
         volumes = [r["volume"] for r in kline_sideways]
         result = volume_analysis(closes, volumes)
-        valid_descs = ("地量(底部信号)", "极度缩量", "缩量", "正常", "放量", "显著放量", "巨量(警惕短期高点)")
+        valid_descs = (
+            "地量(底部信号)",
+            "极度缩量",
+            "缩量",
+            "正常",
+            "放量",
+            "显著放量",
+            "巨量(警惕短期高点)",
+        )
         assert result["volume_ratio_desc"] in valid_descs
 
 
@@ -628,8 +651,7 @@ class TestVolumeAnalysis:
 class TestRSI:
     def test_insufficient_data(self):
         result = rsi_features([1, 2, 3], period=14)
-        assert result["rsi"] == 50
-        assert result["signal"] == 0
+        assert result is None
 
     def test_all_gains(self):
         """持续上涨应使 RSI 接近 100。"""
@@ -687,7 +709,11 @@ class TestCompositeScore:
             "kdj": {"signal": "金叉+超卖", "钝化": False},
             "bollinger": {"position": 0.2, "bandwidth_desc": "收窄中"},
             "rsi": {"rsi": 35, "signal": 1},
-            "volume": {"volume_price_signal": 1, "volume_price": "放量上涨(资金介入)", "volume_ratio": 0.2},
+            "volume": {
+                "volume_price_signal": 1,
+                "volume_price": "放量上涨(资金介入)",
+                "volume_ratio": 0.2,
+            },
             "patterns": [{"type": "早晨之星(底部反转)"}],
         }
         result = composite_score(features, stock_type="题材股")
@@ -714,11 +740,19 @@ class TestCompositeScore:
         """看空特征应产生较低分数。"""
         features = {
             "ma_system": {"alignment": "空头排列"},
-            "macd": {"signal": -1, "bar_trend": "绿柱放大", "divergence": "顶背离(看跌)"},
+            "macd": {
+                "signal": -1,
+                "bar_trend": "绿柱放大",
+                "divergence": "顶背离(看跌)",
+            },
             "kdj": {"signal": "死叉", "钝化": False},
             "bollinger": {"position": 0.9, "bandwidth_desc": "正常带宽"},
             "rsi": {"rsi": 75, "signal": -1},
-            "volume": {"volume_price_signal": -1, "volume_price": "放量下跌(主力出货)", "volume_ratio": 2.5},
+            "volume": {
+                "volume_price_signal": -1,
+                "volume_price": "放量下跌(主力出货)",
+                "volume_ratio": 2.5,
+            },
             "patterns": [{"type": "黄昏之星(顶部反转)"}],
         }
         result = composite_score(features)
@@ -732,7 +766,11 @@ class TestCompositeScore:
             "kdj": {"signal": "金叉+超卖"},
             "bollinger": {"position": 0.1, "bandwidth_desc": "收窄中"},
             "rsi": {"rsi": 25},
-            "volume": {"volume_price_signal": 1, "volume_price": "放量上涨(资金介入)", "volume_ratio": 1.5},
+            "volume": {
+                "volume_price_signal": 1,
+                "volume_price": "放量上涨(资金介入)",
+                "volume_ratio": 1.5,
+            },
             "patterns": [],
         }
         result = composite_score(features)
@@ -760,12 +798,24 @@ class TestGenerateSignals:
         assert isinstance(sell, list)
 
     def test_macd_golden_cross_signal(self):
-        features = {"macd": {"signal": 1}, "kdj": {}, "bollinger": {}, "rsi": {}, "volume": {}}
+        features = {
+            "macd": {"signal": 1},
+            "kdj": {},
+            "bollinger": {},
+            "rsi": {},
+            "volume": {},
+        }
         buy, sell = _generate_signals(features)
         assert "MACD金叉" in buy
 
     def test_macd_death_cross_signal(self):
-        features = {"macd": {"signal": -1}, "kdj": {}, "bollinger": {}, "rsi": {}, "volume": {}}
+        features = {
+            "macd": {"signal": -1},
+            "kdj": {},
+            "bollinger": {},
+            "rsi": {},
+            "volume": {},
+        }
         buy, sell = _generate_signals(features)
         assert "MACD死叉" in sell
 
@@ -910,8 +960,10 @@ class TestLimitAnalysis:
         assert limit_analysis([{"close": "10"}], "主板", {}) is None
 
     def test_basic_structure(self, kline_limit_up):
-        quote = {"limit_up": str(round(kline_limit_up[-1]["close"], 2)),
-                 "limit_down": str(round(kline_limit_up[-1]["close"] * 0.9, 2))}
+        quote = {
+            "limit_up": str(round(kline_limit_up[-1]["close"], 2)),
+            "limit_down": str(round(kline_limit_up[-1]["close"] * 0.9, 2)),
+        }
         result = limit_analysis(kline_limit_up, "主板", quote)
         assert result is not None
         assert "board" in result

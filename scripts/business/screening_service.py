@@ -133,7 +133,7 @@ def compute_features(code: str, bars=None) -> dict:
     volume_ratio = recent_vol / base_vol if base_vol else 1
 
     # RSI
-    rsi_data = rsi_features(closes)
+    rsi_data = rsi_features(closes) or {}
     rsi = rsi_data.get("rsi", 50)
     rsi_signal = rsi_data.get("signal", 0)
 

@@ -13,7 +13,8 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes):
 
     last_zs = zs_list[-1]
     last_close = closes[-1]
-    last_idx = len(closes) - 1
+    # bi 的 end_idx 基于 merged_bars 的 idx 字段，用 merged_bars 最后一个 idx 作为参考
+    last_idx = merged_bars[-1]["idx"] if merged_bars else len(closes) - 1
 
     buy_points = []
     sell_points = []

@@ -292,6 +292,7 @@ def aggregate_votes(
     calibration_factor: float = 0.0,
     *,
     prefer_horizon: bool = False,
+    veto_results: Optional[Dict[str, Dict[str, bool]]] = None,
 ) -> dict:
     """整合 8 位专家投票，输出最终决策（decide.md 完整规则）。
 
@@ -307,6 +308,9 @@ def aggregate_votes(
         calibration_factor: 校准因子 [-1, 1]，默认 0
         prefer_horizon: True 时用户显式传了 horizon（如 `/stock debate 长线`），
                        horizon 权重优先于 market_state；False（默认）保持向后兼容。
+        veto_results: 一票否决预评估结果。格式为
+            {expert_name: {condition_desc: bool_triggered, ...}, ...}。
+            触发否决的专家评分被强制降至 20（强烈看空）。
 
     Returns:
         {
@@ -327,6 +331,22 @@ def aggregate_votes(
         }
     """
     from experts.scoring import compute_confidence_index
+
+    # 一票否决机制：当某专家的否决条件被触发时，强制降分至 20（强烈看空）
+    veto_notes = []
+    if veto_results:
+        for r in expert_results:
+            name = r.get("name", "")
+            expert_veto = veto_results.get(name, {})
+            triggered = [cond for cond, triggered in expert_veto.items() if triggered]
+            if triggered:
+                original_score = r["score"]
+                r["score"] = 20.0
+                r["direction"] = "强烈看空"
+                veto_notes.append(
+                    f"{r.get('display_name', name)} 被一票否决"
+                    f"（{'; '.join(triggered)}），评分 {original_score:.0f}→20"
+                )
 
     # 分组
     long_experts = [r for r in expert_results if r.get("group") == "long_term"]
@@ -409,7 +429,7 @@ def aggregate_votes(
     )
     direction = conflict["direction"]
     position_factor = conflict["position_factor"]
-    notes = list(conflict["notes"])
+    notes = veto_notes + list(conflict["notes"])
 
     # 估值硬约束（反追涨杀跌）：长线组估值维度评分过低 → 高估警示，短期也降权
     long_valuation_scores = []

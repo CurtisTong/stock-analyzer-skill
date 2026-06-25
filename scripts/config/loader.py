@@ -13,15 +13,21 @@
 由 strategies.thresholds.get_industry_threshold 加载。
 """
 
+import time
+
 import yaml
 from pathlib import Path
 from typing import Any, Optional
 
+# mtime 检查 TTL（秒）：在此窗口内跳过 stat() 调用，直接返回缓存
+_MTIME_TTL = 0.05
+
 
 class ConfigLoader:
-    """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存）。"""
+    """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存 + TTL）。"""
 
     _cache: dict[str, tuple[float, dict]] = {}
+    _cache_time: dict[str, float] = {}
     _config_dir: Path = Path(__file__).parent
 
     @classmethod
@@ -40,12 +46,22 @@ class ConfigLoader:
         if not config_path.exists():
             return {}
 
-        current_mtime = config_path.stat().st_mtime
+        now = time.monotonic()
 
+        # TTL 窗口内直接返回缓存，跳过 stat()（仅当缓存条目存在时）
         if use_cache and filename in cls._cache:
+            last_check = cls._cache_time.get(filename, 0)
+            if now - last_check < _MTIME_TTL:
+                return cls._cache[filename][1]
+            # TTL 过期，检查 mtime
+            current_mtime = config_path.stat().st_mtime
+            cls._cache_time[filename] = now
             cached_mtime, cached_data = cls._cache[filename]
             if current_mtime <= cached_mtime:
                 return cached_data
+        else:
+            current_mtime = config_path.stat().st_mtime
+            cls._cache_time[filename] = now
 
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f) or {}
@@ -83,8 +99,10 @@ class ConfigLoader:
         """重新加载配置。"""
         if filename:
             cls._cache.pop(filename, None)
+            cls._cache_time.pop(filename, None)
         else:
             cls._cache.clear()
+            cls._cache_time.clear()
 
 
 def get_scoring_config(key: str = None, default: Any = None) -> Any:

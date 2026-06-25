@@ -70,44 +70,43 @@ _connection_pool: dict[str, list[http.client.HTTPConnection]] = {}
 _pool_lock = threading.Lock()
 
 
-def _pool_key(url: str) -> str:
-    """从 URL 提取连接池键。"""
+def _parse_url(url: str) -> tuple[str, str, int, str, str]:
+    """一次性解析 URL，返回 (key, scheme, host, port, path_query)。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
     host = parsed.hostname or "localhost"
     port = parsed.port or (443 if scheme == "https" else 80)
-    return f"{scheme}://{host}:{port}"
+    path = parsed.path or "/"
+    if parsed.query:
+        path = f"{path}?{parsed.query}"
+    key = f"{scheme}://{host}:{port}"
+    return key, scheme, host, port, path
 
 
-def _create_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
+def _create_connection(
+    scheme: str, host: str, port: int, timeout: int = 10
+) -> http.client.HTTPConnection:
     """创建新连接。"""
-    parsed = urllib.parse.urlparse(url)
-    scheme = parsed.scheme or "https"
-    host = parsed.hostname or "localhost"
-    port = parsed.port or (443 if scheme == "https" else 80)
     if scheme == "https":
         return http.client.HTTPSConnection(host, port=port, timeout=timeout)
     return http.client.HTTPConnection(host, port=port, timeout=timeout)
 
 
-def _get_connection(url: str, timeout: int = 10) -> http.client.HTTPConnection:
+def _get_connection(
+    key: str, scheme: str, host: str, port: int, timeout: int = 10
+) -> http.client.HTTPConnection:
     """从连接池获取或创建连接（线程安全，同一 host 可复用多个连接）。"""
-    key = _pool_key(url)
     with _pool_lock:
         conns = _connection_pool.get(key, [])
-        # 找到一个仍然存活的连接
         while conns:
             conn = conns.pop()
             if hasattr(conn, "sock") and conn.sock is not None:
                 return conn
-        # 池中无可用连接
-        pass
-    return _create_connection(url, timeout)
+    return _create_connection(scheme, host, port, timeout)
 
 
-def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
+def _return_connection(key: str, conn: http.client.HTTPConnection) -> None:
     """将连接归还到连接池，池满时 close。同一 host 保留多个连接。"""
-    key = _pool_key(url)
     with _pool_lock:
         conns = _connection_pool.get(key)
         if conns is None:
@@ -124,16 +123,12 @@ def _return_connection(url: str, conn: http.client.HTTPConnection) -> None:
 def _do_request(
     conn: http.client.HTTPConnection,
     url: str,
+    path_query: str,
     headers: dict[str, str],
     timeout: int,
 ) -> bytes:
     """执行一次 HTTP GET，返回响应体。处理非 2xx 状态码。"""
-    parsed = urllib.parse.urlparse(url)
-    path = parsed.path or "/"
-    if parsed.query:
-        path = f"{path}?{parsed.query}"
-
-    conn.request("GET", path, headers=headers)
+    conn.request("GET", path_query, headers=headers)
     resp = conn.getresponse()
     status = resp.status
 
@@ -178,13 +173,15 @@ def _http_get_internal(
         req_headers.update(headers)
     last_err = None
     conn = None
+    # 一次性解析 URL，避免重复 urlparse
+    key, scheme, host, port, path_query = _parse_url(url)
 
     for attempt in range(max_retries):
         try:
             if conn is None:
-                conn = _get_connection(url, timeout)
-            result = _do_request(conn, url, req_headers, timeout)
-            _return_connection(url, conn)
+                conn = _get_connection(key, scheme, host, port, timeout)
+            result = _do_request(conn, url, path_query, req_headers, timeout)
+            _return_connection(key, conn)
             return result
         except RateLimitError:
             raise

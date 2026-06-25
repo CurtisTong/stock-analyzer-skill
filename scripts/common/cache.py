@@ -27,8 +27,15 @@ def _ensure_dir() -> None:
     CACHE_DIR.mkdir(exist_ok=True)
 
 
+def _validate_key(key: str) -> None:
+    """校验缓存键安全性，拒绝路径遍历字符。"""
+    if not key or "/" in key or "\\" in key or ".." in key:
+        raise ValueError(f"非法缓存键（含路径遍历字符）: {key!r}")
+
+
 def get(key: str, ttl_seconds: int) -> Optional[bytes]:
     """读取缓存，TTL 超时返回 None。"""
+    _validate_key(key)
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
     if not f.exists():
@@ -45,6 +52,7 @@ def put(key: str, data: bytes) -> None:
     非 Windows 平台使用 fcntl 文件锁防止多进程竞争。
     每 _CLEANUP_INTERVAL 次写入自动检查缓存大小，超限则清理。
     """
+    _validate_key(key)
     global _WRITE_COUNTER
     _WRITE_COUNTER += 1
     if _WRITE_COUNTER >= _CLEANUP_INTERVAL:

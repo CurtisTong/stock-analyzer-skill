@@ -1,7 +1,17 @@
 """腾讯行情数据源。"""
-from pathlib import Path
 
-from common import BaseFetcher, http_get, decode_gbk, parse_tencent_line, normalize_volume, normalize_amount
+import logging
+
+from common import (
+    BaseFetcher,
+    http_get,
+    decode_gbk,
+    parse_tencent_line,
+    normalize_volume,
+    normalize_amount,
+)
+
+logger = logging.getLogger(__name__)
 
 TENCENT_URL = "https://qt.gtimg.cn/q={codes}"
 
@@ -26,4 +36,5 @@ class TencentQuoteFetcher(BaseFetcher):
                 rec["volume"] = normalize_volume(rec["volume"], "tencent")
                 rec["amount"] = normalize_amount(rec["amount"], "tencent")
                 return rec
+        logger.debug("腾讯行情无数据: %s", code)
         return None
