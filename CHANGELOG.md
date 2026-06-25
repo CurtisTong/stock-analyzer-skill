@@ -7,6 +7,17 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-25
+
+### Added
+- **portfolio**: 持仓 Web v2.0 全量改造 — 行情/中文化/交易日志
+
+### Fixed
+- 深度审查 P0-P3 全量修复 — 算法正确性/安全/架构/性能
+
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
+
 ## [Unreleased] - 2026-06-24
 
 ### Added
