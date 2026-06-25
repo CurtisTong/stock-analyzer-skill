@@ -74,6 +74,18 @@ STRATEGIES: Dict[str, dict] = {
         "label": "拐点修复",
         "two_stage": True,
     },
+    "ma_volume_momentum": {
+        "quality": 0.15,
+        "valuation": 0.15,
+        "momentum": 0.35,
+        "liquidity": 0.15,
+        "volatility": 0.05,
+        "dividend": 0.05,
+        "chip": 0.10,
+        "event": 0.0,
+        "analyst": 0.0,
+        "label": "量价动量",
+    },
 }
 
 
