@@ -101,7 +101,8 @@ def check_path_exists(path_str, skill_dir):
     elif path_str.startswith("/"):
         p = Path(path_str)
     else:
-        p = skill_dir / path_str
+        # ./ 开头的路径是项目根目录相对路径，不是 skill 目录相对路径
+        p = PKG_ROOT / path_str
 
     # 通配符路径（如 skills/**）不做检查
     if "*" in str(p) or "**" in str(p):
@@ -173,7 +174,9 @@ def main():
             print(w)
 
     if errors:
-        print(f"\n💡 修复方法: 在 .claude/settings.json 的 permissions.allow 中添加以上条目")
+        print(
+            f"\n💡 修复方法: 在 .claude/settings.json 的 permissions.allow 中添加以上条目"
+        )
         if args.ci:
             sys.exit(1)
     else:

@@ -1,4 +1,5 @@
 """portfolio_web server 端到端测试：路由、action 校验、并发安全、HTML 页。"""
+
 import json
 import socket
 import threading
@@ -13,7 +14,6 @@ import pytest
 import portfolio_web
 from portfolio import PortfolioManager
 from portfolio.web import utils as portfolio_web_utils
-
 
 # ═══════════════════════════════════════════════════════════════
 # Token 隔离：monkeypatch 到 tmp_path 避免读写真实 ~/.config
@@ -59,7 +59,9 @@ def running_server(tmp_path: Path):
     """
     data_file = tmp_path / "portfolio.json"
     data_file.write_text(
-        json.dumps({"version": 2, "positions": [], "watchlist": []}, ensure_ascii=False),
+        json.dumps(
+            {"version": 2, "positions": [], "watchlist": []}, ensure_ascii=False
+        ),
         encoding="utf-8",
     )
     port = _free_port()
@@ -74,8 +76,15 @@ def running_server(tmp_path: Path):
         srv.server_close()
 
 
-def _hit(url: str, method: str = "GET", body=None, content_type: str = "application/json",
-         raw_body: bytes = None, token: str = None):
+def _hit(
+    url: str,
+    method: str = "GET",
+    body=None,
+    content_type: str = "application/json",
+    raw_body: bytes = None,
+    token: str = None,
+    timeout: int = 5,
+):
     """HTTP 客户端 helper，返回 (status, json_or_text)。"""
     if raw_body is not None:
         data = raw_body
@@ -89,7 +98,7 @@ def _hit(url: str, method: str = "GET", body=None, content_type: str = "applicat
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     try:
-        r = urllib.request.urlopen(req, timeout=5)
+        r = urllib.request.urlopen(req, timeout=timeout)
         return r.status, r.read().decode("utf-8")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode("utf-8")
@@ -149,13 +158,34 @@ class TestRouting:
 
     def test_list_positions_populated(self, tmp_path):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({
-            "version": 2,
-            "positions": [{"code": "sh600989", "name": "宝丰", "cost": 18.5,
-                           "quantity": 1000, "buy_date": "2025-03-15", "tags": ["长线"]}],
-            "watchlist": [{"code": "sz000807", "name": "云铝", "target_buy": 12.0,
-                           "target_sell": 18.0, "added_date": "2025-06-01"}],
-        }, ensure_ascii=False), encoding="utf-8")
+        data_file.write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "positions": [
+                        {
+                            "code": "sh600989",
+                            "name": "宝丰",
+                            "cost": 18.5,
+                            "quantity": 1000,
+                            "buy_date": "2025-03-15",
+                            "tags": ["长线"],
+                        }
+                    ],
+                    "watchlist": [
+                        {
+                            "code": "sz000807",
+                            "name": "云铝",
+                            "target_buy": 12.0,
+                            "target_sell": 18.0,
+                            "added_date": "2025-06-01",
+                        }
+                    ],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         port = _free_port()
         srv = portfolio_web.make_server("127.0.0.1", port, str(data_file))
         token = portfolio_web._ensure_token()
@@ -173,9 +203,18 @@ class TestRouting:
 
     def test_get_one_found(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {"action": "add_position", "code": "sh600989",
-                                                    "name": "宝丰", "cost": 18.5, "quantity": 1000},
-                 token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "name": "宝丰",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
             status, body = _hit(f"{base}/api/positions/sh600989", token=token)
             assert status == 200
             j = json.loads(body)
@@ -206,23 +245,31 @@ class TestRouting:
 
     def test_post_wrong_content_type_415(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", body={"x": 1},
-                                content_type="text/plain", token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                body={"x": 1},
+                content_type="text/plain",
+                token=token,
+            )
             assert status == 415
             j = json.loads(body)
             assert j["error"] == "unsupported_media_type"
 
     def test_post_invalid_json_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", raw_body=b"not json{{{",
-                                token=token)
+            status, body = _hit(
+                f"{base}/api/positions", "POST", raw_body=b"not json{{{", token=token
+            )
             assert status == 400
             j = json.loads(body)
             assert j["error"] == "invalid_json"
 
     def test_post_empty_body_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", raw_body=b"", token=token)
+            status, body = _hit(
+                f"{base}/api/positions", "POST", raw_body=b"", token=token
+            )
             assert status == 400
             j = json.loads(body)
             assert j["error"] == "missing_action"
@@ -242,10 +289,19 @@ class TestRouting:
 class TestActions:
     def test_add_position_happy(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989",
-                "name": "宝丰能源", "cost": 18.5, "quantity": 1000, "tags": ["长线", "能源"],
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "name": "宝丰能源",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "tags": ["长线", "能源"],
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["ok"]
@@ -256,36 +312,75 @@ class TestActions:
 
     def test_add_position_missing_cost_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "quantity": 1000,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "quantity": 1000,
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "invalid_cost"
 
     def test_add_position_negative_quantity_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": -1,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": -1,
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "invalid_quantity"
 
     def test_add_position_string_quantity_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": "abc",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": "abc",
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "invalid_quantity"
 
     def test_add_position_add_merges_cost_weighted(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.0, "quantity": 1000,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 19.0, "quantity": 500,
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.0,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 19.0,
+                    "quantity": 500,
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             # 加权 (18*1000 + 19*500)/1500 = 18.333
@@ -294,12 +389,27 @@ class TestActions:
 
     def test_reduce_position_happy(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "reduce_position", "code": "sh600989", "quantity": 300,
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "reduce_position",
+                    "code": "sh600989",
+                    "quantity": 300,
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["ok"]
@@ -307,28 +417,57 @@ class TestActions:
 
     def test_reduce_position_quantity_zero_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "reduce_position", "code": "sh600989", "quantity": 0,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "reduce_position",
+                    "code": "sh600989",
+                    "quantity": 0,
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "invalid_quantity"
 
     def test_reduce_position_negative_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "reduce_position", "code": "sh600989", "quantity": -10,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "reduce_position",
+                    "code": "sh600989",
+                    "quantity": -10,
+                },
+                token=token,
+            )
             assert status == 400
 
     def test_reduce_position_overflow_returns_null(self, tmp_path):
         """减仓超量 → manager 自动 pop 并返回 None；handler 透传 data: null"""
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 100,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "reduce_position", "code": "sh600989", "quantity": 500,
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 100,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "reduce_position",
+                    "code": "sh600989",
+                    "quantity": 500,
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"] is None
@@ -336,32 +475,69 @@ class TestActions:
 
     def test_remove_position_happy(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "remove_position", "code": "sh600989",
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "remove_position",
+                    "code": "sh600989",
+                },
+                token=token,
+            )
             assert status == 200
             assert json.loads(body)["data"] is True
 
     def test_remove_position_idempotent_false(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "remove_position", "code": "sh600989",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "remove_position",
+                    "code": "sh600989",
+                },
+                token=token,
+            )
             assert status == 200
             assert json.loads(body)["data"] is False
 
     def test_update_position_partial(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-                "name": "宝丰", "tags": ["长线"],
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_position", "code": "sh600989", "name": "宝丰能源", "cost": 19.0,
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "name": "宝丰",
+                    "tags": ["长线"],
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_position",
+                    "code": "sh600989",
+                    "name": "宝丰能源",
+                    "cost": 19.0,
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["name"] == "宝丰能源"
@@ -371,24 +547,53 @@ class TestActions:
 
     def test_update_position_no_fields_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_position", "code": "sh600989",
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_position",
+                    "code": "sh600989",
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "no_update_fields"
 
     def test_update_position_unknown_field_ignored(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_position", "code": "sh600989",
-                "cost": 19.0, "hack_field": "evil",
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_position",
+                    "code": "sh600989",
+                    "cost": 19.0,
+                    "hack_field": "evil",
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["cost"] == 19.0
@@ -397,13 +602,28 @@ class TestActions:
     def test_update_position_tags_warning(self, tmp_path):
         """update_position 带 tags 应有 warn 字段，提示整列表覆盖。"""
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-                "tags": ["长线", "能源"],
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_position", "code": "sh600989", "tags": ["短线"],
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "tags": ["长线", "能源"],
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_position",
+                    "code": "sh600989",
+                    "tags": ["短线"],
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["tags"] == ["短线"]
@@ -411,13 +631,28 @@ class TestActions:
 
     def test_tag_position_merges(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-                "tags": ["长线"],
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "tag_position", "code": "sh600989", "tags": ["能源", "长线"],
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "tags": ["长线"],
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "tag_position",
+                    "code": "sh600989",
+                    "tags": ["能源", "长线"],
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             # sorted 返回 manager 排序后的列表（Unicode 字节序，非中文笔画序）
@@ -425,21 +660,43 @@ class TestActions:
 
     def test_tag_position_empty_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "tag_position", "code": "sh600989", "tags": [],
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "tag_position",
+                    "code": "sh600989",
+                    "tags": [],
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "missing_tags"
 
     def test_untag_position_removes(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-                "tags": ["长线", "能源"],
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "untag_position", "code": "sh600989", "tags": ["能源"],
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "tags": ["长线", "能源"],
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "untag_position",
+                    "code": "sh600989",
+                    "tags": ["能源"],
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["tags"] == ["长线"]
@@ -447,26 +704,48 @@ class TestActions:
     def test_add_watch_with_zero_target_400(self, tmp_path):
         """0 陷阱防护：add_watch 的 target_buy=0 / target_sell=0 显式 400。"""
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_watch", "code": "sh601318", "target_buy": 0,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_watch",
+                    "code": "sh601318",
+                    "target_buy": 0,
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "invalid_target_buy"
 
     def test_add_watch_negative_target_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_watch", "code": "sh601318", "target_sell": -5,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_watch",
+                    "code": "sh601318",
+                    "target_sell": -5,
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "invalid_target_sell"
 
     def test_add_watch_happy(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_watch", "code": "sh601318", "name": "中国平安",
-                "target_buy": 50.0, "target_sell": 70.0,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_watch",
+                    "code": "sh601318",
+                    "name": "中国平安",
+                    "target_buy": 50.0,
+                    "target_sell": 70.0,
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["code"] == "sh601318"
@@ -475,9 +754,15 @@ class TestActions:
     def test_add_watch_omit_targets(self, tmp_path):
         """不传 target_buy/target_sell 视为 0 = 跳过。"""
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_watch", "code": "sh601318",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_watch",
+                    "code": "sh601318",
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["target_buy"] == 0
@@ -485,21 +770,42 @@ class TestActions:
 
     def test_remove_watch_idempotent(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "remove_watch", "code": "sh601318",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "remove_watch",
+                    "code": "sh601318",
+                },
+                token=token,
+            )
             assert status == 200
             assert json.loads(body)["data"] is False
 
     def test_update_watch_happy(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            _hit(f"{base}/api/positions", "POST", {
-                "action": "add_watch", "code": "sh601318", "name": "平安",
-                "target_buy": 50.0, "target_sell": 70.0,
-            }, token=token)
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_watch", "code": "sh601318", "target_buy": 55.0,
-            }, token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_watch",
+                    "code": "sh601318",
+                    "name": "平安",
+                    "target_buy": 50.0,
+                    "target_sell": 70.0,
+                },
+                token=token,
+            )
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_watch",
+                    "code": "sh601318",
+                    "target_buy": 55.0,
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert j["data"]["target_buy"] == 55.0
@@ -507,49 +813,85 @@ class TestActions:
 
     def test_update_watch_not_found_returns_null(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_watch", "code": "nope", "target_buy": 10,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_watch",
+                    "code": "nope",
+                    "target_buy": 10,
+                },
+                token=token,
+            )
             assert status == 200
             assert json.loads(body)["data"] is None
 
     def test_update_watch_no_fields_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_watch", "code": "sh601318",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_watch",
+                    "code": "sh601318",
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "no_update_fields"
 
     def test_unknown_action_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "drop_table", "code": "x",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "drop_table",
+                    "code": "x",
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "unknown_action"
 
     def test_missing_action_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {"code": "sh600989"}, token=token)
+            status, body = _hit(
+                f"{base}/api/positions", "POST", {"code": "sh600989"}, token=token
+            )
             assert status == 400
             assert json.loads(body)["error"] == "missing_action"
 
     def test_missing_code_400(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "cost": 18.5, "quantity": 1000,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
             assert status == 400
             assert json.loads(body)["error"] == "missing_code"
 
     def test_tags_string_csv(self, tmp_path):
         """tags 既接受 list 也接受逗号分隔字符串。"""
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "cost": 18.5, "quantity": 1000,
-                "tags": "长线, 能源",
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "tags": "长线, 能源",
+                },
+                token=token,
+            )
             assert status == 200
             j = json.loads(body)
             assert set(j["data"]["tags"]) == {"长线", "能源"}
@@ -564,7 +906,9 @@ class TestPage:
     def test_index_returns_200_html(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
             # 走原始 http.client 以便看 Content-Type
-            conn = HTTPConnection("127.0.0.1", int(base.split(":")[-1].rstrip("/")), timeout=5)
+            conn = HTTPConnection(
+                "127.0.0.1", int(base.split(":")[-1].rstrip("/")), timeout=5
+            )
             try:
                 conn.request("GET", "/", headers={"Authorization": f"Bearer {token}"})
                 r = conn.getresponse()
@@ -580,12 +924,26 @@ class TestPage:
 
     def test_index_datalist_includes_known_code(self, tmp_path):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({
-            "version": 2,
-            "positions": [{"code": "sh600989", "name": "宝丰能源", "cost": 18.5,
-                           "quantity": 1000, "buy_date": "2025-03-15", "tags": []}],
-            "watchlist": [],
-        }, ensure_ascii=False), encoding="utf-8")
+        data_file.write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "positions": [
+                        {
+                            "code": "sh600989",
+                            "name": "宝丰能源",
+                            "cost": 18.5,
+                            "quantity": 1000,
+                            "buy_date": "2025-03-15",
+                            "tags": [],
+                        }
+                    ],
+                    "watchlist": [],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
         port = _free_port()
         srv = portfolio_web.make_server("127.0.0.1", port, str(data_file))
         token = portfolio_web._ensure_token()
@@ -619,9 +977,17 @@ class TestConcurrency:
 
             def hit_add(code: str, cost: float, qty: int):
                 try:
-                    s, b = _hit(f"{base}/api/positions", "POST", {
-                        "action": "add_position", "code": code, "cost": cost, "quantity": qty,
-                    }, token=token)
+                    s, b = _hit(
+                        f"{base}/api/positions",
+                        "POST",
+                        {
+                            "action": "add_position",
+                            "code": code,
+                            "cost": cost,
+                            "quantity": qty,
+                        },
+                        token=token,
+                    )
                     if s != 200:
                         errors.append((code, s, b))
                 except Exception as e:
@@ -648,8 +1014,8 @@ class TestConcurrency:
             j = json.loads(b)
             assert j["data"]["position"]["quantity"] == 50
 
-            # sh600000..sh600009 应有 10 条
-            s, b = _hit(f"{base}/api/positions", token=token)
+            # sh600000..sh600009 应有 10 条（列表接口含行情请求，加长超时）
+            s, b = _hit(f"{base}/api/positions", token=token, timeout=30)
             j = json.loads(b)
             assert len(j["data"]["positions"]) == 11
 
@@ -664,10 +1030,17 @@ class TestConcurrency:
                     if stop.is_set():
                         return
                     try:
-                        _hit(f"{base}/api/positions", "POST", {
-                            "action": "add_position", "code": f"sh6000{i % 5:02d}",
-                            "cost": 10.0, "quantity": 10,
-                        }, token=token)
+                        _hit(
+                            f"{base}/api/positions",
+                            "POST",
+                            {
+                                "action": "add_position",
+                                "code": f"sh6000{i % 5:02d}",
+                                "cost": 10.0,
+                                "quantity": 10,
+                            },
+                            token=token,
+                        )
                     except Exception as e:
                         errors.append(("write", str(e)))
 
@@ -703,34 +1076,72 @@ class TestEndToEnd:
     def test_full_crud_lifecycle(self, tmp_path):
         with running_server(tmp_path) as (base, data_file, token):
             # 1. add
-            s, b = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989", "name": "宝丰",
-                "cost": 18.5, "quantity": 1000, "tags": ["长线", "能源"],
-            }, token=token)
+            s, b = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "name": "宝丰",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                    "tags": ["长线", "能源"],
+                },
+                token=token,
+            )
             assert s == 200
             # 2. read
             s, b = _hit(f"{base}/api/positions/sh600989", token=token)
             assert json.loads(b)["data"]["position"]["code"] == "sh600989"
             # 3. update
-            s, b = _hit(f"{base}/api/positions", "POST", {
-                "action": "update_position", "code": "sh600989", "cost": 19.0,
-            }, token=token)
+            s, b = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "update_position",
+                    "code": "sh600989",
+                    "cost": 19.0,
+                },
+                token=token,
+            )
             assert json.loads(b)["data"]["cost"] == 19.0
             # 4. tag
-            s, b = _hit(f"{base}/api/positions", "POST", {
-                "action": "tag_position", "code": "sh600989", "tags": ["价值"],
-            }, token=token)
+            s, b = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "tag_position",
+                    "code": "sh600989",
+                    "tags": ["价值"],
+                },
+                token=token,
+            )
             assert "价值" in json.loads(b)["data"]["tags"]
             # 5. add watch
-            s, b = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_watch", "code": "sz000807", "name": "云铝",
-                "target_buy": 12.0, "target_sell": 18.0,
-            }, token=token)
+            s, b = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_watch",
+                    "code": "sz000807",
+                    "name": "云铝",
+                    "target_buy": 12.0,
+                    "target_sell": 18.0,
+                },
+                token=token,
+            )
             assert s == 200
             # 6. reduce
-            s, b = _hit(f"{base}/api/positions", "POST", {
-                "action": "reduce_position", "code": "sh600989", "quantity": 500,
-            }, token=token)
+            s, b = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "reduce_position",
+                    "code": "sh600989",
+                    "quantity": 500,
+                },
+                token=token,
+            )
             assert json.loads(b)["data"]["quantity"] == 500
             # 7. 文件落盘验证（重启 manager 读取同一文件）
             pm = PortfolioManager(path=str(data_file))
@@ -741,10 +1152,18 @@ class TestEndToEnd:
             w = pm.get_watch("sz000807")
             assert w["target_buy"] == 12.0
             # 8. remove all
-            _hit(f"{base}/api/positions", "POST", {"action": "remove_position", "code": "sh600989"},
-                 token=token)
-            _hit(f"{base}/api/positions", "POST", {"action": "remove_watch", "code": "sz000807"},
-                 token=token)
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {"action": "remove_position", "code": "sh600989"},
+                token=token,
+            )
+            _hit(
+                f"{base}/api/positions",
+                "POST",
+                {"action": "remove_watch", "code": "sz000807"},
+                token=token,
+            )
             pm2 = PortfolioManager(path=str(data_file))
             assert pm2.get_positions() == []
             assert pm2.get_watchlist() == []
@@ -760,7 +1179,9 @@ class TestBodyLimit:
         with running_server(tmp_path) as (base, _, token):
             # 9 KB > 8 KB limit
             huge = b"x" * (9 * 1024)
-            req = urllib.request.Request(f"{base}/api/positions", data=huge, method="POST")
+            req = urllib.request.Request(
+                f"{base}/api/positions", data=huge, method="POST"
+            )
             req.add_header("Content-Type", "application/json")
             req.add_header("Authorization", f"Bearer {token}")
             try:
@@ -782,6 +1203,7 @@ class TestModuleLevel:
     def test_version_format(self):
         """版本号遵循 x.y.z。"""
         import re
+
         assert re.match(r"^\d+\.\d+\.\d+$", portfolio_web.VERSION)
 
     def test_allowed_actions_count(self):
@@ -807,9 +1229,16 @@ class TestAuth:
 
     def test_post_without_token_returns_401(self, tmp_path):
         with running_server(tmp_path) as (base, _, _):
-            status, body = _hit(f"{base}/api/positions", "POST",
-                                {"action": "add_position", "code": "sh600989",
-                                 "cost": 18.5, "quantity": 1000})
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+            )
             assert status == 401
             j = json.loads(body)
             assert j["error"] == "unauthorized"
@@ -826,10 +1255,17 @@ class TestAuth:
 
     def test_post_with_valid_token_returns_200(self, tmp_path):
         with running_server(tmp_path) as (base, _, token):
-            status, body = _hit(f"{base}/api/positions", "POST", {
-                "action": "add_position", "code": "sh600989",
-                "cost": 18.5, "quantity": 1000,
-            }, token=token)
+            status, body = _hit(
+                f"{base}/api/positions",
+                "POST",
+                {
+                    "action": "add_position",
+                    "code": "sh600989",
+                    "cost": 18.5,
+                    "quantity": 1000,
+                },
+                token=token,
+            )
             assert status == 200
 
     def test_health_no_token_returns_200(self, tmp_path):
@@ -849,6 +1285,7 @@ class TestAuth:
     def test_token_persisted_to_file(self, tmp_path):
         """token 应写入文件且权限 0o600。"""
         import stat as _stat
+
         token = portfolio_web._ensure_token()
         assert portfolio_web._TOKEN_FILE.exists()
         stored = portfolio_web._TOKEN_FILE.read_text(encoding="utf-8").strip()
@@ -865,6 +1302,7 @@ class TestAuth:
     def test_collect_code_name_map_dedup(self, tmp_path, monkeypatch):
         """扫多个数据源时 code 应去重保序。"""
         from pathlib import Path
+
         scripts_data = Path(portfolio_web._SCRIPTS_DIR) / "data"
         pairs = portfolio_web._collect_code_name_map()
         codes = [c for c, _ in pairs]

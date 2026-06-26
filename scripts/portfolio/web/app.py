@@ -87,10 +87,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("Connection", "close")
-        self.end_headers()
-        if self.command != "HEAD":
-            self.wfile.write(body)
-            self.wfile.flush()
+        try:
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(body)
+                self.wfile.flush()
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # 客户端已断开，忽略
 
     def _write_json(self, status: int, payload: dict):
         """写入 JSON 响应。"""
