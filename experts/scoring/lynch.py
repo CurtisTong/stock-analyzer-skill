@@ -4,6 +4,7 @@
 维度：基本面(35%) + 估值(28%) + 技术面(15%) + 情绪(10%) + 风险(12%)
 精确复现 experts/lynch.md §九 评分矩阵中的阈值规则。
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -16,7 +17,9 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline = stock_data.get("kline_features") or {}
 
     # 基本面：净利增速阶梯
-    profit_growth = _safe_float(fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy"))
+    profit_growth = _safe_float(
+        fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy")
+    )
     if profit_growth >= 25:
         base = 100
     elif profit_growth >= 20:
@@ -52,16 +55,33 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         tech = 20
 
-    # 情绪：内部人交易 / 机构态度
+    # 情绪：内部人交易 / 机构态度（梯度评分）
     market = stock_data.get("market_features") or {}
     insider = market.get("insider_net_buy")
     inst_holding = market.get("institutional_holding")
+    sent = 50  # 默认中性
     if insider is not None and insider > 0:
-        sent = 100
+        # 内部人净买入按金额分档
+        if insider > 100000000:  # > 1亿
+            sent = 100
+        elif insider > 50000000:  # > 5000万
+            sent = 85
+        elif insider > 10000000:  # > 1000万
+            sent = 70
+        else:
+            sent = 60
     elif inst_holding is not None:
-        sent = 60 if inst_holding < 0.6 else 0
-    else:
-        sent = 50
+        # 机构持仓比例梯度评分
+        if inst_holding < 0.3:
+            sent = 80  # 低持仓，加仓空间大
+        elif inst_holding < 0.5:
+            sent = 70
+        elif inst_holding < 0.6:
+            sent = 60
+        elif inst_holding < 0.8:
+            sent = 40
+        else:
+            sent = 20  # 高持仓，可能减仓
 
     # 风险：负债率
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"))
@@ -82,5 +102,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["lynch"]
     return generic_score_with_reasoning(profile, score, stock_data)

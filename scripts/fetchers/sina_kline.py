@@ -1,4 +1,5 @@
 """新浪 K 线数据源。"""
+
 import json
 from pathlib import Path
 
@@ -16,7 +17,10 @@ class SinaKlineFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> list | None:
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
-        raw = http_get(SINA_URL.format(symbol=code, scale=scale, datalen=datalen))
+        timeout = kwargs.get("timeout", 15)
+        raw = http_get(
+            SINA_URL.format(symbol=code, scale=scale, datalen=datalen), timeout=timeout
+        )
         try:
             records = json.loads(raw)
             if records:

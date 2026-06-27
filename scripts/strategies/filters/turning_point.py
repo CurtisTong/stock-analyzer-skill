@@ -6,8 +6,12 @@
 
 Stage 1 硬条件（须全部满足）：
   1. 超卖：20 日跌幅 ≤ -10%
-  2. 量能恢复：5 日均量 ≥ 20 日均量 × 0.8
-  3. 基本面底线：ROE > 5% 且 EPS > 0
+  2. 量能恢复：5 日均量 ≥ 20 日均量 × 1.0（至少不萎缩）
+  3. 基本面底线：ROE > 8% 且 EPS > 0
+
+可选加分（满足其一增加通过优先级）：
+  - MACD 底背离信号
+  - KDJ 超卖金叉
 
 通过 Stage 1 的股票进入 Stage 2（复用 balanced 因子加权打分）。
 未通过 Stage 1 的股票在 result 中以 rejected=["未通过拐点过滤: <原因>"] 标记。
@@ -29,17 +33,20 @@ def turning_point_filter(quote: dict, fin: dict, features: dict) -> tuple:
     """
     reasons = []
 
+    # 1. 超跌确认：20 日跌幅 ≤ -10%
     ret20 = features.get("ret20", 0)
     if ret20 > -10:
         reasons.append(f"未超跌(ret20={ret20:.1f}%>-10%)")
 
+    # 2. 量能恢复：5 日均量 ≥ 20 日均量 × 1.0（至少不萎缩）
     volume_ratio = features.get("volume_ratio", 1)
-    if volume_ratio < 0.8:
-        reasons.append(f"量能未恢复(vol_ratio={volume_ratio:.2f}<0.8)")
+    if volume_ratio < 1.0:
+        reasons.append(f"量能萎缩(vol_ratio={volume_ratio:.2f}<1.0)")
 
+    # 3. 基本面底线：ROE > 8% 且 EPS > 0
     roe = to_float(fin.get("roe", 0))
     eps = to_float(fin.get("eps", 0))
-    if roe <= 5 or eps <= 0:
+    if roe <= 8 or eps <= 0:
         reasons.append(f"基本面差(ROE={roe:.1f}, EPS={eps})")
 
     return (len(reasons) == 0, "; ".join(reasons))

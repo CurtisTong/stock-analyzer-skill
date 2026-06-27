@@ -16,7 +16,7 @@ class TestTurningPointFilter:
     """Stage 1 硬条件过滤测试。"""
 
     def test_passes_oversold_with_volume_recovery(self):
-        """超跌+量能恢复+ROE>5%+EPS>0 应通过。"""
+        """超跌+量能恢复+ROE>8%+EPS>0 应通过。"""
         quote = {}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 1.2}
@@ -34,16 +34,16 @@ class TestTurningPointFilter:
         assert "未超跌" in reason
 
     def test_rejects_low_volume(self):
-        """量比 < 0.8 应拒绝。"""
+        """量比 < 1.0 应拒绝（量能萎缩）。"""
         quote = {}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 0.5}
         passed, reason = turning_point_filter(quote, fin, features)
         assert passed is False
-        assert "量能未恢复" in reason
+        assert "量能萎缩" in reason
 
     def test_rejects_low_roe(self):
-        """ROE ≤ 5 应拒绝。"""
+        """ROE ≤ 8 应拒绝。"""
         quote = {}
         fin = {"roe": 3.0, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 1.2}
@@ -68,7 +68,7 @@ class TestTurningPointFilter:
         passed, reason = turning_point_filter(quote, fin, features)
         assert passed is False
         assert "未超跌" in reason
-        assert "量能未恢复" in reason
+        assert "量能萎缩" in reason
         assert "基本面差" in reason
 
     def test_handles_missing_fields(self):
@@ -92,8 +92,14 @@ class TestNormalizeFactorsBatch:
         """单股无 cross-sectional 信息，返回原 parts 副本。"""
         from business.screening_service import normalize_factors_batch
 
-        parts = {"quality": 80, "valuation": 30, "momentum": 60,
-                 "liquidity": 40, "volatility": 20, "dividend": 70}
+        parts = {
+            "quality": 80,
+            "valuation": 30,
+            "momentum": 60,
+            "liquidity": 40,
+            "volatility": 20,
+            "dividend": 70,
+        }
         out = normalize_factors_batch([parts])
         assert out[0] == parts
         # 副本独立
@@ -105,14 +111,33 @@ class TestNormalizeFactorsBatch:
         from business.screening_service import normalize_factors_batch
 
         parts_list = [
-            {"quality": 50, "valuation": 50, "momentum": 50,
-             "liquidity": 50, "volatility": 50, "dividend": 50},
-            {"quality": 50, "valuation": 50, "momentum": 50,
-             "liquidity": 50, "volatility": 50, "dividend": 50},
+            {
+                "quality": 50,
+                "valuation": 50,
+                "momentum": 50,
+                "liquidity": 50,
+                "volatility": 50,
+                "dividend": 50,
+            },
+            {
+                "quality": 50,
+                "valuation": 50,
+                "momentum": 50,
+                "liquidity": 50,
+                "volatility": 50,
+                "dividend": 50,
+            },
         ]
         out = normalize_factors_batch(parts_list)
         for p in out:
-            for k in ("quality", "valuation", "momentum", "liquidity", "volatility", "dividend"):
+            for k in (
+                "quality",
+                "valuation",
+                "momentum",
+                "liquidity",
+                "volatility",
+                "dividend",
+            ):
                 assert p[k] == 50.0
 
     def test_three_stock_heterogeneous(self):
@@ -120,12 +145,30 @@ class TestNormalizeFactorsBatch:
         from business.screening_service import normalize_factors_batch
 
         parts_list = [
-            {"quality": 80, "valuation": 30, "momentum": 60,
-             "liquidity": 40, "volatility": 20, "dividend": 70},
-            {"quality": 50, "valuation": 50, "momentum": 50,
-             "liquidity": 50, "volatility": 50, "dividend": 50},
-            {"quality": 20, "valuation": 70, "momentum": 40,
-             "liquidity": 60, "volatility": 80, "dividend": 30},
+            {
+                "quality": 80,
+                "valuation": 30,
+                "momentum": 60,
+                "liquidity": 40,
+                "volatility": 20,
+                "dividend": 70,
+            },
+            {
+                "quality": 50,
+                "valuation": 50,
+                "momentum": 50,
+                "liquidity": 50,
+                "volatility": 50,
+                "dividend": 50,
+            },
+            {
+                "quality": 20,
+                "valuation": 70,
+                "momentum": 40,
+                "liquidity": 60,
+                "volatility": 80,
+                "dividend": 30,
+            },
         ]
         out = normalize_factors_batch(parts_list)
         assert out[0]["quality"] == 65.0
@@ -137,12 +180,31 @@ class TestNormalizeFactorsBatch:
         from business.screening_service import normalize_factors_batch
 
         parts_list = [
-            {"quality": 100, "valuation": 0, "momentum": 0,
-             "liquidity": 0, "volatility": 0, "dividend": 0},
-            {"quality": 0, "valuation": 100, "momentum": 100,
-             "liquidity": 100, "volatility": 100, "dividend": 100},
+            {
+                "quality": 100,
+                "valuation": 0,
+                "momentum": 0,
+                "liquidity": 0,
+                "volatility": 0,
+                "dividend": 0,
+            },
+            {
+                "quality": 0,
+                "valuation": 100,
+                "momentum": 100,
+                "liquidity": 100,
+                "volatility": 100,
+                "dividend": 100,
+            },
         ]
         out = normalize_factors_batch(parts_list)
         for p in out:
-            for k in ("quality", "valuation", "momentum", "liquidity", "volatility", "dividend"):
+            for k in (
+                "quality",
+                "valuation",
+                "momentum",
+                "liquidity",
+                "volatility",
+                "dividend",
+            ):
                 assert 0.0 <= p[k] <= 100.0
