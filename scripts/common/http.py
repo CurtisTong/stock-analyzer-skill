@@ -94,14 +94,27 @@ def _create_connection(
     return http.client.HTTPConnection(host, port=port, timeout=timeout)
 
 
+_CONN_IDLE_TIMEOUT = 60  # 空闲连接过期时间（秒）
+
+
 def _get_connection(
     key: str, scheme: str, host: str, port: int, timeout: int = 10
 ) -> http.client.HTTPConnection:
-    """从连接池获取或创建连接（线程安全，同一 host 可复用多个连接）。"""
+    """从连接池获取或创建连接（线程安全，同一 host 可复用多个连接）。
+    空闲超过 _CONN_IDLE_TIMEOUT 秒的连接会被丢弃。
+    """
+    now = time.time()
     with _pool_lock:
         conns = _connection_pool.get(key, [])
         while conns:
-            conn = conns.pop()
+            conn, ts = conns.pop()
+            # 丢弃过期或失效连接
+            if now - ts > _CONN_IDLE_TIMEOUT:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                continue
             if hasattr(conn, "sock") and conn.sock is not None:
                 return conn
     return _create_connection(scheme, host, port, timeout)
@@ -111,10 +124,11 @@ def _return_connection(key: str, conn: http.client.HTTPConnection) -> None:
     """将连接归还到连接池，池满时 close。同一 host 保留多个连接。"""
     with _pool_lock:
         conns = _connection_pool.get(key)
+        entry = (conn, time.time())
         if conns is None:
-            _connection_pool[key] = [conn]
+            _connection_pool[key] = [entry]
         elif len(conns) < MAX_POOL_SIZE:
-            conns.append(conn)
+            conns.append(entry)
         else:
             try:
                 conn.close()
@@ -245,6 +259,7 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
     """GET 请求，指数退避重试，连接池复用。429 立即抛出不重试。
 
     优先使用 requests（可选依赖），缺失时降级为 http.client。
+    4xx 业务错误不降级，直接抛出。
     """
     if _HAS_REQUESTS:
         try:
@@ -252,6 +267,11 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
         except RateLimitError:
             raise
         except Exception as e:
+            # 4xx 业务错误不降级重试，直接抛出
+            if hasattr(e, "response") and hasattr(e.response, "status_code"):
+                status = e.response.status_code
+                if 400 <= status < 500:
+                    raise
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     return _http_get_internal(
         url, headers=None, timeout=timeout, max_retries=max_retries
@@ -271,6 +291,11 @@ def http_get_with_headers(
         except RateLimitError:
             raise
         except Exception as e:
+            # 4xx 业务错误不降级重试，直接抛出
+            if hasattr(e, "response") and hasattr(e.response, "status_code"):
+                status = e.response.status_code
+                if 400 <= status < 500:
+                    raise
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     return _http_get_internal(
         url, headers=headers, timeout=timeout, max_retries=max_retries
@@ -278,8 +303,11 @@ def http_get_with_headers(
 
 
 def decode_gbk(data: bytes) -> str:
-    """腾讯接口 GBK → UTF-8。"""
-    return data.decode("gbk", errors="replace")
+    """自动检测编码解码：先尝试 UTF-8，失败回退 GBK。"""
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("gbk", errors="replace")
 
 
 __all__ = [

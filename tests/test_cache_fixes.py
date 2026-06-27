@@ -27,7 +27,7 @@ def test_cache_key_for_stock_uses_sha256():
     key = cache.cache_key_for_stock("quote", "sh600519", period="day")
     parts = key.split("_")
     param_hash = parts[-1]
-    assert len(param_hash) == 12, f"hash 长度应为 12，实际 {len(param_hash)}"
+    assert len(param_hash) == 16, f"hash 长度应为 16，实际 {len(param_hash)}"
     assert all(c in "0123456789abcdef" for c in param_hash)
 
 

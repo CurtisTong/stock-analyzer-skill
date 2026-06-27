@@ -193,37 +193,18 @@ def main():
         include_chan=not args.no_chan,
     )
 
-    # 附加回测胜率
+    # 附加回测胜率（直接函数调用，避免 subprocess 开销）
     if args.with_backtest:
         try:
-            import subprocess
+            from backtest.metrics import run_backtest
 
-            bt_result = subprocess.run(
-                [
-                    "python3",
-                    "scripts/backtest.py",
-                    "--codes",
-                    args.code,
-                    "--days",
-                    "60",
-                    "-j",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=str(Path(__file__).resolve().parent.parent),
-            )
-            if bt_result.returncode == 0:
-                bt_data = json.loads(bt_result.stdout)
-                if "balanced" in bt_data:
-                    bt = bt_data["balanced"]
-                    # 字段映射：backtest 输出 *_pct 后缀，stock.py 期望无后缀
-                    result["backtest"] = {
-                        "win_rate": bt.get("win_rate_pct"),
-                        "total_return": bt.get("total_return_pct"),
-                        "sharpe": bt.get("sharpe_ratio"),
-                        "max_drawdown": bt.get("max_drawdown_pct"),
-                    }
+            bt = run_backtest("balanced", [args.code], days=60)
+            result["backtest"] = {
+                "win_rate": bt.get("win_rate_pct"),
+                "total_return": bt.get("total_return_pct"),
+                "sharpe": bt.get("sharpe_ratio"),
+                "max_drawdown": bt.get("max_drawdown_pct"),
+            }
         except Exception as e:
             result["backtest_error"] = str(e)
 

@@ -147,7 +147,7 @@ def cache_key_for_stock(prefix: str, code: str, **params: object) -> str:
     """
     param_str = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
     param_hash = (
-        hashlib.sha256(param_str.encode()).hexdigest()[:12] if param_str else ""
+        hashlib.sha256(param_str.encode()).hexdigest()[:16] if param_str else ""
     )
     return f"{prefix}_{code}_{param_hash}".rstrip("_")
 
