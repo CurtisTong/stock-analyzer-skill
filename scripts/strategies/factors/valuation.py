@@ -48,8 +48,20 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
         if total_cap > 100 and revenue_yoy <= 0:
             score -= 8
     elif pe > pe_cap:
-        # PE 超过极端阈值，PE 评分为 0（但 PB 和 PEG 仍可评分）
-        pass
+        # PE 超过极端阈值，PE 评分为 0
+        # 高 PE 成长股补充：用 PS（市销率）评分
+        if revenue_yoy > 20:
+            # 高增长公司用 PS 估值更合理
+            # PS = 总市值 / 营收（简化：用 PE × 净利率 近似）
+            net_margin = to_float(fin.get("net_margin", fin.get("XSJLL", 0)))
+            if net_margin > 0:
+                ps = pe * net_margin / 100
+                if ps < 3:
+                    score += 15  # PS 低估
+                elif ps < 6:
+                    score += 10  # PS 合理
+                elif ps < 10:
+                    score += 5  # PS 偏高
     elif 0 < pe <= pe_undervalued:
         score += 38
     elif pe_undervalued < pe <= pe_reasonable:

@@ -136,9 +136,14 @@ def cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
     return cleaned
 
 
+# 数据格式版本号：当 API 返回字段格式变更时 bump 此值，自动失效旧缓存
+_DATA_FORMAT_VERSION = "v2"
+
+
 def cache_key(url: str) -> str:
-    """用 URL 的 SHA256 生成缓存键。"""
-    return hashlib.sha256(url.encode()).hexdigest()[:32]
+    """用 URL 的 SHA256 生成缓存键（含数据格式版本）。"""
+    versioned = f"{_DATA_FORMAT_VERSION}:{url}"
+    return hashlib.sha256(versioned.encode()).hexdigest()[:32]
 
 
 def cache_key_for_stock(prefix: str, code: str, **params: object) -> str:
@@ -146,8 +151,9 @@ def cache_key_for_stock(prefix: str, code: str, **params: object) -> str:
     格式: {prefix}_{code}_{param_hash}
     """
     param_str = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
+    versioned = f"{_DATA_FORMAT_VERSION}:{param_str}"
     param_hash = (
-        hashlib.sha256(param_str.encode()).hexdigest()[:16] if param_str else ""
+        hashlib.sha256(versioned.encode()).hexdigest()[:16] if param_str else ""
     )
     return f"{prefix}_{code}_{param_hash}".rstrip("_")
 

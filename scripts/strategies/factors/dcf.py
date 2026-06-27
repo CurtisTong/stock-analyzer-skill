@@ -22,6 +22,7 @@ def dcf_valuation(
     terminal_growth: float = 0.03,
     years_high: int = 5,
     years_transition: int = 5,
+    industry: str = "默认",
 ) -> dict:
     """两阶段 DCF 估值。
 
@@ -29,6 +30,7 @@ def dcf_valuation(
         price: 当前股价
         fin: 财务 dict（需含 eps/ocf_per_share/capex 等）
         growth_rate: 预期增长率（小数，如 0.15 = 15%）。None 则自动推断
+        industry: 行业类型（用于差异化资本支出系数）
         discount_rate: 折现率（WACC 近似，默认 10%）
         terminal_growth: 永续增长率（默认 3%）
         years_high: 高增长期年数（默认 5）
@@ -44,16 +46,30 @@ def dcf_valuation(
             "method": "dcf",
         }
     """
+    # 行业差异化资本支出系数
+    # 重资产行业（钢铁/化工/机械）资本支出大，FCF/OCF 比例低
+    # 轻资产行业（软件/医药/消费）资本支出小，FCF/OCF 比例高
+    _CAPEX_RATIO = {
+        "重资产": 0.5,
+        "周期": 0.55,
+        "默认": 0.7,
+        "消费": 0.75,
+        "科技": 0.8,
+        "医药": 0.8,
+        "金融": 0.85,
+    }
+    capex_ratio = _CAPEX_RATIO.get(industry, _CAPEX_RATIO["默认"])
+
     # 1. 估算每股自由现金流（FCF）
     ocf = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE", 0)))
     eps = to_float(fin.get("eps", fin.get("EPSJB", 0)))
 
     if ocf > 0:
-        # 有经营现金流数据时，用 OCF × 0.7（保守扣除资本支出）
-        fcf_per_share = ocf * 0.7
+        # 有经营现金流数据时，用 OCF × 行业系数
+        fcf_per_share = ocf * capex_ratio
     elif eps > 0:
-        # 回退到净利润 × 0.7
-        fcf_per_share = eps * 0.7
+        # 回退到净利润 × 行业系数
+        fcf_per_share = eps * capex_ratio
     else:
         return {
             "intrinsic_value": 0,
