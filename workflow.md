@@ -1,6 +1,6 @@
 # Skill 工作流编排
 
-本文件定义 9 个核心 skill 的协作关系。原则：先判断环境，再筛候选，再深挖标的，再落到组合和跟踪。
+本文件定义 13 个 skill（9 核心 + 4 变体）的协作关系。原则：先判断环境，再筛候选，再深挖标的，再落到组合和跟踪。
 
 ## 入口选择
 
@@ -111,11 +111,11 @@
 
 ---
 
-## 9 Skills 速查表
+## 13 Skills 速查表
 
 | Skill     | 命令                                               | 功能                                  |
 | --------- | -------------------------------------------------- | ------------------------------------- |
-| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 单股分析，五层框架 + 8人专家圆桌      |
+| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 单股分析，五层框架 + 15人专家圆桌     |
 | market    | /market [full\|quick\|intraday]                    | 大盘复盘，指数+板块+风格+资金         |
 | sector    | /sector <板块> [overview\|compare\|stock]          | 板块分析，标的对比+多空博弈           |
 | portfolio | /portfolio [health\|rebalance\|compare]            | 持仓健康检查，涨跌+支撑+风险预警      |

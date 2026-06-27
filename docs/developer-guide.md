@@ -4,7 +4,7 @@
 
 ## 项目结构详解
 
-```
+```text
 stock-analyzer-skill/
 ├── README.md                       # 项目说明
 ├── CONTRIBUTING.md                 # 贡献规范
@@ -14,11 +14,17 @@ stock-analyzer-skill/
 ├── install.sh                      # 一键注册到 ~/.claude/skills/
 ├── package.json                    # npm 发布配置
 ├── pyproject.toml                  # Python 项目配置
-├── experts/                        # 8 位专家深度档案
-│   ├── buffett.md / lynch.md / soros.md / duan_yongping.md
-│   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md
-│   └── decide.md                   # 决策整合规则
-├── .claude/skills/                 # Claude Code skill 源（9 个核心 skill + 4 个 redirect）
+├── experts/                        # 15 份专家档案（9 active + 6 legacy）
+│   ├── buffett.md / lynch.md / soros.md / duan_yongping.md  # legacy
+│   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md  # legacy
+│   ├── value_anchor.md / topic_leader.md / emotion_tech.md  # 合并型 active
+│   ├── sector_specialist.md / institution.md / risk_manager.md  # 补盲区 active
+│   ├── momentum_trader.md          # 动量派 active
+│   ├── decide.md                   # 决策整合规则
+│   ├── vote_engine.py              # 投票引擎
+│   ├── registry.py                 # 专家注册表
+│   └── scoring.py                  # 量化评分
+├── .claude/skills/                 # Claude Code skill 源（13 个：9 核心 + 4 变体）
 │   ├── stock/SKILL.md
 │   ├── market/SKILL.md
 │   ├── sector/SKILL.md
@@ -57,7 +63,7 @@ stock-analyzer-skill/
 │   │   ├── chip.py                # 资金面数据汇总（v1.3.1）
 │   │   ├── config.py              # 数据配置
 │   │   └── *.json / *.csv         # 静态参考数据
-│   ├── fetchers/                   # 数据获取层（25+ 模块）
+│   ├── fetchers/                   # 数据获取层（28 个模块 × 7 数据域）
 │   │   ├── tencent_quote.py       # 腾讯行情
 │   │   ├── eastmoney_quote.py     # 东财行情
 │   │   ├── eastmoney_finance.py   # 东财财务
@@ -77,25 +83,6 @@ stock-analyzer-skill/
 │   │   ├── baostock_kline.py      # baostock K 线
 │   │   └── ...                    # 更多数据源
 │   ├── *.py                        # 顶层 CLI 脚本（SKILL.md 直接调用的入口）
-│   ├── fetchers/                   # 数据获取层（25+ 模块）
-│   │   ├── tencent_quote.py       # 腾讯行情
-│   │   ├── eastmoney_quote.py     # 东财行情
-│   │   ├── eastmoney_finance.py   # 东财财务
-│   │   ├── eastmoney_kline.py     # 东财 K 线
-│   │   ├── eastmoney_chip.py      # 东财资金面（v1.3.1）
-│   │   ├── eastmoney_flow.py      # 东财资金流向
-│   │   ├── eastmoney_lhb.py       # 东财龙虎榜
-│   │   ├── eastmoney_event.py     # 东财事件日历
-│   │   ├── sina_quote.py          # 新浪行情
-│   │   ├── sina_kline.py          # 新浪 K 线
-│   │   ├── xueqiu_quote.py        # 雪球行情（v1.3.1）
-│   │   ├── ths_quote.py           # 同花顺行情（v1.3.1）
-│   │   ├── efinance_quote.py      # efinance 行情
-│   │   ├── akshare_quote.py       # AkShare 行情
-│   │   ├── tushare_quote.py       # Tushare 行情
-│   │   ├── pytdx_quote.py         # pytdx 行情
-│   │   ├── baostock_kline.py      # baostock K 线
-│   │   └── ...                    # 更多数据源
 │   ├── strategies/                 # 选股策略系统
 │   │   ├── registry.py            # 策略注册中心
 │   │   ├── thresholds.py          # 行业阈值管理
@@ -349,7 +336,7 @@ class DataFetcherManager:
 ```bash
 ln -sf ~/Documents/curtis/stock-analyzer-skill/.claude/skills/stock ~/.claude/skills/stock
 ln -sf ~/Documents/curtis/stock-analyzer-skill/.claude/skills/market ~/.claude/skills/market
-# ... 共 9 个核心 + 4 个 redirect
+# ... 共 13 个 skill（9 核心 + 4 变体）
 ```
 
 ### SKILL.md 格式

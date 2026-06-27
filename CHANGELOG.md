@@ -7,22 +7,12 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-06-25
+## [Unreleased]
 
 ### Added
+
 - **portfolio**: 持仓 Web v2.0 全量改造 — 行情/中文化/交易日志
-
-### Fixed
-- 深度审查 P0-P3 全量修复 — 算法正确性/安全/架构/性能
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-
-## [Unreleased] - 2026-06-24
-
-### Added
 - 回测 CLI 集成 ASCII 可视化
-- 新增回测 ASCII 可视化模块
 - 新增 EV/EBITDA 估值指标
 - 新增 DCF 简易估值模型
 - 回测增强 — 涨跌停过滤 + 筹码因子集成 + 分析师因子测试
@@ -35,31 +25,26 @@
 - **screener**: 新增筹码因子 + 宏观门控模块
 
 ### Fixed
+
+- 深度审查 P0-P3 全量修复 — 算法正确性/安全/架构/性能
 - screener 空结果引导 + 行业差异化分红率 + CHANGELOG 清理
 - P0-P2 优化 — 注册表日志、投票边界测试、TradeLog 集成、brief 文档与阈值透明化
 - **scripts**: 修复静默异常捕获 + 清理未使用导入 + 补充测试覆盖
-- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
 - **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
 
 ### Changed
-- 拆分 common/__init__.py 上帝模块
+
+- 拆分 `common/__init__.py` 上帝模块
 - fetcher 工厂函数缓存单例化
 - 新增 CLI 基座模块 + FIELD_MAP 提升为模块级常量
 
 ### Documentation
-- **changelog**: 用户专家审查 — 去重 + 亮点前置 + 技术细节折叠
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
+
 - **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
 - **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
 
 ### Testing
+
 - 补充 common/metrics 模块测试（8 个用例）
 - 补充性能压测模块测试（5 个用例）
 - 补充策略表现校准模块测试（10 个用例）
@@ -70,80 +55,15 @@
 - 新增 13 个测试文件覆盖未测试模块 + 修复 cache DeprecationWarning
 
 ### CI/CD
+
 - PR 触发集成测试和冒烟测试
 
 ### Maintenance
+
 - **release**: 同步至 v1.14.0
 - **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
 - **version**: bump version to v1.13.1
-- **tests**: 同步 smoke_test 期望版本至 v1.13.0
 - **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-### Other
-- Merge remote-tracking branch 'origin/main'
-
-## [Unreleased] - 2026-06-24
-
-### Added
-- 回测 CLI 集成 ASCII 可视化
-- 新增回测 ASCII 可视化模块
-- 新增 EV/EBITDA 估值指标
-- 新增 DCF 简易估值模型
-- 回测增强 — 涨跌停过滤 + 筹码因子集成 + 分析师因子测试
-- 回测引擎集成 chip + event 因子
-- 回测引擎增强 — 止损止盈逻辑
-- 事件驱动扩展 — 新增大股东增减持 + 监管处罚因子
-- 四专家深度审查改进 — 修复 P0 问题 + 增强用户体验与功能
-- **strategies/factors**: Phase 2 架构重构 + 因子增强
-- **screener/portfolio/experts**: Phase 1 基础修复 + 体验优化
-- **screener**: 新增筹码因子 + 宏观门控模块
-
-### Fixed
-- screener 空结果引导 + 行业差异化分红率 + CHANGELOG 清理
-- P0-P2 优化 — 注册表日志、投票边界测试、TradeLog 集成、brief 文档与阈值透明化
-- **scripts**: 修复静默异常捕获 + 清理未使用导入 + 补充测试覆盖
-- **docs**: 合并 CHANGELOG 顶部 4 块 [Unreleased] 为 1 块并按类型分组
-- **docs**: 修正项目元数据漂移与 README/CLAUDE.md 数字一致性
-
-### Changed
-- 拆分 common/__init__.py 上帝模块
-- fetcher 工厂函数缓存单例化
-- 新增 CLI 基座模块 + FIELD_MAP 提升为模块级常量
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **skills/experts**: SKILL.md ↔ 脚本现状对齐 + 7 份辅助专家对 agent 可见
-- **methodology**: 与 experts/ 单点权威对齐 + 新增 §一.4/§二.6 + 调和打板哲学
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-
-### Testing
-- 补充 common/metrics 模块测试（8 个用例）
-- 补充性能压测模块测试（5 个用例）
-- 补充策略表现校准模块测试（10 个用例）
-- 补充股票池刷新模块测试（25 个用例）
-- 补充公告/研报模块测试（17 个用例）
-- 补充分析师预期因子测试（19 个用例）
-- **data/strategies/fetchers**: 补充 data 层、regime detector、筹码 fetcher 测试
-- 新增 13 个测试文件覆盖未测试模块 + 修复 cache DeprecationWarning
-
-### CI/CD
-- PR 触发集成测试和冒烟测试
-
-### Maintenance
-- **tests**: 更新 SKILL.md 版本一致性检查至 v1.13.1
-- **version**: bump version to v1.13.1
-- **tests**: 同步 smoke_test 期望版本至 v1.13.0
-- **ci**: 防止 SKILL.md 版本与测试常量不一致阻塞 release
-
-### Other
-- Merge remote-tracking branch 'origin/main'
-
-## [Unreleased]
 
 ### Planned
 

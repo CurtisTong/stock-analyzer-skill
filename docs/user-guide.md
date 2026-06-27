@@ -4,19 +4,19 @@
 
 > **你不需要看完整份指南**——挑一个目标进去就行，剩下的按需翻。
 
-## 🎯 TL;DR · 9 个 skill 一句话表
+## 🎯 TL;DR · 13 个 skill 一句话表
 
-| 你的目标 | 命令 | 一句话价值 |
-| --- | --- | --- |
-| 🔍 找几只值得买的股票 | `/screener` | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单 |
-| 📊 看今天大盘涨跌 | `/market quick` | 三大指数 + 板块 Top3 + 一句话策略 |
-| 💼 看看我的持仓 | `/portfolio` | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
-| 🎯 分析一只股票 | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 8 人圆桌 / 纯技术面 |
-| 🌐 某个板块怎么样 | `/sector <板块>` | 板块全景 + 标的对比 + 板块内筛选 |
-| 🔬 深度研究一只股票 | `/research <任务>` | 财务建模 + 排雷 + DCF + 投资建议 |
-| 🧪 验证选股策略 | `/backtest` | 胜率 + 收益 + 夏普 + 回撤 + 基准对比 |
-| 📡 盘中盯盘（异动/预警） | `/monitor` | 持仓异动 + 价格预警 + Bark/企微/钉钉 |
-| 📚 学投资基础 | `/learn` | PE/ROE/MACD/均线/缠论 系统化学习路径 |
+| 你的目标                 | 命令                                  | 一句话价值                               |
+| ------------------------ | ------------------------------------- | ---------------------------------------- |
+| 🔍 找几只值得买的股票    | `/screener`                           | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单  |
+| 📊 看今天大盘涨跌        | `/market quick`                       | 三大指数 + 板块 Top3 + 一句话策略        |
+| 💼 看看我的持仓          | `/portfolio`                          | 涨跌 + 板块集中度 + 风险预警 + 调仓建议  |
+| 🎯 分析一只股票          | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 15 份专家圆桌 / 纯技术面 |
+| 🌐 某个板块怎么样        | `/sector <板块>`                      | 板块全景 + 标的对比 + 板块内筛选         |
+| 🔬 深度研究一只股票      | `/research <任务>`                    | 财务建模 + 排雷 + DCF + 投资建议         |
+| 🧪 验证选股策略          | `/backtest`                           | 胜率 + 收益 + 夏普 + 回撤 + 基准对比     |
+| 📡 盘中盯盘（异动/预警） | `/monitor`                            | 持仓异动 + 价格预警 + Bark/企微/钉钉     |
+| 📚 学投资基础            | `/learn`                              | PE/ROE/MACD/均线/缠论 系统化学习路径     |
 
 ## 🗺️ 4 个组合使用场景
 
@@ -40,7 +40,7 @@ portfolio → stock → technical
 ```
 
 1. `/portfolio health` — 持仓健康度（涨跌 + 板块集中度 + 风险）
-2. `/stock <持仓股> debate` — 听 8 位专家辩论
+2. `/stock <持仓股> debate` — 听 15 份专家辩论
 3. `/stock <持仓股> technical` — 确认技术面是否破位
 
 ### 场景 C：挖掘板块机会
@@ -59,7 +59,7 @@ market → sector → screener
 stock debate → research financial → research report
 ```
 
-1. `/stock <代码> debate` — 8 人圆桌 + 最终方向
+1. `/stock <代码> debate` — 15 份专家圆桌 + 最终方向
 2. `/research financial <任务>` — 财务建模 / 杜邦 / DCF
 3. `/research report <任务>` — 全维度投资研究报告
 
@@ -80,7 +80,7 @@ stock debate → research financial → research report
 
 | Skill     | 命令                                                   | 用途         | 模式                              |
 | --------- | ------------------------------------------------------ | ------------ | --------------------------------- |
-| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 8人专家圆桌²          |
+| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 15份专家圆桌²         |
 | market    | `/market [full\|quick\|intraday]`                      | 大盘复盘     | 指数+板块+风格+资金               |
 | sector    | `/sector <板块> [overview\|compare\|stock]`            | 板块分析     | 标的对比+多空博弈                 |
 | portfolio | `/portfolio [health\|rebalance\|compare]`              | 持仓健康检查 | 涨跌+支撑+风险预警                |
@@ -93,7 +93,7 @@ stock debate → research financial → research report
 > **术语说明**：
 >
 > - ¹ **五层框架**：基本面/估值/技术面/板块/风险收益比，详见 [methodology.md](methodology.md)
-> - ² **8人专家圆桌**：长线 4 人（巴菲特/林奇/索罗斯/段永平）+ 短线 4 人（徐翔/赵老哥/炒股养家/作手新一）
+> - ² **15份专家圆桌**：9 active 专家（价值双锚/题材龙头/情绪技术/行业专家/机构派/风控/动量派 + 林奇/索罗斯）+ 6 legacy（巴菲特/段永平/徐翔/赵老哥/养家/作手新一）
 > - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板≥3500万）、低市值（主板≥40亿、创业板≥24亿）标的
 > - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
 > - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
@@ -165,10 +165,10 @@ stock debate → research financial → research report
 
 ### debate 模式（专家辩论）
 
-```
-/stock sh600989 debate         # 全模式：8人圆桌（长线4+短线4）
-/stock sh600989 debate 长线    # 仅长线4人（巴菲特/林奇/索罗斯/段永平）
-/stock sh600989 debate 短线    # 仅短线4人（徐翔/赵老哥/炒股养家/作手新一）
+```text
+/stock sh600989 debate         # 全模式：15份专家圆桌（9 active + 6 legacy）
+/stock sh600989 debate 长线    # 仅长线组（巴菲特/林奇/索罗斯/段永平）
+/stock sh600989 debate 短线    # 仅短线组（徐翔/赵老哥/炒股养家/作手新一）
 ```
 
 返回：五层分析 + 专家圆桌多空辩论 + 最终折中方案。长线/短线子模式仅调用对应组别专家。

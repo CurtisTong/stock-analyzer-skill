@@ -24,7 +24,7 @@
 - **scope**：可选，表示影响范围，建议小写英文或简写。本项目常用值：
   - `*` 或省略：跨多个模块的通用变更（与项目历史风格一致）
   - `stock` / `market` / `sector` / `portfolio` / `screener` / `monitor` / `backtest` / `research` / `technical`：对应 skill（`financial-analyst` 与 `investment-researcher` 已合并入 `research`）
-  - `experts`：专家人设（experts/*.md 与 scoring/）
+  - `experts`：专家人设（experts/\*.md 与 scoring/）
   - `scripts`：底层 Python 工具
   - `data`：示例数据、配置
   - `docs`：文档（README、方法论、CHANGELOG）
@@ -38,12 +38,12 @@
 ### 1.2 常用 type
 
 | type       | 含义                               | 是否更新 CHANGELOG |
-|------------|------------------------------------|--------------------|
+| ---------- | ---------------------------------- | ------------------ |
 | `feat`     | 新增功能                           | 是                 |
 | `fix`      | 修复 Bug                           | 是                 |
 | `docs`     | 仅文档变更（注释、README、方法论） | 否                 |
 | `style`    | 不影响逻辑的格式调整（空格、缩进） | 否                 |
-| `refactor` | 既不修 Bug 也不加功能的代码重构     | 否                 |
+| `refactor` | 既不修 Bug 也不加功能的代码重构    | 否                 |
 | `perf`     | 性能优化                           | 是                 |
 | `test`     | 新增/修改测试                      | 否                 |
 | `build`    | 构建系统、依赖、脚本目录调整       | 否                 |
@@ -71,7 +71,7 @@
 #### ✅ 好的提交
 
 ```
-feat(stock): 新增 8 人专家圆桌多空辩论模式
+feat(stock): 新增 15 人专家圆桌多空辩论模式
 
 原五层框架只能产出单边结论，长线持有者无法验证
 持仓股是否被市场主流逻辑证伪。新增 debate 模式调用
@@ -100,16 +100,19 @@ docs(*): 在 README 中补充 install.sh 的使用说明
 ```
 fix: 改了点东西
 ```
+
 → 没说清改了什么、为什么改。
 
 ```
 feat(stock): 新增功能、优化体验、完善细节
 ```
+
 → 一句话塞了三件事；"优化"、"完善"是空泛词。
 
 ```
 Update README
 ```
+
 → 不是 Conventional 格式；中文环境下标题未使用中文。
 
 ---
@@ -118,15 +121,15 @@ Update README
 
 所有非个人分支须遵循 `<type>/<短描述>` 格式，**全部使用小写英文 + 连字符**，避免中文路径在不同工具下出现转义问题。
 
-| 用途         | 分支模式                       | 示例                            |
-|--------------|--------------------------------|---------------------------------|
-| 新功能       | `feat/<短描述>`                | `feat/stock-debate-mode`        |
-| 修复         | `fix/<短描述>`                 | `fix/quote-keyerror`            |
-| 紧急热修     | `hotfix/<短描述>`              | `hotfix/install-permission`     |
-| 重构         | `refactor/<短描述>`            | `refactor/finance-cache`        |
-| 文档         | `docs/<短描述>`                | `docs/methodology-update`       |
-| 个人探索     | `exp/<作者>/<短描述>`          | `exp/curtis/try-new-render`     |
-| 长期集成     | `release/<版本号>`             | `release/v1.2.0`                |
+| 用途     | 分支模式              | 示例                        |
+| -------- | --------------------- | --------------------------- |
+| 新功能   | `feat/<短描述>`       | `feat/stock-debate-mode`    |
+| 修复     | `fix/<短描述>`        | `fix/quote-keyerror`        |
+| 紧急热修 | `hotfix/<短描述>`     | `hotfix/install-permission` |
+| 重构     | `refactor/<短描述>`   | `refactor/finance-cache`    |
+| 文档     | `docs/<短描述>`       | `docs/methodology-update`   |
+| 个人探索 | `exp/<作者>/<短描述>` | `exp/curtis/try-new-render` |
+| 长期集成 | `release/<版本号>`    | `release/v1.2.0`            |
 
 - 主干分支固定为 `main`，受保护：仅允许 PR 合入，禁止直推。
 - 短描述使用 2~4 个英文单词，必要时加版本号或日期。
@@ -178,13 +181,26 @@ Update README
 
 ```js
 module.exports = {
-  extends: ['@commitlint/config-conventional'],
+  extends: ["@commitlint/config-conventional"],
   rules: {
-    'subject-max-length': [2, 'always', 50],
-    'type-enum': [2, 'always', [
-      'feat','fix','docs','style','refactor',
-      'perf','test','build','ci','chore','revert'
-    ]],
+    "subject-max-length": [2, "always", 50],
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",
+        "fix",
+        "docs",
+        "style",
+        "refactor",
+        "perf",
+        "test",
+        "build",
+        "ci",
+        "chore",
+        "revert",
+      ],
+    ],
   },
 };
 ```
@@ -257,9 +273,11 @@ python3 scripts/kline.py sh600989 240 30
 
 ```markdown
 # ❌ 错误：硬编码用户路径
+
 项目根目录为 `/Users/curtis/Documents/curtis/stock-analyzer-skill`
 
 # ✅ 正确：通用描述
+
 Claude Code 运行时工作目录即为项目根目录
 ```
 
@@ -337,12 +355,12 @@ python3 -m pytest tests/ -x -q
 
 ```yaml
 ---
-name: <skill-name>                    # 必填，与目录名一致
-description: <能力 + 触发场景>          # 必填，≤ 250 字符
-version: 1.3.x                        # 与 package.json 对齐
-model: haiku | sonnet | opus          # 按复杂度分配
+name: <skill-name> # 必填，与目录名一致
+description: <能力 + 触发场景> # 必填，≤ 250 字符
+version: 1.3.x # 与 package.json 对齐
+model: haiku | sonnet | opus # 按复杂度分配
 allowed-tools: Bash(python3 scripts/*) Read(<paths>)
-disable-model-invocation: true        # 仅命令式 skill
+disable-model-invocation: true # 仅命令式 skill
 ---
 ```
 
@@ -369,11 +387,11 @@ disable-model-invocation: true        # 仅命令式 skill
 
 跨 skill 复用的约定/数据集中放到 `skills/_shared/references/`：
 
-| 文件                  | 内容                                       |
-| --------------------- | ------------------------------------------ |
-| `code-prefix.md`      | 股票代码 `sh`/`sz`/`SH`/`SZ` 大小写规则   |
-| `script-catalog.md`   | 脚本目录与参数（quote/finance/kline 等）   |
-| `five-layer.md`       | 五层分析框架定义与评级阈值                 |
+| 文件                | 内容                                     |
+| ------------------- | ---------------------------------------- |
+| `code-prefix.md`    | 股票代码 `sh`/`sz`/`SH`/`SZ` 大小写规则  |
+| `script-catalog.md` | 脚本目录与参数（quote/finance/kline 等） |
+| `five-layer.md`     | 五层分析框架定义与评级阈值               |
 
 **新增共享 reference** 时：
 
@@ -400,7 +418,7 @@ bash tests/integration/test_install.sh
 - frontmatter 必填字段、name 匹配目录、description 长度与触发句
 - model 复杂度匹配、章节别名兼容
 - SKILL.md 引用的 `scripts/*.py` / `data/*.json` 真实存在（含运行时生成白名单）
-- install.sh 12 个 skill 数组完整性、软链化、清理调用
+- install.sh 13 个 skill 数组完整性、软链化、清理调用
 
 新增 skill 时，把对应名称加入：
 

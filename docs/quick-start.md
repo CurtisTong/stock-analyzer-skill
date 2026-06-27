@@ -24,7 +24,7 @@ cd ~/Documents/curtis/stock-analyzer-skill
 ./install.sh
 ```
 
-`install.sh` 会在 `~/.claude/skills/` 下创建 9 个 symlink，指向本包的 `skills/` 目录。
+`install.sh` 会在 `~/.claude/skills/` 下创建 13 个 symlink，指向本包的 `skills/` 目录。
 
 重启 Claude Code 即可识别。
 
@@ -72,13 +72,13 @@ cd ~/Documents/curtis/stock-analyzer-skill
 
 按需体验，不需要也能用：
 
-| 能力             | 命令                                                           | 适用场景                                |
-| ---------------- | -------------------------------------------------------------- | --------------------------------------- |
-| 专家圆桌决策     | `/stock sh600989 debate`                                       | 想看 8 位专家辩论 + 最终方向 + 仓位建议 |
-| 单组辩论         | `/stock sh600989 debate 长线` 或 `/stock sh600989 debate 短线` | 只想听某一阵营的观点                    |
-| 美股参考（盘中） | `/market full` 自动拉美股收盘                                  | 隔夜美股大跌时评估 A 股开盘情绪         |
-| 全市场股票池     | `/screener init full-market` 一次性拉 ~5000 只 A 股            | 想做全市场扫描，不被默认 20 只限死      |
-| 校准报告查看     | `python3 scripts/calibration.py report`                        | 看历史专家准确率 + 当前校准因子         |
+| 能力             | 命令                                                           | 适用场景                                 |
+| ---------------- | -------------------------------------------------------------- | ---------------------------------------- |
+| 专家圆桌决策     | `/stock sh600989 debate`                                       | 想看 15 位专家辩论 + 最终方向 + 仓位建议 |
+| 单组辩论         | `/stock sh600989 debate 长线` 或 `/stock sh600989 debate 短线` | 只想听某一阵营的观点                     |
+| 美股参考（盘中） | `/market full` 自动拉美股收盘                                  | 隔夜美股大跌时评估 A 股开盘情绪          |
+| 全市场股票池     | `/screener init full-market` 一次性拉 ~5000 只 A 股            | 想做全市场扫描，不被默认 20 只限死       |
+| 校准报告查看     | `python3 scripts/calibration.py report`                        | 看历史专家准确率 + 当前校准因子          |
 
 ## 常见问题
 
