@@ -46,26 +46,32 @@ NOT_HANDLED = _NotHandled()
 class BaseFetcher(ABC):
     """数据源抽象基类。"""
 
+    _cb_config_cache: dict[str, int] | None = None  # 类级缓存，避免每次实例化读 YAML
+
     def __init__(self, name: str, priority: int = 0):
         self.name = name
         self.provider = name.split("_")[0]
         self.priority = priority
+        self.enabled = True  # 可通过 data_source.yaml 的 enabled 字段覆盖
         self.circuit_breaker = get_circuit_breaker(name, **self._load_cb_config())
 
-    @staticmethod
-    def _load_cb_config() -> dict[str, int]:
-        """从 data_source.yaml 加载熔断器配置。"""
+    @classmethod
+    def _load_cb_config(cls) -> dict[str, int]:
+        """从 data_source.yaml 加载熔断器配置（类级缓存）。"""
+        if cls._cb_config_cache is not None:
+            return cls._cb_config_cache
         try:
             from config.loader import ConfigLoader
 
             cb = ConfigLoader.load("data_source.yaml").get("circuit_breaker", {})
-            return {
+            cls._cb_config_cache = {
                 "failure_threshold": cb.get("failure_threshold", 5),
                 "recovery_timeout": cb.get("recovery_timeout", 60),
                 "half_open_max": cb.get("half_open_max", 3),
             }
         except Exception:
-            return {}
+            cls._cb_config_cache = {}
+        return cls._cb_config_cache
 
     @abstractmethod
     def fetch(
@@ -82,7 +88,7 @@ class BaseFetcher(ABC):
         pass
 
     def is_available(self) -> bool:
-        return self.circuit_breaker.can_execute()
+        return self.enabled and self.circuit_breaker.can_execute()
 
     def on_success(self) -> None:
         self.circuit_breaker.record_success()
@@ -93,12 +99,6 @@ class BaseFetcher(ABC):
 
 class DataFetcherManager:
     """数据源策略管理器：按优先级尝试，自动故障切换。"""
-
-    _DOMAIN_SECTION_MAP = {
-        "quote": "quote_sources",
-        "kline": "kline_sources",
-        "finance": "finance_sources",
-    }
 
     def __init__(
         self,
@@ -123,6 +123,8 @@ class DataFetcherManager:
             cfg = source_config.get(fetcher.provider)
             if cfg and isinstance(cfg, dict):
                 fetcher.priority = cfg.get("priority", fetcher.priority)
+                if "enabled" in cfg:
+                    fetcher.enabled = bool(cfg["enabled"])
 
     def fetch(
         self, code: str, **kwargs: object

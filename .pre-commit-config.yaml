@@ -9,14 +9,14 @@ repos:
     hooks:
       - id: black
         args: [--fast, --target-version=py311]
-        files: ^scripts/.*\.py$
+        files: ^(scripts|experts|tests)/.*\.py$
 
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.1
     hooks:
       - id: flake8
         args: [--config=.flake8]
-        files: ^scripts/.*\.py$
+        files: ^(scripts|experts|tests)/.*\.py$
 
   - repo: local
     hooks:

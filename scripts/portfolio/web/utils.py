@@ -11,6 +11,7 @@ import secrets
 import stat
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Optional
 
@@ -139,6 +140,10 @@ def _get_notifier():
     return None
 
 
+# 通知线程池（最多 2 个并发通知线程，防止高频操作下线程泄漏）
+_notify_executor = ThreadPoolExecutor(max_workers=2)
+
+
 def _notify_async(title: str, body: str) -> None:
     """后台线程发送通知，不阻塞响应。"""
     if not _notify_enabled:
@@ -153,7 +158,7 @@ def _notify_async(title: str, body: str) -> None:
         except Exception as e:
             logging.getLogger(__name__).debug("异步通知发送失败: %s", e)
 
-    threading.Thread(target=_send, daemon=True).start()
+    _notify_executor.submit(_send)
 
 
 def _format_notify(action: str, result: dict, body: dict) -> tuple:

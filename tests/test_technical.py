@@ -9,39 +9,41 @@ import pytest
 from technical import (
     sma,
     ema,
-    _ema_series,
     stddev,
-    _find_swing_points,
     ma_system,
     macd_full,
-    _detect_macd_divergence,
     kdj_full,
     bollinger,
     volume_analysis,
-    _obv_series,
-    _detect_obv_divergence,
     detect_candle_patterns,
+    rsi_features,
+    composite_score,
+    detect_market_environment,
+)
+from technical.core import _ema_series, _find_swing_points
+from technical.macd import _detect_macd_divergence
+from technical.volume import _obv_series, _detect_obv_divergence
+from technical.candlestick import (
     _body_shadow,
     _is_bullish,
     _candle_single,
     _candle_double,
     _candle_triple,
     _candle_ashare,
-    rsi_features,
-    composite_score,
-    _generate_signals,
-    _market_weight_adjustments,
-    detect_market_environment,
+)
+from technical.scoring import _market_weight_adjustments
+from technical.signals import _generate_signals
+from technical import (
     support_resistance,
     box_detection,
     breakout_check,
     wave_state,
     limit_analysis,
-    _count_limit_streak,
-    _parse_records,
-    _MA_PERIODS,
-    _STOCK_TYPE_WEIGHTS_DEFAULT,
 )
+from technical.astock import _count_limit_streak
+from technical.core import _parse_records
+from technical.moving_average import _MA_PERIODS
+from technical.scoring import _STOCK_TYPE_WEIGHTS_DEFAULT
 
 # ═══════════════════════════════════════════════════════════════
 # 1. 数学工具函数

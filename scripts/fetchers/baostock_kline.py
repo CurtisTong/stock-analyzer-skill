@@ -42,8 +42,8 @@ def _logout():
     if _bs_logged_in:
         try:
             bs.logout()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("baostock logout 失败: %s", e)
         _bs_logged_in = False
 
 

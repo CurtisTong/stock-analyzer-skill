@@ -2,9 +2,11 @@
 
 验证 _normalize_volume 和 _dict_to_kline_bar 按数据源正确归一化 volume 为"股"。
 """
+
 import pytest
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from data import _normalize_volume, _dict_to_kline_bar
@@ -70,9 +72,14 @@ class TestDictToKlineBarNormalization:
         bar = _dict_to_kline_bar(self._make_dict(200, "sina"))
         assert bar.volume == 200
 
+    def test_akshare_volume_normalized(self):
+        """akshare 源 dict → KlineBar.volume ×100（手→股）。"""
+        bar = _dict_to_kline_bar(self._make_dict(1000, "akshare"))
+        assert bar.volume == 100000
+
     def test_unknown_source_volume_unchanged(self):
         """未知 source → volume 透传。"""
-        bar = _dict_to_kline_bar(self._make_dict(1000, "akshare"))
+        bar = _dict_to_kline_bar(self._make_dict(1000, "unknown_source"))
         assert bar.volume == 1000
 
     def test_missing_source_volume_unchanged(self):

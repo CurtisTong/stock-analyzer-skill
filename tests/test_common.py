@@ -412,9 +412,3 @@ class TestDataFetcherManager:
         mgr = DataFetcherManager([f1, f2])
         result = mgr.fetch("sh600519")
         assert result == {"ok": True}
-
-    def test_domain_section_map(self):
-        """_DOMAIN_SECTION_MAP 包含三个已知数据域。"""
-        assert DataFetcherManager._DOMAIN_SECTION_MAP["quote"] == "quote_sources"
-        assert DataFetcherManager._DOMAIN_SECTION_MAP["kline"] == "kline_sources"
-        assert DataFetcherManager._DOMAIN_SECTION_MAP["finance"] == "finance_sources"

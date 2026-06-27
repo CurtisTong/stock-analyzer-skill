@@ -178,8 +178,9 @@ class StockAnalysisService:
         }
 
     def _calculate_composite_score(self, result: dict, quote_dict: dict = None) -> dict:
-        """计算综合评分。"""
+        """计算综合评分（注入市场环境状态）。"""
         from technical import composite_score
+        from technical.scoring import detect_market_environment
         from common import to_float
 
         tech = result.get("technical", {})
@@ -207,7 +208,10 @@ class StockAnalysisService:
             pb = to_float(quote_dict.get("pb"))
             industry = profile.get("industry", "默认")
             pe_pct = pe_percentile(pe, industry)
-            growth = to_float(fin.get("net_profit_yoy", 0))
+            # PEG 统一：优先用 3 年 CAGR，回退到单期同比增速
+            growth = to_float(fin.get("net_profit_cagr_3y", 0))
+            if growth <= 0:
+                growth = to_float(fin.get("net_profit_yoy", 0))
             peg = (pe / growth) if (pe > 0 and growth > 0) else 0
             features["valuation"] = {
                 "pe": pe,
@@ -216,8 +220,23 @@ class StockAnalysisService:
                 "peg": round(peg, 2),
             }
 
+        # 检测市场环境（获取大盘指数行情）
+        market_state = "震荡"
+        try:
+            index_quote = get_quote("sh000001")
+            if index_quote:
+                env = detect_market_environment(index_quote.to_dict())
+                market_state = env.get("state", "震荡")
+                logger.debug(
+                    "市场环境: %s (置信度: %s)", market_state, env.get("confidence")
+                )
+        except Exception as e:
+            logger.debug("获取大盘行情失败，使用默认市场环境: %s", e)
+
         stock_type = profile.get("type", "普通股")
-        score_result = composite_score(features, stock_type=stock_type)
+        score_result = composite_score(
+            features, stock_type=stock_type, market_state=market_state
+        )
 
         return score_result
 

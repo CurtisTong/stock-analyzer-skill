@@ -41,6 +41,7 @@ def _get_session():
         if _session is not None:
             return _session
         _session = _requests.Session()
+        _session.max_redirects = 5  # 限制重定向次数，防止循环攻击
         retry = Retry(
             total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]
         )
@@ -63,6 +64,7 @@ USER_AGENTS = [
 ]
 
 MAX_POOL_SIZE = 32
+MAX_RESPONSE_SIZE = 50 * 1024 * 1024  # 50MB，防止 OOM
 
 # ---------- 连接池（keep-alive 复用） ----------
 
@@ -150,7 +152,21 @@ def _do_request(
             logger.debug("读取 HTTP %d 响应体失败: %s", status, e)
         raise http.client.HTTPException(f"HTTP {status} for {url}")
 
-    return resp.read()
+    # 分块读取响应体，限制最大大小防止 OOM
+    chunks = []
+    total_size = 0
+    while True:
+        chunk = resp.read(8192)
+        if not chunk:
+            break
+        total_size += len(chunk)
+        if total_size > MAX_RESPONSE_SIZE:
+            logger.warning(
+                "响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url
+            )
+            break
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 def _invalidate_connection(url: str, conn: http.client.HTTPConnection) -> None:

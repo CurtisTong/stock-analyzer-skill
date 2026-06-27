@@ -35,7 +35,6 @@ from data.helpers import (
     fetch_finance_first,
     prefetch_finance_all as _prefetch_finance_all_helper,
     prefetch_kline_all as _prefetch_kline_all_helper,
-    volume_price_features as _volume_price_features,
 )
 from classifier import infer_industry
 from strategies import (
@@ -275,8 +274,18 @@ def latest_finance(code):
 
 
 def volume_price_features(closes, volumes):
-    """量价关系分析（委托给 data.helpers）。"""
-    return _volume_price_features(closes, volumes)
+    """量价关系分析。"""
+    from technical.volume import volume_analysis
+
+    if len(closes) < 6 or len(volumes) < 6:
+        return {"signal": 0, "desc": "数据不足"}
+    result = volume_analysis(closes, volumes)
+    if result is None:
+        return {"signal": 0, "desc": "数据不足"}
+    return {
+        "signal": result.get("volume_price_signal", 0),
+        "desc": result.get("volume_price", "量价中性"),
+    }
 
 
 def _apply_factor_normalization(rows, strategy, regime=None):

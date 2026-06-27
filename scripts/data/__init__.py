@@ -64,7 +64,9 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     key = f"quote_{code}"
 
     if use_cache:
-        cached = cache.get_json(key, cfg.quote_cache_ttl)
+        from .config import get_quote_cache_ttl
+
+        cached = cache.get_json(key, get_quote_cache_ttl())
         if cached:
             return _dict_to_quote(cached)
 
@@ -276,9 +278,11 @@ _FINANCE_FIELD_MAP = {
         "每股现金流量净额",
         "ocf_per_share",
     ],
-    # ESG/分红/治理字段：当前 fetchers 未填充，保留映射占位待真实接口接入
-    # 注意：goodwill/pledge_ratio/goodwill_ratio 在 FinanceRecord 中定义但无数据源，
-    # screening_service._hard_filter 读取时永远为 0，需接入资产负债表/质押 API 后才能生效
+    # 商誉/质押字段：东财资产负债表和质押 API 可提供
+    "goodwill": ["GOODWILL", "商誉", "商誉(元)", "goodwill"],
+    "pledge_ratio": ["PLEDGE_RATIO", "质押比例", "股权质押比例", "pledge_ratio"],
+    "goodwill_ratio": ["GOODWILL_RATIO", "商誉占比", "商誉/总资产", "goodwill_ratio"],
+    # ESG/分红/治理字段
     "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
     "consecutive_dividend_years": [
         "CONSECUTIVE_DIVIDEND_YEARS",

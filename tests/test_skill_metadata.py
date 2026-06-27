@@ -11,6 +11,7 @@ SKILL.md 元数据校验：12 个 skill 的 frontmatter 与结构一致性。
   7. 不含过期路径表述（"../../.."）
   8. frontmatter 解析合法（YAML）
 """
+
 import re
 from pathlib import Path
 import pytest
@@ -23,9 +24,18 @@ SKILLS_DIR = PROJECT_ROOT / "skills"
 # 2026-06-17 删除 4 个 deprecated skill（technical / stock-init / financial-analyst / investment-researcher），
 # 现 9 核心 + 3 子模块 + 1 learn + 1 共享
 EXPECTED_SKILLS = {
-    "stock", "market", "sector", "portfolio", "portfolio-web", "portfolio-natural",
-    "screener", "stock-technical", "monitor", "backtest",
-    "stock-help", "learn",
+    "stock",
+    "market",
+    "sector",
+    "portfolio",
+    "portfolio-web",
+    "portfolio-natural",
+    "screener",
+    "stock-technical",
+    "monitor",
+    "backtest",
+    "stock-help",
+    "learn",
     "research",
 }
 
@@ -39,6 +49,7 @@ ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
 # ═══════════════════════════════════════════════════════════════
+
 
 def parse_frontmatter(text: str) -> dict:
     """简易 YAML frontmatter 解析。"""
@@ -85,6 +96,7 @@ def get_skill_files():
 # 测试用例
 # ═══════════════════════════════════════════════════════════════
 
+
 def test_all_expected_skills_present():
     """12 个 skill 都存在。"""
     actual = {p.parent.name for p in get_skill_files()}
@@ -109,9 +121,9 @@ def test_name_matches_directory(skill_path):
     """frontmatter name 字段跟目录名一致。"""
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
-    assert fm["name"] == skill_path.parent.name, (
-        f"目录 {skill_path.parent.name} vs frontmatter name={fm.get('name')}"
-    )
+    assert (
+        fm["name"] == skill_path.parent.name
+    ), f"目录 {skill_path.parent.name} vs frontmatter name={fm.get('name')}"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -120,9 +132,9 @@ def test_description_length(skill_path):
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
     desc = fm.get("description", "")
-    assert len(desc) <= 250, (
-        f"{skill_path.parent.name}: description {len(desc)} 字符（>250），请裁剪"
-    )
+    assert (
+        len(desc) <= 250
+    ), f"{skill_path.parent.name}: description {len(desc)} 字符（>250），请裁剪"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -138,9 +150,9 @@ def test_description_no_command_trigger_pattern(skill_path):
     ]
     for pat in bad_patterns:
         matches = re.findall(pat, desc)
-        assert not matches, (
-            f"{skill_path.parent.name}: description 含命令触发句 {matches}，应改为能力/场景描述"
-        )
+        assert (
+            not matches
+        ), f"{skill_path.parent.name}: description 含命令触发句 {matches}，应改为能力/场景描述"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -150,9 +162,9 @@ def test_model_field_valid(skill_path):
     fm = parse_frontmatter(text)
     model = fm.get("model")
     if model is not None:
-        assert model in ALLOWED_MODELS, (
-            f"{skill_path.parent.name}: model={model} 不在 {ALLOWED_MODELS}"
-        )
+        assert (
+            model in ALLOWED_MODELS
+        ), f"{skill_path.parent.name}: model={model} 不在 {ALLOWED_MODELS}"
 
 
 VERSION_OVERRIDES = {
@@ -163,14 +175,14 @@ DEFAULT_VERSION = "1.14.1"
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
 def test_version_consistency(skill_path):
-    """version 字段与 package.json 一致（默认 1.3.1，个别 skill 可覆盖）。"""
+    """version 字段与 package.json 一致（默认同 package.json，个别 skill 可通过 VERSION_OVERRIDES 覆盖）。"""
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
     expected = VERSION_OVERRIDES.get(skill_path.parent.name, DEFAULT_VERSION)
     if "version" in fm:
-        assert fm["version"] == expected, (
-            f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
-        )
+        assert (
+            fm["version"] == expected
+        ), f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -182,18 +194,18 @@ def test_required_sections(skill_path):
     # 允许个别章节改名（如 help）但至少应存在 "## Guardrails" 或说明替代品
     if "## Guardrails" in missing:
         # help 允许用"## 注意事项"代替
-        assert "## 注意事项" in text or "## 进阶场景" in text, (
-            f"{skill_path.parent.name}: 缺 Guardrails 章节"
-        )
+        assert (
+            "## 注意事项" in text or "## 进阶场景" in text
+        ), f"{skill_path.parent.name}: 缺 Guardrails 章节"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
 def test_no_stale_path_hint(skill_path):
     """不含过期路径表述 "当前 skill 目录到包根目录为 ../../.."。"""
     text = skill_path.read_text(encoding="utf-8")
-    assert "../../.." not in text, (
-        f"{skill_path.parent.name}: 仍含过期路径提示 '../../..'，Claude Code 工作目录即为项目根"
-    )
+    assert (
+        "../../.." not in text
+    ), f"{skill_path.parent.name}: 仍含过期路径提示 '../../..'，Claude Code 工作目录即为项目根"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -207,12 +219,12 @@ def test_no_absolute_paths_in_allowed_tools(skill_path):
         tools = [tools]
     for tool in tools:
         # 匹配 //xxx/... 或 /xxx/... 形式的绝对路径
-        assert "/Users/" not in tool, (
-            f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
-        )
-        assert not re.search(r"^/\w+/", tool), (
-            f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
-        )
+        assert (
+            "/Users/" not in tool
+        ), f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
+        assert not re.search(
+            r"^/\w+/", tool
+        ), f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
 
 
 def test_shared_references_exist():

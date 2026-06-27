@@ -7,7 +7,10 @@
 - 仅在 /market 和 /screener 输出顶部加标签
 """
 
+import logging
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 from typing import Optional
 
 from config.loader import safe_get
@@ -94,8 +97,9 @@ class MacroSafetyGate:
             tlt_ticker = yf.Ticker("TLT")
             tlt_info = tlt_ticker.fast_info
             self._tlt_cache = getattr(tlt_info, "last_price", None)
-        except Exception:
+        except Exception as e:
             # 数据不可用时降级为 None（GREEN）
+            logger.debug("yfinance 获取 VIX/TLT 失败: %s", e)
             self._vix_cache = None
             self._tlt_cache = None
         finally:

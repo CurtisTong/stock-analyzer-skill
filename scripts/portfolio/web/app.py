@@ -15,6 +15,7 @@
 
 import argparse
 import hmac
+import html
 import json
 import sys
 import threading
@@ -271,16 +272,16 @@ class Handler(BaseHTTPRequestHandler):
         pairs = _collect_code_name_map()
         datalist = "\n".join(
             (
-                f'<option value="{c}">{c} — {n}</option>'
+                f'<option value="{html.escape(c)}">{html.escape(c)} — {html.escape(n)}</option>'
                 if n
-                else f'<option value="{c}"></option>'
+                else f'<option value="{html.escape(c)}"></option>'
             )
             for c, n in pairs
         )
-        html = INDEX_HTML_TEMPLATE.replace("__DATALIST__", datalist).replace(
+        page = INDEX_HTML_TEMPLATE.replace("__DATALIST__", datalist).replace(
             "__VERSION__", VERSION
         )
-        body = html.encode("utf-8")
+        body = page.encode("utf-8")
         self._write(HTTPStatus.OK, body, "text/html; charset=utf-8")
 
     def _serve_list(self):

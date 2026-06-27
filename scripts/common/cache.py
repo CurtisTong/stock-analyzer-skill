@@ -26,7 +26,7 @@ _MAX_CACHE_MB = 500  # 缓存上限
 
 
 def _ensure_dir() -> None:
-    CACHE_DIR.mkdir(exist_ok=True)
+    CACHE_DIR.mkdir(exist_ok=True, mode=0o700)
 
 
 def _validate_key(key: str) -> None:

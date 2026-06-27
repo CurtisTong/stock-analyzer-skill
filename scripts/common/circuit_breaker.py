@@ -34,7 +34,7 @@ class CircuitBreaker:
         self.failure_count = 0
         self.last_failure_time: float = 0.0
         self.half_open_success = 0
-        self._half_open_token = False
+        self._half_open_attempts = 0
 
     def can_execute(self) -> bool:
         with self._lock:
@@ -44,12 +44,12 @@ class CircuitBreaker:
                 if time.time() - self.last_failure_time >= self.recovery_timeout:
                     self.state = CircuitState.HALF_OPEN
                     self.half_open_success = 0
-                    self._half_open_token = False
+                    self._half_open_attempts = 1  # 当前请求计入首次试探
                     return True
                 return False
             if self.state == CircuitState.HALF_OPEN:
-                if self._half_open_token:
-                    self._half_open_token = False
+                if self._half_open_attempts < self.half_open_max:
+                    self._half_open_attempts += 1
                     return True
                 return False
             return False
@@ -57,9 +57,10 @@ class CircuitBreaker:
     def record_success(self) -> None:
         with self._lock:
             if self.state == CircuitState.HALF_OPEN:
+                # 半开期任一试探成功即恢复（标准熔断器模式）
                 self.state = CircuitState.CLOSED
                 self.failure_count = 0
-                self._half_open_token = False
+                self._half_open_attempts = 0
             elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
 
@@ -67,9 +68,9 @@ class CircuitBreaker:
         with self._lock:
             self.failure_count += 1
             self.last_failure_time = time.time()
-            self._half_open_token = False
             if self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
+                self._half_open_attempts = 0
             elif self.failure_count >= self.failure_threshold:
                 self.state = CircuitState.OPEN
 
@@ -78,7 +79,7 @@ class CircuitBreaker:
             self.state = CircuitState.CLOSED
             self.failure_count = 0
             self.last_failure_time = 0
-            self._half_open_token = False
+            self._half_open_attempts = 0
 
 
 _circuit_breakers: dict[str, CircuitBreaker] = {}

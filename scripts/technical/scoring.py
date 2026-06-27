@@ -190,7 +190,7 @@ def _score_kdj(kdj: dict, type_w: dict, adj: dict, vol_signal: int = 0) -> float
 
 
 def _score_boll(boll: dict, type_w: dict) -> float:
-    """布林带评分（无独立上限，纳入总分）。"""
+    """布林带评分（上限 15）。"""
     pos = boll.get("position", 0.5)
     bw = boll.get("bandwidth_desc", "")
     boll_base = 7
@@ -200,7 +200,7 @@ def _score_boll(boll: dict, type_w: dict) -> float:
         boll_base = 7
     elif pos > 0.7:
         boll_base = 4
-    return boll_base * type_w["boll"]
+    return clamp(boll_base * type_w["boll"], 0, 15)
 
 
 def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
@@ -215,19 +215,19 @@ def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
     trend_penalty = 0.6 if vol_signal == -1 else 1.0
 
     rsi_base = 7
-    if 30 <= rsi <= 40:
-        rsi_base = 10 * trend_penalty  # 下跌趋势中超卖区降权
+    if 20 <= rsi < 30:
+        rsi_base = 10 * trend_penalty  # 深度超卖，反弹概率最高
+    elif 30 <= rsi <= 40:
+        rsi_base = 8 * trend_penalty  # 超卖区，反弹机会较好
     elif 40 < rsi <= 60:
         rsi_base = 7
-    elif 20 <= rsi < 30:
-        rsi_base = 8 * trend_penalty  # 下跌趋势中超卖降权
     elif 60 < rsi <= 70:
         rsi_base = 5
     elif rsi > 70:
         rsi_base = 3
     else:
-        rsi_base = 5 * trend_penalty  # 极度超卖也降权
-    return rsi_base * type_w["rsi"]
+        rsi_base = 5 * trend_penalty  # 极度超卖（<20）也降权，避免抄底陷阱
+    return clamp(rsi_base * type_w["rsi"], 0, 15)
 
 
 def _score_volume(vol: dict, type_w: dict) -> float:
@@ -384,10 +384,13 @@ def composite_score(
 ):
     """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。
 
+    采用加权平均法：各子评分先归一化到 [0, 100]，再按类型权重加权平均，
+    确保总分严格在 0-100 范围内，无需 clamp 截断。
+
     Args:
         features: 技术指标特征
         stock_type: 股票类型
-        market_state: 市场状态
+        market_state: 市场状态（牛市/熊市/震荡/冰点/亢奋）
         market_breadth: 市场宽度数据（可选）
     """
     type_w = _get_stock_type_weights(stock_type)
@@ -406,19 +409,36 @@ def composite_score(
     # 获取量价信号，用于下跌趋势降权
     vol_signal = vol.get("volume_price_signal", 0)
 
-    score = 0
-    score += _score_ma(ma.get("alignment", ""), type_w, adj, alignment_scores)
-    score += _score_macd(macd, type_w, adj)
-    score += _score_kdj(kdj, type_w, adj, vol_signal)  # 传入量价信号
-    score += _score_boll(boll, type_w)
-    score += _score_rsi(rsi_data, type_w, vol_signal)  # 传入量价信号
-    score += _score_volume(vol, type_w)
-    score += _score_patterns(patterns, type_w, adj)
-    score += _score_chan(features.get("chan_theory") or {}, adj)
-    score += _score_local(features.get("local_patterns") or {})
-    score += _score_chip(features.get("chip") or {}, type_w)
+    # 各子评分的理论上限（用于归一化）
+    _SCORE_MAX = {
+        "ma": 30,
+        "macd": 20,
+        "kdj": 15,
+        "boll": 15,
+        "rsi": 15,
+        "volume": 20,
+        "pattern": 25,
+        "chan": 15,
+        "local": 10,
+        "chip": 10,  # chip 允许负分（下限 -5），归一化时特殊处理
+    }
+
+    # 计算各子评分原始值
+    raw = {
+        "ma": _score_ma(ma.get("alignment", ""), type_w, adj, alignment_scores),
+        "macd": _score_macd(macd, type_w, adj),
+        "kdj": _score_kdj(kdj, type_w, adj, vol_signal),
+        "boll": _score_boll(boll, type_w),
+        "rsi": _score_rsi(rsi_data, type_w, vol_signal),
+        "volume": _score_volume(vol, type_w),
+        "pattern": _score_patterns(patterns, type_w, adj),
+        "chan": _score_chan(features.get("chan_theory") or {}, adj),
+        "local": _score_local(features.get("local_patterns") or {}),
+        "chip": _score_chip(features.get("chip") or {}, type_w),
+    }
 
     # 市场宽度惩罚（徐翔、赵老哥、养家建议）
+    breadth_penalty = 0
     if market_breadth:
         limit_up = market_breadth.get("limit_up_count", 0)
         limit_down = market_breadth.get("limit_down_count", 0)
@@ -426,17 +446,37 @@ def composite_score(
 
         # 退潮期惩罚：涨停家数<20家
         if limit_up < 20 and limit_up > 0:
-            score -= 5
+            breadth_penalty += 5
 
         # 冰点期惩罚：跌停>50家
         if limit_down > 50:
-            score -= 10
+            breadth_penalty += 10
 
         # 接力生态恶化惩罚：连板高度<2板
         if continuous_height <= 2 and continuous_height > 0:
-            score -= 3
+            breadth_penalty += 3
 
-    score = clamp(score, 0, 100)
+    # 归一化各子评分到 [0, 100]，chip 允许负分特殊处理
+    normalized = {}
+    for key, val in raw.items():
+        max_val = _SCORE_MAX[key]
+        if key == "chip":
+            # chip 范围 [-5, 10]，归一化到 [0, 100]
+            normalized[key] = clamp((val + 5) / 15 * 100, 0, 100)
+        else:
+            normalized[key] = clamp(val / max_val * 100, 0, 100) if max_val > 0 else 0
+
+    # 加权平均：score = sum(normalized_i × weight_i) / sum(weight_i)
+    total_weight = sum(type_w.values())
+    if total_weight > 0:
+        score = (
+            sum(normalized[k] * type_w.get(k, 1.0) for k in normalized) / total_weight
+        )
+    else:
+        score = sum(normalized.values()) / len(normalized)
+
+    # 应用市场宽度惩罚（按比例扣分，保持 0-100 范围）
+    score = clamp(score - breadth_penalty, 0, 100)
 
     if score >= 80:
         grade = "强烈看多"

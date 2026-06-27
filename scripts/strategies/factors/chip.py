@@ -5,7 +5,10 @@
 Phase 1 仅用缓存数据（零网络开销），Phase 2 融合实时融资融券趋势。
 """
 
+import logging
 from common import clamp
+
+logger = logging.getLogger(__name__)
 
 
 def chip_score_static(code: str) -> float:
@@ -95,7 +98,8 @@ def _get_cached_holders(code: str) -> list:
         from data.chip import get_holders
 
         return get_holders(code, periods=4)
-    except Exception:
+    except Exception as e:
+        logger.debug("get_holders 失败 %s: %s", code, e)
         return []
 
 
@@ -105,7 +109,8 @@ def _get_margin_data(code: str, days: int = 5) -> list:
         from data.chip import get_margin
 
         return get_margin(code, days=days)
-    except Exception:
+    except Exception as e:
+        logger.debug("get_margin 失败 %s: %s", code, e)
         return []
 
 
@@ -115,7 +120,8 @@ def _get_top_holders(code: str) -> list:
         from data.chip import get_top_holders
 
         return get_top_holders(code)
-    except Exception:
+    except Exception as e:
+        logger.debug("get_top_holders 失败 %s: %s", code, e)
         return []
 
 
@@ -186,7 +192,8 @@ def _score_northbound_flow(code: str) -> float:
         from data.flow import get_northbound_flow
 
         flow = get_northbound_flow(code, days=20)
-    except Exception:
+    except Exception as e:
+        logger.debug("get_northbound_flow 失败 %s: %s", code, e)
         return 0
 
     if not flow or len(flow) < 3:

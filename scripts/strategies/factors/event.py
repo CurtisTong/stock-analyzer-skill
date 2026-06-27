@@ -4,8 +4,11 @@
 事件因子作为风险修正维度，解禁前降权、分红前加分、违规降权。
 """
 
+import logging
 from common import clamp
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 
 def event_score(code: str) -> float:
@@ -28,7 +31,8 @@ def event_score(code: str) -> float:
         from events import fetch_events
 
         events = fetch_events(code, days=60)
-    except Exception:
+    except Exception as e:
+        logger.debug("fetch_events 失败 %s: %s", code, e)
         return 50  # 无数据给中性分
 
     score = 50.0  # 基准分

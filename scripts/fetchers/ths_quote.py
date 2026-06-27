@@ -53,7 +53,7 @@ def _parse_quote(text: str, code: str) -> dict | None:
             "open": to_float(last_item[1]) if len(last_item) > 1 else 0,
             "high": to_float(last_item[2]) if len(last_item) > 2 else 0,
             "low": to_float(last_item[3]) if len(last_item) > 3 else 0,
-            "pre_close": 0,
+            "prev_close": 0,
             "volume": to_float(last_item[5]) if len(last_item) > 5 else 0,
             "amount": 0,
             "source": "ths",

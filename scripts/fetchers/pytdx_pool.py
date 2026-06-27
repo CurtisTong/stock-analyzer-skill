@@ -1,4 +1,5 @@
 """pytdx 进程级连接池，复用 TdxHq_API 连接。"""
+
 import logging
 import threading
 import time
@@ -7,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from pytdx.hq import TdxHq_API
+
     HAS_PYTDX = True
 except ImportError:
     HAS_PYTDX = False
@@ -21,8 +23,9 @@ class TdxPool:
         idle_timeout: 空闲连接超时秒数，超时连接会被丢弃。
     """
 
-    def __init__(self, servers: list[tuple[str, int]], size: int = 4,
-                 idle_timeout: int = 30):
+    def __init__(
+        self, servers: list[tuple[str, int]], size: int = 4, idle_timeout: int = 30
+    ):
         self.servers = servers
         self.size = size
         self.idle_timeout = idle_timeout
@@ -46,7 +49,9 @@ class TdxPool:
             while self._pool:
                 entry = self._pool.pop(0)
                 if now - entry["idle_since"] <= self.idle_timeout:
-                    logger.debug("pytdx_pool 复用连接 %s:%s", entry["host"], entry["port"])
+                    logger.debug(
+                        "pytdx_pool 复用连接 %s:%s", entry["host"], entry["port"]
+                    )
                     return entry["api"], entry["host"], entry["port"]
                 # 超时，关闭
                 self._close(entry["api"])
@@ -59,13 +64,17 @@ class TdxPool:
         """归还连接到池。超过池上限则直接关闭。"""
         with self._lock:
             if len(self._pool) < self.size:
-                self._pool.append({
-                    "api": api,
-                    "host": host,
-                    "port": port,
-                    "idle_since": time.time(),
-                })
-                logger.debug("pytdx_pool 归还连接 %s:%s，池大小 %d", host, port, len(self._pool))
+                self._pool.append(
+                    {
+                        "api": api,
+                        "host": host,
+                        "port": port,
+                        "idle_since": time.time(),
+                    }
+                )
+                logger.debug(
+                    "pytdx_pool 归还连接 %s:%s，池大小 %d", host, port, len(self._pool)
+                )
             else:
                 self._close(api)
 
@@ -96,8 +105,8 @@ class TdxPool:
         """安全关闭连接。"""
         try:
             api.disconnect()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("pytdx 断开连接失败: %s", e)
 
 
 # 模块级默认池实例（惰性初始化）

@@ -19,6 +19,7 @@
 
 import argparse
 import json
+import logging
 import math
 import sys
 from datetime import datetime
@@ -29,6 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from common import DATA_DIR, parallel_map
 from data import get_quote, get_kline
 from snapshots import list_snapshots, load_snapshot
+
+logger = logging.getLogger(__name__)
 
 HOT_RANK_DIR = Path(DATA_DIR) / "snapshots" / "hot_rank"
 
@@ -256,7 +259,8 @@ def _load_window_snapshots(n_days: int) -> dict:
             continue
         try:
             data = load_snapshot(Path(p))
-        except Exception:
+        except Exception as e:
+            logger.debug("load_snapshot 失败 %s: %s", p, e)
             continue
         for row in data.get("rows", []):
             code = row.get("code")

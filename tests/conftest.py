@@ -1,17 +1,29 @@
 """
 pytest 全局 fixtures：标准 K 线数据、行情数据、mock 网络请求。
 """
+
 import json
 import pytest
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
+# pyproject.toml 已配置 pythonpath = ["scripts"]，无需手动 insert
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 DATA_DIR = Path(__file__).parent / "data"
+
+
+@pytest.fixture(autouse=True)
+def _reload_config_loader():
+    """每个测试前重置 ConfigLoader 缓存，确保测试隔离。"""
+    try:
+        from config.loader import ConfigLoader
+
+        ConfigLoader.reload()
+    except Exception:
+        pass
+    yield
 
 
 def _today_str(offset_days: int = 0) -> str:
@@ -26,6 +38,7 @@ def _today_str(offset_days: int = 0) -> str:
 # Pytest 配置
 # ═══════════════════════════════════════════════════════════════
 
+
 def pytest_configure(config):
     """Pytest 配置。"""
     config.addinivalue_line("markers", "slow: 标记为慢速测试")
@@ -37,8 +50,7 @@ def pytest_configure(config):
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--run-network", action="store_true", default=False,
-        help="运行需要网络的测试"
+        "--run-network", action="store_true", default=False, help="运行需要网络的测试"
     )
 
 
@@ -54,6 +66,7 @@ def pytest_collection_modifyitems(config, items):
 # ═══════════════════════════════════════════════════════════════
 # 标准 K 线 fixtures
 # ═══════════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def kline_uptrend():
@@ -77,11 +90,46 @@ def kline_sideways():
 def kline_with_top_fenxing():
     """含标准顶分型的 K 线序列（5 根）。"""
     return [
-        {"day": _today_str(-30), "open": 10.0, "high": 10.5, "low": 9.8, "close": 10.3, "volume": 1000},
-        {"day": _today_str(-29), "open": 10.3, "high": 11.0, "low": 10.2, "close": 10.8, "volume": 1200},
-        {"day": _today_str(-28), "open": 10.8, "high": 11.5, "low": 10.6, "close": 11.2, "volume": 1500},
-        {"day": _today_str(-27), "open": 11.2, "high": 11.3, "low": 10.4, "close": 10.5, "volume": 1100},
-        {"day": _today_str(-26), "open": 10.5, "high": 10.7, "low": 10.0, "close": 10.1, "volume": 900},
+        {
+            "day": _today_str(-30),
+            "open": 10.0,
+            "high": 10.5,
+            "low": 9.8,
+            "close": 10.3,
+            "volume": 1000,
+        },
+        {
+            "day": _today_str(-29),
+            "open": 10.3,
+            "high": 11.0,
+            "low": 10.2,
+            "close": 10.8,
+            "volume": 1200,
+        },
+        {
+            "day": _today_str(-28),
+            "open": 10.8,
+            "high": 11.5,
+            "low": 10.6,
+            "close": 11.2,
+            "volume": 1500,
+        },
+        {
+            "day": _today_str(-27),
+            "open": 11.2,
+            "high": 11.3,
+            "low": 10.4,
+            "close": 10.5,
+            "volume": 1100,
+        },
+        {
+            "day": _today_str(-26),
+            "open": 10.5,
+            "high": 10.7,
+            "low": 10.0,
+            "close": 10.1,
+            "volume": 900,
+        },
     ]
 
 
@@ -89,11 +137,46 @@ def kline_with_top_fenxing():
 def kline_with_bottom_fenxing():
     """含标准底分型的 K 线序列（5 根）。"""
     return [
-        {"day": _today_str(-30), "open": 10.0, "high": 10.5, "low": 9.8, "close": 10.1, "volume": 1000},
-        {"day": _today_str(-29), "open": 10.1, "high": 10.2, "low": 9.3, "close": 9.5, "volume": 1200},
-        {"day": _today_str(-28), "open": 9.5, "high": 9.6, "low": 9.0, "close": 9.1, "volume": 1500},
-        {"day": _today_str(-27), "open": 9.1, "high": 10.0, "low": 9.2, "close": 9.9, "volume": 1100},
-        {"day": _today_str(-26), "open": 9.9, "high": 10.4, "low": 9.8, "close": 10.3, "volume": 900},
+        {
+            "day": _today_str(-30),
+            "open": 10.0,
+            "high": 10.5,
+            "low": 9.8,
+            "close": 10.1,
+            "volume": 1000,
+        },
+        {
+            "day": _today_str(-29),
+            "open": 10.1,
+            "high": 10.2,
+            "low": 9.3,
+            "close": 9.5,
+            "volume": 1200,
+        },
+        {
+            "day": _today_str(-28),
+            "open": 9.5,
+            "high": 9.6,
+            "low": 9.0,
+            "close": 9.1,
+            "volume": 1500,
+        },
+        {
+            "day": _today_str(-27),
+            "open": 9.1,
+            "high": 10.0,
+            "low": 9.2,
+            "close": 9.9,
+            "volume": 1100,
+        },
+        {
+            "day": _today_str(-26),
+            "open": 9.9,
+            "high": 10.4,
+            "low": 9.8,
+            "close": 10.3,
+            "volume": 900,
+        },
     ]
 
 
@@ -119,19 +202,23 @@ def kline_limit_up():
     records = _generate_trend("up", 10)
     # 涨停 K 线：涨幅 ~10%
     prev_close = records[-1]["close"]
-    records.append({
-        "day": _today_str(-1), "open": prev_close,
-        "high": round(prev_close * 1.1, 2),
-        "low": prev_close,
-        "close": round(prev_close * 1.1, 2),
-        "volume": 5000,
-    })
+    records.append(
+        {
+            "day": _today_str(-1),
+            "open": prev_close,
+            "high": round(prev_close * 1.1, 2),
+            "low": prev_close,
+            "close": round(prev_close * 1.1, 2),
+            "volume": 5000,
+        }
+    )
     return records
 
 
 # ═══════════════════════════════════════════════════════════════
 # 行情数据 fixtures
 # ═══════════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def sample_quote():
@@ -146,8 +233,8 @@ def sample_quote():
         "change_amt": "10.00",
         "high": "1810.00",
         "low": "1790.00",
-        "volume": "1234500",       # 股（腾讯原值 12345 手 × 100）
-        "amount": "22345670000",   # 元（腾讯原值 2234567 万 × 10000）
+        "volume": "1234500",  # 股（腾讯原值 12345 手 × 100）
+        "amount": "22345670000",  # 元（腾讯原值 2234567 万 × 10000）
         "turnover": "0.15",
         "pe": "25.6",
         "pb": "8.2",
@@ -209,12 +296,16 @@ def sample_finance_efinance():
 # Mock helpers
 # ═══════════════════════════════════════════════════════════════
 
+
 @pytest.fixture
 def mock_http_get(monkeypatch):
     """Mock common.http_get，避免真实网络请求。"""
+
     def _mock(url, timeout=10):
         return b""
+
     import common
+
     monkeypatch.setattr(common, "http_get", _mock)
     return _mock
 
@@ -223,7 +314,10 @@ def mock_http_get(monkeypatch):
 def mock_fetch_kline(monkeypatch, kline_uptrend):
     """Mock kline.fetch，返回标准上升趋势数据。"""
     import kline
-    monkeypatch.setattr(kline, "fetch", lambda code, scale="day", limit=250: kline_uptrend)
+
+    monkeypatch.setattr(
+        kline, "fetch", lambda code, scale="day", limit=250: kline_uptrend
+    )
     return kline_uptrend
 
 
@@ -231,13 +325,17 @@ def mock_fetch_kline(monkeypatch, kline_uptrend):
 def mock_fetch_batch(monkeypatch, sample_quote):
     """Mock quote.fetch_batch，返回标准行情。"""
     import quote
-    monkeypatch.setattr(quote, "fetch_batch", lambda codes: {c: sample_quote for c in codes})
+
+    monkeypatch.setattr(
+        quote, "fetch_batch", lambda codes: {c: sample_quote for c in codes}
+    )
     return sample_quote
 
 
 # ═══════════════════════════════════════════════════════════════
 # 内部工具
 # ═══════════════════════════════════════════════════════════════
+
 
 def _generate_trend(direction, n, base_price=10.0):
     """生成趋势 K 线序列。"""
@@ -254,14 +352,16 @@ def _generate_trend(direction, n, base_price=10.0):
         close_p = round(price + change, 2)
         high_p = round(max(open_p, close_p) + 0.2, 2)
         low_p = round(min(open_p, close_p) - 0.2, 2)
-        records.append({
-            "day": (start_date + timedelta(days=i)).strftime("%Y-%m-%d"),
-            "open": open_p,
-            "high": high_p,
-            "low": low_p,
-            "close": close_p,
-            "volume": 1000 + i * 50,
-        })
+        records.append(
+            {
+                "day": (start_date + timedelta(days=i)).strftime("%Y-%m-%d"),
+                "open": open_p,
+                "high": high_p,
+                "low": low_p,
+                "close": close_p,
+                "volume": 1000 + i * 50,
+            }
+        )
         price = close_p
     return records
 
@@ -269,17 +369,20 @@ def _generate_trend(direction, n, base_price=10.0):
 def _generate_sideways(n, center=10.0, amplitude=0.5):
     """生成横盘震荡 K 线序列。"""
     import math
+
     records = []
     start_date = datetime.now() - timedelta(days=n + 5)
     for i in range(n):
         offset = amplitude * math.sin(i * 0.5)
         price = center + offset
-        records.append({
-            "day": (start_date + timedelta(days=i)).strftime("%Y-%m-%d"),
-            "open": round(price - 0.1, 2),
-            "high": round(price + 0.3, 2),
-            "low": round(price - 0.3, 2),
-            "close": round(price + 0.1, 2),
-            "volume": 1000 + (i % 5) * 100,
-        })
+        records.append(
+            {
+                "day": (start_date + timedelta(days=i)).strftime("%Y-%m-%d"),
+                "open": round(price - 0.1, 2),
+                "high": round(price + 0.3, 2),
+                "low": round(price - 0.3, 2),
+                "close": round(price + 0.1, 2),
+                "volume": 1000 + (i % 5) * 100,
+            }
+        )
     return records

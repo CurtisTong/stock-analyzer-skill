@@ -698,7 +698,8 @@ def daily_briefing(as_json: bool = False) -> dict:
         try:
             q = get_quote(code)
             price = (q.price if hasattr(q, "price") else 0) if q else 0
-        except Exception:
+        except Exception as e:
+            logger.debug("获取行情失败 %s: %s", code, e)
             price = 0
         pos_cost = cost * qty
         pos_value = price * qty
@@ -733,8 +734,8 @@ def daily_briefing(as_json: bool = False) -> dict:
                 name = pos.get("name", code)
                 for a in alerts[:2]:  # 每只最多取 2 个最重要的
                     alert_lines.append(f"  ⚠️ {name}: {a.get('message', '')}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("compute_key_levels 失败 %s: %s", code, e)
 
     result["alerts"] = alert_lines
 

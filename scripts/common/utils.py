@@ -1,5 +1,6 @@
 """工具函数：代码转换、类型转换、并发执行。"""
 
+import atexit
 import concurrent.futures
 import os
 import statistics
@@ -72,11 +73,13 @@ def normalize_finance_code(code: str) -> str:
 
 
 def to_secid(code: str) -> str:
-    """转换为东方财富 secid 格式（如 1.600519, 0.000858）。"""
+    """转换为东方财富 secid 格式（如 1.600519, 0.000858, 0.430047）。"""
     c = code.strip().lower()
     if c.startswith("sh"):
         return f"1.{c[2:]}"
     if c.startswith("sz"):
+        return f"0.{c[2:]}"
+    if c.startswith("bj"):
         return f"0.{c[2:]}"
     plain = c.lstrip("shszbj")
     if plain.startswith(("60", "68", "51", "56", "58")):
@@ -171,12 +174,11 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 
 def normalize_volume(raw: int | str | None, source: str) -> int:
     """将不同数据源的成交量归一化为股。
-    腾讯: 手 → 股 (×100)
-    东财: 手 → 股 (×100)
+    腾讯/东财/efinance/akshare: 手 → 股 (×100)
     新浪: 股 (原值)
     """
     v = to_int(raw)
-    if source in ("tencent", "eastmoney"):
+    if source in ("tencent", "eastmoney", "efinance", "akshare"):
         return v * 100
     return v
 
@@ -184,8 +186,7 @@ def normalize_volume(raw: int | str | None, source: str) -> int:
 def normalize_amount(raw: object, source: str) -> float:
     """将不同数据源的成交额归一化为元。
     腾讯: 万元 → 元 (×10000)
-    东财: 元 (原值)
-    新浪: 元 (原值)
+    东财/efinance/akshare/新浪: 元 (原值)
     """
     v = to_float(raw)
     if source == "tencent":
@@ -226,6 +227,7 @@ def get_shared_executor() -> ThreadPoolExecutor:
             from data.config import get_config
 
             _shared_executor = ThreadPoolExecutor(max_workers=get_config().max_workers)
+            atexit.register(lambda: _shared_executor.shutdown(wait=False))
     return _shared_executor
 
 
