@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import logging
 import os
 import platform
 import tempfile
@@ -9,6 +10,8 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 # Windows 不支持 fcntl，用条件导入守护
 _USE_FCNTL = platform.system() != "Windows"
@@ -65,8 +68,8 @@ def put(key: str, data: bytes) -> None:
     if need_cleanup:
         try:
             cleanup_by_size(max_size_mb=_MAX_CACHE_MB)
-        except Exception:
-            pass  # 清理失败不影响写入
+        except Exception as e:
+            logger.debug("缓存清理失败: %s", e)  # 清理失败不影响写入
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
     fd, tmp_path = tempfile.mkstemp(dir=CACHE_DIR, suffix=".tmp")
@@ -77,7 +80,8 @@ def put(key: str, data: bytes) -> None:
         os.close(fd)
         fd = -1
         os.replace(tmp_path, f)
-    except Exception:
+    except Exception as e:
+        logger.debug("缓存写入失败 %s: %s", key, e)
         if fd >= 0:
             try:
                 os.close(fd)

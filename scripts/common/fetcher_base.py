@@ -4,10 +4,13 @@
 NOT_HANDLED 哨兵（标记不处理的代码）。
 """
 
+import logging
 import re
 from abc import ABC, abstractmethod
 
 from common.circuit_breaker import get_circuit_breaker
+
+logger = logging.getLogger(__name__)
 from common.exceptions import RateLimitError
 
 # 股票代码安全白名单：允许字母、数字、下划线、点号、冒号、脱字符（美股指数如 us:^gspc）
@@ -69,7 +72,8 @@ class BaseFetcher(ABC):
                 "recovery_timeout": cb.get("recovery_timeout", 60),
                 "half_open_max": cb.get("half_open_max", 3),
             }
-        except Exception:
+        except Exception as e:
+            logger.debug("加载熔断器配置失败，使用默认值: %s", e)
             cls._cb_config_cache = {}
         return cls._cb_config_cache
 

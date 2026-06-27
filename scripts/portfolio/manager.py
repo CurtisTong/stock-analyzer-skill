@@ -15,9 +15,12 @@ v2 数据模型：
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from portfolio._file_utils import (
     atomic_write,
@@ -325,8 +328,8 @@ class PortfolioManager:
                 sell_price=sell_price or 0,
                 reason=reason,
             )
-        except Exception:
-            pass  # 交易日志失败不阻塞持仓操作
+        except Exception as e:
+            logger.debug("交易日志记录失败: %s", e)  # 交易日志失败不阻塞持仓操作
 
     def update_position(
         self, code: str, auto_save: bool = True, **kwargs
