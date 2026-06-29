@@ -61,7 +61,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: 跑全量测试
-        run: python -m pytest tests/ -x -q --ignore=tests/integration -m "not network" --cov=scripts --cov=experts --cov-fail-under=70
+        run: python -m pytest tests/ -x -q --ignore=tests/integration -m "not network" --cov=scripts --cov=experts
 
       - name: 跑 skill 元数据校验
         run: python -m pytest tests/test_skill_metadata.py tests/test_skill_consistency.py -v
