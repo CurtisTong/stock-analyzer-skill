@@ -107,7 +107,7 @@ class TestHelperFunctions:
         """测试自定义异常格式化（ValidationError 走用户友好消息路径）。"""
         # code 字段触发股票代码专属提示
         err_code = ValidationError("code", "abc", "格式错误")
-        assert format_error(err_code) == "股票代码格式不正确，请使用如 sh600989 或 600989 格式"
+        assert format_error(err_code) == "股票代码格式不正确。支持三种输入：sh600989（带前缀）/ 600989（6位数字）/ 贵州茅台（中文名称）"
         # 非特化字段走 default 友好消息
         err_other = ValidationError("amount", -1, "必须为正数")
         assert format_error(err_other) == "输入信息有误，请检查后重新输入"

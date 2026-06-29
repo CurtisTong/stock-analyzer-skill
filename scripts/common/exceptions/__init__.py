@@ -159,8 +159,8 @@ USER_FRIENDLY_MESSAGES = {
     },
     "ValidationError": {
         "default": "输入信息有误，请检查后重新输入",
-        "code": "股票代码格式不正确，请使用如 sh600989 或 600989 格式",
-        "date": "日期格式有误，请使用如 2024-01-01 格式"
+        "code": "股票代码格式不正确。支持三种输入：sh600989（带前缀）/ 600989（6位数字）/ 贵州茅台（中文名称）",
+        "date": "日期格式有误，请使用如 2024-01-01 格式",
     },
     "InsufficientDataError": {
         "default": "分析数据不足，无法生成完整报告",
@@ -197,7 +197,17 @@ def format_error(error: Exception, include_details: bool = False) -> str:
 
         return friendly_msg
 
-    # 非项目异常，返回通用消息
+    # 非项目异常的细化提示：常见内置异常给更具体消息
+    import json
+
+    if isinstance(error, json.JSONDecodeError):
+        return "数据源返回了非 JSON 内容（可能是 HTML 错误页），已尝试备用数据源"
+    if isinstance(error, KeyError):
+        return f"数据字段缺失：{error.args[0] if error.args else '?'}（可能是数据源接口变更，请稍后重试）"
+    if isinstance(error, TimeoutError):
+        return "请求超时，已自动切换备用数据源"
+    if isinstance(error, ConnectionError):
+        return "网络连接失败，请检查网络后重试"
     return "发生了意外错误，请稍后重试。如果问题持续，请反馈给我们。"
 
 
