@@ -17,14 +17,12 @@ from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
 from strategies.factors.chip import chip_score_dynamic as _chip_score
 from strategies.factors.event import event_score as _event_score
+from strategies.factors.quality import quality_score
+from strategies.factors.valuation import valuation_score
+from strategies.factors.liquidity import liquidity_score
 from strategies.regime import compute_overlay_weights, RegimeState
 from strategies.regime.classifier import _classify_for_backtest
-from screener import (
-    infer_industry,
-    quality_score,
-    valuation_score,
-    liquidity_score,
-)
+from classifier import infer_industry
 
 logger = logging.getLogger(__name__)
 
