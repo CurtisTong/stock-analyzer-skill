@@ -7,6 +7,14 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-29
+
+### Documentation
+- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
+
+### CI/CD
+- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
+
 ## [1.14.2] - 2026-06-29（异常分类 + 输出模板统一 + backtest 解耦 + 文档对齐）
 
 ### Fixed
