@@ -26,8 +26,10 @@ def _get_clamp():
 
         _clamp_fn = clamp
     except ImportError:
+
         def _clamp_fn(val, lo=0.0, hi=100.0):
             return max(lo, min(hi, val))
+
     return _clamp_fn
 
 
@@ -41,8 +43,10 @@ def _get_scoring_config():
 
         _get_scoring_config_fn = get_scoring_config
     except ImportError:
+
         def _get_scoring_config_fn(key=None, default=None):
             return default
+
     return _get_scoring_config_fn
 
 

@@ -28,8 +28,20 @@ from portfolio.web.utils import (  # noqa: F401 — re-export for tests
     _token,
     _ensure_token,
 )
+from portfolio.web.dispatch import ALLOWED_ACTIONS  # noqa: F401 — re-export for tests
+from portfolio.web.app import MAX_BODY_BYTES  # noqa: F401 — re-export for tests
 
-__all__ = ["make_server", "Handler", "VERSION", "_TOKEN_FILE", "_TOKEN_DIR", "_token", "_ensure_token"]
+__all__ = [
+    "make_server",
+    "Handler",
+    "VERSION",
+    "_TOKEN_FILE",
+    "_TOKEN_DIR",
+    "_token",
+    "_ensure_token",
+    "ALLOWED_ACTIONS",
+    "MAX_BODY_BYTES",
+]
 
 if __name__ == "__main__":
     main()
