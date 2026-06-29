@@ -152,9 +152,9 @@ stock_type_weights:
     chan: 1.0
     chip: 1.0
 
-# 默认行业阈值
-# 注意：代码实际从 data/industry_thresholds.json 加载（strategies.thresholds.get_industry_threshold），
-# 此处配置未被读取，仅供文档参考
+# 默认行业阈值（DEPRECATED: v1.14.2）
+# ⚠️ 代码实际从 data/industry_thresholds.json 加载（strategies.thresholds.get_industry_threshold），
+# 此处配置未被读取，仅作为历史快照保留。修改此处不会生效，请改 data/industry_thresholds.json
 industry_defaults:
   pe_undervalued: 15
   pe_reasonable: 25
@@ -167,13 +167,13 @@ industry_defaults:
   profit_growth_excellent: 40
   revenue_growth_excellent: 30
 
-# 专家评分参数
-# 注意：soros.market_liquidity_floor_yi 当前未被代码读取，仅供文档参考
+# 专家评分参数（DEPRECATED: v1.14.2）
+# ⚠️ soros.market_liquidity_floor_yi 当前未被代码读取，仅作为历史快照保留。修改此处不会生效
 experts:
   soros:
     market_liquidity_floor_yi: 7000  # 两市日均成交额（亿元），低于此值视为流动性枯竭
 
-# 校准阈值（v1.7.1 起可配置）
+# 校准阈值（v1.7.1 起可配置，注意：calibration_threshold_pct 当前未被 experts/calibration.py 读取）
 # 注意：calibration_threshold_pct 当前未被代码读取，校准系统使用 data/expert_calibration.json
 calibration:
   calibration_threshold_pct: 5  # 涨跌判定阈值（%），原硬编码值
