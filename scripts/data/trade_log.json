@@ -1053,6 +1053,45 @@
       "profit_pct": 0.0,
       "reason": "manual",
       "timestamp": "2026-06-29T18:52:34"
+    },
+    {
+      "code": "sh600989",
+      "name": "",
+      "buy_date": "",
+      "cost": 18.5,
+      "quantity": 500,
+      "sell_date": "2026-06-29",
+      "sell_price": 0,
+      "profit": 0.0,
+      "profit_pct": 0.0,
+      "reason": "reduce_to_zero",
+      "timestamp": "2026-06-29T19:38:18"
+    },
+    {
+      "code": "sh600989",
+      "name": "",
+      "buy_date": "",
+      "cost": 18.5,
+      "quantity": 1000,
+      "sell_date": "2026-06-29",
+      "sell_price": 0,
+      "profit": 0.0,
+      "profit_pct": 0.0,
+      "reason": "manual",
+      "timestamp": "2026-06-29T19:38:19"
+    },
+    {
+      "code": "sh600989",
+      "name": "宝丰",
+      "buy_date": "",
+      "cost": 19.0,
+      "quantity": 500,
+      "sell_date": "2026-06-29",
+      "sell_price": 0,
+      "profit": 0.0,
+      "profit_pct": 0.0,
+      "reason": "manual",
+      "timestamp": "2026-06-29T19:38:33"
     }
   ]
 }
