@@ -1,9 +1,9 @@
 """东方财富资金流向数据源（北向资金、个股主力净流入）。"""
+
 import json
 from pathlib import Path
 
 from common import BaseFetcher, http_get, to_secid, to_float
-
 
 # 北向资金 API
 NORTHBOUND_URL = "https://push2his.eastmoney.com/api/qt/kamt.kline/get?fields1=f1,f2,f3,f4&fields2=f51,f52,f53,f54,f55,f56&klt=101&lmt={days}"
@@ -40,12 +40,14 @@ class NorthboundFlowFetcher(BaseFetcher):
         for line in sh_data:
             parts = line.split(",")
             if len(parts) >= 4:
-                result["days"].append({
-                    "date": parts[0],
-                    "sh_buy": to_float(parts[1]),   # 沪股通买入（万元）
-                    "sh_sell": to_float(parts[2]),   # 沪股通卖出
-                    "sh_net": to_float(parts[3]),    # 沪股通净买入
-                })
+                result["days"].append(
+                    {
+                        "date": parts[0],
+                        "sh_buy": to_float(parts[1]),  # 沪股通买入（万元）
+                        "sh_sell": to_float(parts[2]),  # 沪股通卖出
+                        "sh_net": to_float(parts[3]),  # 沪股通净买入
+                    }
+                )
 
         # 合并深股通
         for i, line in enumerate(sz_data):
@@ -54,9 +56,9 @@ class NorthboundFlowFetcher(BaseFetcher):
                 result["days"][i]["sz_buy"] = to_float(parts[1])
                 result["days"][i]["sz_sell"] = to_float(parts[2])
                 result["days"][i]["sz_net"] = to_float(parts[3])
-                result["days"][i]["total_net"] = (
-                    result["days"][i].get("sh_net", 0) + to_float(parts[3])
-                )
+                result["days"][i]["total_net"] = result["days"][i].get(
+                    "sh_net", 0
+                ) + to_float(parts[3])
 
         return result
 
@@ -88,22 +90,24 @@ class StockFlowFetcher(BaseFetcher):
         for line in klines:
             parts = line.split(",")
             if len(parts) >= 10:
-                result["days"].append({
-                    "date": parts[0],
-                    "main_net": to_float(parts[1]),      # 主力净流入
-                    "main_pct": to_float(parts[2]),      # 主力净占比%
-                    "super_net": to_float(parts[3]),     # 超大单净流入
-                    "super_pct": to_float(parts[4]),     # 超大单净占比%
-                    "big_net": to_float(parts[5]),       # 大单净流入
-                    "big_pct": to_float(parts[6]),       # 大单净占比%
-                    "mid_net": to_float(parts[7]),       # 中单净流入
-                    "mid_pct": to_float(parts[8]),       # 中单净占比%
-                    "small_net": to_float(parts[9]),     # 小单净流入
-                    "small_pct": to_float(parts[10]) if len(parts) > 10 else 0,
-                })
+                result["days"].append(
+                    {
+                        "date": parts[0],
+                        "main_net": to_float(parts[1]),  # 主力净流入
+                        "main_pct": to_float(parts[2]),  # 主力净占比%
+                        "super_net": to_float(parts[3]),  # 超大单净流入
+                        "super_pct": to_float(parts[4]),  # 超大单净占比%
+                        "big_net": to_float(parts[5]),  # 大单净流入
+                        "big_pct": to_float(parts[6]),  # 大单净占比%
+                        "mid_net": to_float(parts[7]),  # 中单净流入
+                        "mid_pct": to_float(parts[8]),  # 中单净占比%
+                        "small_net": to_float(parts[9]),  # 小单净流入
+                        "small_pct": to_float(parts[10]) if len(parts) > 10 else 0,
+                    }
+                )
 
         # 计算近 N 日汇总
-        recent = result["days"][-min(5, len(result["days"])):]
+        recent = result["days"][-min(5, len(result["days"])) :]
         result["summary"] = {
             "main_net_5d": sum(d["main_net"] for d in recent),
             "super_net_5d": sum(d["super_net"] for d in recent),

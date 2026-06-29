@@ -1,6 +1,7 @@
 """
 输入验证器测试。
 """
+
 import pytest
 import sys
 from pathlib import Path
@@ -23,20 +24,23 @@ from common.validators import (
 class TestValidateCode:
     """股票代码验证测试。"""
 
-    @pytest.mark.parametrize("code,expected", [
-        ("sh600989", True),
-        ("sz000807", True),
-        ("600989", True),
-        ("000807", True),
-        ("bj430123", True),
-        ("688123", True),
-        ("300123", True),
-        ("invalid", False),
-        ("", False),
-        ("12345", False),
-        ("1234567", False),
-        ("abc123", False),
-    ])
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            ("sh600989", True),
+            ("sz000807", True),
+            ("600989", True),
+            ("000807", True),
+            ("bj430123", True),
+            ("688123", True),
+            ("300123", True),
+            ("invalid", False),
+            ("", False),
+            ("12345", False),
+            ("1234567", False),
+            ("abc123", False),
+        ],
+    )
     def test_validate_code_formats(self, code, expected):
         """测试各种代码格式。"""
         assert validate_code(code) == expected
@@ -45,16 +49,19 @@ class TestValidateCode:
 class TestNormalizeCode:
     """股票代码标准化测试。"""
 
-    @pytest.mark.parametrize("code,expected", [
-        ("600989", "sh600989"),
-        ("sh600989", "sh600989"),
-        ("SH600989", "sh600989"),
-        ("000807", "sz000807"),
-        ("sz000807", "sz000807"),
-        ("688123", "sh688123"),
-        ("300123", "sz300123"),
-        ("430123", "bj430123"),
-    ])
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            ("600989", "sh600989"),
+            ("sh600989", "sh600989"),
+            ("SH600989", "sh600989"),
+            ("000807", "sz000807"),
+            ("sz000807", "sz000807"),
+            ("688123", "sh688123"),
+            ("300123", "sz300123"),
+            ("430123", "bj430123"),
+        ],
+    )
     def test_normalize_code(self, code, expected):
         """测试代码标准化。"""
         assert normalize_code(code) == expected
@@ -93,14 +100,17 @@ class TestValidateCodes:
 class TestValidateDate:
     """日期验证测试。"""
 
-    @pytest.mark.parametrize("date,expected", [
-        ("2024-01-01", True),
-        ("2025-12-31", True),
-        ("2024-1-1", False),
-        ("2024-01-1", False),
-        ("2024/01/01", False),
-        ("", False),
-    ])
+    @pytest.mark.parametrize(
+        "date,expected",
+        [
+            ("2024-01-01", True),
+            ("2025-12-31", True),
+            ("2024-1-1", False),
+            ("2024-01-1", False),
+            ("2024/01/01", False),
+            ("", False),
+        ],
+    )
     def test_validate_date(self, date, expected):
         """测试日期格式验证。"""
         assert validate_date(date) == expected

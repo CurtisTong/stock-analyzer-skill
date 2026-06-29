@@ -1,4 +1,5 @@
 """可选依赖数据源测试：tushare + baostock + pytdx + yfinance。"""
+
 import json
 import pytest
 import sys
@@ -9,41 +10,51 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
 
 try:
     import tushare as ts
+
     HAS_TUSHARE = True
 except ImportError:
     HAS_TUSHARE = False
 
 try:
     import baostock as bs
+
     HAS_BAOSTOCK = True
 except ImportError:
     HAS_BAOSTOCK = False
 
 try:
     import yfinance as yf
+
     HAS_YFINANCE = True
 except ImportError:
     HAS_YFINANCE = False
 
 requires_pandas = pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
 requires_tushare = pytest.mark.skipif(not HAS_TUSHARE, reason="tushare not installed")
-requires_baostock = pytest.mark.skipif(not HAS_BAOSTOCK, reason="baostock not installed")
-requires_yfinance = pytest.mark.skipif(not HAS_YFINANCE, reason="yfinance not installed")
+requires_baostock = pytest.mark.skipif(
+    not HAS_BAOSTOCK, reason="baostock not installed"
+)
+requires_yfinance = pytest.mark.skipif(
+    not HAS_YFINANCE, reason="yfinance not installed"
+)
 
 
 # ═══════════════════════════════════════════════════════════════
 # tushare_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestTushareQuoteFetcher:
     def _make_fetcher(self):
         from fetchers.tushare_quote import TushareQuoteFetcher
+
         return TushareQuoteFetcher()
 
     def test_name(self):
@@ -60,15 +71,27 @@ class TestTushareQuoteFetcher:
     @requires_tushare
     def test_fetch_normal(self):
         f = self._make_fetcher()
-        df = pd.DataFrame([{
-            "close": 1800.00, "pre_close": 1790.00, "open": 1795.00,
-            "pct_chg": 0.56, "change": 10.00, "high": 1810.00, "low": 1790.00,
-            "vol": 12345, "amount": 2234567,
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "close": 1800.00,
+                    "pre_close": 1790.00,
+                    "open": 1795.00,
+                    "pct_chg": 0.56,
+                    "change": 10.00,
+                    "high": 1810.00,
+                    "low": 1790.00,
+                    "vol": 12345,
+                    "amount": 2234567,
+                }
+            ]
+        )
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.return_value = df
-        with patch("fetchers.tushare_quote.HAS_TUSHARE", True), \
-             patch("fetchers.tushare_quote.ts", mock_ts):
+        with (
+            patch("fetchers.tushare_quote.HAS_TUSHARE", True),
+            patch("fetchers.tushare_quote.ts", mock_ts),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert result["code"] == "600519"
@@ -80,8 +103,10 @@ class TestTushareQuoteFetcher:
         f = self._make_fetcher()
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.return_value = pd.DataFrame()
-        with patch("fetchers.tushare_quote.HAS_TUSHARE", True), \
-             patch("fetchers.tushare_quote.ts", mock_ts):
+        with (
+            patch("fetchers.tushare_quote.HAS_TUSHARE", True),
+            patch("fetchers.tushare_quote.ts", mock_ts),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -90,8 +115,10 @@ class TestTushareQuoteFetcher:
         f = self._make_fetcher()
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.side_effect = RuntimeError("error")
-        with patch("fetchers.tushare_quote.HAS_TUSHARE", True), \
-             patch("fetchers.tushare_quote.ts", mock_ts):
+        with (
+            patch("fetchers.tushare_quote.HAS_TUSHARE", True),
+            patch("fetchers.tushare_quote.ts", mock_ts),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -100,9 +127,11 @@ class TestTushareQuoteFetcher:
 # tushare_kline
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestTushareKlineFetcher:
     def _make_fetcher(self):
         from fetchers.tushare_kline import TushareKlineFetcher
+
         return TushareKlineFetcher()
 
     def test_name(self):
@@ -119,14 +148,32 @@ class TestTushareKlineFetcher:
     @requires_tushare
     def test_fetch_normal(self):
         f = self._make_fetcher()
-        df = pd.DataFrame([
-            {"trade_date": "20250610", "open": 1790.00, "close": 1800.00, "high": 1810.00, "low": 1785.00, "vol": 12345},
-            {"trade_date": "20250611", "open": 1800.00, "close": 1805.00, "high": 1815.00, "low": 1795.00, "vol": 11000},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "trade_date": "20250610",
+                    "open": 1790.00,
+                    "close": 1800.00,
+                    "high": 1810.00,
+                    "low": 1785.00,
+                    "vol": 12345,
+                },
+                {
+                    "trade_date": "20250611",
+                    "open": 1800.00,
+                    "close": 1805.00,
+                    "high": 1815.00,
+                    "low": 1795.00,
+                    "vol": 11000,
+                },
+            ]
+        )
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.return_value = df
-        with patch("fetchers.tushare_kline.HAS_TUSHARE", True), \
-             patch("fetchers.tushare_kline.ts", mock_ts):
+        with (
+            patch("fetchers.tushare_kline.HAS_TUSHARE", True),
+            patch("fetchers.tushare_kline.ts", mock_ts),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 2
@@ -145,9 +192,11 @@ class TestTushareKlineFetcher:
 # baostock_kline
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestBaostockKlineFetcher:
     def _make_fetcher(self):
         from fetchers.baostock_kline import BaostockKlineFetcher
+
         return BaostockKlineFetcher()
 
     def test_name(self):
@@ -182,8 +231,10 @@ class TestBaostockKlineFetcher:
         mock_bs.login.return_value = None
         mock_bs.query_history_k_data_plus.return_value = mock_rs
         mock_bs.logout.return_value = None
-        with patch("fetchers.baostock_kline.HAS_BAOSTOCK", True), \
-             patch("fetchers.baostock_kline.bs", mock_bs):
+        with (
+            patch("fetchers.baostock_kline.HAS_BAOSTOCK", True),
+            patch("fetchers.baostock_kline.bs", mock_bs),
+        ):
             result = self._make_fetcher().fetch("sh600519")
         assert result is not None
         assert len(result) == 2
@@ -198,8 +249,10 @@ class TestBaostockKlineFetcher:
         mock_bs.login.return_value = None
         mock_bs.query_history_k_data_plus.return_value = mock_rs
         mock_bs.logout.return_value = None
-        with patch("fetchers.baostock_kline.HAS_BAOSTOCK", True), \
-             patch("fetchers.baostock_kline.bs", mock_bs):
+        with (
+            patch("fetchers.baostock_kline.HAS_BAOSTOCK", True),
+            patch("fetchers.baostock_kline.bs", mock_bs),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -208,8 +261,10 @@ class TestBaostockKlineFetcher:
         f = self._make_fetcher()
         mock_bs = MagicMock()
         mock_bs.login.side_effect = RuntimeError("error")
-        with patch("fetchers.baostock_kline.HAS_BAOSTOCK", True), \
-             patch("fetchers.baostock_kline.bs", mock_bs):
+        with (
+            patch("fetchers.baostock_kline.HAS_BAOSTOCK", True),
+            patch("fetchers.baostock_kline.bs", mock_bs),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -218,9 +273,11 @@ class TestBaostockKlineFetcher:
 # pytdx_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestPytdxQuoteFetcher:
     def _make_fetcher(self):
         from fetchers.pytdx_quote import PytdxQuoteFetcher
+
         return PytdxQuoteFetcher()
 
     def test_name(self):
@@ -236,14 +293,24 @@ class TestPytdxQuoteFetcher:
     def test_fetch_normal(self):
         f = self._make_fetcher()
         mock_api = MagicMock()
-        mock_api.get_security_quotes.return_value = [{
-            "price": 18.00, "last_close": 17.90, "open": 17.95,
-            "high": 18.10, "low": 17.90, "vol": 12345, "amount": 2234567, "name": "贵州茅台",
-        }]
+        mock_api.get_security_quotes.return_value = [
+            {
+                "price": 18.00,
+                "last_close": 17.90,
+                "open": 17.95,
+                "high": 18.10,
+                "low": 17.90,
+                "vol": 12345,
+                "amount": 2234567,
+                "name": "贵州茅台",
+            }
+        ]
         mock_pool = MagicMock()
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
-        with patch("fetchers.pytdx_quote.HAS_PYTDX", True), \
-             patch("fetchers.pytdx_quote.get_default_pool", return_value=mock_pool):
+        with (
+            patch("fetchers.pytdx_quote.HAS_PYTDX", True),
+            patch("fetchers.pytdx_quote.get_default_pool", return_value=mock_pool),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert result["code"] == "600519"
@@ -255,8 +322,10 @@ class TestPytdxQuoteFetcher:
         mock_api.get_security_quotes.return_value = None
         mock_pool = MagicMock()
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
-        with patch("fetchers.pytdx_quote.HAS_PYTDX", True), \
-             patch("fetchers.pytdx_quote.get_default_pool", return_value=mock_pool):
+        with (
+            patch("fetchers.pytdx_quote.HAS_PYTDX", True),
+            patch("fetchers.pytdx_quote.get_default_pool", return_value=mock_pool),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -266,8 +335,10 @@ class TestPytdxQuoteFetcher:
         mock_api.get_security_quotes.side_effect = RuntimeError("error")
         mock_pool = MagicMock()
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
-        with patch("fetchers.pytdx_quote.HAS_PYTDX", True), \
-             patch("fetchers.pytdx_quote.get_default_pool", return_value=mock_pool):
+        with (
+            patch("fetchers.pytdx_quote.HAS_PYTDX", True),
+            patch("fetchers.pytdx_quote.get_default_pool", return_value=mock_pool),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -276,9 +347,11 @@ class TestPytdxQuoteFetcher:
 # pytdx_kline
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestPytdxKlineFetcher:
     def _make_fetcher(self):
         from fetchers.pytdx_kline import PytdxKlineFetcher
+
         return PytdxKlineFetcher()
 
     def test_name(self):
@@ -295,13 +368,29 @@ class TestPytdxKlineFetcher:
         f = self._make_fetcher()
         mock_api = MagicMock()
         mock_api.get_security_bars.return_value = [
-            {"datetime": "2025-06-10", "open": 17.90, "close": 18.00, "high": 18.10, "low": 17.85, "vol": 12345},
-            {"datetime": "2025-06-11", "open": 18.00, "close": 18.05, "high": 18.15, "low": 17.95, "vol": 11000},
+            {
+                "datetime": "2025-06-10",
+                "open": 17.90,
+                "close": 18.00,
+                "high": 18.10,
+                "low": 17.85,
+                "vol": 12345,
+            },
+            {
+                "datetime": "2025-06-11",
+                "open": 18.00,
+                "close": 18.05,
+                "high": 18.15,
+                "low": 17.95,
+                "vol": 11000,
+            },
         ]
         mock_pool = MagicMock()
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
-        with patch("fetchers.pytdx_kline.HAS_PYTDX", True), \
-             patch("fetchers.pytdx_kline.get_default_pool", return_value=mock_pool):
+        with (
+            patch("fetchers.pytdx_kline.HAS_PYTDX", True),
+            patch("fetchers.pytdx_kline.get_default_pool", return_value=mock_pool),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 2
@@ -313,8 +402,10 @@ class TestPytdxKlineFetcher:
         mock_api.get_security_bars.return_value = None
         mock_pool = MagicMock()
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
-        with patch("fetchers.pytdx_kline.HAS_PYTDX", True), \
-             patch("fetchers.pytdx_kline.get_default_pool", return_value=mock_pool):
+        with (
+            patch("fetchers.pytdx_kline.HAS_PYTDX", True),
+            patch("fetchers.pytdx_kline.get_default_pool", return_value=mock_pool),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -323,9 +414,11 @@ class TestPytdxKlineFetcher:
 # yfinance_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestYfinanceQuoteFetcher:
     def _make_fetcher(self):
         from fetchers.yfinance_quote import YfinanceQuoteFetcher
+
         return YfinanceQuoteFetcher()
 
     def test_name(self):
@@ -336,6 +429,7 @@ class TestYfinanceQuoteFetcher:
         f = self._make_fetcher()
         with patch("fetchers.yfinance_quote.yf", None):
             from common import NOT_HANDLED
+
             result = f.fetch("us:spy")
             assert result is NOT_HANDLED
 
@@ -343,6 +437,7 @@ class TestYfinanceQuoteFetcher:
         """非 us: 前缀返回 NOT_HANDLED。"""
         f = self._make_fetcher()
         from common import NOT_HANDLED
+
         mock_yf = MagicMock()
         with patch("fetchers.yfinance_quote.yf", mock_yf):
             result = f.fetch("sh600519")
@@ -393,9 +488,11 @@ class TestYfinanceQuoteFetcher:
 # yfinance_kline
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestYfinanceKlineFetcher:
     def _make_fetcher(self):
         from fetchers.yfinance_kline import YfinanceKlineFetcher
+
         return YfinanceKlineFetcher()
 
     def test_name(self):
@@ -411,13 +508,16 @@ class TestYfinanceKlineFetcher:
     @requires_pandas
     def test_fetch_normal(self):
         f = self._make_fetcher()
-        df = pd.DataFrame({
-            "Open": [445.0, 448.0],
-            "Close": [450.0, 452.0],
-            "High": [452.0, 454.0],
-            "Low": [443.0, 447.0],
-            "Volume": [50000000, 48000000],
-        }, index=pd.to_datetime(["2025-06-10", "2025-06-11"]))
+        df = pd.DataFrame(
+            {
+                "Open": [445.0, 448.0],
+                "Close": [450.0, 452.0],
+                "High": [452.0, 454.0],
+                "Low": [443.0, 447.0],
+                "Volume": [50000000, 48000000],
+            },
+            index=pd.to_datetime(["2025-06-10", "2025-06-11"]),
+        )
         mock_ticker = MagicMock()
         mock_ticker.history.return_value = df
         mock_yf = MagicMock()

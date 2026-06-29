@@ -30,9 +30,7 @@ def validate_webhook_url(url: str) -> str:
         return url
 
     if scheme != "https":
-        raise ValueError(
-            f"webhook URL 必须使用 https://，当前: {scheme}://"
-        )
+        raise ValueError(f"webhook URL 必须使用 https://，当前: {scheme}://")
 
     hostname = parsed.hostname
     if not hostname:
@@ -46,9 +44,7 @@ def validate_webhook_url(url: str) -> str:
 
     # 拒绝私有/环回/链路本地地址
     if ip.is_private or ip.is_loopback or ip.is_link_local:
-        raise ValueError(
-            f"webhook URL 不能指向私有/环回地址: {hostname}"
-        )
+        raise ValueError(f"webhook URL 不能指向私有/环回地址: {hostname}")
 
     return url
 
@@ -65,9 +61,13 @@ class NotificationChannel(ABC):
         """通道名称，如 'bark', 'wechat_work'。"""
 
     @abstractmethod
-    def send(self, title: str, body: str,
-             url: Optional[str] = None,
-             group: Optional[str] = None) -> Tuple[bool, str]:
+    def send(
+        self,
+        title: str,
+        body: str,
+        url: Optional[str] = None,
+        group: Optional[str] = None,
+    ) -> Tuple[bool, str]:
         """发送通知。
 
         Args:

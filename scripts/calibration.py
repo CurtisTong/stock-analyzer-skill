@@ -17,6 +17,7 @@
   # 查看待验证预测
   python3 scripts/calibration.py pending
 """
+
 import argparse
 import json
 import sys
@@ -63,8 +64,14 @@ def cmd_verify(args):
     if result["details"]:
         print("\n详情:")
         for d in result["details"]:
-            status = "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
-            ret = f"{d['actual_return']:+.1f}%" if d["actual_return"] is not None else "N/A"
+            status = (
+                "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
+            )
+            ret = (
+                f"{d['actual_return']:+.1f}%"
+                if d["actual_return"] is not None
+                else "N/A"
+            )
             print(f"  {status} {d['stock']} ({d['direction']}) → {ret}")
 
 
@@ -74,10 +81,17 @@ def cmd_report(args):
     factor = compute_calibration_factor()
     if args.json:
         import json as _json
-        print(_json.dumps({
-            "report": report,
-            "calibration_factor": round(factor, 4),
-        }, ensure_ascii=False, indent=2))
+
+        print(
+            _json.dumps(
+                {
+                    "report": report,
+                    "calibration_factor": round(factor, 4),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
     print(report)
     print(f"\n校准因子: {factor:+.4f}")
@@ -88,10 +102,17 @@ def cmd_pending(args):
     pending = get_pending_predictions()
     if args.json:
         import json as _json
-        print(_json.dumps({
-            "count": len(pending),
-            "items": pending,
-        }, ensure_ascii=False, indent=2))
+
+        print(
+            _json.dumps(
+                {
+                    "count": len(pending),
+                    "items": pending,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return
     if not pending:
         print("无待验证预测")
@@ -112,19 +133,20 @@ def main():
     # record
     p_record = sub.add_parser("record", help="记录 debate 预测")
     p_record.add_argument("--stock", required=True, help="股票代码 (如 sh600989)")
-    p_record.add_argument("--direction", required=True,
-                          help="预测方向 (强烈看多/看多/中性/看空/强烈看空)")
-    p_record.add_argument("--scores", required=True,
-                          help='专家评分 JSON (如 \'{"buffett":72,...}\')')
-    p_record.add_argument("--composite", type=float, default=0.0,
-                          help="调整后综合分")
-    p_record.add_argument("--verify-days", type=int, default=30,
-                          help="验证窗口天数 (默认30)")
+    p_record.add_argument(
+        "--direction", required=True, help="预测方向 (强烈看多/看多/中性/看空/强烈看空)"
+    )
+    p_record.add_argument(
+        "--scores", required=True, help="专家评分 JSON (如 '{\"buffett\":72,...}')"
+    )
+    p_record.add_argument("--composite", type=float, default=0.0, help="调整后综合分")
+    p_record.add_argument(
+        "--verify-days", type=int, default=30, help="验证窗口天数 (默认30)"
+    )
 
     # verify
     p_verify = sub.add_parser("verify", help="验证到期预测")
-    p_verify.add_argument("--days", type=int, default=30,
-                          help="验证窗口天数 (默认30)")
+    p_verify.add_argument("--days", type=int, default=30, help="验证窗口天数 (默认30)")
 
     # report
     p_report = sub.add_parser("report", help="查看校准报告")

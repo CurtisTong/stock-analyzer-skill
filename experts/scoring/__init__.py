@@ -154,7 +154,10 @@ def score_expert_with_reasoning(
     fn = _EXPERT_SCORING_WITH_REASONING.get(profile.name)
     if fn is None:
         from ._utils import generic_score_with_reasoning
-        return generic_score_with_reasoning(profile, score_expert_precise_proxy, stock_data)
+
+        return generic_score_with_reasoning(
+            profile, score_expert_precise_proxy, stock_data
+        )
     return fn(stock_data)
 
 
@@ -252,6 +255,7 @@ def score_expert_precise_proxy(stock_data: dict) -> Dict[str, float]:
     v2.2.0 score_expert_with_reasoning 的兜底路径使用。
     """
     from experts import ExpertProfile as _EP
+
     # 实际调用方应传 profile，此处仅占位
     return {"基本面": 50.0, "估值": 50.0, "技术面": 50.0, "情绪": 50.0, "风险": 50.0}
 

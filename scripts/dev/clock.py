@@ -13,6 +13,7 @@
     from dev import clock
     monkeypatch.setattr(clock, "_now_func", lambda: fake_dt)
 """
+
 import datetime as _dt
 
 _now_func = _dt.datetime.now

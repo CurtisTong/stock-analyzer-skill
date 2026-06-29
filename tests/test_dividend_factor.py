@@ -10,13 +10,16 @@ from strategies.factors import dividend
 class TestScoreContinuity:
     """连续性评分测试。"""
 
-    @pytest.mark.parametrize("years,expected", [
-        (10, 24.0),
-        (5, 18.0),
-        (3, 10.0),
-        (1, 10.0),  # 5 + 1*5 = 10
-        (0, -12.0),  # 0 年扣分
-    ])
+    @pytest.mark.parametrize(
+        "years,expected",
+        [
+            (10, 24.0),
+            (5, 18.0),
+            (3, 10.0),
+            (1, 10.0),  # 5 + 1*5 = 10
+            (0, -12.0),  # 0 年扣分
+        ],
+    )
     def test_score_continuity_branches(self, years, expected):
         """各分支覆盖。"""
         assert dividend._score_continuity(years) == expected

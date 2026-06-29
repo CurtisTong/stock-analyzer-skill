@@ -1,4 +1,5 @@
 """腾讯 K 线数据源。"""
+
 import json
 from pathlib import Path
 
@@ -38,13 +39,15 @@ class TencentKlineFetcher(BaseFetcher):
         result = []
         for row in records:
             if len(row) >= 6:
-                result.append({
-                    "day": row[0],
-                    "open": row[1],
-                    "high": row[3],
-                    "low": row[4],
-                    "close": row[2],
-                    "volume": row[5],
-                    "source": "tencent",
-                })
+                result.append(
+                    {
+                        "day": row[0],
+                        "open": row[1],
+                        "high": row[3],
+                        "low": row[4],
+                        "close": row[2],
+                        "volume": row[5],
+                        "source": "tencent",
+                    }
+                )
         return result if result else None

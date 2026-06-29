@@ -1,6 +1,7 @@
 """
 测试 v2.1.0 专家切换 API：list_active_experts / list_legacy_experts。
 """
+
 import sys
 from pathlib import Path
 
@@ -39,9 +40,7 @@ class TestExpertSwitchAPI:
         """active 和 legacy 不重叠。"""
         active_ids = {p.name for p in list_active_experts()}
         legacy_ids = {p.name for p in list_legacy_experts()}
-        assert active_ids.isdisjoint(legacy_ids), (
-            f"重叠: {active_ids & legacy_ids}"
-        )
+        assert active_ids.isdisjoint(legacy_ids), f"重叠: {active_ids & legacy_ids}"
 
     def test_active_and_legacy_cover_all(self):
         """active + legacy = EXPERT_REGISTRY。"""
@@ -54,8 +53,12 @@ class TestExpertSwitchAPI:
         """group 过滤：长线 active = 6，短线 active = 3（topic_leader/emotion_tech/momentum_trader）。"""
         long_active = list_active_experts("long_term")
         short_active = list_active_experts("short_term")
-        assert len(long_active) == 6, f"long_term active expected 6, got {len(long_active)}"
-        assert len(short_active) == 3, f"short_term active expected 3, got {len(short_active)}"
+        assert (
+            len(long_active) == 6
+        ), f"long_term active expected 6, got {len(long_active)}"
+        assert (
+            len(short_active) == 3
+        ), f"short_term active expected 3, got {len(short_active)}"
 
     def test_legacy_long_term_count(self):
         """long_term legacy = 4（buffett/lynch/soros/duan_yongping，其中 lynch/soros 已 active）。"""

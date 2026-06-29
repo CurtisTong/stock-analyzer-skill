@@ -1,6 +1,7 @@
 """可选依赖数据源测试：AkshareFinanceFetcher + EfinanceFinanceFetcher。
 以及 akshare/efinance 的 quote/kline fetcher。
 """
+
 import json
 import pytest
 import sys
@@ -11,36 +12,43 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"
 
 try:
     import pandas as pd
+
     HAS_PANDAS = True
 except ImportError:
     HAS_PANDAS = False
 
 try:
     import akshare as ak
+
     HAS_AKSHARE = True
 except ImportError:
     HAS_AKSHARE = False
 
 try:
     import efinance as ef
+
     HAS_EFINANCE = True
 except ImportError:
     HAS_EFINANCE = False
 
 requires_pandas = pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
 requires_akshare = pytest.mark.skipif(not HAS_AKSHARE, reason="akshare not installed")
-requires_efinance = pytest.mark.skipif(not HAS_EFINANCE, reason="efinance not installed")
+requires_efinance = pytest.mark.skipif(
+    not HAS_EFINANCE, reason="efinance not installed"
+)
 
 
 # ═══════════════════════════════════════════════════════════════
 # akshare_finance
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestAkshareFinanceFetcher:
     """AkshareFinanceFetcher 测试。"""
 
     def _make_fetcher(self):
         from fetchers.akshare_finance import AkshareFinanceFetcher
+
         return AkshareFinanceFetcher()
 
     def test_name_and_priority(self):
@@ -60,17 +68,21 @@ class TestAkshareFinanceFetcher:
     def test_fetch_normal(self):
         """正常响应：返回 DataFrame 前 4 行。"""
         f = self._make_fetcher()
-        df = pd.DataFrame([
-            {"报告日期": "2025-03-31", "每股收益": 15.00},
-            {"报告日期": "2024-12-31", "每股收益": 50.00},
-            {"报告日期": "2024-09-30", "每股收益": 35.00},
-            {"报告日期": "2024-06-30", "每股收益": 20.00},
-            {"报告日期": "2024-03-31", "每股收益": 10.00},
-        ])
+        df = pd.DataFrame(
+            [
+                {"报告日期": "2025-03-31", "每股收益": 15.00},
+                {"报告日期": "2024-12-31", "每股收益": 50.00},
+                {"报告日期": "2024-09-30", "每股收益": 35.00},
+                {"报告日期": "2024-06-30", "每股收益": 20.00},
+                {"报告日期": "2024-03-31", "每股收益": 10.00},
+            ]
+        )
         mock_ak = MagicMock()
         mock_ak.stock_financial_abstract.return_value = df
-        with patch("fetchers.akshare_finance.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_finance.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_finance.HAS_AKSHARE", True),
+            patch("fetchers.akshare_finance.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 4  # 只取前 4 行
@@ -83,8 +95,10 @@ class TestAkshareFinanceFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_financial_abstract.return_value = pd.DataFrame()
-        with patch("fetchers.akshare_finance.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_finance.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_finance.HAS_AKSHARE", True),
+            patch("fetchers.akshare_finance.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -94,8 +108,10 @@ class TestAkshareFinanceFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_financial_abstract.return_value = None
-        with patch("fetchers.akshare_finance.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_finance.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_finance.HAS_AKSHARE", True),
+            patch("fetchers.akshare_finance.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -105,8 +121,10 @@ class TestAkshareFinanceFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_financial_abstract.side_effect = RuntimeError("api error")
-        with patch("fetchers.akshare_finance.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_finance.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_finance.HAS_AKSHARE", True),
+            patch("fetchers.akshare_finance.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -118,8 +136,10 @@ class TestAkshareFinanceFetcher:
         df = pd.DataFrame([{"报告日期": "2025-03-31", "每股收益": 15.00}])
         mock_ak = MagicMock()
         mock_ak.stock_financial_abstract.return_value = df
-        with patch("fetchers.akshare_finance.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_finance.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_finance.HAS_AKSHARE", True),
+            patch("fetchers.akshare_finance.ak", mock_ak),
+        ):
             f.fetch("sh600519")
         mock_ak.stock_financial_abstract.assert_called_once_with("600519")
 
@@ -128,11 +148,13 @@ class TestAkshareFinanceFetcher:
 # efinance_finance
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestEfinanceFinanceFetcher:
     """EfinanceFinanceFetcher 测试。"""
 
     def _make_fetcher(self):
         from fetchers.efinance_finance import EfinanceFinanceFetcher
+
         return EfinanceFinanceFetcher()
 
     def test_name_and_priority(self):
@@ -152,11 +174,15 @@ class TestEfinanceFinanceFetcher:
     def test_fetch_normal(self):
         """正常响应：返回 DataFrame 字典。"""
         f = self._make_fetcher()
-        df = pd.DataFrame([{"股票代码": "600519", "股票名称": "贵州茅台", "最新价": 1800.00}])
+        df = pd.DataFrame(
+            [{"股票代码": "600519", "股票名称": "贵州茅台", "最新价": 1800.00}]
+        )
         mock_ef = MagicMock()
         mock_ef.stock.get_base_info.return_value = df
-        with patch("fetchers.efinance_finance.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_finance.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
+            patch("fetchers.efinance_finance.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 1
@@ -169,8 +195,10 @@ class TestEfinanceFinanceFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_base_info.return_value = pd.DataFrame()
-        with patch("fetchers.efinance_finance.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_finance.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
+            patch("fetchers.efinance_finance.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -180,8 +208,10 @@ class TestEfinanceFinanceFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_base_info.return_value = None
-        with patch("fetchers.efinance_finance.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_finance.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
+            patch("fetchers.efinance_finance.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -191,8 +221,10 @@ class TestEfinanceFinanceFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_base_info.side_effect = RuntimeError("api error")
-        with patch("fetchers.efinance_finance.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_finance.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
+            patch("fetchers.efinance_finance.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -201,11 +233,13 @@ class TestEfinanceFinanceFetcher:
 # akshare_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestAkshareQuoteFetcher:
     """AkshareQuoteFetcher 测试。"""
 
     def _make_fetcher(self):
         from fetchers.akshare_quote import AkshareQuoteFetcher
+
         return AkshareQuoteFetcher()
 
     def test_name_and_priority(self):
@@ -225,19 +259,35 @@ class TestAkshareQuoteFetcher:
     def test_fetch_normal(self):
         """正常响应：返回行情数据。"""
         f = self._make_fetcher()
-        df = pd.DataFrame([{
-            "代码": "600519", "名称": "贵州茅台", "最新价": 1800.00,
-            "昨收": 1790.00, "今开": 1795.00, "涨跌幅": 0.56,
-            "涨跌额": 10.00, "最高": 1810.00, "最低": 1790.00,
-            "成交量": 1234500, "成交额": 2234567000, "换手率": 0.15,
-            "市盈率-动态": 25.60, "市净率": 8.20,
-            "总市值": 2260000000000, "流通市值": 2260000000000,
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "代码": "600519",
+                    "名称": "贵州茅台",
+                    "最新价": 1800.00,
+                    "昨收": 1790.00,
+                    "今开": 1795.00,
+                    "涨跌幅": 0.56,
+                    "涨跌额": 10.00,
+                    "最高": 1810.00,
+                    "最低": 1790.00,
+                    "成交量": 1234500,
+                    "成交额": 2234567000,
+                    "换手率": 0.15,
+                    "市盈率-动态": 25.60,
+                    "市净率": 8.20,
+                    "总市值": 2260000000000,
+                    "流通市值": 2260000000000,
+                }
+            ]
+        )
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_spot_em.return_value = df
-        with patch("fetchers.akshare_quote.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_quote.ak", mock_ak), \
-             patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.akshare_quote.HAS_AKSHARE", True),
+            patch("fetchers.akshare_quote.ak", mock_ak),
+            patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert result["code"] == "600519"
@@ -250,9 +300,11 @@ class TestAkshareQuoteFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_spot_em.return_value = pd.DataFrame()
-        with patch("fetchers.akshare_quote.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_quote.ak", mock_ak), \
-             patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.akshare_quote.HAS_AKSHARE", True),
+            patch("fetchers.akshare_quote.ak", mock_ak),
+            patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -264,9 +316,11 @@ class TestAkshareQuoteFetcher:
         df = pd.DataFrame([{"代码": "000001", "名称": "平安银行", "最新价": 10.00}])
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_spot_em.return_value = df
-        with patch("fetchers.akshare_quote.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_quote.ak", mock_ak), \
-             patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.akshare_quote.HAS_AKSHARE", True),
+            patch("fetchers.akshare_quote.ak", mock_ak),
+            patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -276,9 +330,11 @@ class TestAkshareQuoteFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_spot_em.side_effect = RuntimeError("api error")
-        with patch("fetchers.akshare_quote.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_quote.ak", mock_ak), \
-             patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.akshare_quote.HAS_AKSHARE", True),
+            patch("fetchers.akshare_quote.ak", mock_ak),
+            patch("fetchers.akshare_quote._ak_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -287,11 +343,13 @@ class TestAkshareQuoteFetcher:
 # akshare_kline
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestAkshareKlineFetcher:
     """AkshareKlineFetcher 测试。"""
 
     def _make_fetcher(self):
         from fetchers.akshare_kline import AkshareKlineFetcher
+
         return AkshareKlineFetcher()
 
     def test_name_and_priority(self):
@@ -310,14 +368,32 @@ class TestAkshareKlineFetcher:
     def test_fetch_normal(self):
         """正常响应：返回 K 线数据。"""
         f = self._make_fetcher()
-        df = pd.DataFrame([
-            {"日期": "2025-06-10", "开盘": 1790.00, "收盘": 1800.00, "最高": 1810.00, "最低": 1785.00, "成交量": 12345},
-            {"日期": "2025-06-11", "开盘": 1800.00, "收盘": 1805.00, "最高": 1815.00, "最低": 1795.00, "成交量": 11000},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "日期": "2025-06-10",
+                    "开盘": 1790.00,
+                    "收盘": 1800.00,
+                    "最高": 1810.00,
+                    "最低": 1785.00,
+                    "成交量": 12345,
+                },
+                {
+                    "日期": "2025-06-11",
+                    "开盘": 1800.00,
+                    "收盘": 1805.00,
+                    "最高": 1815.00,
+                    "最低": 1795.00,
+                    "成交量": 11000,
+                },
+            ]
+        )
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_hist.return_value = df
-        with patch("fetchers.akshare_kline.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_kline.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_kline.HAS_AKSHARE", True),
+            patch("fetchers.akshare_kline.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 2
@@ -330,8 +406,10 @@ class TestAkshareKlineFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_hist.return_value = pd.DataFrame()
-        with patch("fetchers.akshare_kline.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_kline.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_kline.HAS_AKSHARE", True),
+            patch("fetchers.akshare_kline.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -340,8 +418,10 @@ class TestAkshareKlineFetcher:
         f = self._make_fetcher()
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_hist.side_effect = RuntimeError("api error")
-        with patch("fetchers.akshare_kline.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_kline.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_kline.HAS_AKSHARE", True),
+            patch("fetchers.akshare_kline.ak", mock_ak),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -350,25 +430,42 @@ class TestAkshareKlineFetcher:
     def test_fetch_scale_60(self):
         """60 分钟 K 线。"""
         f = self._make_fetcher()
-        df = pd.DataFrame([{"日期": "2025-06-10 10:30", "开盘": 1790.00, "收盘": 1800.00, "最高": 1810.00, "最低": 1785.00, "成交量": 12345}])
+        df = pd.DataFrame(
+            [
+                {
+                    "日期": "2025-06-10 10:30",
+                    "开盘": 1790.00,
+                    "收盘": 1800.00,
+                    "最高": 1810.00,
+                    "最低": 1785.00,
+                    "成交量": 12345,
+                }
+            ]
+        )
         mock_ak = MagicMock()
         mock_ak.stock_zh_a_hist.return_value = df
-        with patch("fetchers.akshare_kline.HAS_AKSHARE", True), \
-             patch("fetchers.akshare_kline.ak", mock_ak):
+        with (
+            patch("fetchers.akshare_kline.HAS_AKSHARE", True),
+            patch("fetchers.akshare_kline.ak", mock_ak),
+        ):
             result = f.fetch("sh600519", scale=60)
         assert result is not None
-        mock_ak.stock_zh_a_hist.assert_called_with(symbol="600519", period="60", adjust="qfq")
+        mock_ak.stock_zh_a_hist.assert_called_with(
+            symbol="600519", period="60", adjust="qfq"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════
 # efinance_quote
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestEfinanceQuoteFetcher:
     """EfinanceQuoteFetcher 测试。"""
 
     def _make_fetcher(self):
         from fetchers.efinance_quote import EfinanceQuoteFetcher
+
         return EfinanceQuoteFetcher()
 
     def test_name_and_priority(self):
@@ -386,19 +483,35 @@ class TestEfinanceQuoteFetcher:
     @requires_efinance
     def test_fetch_normal(self):
         f = self._make_fetcher()
-        df = pd.DataFrame([{
-            "股票代码": "600519", "股票名称": "贵州茅台", "最新价": 1800.00,
-            "昨收": 1790.00, "今开": 1795.00, "涨跌幅": 0.56,
-            "涨跌额": 10.00, "最高": 1810.00, "最低": 1790.00,
-            "成交量": 1234500, "成交额": 2234567000, "换手率": 0.15,
-            "市盈率-动态": 25.60, "市净率": 8.20,
-            "总市值": 2260000000000, "流通市值": 2260000000000,
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "股票代码": "600519",
+                    "股票名称": "贵州茅台",
+                    "最新价": 1800.00,
+                    "昨收": 1790.00,
+                    "今开": 1795.00,
+                    "涨跌幅": 0.56,
+                    "涨跌额": 10.00,
+                    "最高": 1810.00,
+                    "最低": 1790.00,
+                    "成交量": 1234500,
+                    "成交额": 2234567000,
+                    "换手率": 0.15,
+                    "市盈率-动态": 25.60,
+                    "市净率": 8.20,
+                    "总市值": 2260000000000,
+                    "流通市值": 2260000000000,
+                }
+            ]
+        )
         mock_ef = MagicMock()
         mock_ef.stock.get_realtime_quotes.return_value = df
-        with patch("fetchers.efinance_quote.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_quote.ef", mock_ef), \
-             patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.efinance_quote.HAS_EFINANCE", True),
+            patch("fetchers.efinance_quote.ef", mock_ef),
+            patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert result["code"] == "600519"
@@ -410,9 +523,11 @@ class TestEfinanceQuoteFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_realtime_quotes.return_value = pd.DataFrame()
-        with patch("fetchers.efinance_quote.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_quote.ef", mock_ef), \
-             patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.efinance_quote.HAS_EFINANCE", True),
+            patch("fetchers.efinance_quote.ef", mock_ef),
+            patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -423,9 +538,11 @@ class TestEfinanceQuoteFetcher:
         df = pd.DataFrame([{"股票代码": "000001", "股票名称": "平安银行"}])
         mock_ef = MagicMock()
         mock_ef.stock.get_realtime_quotes.return_value = df
-        with patch("fetchers.efinance_quote.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_quote.ef", mock_ef), \
-             patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.efinance_quote.HAS_EFINANCE", True),
+            patch("fetchers.efinance_quote.ef", mock_ef),
+            patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -434,9 +551,11 @@ class TestEfinanceQuoteFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_realtime_quotes.side_effect = RuntimeError("api error")
-        with patch("fetchers.efinance_quote.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_quote.ef", mock_ef), \
-             patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch("fetchers.efinance_quote.HAS_EFINANCE", True),
+            patch("fetchers.efinance_quote.ef", mock_ef),
+            patch("fetchers.efinance_quote._ef_cache", {"df": None, "ts": 0}),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -445,11 +564,13 @@ class TestEfinanceQuoteFetcher:
 # efinance_kline
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestEfinanceKlineFetcher:
     """EfinanceKlineFetcher 测试。"""
 
     def _make_fetcher(self):
         from fetchers.efinance_kline import EfinanceKlineFetcher
+
         return EfinanceKlineFetcher()
 
     def test_name_and_priority(self):
@@ -467,13 +588,24 @@ class TestEfinanceKlineFetcher:
     @requires_efinance
     def test_fetch_normal(self):
         f = self._make_fetcher()
-        df = pd.DataFrame([
-            {"日期": "2025-06-10", "开盘": 1790.00, "收盘": 1800.00, "最高": 1810.00, "最低": 1785.00, "成交量": 12345},
-        ])
+        df = pd.DataFrame(
+            [
+                {
+                    "日期": "2025-06-10",
+                    "开盘": 1790.00,
+                    "收盘": 1800.00,
+                    "最高": 1810.00,
+                    "最低": 1785.00,
+                    "成交量": 12345,
+                },
+            ]
+        )
         mock_ef = MagicMock()
         mock_ef.stock.get_quote_history.return_value = df
-        with patch("fetchers.efinance_kline.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_kline.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_kline.HAS_EFINANCE", True),
+            patch("fetchers.efinance_kline.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 1
@@ -485,8 +617,10 @@ class TestEfinanceKlineFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_quote_history.return_value = pd.DataFrame()
-        with patch("fetchers.efinance_kline.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_kline.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_kline.HAS_EFINANCE", True),
+            patch("fetchers.efinance_kline.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -495,7 +629,9 @@ class TestEfinanceKlineFetcher:
         f = self._make_fetcher()
         mock_ef = MagicMock()
         mock_ef.stock.get_quote_history.side_effect = RuntimeError("api error")
-        with patch("fetchers.efinance_kline.HAS_EFINANCE", True), \
-             patch("fetchers.efinance_kline.ef", mock_ef):
+        with (
+            patch("fetchers.efinance_kline.HAS_EFINANCE", True),
+            patch("fetchers.efinance_kline.ef", mock_ef),
+        ):
             result = f.fetch("sh600519")
         assert result is None

@@ -2,6 +2,7 @@
 布林带分析。
 依赖: core (sma, stddev)
 """
+
 from .core import sma, stddev
 
 

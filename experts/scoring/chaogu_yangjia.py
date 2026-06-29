@@ -4,6 +4,7 @@
 维度：基本面(5%) + 估值(5%) + 技术面(15%) + 情绪(65%) + 风险(10%)
 精确复现 experts/chaogu_yangjia.md §九 评分矩阵中的阈值规则。
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -63,5 +64,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["chaogu_yangjia"]
     return generic_score_with_reasoning(profile, score, stock_data)

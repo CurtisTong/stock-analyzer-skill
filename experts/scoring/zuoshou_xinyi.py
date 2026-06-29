@@ -4,6 +4,7 @@
 维度：基本面(8%) + 估值(5%) + 技术面(40%) + 情绪(35%) + 风险(12%)
 精确复现 experts/zuoshou_xinyi.md §九 评分矩阵中的阈值规则。
 """
+
 import statistics
 from typing import Dict
 
@@ -48,14 +49,14 @@ def score(stock_data: dict) -> Dict[str, float]:
 
         last3 = closes[-3:]
         # 锤子线：下跌后下影线长、实体小、收在高点附近（简化：收阳且高于前低）
-        is_hammer = (len(last3) == 3 and
-                     last3[-2] < last3[-3] and
-                     last3[-1] > last3[-2])
+        is_hammer = len(last3) == 3 and last3[-2] < last3[-3] and last3[-1] > last3[-2]
         # 吞没形态：阳包阴（收阳且实体覆盖前一根阴线）
-        is_engulfing = (len(last3) == 3 and
-                        last3[-1] > last3[-2] and
-                        last3[-2] < last3[-3] and
-                        last3[-1] > last3[-3])
+        is_engulfing = (
+            len(last3) == 3
+            and last3[-1] > last3[-2]
+            and last3[-2] < last3[-3]
+            and last3[-1] > last3[-3]
+        )
 
         if vol_ratio <= 0.5 and (is_hammer or is_engulfing):
             tech = 100
@@ -103,5 +104,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["zuoshou_xinyi"]
     return generic_score_with_reasoning(profile, score, stock_data)

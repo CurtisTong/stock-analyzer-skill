@@ -7,6 +7,7 @@ SKILL.md ↔ scripts/ 交叉引用一致性 + description 关键词扫描。
   3. 必备章节别名（Instructions / Guardrails / 第一次使用 / 执行命令）
   4. frontmatter model 与 description 长度大致匹配（深度分析用 opus，命令用 haiku）
 """
+
 import re
 from pathlib import Path
 import pytest
@@ -18,14 +19,14 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 # 运行时生成的数据文件（由 init_pool.py / refresh_pool.py / 用户首次使用产生）
 # 这些文件首次安装时不存在，属于"约定生成"，不视为引用错误
 RUNTIME_DATA_FILES = {
-    "stock_pool.json",          # init_pool.py 产出
-    "sector_stocks.json",       # init_pool.py 产出
-    "sector_etf.csv",           # init_pool.py 产出
-    "portfolio.json",           # 用户创建
-    "portfolio_example.json",   # 项目自带的示例
-    "portfolio_virtual.json",   # 模拟盘数据（--virtual 模式创建）
-    "stock_pool_backup.json",   # refresh_pool.py 备份
-    "all_stocks.json",          # refresh_pool.py --full-market 产出
+    "stock_pool.json",  # init_pool.py 产出
+    "sector_stocks.json",  # init_pool.py 产出
+    "sector_etf.csv",  # init_pool.py 产出
+    "portfolio.json",  # 用户创建
+    "portfolio_example.json",  # 项目自带的示例
+    "portfolio_virtual.json",  # 模拟盘数据（--virtual 模式创建）
+    "stock_pool_backup.json",  # refresh_pool.py 备份
+    "all_stocks.json",  # refresh_pool.py --full-market 产出
 }
 
 # description 关键词白名单：skill 核心能力词
@@ -49,6 +50,7 @@ DESCRIPTION_KEYWORDS = {
 # ═══════════════════════════════════════════════════════════════
 # 工具函数
 # ═══════════════════════════════════════════════════════════════
+
 
 def parse_frontmatter(text: str) -> dict:
     """复用 test_skill_metadata.py 的 frontmatter 解析逻辑。"""
@@ -103,6 +105,7 @@ def list_real_scripts():
 # cross-reference 测试
 # ═══════════════════════════════════════════════════════════════
 
+
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
 def test_referenced_scripts_exist(skill_path):
     """SKILL.md 中提到的 scripts/*.py 必须在 scripts/ 真实存在。
@@ -124,7 +127,9 @@ def test_referenced_scripts_exist(skill_path):
 def test_referenced_data_files_exist(skill_path):
     """SKILL.md 中提到的 data/<file> 要么真实存在，要么是运行时生成白名单内。"""
     text = skill_path.read_text(encoding="utf-8")
-    referenced = set(re.findall(r"data/([a-z_][a-z0-9_.]*\.(?:json|csv|yaml|yml))", text))
+    referenced = set(
+        re.findall(r"data/([a-z_][a-z0-9_.]*\.(?:json|csv|yaml|yml))", text)
+    )
     real = {p.name for p in (PROJECT_ROOT / "data").glob("*")}
     # 排除运行时生成文件
     runtime_or_real = referenced & (real | RUNTIME_DATA_FILES)
@@ -138,6 +143,7 @@ def test_referenced_data_files_exist(skill_path):
 # ═══════════════════════════════════════════════════════════════
 # description 关键词测试
 # ═══════════════════════════════════════════════════════════════
+
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
 def test_description_has_core_keywords(skill_path):
@@ -179,9 +185,7 @@ def test_instruction_section_present(skill_path):
     """必填：Instruction 类章节（标准或别名）。"""
     text = skill_path.read_text(encoding="utf-8")
     has = any(alias in text for alias in ALLOWED_INSTRUCTION_ALIASES)
-    assert has, (
-        f"{skill_path.parent.name}: 缺 Instruction 章节（标准或别名）"
-    )
+    assert has, f"{skill_path.parent.name}: 缺 Instruction 章节（标准或别名）"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -189,14 +193,13 @@ def test_guardrails_section_present(skill_path):
     """必填：Guardrails 类章节（标准或别名）。"""
     text = skill_path.read_text(encoding="utf-8")
     has = any(alias in text for alias in ALLOWED_GUARDRAILS_ALIASES)
-    assert has, (
-        f"{skill_path.parent.name}: 缺 Guardrails 章节（标准或别名）"
-    )
+    assert has, f"{skill_path.parent.name}: 缺 Guardrails 章节（标准或别名）"
 
 
 # ═══════════════════════════════════════════════════════════════
 # model 与 description 风格大致匹配
 # ═══════════════════════════════════════════════════════════════
+
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
 def test_model_matches_complexity(skill_path):
@@ -207,11 +210,11 @@ def test_model_matches_complexity(skill_path):
     desc = fm.get("description", "")
     if model == "haiku":
         # 命令式/简单 skill：description 应较短
-        assert len(desc) <= 110, (
-            f"{skill_path.parent.name}: haiku 模式 description {len(desc)} 字符（应 ≤ 110）"
-        )
+        assert (
+            len(desc) <= 110
+        ), f"{skill_path.parent.name}: haiku 模式 description {len(desc)} 字符（应 ≤ 110）"
     elif model == "opus":
         # 深度分析：description 应较丰富
-        assert len(desc) >= 100, (
-            f"{skill_path.parent.name}: opus 模式 description {len(desc)} 字符（应 ≥ 100）"
-        )
+        assert (
+            len(desc) >= 100
+        ), f"{skill_path.parent.name}: opus 模式 description {len(desc)} 字符（应 ≥ 100）"

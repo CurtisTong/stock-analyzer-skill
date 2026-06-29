@@ -48,99 +48,125 @@ class TestMomentumTraderScore:
     def test_perfect_uptrend_high_score(self):
         """完美多头排列 + 突破 60 日高 + 板块共振 → 技术面应接近满分。"""
         prices = [10 + i * 0.1 for i in range(120)]  # 单调上升 120 日
-        result = momentum_trader.score({
-            "quote": {"pe": 30, "amount": 10},
-            "finance": {"ROEJQ": 15, "PARENTNETPROFITTZ": 10, "TOTALOPERATEREVETZ": 8},
-            "kline_data": _build_kline(prices),
-            "kline_features": {"trend": 1},
-            "market_features": {
-                "limit_up_count": 60,
-                "sector_limit_up_count": 5,
-                "advance_ratio": 0.6,
-            },
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"pe": 30, "amount": 10},
+                "finance": {
+                    "ROEJQ": 15,
+                    "PARENTNETPROFITTZ": 10,
+                    "TOTALOPERATEREVETZ": 8,
+                },
+                "kline_data": _build_kline(prices),
+                "kline_features": {"trend": 1},
+                "market_features": {
+                    "limit_up_count": 60,
+                    "sector_limit_up_count": 5,
+                    "advance_ratio": 0.6,
+                },
+            }
+        )
         assert result["技术面"] >= 90, f"完美多头技术面应≥90，实际 {result['技术面']}"
 
     def test_downtrend_low_score(self):
         """空头排列 → 技术面应接近 0。"""
         prices = [22 - i * 0.1 for i in range(120)]  # 单调下跌 120 日
-        result = momentum_trader.score({
-            "quote": {"pe": 30, "amount": 10},
-            "finance": {"ROEJQ": 15},
-            "kline_data": _build_kline(prices),
-            "kline_features": {"trend": -1},
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"pe": 30, "amount": 10},
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline(prices),
+                "kline_features": {"trend": -1},
+            }
+        )
         assert result["技术面"] <= 10, f"空头排列技术面应≤10，实际 {result['技术面']}"
 
     def test_loss_making_company_low_fundamental(self):
         """亏损股 → 基本面低分（动量派避免价值陷阱）。"""
-        result = momentum_trader.score({
-            "quote": {"pe": -5, "amount": 10},
-            "finance": {"ROEJQ": -10, "PARENTNETPROFITTZ": -50},
-            "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"pe": -5, "amount": 10},
+                "finance": {"ROEJQ": -10, "PARENTNETPROFITTZ": -50},
+                "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
+            }
+        )
         assert result["基本面"] <= 20, f"亏损股基本面应≤20，实际 {result['基本面']}"
 
     def test_liquidity_starved_high_risk_penalty(self):
         """流动性枯竭 → 风险维度应极低（动量派无法止损）。"""
-        result = momentum_trader.score({
-            "quote": {"amount": 0.5},  # 5 千万，远低于 2 亿阈值
-            "finance": {"ROEJQ": 15},
-            "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"amount": 0.5},  # 5 千万，远低于 2 亿阈值
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
+            }
+        )
         assert result["风险"] <= 30, f"流动性枯竭风险应≤30，实际 {result['风险']}"
 
     def test_liquid_stock_low_risk_penalty(self):
         """流动性充裕 → 风险维度应较高。"""
-        result = momentum_trader.score({
-            "quote": {"amount": 20},  # 20 亿
-            "finance": {"ROEJQ": 15},
-            "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"amount": 20},  # 20 亿
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
+            }
+        )
         assert result["风险"] >= 60, f"流动性充裕风险应≥60，实际 {result['风险']}"
 
     def test_sector_resonance_sentiment_bonus(self):
         """板块同涨 ≥3 家涨停 → 情绪/资金加分。"""
         prices = [10 + i * 0.05 for i in range(120)]
-        result = momentum_trader.score({
-            "quote": {"pe": 30, "amount": 10},
-            "finance": {"ROEJQ": 15},
-            "kline_data": _build_kline(prices),
-            "market_features": {
-                "limit_up_count": 50,
-                "sector_limit_up_count": 5,
-                "advance_ratio": 0.55,
-            },
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"pe": 30, "amount": 10},
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline(prices),
+                "market_features": {
+                    "limit_up_count": 50,
+                    "sector_limit_up_count": 5,
+                    "advance_ratio": 0.55,
+                },
+            }
+        )
         # 板块共振应把情绪/资金推到 ≥70
-        assert result["情绪/资金"] >= 60, f"板块共振情绪/资金应≥60，实际 {result['情绪/资金']}"
+        assert (
+            result["情绪/资金"] >= 60
+        ), f"板块共振情绪/资金应≥60，实际 {result['情绪/资金']}"
 
     def test_isolated_breakthrough_sentiment_penalty(self):
         """孤立突破（板块无涨停）→ 情绪/资金扣分。"""
         prices = [10 + i * 0.05 for i in range(120)]
-        result = momentum_trader.score({
-            "quote": {"pe": 30, "amount": 10},
-            "finance": {"ROEJQ": 15},
-            "kline_data": _build_kline(prices),
-            "market_features": {
-                "limit_up_count": 10,
-                "sector_limit_up_count": 0,
-                "advance_ratio": 0.3,
-            },
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"pe": 30, "amount": 10},
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline(prices),
+                "market_features": {
+                    "limit_up_count": 10,
+                    "sector_limit_up_count": 0,
+                    "advance_ratio": 0.3,
+                },
+            }
+        )
         # 孤立突破 + 缩量 + 弱市 → 情绪/资金应偏低
-        assert result["情绪/资金"] <= 50, f"孤立突破情绪/资金应≤50，实际 {result['情绪/资金']}"
+        assert (
+            result["情绪/资金"] <= 50
+        ), f"孤立突破情绪/资金应≤50，实际 {result['情绪/资金']}"
 
     def test_breakthrough_60d_high_tech_bonus(self):
         """突破 60 日高 → 技术面应给额外加分。"""
         prices = [10] * 60 + [12] * 60  # 前 60 日横盘 10，后 60 日 12
-        result = momentum_trader.score({
-            "quote": {"pe": 30, "amount": 10},
-            "finance": {"ROEJQ": 15},
-            "kline_data": _build_kline(prices),
-        })
+        result = momentum_trader.score(
+            {
+                "quote": {"pe": 30, "amount": 10},
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline(prices),
+            }
+        )
         # 后段已突破前期高 10，但均线尚未完全多头（60 日均值 11），技术面应在 40-80 区间
-        assert 40 <= result["技术面"] <= 90, f"突破 60 日高技术面应在 40-90，实际 {result['技术面']}"
+        assert (
+            40 <= result["技术面"] <= 90
+        ), f"突破 60 日高技术面应在 40-90，实际 {result['技术面']}"
 
 
 class TestMomentumTraderProfile:
@@ -171,6 +197,7 @@ class TestMomentumTraderProfile:
     def test_yaml_round_trip(self):
         """registry → yaml → registry 字段完全一致。"""
         from experts.yaml_loader import round_trip
+
         assert round_trip(EXPERT_REGISTRY["momentum_trader"]) is True
 
 
@@ -179,6 +206,7 @@ class TestMomentumTraderScoringIntegration:
 
     def test_score_expert_precise_returns_momentum_result(self):
         from experts.scoring import score_expert_precise
+
         prices = [10 + i * 0.1 for i in range(120)]
         data = {
             "quote": {"pe": 30, "amount": 10},
@@ -198,9 +226,14 @@ class TestMomentumTraderScoringIntegration:
 
     def test_score_with_reasoning_works(self):
         from experts.scoring import score_expert_with_reasoning
+
         result = score_expert_with_reasoning(
             EXPERT_REGISTRY["momentum_trader"],
-            {"quote": {"amount": 10}, "finance": {"ROEJQ": 15}, "kline_data": _build_kline([10 + i * 0.1 for i in range(120)])},
+            {
+                "quote": {"amount": 10},
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
+            },
         )
         assert "scores" in result
         assert "reasoning" in result

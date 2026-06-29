@@ -7,13 +7,13 @@
     holders = get_holders("sh600989", periods=4)
     top_holders = get_top_holders("sh600989")
 """
+
 import threading
 from typing import List
 
 
 from data.types import MarginData, HolderData, TopHolderRecord
 from common import to_float, to_int
-
 
 # 延迟导入 fetchers（避免循环导入），线程安全
 _fetchers_lock = threading.Lock()
@@ -30,7 +30,12 @@ def _load_fetchers():
     with _fetchers_lock:
         if _fetchers_loaded:
             return
-        from fetchers.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
+        from fetchers.eastmoney_chip import (
+            MarginFetcher,
+            HolderFetcher,
+            TopHolderFetcher,
+        )
+
         _margin_fetcher = MarginFetcher()
         _holder_fetcher = HolderFetcher()
         _top_holder_fetcher = TopHolderFetcher()
@@ -182,6 +187,7 @@ def get_holders_summary(code: str, periods: int = 4) -> dict:
 
 
 # ---------- 内部转换函数 ----------
+
 
 def _dict_to_margin(d: dict) -> MarginData:
     """将 fetcher 返回的 dict 转为 MarginData。"""

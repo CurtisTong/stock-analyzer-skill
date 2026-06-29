@@ -49,7 +49,12 @@ class TestClassifyRegime:
 
     def test_default_zero_signals(self):
         """全零信号 → range（默认值）。"""
-        assert classify_regime({"index_trend": 0, "volatility": 0, "breadth": 0.5, "turnover": 0}) == RegimeState.RANGE
+        assert (
+            classify_regime(
+                {"index_trend": 0, "volatility": 0, "breadth": 0.5, "turnover": 0}
+            )
+            == RegimeState.RANGE
+        )
 
 
 class TestOverlayWeights:
@@ -57,8 +62,14 @@ class TestOverlayWeights:
 
     def test_bull_increases_momentum(self):
         """bull 状态：momentum 系数 1.3。"""
-        weights = {"quality": 0.30, "valuation": 0.20, "momentum": 0.20,
-                   "liquidity": 0.10, "volatility": 0.15, "dividend": 0.05}
+        weights = {
+            "quality": 0.30,
+            "valuation": 0.20,
+            "momentum": 0.20,
+            "liquidity": 0.10,
+            "volatility": 0.15,
+            "dividend": 0.05,
+        }
         out = compute_overlay_weights(weights, RegimeState.BULL)
         # 调节后 momentum 占比应高于原 0.20
         assert out["momentum"] > 0.20
@@ -69,8 +80,14 @@ class TestOverlayWeights:
 
     def test_panic_increases_quality_volatility(self):
         """panic 状态：quality+volatility 提升，momentum 大幅降低。"""
-        weights = {"quality": 0.30, "valuation": 0.20, "momentum": 0.20,
-                   "liquidity": 0.10, "volatility": 0.15, "dividend": 0.05}
+        weights = {
+            "quality": 0.30,
+            "valuation": 0.20,
+            "momentum": 0.20,
+            "liquidity": 0.10,
+            "volatility": 0.15,
+            "dividend": 0.05,
+        }
         out = compute_overlay_weights(weights, RegimeState.PANIC)
         assert out["momentum"] < 0.20
         assert out["volatility"] > 0.15
@@ -78,8 +95,14 @@ class TestOverlayWeights:
 
     def test_bear_balanced_defense(self):
         """bear 状态：quality/volatility 提升，momentum 降低。"""
-        weights = {"quality": 0.30, "valuation": 0.20, "momentum": 0.20,
-                   "liquidity": 0.10, "volatility": 0.15, "dividend": 0.05}
+        weights = {
+            "quality": 0.30,
+            "valuation": 0.20,
+            "momentum": 0.20,
+            "liquidity": 0.10,
+            "volatility": 0.15,
+            "dividend": 0.05,
+        }
         out = compute_overlay_weights(weights, RegimeState.BEAR)
         assert out["momentum"] < 0.20
         assert out["quality"] >= 0.30
@@ -90,7 +113,14 @@ class TestOverlayWeights:
         for state in RegimeState:
             assert state in OVERLAY_MATRIX
             mults = OVERLAY_MATRIX[state]
-            for k in ("quality", "valuation", "momentum", "liquidity", "volatility", "dividend"):
+            for k in (
+                "quality",
+                "valuation",
+                "momentum",
+                "liquidity",
+                "volatility",
+                "dividend",
+            ):
                 assert k in mults
                 assert mults[k] > 0  # 系数必须为正
 
@@ -108,6 +138,7 @@ class TestDetectSignals:
     def test_returns_zero_signals_on_empty_data(self, monkeypatch):
         """K 线数据为空时返回零信号。"""
         from strategies.regime import detector
+
         monkeypatch.setattr(detector, "get_kline", lambda *a, **k: [])
         sig = detect_signals()
         assert sig["index_trend"] == 0.0
@@ -152,8 +183,15 @@ class TestComputeWeightedScoreWithRegime:
     def test_regime_none_uses_original_weights(self):
         """regime=None 时权重不变。"""
         from business.screening_service import compute_weighted_score
-        parts = {"quality": 80, "valuation": 60, "momentum": 70,
-                 "liquidity": 50, "volatility": 30, "dividend": 40}
+
+        parts = {
+            "quality": 80,
+            "valuation": 60,
+            "momentum": 70,
+            "liquidity": 50,
+            "volatility": 30,
+            "dividend": 40,
+        }
         score_no_regime = compute_weighted_score(parts, "balanced")
         score_explicit_none = compute_weighted_score(parts, "balanced", regime=None)
         assert score_no_regime == score_explicit_none
@@ -161,8 +199,15 @@ class TestComputeWeightedScoreWithRegime:
     def test_regime_bull_changes_score(self):
         """regime=bull 时分数应不同（momentum 加权更大）。"""
         from business.screening_service import compute_weighted_score
-        parts = {"quality": 50, "valuation": 50, "momentum": 80,
-                 "liquidity": 50, "volatility": 50, "dividend": 50}
+
+        parts = {
+            "quality": 50,
+            "valuation": 50,
+            "momentum": 80,
+            "liquidity": 50,
+            "volatility": 50,
+            "dividend": 50,
+        }
         score_normal = compute_weighted_score(parts, "balanced")
         score_bull = compute_weighted_score(parts, "balanced", regime=RegimeState.BULL)
         # bull 时 momentum 占比更大，高动量应得更高分
@@ -171,8 +216,17 @@ class TestComputeWeightedScoreWithRegime:
     def test_regime_panic_penalizes_momentum(self):
         """regime=panic 时高动量应被惩罚。"""
         from business.screening_service import compute_weighted_score
-        parts = {"quality": 50, "valuation": 50, "momentum": 80,
-                 "liquidity": 50, "volatility": 50, "dividend": 50}
+
+        parts = {
+            "quality": 50,
+            "valuation": 50,
+            "momentum": 80,
+            "liquidity": 50,
+            "volatility": 50,
+            "dividend": 50,
+        }
         score_normal = compute_weighted_score(parts, "balanced")
-        score_panic = compute_weighted_score(parts, "balanced", regime=RegimeState.PANIC)
+        score_panic = compute_weighted_score(
+            parts, "balanced", regime=RegimeState.PANIC
+        )
         assert score_panic < score_normal

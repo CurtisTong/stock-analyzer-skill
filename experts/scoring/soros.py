@@ -4,10 +4,10 @@
 维度：基本面(15%) + 估值(10%) + 技术面(25%) + 情绪/反身性(30%) + 风险(20%)
 精确复现 experts/soros.md §九 评分矩阵中的阈值规则。
 """
+
 from typing import Dict
 
 from ._utils import _safe_float, _get_scoring_config
-
 
 # 索罗斯流动性阈值默认值（向后兼容）
 _SOROS_LIQUIDITY_FLOOR_DEFAULT = 5000
@@ -22,7 +22,9 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # 基本面：仅作背景
     roe = _safe_float(fin.get("ROEJQ") or fin.get("roe"))
-    profit_growth = _safe_float(fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy"))
+    profit_growth = _safe_float(
+        fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy")
+    )
     base = 60 if roe >= 15 else 30
     if profit_growth > 20:
         base = max(base, 60)
@@ -67,7 +69,9 @@ def score(stock_data: dict) -> Dict[str, float]:
     total_amount = market.get("total_amount", 0)
     limit_down = market.get("limit_down_count", 0)
     cfg = _get_scoring_config()
-    liquidity_floor = cfg("experts.soros.market_liquidity_floor_yi", _SOROS_LIQUIDITY_FLOOR_DEFAULT)
+    liquidity_floor = cfg(
+        "experts.soros.market_liquidity_floor_yi", _SOROS_LIQUIDITY_FLOOR_DEFAULT
+    )
     if total_amount > 0 and total_amount < liquidity_floor:
         risk = 20  # 流动性枯竭
     elif limit_down > 50:
@@ -77,7 +81,13 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         risk = 80
 
-    return {"基本面": base, "估值": val, "技术面": tech, "情绪/反身性": sent, "风险": risk}
+    return {
+        "基本面": base,
+        "估值": val,
+        "技术面": tech,
+        "情绪/反身性": sent,
+        "风险": risk,
+    }
 
 
 def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
@@ -87,5 +97,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["soros"]
     return generic_score_with_reasoning(profile, score, stock_data)

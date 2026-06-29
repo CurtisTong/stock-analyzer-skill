@@ -1,4 +1,5 @@
 """通达信 K 线数据源（需要 pytdx 包）。"""
+
 import logging
 from pathlib import Path
 
@@ -55,14 +56,16 @@ class PytdxKlineFetcher(BaseFetcher):
                 return None
             result = []
             for d in data:
-                result.append({
-                    "day": str(d.get("datetime", ""))[:10],
-                    "open": str(d.get("open", 0)),
-                    "close": str(d.get("close", 0)),
-                    "high": str(d.get("high", 0)),
-                    "low": str(d.get("low", 0)),
-                    "volume": str(d.get("vol", 0)),
-                })
+                result.append(
+                    {
+                        "day": str(d.get("datetime", ""))[:10],
+                        "open": str(d.get("open", 0)),
+                        "close": str(d.get("close", 0)),
+                        "high": str(d.get("high", 0)),
+                        "low": str(d.get("low", 0)),
+                        "volume": str(d.get("vol", 0)),
+                    }
+                )
             return result if result else None
         except Exception as e:
             logger.debug("pytdx_kline 请求 %s:%s 失败: %s", host, port, e)

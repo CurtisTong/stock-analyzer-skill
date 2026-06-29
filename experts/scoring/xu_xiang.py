@@ -4,6 +4,7 @@
 维度：基本面(5%) + 估值(5%) + 技术面(30%) + 情绪/题材(50%) + 风险(10%)
 精确复现 experts/xu_xiang.md §九 评分矩阵中的阈值规则。
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -38,7 +39,8 @@ def score(stock_data: dict) -> Dict[str, float]:
         closes = kline_data.get("closes") or []
         if len(closes) >= 2:
             limit_up_30d = sum(
-                1 for i in range(1, len(closes))
+                1
+                for i in range(1, len(closes))
                 if closes[i - 1] > 0 and (closes[i] / closes[i - 1] - 1) >= 0.085
             )
     if limit_up_30d >= 2:
@@ -70,7 +72,13 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         risk = 60
 
-    return {"基本面": base, "估值": val, "技术面": tech, "情绪/题材": sent, "风险": risk}
+    return {
+        "基本面": base,
+        "估值": val,
+        "技术面": tech,
+        "情绪/题材": sent,
+        "风险": risk,
+    }
 
 
 def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
@@ -80,5 +88,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["xu_xiang"]
     return generic_score_with_reasoning(profile, score, stock_data)

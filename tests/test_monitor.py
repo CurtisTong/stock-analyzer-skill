@@ -1,6 +1,7 @@
 """
 monitor 层单元测试：覆盖 NotificationManager 的频率控制、静默时段、紧急消息逻辑。
 """
+
 import sys
 import time
 from datetime import datetime
@@ -107,21 +108,29 @@ class TestQuietHours:
         # 中午 12 点不在静默时段
         from datetime import datetime as real_dt
         from dev import clock
-        with patch.object(clock, "_now_func", return_value=real_dt(2026, 6, 10, 12, 0, 0)):
+
+        with patch.object(
+            clock, "_now_func", return_value=real_dt(2026, 6, 10, 12, 0, 0)
+        ):
             assert mgr._is_quiet_hours() is False
 
     def test_cross_midnight_quiet_hours(self):
         """跨午夜配置（如 22:00-06:00）。"""
         from datetime import datetime as real_dt
         from dev import clock
+
         mgr = _make_manager({"throttle": {"quiet_hours": "22:00-06:00"}})
         # manager 内部时间来自 dev.clock.now（注入式时钟），
         # 故必须 patch _now_func 而非 monitor.manager.datetime。
         # 凌晨 3 点：处于 22:00-06:00 区间内
-        with patch.object(clock, "_now_func", return_value=real_dt(2026, 6, 10, 3, 0, 0)):
+        with patch.object(
+            clock, "_now_func", return_value=real_dt(2026, 6, 10, 3, 0, 0)
+        ):
             assert mgr._is_quiet_hours() is True
         # 中午 12 点：不在静默时段
-        with patch.object(clock, "_now_func", return_value=real_dt(2026, 6, 10, 12, 0, 0)):
+        with patch.object(
+            clock, "_now_func", return_value=real_dt(2026, 6, 10, 12, 0, 0)
+        ):
             assert mgr._is_quiet_hours() is False
 
     def test_invalid_quiet_hours_format_ignored(self):
@@ -186,9 +195,15 @@ class TestSend:
         assert result["results"]["failing"] is False
 
     def test_send_blocked_in_quiet_hours(self):
-        mgr = _make_manager({
-            "throttle": {"dedup_window": 0, "daily_limit": 100, "quiet_hours": "00:00-23:59"},
-        })
+        mgr = _make_manager(
+            {
+                "throttle": {
+                    "dedup_window": 0,
+                    "daily_limit": 100,
+                    "quiet_hours": "00:00-23:59",
+                },
+            }
+        )
         ch = MagicMock()
         ch.is_configured.return_value = True
         ch.name = "mock"

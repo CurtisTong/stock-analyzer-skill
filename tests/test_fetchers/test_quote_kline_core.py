@@ -5,6 +5,7 @@
 - 空 data 时返回 None
 - 正常 mock 数据时返回结构化结果
 """
+
 from unittest.mock import patch
 
 import pytest
@@ -24,7 +25,6 @@ from .conftest import (
     make_lhb_seat_raw,
     make_eastmoney_quote_raw,
 )
-
 
 # ==========================================================================
 # SinaQuoteFetcher

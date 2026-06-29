@@ -61,6 +61,7 @@ class TestPrefetchKlineAll:
 
         # monkeypatch get_kline（通过 data 模块）
         import data
+
         monkeypatch.setattr(data, "get_kline", lambda *a, **k: fake_bars)
         result = _prefetch_kline_all(["sh600519", "sh600989"])
         assert isinstance(result, dict)
@@ -79,15 +80,33 @@ class TestParallelFetch:
 
         # monkeypatch 关键函数以避免网络调用
         monkeypatch.setattr(screener, "load_universe", lambda args: ["sh600519"])
-        monkeypatch.setattr(screener, "_fetch_batch_dicts", lambda codes: [{"code": "sh600519", "name": "贵州茅台"}])
-        monkeypatch.setattr(screener, "prefetch_finance_all", lambda codes: {"sh600519": []})
+        monkeypatch.setattr(
+            screener,
+            "_fetch_batch_dicts",
+            lambda codes: [{"code": "sh600519", "name": "贵州茅台"}],
+        )
+        monkeypatch.setattr(
+            screener, "prefetch_finance_all", lambda codes: {"sh600519": []}
+        )
         monkeypatch.setattr(screener, "_prefetch_kline_all", lambda codes: {})
-        monkeypatch.setattr(screener, "analyze_code", lambda *a, **k: {"code": "sh600519", "name": "贵州茅台", "score": 80, "rejected": []})
-        monkeypatch.setattr(screener, "apply_portfolio_constraints", lambda rows, **k: rows)
+        monkeypatch.setattr(
+            screener,
+            "analyze_code",
+            lambda *a, **k: {
+                "code": "sh600519",
+                "name": "贵州茅台",
+                "score": 80,
+                "rejected": [],
+            },
+        )
+        monkeypatch.setattr(
+            screener, "apply_portfolio_constraints", lambda rows, **k: rows
+        )
         monkeypatch.setattr(screener, "render", lambda *a, **k: None)
 
         # 替换 argparse
         import argparse
+
         args = argparse.Namespace(
             strategy="balanced",
             sector=None,
@@ -109,6 +128,7 @@ class TestParallelFetch:
         # 实际 _run_main 流程现在包含 ThreadPoolExecutor，
         # 通过 inspect 验证源码包含此模式（V2.1 重构：_run_main 替代 main）
         import inspect
+
         source = inspect.getsource(screener._run_main)
         assert "ThreadPoolExecutor" in source
         assert "_prefetch_kline_all" in source

@@ -8,6 +8,7 @@
 5. 下午 13:00-15:00 时段
 6. 节假日文件缺失时降级
 """
+
 import sys
 from datetime import date, datetime, time
 from pathlib import Path
@@ -22,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 def reset_holiday_cache():
     """每个测试前后清空节假日缓存，确保 mock 生效。"""
     import data.config as cfg_mod
+
     cfg_mod._holiday_set = None
     yield
     cfg_mod._holiday_set = None
@@ -36,6 +38,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is True
 
     def test_lunch_break_returns_false(self):
@@ -44,6 +47,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is False, "12:00 应判为午休时段"
 
     def test_afternoon_session_returns_true(self):
@@ -52,6 +56,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is True
 
     def test_before_open_returns_false(self):
@@ -60,6 +65,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is False, "9:00 早于 9:30 开盘"
 
     def test_after_close_returns_false(self):
@@ -68,6 +74,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is False, "15:30 晚于 15:00 收盘"
 
     def test_weekend_returns_false(self):
@@ -76,6 +83,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is False, "周六应判为非交易时段"
 
     def test_national_day_holiday_returns_false(self):
@@ -84,6 +92,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is False, "国庆节应判为非交易时段"
 
     def test_spring_festival_returns_false(self):
@@ -92,6 +101,7 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is False
 
     def test_normal_trading_day(self):
@@ -100,12 +110,14 @@ class TestIsTradingHours:
         with patch("data.config.datetime") as mock_dt:
             mock_dt.now.return_value = fake_now
             from data.config import is_trading_hours
+
             assert is_trading_hours() is True
 
     def test_holiday_file_missing_graceful_degrade(self):
         """节假日文件缺失时降级（_load_holidays 内部已捕获异常返回空集）。"""
         from data.config import _load_holidays
         import data.config as cfg_mod
+
         # Patch pathlib.Path.read_text 模拟文件缺失
         with patch("pathlib.Path.read_text", side_effect=FileNotFoundError("missing")):
             cfg_mod._holiday_set = None  # 重置缓存
@@ -119,6 +131,7 @@ class TestCalibrationThreshold:
     def test_default_threshold_is_5(self):
         """默认阈值应为 5.0（保持向后兼容）。"""
         from experts.calibration import _get_calibration_threshold
+
         # 不修改 YAML 时应该是 5.0
         assert _get_calibration_threshold() == 5.0
 
@@ -139,8 +152,10 @@ class TestCalibrationThreshold:
         try:
             # 清除缓存
             from config.loader import ConfigLoader
+
             ConfigLoader._cache = {}
             from experts.calibration import _get_calibration_threshold
+
             assert _get_calibration_threshold() == 8.0, "YAML 覆盖后阈值应为 8.0"
         finally:
             # 还原
@@ -172,9 +187,12 @@ class TestCalibrationThreshold:
         try:
             data = yaml.safe_load(backup)
             data.setdefault("calibration", {})["calibration_threshold_pct"] = 3.0
-            original.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
+            original.write_text(
+                yaml.safe_dump(data, allow_unicode=True), encoding="utf-8"
+            )
 
             from config.loader import ConfigLoader
+
             ConfigLoader._cache = {}
             assert _get_calibration_threshold() == 3.0
         finally:

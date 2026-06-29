@@ -3,6 +3,7 @@
 
 核心测试 format_events_text（纯函数，无需 mock 网络）。
 """
+
 import sys
 from pathlib import Path
 
@@ -13,10 +14,10 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from events import format_events_text
 
-
 # ═══════════════════════════════════════════════════════════════
 # Fixtures
 # ═══════════════════════════════════════════════════════════════
+
 
 @pytest.fixture
 def sample_events():
@@ -27,12 +28,20 @@ def sample_events():
             {"code": "sh600989", "name": "宝丰能源", "disclosure_date": "2026-04-25"},
         ],
         "lockup": [
-            {"code": "sh600989", "name": "宝丰能源", "free_date": "2026-05-10",
-             "lift_market_cap": 5.6},
+            {
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "free_date": "2026-05-10",
+                "lift_market_cap": 5.6,
+            },
         ],
         "dividend": [
-            {"code": "sh600989", "name": "宝丰能源", "ex_date": "2026-06-15",
-             "bonus_per_share": 0.25},
+            {
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "ex_date": "2026-06-15",
+                "bonus_per_share": 0.25,
+            },
         ],
         "summary": "1 财报 + 1 解禁 + 1 分红",
     }
@@ -53,6 +62,7 @@ def empty_events():
 # ═══════════════════════════════════════════════════════════════
 # format_events_text 渲染
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestFormatEventsText:
     def test_returns_string(self, sample_events):
@@ -122,8 +132,14 @@ class TestFormatEventsText:
             "code": "sh600989",
             "query_days": 30,
             "earnings": [],
-            "lockup": [{"code": "x", "name": "X", "free_date": "2026-05-10",
-                       "lift_market_cap": 0}],
+            "lockup": [
+                {
+                    "code": "x",
+                    "name": "X",
+                    "free_date": "2026-05-10",
+                    "lift_market_cap": 0,
+                }
+            ],
             "dividend": [],
             "summary": "1 解禁",
         }
@@ -136,8 +152,14 @@ class TestFormatEventsText:
             "code": "sh600989",
             "query_days": 30,
             "earnings": [],
-            "lockup": [{"code": "x", "name": "X", "free_date": "2026-05-10",
-                       "lift_market_cap": 12.345}],
+            "lockup": [
+                {
+                    "code": "x",
+                    "name": "X",
+                    "free_date": "2026-05-10",
+                    "lift_market_cap": 12.345,
+                }
+            ],
             "dividend": [],
             "summary": "1 解禁",
         }
@@ -149,10 +171,12 @@ class TestFormatEventsText:
 # CLI 参数解析（不依赖网络）
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestEventsArgparse:
     def test_help(self, capsys):
         """--help 应正常输出。"""
         import argparse
+
         parser = argparse.ArgumentParser(description="个股事件日历查询")
         parser.add_argument("code", help="股票代码（如 sh600519）")
         parser.add_argument("--days", type=int, default=30, help="查询天数（默认 30）")
@@ -165,6 +189,7 @@ class TestEventsArgparse:
     def test_default_days(self):
         """默认 --days = 30。"""
         import argparse
+
         parser = argparse.ArgumentParser()
         parser.add_argument("code")
         parser.add_argument("--days", type=int, default=30)
@@ -174,6 +199,7 @@ class TestEventsArgparse:
     def test_custom_days(self):
         """--days N 应正确解析。"""
         import argparse
+
         parser = argparse.ArgumentParser()
         parser.add_argument("code")
         parser.add_argument("--days", type=int, default=30)
@@ -183,6 +209,7 @@ class TestEventsArgparse:
     def test_json_flag(self):
         """-j/--json 应正确解析。"""
         import argparse
+
         parser = argparse.ArgumentParser()
         parser.add_argument("code")
         parser.add_argument("-j", "--json", action="store_true")

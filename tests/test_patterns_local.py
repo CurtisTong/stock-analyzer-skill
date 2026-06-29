@@ -1,6 +1,7 @@
 """
 patterns_local.py 单元测试：覆盖 A 股本土战法检测。
 """
+
 import pytest
 import sys
 from pathlib import Path
@@ -22,10 +23,14 @@ def _make_records(opens, closes, highs, lows):
     """从价格列表构造 K 线记录。"""
     records = []
     for i in range(len(opens)):
-        records.append({
-            "open": opens[i], "close": closes[i],
-            "high": highs[i], "low": lows[i],
-        })
+        records.append(
+            {
+                "open": opens[i],
+                "close": closes[i],
+                "high": highs[i],
+                "low": lows[i],
+            }
+        )
     return records
 
 
@@ -34,10 +39,48 @@ class TestDetectSanyingYiyang:
 
     def test_basic_sanying_yiyang(self):
         """连续3根阴线后接1根大阳线。"""
-        opens =  [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                  10.5, 10.3, 10.1, 10.8]
-        closes = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-                  10.3, 10.1, 9.9, 11.2]
+        opens = [
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10.5,
+            10.3,
+            10.1,
+            10.8,
+        ]
+        closes = [
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10,
+            10.3,
+            10.1,
+            9.9,
+            11.2,
+        ]
         highs = [max(o, c) + 0.1 for o, c in zip(opens, closes)]
         lows = [min(o, c) - 0.1 for o, c in zip(opens, closes)]
         volumes = [1000] * len(opens)
@@ -65,9 +108,11 @@ class TestDetectLaoyatou:
         highs = [c + 0.2 for c in closes]
         lows = [c - 0.2 for c in closes]
         volumes = [1000] * n
-        mas = {"ma5": [10 + i * 0.1 for i in range(n)],
-               "ma10": [10 + i * 0.1 for i in range(n)],
-               "ma20": [10 + i * 0.1 for i in range(n)]}
+        mas = {
+            "ma5": [10 + i * 0.1 for i in range(n)],
+            "ma10": [10 + i * 0.1 for i in range(n)],
+            "ma20": [10 + i * 0.1 for i in range(n)],
+        }
         records = _make_records(opens, closes, highs, lows)
 
         result = detect_laoyatou(records, closes, volumes, mas)
@@ -105,6 +150,8 @@ class TestDetectAllLocalPatterns:
         mas = {"ma5": closes[:], "ma10": closes[:], "ma20": closes[:]}
         records = _make_records(opens, closes, highs, lows)
 
-        result = detect_all_local_patterns(records, closes, highs, lows, volumes, mas, "sh600519")
+        result = detect_all_local_patterns(
+            records, closes, highs, lows, volumes, mas, "sh600519"
+        )
         assert "patterns" in result
         assert isinstance(result["patterns"], list)

@@ -1,4 +1,5 @@
 """efinance 行情数据源（需要 efinance 包）。"""
+
 import logging
 import time
 from pathlib import Path
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import efinance as ef
+
     HAS_EFINANCE = True
 except ImportError:
     HAS_EFINANCE = False

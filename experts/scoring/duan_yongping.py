@@ -4,6 +4,7 @@
 维度：基本面(38%) + 估值(22%) + 技术面(5%) + 情绪(5%) + 安全边际(30%)
 精确复现 experts/duan_yongping.md §九 评分矩阵中的阈值规则。
 """
+
 from typing import Dict
 
 from ._utils import _safe_float
@@ -66,7 +67,13 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         margin = 0
 
-    return {"基本面": base, "估值": val, "技术面": tech, "情绪": sent, "安全边际": margin}
+    return {
+        "基本面": base,
+        "估值": val,
+        "技术面": tech,
+        "情绪": sent,
+        "安全边际": margin,
+    }
 
 
 def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
@@ -76,5 +83,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["duan_yongping"]
     return generic_score_with_reasoning(profile, score, stock_data)

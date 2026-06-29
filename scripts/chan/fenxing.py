@@ -15,13 +15,21 @@ def chan_fenxing(merged_bars):
         b0, b1, b2 = merged_bars[i - 1], merged_bars[i], merged_bars[i + 1]
 
         # 顶分型
-        if b1["high"] > b0["high"] and b1["high"] > b2["high"] and \
-           b1["low"] > b0["low"] and b1["low"] > b2["low"]:
+        if (
+            b1["high"] > b0["high"]
+            and b1["high"] > b2["high"]
+            and b1["low"] > b0["low"]
+            and b1["low"] > b2["low"]
+        ):
             fenxing_list.append({"type": "顶", "bar": b1, "idx": i})
 
         # 底分型
-        elif b1["low"] < b0["low"] and b1["low"] < b2["low"] and \
-             b1["high"] < b0["high"] and b1["high"] < b2["high"]:
+        elif (
+            b1["low"] < b0["low"]
+            and b1["low"] < b2["low"]
+            and b1["high"] < b0["high"]
+            and b1["high"] < b2["high"]
+        ):
             fenxing_list.append({"type": "底", "bar": b1, "idx": i})
 
     # 去重：连续同类型分型保留最强的

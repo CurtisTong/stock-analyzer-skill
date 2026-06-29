@@ -1,6 +1,7 @@
 """
 kline.py 单元测试：覆盖 K 线聚合逻辑。
 """
+
 import pytest
 from kline import aggregate_klines
 
@@ -13,6 +14,7 @@ def _daily_bar(date, o, h, l, c, vol=10000):
 def _make_daily_bars(n, start_date_str="2025-01-06"):
     """生成 n 根连续交易日 K 线（跳过周末）。"""
     from datetime import datetime, timedelta
+
     bars = []
     dt = datetime.strptime(start_date_str, "%Y-%m-%d")
     price = 10.0
@@ -35,6 +37,7 @@ def _make_daily_bars(n, start_date_str="2025-01-06"):
 # P0: aggregate_klines 最后一根 K 线不丢失
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestAggregateKlinesP0:
     """P0 回归测试：聚合后最后一根 K 线不丢失。"""
 
@@ -46,9 +49,9 @@ class TestAggregateKlinesP0:
         """
         bars = _make_daily_bars(45, "2025-01-06")  # 周一开始
         weekly = aggregate_klines(bars, period="week")
-        assert len(weekly) == 9, (
-            f"45 根日 K 线应产出 9 根周 K 线，实际 {len(weekly)} 根"
-        )
+        assert (
+            len(weekly) == 9
+        ), f"45 根日 K 线应产出 9 根周 K 线，实际 {len(weekly)} 根"
 
     def test_p0_last_week_not_lost_when_incomplete(self):
         """最后一周只有 1 天时也不应丢失。
@@ -57,9 +60,9 @@ class TestAggregateKlinesP0:
         """
         bars = _make_daily_bars(21, "2025-01-06")
         weekly = aggregate_klines(bars, period="week")
-        assert len(weekly) >= 4, (
-            f"21 根日 K 线至少应产出 4 根周 K 线，实际 {len(weekly)} 根"
-        )
+        assert (
+            len(weekly) >= 4
+        ), f"21 根日 K 线至少应产出 4 根周 K 线，实际 {len(weekly)} 根"
         # 最后一根周 K 线的日期应等于最后一根日 K 线的日期
         assert weekly[-1]["day"] == bars[-1]["day"], (
             f"最后一根周 K 线日期 {weekly[-1]['day']} != "

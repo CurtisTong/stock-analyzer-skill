@@ -2,6 +2,7 @@
 monitor/channels/ 单元测试：覆盖 Bark / WechatWork / Dingtalk 三个通道的
 网络调用、配置校验、错误处理。
 """
+
 import io
 import json
 import sys
@@ -13,7 +14,10 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from monitor.channels.base import NotificationChannel, validate_webhook_url  # noqa: E402
+from monitor.channels.base import (
+    NotificationChannel,
+    validate_webhook_url,
+)  # noqa: E402
 from monitor.channels.bark import BarkChannel  # noqa: E402
 from monitor.channels.wechat import WechatWorkChannel  # noqa: E402
 from monitor.channels.dingtalk import DingtalkChannel  # noqa: E402
@@ -39,6 +43,7 @@ class TestBaseChannel:
 
     def test_default_is_configured_true(self):
         """基类默认 is_configured() 返回 True。"""
+
         # 创建一个 minimal concrete subclass
         class Stub(NotificationChannel):
             @property
@@ -99,8 +104,11 @@ class TestBarkChannel:
 
     def test_send_network_error(self):
         import urllib.error
+
         ch = BarkChannel(key="abc")
-        with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("dns fail")):
+        with patch(
+            "urllib.request.urlopen", side_effect=urllib.error.URLError("dns fail")
+        ):
             ok, err = ch.send("t", "b")
         assert ok is False
         assert "network error" in err
@@ -230,7 +238,9 @@ class TestDingtalkChannel:
 
     def test_send_api_error(self):
         ch = DingtalkChannel(token="t")
-        mock_resp = _mock_urlopen_response({"errcode": 30001, "errmsg": "token expired"})
+        mock_resp = _mock_urlopen_response(
+            {"errcode": 30001, "errmsg": "token expired"}
+        )
         with patch("urllib.request.urlopen", return_value=mock_resp):
             ok, err = ch.send("t", "b")
         assert ok is False
@@ -245,6 +255,7 @@ class TestDingtalkChannel:
         import hmac
         import hashlib
         import urllib.parse
+
         ch = DingtalkChannel(token="t", secret="sec")
         signed = ch._sign_url("1700000000000")
         # 签名 URL 格式: "&timestamp=...&sign=..."
@@ -270,12 +281,16 @@ class TestValidateWebhookUrl:
 
     def test_valid_https_url(self):
         """合法 HTTPS URL 通过。"""
-        assert validate_webhook_url("https://api.day.app/key") == "https://api.day.app/key"
+        assert (
+            validate_webhook_url("https://api.day.app/key") == "https://api.day.app/key"
+        )
 
     def test_valid_https_domain(self):
         """域名形式的 HTTPS URL 通过。"""
-        assert validate_webhook_url("https://qyapi.weixin.qq.com/cgi-bin/webhook/send") == \
-            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send"
+        assert (
+            validate_webhook_url("https://qyapi.weixin.qq.com/cgi-bin/webhook/send")
+            == "https://qyapi.weixin.qq.com/cgi-bin/webhook/send"
+        )
 
     def test_empty_url_passes(self):
         """空字符串直接通过（通道未配置时不校验）。"""
@@ -327,7 +342,9 @@ class TestValidateWebhookUrl:
 
     def test_public_ip_passes(self):
         """公网 IP 通过。"""
-        assert validate_webhook_url("https://8.8.8.8/webhook") == "https://8.8.8.8/webhook"
+        assert (
+            validate_webhook_url("https://8.8.8.8/webhook") == "https://8.8.8.8/webhook"
+        )
 
 
 class TestBarkChannelSsrf:

@@ -10,6 +10,7 @@
 需要 gh CLI 已登录（gh auth login）。
 Gist 文件名：expert_calibration.json
 """
+
 import argparse
 import json
 import os
@@ -43,7 +44,9 @@ def _run_gh(args: list[str], input_data: str | None = None) -> tuple[int, str, s
 
 def _find_gist() -> str | None:
     """查找已存在的校准数据 gist。"""
-    code, stdout, stderr = _run_gh(["gist", "list", "--limit", "100", "--json", "id,description,files"])
+    code, stdout, stderr = _run_gh(
+        ["gist", "list", "--limit", "100", "--json", "id,description,files"]
+    )
     if code != 0:
         return None
 
@@ -65,7 +68,9 @@ def _find_gist() -> str | None:
 
 def _get_gist_content(gist_id: str) -> dict | None:
     """从 gist 读取校准数据。"""
-    code, stdout, stderr = _run_gh(["gist", "view", gist_id, "--filename", _GIST_FILENAME])
+    code, stdout, stderr = _run_gh(
+        ["gist", "view", gist_id, "--filename", _GIST_FILENAME]
+    )
     if code != 0:
         return None
 
@@ -78,19 +83,28 @@ def _get_gist_content(gist_id: str) -> dict | None:
 def _create_gist(data: dict) -> str | None:
     """创建新 gist。"""
     import tempfile
+
     content = json.dumps(data, ensure_ascii=False, indent=2)
 
     # gh gist create 需要文件路径，用临时文件
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as f:
         f.write(content)
         tmp_path = f.name
 
     try:
-        code, stdout, stderr = _run_gh([
-            "gist", "create", tmp_path,
-            "--desc", _GIST_DESC,
-            "--filename", _GIST_FILENAME,
-        ])
+        code, stdout, stderr = _run_gh(
+            [
+                "gist",
+                "create",
+                tmp_path,
+                "--desc",
+                _GIST_DESC,
+                "--filename",
+                _GIST_FILENAME,
+            ]
+        )
         if code != 0:
             print(f"❌ 创建 gist 失败: {stderr}", file=sys.stderr)
             return None
@@ -106,18 +120,27 @@ def _create_gist(data: dict) -> str | None:
 def _update_gist(gist_id: str, data: dict) -> bool:
     """更新已有 gist。"""
     import tempfile
+
     content = json.dumps(data, ensure_ascii=False, indent=2)
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as f:
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as f:
         f.write(content)
         tmp_path = f.name
 
     try:
-        code, stdout, stderr = _run_gh([
-            "gist", "edit", gist_id,
-            "--filename", _GIST_FILENAME,
-            "--file", tmp_path,
-        ])
+        code, stdout, stderr = _run_gh(
+            [
+                "gist",
+                "edit",
+                gist_id,
+                "--filename",
+                _GIST_FILENAME,
+                "--file",
+                tmp_path,
+            ]
+        )
         return code == 0
     finally:
         os.unlink(tmp_path)
@@ -138,7 +161,9 @@ def pull() -> bool:
     # 备份本地数据
     if _CALIBRATION_FILE.exists():
         backup = _CALIBRATION_FILE.with_suffix(".json.bak")
-        backup.write_text(_CALIBRATION_FILE.read_text(encoding="utf-8"), encoding="utf-8")
+        backup.write_text(
+            _CALIBRATION_FILE.read_text(encoding="utf-8"), encoding="utf-8"
+        )
         print(f"📦 本地数据已备份到 {backup.name}")
 
     # 写入远程数据
@@ -149,7 +174,9 @@ def pull() -> bool:
     )
 
     pred_count = len(remote_data.get("predictions", []))
-    expert_count = sum(1 for v in remote_data.get("experts", {}).values() if v.get("events", 0) > 0)
+    expert_count = sum(
+        1 for v in remote_data.get("experts", {}).values() if v.get("events", 0) > 0
+    )
     print(f"✅ 拉取成功：{pred_count} 条预测，{expert_count} 位专家有数据")
     return True
 
@@ -218,9 +245,15 @@ def status() -> None:
     if _CALIBRATION_FILE.exists():
         local_data = json.loads(_CALIBRATION_FILE.read_text(encoding="utf-8"))
         local_preds = len(local_data.get("predictions", []))
-        local_verified = sum(1 for p in local_data.get("predictions", []) if p.get("verified"))
-        local_experts = sum(1 for v in local_data.get("experts", {}).values() if v.get("events", 0) > 0)
-        print(f"本地: {local_preds} 条预测（{local_verified} 已验证），{local_experts} 位专家有数据")
+        local_verified = sum(
+            1 for p in local_data.get("predictions", []) if p.get("verified")
+        )
+        local_experts = sum(
+            1 for v in local_data.get("experts", {}).values() if v.get("events", 0) > 0
+        )
+        print(
+            f"本地: {local_preds} 条预测（{local_verified} 已验证），{local_experts} 位专家有数据"
+        )
     else:
         print("本地: 无数据")
 
@@ -230,8 +263,12 @@ def status() -> None:
         remote_data = _get_gist_content(gist_id)
         if remote_data:
             remote_preds = len(remote_data.get("predictions", []))
-            remote_verified = sum(1 for p in remote_data.get("predictions", []) if p.get("verified"))
-            print(f"远程: {remote_preds} 条预测（{remote_verified} 已验证），gist: {gist_id}")
+            remote_verified = sum(
+                1 for p in remote_data.get("predictions", []) if p.get("verified")
+            )
+            print(
+                f"远程: {remote_preds} 条预测（{remote_verified} 已验证），gist: {gist_id}"
+            )
         else:
             print(f"远程: gist {gist_id} 存在但无法读取")
     else:

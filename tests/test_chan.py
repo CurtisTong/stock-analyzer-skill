@@ -2,6 +2,7 @@
 chan.py 单元测试：覆盖缠论核心算法。
 K线包含处理 → 分型 → 笔 → 线段 → 中枢 → 背驰 → 买卖点。
 """
+
 import pytest
 from chan import (
     chan_merge_inclusions,
@@ -14,10 +15,10 @@ from chan import (
     chan_full_analysis,
 )
 
-
 # ═══════════════════════════════════════════════════════════════
 # 辅助工具
 # ═══════════════════════════════════════════════════════════════
+
 
 def _bar(day, o, h, l, c):
     """快速生成 K 线字典。"""
@@ -37,10 +38,16 @@ def _make_bi(direction, start_idx, end_idx, high, low):
         "end_idx": end_idx,
         "high": high,
         "low": low,
-        "start": {"type": "底" if direction == "up" else "顶", "idx": start_idx,
-                  "bar": {"high": high, "low": low}},
-        "end": {"type": "顶" if direction == "up" else "底", "idx": end_idx,
-                "bar": {"high": high, "low": low}},
+        "start": {
+            "type": "底" if direction == "up" else "顶",
+            "idx": start_idx,
+            "bar": {"high": high, "low": low},
+        },
+        "end": {
+            "type": "顶" if direction == "up" else "底",
+            "idx": end_idx,
+            "bar": {"high": high, "low": low},
+        },
     }
 
 
@@ -91,6 +98,7 @@ def _zigzag_bars(n, base=10.0, amp=2.0):
 # 1. chan_merge_inclusions 测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestChanMergeInclusions:
     """K线包含处理测试。"""
 
@@ -102,8 +110,10 @@ class TestChanMergeInclusions:
 
     def test_two_bars_returns_as_is(self):
         """2根K线直接返回。"""
-        bars = [_bar("2025-01-01", 10, 11, 9, 10.5),
-                _bar("2025-01-02", 10.5, 12, 10, 11)]
+        bars = [
+            _bar("2025-01-01", 10, 11, 9, 10.5),
+            _bar("2025-01-02", 10.5, 12, 10, 11),
+        ]
         result = chan_merge_inclusions(bars)
         assert result == bars
 
@@ -120,8 +130,8 @@ class TestChanMergeInclusions:
     def test_uptrend_merges_high_high(self):
         """涨势中包含关系取高高：high 取较大，low 取较大。"""
         bars = [
-            _bar("2025-01-01", 10, 12, 9, 11),   # high=12, low=9
-            _bar("2025-01-02", 10, 11, 9.5, 10.5), # 包含在前一根内（11<=12, 9.5>=9）
+            _bar("2025-01-01", 10, 12, 9, 11),  # high=12, low=9
+            _bar("2025-01-02", 10, 11, 9.5, 10.5),  # 包含在前一根内（11<=12, 9.5>=9）
             _bar("2025-01-03", 11, 13, 10, 12.5),  # 非包含
         ]
         result = chan_merge_inclusions(bars)
@@ -134,25 +144,27 @@ class TestChanMergeInclusions:
         """跌势中包含关系取低低：high 取较小，low 取较小。"""
         # 先建立跌势方向，再触发包含合并
         bars = [
-            _bar("2025-01-01", 15, 16, 14, 15),   # high=16, low=14
-            _bar("2025-01-02", 13, 15, 12, 14),    # high=15<16 → not new high; low=12<14 → dir=down
+            _bar("2025-01-01", 15, 16, 14, 15),  # high=16, low=14
+            _bar(
+                "2025-01-02", 13, 15, 12, 14
+            ),  # high=15<16 → not new high; low=12<14 → dir=down
             _bar("2025-01-03", 13, 14, 12.5, 13),  # 14<=15 且 12.5>=12 → 被前一根包含
         ]
         result = chan_merge_inclusions(bars)
         assert len(result) == 2
         # 跌势合并：取 min(high), min(low)
-        assert result[1]["high"] == 14   # min(15, 14)
-        assert result[1]["low"] == 12    # min(12, 12.5)
+        assert result[1]["high"] == 14  # min(15, 14)
+        assert result[1]["low"] == 12  # min(12, 12.5)
 
     def test_max_consecutive_merges_limit(self):
         """最大连续合并3次限制：第4根包含K线不再合并。"""
         # 构造5根连续包含的K线（涨势方向）
         bars = [
-            _bar("2025-01-01", 10, 15, 8, 12),     # 基准
-            _bar("2025-01-02", 10, 14, 9, 11),      # 包含（14<=15, 9>=8）
-            _bar("2025-01-03", 10, 13, 9.5, 11),    # 包含（13<=15, 9.5>=9）
-            _bar("2025-01-04", 10, 12, 10, 11),     # 包含（12<=15, 10>=9.5）→ 第3次合并
-            _bar("2025-01-05", 10, 11, 10.5, 11),   # 包含但已达上限 → 不合并
+            _bar("2025-01-01", 10, 15, 8, 12),  # 基准
+            _bar("2025-01-02", 10, 14, 9, 11),  # 包含（14<=15, 9>=8）
+            _bar("2025-01-03", 10, 13, 9.5, 11),  # 包含（13<=15, 9.5>=9）
+            _bar("2025-01-04", 10, 12, 10, 11),  # 包含（12<=15, 10>=9.5）→ 第3次合并
+            _bar("2025-01-05", 10, 11, 10.5, 11),  # 包含但已达上限 → 不合并
         ]
         result = chan_merge_inclusions(bars)
         # 第4根（idx=4）应作为独立K线加入
@@ -166,9 +178,9 @@ class TestChanMergeInclusions:
     def test_prev_in_curr_also_detected(self):
         """前一根被后一根包含的情况也应检测到。"""
         bars = [
-            _bar("2025-01-01", 10, 11, 9, 10),     # 小K线
-            _bar("2025-01-02", 10, 15, 8, 12),      # 大K线（包含前一根：15>11, 8<9）
-            _bar("2025-01-03", 12, 16, 11, 15),     # 非包含
+            _bar("2025-01-01", 10, 11, 9, 10),  # 小K线
+            _bar("2025-01-02", 10, 15, 8, 12),  # 大K线（包含前一根：15>11, 8<9）
+            _bar("2025-01-03", 12, 16, 11, 15),  # 非包含
         ]
         result = chan_merge_inclusions(bars)
         assert len(result) == 2
@@ -186,21 +198,22 @@ class TestChanMergeInclusions:
     def test_alternating_direction(self):
         """方向在非包含K线出现时更新。"""
         bars = [
-            _bar("2025-01-01", 10, 12, 9, 11),    # 基准
-            _bar("2025-01-02", 11, 14, 10, 13),    # 高点更高 → up
-            _bar("2025-01-03", 10, 13, 8, 9),      # 低点更低 → down
-            _bar("2025-01-04", 9, 12, 8.5, 10),    # 包含在第三根内（12<=13, 8.5>=8）
+            _bar("2025-01-01", 10, 12, 9, 11),  # 基准
+            _bar("2025-01-02", 11, 14, 10, 13),  # 高点更高 → up
+            _bar("2025-01-03", 10, 13, 8, 9),  # 低点更低 → down
+            _bar("2025-01-04", 9, 12, 8.5, 10),  # 包含在第三根内（12<=13, 8.5>=8）
         ]
         result = chan_merge_inclusions(bars)
         # 第三根后方向=down，第四根包含 → 跌势合并
         assert len(result) == 3
         assert result[2]["high"] == 12  # min(13, 12) = 12
-        assert result[2]["low"] == 8    # min(8, 8.5) = 8
+        assert result[2]["low"] == 8  # min(8, 8.5) = 8
 
 
 # ═══════════════════════════════════════════════════════════════
 # 2. chan_fenxing 测试
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestChanFenxing:
     """分型识别测试。"""
@@ -276,17 +289,17 @@ class TestChanFenxing:
         """连续同类型分型去重：顶保留更高的，底保留更低的。"""
         bars = [
             _merged_bar("d1", 10, 8, 0),
-            _merged_bar("d2", 12, 9, 1),   # 顶分型
+            _merged_bar("d2", 12, 9, 1),  # 顶分型
             _merged_bar("d3", 11, 9.5, 2),  # 与d2形成顶？d3.high=11<12, 不构成顶
-            _merged_bar("d4", 13, 9, 3),    # 顶分型（13>11 且 9<9.5? low=9<9.5不满足）
+            _merged_bar("d4", 13, 9, 3),  # 顶分型（13>11 且 9<9.5? low=9<9.5不满足）
             # 需要更精确的构造
         ]
         # 重新构造：两个连续顶分型
         bars = [
             _merged_bar("d1", 10, 8, 0),
-            _merged_bar("d2", 12, 9, 1),   # 顶分型候选
-            _merged_bar("d3", 11, 8.5, 2), # 既不是顶也不是底（11<12, 8.5>8）
-            _merged_bar("d4", 13, 9, 3),   # 顶分型候选（13>11, 9>8.5）
+            _merged_bar("d2", 12, 9, 1),  # 顶分型候选
+            _merged_bar("d3", 11, 8.5, 2),  # 既不是顶也不是底（11<12, 8.5>8）
+            _merged_bar("d4", 13, 9, 3),  # 顶分型候选（13>11, 9>8.5）
             _merged_bar("d5", 11, 7, 4),
         ]
         result = chan_fenxing(bars)
@@ -303,10 +316,10 @@ class TestChanFenxing:
         """交替顶底分型。"""
         bars = [
             _merged_bar("d1", 10, 8, 0),
-            _merged_bar("d2", 13, 10, 1),   # 顶
-            _merged_bar("d3", 10, 7, 2),    # 底
-            _merged_bar("d4", 14, 11, 3),   # 顶
-            _merged_bar("d5", 9, 6, 4),     # 底
+            _merged_bar("d2", 13, 10, 1),  # 顶
+            _merged_bar("d3", 10, 7, 2),  # 底
+            _merged_bar("d4", 14, 11, 3),  # 顶
+            _merged_bar("d5", 9, 6, 4),  # 底
         ]
         result = chan_fenxing(bars)
         types = [fx["type"] for fx in result]
@@ -318,6 +331,7 @@ class TestChanFenxing:
 # ═══════════════════════════════════════════════════════════════
 # 3. chan_bi 测试
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestChanBi:
     """笔构建测试。"""
@@ -337,10 +351,10 @@ class TestChanBi:
         """底分型→顶分型 = 向上笔。"""
         bars = [
             _merged_bar("d1", 12, 10, 0),
-            _merged_bar("d2", 10, 7, 1),    # 底: low 7<10, 7<8; high 10<12, 10<11
-            _merged_bar("d3", 11, 8, 2),    # 独立
-            _merged_bar("d4", 14, 10, 3),   # 顶: high 14>11, 14>12; low 10>8, 10>8
-            _merged_bar("d5", 12, 8, 4),    # 使 d4 成为顶分型的右侧K线
+            _merged_bar("d2", 10, 7, 1),  # 底: low 7<10, 7<8; high 10<12, 10<11
+            _merged_bar("d3", 11, 8, 2),  # 独立
+            _merged_bar("d4", 14, 10, 3),  # 顶: high 14>11, 14>12; low 10>8, 10>8
+            _merged_bar("d5", 12, 8, 4),  # 使 d4 成为顶分型的右侧K线
         ]
         result = chan_bi(bars)
         assert len(result) >= 1
@@ -350,10 +364,10 @@ class TestChanBi:
         """顶分型→底分型 = 向下笔。"""
         bars = [
             _merged_bar("d1", 10, 8, 0),
-            _merged_bar("d2", 14, 10, 1),   # 顶: high 14>10, 14>12; low 10>8, 10>9
-            _merged_bar("d3", 12, 9, 2),    # 独立
-            _merged_bar("d4", 10, 7, 3),    # 底: low 7<9, 7<8; high 10<12, 10<11
-            _merged_bar("d5", 11, 8, 4),    # 使 d4 成为底分型的右侧K线
+            _merged_bar("d2", 14, 10, 1),  # 顶: high 14>10, 14>12; low 10>8, 10>9
+            _merged_bar("d3", 12, 9, 2),  # 独立
+            _merged_bar("d4", 10, 7, 3),  # 底: low 7<9, 7<8; high 10<12, 10<11
+            _merged_bar("d5", 11, 8, 4),  # 使 d4 成为底分型的右侧K线
         ]
         result = chan_bi(bars)
         assert len(result) >= 1
@@ -364,8 +378,8 @@ class TestChanBi:
         # 构造两个相邻分型之间无独立K线的情况
         bars = [
             _merged_bar("d1", 12, 10, 0),
-            _merged_bar("d2", 10, 7, 1),    # 底 idx=1
-            _merged_bar("d3", 14, 10, 2),   # 顶 idx=2，与底idx差=1 < 2
+            _merged_bar("d2", 10, 7, 1),  # 底 idx=1
+            _merged_bar("d3", 14, 10, 2),  # 顶 idx=2，与底idx差=1 < 2
         ]
         result = chan_bi(bars)
         # idx差=1，不满足>=2条件，不应构成笔
@@ -375,11 +389,11 @@ class TestChanBi:
         """笔必须由交替的顶底分型构成。"""
         bars = [
             _merged_bar("d1", 12, 10, 0),
-            _merged_bar("d2", 10, 7, 1),    # 底
+            _merged_bar("d2", 10, 7, 1),  # 底
             _merged_bar("d3", 11, 8, 2),
-            _merged_bar("d4", 14, 10, 3),   # 顶
+            _merged_bar("d4", 14, 10, 3),  # 顶
             _merged_bar("d5", 12, 9, 4),
-            _merged_bar("d6", 9, 6, 5),     # 底
+            _merged_bar("d6", 9, 6, 5),  # 底
         ]
         result = chan_bi(bars)
         if len(result) >= 2:
@@ -416,6 +430,7 @@ class TestChanBi:
 # 4. chan_xianduan 测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestChanXianduan:
     """线段构建测试。"""
 
@@ -431,9 +446,9 @@ class TestChanXianduan:
     def test_three_bi_with_overlap(self):
         """3笔有重叠区间 → 构成1条线段。"""
         bi_list = [
-            _make_bi("up", 0, 2, 12, 9),    # high=12, low=9
-            _make_bi("down", 2, 4, 11, 8),   # high=11, low=8
-            _make_bi("up", 4, 6, 13, 9.5),   # high=13, low=9.5
+            _make_bi("up", 0, 2, 12, 9),  # high=12, low=9
+            _make_bi("down", 2, 4, 11, 8),  # high=11, low=8
+            _make_bi("up", 4, 6, 13, 9.5),  # high=13, low=9.5
         ]
         # overlap_high = min(12,11,13) = 11, overlap_low = max(9,8,9.5) = 9.5
         # 9.5 < 11 → 有重叠
@@ -444,9 +459,9 @@ class TestChanXianduan:
     def test_three_bi_no_overlap(self):
         """3笔无重叠区间 → 不构成线段。"""
         bi_list = [
-            _make_bi("up", 0, 2, 10, 8),    # high=10, low=8
-            _make_bi("down", 2, 4, 7, 5),    # high=7, low=5
-            _make_bi("up", 4, 6, 12, 9),     # high=12, low=9
+            _make_bi("up", 0, 2, 10, 8),  # high=10, low=8
+            _make_bi("down", 2, 4, 7, 5),  # high=7, low=5
+            _make_bi("up", 4, 6, 12, 9),  # high=12, low=9
         ]
         # overlap_high = min(10,7,12) = 7, overlap_low = max(8,5,9) = 9
         # 9 >= 7 → 无重叠
@@ -470,7 +485,7 @@ class TestChanXianduan:
             _make_bi("up", 0, 2, 12, 9),
             _make_bi("down", 2, 4, 11, 8),
             _make_bi("up", 4, 6, 13, 9.5),
-            _make_bi("down", 6, 8, 12, 9),   # 回调不破前低9
+            _make_bi("down", 6, 8, 12, 9),  # 回调不破前低9
             _make_bi("up", 8, 10, 14, 10),
         ]
         result = chan_xianduan(bi_list)
@@ -482,6 +497,7 @@ class TestChanXianduan:
 # ═══════════════════════════════════════════════════════════════
 # 5. chan_zhongshu 测试
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestChanZhongshu:
     """中枢识别测试。"""
@@ -538,10 +554,10 @@ class TestChanZhongshu:
     def test_merge_overlapping_zhongshu(self):
         """相邻中枢有重叠时合并为扩展中枢。"""
         xd_list = [
-            _make_xd("up", 3, 12, 8),    # 中枢1: zg=11, zd=9（与后面3段）
+            _make_xd("up", 3, 12, 8),  # 中枢1: zg=11, zd=9（与后面3段）
             _make_xd("down", 3, 11, 7),
             _make_xd("up", 3, 13, 9),
-            _make_xd("down", 3, 12, 8),   # 中枢2: zg=12, zd=9（与后面3段）
+            _make_xd("down", 3, 12, 8),  # 中枢2: zg=12, zd=9（与后面3段）
             _make_xd("up", 3, 14, 10),
         ]
         # 中枢1: zg=min(12,11,13)=11, zd=max(8,7,9)=9
@@ -556,7 +572,7 @@ class TestChanZhongshu:
     def test_no_merge_non_overlapping_zhongshu(self):
         """不重叠的中枢不合并。"""
         xd_list = [
-            _make_xd("up", 3, 10, 8),    # 中枢1: zg=8? 计算一下
+            _make_xd("up", 3, 10, 8),  # 中枢1: zg=8? 计算一下
             _make_xd("down", 3, 9, 7),
             _make_xd("up", 3, 10, 8),
             _make_xd("down", 3, 20, 15),  # 跳到高处
@@ -574,16 +590,19 @@ class TestChanZhongshu:
 # 6. chan_beichi 测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestChanBeichi:
     """背驰检测测试。"""
 
     def test_insufficient_closes(self):
         """收盘价不足34根返回数据不足。"""
         closes = [10.0] * 20
-        bi_list = [_make_bi("down", 0, 5, 12, 8),
-                   _make_bi("up", 5, 10, 14, 9),
-                   _make_bi("down", 10, 15, 13, 7),
-                   _make_bi("up", 15, 20, 15, 10)]
+        bi_list = [
+            _make_bi("down", 0, 5, 12, 8),
+            _make_bi("up", 5, 10, 14, 9),
+            _make_bi("down", 10, 15, 13, 7),
+            _make_bi("up", 15, 20, 15, 10),
+        ]
         result = chan_beichi(bi_list, [], closes)
         assert result["trend_beichi"] is None
         assert "不足" in result["summary"]
@@ -642,9 +661,9 @@ class TestChanBeichi:
 
         bi_list = [
             _make_bi("up", 0, 3, 20, 16),
-            _make_bi("down", 3, 8, 18, 15.5),    # 第一段下跌
+            _make_bi("down", 3, 8, 18, 15.5),  # 第一段下跌
             _make_bi("up", 8, 12, 17, 16),
-            _make_bi("down", 12, 16, 16, 14),    # 第二段下跌（更低，索引在范围内）
+            _make_bi("down", 12, 16, 16, 14),  # 第二段下跌（更低，索引在范围内）
         ]
         result = chan_beichi(bi_list, [], closes)
         assert result["trend_beichi"] in (None, "底背驰(看涨)", "顶背驰(看跌)")
@@ -653,6 +672,7 @@ class TestChanBeichi:
 # ═══════════════════════════════════════════════════════════════
 # 7. chan_maidian 测试
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestChanMaidian:
     """三类买卖点测试。"""
@@ -715,6 +735,7 @@ class TestChanMaidian:
 # 8. chan_full_analysis 测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestChanFullAnalysis:
     """顶层整合函数测试。"""
 
@@ -730,11 +751,22 @@ class TestChanFullAnalysis:
         bars = _zigzag_bars(40, base=10, amp=3)
         result = chan_full_analysis(bars)
         expected_keys = [
-            "valid", "merged_count", "original_count", "merge_ratio_pct",
-            "fenxing_count", "top_fenxing", "bottom_fenxing",
-            "bi_count", "up_bi", "down_bi",
-            "xianduan_count", "zhongshu_list", "zhongshu_count",
-            "beichi", "maidian", "current_position",
+            "valid",
+            "merged_count",
+            "original_count",
+            "merge_ratio_pct",
+            "fenxing_count",
+            "top_fenxing",
+            "bottom_fenxing",
+            "bi_count",
+            "up_bi",
+            "down_bi",
+            "xianduan_count",
+            "zhongshu_list",
+            "zhongshu_count",
+            "beichi",
+            "maidian",
+            "current_position",
         ]
         for key in expected_keys:
             assert key in result, f"缺少字段: {key}"
@@ -771,7 +803,9 @@ class TestChanFullAnalysis:
         """顶底分型数量之和等于总分型数。"""
         bars = _zigzag_bars(40, base=10, amp=3)
         result = chan_full_analysis(bars)
-        assert result["fenxing_count"] == result["top_fenxing"] + result["bottom_fenxing"]
+        assert (
+            result["fenxing_count"] == result["top_fenxing"] + result["bottom_fenxing"]
+        )
 
     def test_bi_directions_consistent(self):
         """上下笔数量之和等于总笔数。"""
@@ -800,12 +834,14 @@ class TestChanFullAnalysis:
 # 9. 辅助函数测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestHelperFunctions:
     """辅助函数测试（_ema_series, _macd_area）。"""
 
     def test_ema_series_basic(self):
         """EMA 序列基本计算。"""
         from chan import _ema_series
+
         values = [10.0 + i for i in range(20)]
         result = _ema_series(values, 12)
         assert len(result) == 9  # 20 - 12 + 1
@@ -814,12 +850,14 @@ class TestHelperFunctions:
     def test_ema_series_short_data(self):
         """数据不足时返回空列表。"""
         from chan import _ema_series
+
         result = _ema_series([1, 2, 3], 12)
         assert result == []
 
     def test_macd_area_basic(self):
         """MACD 面积基本计算。"""
         from chan import _macd_area
+
         dif = [1.0, 2.0, 3.0, 2.0, 1.0]
         dea = [0.5, 1.5, 2.5, 1.5, 0.5]
         area = _macd_area(dif, dea, 0, 4)
@@ -829,6 +867,7 @@ class TestHelperFunctions:
     def test_macd_area_invalid_range(self):
         """无效索引范围返回0。"""
         from chan import _macd_area
+
         dif = [1.0, 2.0]
         dea = [0.5, 1.5]
         assert _macd_area(dif, dea, -1, 2) == 0
@@ -840,36 +879,42 @@ class TestHelperFunctions:
 # 10. P0: chan.py 市场前缀测试
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestChanMarketPrefix:
     """P0 回归测试：chan.py CLI 入口正确生成 SH/SZ 市场前缀。"""
 
     def test_p0_prefix_600xxx_generates_sh(self):
         """600xxx 代码应生成 sh 前缀（上交所）。"""
         from common import normalize_quote_code
+
         code = normalize_quote_code("600519")
         assert code == "sh600519", f"600519 应归一化为 sh600519，实际: {code}"
 
     def test_p0_prefix_000xxx_generates_sz(self):
         """000xxx 代码应生成 sz 前缀（深交所）。"""
         from common import normalize_quote_code
+
         code = normalize_quote_code("000807")
         assert code == "sz000807", f"000807 应归一化为 sz000807，实际: {code}"
 
     def test_p0_prefix_300xxx_generates_sz(self):
         """300xxx 代码应生成 sz 前缀（创业板/深交所）。"""
         from common import normalize_quote_code
+
         code = normalize_quote_code("300750")
         assert code == "sz300750", f"300750 应归一化为 sz300750，实际: {code}"
 
     def test_p0_prefix_already_prefixed_sh(self):
         """已带 sh 前缀的代码保持不变。"""
         from common import normalize_quote_code
+
         code = normalize_quote_code("sh600519")
         assert code == "sh600519", f"sh600519 应保持不变，实际: {code}"
 
     def test_p0_prefix_already_prefixed_sz(self):
         """已带 sz 前缀的代码保持不变。"""
         from common import normalize_quote_code
+
         code = normalize_quote_code("sz000807")
         assert code == "sz000807", f"sz000807 应保持不变，实际: {code}"
 
@@ -893,9 +938,9 @@ class TestChanMarketPrefix:
         ]
         for raw_code, expected in test_cases:
             result = normalize_quote_code(raw_code)
-            assert result == expected, (
-                f"{raw_code} 应归一化为 {expected}，实际: {result}"
-            )
+            assert (
+                result == expected
+            ), f"{raw_code} 应归一化为 {expected}，实际: {result}"
 
     def test_p0_prefix_propagation_through_fetch_chain(self):
         """验证前缀从 chan.py 到 kline.fetch 的完整传递。
@@ -910,8 +955,12 @@ class TestChanMarketPrefix:
         captured_codes = []
         mock_bar = MagicMock()
         mock_bar.to_dict.return_value = {
-            "day": "2025-01-06", "open": 10, "high": 11,
-            "low": 9, "close": 10.5, "volume": 1000,
+            "day": "2025-01-06",
+            "open": 10,
+            "high": 11,
+            "low": 9,
+            "close": 10.5,
+            "volume": 1000,
         }
 
         def tracking_get_kline(code, scale=240, datalen=30, use_cache=True):
@@ -924,6 +973,7 @@ class TestChanMarketPrefix:
                 assert code == expected
                 fetch_kline(code, 240, 40)
 
-        assert captured_codes == ["sh600519", "sz000807"], (
-            f"fetch 链应传递 ['sh600519', 'sz000807']，实际: {captured_codes}"
-        )
+        assert captured_codes == [
+            "sh600519",
+            "sz000807",
+        ], f"fetch 链应传递 ['sh600519', 'sz000807']，实际: {captured_codes}"

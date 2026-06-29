@@ -17,8 +17,9 @@ from .base import NotificationChannel, validate_webhook_url
 class BarkChannel(NotificationChannel):
     """Bark 推送通道。"""
 
-    def __init__(self, server: str = "https://api.day.app",
-                 key: str = "", group: str = "stock"):
+    def __init__(
+        self, server: str = "https://api.day.app", key: str = "", group: str = "stock"
+    ):
         validate_webhook_url(server)
         self._server = server.rstrip("/")
         self._key = key
@@ -31,9 +32,13 @@ class BarkChannel(NotificationChannel):
     def is_configured(self) -> bool:
         return bool(self._key)
 
-    def send(self, title: str, body: str,
-             url: Optional[str] = None,
-             group: Optional[str] = None) -> Tuple[bool, str]:
+    def send(
+        self,
+        title: str,
+        body: str,
+        url: Optional[str] = None,
+        group: Optional[str] = None,
+    ) -> Tuple[bool, str]:
         """发送 Bark 推送。
 
         Returns:

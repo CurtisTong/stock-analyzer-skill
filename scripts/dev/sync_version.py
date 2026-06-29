@@ -11,6 +11,7 @@
   python3 scripts/dev/sync_version.py --check      # 仅检查，不修改
   python3 scripts/dev/sync_version.py --dry-run    # 预览变更
 """
+
 import argparse
 import json
 import re
@@ -38,7 +39,7 @@ def update_json_version(file_path: Path, version: str) -> bool:
     # 使用正则替换，保持格式
     new_content = re.sub(
         r'("version"\s*:\s*")[^"]+(")',
-        rf'\g<1>{version}\2',
+        rf"\g<1>{version}\2",
         content,
     )
 
@@ -58,8 +59,8 @@ def update_skill_versions(version: str) -> list[Path]:
         content = skill_md.read_text(encoding="utf-8")
         # 匹配 YAML frontmatter 中的 version: x.x.x
         new_content = re.sub(
-            r'^(version:\s*)\d+\.\d+\.\d+',
-            rf'\g<1>{version}',
+            r"^(version:\s*)\d+\.\d+\.\d+",
+            rf"\g<1>{version}",
             content,
             flags=re.MULTILINE,
         )
@@ -76,8 +77,8 @@ def update_methodology_version(version: str) -> bool:
         return False
     content = path.read_text(encoding="utf-8")
     new_content = re.sub(
-        r'^(version:\s*)\d+\.\d+\.\d+',
-        rf'\g<1>{version}',
+        r"^(version:\s*)\d+\.\d+\.\d+",
+        rf"\g<1>{version}",
         content,
         flags=re.MULTILINE,
     )
@@ -95,7 +96,7 @@ def update_pyproject_version(version: str) -> bool:
     content = path.read_text(encoding="utf-8")
     new_content = re.sub(
         r'^(version\s*=\s*")[^"]+(")',
-        rf'\g<1>{version}\2',
+        rf"\g<1>{version}\2",
         content,
         flags=re.MULTILINE,
     )
@@ -112,8 +113,8 @@ def update_doc_header_version(version: str) -> bool:
         return False
     content = path.read_text(encoding="utf-8")
     new_content = re.sub(
-        r'(版本：v)\d+\.\d+\.\d+(\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})',
-        rf'\g<1>{version}\2',
+        r"(版本：v)\d+\.\d+\.\d+(\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
+        rf"\g<1>{version}\2",
         content,
     )
     if new_content != content:
@@ -133,15 +134,15 @@ def update_readme_version(version: str) -> bool:
 
     # 更新 badge: version-X.Y.Z
     content = re.sub(
-        r'(version-)\d+\.\d+\.\d+(-)',
-        rf'\g<1>{version}\2',
+        r"(version-)\d+\.\d+\.\d+(-)",
+        rf"\g<1>{version}\2",
         content,
     )
 
     # 更新 footer: **vX.Y.Z**
     content = re.sub(
-        r'(\*\*v)\d+\.\d+\.\d+(\*\*)',
-        rf'\g<1>{version}\2',
+        r"(\*\*v)\d+\.\d+\.\d+(\*\*)",
+        rf"\g<1>{version}\2",
         content,
     )
 
@@ -161,7 +162,7 @@ def update_test_version(version: str) -> bool:
     # 匹配 DEFAULT_VERSION = "x.x.x"
     new_content = re.sub(
         r'(DEFAULT_VERSION\s*=\s*")[^"]+(")',
-        rf'\g<1>{version}\2',
+        rf"\g<1>{version}\2",
         content,
     )
 
@@ -199,7 +200,7 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
     for skill_md in sorted(skills_dir.rglob("SKILL.md")):
         rel_path = skill_md.relative_to(PKG_ROOT)
         content = skill_md.read_text(encoding="utf-8")
-        match = re.search(r'^version:\s*(\d+\.\d+\.\d+)', content, re.MULTILINE)
+        match = re.search(r"^version:\s*(\d+\.\d+\.\d+)", content, re.MULTILINE)
         if match:
             v = match.group(1)
             if v == target_version:
@@ -213,8 +214,8 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
     readme_path = PKG_ROOT / "README.md"
     if readme_path.exists():
         content = readme_path.read_text(encoding="utf-8")
-        badge_match = re.search(r'version-(\d+\.\d+\.\d+)', content)
-        footer_match = re.search(r'\*\*v(\d+\.\d+\.\d+)\*\*', content)
+        badge_match = re.search(r"version-(\d+\.\d+\.\d+)", content)
+        footer_match = re.search(r"\*\*v(\d+\.\d+\.\d+)\*\*", content)
         for match, label in [(badge_match, "badge"), (footer_match, "footer")]:
             if match:
                 v = match.group(1)
@@ -239,7 +240,7 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
     methodology_path = PKG_ROOT / "methodology.md"
     if methodology_path.exists():
         content = methodology_path.read_text(encoding="utf-8")
-        match = re.search(r'^version:\s*(\d+\.\d+\.\d+)', content, re.MULTILINE)
+        match = re.search(r"^version:\s*(\d+\.\d+\.\d+)", content, re.MULTILINE)
         if match:
             v = match.group(1)
             label = "methodology.md"
@@ -269,7 +270,7 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
     doc_path = PKG_ROOT / "docs" / "product-architecture.md"
     if doc_path.exists():
         content = doc_path.read_text(encoding="utf-8")
-        match = re.search(r'版本：v(\d+\.\d+\.\d+)', content)
+        match = re.search(r"版本：v(\d+\.\d+\.\d+)", content)
         if match:
             v = match.group(1)
             label = "docs/product-architecture.md"

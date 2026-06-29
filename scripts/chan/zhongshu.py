@@ -15,23 +15,27 @@ def chan_zhongshu(xd_list):
         x0, x1, x2 = xd_list[i], xd_list[i + 1], xd_list[i + 2]
 
         # 两两重叠校验：每对线段必须有共同区间
-        if not (max(x0["low"], x1["low"]) < min(x0["high"], x1["high"])
-                and max(x1["low"], x2["low"]) < min(x1["high"], x2["high"])
-                and max(x0["low"], x2["low"]) < min(x0["high"], x2["high"])):
+        if not (
+            max(x0["low"], x1["low"]) < min(x0["high"], x1["high"])
+            and max(x1["low"], x2["low"]) < min(x1["high"], x2["high"])
+            and max(x0["low"], x2["low"]) < min(x0["high"], x2["high"])
+        ):
             continue
 
         zg = min(x0["high"], x1["high"], x2["high"])
         zd = max(x0["low"], x1["low"], x2["low"])
 
         if zd < zg:
-            zs_list.append({
-                "zg": round(zg, 3),
-                "zd": round(zd, 3),
-                "mid": round((zg + zd) / 2, 3),
-                "width": round(zg - zd, 3),
-                "xd_start": i,
-                "xd_end": i + 2,
-            })
+            zs_list.append(
+                {
+                    "zg": round(zg, 3),
+                    "zd": round(zd, 3),
+                    "mid": round((zg + zd) / 2, 3),
+                    "width": round(zg - zd, 3),
+                    "xd_start": i,
+                    "xd_end": i + 2,
+                }
+            )
 
     # 合并重叠中枢
     if len(zs_list) <= 1:
@@ -45,8 +49,12 @@ def chan_zhongshu(xd_list):
             merged_zs[-1] = {
                 "zg": round(max(last["zg"], zs["zg"]), 3),
                 "zd": round(min(last["zd"], zs["zd"]), 3),
-                "mid": round((max(last["zg"], zs["zg"]) + min(last["zd"], zs["zd"])) / 2, 3),
-                "width": round(max(last["zg"], zs["zg"]) - min(last["zd"], zs["zd"]), 3),
+                "mid": round(
+                    (max(last["zg"], zs["zg"]) + min(last["zd"], zs["zd"])) / 2, 3
+                ),
+                "width": round(
+                    max(last["zg"], zs["zg"]) - min(last["zd"], zs["zd"]), 3
+                ),
                 "xd_start": last["xd_start"],
                 "xd_end": zs["xd_end"],
             }

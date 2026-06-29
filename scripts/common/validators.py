@@ -3,10 +3,10 @@
 
 提供股票代码、日期等输入的标准化和校验功能。
 """
+
 import re
 from typing import Optional, List
 from .exceptions import ValidationError
-
 
 # 股票代码正则
 STOCK_CODE_PATTERN = re.compile(r"^(sh|sz|bj)?(\d{6})$", re.IGNORECASE)
@@ -138,9 +138,7 @@ def validate_date_range(start_date: str, end_date: str) -> bool:
 
     if start_date > end_date:
         raise ValidationError(
-            "date_range",
-            f"{start_date} - {end_date}",
-            "开始日期必须早于或等于结束日期"
+            "date_range", f"{start_date} - {end_date}", "开始日期必须早于或等于结束日期"
         )
 
     return True
@@ -173,10 +171,7 @@ def validate_positive(value: float, field_name: str, min_value: float = 0) -> fl
 
 
 def validate_in_range(
-    value: float,
-    field_name: str,
-    min_value: float,
-    max_value: float
+    value: float, field_name: str, min_value: float, max_value: float
 ) -> float:
     """
     验证值在指定范围内。
@@ -200,8 +195,7 @@ def validate_in_range(
 
     if not (min_value <= v <= max_value):
         raise ValidationError(
-            field_name, value,
-            f"必须在 {min_value} 到 {max_value} 之间"
+            field_name, value, f"必须在 {min_value} 到 {max_value} 之间"
         )
 
     return v

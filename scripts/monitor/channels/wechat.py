@@ -27,9 +27,13 @@ class WechatWorkChannel(NotificationChannel):
     def is_configured(self) -> bool:
         return bool(self._key)
 
-    def send(self, title: str, body: str,
-             url: Optional[str] = None,
-             group: Optional[str] = None) -> Tuple[bool, str]:
+    def send(
+        self,
+        title: str,
+        body: str,
+        url: Optional[str] = None,
+        group: Optional[str] = None,
+    ) -> Tuple[bool, str]:
         """发送企业微信 webhook 推送。
 
         使用 markdown 格式以支持富文本。
@@ -67,7 +71,10 @@ class WechatWorkChannel(NotificationChannel):
                 result = json.loads(resp.read().decode("utf-8"))
                 if result.get("errcode") == 0:
                     return True, ""
-                return False, f"wechat api returned errcode={result.get('errcode')}, errmsg={result.get('errmsg')}"
+                return (
+                    False,
+                    f"wechat api returned errcode={result.get('errcode')}, errmsg={result.get('errmsg')}",
+                )
         except urllib.error.URLError as e:
             return False, f"network error: {e.reason}"
         except json.JSONDecodeError as e:

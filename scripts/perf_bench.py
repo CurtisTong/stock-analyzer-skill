@@ -125,6 +125,7 @@ def main():
         from common.version import __version__
         import json
         from datetime import datetime
+
         out_path = Path(DATA_DIR) / "perf_benchmarks.json"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         record = {

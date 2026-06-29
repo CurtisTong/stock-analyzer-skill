@@ -163,7 +163,13 @@ def compare(metric: str = "sharpe_ratio") -> Dict:
     data = _load()
     records = data.get("records", [])
     if not records:
-        return {"metric": metric, "ranking": [], "best": None, "worst": None, "spread": 0}
+        return {
+            "metric": metric,
+            "ranking": [],
+            "best": None,
+            "worst": None,
+            "spread": 0,
+        }
 
     # 聚合所有记录的指标
     by_strategy: Dict[str, List[float]] = {name: [] for name in STRATEGIES}
@@ -180,17 +186,25 @@ def compare(metric: str = "sharpe_ratio") -> Dict:
         if not values:
             continue
         avg = sum(values) / len(values)
-        ranking.append({
-            "strategy": sname,
-            "label": STRATEGIES[sname].get("label", sname),
-            "value": round(avg, 3),
-            "runs": len(values),
-        })
+        ranking.append(
+            {
+                "strategy": sname,
+                "label": STRATEGIES[sname].get("label", sname),
+                "value": round(avg, 3),
+                "runs": len(values),
+            }
+        )
     # 所有指标按值降序：max_drawdown_pct 是负数，越接近 0 越好（-1 > -5）
     ranking.sort(key=lambda x: x["value"], reverse=True)
 
     if not ranking:
-        return {"metric": metric, "ranking": [], "best": None, "worst": None, "spread": 0}
+        return {
+            "metric": metric,
+            "ranking": [],
+            "best": None,
+            "worst": None,
+            "spread": 0,
+        }
 
     best = ranking[0]
     worst = ranking[-1]
@@ -220,7 +234,12 @@ def main():
     cmp_cmd.add_argument(
         "--metric",
         default="sharpe_ratio",
-        choices=["sharpe_ratio", "total_return_pct", "win_rate_pct", "max_drawdown_pct"],
+        choices=[
+            "sharpe_ratio",
+            "total_return_pct",
+            "win_rate_pct",
+            "max_drawdown_pct",
+        ],
         help="对比指标（默认夏普比率）",
     )
     cmp_cmd.add_argument("-j", "--json", action="store_true")
@@ -271,10 +290,14 @@ def main():
         else:
             print(f"跨策略对比 [{result['metric']}]:")
             for i, r in enumerate(result["ranking"], 1):
-                print(f"  {i}. {r['strategy']:<18} {r['label']:<10} "
-                      f"avg={r['value']} (跑 {r['runs']} 次)")
-            print(f"\n  最佳: {result['best']} | 最差: {result['worst']} "
-                  f"| 差距: {result['spread']}")
+                print(
+                    f"  {i}. {r['strategy']:<18} {r['label']:<10} "
+                    f"avg={r['value']} (跑 {r['runs']} 次)"
+                )
+            print(
+                f"\n  最佳: {result['best']} | 最差: {result['worst']} "
+                f"| 差距: {result['spread']}"
+            )
 
     else:
         parser.print_help()

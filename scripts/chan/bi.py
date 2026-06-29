@@ -1,4 +1,5 @@
 """笔的构建。"""
+
 from .fenxing import chan_fenxing
 
 
@@ -28,15 +29,17 @@ def chan_bi(merged_bars):
             continue
 
         direction = "up" if f0["type"] == "底" else "down"
-        bi_list.append({
-            "start": f0,
-            "end": f1,
-            "direction": direction,
-            "high": round(max(f0["bar"]["high"], f1["bar"]["high"]), 3),
-            "low": round(min(f0["bar"]["low"], f1["bar"]["low"]), 3),
-            "start_idx": f0["idx"],
-            "end_idx": f1["idx"],
-        })
+        bi_list.append(
+            {
+                "start": f0,
+                "end": f1,
+                "direction": direction,
+                "high": round(max(f0["bar"]["high"], f1["bar"]["high"]), 3),
+                "low": round(min(f0["bar"]["low"], f1["bar"]["low"]), 3),
+                "start_idx": f0["idx"],
+                "end_idx": f1["idx"],
+            }
+        )
         i += 1
 
     return bi_list

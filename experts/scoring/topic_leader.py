@@ -6,6 +6,7 @@ v2.1.1：调 xu_xiang + zhao_laoge 加权平均
 
 人设：涨停板战法 + 趋势龙头，强调量价+情绪/题材。
 """
+
 from typing import Dict
 
 
@@ -27,5 +28,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["topic_leader"]
     return generic_score_with_reasoning(profile, score, stock_data)

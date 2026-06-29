@@ -2,8 +2,8 @@
 A 股特化分析（涨跌停、连板）。
 依赖: common (to_float)
 """
-from common import to_float
 
+from common import to_float
 
 _LIMIT_RATIOS = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}
 
@@ -60,7 +60,7 @@ def limit_analysis(records, board, quote):
         recent_bars = records[-streak:]
         vols = [to_float(r.get("volume")) for r in recent_bars]
         if len(vols) >= 2 and vols[0] > 0:
-            if all(vols[i] < vols[i-1] for i in range(1, len(vols))):
+            if all(vols[i] < vols[i - 1] for i in range(1, len(vols))):
                 result["streak_volume"] = "缩量加速(强-惜售)"
             elif vols[-1] > vols[0] * 1.5:
                 result["streak_volume"] = "放量分歧(弱-换手加大)"
@@ -71,7 +71,9 @@ def limit_analysis(records, board, quote):
 
     # T+1 风险提示
     if streak >= 1 and result.get("board_status") == "封涨停":
-        result["t1_risk"] = "T+1隔夜风险：今日追板仓位明日方可卖出，需关注次日溢价和核按钮风险"
+        result["t1_risk"] = (
+            "T+1隔夜风险：今日追板仓位明日方可卖出，需关注次日溢价和核按钮风险"
+        )
     else:
         result["t1_risk"] = None
 

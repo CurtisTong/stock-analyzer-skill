@@ -6,6 +6,7 @@
   announcements.py 600989 reports          # 券商研报
   announcements.py 600989 -j               # JSON
 """
+
 import sys
 import json
 import argparse
@@ -16,6 +17,7 @@ from common.utils import plain_code
 ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=10&page_index=1&ann_type=A&stock_list={code}&f_node=0"
 # 东方财富研报 API 需要 pageNo, beginTime, qType 参数
 REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&pageNo=1&code={code}&beginTime={begin_time}&endTime={end_time}&qType=0"
+
 
 def fetch_announcements(code: str, use_cache: bool = True) -> list:
     """获取公告数据，支持缓存（TTL 30 分钟）。"""
@@ -38,6 +40,7 @@ def fetch_announcements(code: str, use_cache: bool = True) -> list:
         return result
     except json.JSONDecodeError:
         return []
+
 
 def fetch_reports(code: str, use_cache: bool = True) -> list:
     """获取研报数据，支持缓存（TTL 1 小时）。"""
@@ -69,6 +72,7 @@ def fetch_reports(code: str, use_cache: bool = True) -> list:
     except json.JSONDecodeError:
         return []
 
+
 def render_announcements(items: list) -> str:
     if not items:
         return "(无公告)"
@@ -78,6 +82,7 @@ def render_announcements(items: list) -> str:
         date = it.get("notice_date", "")[:10] or it.get("notice_time", "")[:10]
         lines.append(f"{date} | {title}")
     return "\n".join(lines)
+
 
 def render_reports(items: list) -> str:
     if not items:
@@ -91,10 +96,17 @@ def render_reports(items: list) -> str:
         lines.append(f"{date} | {org} | {title}")
     return "\n".join(lines)
 
+
 def main():
     parser = argparse.ArgumentParser(description="东方财富公告 + 研报")
     parser.add_argument("code", nargs="?", help="股票代码（如 600989）")
-    parser.add_argument("mode", nargs="?", default="announcements", choices=["announcements", "reports"], help="类型：announcements（公告）或 reports（研报）")
+    parser.add_argument(
+        "mode",
+        nargs="?",
+        default="announcements",
+        choices=["announcements", "reports"],
+        help="类型：announcements（公告）或 reports（研报）",
+    )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
@@ -115,6 +127,7 @@ def main():
         else:
             print(f"\n=== 公告 {args.code} ===")
             print(render_announcements(data))
+
 
 if __name__ == "__main__":
     try:

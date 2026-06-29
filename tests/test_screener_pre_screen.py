@@ -89,8 +89,9 @@ class TestPreScreenQuotes:
         args = argparse.Namespace(board_limit=2)
         # 5 只主板股，limit=2 应只保留 2 只
         quotes = [
-            _make_quote("sh600000", f"A{i}",
-                       amount=10000_0000 + i * 1000_0000, total_cap=100)
+            _make_quote(
+                "sh600000", f"A{i}", amount=10000_0000 + i * 1000_0000, total_cap=100
+            )
             for i in range(5)
         ]
         result = screener.pre_screen_quotes(quotes, args)
@@ -109,6 +110,7 @@ class TestPrefetchKlineAll:
             return [KlineBar(day="2025-01-01", open=10, high=11, low=9, close=10)]
 
         import data
+
         monkeypatch.setattr(data, "get_kline", mock_get_kline)
         result = screener._prefetch_kline_all(["sh600519", "sh600989"])
         assert isinstance(result, dict)
@@ -117,13 +119,16 @@ class TestPrefetchKlineAll:
 
     def test_skips_failed_codes(self, monkeypatch):
         """失败 code 不在结果中。"""
+
         def mock_get_kline(code, scale=240, datalen=240):
             if code == "sh600519":
                 raise Exception("network error")
             from data.types import KlineBar
+
             return [KlineBar(day="d", open=10, high=11, low=9, close=10)]
 
         import data
+
         monkeypatch.setattr(data, "get_kline", mock_get_kline)
         result = screener._prefetch_kline_all(["sh600519", "sh600989"])
         assert "sh600519" not in result
@@ -135,11 +140,19 @@ class TestDailyFeatures:
 
     def test_returns_dict_with_features(self, monkeypatch):
         """返回 features dict。"""
+
         def mock_compute_features(code, bars=None):
             return {
-                "trend": 1, "ret20": 5.0, "ma10": 11.0, "ma20": 12.0,
-                "volume_ratio": 1.2, "macd_signal": 0, "rsi": 60,
-                "rsi_signal": 0, "vol_price_signal": 0, "closes": [10.0, 11.0, 12.0],
+                "trend": 1,
+                "ret20": 5.0,
+                "ma10": 11.0,
+                "ma20": 12.0,
+                "volume_ratio": 1.2,
+                "macd_signal": 0,
+                "rsi": 60,
+                "rsi_signal": 0,
+                "vol_price_signal": 0,
+                "closes": [10.0, 11.0, 12.0],
             }
 
         monkeypatch.setattr(screener, "compute_features", mock_compute_features)

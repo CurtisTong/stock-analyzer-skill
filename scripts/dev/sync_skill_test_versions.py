@@ -16,6 +16,7 @@ publish job 被阻塞。
   python3 scripts/dev/sync_skill_test_versions.py --check      # 仅检查（CI 用）
   python3 scripts/dev/sync_skill_test_versions.py --dry-run    # 预览变更
 """
+
 import argparse
 import re
 import sys
@@ -29,6 +30,7 @@ SKILLS_DIR = PKG_ROOT / "skills"
 def get_package_version() -> str:
     """从 package.json 读取主版本号。"""
     import json
+
     with open(PKG_ROOT / "package.json", encoding="utf-8") as f:
         return json.load(f)["version"]
 
@@ -77,7 +79,9 @@ def parse_existing_constants(test_text: str) -> tuple[str, dict[str, str]]:
     overrides: dict[str, str] = {}
     if m_overrides:
         for line in m_overrides.group(1).splitlines():
-            m_item = re.match(r'\s*[\'"]?([\w-]+)[\'"]?\s*:\s*[\'"]([^\'"]+)[\'"]', line)
+            m_item = re.match(
+                r'\s*[\'"]?([\w-]+)[\'"]?\s*:\s*[\'"]([^\'"]+)[\'"]', line
+            )
             if m_item:
                 overrides[m_item.group(1)] = m_item.group(2)
     return default, overrides
@@ -134,14 +138,21 @@ def check() -> int:
 
     errors = []
     if cur_default != pkg_ver:
-        errors.append(f"DEFAULT_VERSION 不一致: 测试文件={cur_default}, package.json={pkg_ver}")
+        errors.append(
+            f"DEFAULT_VERSION 不一致: 测试文件={cur_default}, package.json={pkg_ver}"
+        )
     if cur_overrides != overrides:
-        errors.append(f"VERSION_OVERRIDES 不一致: 测试文件={cur_overrides}, 实际={overrides}")
+        errors.append(
+            f"VERSION_OVERRIDES 不一致: 测试文件={cur_overrides}, 实际={overrides}"
+        )
 
     if errors:
         for e in errors:
             print(f"  ✗ {e}", file=sys.stderr)
-        print("\n修复方法: python3 scripts/dev/sync_skill_test_versions.py", file=sys.stderr)
+        print(
+            "\n修复方法: python3 scripts/dev/sync_skill_test_versions.py",
+            file=sys.stderr,
+        )
         return 1
     print(f"✓ 一致（DEFAULT_VERSION={cur_default}，{len(cur_overrides)} 个 override）")
     return 0

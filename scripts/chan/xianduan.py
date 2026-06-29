@@ -50,14 +50,16 @@ def chan_xianduan(bi_list):
                     break
 
         seg_bis = bi_list[i:j]
-        xd_list.append({
-            "direction": direction,
-            "bi_count": len(seg_bis),
-            "start_bi": i,
-            "end_bi": j - 1,
-            "high": round(max(b["high"] for b in seg_bis), 3),
-            "low": round(min(b["low"] for b in seg_bis), 3),
-        })
+        xd_list.append(
+            {
+                "direction": direction,
+                "bi_count": len(seg_bis),
+                "start_bi": i,
+                "end_bi": j - 1,
+                "high": round(max(b["high"] for b in seg_bis), 3),
+                "low": round(min(b["low"] for b in seg_bis), 3),
+            }
+        )
         i = j
 
     return xd_list

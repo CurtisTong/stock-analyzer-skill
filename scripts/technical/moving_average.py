@@ -2,10 +2,10 @@
 均线系统分析。
 依赖: core (sma, stddev)
 """
+
 import statistics
 
 from .core import sma, stddev
-
 
 _MA_PERIODS = [5, 10, 20, 60, 120, 250]
 
@@ -19,9 +19,13 @@ def ma_system(closes):
     # 排列状态
     mas = [result[f"ma{p}"] for p in _MA_PERIODS if result[f"ma{p}"] is not None]
     if len(mas) >= 4:
-        if all(mas[i] > mas[i+1] for i in range(len(mas)-1) if mas[i] and mas[i+1]):
+        if all(
+            mas[i] > mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]
+        ):
             result["alignment"] = "多头排列"
-        elif all(mas[i] < mas[i+1] for i in range(len(mas)-1) if mas[i] and mas[i+1]):
+        elif all(
+            mas[i] < mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]
+        ):
             result["alignment"] = "空头排列"
         else:
             result["alignment"] = "交叉震荡"

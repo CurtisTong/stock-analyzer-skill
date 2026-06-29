@@ -17,6 +17,7 @@
   ### Fixed
   - fix(xxx): 描述
 """
+
 import argparse
 import re
 import subprocess
@@ -51,7 +52,9 @@ def get_commits(since: str | None = None, all_commits: bool = False) -> list[dic
         # 获取上个 tag
         tag_result = subprocess.run(
             ["git", "describe", "--tags", "--abbrev=0"],
-            capture_output=True, text=True, cwd=PKG_ROOT,
+            capture_output=True,
+            text=True,
+            cwd=PKG_ROOT,
         )
         if tag_result.returncode == 0:
             last_tag = tag_result.stdout.strip()
@@ -69,12 +72,14 @@ def get_commits(since: str | None = None, all_commits: bool = False) -> list[dic
     for line in result.stdout.strip().splitlines():
         parts = line.split("|", 3)
         if len(parts) >= 4:
-            commits.append({
-                "hash": parts[0],
-                "subject": parts[1],
-                "author": parts[2],
-                "date": parts[3],
-            })
+            commits.append(
+                {
+                    "hash": parts[0],
+                    "subject": parts[1],
+                    "author": parts[2],
+                    "date": parts[3],
+                }
+            )
     return commits
 
 
@@ -126,7 +131,16 @@ def generate_changelog(commits: list[dict]) -> str:
         return ""
 
     # 按固定顺序输出
-    order = ["Added", "Fixed", "Changed", "Documentation", "Testing", "CI/CD", "Maintenance", "Other"]
+    order = [
+        "Added",
+        "Fixed",
+        "Changed",
+        "Documentation",
+        "Testing",
+        "CI/CD",
+        "Maintenance",
+        "Other",
+    ]
     lines = []
     for cat in order:
         if cat in categories:

@@ -2,6 +2,7 @@
 趋势与结构分析（支撑阻力、箱体、突破、波浪）。
 依赖: core (_find_swing_points)
 """
+
 import statistics
 
 from .core import _find_swing_points
@@ -21,8 +22,12 @@ def support_resistance(closes, highs, lows, ma_info):
 
     # 找局部摇摆点
     ph, pl = _find_swing_points(recent_highs, window=3)
-    swing_highs = sorted(set(round(recent_highs[i], 2) for i in ph if recent_highs[i] > last))
-    swing_lows = sorted(set(round(recent_lows[i], 2) for i in pl if recent_lows[i] < last), reverse=True)
+    swing_highs = sorted(
+        set(round(recent_highs[i], 2) for i in ph if recent_highs[i] > last)
+    )
+    swing_lows = sorted(
+        set(round(recent_lows[i], 2) for i in pl if recent_lows[i] < last), reverse=True
+    )
 
     supports = []
     resistances = []
@@ -52,7 +57,13 @@ def support_resistance(closes, highs, lows, ma_info):
     else:
         base = round_num + (10 if last >= 50 else 1)
         for i in range(3):
-            resistances.append({"level": base + i * (10 if last >= 50 else 1), "source": "整数关口", "strength": "弱"})
+            resistances.append(
+                {
+                    "level": base + i * (10 if last >= 50 else 1),
+                    "source": "整数关口",
+                    "strength": "弱",
+                }
+            )
 
     # 去重排序
     supports = sorted(supports, key=lambda x: x["level"], reverse=True)[:5]
@@ -82,7 +93,9 @@ def box_detection(highs, lows, closes, window=20):
         return None
 
     mid = (hh + ll) / 2
-    in_box = sum(1 for c in closes[-window:] if ll + (hh - ll) * 0.1 < c < hh - (hh - ll) * 0.1)
+    in_box = sum(
+        1 for c in closes[-window:] if ll + (hh - ll) * 0.1 < c < hh - (hh - ll) * 0.1
+    )
     if in_box / window >= 0.6:
         return {
             "top": round(hh, 2),
@@ -102,7 +115,11 @@ def breakout_check(closes, highs, volumes, resistance):
         return {"status": "数据不足"}
     last = closes[-1]
     prev = closes[-2]
-    avg_vol20 = statistics.mean(volumes[-21:-1]) if len(volumes) >= 21 else statistics.mean(volumes[:-1])
+    avg_vol20 = (
+        statistics.mean(volumes[-21:-1])
+        if len(volumes) >= 21
+        else statistics.mean(volumes[:-1])
+    )
     last_vol = volumes[-1]
 
     broke = last > resistance and prev <= resistance

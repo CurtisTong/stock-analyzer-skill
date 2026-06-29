@@ -1,6 +1,7 @@
 """
 portfolio/manager.py 单元测试：覆盖持仓 CRUD、自选 CRUD、v1 迁移、原子写。
 """
+
 import json
 import sys
 from pathlib import Path
@@ -34,7 +35,9 @@ class TestInit:
         # 当 portfolio.json 不存在但 portfolio_example.json 存在时，
         # PortfolioManager 会回退到示例数据并把 is_example 设为 True。
         # 显式传入空数据确保测试与示例数据解耦。
-        mgr = _make_portfolio(tmp_path, initial={"version": 2, "positions": [], "watchlist": []})
+        mgr = _make_portfolio(
+            tmp_path, initial={"version": 2, "positions": [], "watchlist": []}
+        )
         assert mgr.is_example is False
         assert mgr.get_positions() == []
         assert mgr.get_watchlist() == []
@@ -42,8 +45,25 @@ class TestInit:
     def test_load_v2(self, tmp_path):
         initial = {
             "version": 2,
-            "positions": [{"code": "sh600989", "name": "宝丰", "cost": 20, "quantity": 100, "buy_date": "2025-01-01", "tags": []}],
-            "watchlist": [{"code": "sz000858", "name": "五粮液", "target_buy": 0, "target_sell": 0, "added_date": "2025-01-01"}],
+            "positions": [
+                {
+                    "code": "sh600989",
+                    "name": "宝丰",
+                    "cost": 20,
+                    "quantity": 100,
+                    "buy_date": "2025-01-01",
+                    "tags": [],
+                }
+            ],
+            "watchlist": [
+                {
+                    "code": "sz000858",
+                    "name": "五粮液",
+                    "target_buy": 0,
+                    "target_sell": 0,
+                    "added_date": "2025-01-01",
+                }
+            ],
         }
         mgr = _make_portfolio(tmp_path, initial)
         assert mgr.is_example is False
@@ -70,7 +90,9 @@ class TestInit:
 class TestPositionCRUD:
     def test_add_position(self, tmp_path):
         mgr = _make_portfolio(tmp_path)
-        result = mgr.add_position("sh600989", "宝丰能源", 20.0, 100, "2025-01-01", ["能源"])
+        result = mgr.add_position(
+            "sh600989", "宝丰能源", 20.0, 100, "2025-01-01", ["能源"]
+        )
         assert result["code"] == "sh600989"
         assert result["cost"] == 20.0
         assert result["quantity"] == 100

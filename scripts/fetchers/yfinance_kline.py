@@ -1,4 +1,5 @@
 """Yahoo Finance K 线数据源（需要 yfinance 包）。"""
+
 import logging
 from pathlib import Path
 
@@ -62,14 +63,16 @@ class YfinanceKlineFetcher(BaseFetcher):
 
             result = []
             for idx, row in df.iterrows():
-                result.append({
-                    "day": str(idx)[:10],
-                    "open": str(round(row.get("Open", 0), 2)),
-                    "close": str(round(row.get("Close", 0), 2)),
-                    "high": str(round(row.get("High", 0), 2)),
-                    "low": str(round(row.get("Low", 0), 2)),
-                    "volume": str(int(row.get("Volume", 0))),
-                })
+                result.append(
+                    {
+                        "day": str(idx)[:10],
+                        "open": str(round(row.get("Open", 0), 2)),
+                        "close": str(round(row.get("Close", 0), 2)),
+                        "high": str(round(row.get("High", 0), 2)),
+                        "low": str(round(row.get("Low", 0), 2)),
+                        "volume": str(int(row.get("Volume", 0))),
+                    }
+                )
             return result if result else None
         except Exception as e:
             logger.debug("yfinance_kline 获取失败 %s: %s", code, e)

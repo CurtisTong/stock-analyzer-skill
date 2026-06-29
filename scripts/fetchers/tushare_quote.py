@@ -1,4 +1,5 @@
 """Tushare 行情数据源（需要 tushare 包 + token）。"""
+
 import logging
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import tushare as ts
+
     token = os.environ.get("TUSHARE_TOKEN", "")
     if token:
         ts.set_token(token)

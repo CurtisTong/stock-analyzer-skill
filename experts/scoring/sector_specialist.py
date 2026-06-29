@@ -92,5 +92,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["sector_specialist"]
     return generic_score_with_reasoning(profile, score, stock_data)

@@ -1,4 +1,5 @@
 """K线包含处理。"""
+
 from common import to_float
 
 
@@ -16,14 +17,16 @@ def chan_merge_inclusions(records, max_merge=3):
 
     bars = []
     for r in records:
-        bars.append({
-            "high": to_float(r.get("high")),
-            "low": to_float(r.get("low")),
-            "open": to_float(r.get("open")),
-            "close": to_float(r.get("close")),
-            "date": r.get("day", ""),
-            "idx": len(bars),
-        })
+        bars.append(
+            {
+                "high": to_float(r.get("high")),
+                "low": to_float(r.get("low")),
+                "open": to_float(r.get("open")),
+                "close": to_float(r.get("close")),
+                "date": r.get("day", ""),
+                "idx": len(bars),
+            }
+        )
 
     merged = [dict(bars[0])]
     direction = "up"  # 默认向上
@@ -37,7 +40,9 @@ def chan_merge_inclusions(records, max_merge=3):
         curr_in_prev = curr["high"] <= prev["high"] and curr["low"] >= prev["low"]
         prev_in_curr = prev["high"] <= curr["high"] and prev["low"] >= curr["low"]
 
-        if (curr_in_prev or prev_in_curr) and (max_merge == 0 or consecutive_merges < max_merge):
+        if (curr_in_prev or prev_in_curr) and (
+            max_merge == 0 or consecutive_merges < max_merge
+        ):
             consecutive_merges += 1
             if direction == "up":
                 merged[-1] = {

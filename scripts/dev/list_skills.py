@@ -3,6 +3,7 @@
 
 替代 help SKILL.md 中硬编码的"9 个核心 skill"。
 """
+
 import sys
 from pathlib import Path
 

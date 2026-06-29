@@ -6,6 +6,7 @@
 3. 连接复用：多次请求共享同一连接对象
 4. 失败时连接会归还到池（不会泄漏）
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -30,7 +31,11 @@ def mock_pytdx_module():
 
     with patch.dict("sys.modules", {"pytdx": mock_tdx, "pytdx.hq": mock_tdx_hq}):
         # 强制重置模块缓存，让 _HAS_PYTDX 重新检测
-        for mod in ["fetchers.pytdx_pool", "fetchers.pytdx_quote", "fetchers.pytdx_kline"]:
+        for mod in [
+            "fetchers.pytdx_pool",
+            "fetchers.pytdx_quote",
+            "fetchers.pytdx_kline",
+        ]:
             sys.modules.pop(mod, None)
         yield {
             "api_cls": mock_tdx_api_cls,
@@ -43,17 +48,19 @@ class TestPytdxFetcherPriority:
 
     def test_quote_fetcher_priority_is_9(self, mock_pytdx_module):
         from fetchers.pytdx_quote import PytdxQuoteFetcher
+
         fetcher = PytdxQuoteFetcher()
-        assert fetcher.priority == 9, (
-            f"PytdxQuoteFetcher priority 应为 9（高于 eastmoney=8），实际 {fetcher.priority}"
-        )
+        assert (
+            fetcher.priority == 9
+        ), f"PytdxQuoteFetcher priority 应为 9（高于 eastmoney=8），实际 {fetcher.priority}"
 
     def test_kline_fetcher_priority_is_9(self, mock_pytdx_module):
         from fetchers.pytdx_kline import PytdxKlineFetcher
+
         fetcher = PytdxKlineFetcher()
-        assert fetcher.priority == 9, (
-            f"PytdxKlineFetcher priority 应为 9（高于 eastmoney=8），实际 {fetcher.priority}"
-        )
+        assert (
+            fetcher.priority == 9
+        ), f"PytdxKlineFetcher priority 应为 9（高于 eastmoney=8），实际 {fetcher.priority}"
 
 
 class TestPytdxFetcherUsesPool:
@@ -61,11 +68,19 @@ class TestPytdxFetcherUsesPool:
 
     def test_quote_uses_pool(self, mock_pytdx_module):
         from fetchers.pytdx_quote import PytdxQuoteFetcher
-        mock_pytdx_module["api_instance"].get_security_quotes.return_value = [{
-            "price": 10.0, "last_close": 9.5, "name": "测试股",
-            "open": 9.6, "high": 10.1, "low": 9.4,
-            "vol": 1000000, "amount": 9500000,
-        }]
+
+        mock_pytdx_module["api_instance"].get_security_quotes.return_value = [
+            {
+                "price": 10.0,
+                "last_close": 9.5,
+                "name": "测试股",
+                "open": 9.6,
+                "high": 10.1,
+                "low": 9.4,
+                "vol": 1000000,
+                "amount": 9500000,
+            }
+        ]
 
         fetcher = PytdxQuoteFetcher()
         result = fetcher.fetch("sh600989")
@@ -78,9 +93,16 @@ class TestPytdxFetcherUsesPool:
 
     def test_kline_uses_pool(self, mock_pytdx_module):
         from fetchers.pytdx_kline import PytdxKlineFetcher
+
         mock_pytdx_module["api_instance"].get_security_bars.return_value = [
-            {"datetime": "2026-06-10", "open": 10.0, "close": 10.5,
-             "high": 10.8, "low": 9.9, "vol": 1000000},
+            {
+                "datetime": "2026-06-10",
+                "open": 10.0,
+                "close": 10.5,
+                "high": 10.8,
+                "low": 9.9,
+                "vol": 1000000,
+            },
         ]
 
         fetcher = PytdxKlineFetcher()
@@ -93,11 +115,19 @@ class TestPytdxFetcherUsesPool:
     def test_quote_reuses_connection(self, mock_pytdx_module):
         """两次请求应复用同一个连接对象（连接池价值所在）。"""
         from fetchers.pytdx_quote import PytdxQuoteFetcher
-        mock_pytdx_module["api_instance"].get_security_quotes.return_value = [{
-            "price": 10.0, "last_close": 9.5, "name": "测试",
-            "open": 9.6, "high": 10.1, "low": 9.4,
-            "vol": 1000000, "amount": 9500000,
-        }]
+
+        mock_pytdx_module["api_instance"].get_security_quotes.return_value = [
+            {
+                "price": 10.0,
+                "last_close": 9.5,
+                "name": "测试",
+                "open": 9.6,
+                "high": 10.1,
+                "low": 9.4,
+                "vol": 1000000,
+                "amount": 9500000,
+            }
+        ]
 
         fetcher = PytdxQuoteFetcher()
         fetcher.fetch("sh600989")
@@ -109,7 +139,10 @@ class TestPytdxFetcherUsesPool:
     def test_quote_returns_none_on_error(self, mock_pytdx_module):
         """pytdx 请求异常时应返回 None，不抛异常。"""
         from fetchers.pytdx_quote import PytdxQuoteFetcher
-        mock_pytdx_module["api_instance"].get_security_quotes.side_effect = RuntimeError("pytdx fail")
+
+        mock_pytdx_module["api_instance"].get_security_quotes.side_effect = (
+            RuntimeError("pytdx fail")
+        )
 
         fetcher = PytdxQuoteFetcher()
         result = fetcher.fetch("sh600989")
@@ -119,6 +152,7 @@ class TestPytdxFetcherUsesPool:
     def test_kline_returns_none_on_empty_data(self, mock_pytdx_module):
         """pytdx 返回空列表应返回 None。"""
         from fetchers.pytdx_kline import PytdxKlineFetcher
+
         mock_pytdx_module["api_instance"].get_security_bars.return_value = []
 
         fetcher = PytdxKlineFetcher()
@@ -132,16 +166,18 @@ class TestPytdxYAMLConfig:
 
     def test_yaml_declares_pytdx_in_quote_sources(self):
         from config.loader import ConfigLoader
+
         cfg = ConfigLoader.load("data_source.yaml")
-        assert "pytdx" in cfg.get("quote_sources", {}), (
-            "data_source.yaml 的 quote_sources 应包含 pytdx 配置"
-        )
+        assert "pytdx" in cfg.get(
+            "quote_sources", {}
+        ), "data_source.yaml 的 quote_sources 应包含 pytdx 配置"
         assert cfg["quote_sources"]["pytdx"]["priority"] == 9
 
     def test_yaml_declares_pytdx_in_kline_sources(self):
         from config.loader import ConfigLoader
+
         cfg = ConfigLoader.load("data_source.yaml")
-        assert "pytdx" in cfg.get("kline_sources", {}), (
-            "data_source.yaml 的 kline_sources 应包含 pytdx 配置"
-        )
+        assert "pytdx" in cfg.get(
+            "kline_sources", {}
+        ), "data_source.yaml 的 kline_sources 应包含 pytdx 配置"
         assert cfg["kline_sources"]["pytdx"]["priority"] == 9

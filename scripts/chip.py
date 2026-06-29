@@ -18,6 +18,7 @@
   python3 scripts/chip.py sh600989 --margin -j   # 融资融券 JSON
   python3 scripts/chip.py sh600989 --holders     # 股东户数
 """
+
 import sys
 import json
 import argparse
@@ -56,7 +57,9 @@ def render_margin(data, days=20):
         return
 
     print("【融资融券】")
-    print(f"  {'日期':<12} {'融资余额':>12} {'融资净买入':>12} {'融券余量':>10} {'杠杆情绪':>8}")
+    print(
+        f"  {'日期':<12} {'融资余额':>12} {'融资净买入':>12} {'融券余量':>10} {'杠杆情绪':>8}"
+    )
     print("  " + "-" * 60)
 
     for item in data[:days]:
@@ -68,8 +71,10 @@ def render_margin(data, days=20):
         else:
             sentiment = "中性"
 
-        print(f"  {item.date:<12} {format_number(item.rzye):>12} {format_number(item.rzjme):>12} "
-              f"{format_number(item.rqyl):>10} {sentiment:>8}")
+        print(
+            f"  {item.date:<12} {format_number(item.rzye):>12} {format_number(item.rzjme):>12} "
+            f"{format_number(item.rqyl):>10} {sentiment:>8}"
+        )
 
     # 汇总
     if len(data) >= 5:
@@ -90,13 +95,17 @@ def render_holders(data):
         return
 
     print("【股东户数】")
-    print(f"  {'截止日期':<12} {'股东户数':>10} {'环比变化':>10} {'户均持股':>12} {'集中度':>8}")
+    print(
+        f"  {'截止日期':<12} {'股东户数':>10} {'环比变化':>10} {'户均持股':>12} {'集中度':>8}"
+    )
     print("  " + "-" * 58)
 
     for item in data:
         change_str = format_change(item.holder_num_change)
-        print(f"  {item.end_date:<12} {item.holder_num:>10,} {change_str:>10} "
-              f"{format_number(item.avg_amount, '股'):>12} {item.concentration:>8}")
+        print(
+            f"  {item.end_date:<12} {item.holder_num:>10,} {change_str:>10} "
+            f"{format_number(item.avg_amount, '股'):>12} {item.concentration:>8}"
+        )
 
 
 def render_top_holders(data):
@@ -106,16 +115,28 @@ def render_top_holders(data):
         return
 
     print("【十大流通股东】")
-    print(f"  {'排名':>4} {'股东名称':<24} {'类型':<10} {'持股(万股)':>10} {'占比(%)':>8} {'变动':>8}")
+    print(
+        f"  {'排名':>4} {'股东名称':<24} {'类型':<10} {'持股(万股)':>10} {'占比(%)':>8} {'变动':>8}"
+    )
     print("  " + "-" * 70)
 
     for item in data:
         # 截断股东名称
-        name = item.holder_name[:20] + "..." if len(item.holder_name) > 20 else item.holder_name
-        change_str = f"{item.change_type}{item.change:+.1f}" if item.change != 0 else item.change_type
+        name = (
+            item.holder_name[:20] + "..."
+            if len(item.holder_name) > 20
+            else item.holder_name
+        )
+        change_str = (
+            f"{item.change_type}{item.change:+.1f}"
+            if item.change != 0
+            else item.change_type
+        )
 
-        print(f"  {item.rank:>4} {name:<24} {item.holder_type:<10} "
-              f"{item.hold_num:>10.1f} {item.hold_ratio:>8.2f} {change_str:>8}")
+        print(
+            f"  {item.rank:>4} {name:<24} {item.holder_type:<10} "
+            f"{item.hold_num:>10.1f} {item.hold_ratio:>8.2f} {change_str:>8}"
+        )
 
     # 机构统计
     institutions = [h for h in data if h.is_institution]
@@ -130,7 +151,9 @@ def main():
     parser.add_argument("--margin", action="store_true", help="仅显示融资融券")
     parser.add_argument("--holders", action="store_true", help="仅显示股东户数")
     parser.add_argument("--top-holders", action="store_true", help="仅显示十大流通股东")
-    parser.add_argument("--chip", action="store_true", help="仅显示筹码分布（暂未实现）")
+    parser.add_argument(
+        "--chip", action="store_true", help="仅显示筹码分布（暂未实现）"
+    )
     parser.add_argument("--all", action="store_true", help="显示全部（默认）")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--days", type=int, default=20, help="融资融券天数（默认 20）")

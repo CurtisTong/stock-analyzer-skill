@@ -1,4 +1,5 @@
 """腾讯数据源测试：TencentQuoteFetcher + TencentKlineFetcher。"""
+
 import json
 import pytest
 import sys
@@ -83,7 +84,9 @@ class TestTencentQuoteFetcher:
 
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
-        with patch("fetchers.tencent_quote.http_get", side_effect=NetworkError("url", "err", 3)):
+        with patch(
+            "fetchers.tencent_quote.http_get", side_effect=NetworkError("url", "err", 3)
+        ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("sh600519")
 
@@ -122,13 +125,29 @@ class TestTencentKlineFetcher:
             "data": {
                 "sh600519": {
                     "qfqday": [
-                        ["2025-06-10", "1790.00", "1800.00", "1810.00", "1785.00", "12345"],
-                        ["2025-06-11", "1800.00", "1805.00", "1815.00", "1795.00", "11000"],
+                        [
+                            "2025-06-10",
+                            "1790.00",
+                            "1800.00",
+                            "1810.00",
+                            "1785.00",
+                            "12345",
+                        ],
+                        [
+                            "2025-06-11",
+                            "1800.00",
+                            "1805.00",
+                            "1815.00",
+                            "1795.00",
+                            "11000",
+                        ],
                     ]
                 }
             },
         }
-        with patch("fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert len(result) == 2
@@ -147,12 +166,21 @@ class TestTencentKlineFetcher:
             "data": {
                 "sh600519": {
                     "qfqday": [
-                        ["2025-06-10", "1790.00", "1800.00", "1810.00", "1785.00", "12345"],
+                        [
+                            "2025-06-10",
+                            "1790.00",
+                            "1800.00",
+                            "1810.00",
+                            "1785.00",
+                            "12345",
+                        ],
                     ]
                 }
             },
         }
-        with patch("fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519", scale=240, datalen=1)
         assert result is not None
         assert len(result) == 1
@@ -172,21 +200,27 @@ class TestTencentKlineFetcher:
     def test_fetch_code_not_zero(self):
         """code != 0：返回 None。"""
         data = {"code": -1, "data": {}}
-        with patch("fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_no_data_key(self):
         """缺少 data 字段：返回 None。"""
         data = {"code": 0}
-        with patch("fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_empty_kline_array(self):
         """K 线数组为空：返回 None。"""
         data = {"code": 0, "data": {"sh600519": {"qfqday": []}}}
-        with patch("fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -198,18 +232,29 @@ class TestTencentKlineFetcher:
                 "sh600519": {
                     "qfqday": [
                         ["2025-06-10", "1790.00"],  # 不足 6 字段
-                        ["2025-06-11", "1800.00", "1805.00", "1815.00", "1795.00", "11000"],
+                        [
+                            "2025-06-11",
+                            "1800.00",
+                            "1805.00",
+                            "1815.00",
+                            "1795.00",
+                            "11000",
+                        ],
                     ]
                 }
             },
         }
-        with patch("fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()):
+        with patch(
+            "fetchers.tencent_kline.http_get", return_value=json.dumps(data).encode()
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert len(result) == 1
 
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
-        with patch("fetchers.tencent_kline.http_get", side_effect=NetworkError("url", "err", 3)):
+        with patch(
+            "fetchers.tencent_kline.http_get", side_effect=NetworkError("url", "err", 3)
+        ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("sh600519")

@@ -1,4 +1,5 @@
 """akshare 行情数据源（需要 akshare 包）。"""
+
 import logging
 import time
 from pathlib import Path
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import akshare as ak
+
     HAS_AKSHARE = True
 except ImportError:
     HAS_AKSHARE = False

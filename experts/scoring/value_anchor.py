@@ -6,6 +6,7 @@ v2.1.1：调 buffett + duan_yongping 加权平均，确保继承原逻辑
 
 人设：美式数据 + 中式文化，强调 ROE/PE + 商业模式 + 安全边际。
 """
+
 from typing import Dict
 
 
@@ -27,5 +28,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["value_anchor"]
     return generic_score_with_reasoning(profile, score, stock_data)

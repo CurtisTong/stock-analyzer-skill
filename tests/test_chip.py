@@ -1,4 +1,5 @@
 """资金面数据模块单元测试。"""
+
 import sys
 import json
 import subprocess
@@ -26,7 +27,9 @@ class TestMarginData:
 
     def test_to_dict(self):
         """to_dict 返回正确字典。"""
-        data = MarginData(date="2025-06-09", code="600989", rzye=1235000000, rzjme=5234000)
+        data = MarginData(
+            date="2025-06-09", code="600989", rzye=1235000000, rzjme=5234000
+        )
         d = data.to_dict()
         assert d["date"] == "2025-06-09"
         assert d["code"] == "600989"
@@ -47,7 +50,9 @@ class TestHolderData:
 
     def test_to_dict(self):
         """to_dict 返回正确字典。"""
-        data = HolderData(end_date="2025-03-31", code="600989", holder_num=85234, concentration="集中")
+        data = HolderData(
+            end_date="2025-03-31", code="600989", holder_num=85234, concentration="集中"
+        )
         d = data.to_dict()
         assert d["end_date"] == "2025-03-31"
         assert d["holder_num"] == 85234
@@ -85,6 +90,7 @@ class TestChipFetcher:
     def test_margin_fetcher_init(self):
         """MarginFetcher 初始化正确。"""
         from fetchers.eastmoney_chip import MarginFetcher
+
         fetcher = MarginFetcher()
         assert fetcher.name == "margin"
         assert fetcher.priority == 5
@@ -92,6 +98,7 @@ class TestChipFetcher:
     def test_holder_fetcher_init(self):
         """HolderFetcher 初始化正确。"""
         from fetchers.eastmoney_chip import HolderFetcher
+
         fetcher = HolderFetcher()
         assert fetcher.name == "holder"
         assert fetcher.priority == 5
@@ -99,6 +106,7 @@ class TestChipFetcher:
     def test_top_holder_fetcher_init(self):
         """TopHolderFetcher 初始化正确。"""
         from fetchers.eastmoney_chip import TopHolderFetcher
+
         fetcher = TopHolderFetcher()
         assert fetcher.name == "top_holder"
         assert fetcher.priority == 5
@@ -111,6 +119,7 @@ class TestChipFetcherNetwork:
     def test_margin_fetch_real(self):
         """真实获取融资融券数据。"""
         from fetchers.eastmoney_chip import MarginFetcher
+
         fetcher = MarginFetcher()
         result = fetcher.fetch("sh600989", days=5)
         # 宝丰能源可能没有融资融券数据，所以允许 None
@@ -123,6 +132,7 @@ class TestChipFetcherNetwork:
     def test_holder_fetch_real(self):
         """真实获取股东户数数据。"""
         from fetchers.eastmoney_chip import HolderFetcher
+
         fetcher = HolderFetcher()
         result = fetcher.fetch("sh600989", periods=2)
         # 股东户数数据应该存在
@@ -135,6 +145,7 @@ class TestChipFetcherNetwork:
     def test_top_holder_fetch_real(self):
         """真实获取十大流通股东数据。"""
         from fetchers.eastmoney_chip import TopHolderFetcher
+
         fetcher = TopHolderFetcher()
         result = fetcher.fetch("sh600989")
         # 十大流通股东数据应该存在

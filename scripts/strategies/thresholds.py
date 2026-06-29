@@ -2,6 +2,7 @@
 行业差异化阈值管理。
 从 data/industry_thresholds.json 加载，供因子评分使用。
 """
+
 import json
 import logging
 from pathlib import Path
@@ -16,6 +17,7 @@ def load_industry_thresholds() -> dict:
     global _industry_thresholds
     if _industry_thresholds is None:
         from common import DATA_DIR
+
         path = DATA_DIR / "industry_thresholds.json"
         if path.exists():
             _industry_thresholds = json.loads(path.read_text(encoding="utf-8"))

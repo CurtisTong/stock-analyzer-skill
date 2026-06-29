@@ -4,6 +4,7 @@
 维度：基本面(10%) + 估值(8%) + 技术面(35%) + 情绪/题材(35%) + 风险(12%)
 精确复现 experts/zhao_laoge.md §九 评分矩阵中的阈值规则。
 """
+
 import statistics
 from typing import Dict
 
@@ -79,7 +80,13 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         risk = 60
 
-    return {"基本面": base, "估值": val, "技术面": tech, "情绪/题材": sent, "风险": risk}
+    return {
+        "基本面": base,
+        "估值": val,
+        "技术面": tech,
+        "情绪/题材": sent,
+        "风险": risk,
+    }
 
 
 def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
@@ -89,5 +96,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["zhao_laoge"]
     return generic_score_with_reasoning(profile, score, stock_data)

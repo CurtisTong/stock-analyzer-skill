@@ -1,4 +1,5 @@
 """efinance K 线数据源（需要 efinance 包）。"""
+
 import logging
 from pathlib import Path
 
@@ -8,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import efinance as ef
+
     HAS_EFINANCE = True
 except ImportError:
     HAS_EFINANCE = False
@@ -34,14 +36,16 @@ class EfinanceKlineFetcher(BaseFetcher):
                 return None
             result = []
             for _, row in df.iterrows():
-                result.append({
-                    "day": str(row.get("日期", ""))[:10],
-                    "open": str(row.get("开盘", 0)),
-                    "close": str(row.get("收盘", 0)),
-                    "high": str(row.get("最高", 0)),
-                    "low": str(row.get("最低", 0)),
-                    "volume": str(row.get("成交量", 0)),
-                })
+                result.append(
+                    {
+                        "day": str(row.get("日期", ""))[:10],
+                        "open": str(row.get("开盘", 0)),
+                        "close": str(row.get("收盘", 0)),
+                        "high": str(row.get("最高", 0)),
+                        "low": str(row.get("最低", 0)),
+                        "volume": str(row.get("成交量", 0)),
+                    }
+                )
             return result if result else None
         except Exception as e:
             logger.debug("efinance_kline 获取失败 %s: %s", code, e)

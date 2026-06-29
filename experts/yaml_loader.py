@@ -17,6 +17,7 @@ from experts.types import ExpertProfile
 
 try:
     import yaml
+
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
@@ -99,6 +100,7 @@ def round_trip(profile: ExpertProfile) -> bool:
         True 表示 round-trip 后字段完全一致
     """
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
         tmp = Path(f.name)
     try:

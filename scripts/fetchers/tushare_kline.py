@@ -1,4 +1,5 @@
 """Tushare K 线数据源（需要 tushare 包 + token）。"""
+
 import logging
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import tushare as ts
+
     token = os.environ.get("TUSHARE_TOKEN", "")
     if token:
         ts.set_token(token)
@@ -49,14 +51,16 @@ class TushareKlineFetcher(BaseFetcher):
 
             result = []
             for _, row in df.iterrows():
-                result.append({
-                    "day": str(row.get("trade_date", "")),
-                    "open": str(row.get("open", 0)),
-                    "close": str(row.get("close", 0)),
-                    "high": str(row.get("high", 0)),
-                    "low": str(row.get("low", 0)),
-                    "volume": str(row.get("vol", 0)),
-                })
+                result.append(
+                    {
+                        "day": str(row.get("trade_date", "")),
+                        "open": str(row.get("open", 0)),
+                        "close": str(row.get("close", 0)),
+                        "high": str(row.get("high", 0)),
+                        "low": str(row.get("low", 0)),
+                        "volume": str(row.get("vol", 0)),
+                    }
+                )
             result.reverse()  # tushare 返回倒序
             return result if result else None
         except Exception as e:

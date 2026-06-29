@@ -6,6 +6,7 @@ v2.1.1：调 chaogu_yangjia + zuoshou_xinyi 加权平均
 
 人设：情绪周期 + K线反转形态。
 """
+
 from typing import Dict
 
 
@@ -27,5 +28,6 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
+
     profile = EXPERT_REGISTRY["emotion_tech"]
     return generic_score_with_reasoning(profile, score, stock_data)

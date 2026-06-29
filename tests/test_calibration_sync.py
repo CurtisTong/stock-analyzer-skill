@@ -3,6 +3,7 @@
 
 策略：mock subprocess.run 模拟 gh CLI 调用，避免真实 GitHub API。
 """
+
 import json
 import subprocess
 import sys
@@ -16,10 +17,10 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 import calibration_sync
 
-
 # ═══════════════════════════════════════════════════════════════
 # _run_gh: gh CLI 调用
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestRunGh:
     def test_returns_tuple(self):
@@ -50,6 +51,7 @@ class TestRunGh:
 # _find_gist: 查找现有 gist
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestFindGist:
     def test_returns_none_when_gh_fails(self):
         """gh 调用失败时返回 None。"""
@@ -65,28 +67,34 @@ class TestFindGist:
 
     def test_finds_matching_gist(self):
         """找到描述匹配的 gist。"""
-        gists = json.dumps([
-            {"id": "abc123", "description": "other gist"},
-            {"id": "xyz789", "description": calibration_sync._GIST_DESC},
-        ])
+        gists = json.dumps(
+            [
+                {"id": "abc123", "description": "other gist"},
+                {"id": "xyz789", "description": calibration_sync._GIST_DESC},
+            ]
+        )
         mock_result = MagicMock(returncode=0, stdout=gists, stderr="")
         with patch("subprocess.run", return_value=mock_result):
             assert calibration_sync._find_gist() == "xyz789"
 
     def test_finds_legacy_description(self):
         """兼容旧描述（"calibration" + "stock"）。"""
-        gists = json.dumps([
-            {"id": "abc123", "description": "stock calibration data"},
-        ])
+        gists = json.dumps(
+            [
+                {"id": "abc123", "description": "stock calibration data"},
+            ]
+        )
         mock_result = MagicMock(returncode=0, stdout=gists, stderr="")
         with patch("subprocess.run", return_value=mock_result):
             assert calibration_sync._find_gist() == "abc123"
 
     def test_returns_none_when_no_match(self):
         """无匹配 gist 时返回 None。"""
-        gists = json.dumps([
-            {"id": "abc", "description": "unrelated"},
-        ])
+        gists = json.dumps(
+            [
+                {"id": "abc", "description": "unrelated"},
+            ]
+        )
         mock_result = MagicMock(returncode=0, stdout=gists, stderr="")
         with patch("subprocess.run", return_value=mock_result):
             assert calibration_sync._find_gist() is None
@@ -95,6 +103,7 @@ class TestFindGist:
 # ═══════════════════════════════════════════════════════════════
 # _get_gist_content: 拉取 gist 内容
 # ═══════════════════════════════════════════════════════════════
+
 
 class TestGetGistContent:
     def test_returns_dict_on_success(self):
@@ -122,10 +131,15 @@ class TestGetGistContent:
 # _create_gist: 创建新 gist
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestCreateGist:
     def test_returns_id_on_success(self):
         """成功时从 URL 提取 gist ID。"""
-        mock_result = MagicMock(returncode=0, stdout="https://gist.github.com/user/new_gist_123\n", stderr="")
+        mock_result = MagicMock(
+            returncode=0,
+            stdout="https://gist.github.com/user/new_gist_123\n",
+            stderr="",
+        )
         with patch("subprocess.run", return_value=mock_result):
             result = calibration_sync._create_gist({"data": "test"})
         assert result == "new_gist_123"
@@ -149,6 +163,7 @@ class TestCreateGist:
 # _update_gist: 更新现有 gist
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestUpdateGist:
     def test_returns_true_on_success(self):
         """成功时返回 True。"""
@@ -167,6 +182,7 @@ class TestUpdateGist:
 # pull / push / auto / status 集成（mock 所有外部依赖）
 # ═══════════════════════════════════════════════════════════════
 
+
 class TestSyncOperations:
     """端到端测试 pull/push/auto/status。"""
 
@@ -176,7 +192,9 @@ class TestSyncOperations:
             result = calibration_sync.pull()
         assert result is False
         captured = capsys.readouterr()
-        assert "未找到" in captured.out or "不存在" in captured.out or "无" in captured.out
+        assert (
+            "未找到" in captured.out or "不存在" in captured.out or "无" in captured.out
+        )
 
     def test_push_no_local_file(self, capsys, tmp_path):
         """push 时无本地数据文件。"""

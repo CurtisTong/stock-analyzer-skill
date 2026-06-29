@@ -11,7 +11,8 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 from strategies.factors.volatility import (  # noqa: E402
-    volatility_score, volatility_from_closes,
+    volatility_score,
+    volatility_from_closes,
 )
 from strategies.factors.quality import quality_score  # noqa: E402
 from strategies.factors.momentum import momentum_score  # noqa: E402
@@ -22,6 +23,7 @@ from data.types import KlineBar  # noqa: E402
 def _make_bars(prices, base_day="2025-01-01"):
     """从价格列表构造 KlineBar 列表。"""
     from datetime import datetime, timedelta
+
     start = datetime.strptime(base_day, "%Y-%m-%d")
     return [
         KlineBar(
@@ -89,11 +91,13 @@ class TestROETrend:
     def test_single_drop_no_longer_triggers_penalty(self):
         """单期下降不触发扣分（旧逻辑会）。"""
         fin_strict_drop = {
-            "roe": 10.0, "eps": 1.0,
+            "roe": 10.0,
+            "eps": 1.0,
             "roe_trend": [10.0, 9.5, 9.4, 9.3, 9.2, 9.1],  # 全下降（旧逻辑扣分）
         }
         fin_single_drop = {
-            "roe": 10.0, "eps": 1.0,
+            "roe": 10.0,
+            "eps": 1.0,
             "roe_trend": [10.0, 10.1, 9.9, 10.2, 10.0, 10.1],  # 1 期下降（旧逻辑不扣）
         }
         # 旧逻辑：第一个扣 8 分；新逻辑：第一个下降占比 100% 仍扣 8 分（这里都是 100% 下降 vs 20% 下降）
@@ -118,8 +122,12 @@ class TestMomentumDecay:
         # p75=10000，amount=10500 → quant_high
         # amount 原本可能未达 12000 硬编码，但超过 p75
         features = {
-            "trend": 0, "ret20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "macd_signal": 0, "vol_price_signal": 0,
+            "trend": 0,
+            "ret20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
         }
         quote = {"turnover": 1.0, "market_amount": 10500, "market_amount_p75": 10000}
         # 量化高活跃 → 衰减系数 0.7
@@ -129,11 +137,21 @@ class TestMomentumDecay:
     def test_falls_back_to_12000_hardcoded(self):
         """无 p75 时 fallback 到 12000 硬编码。"""
         features = {
-            "trend": 0, "ret20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "macd_signal": 0, "vol_price_signal": 0,
+            "trend": 0,
+            "ret20": 0,
+            "volume_ratio": 1.0,
+            "rsi": 50,
+            "macd_signal": 0,
+            "vol_price_signal": 0,
         }
-        quote_no_p75 = {"turnover": 1.0, "market_amount": 13000}  # 超 12000 → quant_high
-        quote_low = {"turnover": 1.0, "market_amount": 10000}  # 不到 12000 → quant_normal
+        quote_no_p75 = {
+            "turnover": 1.0,
+            "market_amount": 13000,
+        }  # 超 12000 → quant_high
+        quote_low = {
+            "turnover": 1.0,
+            "market_amount": 10000,
+        }  # 不到 12000 → quant_normal
         # 两次评分应不同
         score_high = momentum_score(features, quote_no_p75)
         score_low = momentum_score(features, quote_low)
@@ -148,7 +166,10 @@ class TestPEGCagr:
     def test_uses_3y_cagr_when_provided(self):
         """fin.net_profit_cagr_3y > 0 时优先使用。"""
         # 高 PE 但 CAGR 低 → PEG 应较高 → 低分
-        fin = {"net_profit_cagr_3y": 5.0, "net_profit_yoy": 100.0}  # 单期 +100% 但 3 年 CAGR 5%
+        fin = {
+            "net_profit_cagr_3y": 5.0,
+            "net_profit_yoy": 100.0,
+        }  # 单期 +100% 但 3 年 CAGR 5%
         quote = {"pe": 25, "pb": 3}
         score = valuation_score(quote, fin, "默认")
         # 应当 PEG 不再 < 0.8（因为 growth=5，PEG=5），分不会很高

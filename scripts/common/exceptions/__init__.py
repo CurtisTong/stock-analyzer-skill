@@ -14,6 +14,7 @@
       ├── StrategyError
       └── InsufficientDataError
 """
+
 from typing import Any
 
 
@@ -40,8 +41,10 @@ class StockAnalyzerError(Exception):
 # 数据层异常
 # ═══════════════════════════════════════════════════════════════
 
+
 class DataError(StockAnalyzerError):
     """数据层基类异常。"""
+
     pass
 
 
@@ -52,8 +55,7 @@ class NetworkError(DataError):
         self.url = url
         self.retry_count = retry_count
         super().__init__(
-            f"网络请求失败: {reason}",
-            {"url": url, "retry_count": retry_count}
+            f"网络请求失败: {reason}", {"url": url, "retry_count": retry_count}
         )
 
 
@@ -74,7 +76,7 @@ class ParseError(DataError):
         self.raw_preview = raw_data[:200] if raw_data else ""
         super().__init__(
             f"数据解析失败 [{parser}]: {reason}",
-            {"parser": parser, "data_preview": self.raw_preview}
+            {"parser": parser, "data_preview": self.raw_preview},
         )
 
 
@@ -86,7 +88,7 @@ class DataUnavailableError(DataError):
         self.failures = failures
         super().__init__(
             f"数据源 [{source}] 不可用，已连续失败 {failures} 次",
-            {"source": source, "failures": failures}
+            {"source": source, "failures": failures},
         )
 
 
@@ -94,8 +96,10 @@ class DataUnavailableError(DataError):
 # 业务层异常
 # ═══════════════════════════════════════════════════════════════
 
+
 class BusinessError(StockAnalyzerError):
     """业务层基类异常。"""
+
     pass
 
 
@@ -107,12 +111,13 @@ class ValidationError(BusinessError):
         self.value_str = str(value)[:100] if value is not None else None
         super().__init__(
             f"字段 {field} 校验失败: {constraint}",
-            {"field": field, "value": self.value_str, "constraint": constraint}
+            {"field": field, "value": self.value_str, "constraint": constraint},
         )
 
 
 class StrategyError(BusinessError):
     """策略执行错误。"""
+
     pass
 
 
@@ -126,12 +131,18 @@ class InsufficientDataError(BusinessError):
         context_info = f" [{context}]" if context else ""
         super().__init__(
             f"{data_type}数据不足{context_info}: 需要 {required} 条，实际 {actual} 条",
-            {"data_type": data_type, "required": required, "actual": actual, "context": context}
+            {
+                "data_type": data_type,
+                "required": required,
+                "actual": actual,
+                "context": context,
+            },
         )
 
 
 class ConfigurationError(StockAnalyzerError):
     """配置错误。"""
+
     pass
 
 
@@ -144,18 +155,16 @@ USER_FRIENDLY_MESSAGES = {
     "NetworkError": {
         "default": "网络连接失败，请检查您的网络环境后重试",
         "timeout": "请求超时，数据源响应较慢，请稍后重试",
-        "connection": "无法连接到数据服务器，请检查网络"
+        "connection": "无法连接到数据服务器，请检查网络",
     },
-    "RateLimitError": {
-        "default": "请求过于频繁，请稍后再试"
-    },
+    "RateLimitError": {"default": "请求过于频繁，请稍后再试"},
     "ParseError": {
         "default": "数据格式异常，技术团队已收到反馈",
-        "empty": "暂无数据，请稍后重试"
+        "empty": "暂无数据，请稍后重试",
     },
     "DataUnavailableError": {
         "default": "数据暂时不可用，已自动切换备用数据源",
-        "all_failed": "所有数据源暂时不可用，请稍后再试"
+        "all_failed": "所有数据源暂时不可用，请稍后再试",
     },
     "ValidationError": {
         "default": "输入信息有误，请检查后重新输入",
@@ -165,11 +174,9 @@ USER_FRIENDLY_MESSAGES = {
     "InsufficientDataError": {
         "default": "分析数据不足，无法生成完整报告",
         "kline": "K线数据不足，请尝试获取更多历史数据",
-        "finance": "财务数据缺失，可能影响分析准确性"
+        "finance": "财务数据缺失，可能影响分析准确性",
     },
-    "ConfigurationError": {
-        "default": "系统配置异常，请检查配置文件"
-    }
+    "ConfigurationError": {"default": "系统配置异常，请检查配置文件"},
 }
 
 

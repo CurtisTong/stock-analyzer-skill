@@ -1,31 +1,30 @@
 """字段映射与解析：腾讯/新浪/东财数据格式解析。"""
 
-
 # ---------- 腾讯行情字段映射 ----------
 
 # 字段位（按 ~ 分隔，0-based 索引，已剥除 v_sh600989=" 前缀）
 # 方法论文档的 1-based 编号 - 1 = 本表 0-based
 TENCENT_FIELDS = {
-    "market": 0,            # 市场代码
-    "name": 1,              # 名称
-    "code": 2,              # 股票代码
-    "price": 3,             # 当前价
-    "prev_close": 4,        # 昨收
-    "open": 5,              # 今开
-    "change_amt": 31,       # 涨跌额
-    "change_pct": 32,       # 涨跌幅%
-    "high": 33,             # 最高
-    "low": 34,              # 最低
-    "volume": 36,           # 成交量(手)
-    "amount": 37,           # 成交额(万)
-    "turnover": 38,         # 换手率%
-    "pe": 39,               # PE(动)
-    "amplitude": 43,        # 振幅%
-    "total_cap": 44,        # 总市值(亿)
+    "market": 0,  # 市场代码
+    "name": 1,  # 名称
+    "code": 2,  # 股票代码
+    "price": 3,  # 当前价
+    "prev_close": 4,  # 昨收
+    "open": 5,  # 今开
+    "change_amt": 31,  # 涨跌额
+    "change_pct": 32,  # 涨跌幅%
+    "high": 33,  # 最高
+    "low": 34,  # 最低
+    "volume": 36,  # 成交量(手)
+    "amount": 37,  # 成交额(万)
+    "turnover": 38,  # 换手率%
+    "pe": 39,  # PE(动)
+    "amplitude": 43,  # 振幅%
+    "total_cap": 44,  # 总市值(亿)
     "circulating_cap": 45,  # 流通市值(亿)
-    "pb": 46,               # PB
-    "limit_up": 47,         # 涨停价
-    "limit_down": 48,       # 跌停价
+    "pb": 46,  # PB
+    "limit_up": 47,  # 涨停价
+    "limit_down": 48,  # 跌停价
 }
 
 
@@ -63,7 +62,7 @@ SINA_QUOTE_URL = "https://hq.sinajs.cn/list={codes}"
 
 
 def parse_sina_quote_line(line: str) -> dict[str, str]:
-    """解析新浪行情单行: var hq_str_sh600989="名称,今开,昨收,当前价,最高,最低,..."; """
+    """解析新浪行情单行: var hq_str_sh600989="名称,今开,昨收,当前价,最高,最低,...";"""
     if '="' not in line:
         return {}
     var_part, data_part = line.split('="', 1)
@@ -88,14 +87,14 @@ def parse_sina_quote_line(line: str) -> dict[str, str]:
         "price": fields[3],
         "high": fields[4],
         "low": fields[5],
-        "volume": fields[8],      # 成交量(股)
-        "amount": fields[9],      # 成交额
+        "volume": fields[8],  # 成交量(股)
+        "amount": fields[9],  # 成交额
         "change_pct": change_pct,
         "change_amt": change_amt,
         "turnover": "",  # 新浪不直接提供换手率
-        "pe": "",        # 新浪不直接提供 PE
-        "pb": "",        # 新浪不直接提供 PB
-        "total_cap": "", # 新浪不直接提供总市值
+        "pe": "",  # 新浪不直接提供 PE
+        "pb": "",  # 新浪不直接提供 PB
+        "total_cap": "",  # 新浪不直接提供总市值
         "circulating_cap": "",
     }
 
@@ -119,7 +118,9 @@ EAST_MONEY_FIELDS = {
 
 
 __all__ = [
-    "TENCENT_FIELDS", "parse_tencent_line",
-    "SINA_QUOTE_URL", "parse_sina_quote_line",
+    "TENCENT_FIELDS",
+    "parse_tencent_line",
+    "SINA_QUOTE_URL",
+    "parse_sina_quote_line",
     "EAST_MONEY_FIELDS",
 ]

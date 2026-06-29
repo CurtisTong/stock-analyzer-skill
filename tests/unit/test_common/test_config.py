@@ -5,6 +5,7 @@ v1.3.2: get_industry_threshold 已从 config/ 迁出（实际数据源是
 data/industry_thresholds.json，由 strategies.thresholds 加载）。
 行业阈值的测试搬到 tests/test_screener.py::TestIndustryThresholds。
 """
+
 import pytest
 import sys
 from pathlib import Path
