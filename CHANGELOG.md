@@ -7,37 +7,25 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased]
-
-### Added
-
-- **portfolio**: 持仓 Web v2.0 全量改造 — 行情/中文化/交易日志
+## [1.14.2] - 2026-06-29（异常分类 + 输出模板统一 + backtest 解耦 + 文档对齐）
 
 ### Fixed
-- 缓存线程安全 + get_finance 零值缓存
-- 深度审查 P0-P3 全量修复 — 算法正确性/安全/架构/性能
-- 异常提示对内置异常做精细化分类（JSONDecodeError/KeyError/TimeoutError/ConnectionError）
-- `stock.py` 接入统一输出模板（render_text 加 footer / render_brief 改用 format_output）
+
+- 异常提示对内置异常做精细化分类（`JSONDecodeError` / `KeyError` / `TimeoutError` / `ConnectionError`）
+- `stock.py` 接入统一输出模板（`render_text` 加 footer / `render_brief` 改用 `format_output`）
 - `screener.py` ROE 列格式化：`str(x)[:6]` 截断改为 `:.1f` 控制小数位
-- `backtest/engine.py` 不再依赖顶级 screener.py（解耦到 strategies.factors.*）
+- `backtest/engine.py` 不再依赖顶级 `screener.py`（解耦到 `strategies.factors.*`）
+
+### Testing
+
+- 补齐 6 类核心 fetcher 单元测试（15 个 case）
 
 ### Documentation
-- 修复专家人设数字矛盾：8 人/4+4 统一为 9 active/6 长线+3 短线（15 份人设=9 active+6 legacy 框架）
-- CLAUDE.md 补齐 5 个未列出的辅助脚本（calibration_sync / hot_rank / market_breadth / perf_bench / snapshots）
-- `scoring.yaml` 未被读取字段加 DEPRECATED 警告（industry_defaults / experts.soros.market_liquidity_floor_yi）
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
 
-## [Unreleased] - 2026-06-25
-
-### Added
-- **portfolio**: 持仓 Web v2.0 全量改造 — 行情/中文化/交易日志
-
-### Fixed
-- 深度审查 P0-P3 全量修复 — 算法正确性/安全/架构/性能
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
+- 修复专家人设数字矛盾：8 人/4+4 统一为 9 active/6 长线+3 短线（15 份人设 = 9 active + 6 legacy 框架）
+- CLAUDE.md 补齐 5 个未列出的辅助脚本（`calibration_sync` / `hot_rank` / `market_breadth` / `perf_bench` / `snapshots`）
+- `scoring.yaml` 未被读取字段加 DEPRECATED 警告（`industry_defaults` / `experts.soros.market_liquidity_floor_yi`）
+- 修复 CHANGELOG.md markdown lint 警告
 
 ## [Unreleased] - 2026-06-24
 
