@@ -23,12 +23,12 @@ test -x "$INSTALL_SH" || chmod +x "$INSTALL_SH"
 echo "  ✓ install.sh 存在且可执行"
 
 echo
-echo "== 静态检查：12 个 skill 全部在 SKILLS 数组 =="
-EXPECTED_SKILLS=(stock market sector portfolio screener technical monitor stock-init backtest financial-analyst investment-researcher help)
+echo "== 静态检查：13 个 skill 全部在 SKILLS 数组 =="
+EXPECTED_SKILLS=(stock stock-technical market sector portfolio portfolio-web portfolio-natural screener monitor backtest research learn stock-help)
 for s in "${EXPECTED_SKILLS[@]}"; do
   grep -qE "(^|[ \"=(])${s}([ \"=)]|$)" "$INSTALL_SH" || { echo "✗ 缺少 skill: $s"; exit 1; }
 done
-echo "  ✓ 12 个 skill 全部声明"
+echo "  ✓ 13 个 skill 全部声明"
 
 echo
 echo "== 静态检查：使用 ln -s 软链 =="
