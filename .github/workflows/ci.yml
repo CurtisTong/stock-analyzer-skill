@@ -64,7 +64,7 @@ jobs:
         run: black --check scripts/ experts/ tests/
 
       - name: ruff 静态检查
-        run: ruff check scripts/ experts/ --max-line-length=120
+        run: ruff check scripts/ experts/ --line-length=120
 
       - name: flake8 静态检查
         run: flake8 scripts/ experts/ --max-line-length=120
