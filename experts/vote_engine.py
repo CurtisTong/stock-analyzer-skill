@@ -294,7 +294,7 @@ def aggregate_votes(
     prefer_horizon: bool = False,
     veto_results: Optional[Dict[str, Dict[str, bool]]] = None,
 ) -> dict:
-    """整合 8 位专家投票，输出最终决策（decide.md 完整规则）。
+    """整合 9 位 active 专家投票（6 长线 + 3 短线），输出最终决策（decide.md 完整规则）。
 
     Args:
         expert_results: 专家评分结果列表，每项包含：
