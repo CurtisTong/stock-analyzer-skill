@@ -21,7 +21,14 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from portfolio.web.app import make_server, Handler, VERSION, main
+from portfolio.web.app import (
+    make_server,
+    Handler,
+    VERSION,
+    main,
+    MAX_BODY_BYTES,  # noqa: F401 — re-export for tests
+    _collect_code_name_map,  # noqa: F401 — re-export for tests
+)
 from portfolio.web.utils import (  # noqa: F401 — re-export for tests
     _TOKEN_FILE,
     _TOKEN_DIR,
@@ -29,7 +36,6 @@ from portfolio.web.utils import (  # noqa: F401 — re-export for tests
     _ensure_token,
 )
 from portfolio.web.dispatch import ALLOWED_ACTIONS  # noqa: F401 — re-export for tests
-from portfolio.web.app import MAX_BODY_BYTES  # noqa: F401 — re-export for tests
 
 __all__ = [
     "make_server",
@@ -41,6 +47,7 @@ __all__ = [
     "_ensure_token",
     "ALLOWED_ACTIONS",
     "MAX_BODY_BYTES",
+    "_collect_code_name_map",
 ]
 
 if __name__ == "__main__":
