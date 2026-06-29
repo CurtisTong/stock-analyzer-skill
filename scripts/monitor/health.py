@@ -186,7 +186,7 @@ def print_health_report():
         print(
             f"  总大小: {cache_stats.get('total_size_mb', 0)} MB / {cache_stats.get('max_size_mb', 500)} MB"
         )
-        print(f"  按类型:")
+        print("  按类型:")
         for prefix, data in cache_stats.get("by_prefix", {}).items():
             print(f"    - {prefix}: {data['count']} 个 ({data['size_mb']} MB)")
 
@@ -201,7 +201,7 @@ def print_health_report():
 
 
 if __name__ == "__main__":
-    import sys
+    import sys  # noqa: F811 — 复用顶部 sys 引用
 
     args = sys.argv[1:]
     if "--cleanup" in args:

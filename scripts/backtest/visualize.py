@@ -3,8 +3,6 @@
 提供终端内的收益曲线、回撤图等文本图表。
 """
 
-from typing import Optional
-
 
 def render_return_curve(
     returns: list[float],

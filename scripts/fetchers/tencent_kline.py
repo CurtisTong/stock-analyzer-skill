@@ -1,7 +1,6 @@
 """腾讯 K 线数据源。"""
 
 import json
-from pathlib import Path
 
 from common import BaseFetcher, http_get
 

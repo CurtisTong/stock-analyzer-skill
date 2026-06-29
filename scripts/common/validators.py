@@ -5,7 +5,7 @@
 """
 
 import re
-from typing import Optional, List
+from typing import List
 from .exceptions import ValidationError
 
 # 股票代码正则

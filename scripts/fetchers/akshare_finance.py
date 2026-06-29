@@ -1,7 +1,6 @@
 """akshare 财务数据源（需要 akshare 包）。"""
 
 import logging
-from pathlib import Path
 
 from common import BaseFetcher
 

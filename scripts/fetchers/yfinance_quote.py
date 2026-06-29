@@ -4,7 +4,6 @@
 """
 
 import logging
-from pathlib import Path
 
 from common import BaseFetcher, NOT_HANDLED
 

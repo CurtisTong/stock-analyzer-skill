@@ -72,7 +72,6 @@ def _fetch_quotes_batched(
     codes: list, batch: int = 600, per_timeout: int = 180
 ) -> list:
     """分批并行拉 quote，每批用更长的 timeout 避免大池子超时。"""
-    from data import get_quote
 
     all_quotes = []
     total = len(codes)
@@ -177,7 +176,7 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
         for attempt in range(3):
             try:
                 bars = fetcher.fetch(code, scale=240, datalen=days_back + 2)
-            except Exception as e:
+            except Exception:
                 bars = None
             if bars:
                 break
@@ -361,7 +360,7 @@ def main():
             top=args.top,
         )
         print(f"数据时间: {datetime.now().isoformat(timespec='seconds')}")
-        print(f"数据源: 本地 hot_rank 快照")
+        print("数据源: 本地 hot_rank 快照")
         return
 
     codes = _load_all_stocks()
@@ -437,7 +436,7 @@ def main():
             top=args.top,
         )
     print(f"数据时间: {datetime.now().isoformat(timespec='seconds')}")
-    print(f"数据源: 多 fetcher 并行 (tencent/eastmoney/sina) → 实时行情")
+    print("数据源: 多 fetcher 并行 (tencent/eastmoney/sina) → 实时行情")
 
 
 if __name__ == "__main__":

@@ -5,8 +5,7 @@
 """
 
 import logging
-from typing import Optional, Dict, Any, List
-from concurrent.futures import as_completed
+from typing import Dict, Any
 
 from common import get_shared_executor
 from common.exceptions import ValidationError

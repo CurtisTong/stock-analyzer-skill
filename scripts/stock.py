@@ -50,7 +50,7 @@ def render_text(result: dict) -> str:
     # 1. 行业画像
     if "profile" in result:
         p = result["profile"]
-        lines.append(f"\n🏷 行业画像")
+        lines.append("\n🏷 行业画像")
         lines.append(f"   类型: {p.get('type', '?')}  行业: {p.get('industry', '?')}")
 
     # 2. K 线 + 缠论
@@ -70,7 +70,7 @@ def render_text(result: dict) -> str:
     if "technical" in result:
         t = result["technical"]
         ma_icon = {"多头": "🟢", "空头": "🔴", "交叉": "🟡"}.get(t.get("ma", ""), "⚪")
-        lines.append(f"\n📊 技术面")
+        lines.append("\n📊 技术面")
         lines.append(
             f"   均线 {ma_icon}{t.get('ma', '?')}  "
             f"MACD {t.get('macd_signal', 0):+d}  "
@@ -89,7 +89,7 @@ def render_text(result: dict) -> str:
     # 4. 财务摘要
     if "finance" in result:
         f = result["finance"]
-        lines.append(f"\n💰 财务")
+        lines.append("\n💰 财务")
         lines.append(
             f"   EPS {f.get('eps', 0):.2f}  ROE {f.get('roe', 0):.2f}%  "
             f"净利同比 {f.get('net_profit_yoy', 0):+.2f}%"

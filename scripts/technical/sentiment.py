@@ -384,7 +384,7 @@ def format_sentiment(result: dict) -> str:
     }.get(level, "⚪")
 
     lines = [
-        f"🌡️ 市场情绪温度计",
+        "🌡️ 市场情绪温度计",
         "",
         f"情绪指数：{score}/100（{level_icon} {level}）",
         f"[{bar}] {score}%",

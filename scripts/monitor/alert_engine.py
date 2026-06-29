@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 from common import normalize_quote_code, to_float, board_type, board_limit_pct
 from data import get_quotes
-from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts, fetch_quote_dict
+from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.trend import support_resistance
@@ -632,7 +632,7 @@ def render_scan(results: list) -> str:
 
 def render_levels(code: str) -> str:
     """渲染单股关键点位。"""
-    pm = PortfolioManager()
+    pm = _get_pm()
     pos = pm.get_position(code)
     watch = pm.get_watch(code)
     r = compute_key_levels(code, position=pos, watch=watch)

@@ -196,7 +196,6 @@ def cleanup_tmp_files() -> int:
 
 def cleanup_by_size(max_size_mb: int = 500, keep_newest: bool = True) -> int:
     """按缓存目录大小清理，保留最新文件。"""
-    import shutil
 
     _ensure_dir()
     files = list(CACHE_DIR.glob("*.cache"))

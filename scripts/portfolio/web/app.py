@@ -25,7 +25,7 @@ from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
 from .dispatch import dispatch
@@ -42,7 +42,6 @@ from .utils import (
     _monitor_interval,
     _monitor_last_result,
     _monitor_loop,
-    _monitor_stop_event,
     _notify_async,
     _notify_enabled,
     _ok,
@@ -210,7 +209,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         try:
-            from .utils import _lock, _virtual_mode
+            from .utils import _lock
 
             with _lock:
                 pm = _get_pm()
@@ -243,7 +242,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def _serve_health(self):
         """健康检查。"""
-        from .utils import _lock, _virtual_mode
+        from .utils import _lock
 
         with _lock:
             pm = _get_pm()
@@ -412,7 +411,7 @@ class Handler(BaseHTTPRequestHandler):
                 },
             }
             self._write_json(HTTPStatus.OK, payload)
-        except Exception as e:
+        except Exception:
             self._write_json(
                 HTTPStatus.OK,
                 {"ok": True, "data": {"history": [], "stats": {}}},
@@ -537,11 +536,11 @@ def main():
             print(f"  通知推送: ✅ 已接入 ({', '.join(channels)})", flush=True)
         else:
             print(
-                f"  通知推送: ⚠ 未配置通道（编辑 scripts/config/notification.yaml 开启）",
+                "  通知推送: ⚠ 未配置通道（编辑 scripts/config/notification.yaml 开启）",
                 flush=True,
             )
     else:
-        print(f"  通知推送: ❌ 已禁用", flush=True)
+        print("  通知推送: ❌ 已禁用", flush=True)
 
     if args.monitor:
         _monitor_enabled = True
@@ -549,9 +548,9 @@ def main():
         _monitor_thread = threading.Thread(target=_monitor_loop, daemon=True)
         _monitor_thread.start()
     else:
-        print(f"  后台监控: ❌ 已禁用", flush=True)
+        print("  后台监控: ❌ 已禁用", flush=True)
 
-    print(f"  停止: Ctrl-C", flush=True)
+    print("  停止: Ctrl-C", flush=True)
 
     try:
         server.serve_forever()

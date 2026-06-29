@@ -60,7 +60,7 @@ def _load_fetchers():
 def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     """获取单只股票行情。"""
     _load_fetchers()
-    cfg = get_config()
+    get_config()
     key = f"quote_{code}"
 
     if use_cache:

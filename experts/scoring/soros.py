@@ -41,7 +41,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     # 技术面：趋势强度 + 量能
     kline_data = stock_data.get("kline_data") or {}
     closes = kline_data.get("closes") or []
-    volumes = kline_data.get("volumes") or []
+    kline_data.get("volumes") or []
     if len(closes) >= 10:
         recent = closes[-10:]
         up_count = sum(1 for i in range(len(recent) - 1) if recent[i] < recent[i + 1])

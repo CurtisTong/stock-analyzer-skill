@@ -27,7 +27,9 @@ def now() -> _dt.datetime:
 def freeze(target: _dt.datetime) -> None:
     """冻结时钟（手动模式，调试用）。"""
     global _now_func
-    _now_func = lambda: target
+
+    def _now_func():
+        return target
 
 
 def unfreeze() -> None:

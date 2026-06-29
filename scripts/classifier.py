@@ -5,7 +5,7 @@ A 股个股类型分类器。
 可被 technical.py 或其他模块 import 使用。
 """
 
-from common import to_float, clamp, board_type
+from common import to_float, board_type
 
 # ── 类型 → 推荐指标映射 ──
 
@@ -68,7 +68,7 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     circulating_cap = (
         to_float(quote_record.get("circulating_cap")) if quote_record else 0
     )
-    total_cap = to_float(quote_record.get("total_cap")) if quote_record else 0
+    to_float(quote_record.get("total_cap")) if quote_record else 0
     turnover = to_float(quote_record.get("turnover")) if quote_record else 0
 
     # 提取财务特征

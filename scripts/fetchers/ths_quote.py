@@ -1,7 +1,6 @@
 """同花顺行情数据源。"""
 
 import logging
-from pathlib import Path
 
 
 from common import BaseFetcher, http_get, to_float
@@ -77,10 +76,6 @@ class ThsQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         market, stock_code = _to_ths_params(code)
         url = THS_URL.format(market=market, code=stock_code)
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-            "Referer": "https://www.10jqka.com.cn/",
-        }
         try:
             raw = http_get(url, timeout=10)
             text = raw.decode("utf-8", errors="ignore")

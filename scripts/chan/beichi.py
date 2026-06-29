@@ -22,9 +22,7 @@ def chan_beichi(bi_list, zs_list, closes):
     dea_series = _ema_series(dif_series, 9)
     # dea_series 比 dif_series 短 8 元素（EMA 9 的 warmup），
     # 记录偏移量以便后续索引映射。
-    _dif_offset = len(closes) - len(
-        dif_series
-    )  # dif_series[0] 对应 closes[_dif_offset]
+    _dif_offset = len(closes) - len(dif_series)  # noqa: F841 — 备用偏移量
     _dea_offset = len(closes) - len(
         dea_series
     )  # dea_series[0] 对应 closes[_dea_offset]
@@ -123,14 +121,14 @@ def chan_beichi(bi_list, zs_list, closes):
 
                 # 离开段面积 < 进入段面积 = 盘整背驰
                 if exit_area < entry_area * 0.8:  # 允许 20% 容差
-                    zs_mid = zs.get("mid", 0)
+                    zs.get("mid", 0)
                     last_close = closes[-1]
                     if last_close > zs.get("zg", 0):
                         result["range_beichi"].append(
                             {
                                 "zs_idx": zs_idx,
                                 "type": "盘整背驰(看跌)",
-                                "desc": f"中枢上方离开力度衰减(面积比{exit_area/max(entry_area,0.01):.2f})",
+                                "desc": f"中枢上方离开力度衰减(面积比{exit_area/max(entry_area, 0.01):.2f})",
                             }
                         )
                     elif last_close < zs.get("zd", 0):
@@ -138,7 +136,7 @@ def chan_beichi(bi_list, zs_list, closes):
                             {
                                 "zs_idx": zs_idx,
                                 "type": "盘整背驰(看涨)",
-                                "desc": f"中枢下方离开力度衰减(面积比{exit_area/max(entry_area,0.01):.2f})",
+                                "desc": f"中枢下方离开力度衰减(面积比{exit_area/max(entry_area, 0.01):.2f})",
                             }
                         )
 

@@ -87,10 +87,10 @@ def kdj_full(closes, highs, lows, n=9, board="主板"):
     if len(k_series) >= dunhua_periods:
         if all(k > dunhua_high for k in k_series[-dunhua_periods:]):
             dunhua = True
-            kdj_signal += f" [KDJ高位钝化-趋势延续]"
+            kdj_signal += " [KDJ高位钝化-趋势延续]"
         elif all(k < dunhua_low for k in k_series[-dunhua_periods:]):
             dunhua = True
-            kdj_signal += f" [KDJ低位钝化-趋势延续]"
+            kdj_signal += " [KDJ低位钝化-趋势延续]"
 
     return {
         "k": round(k_now, 2),

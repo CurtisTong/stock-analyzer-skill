@@ -1,7 +1,6 @@
 """统一数据类型定义。"""
 
 from dataclasses import dataclass, asdict
-from typing import List, Dict
 
 
 @dataclass

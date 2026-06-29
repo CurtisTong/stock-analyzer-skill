@@ -171,7 +171,7 @@ def main() -> int:
         overrides = collect_overrides()
         test_text = TEST_FILE.read_text(encoding="utf-8")
         cur_default, cur_overrides = parse_existing_constants(test_text)
-        print(f"DRY-RUN: 将做以下变更（不写文件）")
+        print("DRY-RUN: 将做以下变更（不写文件）")
         print(f"  DEFAULT_VERSION: {cur_default} → {pkg_ver}")
         print(f"  VERSION_OVERRIDES: {cur_overrides} → {overrides}")
         return 0

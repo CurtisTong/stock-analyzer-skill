@@ -39,12 +39,12 @@ from data.helpers import (
 from classifier import infer_industry
 from strategies import (
     STRATEGIES,
-    quality_score,
-    valuation_score,
-    momentum_score,
-    liquidity_score,
-    volatility_from_closes,
-    dividend_score,
+    quality_score,  # noqa: F401 — re-export
+    valuation_score,  # noqa: F401 — re-export
+    momentum_score,  # noqa: F401 — re-export
+    liquidity_score,  # noqa: F401 — re-export
+    volatility_from_closes,  # noqa: F401 — re-export
+    dividend_score,  # noqa: F401 — re-export
 )
 from strategies.thresholds import get_industry_threshold, load_industry_thresholds
 from technical.volume import volume_analysis
@@ -275,7 +275,7 @@ def latest_finance(code):
 
 def volume_price_features(closes, volumes):
     """量价关系分析。"""
-    from technical.volume import volume_analysis
+    from technical.volume import volume_analysis  # noqa: F811 — 局部延迟导入
 
     if len(closes) < 6 or len(volumes) < 6:
         return {"signal": 0, "desc": "数据不足"}
@@ -745,7 +745,7 @@ def _run_main(args):
             :top_n_phase2
         ]
         # 复用 rows_p1 中前 top_n_phase2 行的元数据
-        rows_p1_top = rows_p1[: len(top_quotes)]
+        rows_p1_top = rows_p1[: len(top_quotes)]  # noqa: F841 — 预留扩展点
         t_p1 = _time.perf_counter() - t_p1
         print(
             f"⚡ Phase 1: {len(quotes)} 只 → Top {len(top_quotes)} 只 ({t_p1:.2f}s)",

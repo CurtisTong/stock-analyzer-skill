@@ -14,7 +14,7 @@ from ._utils import _safe_float, _get_clamp
 def score(stock_data: dict) -> Dict[str, float]:
     """作手新一专属评分：缩量回调 + K线反转形态 + 强势股基因。"""
     quote = stock_data.get("quote") or {}
-    fin = stock_data.get("finance") or {}
+    stock_data.get("finance") or {}
     market = stock_data.get("market_features") or {}
     kline_data = stock_data.get("kline_data") or {}
 

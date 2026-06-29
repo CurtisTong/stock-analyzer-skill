@@ -20,7 +20,6 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlencode
 
 # 添加项目根目录到路径
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -326,7 +325,7 @@ class DailyReportGenerator:
                 headers={"Content-Type": "application/json"},
             )
             urllib.request.urlopen(req)
-            print(f"✅ Bark 通知已发送")
+            print("✅ Bark 通知已发送")
 
         except Exception as e:
             print(f"发送 Bark 通知失败：{e}")

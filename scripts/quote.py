@@ -21,7 +21,7 @@ from common import (
     err,
     DataError,
 )
-from data import get_quote, get_quotes
+from data import get_quotes
 
 
 def fetch_batch(codes: list, use_cache: bool = True) -> list:

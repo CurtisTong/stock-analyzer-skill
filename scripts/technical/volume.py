@@ -13,7 +13,7 @@ def volume_analysis(closes, volumes):
     if len(closes) < 6 or len(volumes) < 6:
         return None
 
-    last = closes[-1]
+    closes[-1]
     recent_vol_avg = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else volumes[-1]
     base_vol_avg = (
         statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol_avg
@@ -73,7 +73,7 @@ def volume_analysis(closes, volumes):
 
     # OBV 及背离
     obv_values = _obv_series(closes, volumes)
-    obv_now = obv_values[-1] if obv_values else 0
+    obv_values[-1] if obv_values else 0
     obv_div = _detect_obv_divergence(closes, obv_values)
 
     return {

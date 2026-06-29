@@ -3,7 +3,7 @@
 import statistics
 from typing import Dict, List, Optional
 
-from experts import ExpertProfile, direction_from_score
+from experts import direction_from_score
 from experts.scoring import _consistency_from_scores
 
 # ═══════════════════════════════════════════════════════════════

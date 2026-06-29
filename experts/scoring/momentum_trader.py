@@ -72,7 +72,6 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # ── 技术面：趋势强度 + 关键转折点 + 量价（动量派核心）──
     tech_score = 50  # 默认
-    trend_state = "震荡"
 
     if len(closes) >= 120:
         ma20 = _ma(closes, 20)
@@ -83,22 +82,16 @@ def score(stock_data: dict) -> Dict[str, float]:
         # 多头排列：MA20 > MA60 > MA120 且价格 > MA20
         if price > ma20 > ma60 > ma120:
             tech_score = 100
-            trend_state = "完美多头"
         elif price > ma20 > ma60:
             tech_score = 80
-            trend_state = "多头排列"
         elif price > ma20:
             tech_score = 60
-            trend_state = "短期反弹"
         elif price < ma20 < ma60 < ma120:
             tech_score = 0
-            trend_state = "空头排列"
         elif price < ma20 < ma60:
             tech_score = 20
-            trend_state = "下行趋势"
         else:
             tech_score = 40
-            trend_state = "震荡"
 
     # 关键转折点加分：突破 60 日高点
     if len(closes) >= 60 and highs:

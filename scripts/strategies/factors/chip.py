@@ -199,7 +199,7 @@ def _score_northbound_flow(code: str) -> float:
     if not flow or len(flow) < 3:
         return 0
 
-    net_5d = sum(f.get("net_buy", 0) for f in flow[:5])
+    sum(f.get("net_buy", 0) for f in flow[:5])
     net_20d = sum(f.get("net_buy", 0) for f in flow[:20])
     pos_5d = sum(1 for f in flow[:5] if f.get("net_buy", 0) > 0)
 

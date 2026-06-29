@@ -22,3 +22,14 @@ markers = [
     "e2e: marks end-to-end tests",
     "unit: marks unit tests",
 ]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+# E402: module level import not at top of file — 项目内大量 forward reference 模式合法
+# F401: unused-import — __init__.py re-export 模式有意为之
+extend-ignore = [
+    "E402",
+    "F401",
+]

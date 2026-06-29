@@ -45,7 +45,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     # ── 估值：行业 PE 分位（区分"绝对 PE 高"和"行业水位高"）──
     pe = _safe_float(quote.get("pe"))
     pe_pct = _safe_float(quote.get("pe_percentile"), 50)
-    pb = _safe_float(quote.get("pb"))
+    _safe_float(quote.get("pb"))
     if 0 <= pe_pct <= 20:
         # 行业低估区间——高分
         sector_valuation = 90

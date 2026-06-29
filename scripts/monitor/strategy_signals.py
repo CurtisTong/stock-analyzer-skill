@@ -203,8 +203,8 @@ def generate_alert_message(signals):
 
 # 命令行测试
 if __name__ == "__main__":
-    import sys
-    import json
+    import sys  # noqa: F811 — 复用顶部 sys 引用
+    import json  # noqa: F811 — 复用顶部 json 引用
 
     if len(sys.argv) < 2:
         print("用法: python3 strategy_signals.py <stock1> [stock2] ...")

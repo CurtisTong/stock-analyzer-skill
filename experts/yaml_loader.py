@@ -11,7 +11,7 @@ MD 保留叙述，YAML 是数据源。
 """
 
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 from experts.types import ExpertProfile
 

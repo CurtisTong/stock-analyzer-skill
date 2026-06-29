@@ -1,7 +1,6 @@
 """雪球行情数据源。"""
 
 import logging
-from pathlib import Path
 
 
 from common import BaseFetcher, http_get_with_headers, to_float

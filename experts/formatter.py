@@ -73,7 +73,7 @@ def format_debate_output(result: dict) -> str:
 
     # 校准胜率卡片
     try:
-        from experts.calibration import get_calibration, get_calibration_report
+        from experts.calibration import get_calibration
 
         calibration = get_calibration()
         has_data = any(v.get("events", 0) > 0 for v in calibration.values())

@@ -15,7 +15,6 @@
 import json
 
 from common import to_float
-from data import get_quote, get_finance
 from data.helpers import fetch_quote_dict_or_none, fetch_finance_first
 
 # ═══════════════════════════════════════════════════════════════
@@ -264,7 +263,7 @@ class LongTermEvaluator:
             score -= 10
             reasoning.append(f"❌ 经营现金流为负(OCF={ocf:.2f})，需关注资金链风险")
         else:
-            reasoning.append(f"⚠️ 现金流数据缺失")
+            reasoning.append("⚠️ 现金流数据缺失")
 
         # 分红率（简化：有分红即可）
         dividend = to_float(finance.get("dividend_yield") or finance.get("GXL") or 0)
@@ -423,8 +422,8 @@ def format_long_term_result(result: dict) -> str:
         "",
         "## 评分明细",
         "",
-        f"| 维度 | 权重 | 得分 | 评价 |",
-        f"|------|------|------|------|",
+        "| 维度 | 权重 | 得分 | 评价 |",
+        "|------|------|------|------|",
     ]
 
     dim_names = {

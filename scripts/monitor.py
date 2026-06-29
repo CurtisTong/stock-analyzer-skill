@@ -11,7 +11,6 @@
 
 import argparse
 import json
-import os
 import sys
 import time
 from datetime import datetime
@@ -156,7 +155,7 @@ def run_health_check(log_json: bool = False) -> None:
         else:
             print("  ⚠ 行业阈值配置文件不存在")
 
-        print(f"\n✅ 健康检查完成")
+        print("\n✅ 健康检查完成")
 
 
 def main() -> None:

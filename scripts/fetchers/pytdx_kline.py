@@ -1,7 +1,6 @@
 """通达信 K 线数据源（需要 pytdx 包）。"""
 
 import logging
-from pathlib import Path
 
 from common import BaseFetcher
 from fetchers.pytdx_pool import HAS_PYTDX, get_default_pool

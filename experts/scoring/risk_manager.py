@@ -34,7 +34,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     fund = _score_fundamentals(fin)
 
     # ── 估值：作为"风险预警"——PE 越高风险越大 ──
-    pe = _safe_float(quote.get("pe"))
+    _safe_float(quote.get("pe"))
     pe_pct = _safe_float(quote.get("pe_percentile"), 50)
 
     # PE 行业分位 >80% = 周期顶部警示

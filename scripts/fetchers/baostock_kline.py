@@ -6,7 +6,6 @@
 import atexit
 import logging
 import threading
-from pathlib import Path
 
 
 from common import BaseFetcher

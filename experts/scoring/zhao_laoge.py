@@ -16,7 +16,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     quote = stock_data.get("quote") or {}
     kline = stock_data.get("kline_features") or {}
     kline_data = stock_data.get("kline_data") or {}
-    market = stock_data.get("market_features") or {}
+    stock_data.get("market_features") or {}
 
     # 基本面：题材容量（简化）
     base = 50

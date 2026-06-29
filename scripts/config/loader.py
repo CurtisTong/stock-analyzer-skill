@@ -17,7 +17,7 @@ import time
 
 import yaml
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 # mtime 检查 TTL（秒）：在此窗口内跳过 stat() 调用，直接返回缓存
 _MTIME_TTL = 0.05

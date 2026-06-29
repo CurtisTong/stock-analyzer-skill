@@ -219,7 +219,6 @@ def get_strategy_params():
 
 # 命令行测试
 if __name__ == "__main__":
-    import json
     import sys
     import os
 
@@ -247,7 +246,7 @@ if __name__ == "__main__":
 
     # 回测
     trades = backtest_strategy(records)
-    print(f"\n回测结果:")
+    print("\n回测结果:")
     wins = sum(1 for t in trades if t["return_pct"] > 0)
     total = len(trades)
     print(f"  交易次数: {total}")

@@ -7,23 +7,15 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from common import to_float, normalize_quote_code, board_type, get_shared_executor
+from common import to_float, normalize_quote_code, board_type
 from common.exceptions import ValidationError
 from common.validators import validate_code
-from data import get_quote, get_quotes, get_kline, get_finance
+from data import get_quotes, get_kline, get_finance
 from classifier import infer_industry
 from strategies import (
     STRATEGIES,
-    quality_score,
-    valuation_score,
-    momentum_score,
-    liquidity_score,
-    volatility_from_closes,
-    dividend_score,
     chip_score_static,
-    chip_score_dynamic,
 )
-from strategies.thresholds import get_industry_threshold
 from strategies.factors.registry import (
     compute_all_factors,
     compute_phase_factors,
@@ -240,7 +232,6 @@ class ScreeningService:
 
     def _prefetch_finance(self, codes: List[str]) -> Dict[str, List[dict]]:
         """预获取财务数据。"""
-        from data import get_finance
         from common import normalize_finance_code, parallel_fetch_dict
 
         def fetch_one(code):
@@ -257,7 +248,6 @@ class ScreeningService:
         self, codes: List[str], scale: int = 240, datalen: int = 240
     ) -> Dict[str, list]:
         """预获取K线数据（并行）。"""
-        from data import get_kline
         from common import parallel_fetch_dict
 
         def fetch_one(code):

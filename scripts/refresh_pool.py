@@ -22,7 +22,7 @@ from datetime import datetime
 
 # 复用 common.py 的 HTTP 和编码工具
 sys.path.insert(0, os.path.dirname(__file__))
-from common import http_get_cached, normalize_quote_code, board_type
+from common import http_get_cached, board_type
 
 # ---------- 常量 ----------
 
@@ -530,9 +530,9 @@ def refresh_pool(
             json.dump(output, f, ensure_ascii=False, indent=2)
         print(f"\n✅ 已写入 {POOL_FILE} ({output['_meta']['total_stocks']} 只)")
     elif dry_run:
-        print(f"\n📋 dry-run 模式，未写入")
+        print("\n📋 dry-run 模式，未写入")
     elif not dry_run and new_pool == current:
-        print(f"\n📋 股票池无变化，跳过写入")
+        print("\n📋 股票池无变化，跳过写入")
 
     return new_pool
 
@@ -592,7 +592,7 @@ def init_from_default(top_n: int = 20, dry_run: bool = False) -> dict:
             json.dump(output, f, ensure_ascii=False, indent=2)
         print(f"\n✅ 已写入 {POOL_FILE} ({output['_meta']['total_stocks']} 只)")
     elif dry_run:
-        print(f"\n📋 dry-run 模式，未写入")
+        print("\n📋 dry-run 模式，未写入")
 
     return new_pool
 

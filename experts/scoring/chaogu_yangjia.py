@@ -34,7 +34,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     # 情绪：情绪周期阶段（核心维度）
     limit_down = market.get("limit_down_count", 0)
     break_rate = market.get("break_rate", 0)
-    adv = market.get("advance_ratio")
+    market.get("advance_ratio")
     if limit_down > 50 and break_rate > 0.6:
         sent = 100  # 冰点转折
     elif limit_up > 80 and break_rate < 0.2:

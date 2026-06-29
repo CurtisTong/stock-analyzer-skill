@@ -1,7 +1,6 @@
 """Yahoo Finance K 线数据源（需要 yfinance 包）。"""
 
 import logging
-from pathlib import Path
 
 from common import BaseFetcher
 

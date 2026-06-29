@@ -19,7 +19,7 @@ def limit_analysis(records, board, quote):
     last_close = to_float(records[-1].get("close"))
     last_high = to_float(records[-1].get("high"))
     last_low = to_float(records[-1].get("low"))
-    last_open = to_float(records[-1].get("open"))
+    to_float(records[-1].get("open"))
 
     result = {
         "board": board,

@@ -20,10 +20,8 @@ scripts_dir = os.path.dirname(
 if scripts_dir not in sys.path:
     sys.path.insert(0, scripts_dir)
 
-from common import to_float
 from strategies.patterns.ma_volume_strategy import (
     backtest_strategy,
-    get_strategy_params,
 )
 
 

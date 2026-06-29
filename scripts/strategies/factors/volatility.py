@@ -3,7 +3,6 @@
 A 股低波动异象显著——低波动股票长期跑赢高波动股票。
 """
 
-from common import clamp
 from strategies.thresholds import get_industry_threshold
 
 

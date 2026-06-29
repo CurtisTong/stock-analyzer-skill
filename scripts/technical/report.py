@@ -42,7 +42,7 @@ def render_report(features, score, signals, meta):
         )
 
     # ── 均线系统 ──
-    lines.append(f"\n## 均线系统")
+    lines.append("\n## 均线系统")
     ma_parts = []
     for p in [5, 10, 20, 60, 120, 250]:
         v = ma.get(f"ma{p}")
@@ -54,7 +54,7 @@ def render_report(features, score, signals, meta):
     )
 
     # ── MACD ──
-    lines.append(f"\n## MACD")
+    lines.append("\n## MACD")
     lines.append(
         f"  DIF: {_fmt(macd.get('dif'))}  DEA: {_fmt(macd.get('dea'))}  BAR: {_fmt(macd.get('macd_bar'))}"
     )
@@ -65,16 +65,16 @@ def render_report(features, score, signals, meta):
         lines.append(f"  背离: **{macd['divergence']}**")
 
     # ── KDJ ──
-    lines.append(f"\n## KDJ")
+    lines.append("\n## KDJ")
     lines.append(
         f"  K: {_fmt(kdj.get('k'))}  D: {_fmt(kdj.get('d'))}  J: {_fmt(kdj.get('j'))}"
     )
     lines.append(f"  信号: {kdj.get('signal', '-')}")
     if kdj.get("钝化"):
-        lines.append(f"  ⚠ KDJ钝化中，超买超卖信号暂停参考")
+        lines.append("  ⚠ KDJ钝化中，超买超卖信号暂停参考")
 
     # ── BOLL ──
-    lines.append(f"\n## BOLL")
+    lines.append("\n## BOLL")
     lines.append(
         f"  上轨: {_fmt(boll.get('upper'))}  中轨: {_fmt(boll.get('mid'))}  下轨: {_fmt(boll.get('lower'))}"
     )
@@ -83,7 +83,7 @@ def render_report(features, score, signals, meta):
     )
 
     # ── 成交量 ──
-    lines.append(f"\n## 成交量")
+    lines.append("\n## 成交量")
     lines.append(
         f"  量比: {_fmt(vol.get('volume_ratio'))} ({vol.get('volume_ratio_desc', '-')})"
     )
@@ -92,7 +92,7 @@ def render_report(features, score, signals, meta):
         lines.append(f"  OBV: {vol['obv_divergence']}")
 
     # ── RSI ──
-    lines.append(f"\n## RSI")
+    lines.append("\n## RSI")
     rsi_desc = {1: "超卖", -1: "超买"}.get(rsi_data.get("signal", 0), "正常")
     lines.append(
         f"  RSI-{rsi_data.get('period', 14)}: {rsi_data.get('rsi', 50)} ({rsi_desc})"
@@ -100,16 +100,16 @@ def render_report(features, score, signals, meta):
 
     # ── K线形态 ──
     if patterns:
-        lines.append(f"\n## K线形态")
+        lines.append("\n## K线形态")
         for p in patterns:
             lines.append(f"  {p['position']} [{p['date']}] {p['type']}")
     else:
-        lines.append(f"\n## K线形态\n  (无明显形态)")
+        lines.append("\n## K线形态\n  (无明显形态)")
 
     # ── 个股分类 ──
     classification = features.get("classification")
     if classification:
-        lines.append(f"\n## 个股分类")
+        lines.append("\n## 个股分类")
         lines.append(
             f"  类型: {classification['type']} (置信度: {classification['confidence']})"
         )
@@ -123,7 +123,7 @@ def render_report(features, score, signals, meta):
     # ── 缠论分析 ──
     chan = features.get("chan_theory") or {}
     if chan.get("valid"):
-        lines.append(f"\n## 缠论分析")
+        lines.append("\n## 缠论分析")
         lines.append(
             f"  处理后K线: {chan.get('merged_count', '-')}/{chan.get('original_count', '-')}"
             f" (合并率{chan.get('merge_ratio_pct', '-')}%)"
@@ -154,13 +154,13 @@ def render_report(features, score, signals, meta):
             )
             lines.append(f"  卖点: {sp_desc}")
         if not buy_pts and not sell_pts:
-            lines.append(f"  买卖点: 当前无明确缠论买卖点")
+            lines.append("  买卖点: 当前无明确缠论买卖点")
         lines.append(f"  当前位置: {chan.get('current_position', '-')}")
 
     # ── A股本土战法 ──
     local_p = features.get("local_patterns") or {}
     if local_p.get("patterns"):
-        lines.append(f"\n## A股本土战法")
+        lines.append("\n## A股本土战法")
         for lp in local_p["patterns"]:
             icon = "↑" if lp["type"] == "看涨" else "↓"
             lines.append(f"  {icon} {lp['name']} ({lp['confidence']}): {lp['desc']}")
@@ -187,7 +187,7 @@ def render_report(features, score, signals, meta):
     # ── 市场环境自适应 ──
     market_env = features.get("market_environment") or {}
     if market_env.get("state") and market_env["state"] != "震荡":
-        lines.append(f"\n## 市场环境自适应")
+        lines.append("\n## 市场环境自适应")
         lines.append(
             f"  市场状态: {market_env['state']} (置信度: {market_env.get('confidence', '-')})"
         )
@@ -196,7 +196,7 @@ def render_report(features, score, signals, meta):
             lines.append(f"  权重调整: {adj_info['desc']}")
 
     # ── 支撑与阻力 ──
-    lines.append(f"\n## 支撑与阻力")
+    lines.append("\n## 支撑与阻力")
     lines.append(f"  {'支撑位':<10} {'来源':<8} {'强度'}")
     for s in sr.get("supports", []):
         lines.append(f"  {s['level']:<10} {s['source']:<8} {s['strength']}")
@@ -205,7 +205,7 @@ def render_report(features, score, signals, meta):
         lines.append(f"  {r['level']:<10} {r['source']:<8} {r['strength']}")
 
     # ── 趋势结构 ──
-    lines.append(f"\n## 趋势结构")
+    lines.append("\n## 趋势结构")
     lines.append(f"  波浪状态: {wave}")
     if box:
         lines.append(
@@ -216,7 +216,7 @@ def render_report(features, score, signals, meta):
 
     # ── A 股特化 ──
     if limit_data:
-        lines.append(f"\n## A股特化分析")
+        lines.append("\n## A股特化分析")
         lines.append(
             f"  板块制度: {limit_data.get('board', '-')} (涨跌停{limit_data.get('limit_ratio', 10)}%)"
         )
@@ -234,7 +234,7 @@ def render_report(features, score, signals, meta):
             lines.append(f"  ⚠ {limit_data['t1_risk']}")
 
     # ── 综合建议止损 ──
-    lines.append(f"\n## 仓位参考（技术面）")
+    lines.append("\n## 仓位参考（技术面）")
     price_num = meta.get("price_num", 0)
     nearest_support = sr.get("nearest_support")
     if nearest_support and price_num > 0:
@@ -244,7 +244,7 @@ def render_report(features, score, signals, meta):
     if nearest_resistance and price_num > 0:
         tp_pct = round((nearest_resistance - price_num) / price_num * 100, 1)
         lines.append(f"  止盈位: {nearest_resistance} (距现价 +{tp_pct}%)")
-    lines.append(f"  纯技术视角，不构成投资建议。需结合基本面、市场环境综合判断。")
+    lines.append("  纯技术视角，不构成投资建议。需结合基本面、市场环境综合判断。")
 
     lines.append("═" * 72)
     return "\n".join(lines)
@@ -288,5 +288,5 @@ def render_quick(features, score, meta):
         lines.append(f"买入: {', '.join(score['buy_signals'])}")
     if score["sell_signals"]:
         lines.append(f"卖出: {', '.join(score['sell_signals'])}")
-    lines.append(f"⚠ 纯技术视角，不构成投资建议")
+    lines.append("⚠ 纯技术视角，不构成投资建议")
     return "\n".join(lines)

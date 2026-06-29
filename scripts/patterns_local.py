@@ -5,7 +5,6 @@ A 股本土战法形态识别。
 纯技术形态识别，不依赖财务数据。
 """
 
-import math
 from common import to_float, board_type as _board_type
 
 # ═══════════════════════════════════════════════════════════════
@@ -433,23 +432,23 @@ def detect_shuangzhen(records, closes, lows, volumes):
 
     for i in range(5, len(records)):
         window = records[i - 5 : i + 1]
-        w_lows = lows[i - 5 : i + 1]
+        lows[i - 5 : i + 1]
         w_vol = volumes[i - 5 : i + 1]
 
         # 找长下影线
         needle_days = []
         for j, r in enumerate(window):
-            o, c, l, h = (
+            o, c, low, h = (
                 to_float(r.get("open")),
                 to_float(r.get("close")),
                 to_float(r.get("low")),
                 to_float(r.get("high")),
             )
             body = abs(c - o)
-            lower = min(o, c) - l
+            lower = min(o, c) - low
             upper = h - max(o, c)
             if lower > body * 2 and lower > upper * 3 and body > 0:
-                needle_days.append({"idx": i - 5 + j, "low": l, "shadow": lower})
+                needle_days.append({"idx": i - 5 + j, "low": low, "shadow": lower})
 
         # 至少2根长下影，低点接近（<2% 差异）
         if len(needle_days) >= 2:

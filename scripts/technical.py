@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 from common import (
     board_type,
-    clamp,
     normalize_quote_code,
     normalize_finance_code,
     to_float,
@@ -32,7 +31,7 @@ from quote import fetch_batch
 # 从 technical 包导入所有公开函数
 from technical import *  # noqa: F401,F403
 from technical.core import _parse_records
-from technical.moving_average import ma_system, _MA_PERIODS
+from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.kdj import kdj_full
 from technical.boll import bollinger
@@ -52,7 +51,6 @@ from technical.scoring import (
     _market_weight_adjustments,
 )
 from technical.report import render_report, render_quick
-from technical.core import sma
 from technical.valuation import pe_percentile_score, incremental_ma
 
 

@@ -530,7 +530,7 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
     signals = []
 
     if index_quote and isinstance(index_quote, dict):
-        price = to_float(index_quote.get("price"))
+        to_float(index_quote.get("price"))
         change_pct = to_float(index_quote.get("change_pct"))
         turnover = to_float(index_quote.get("turnover"))
 

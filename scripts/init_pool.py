@@ -21,9 +21,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 from refresh_pool import (
     POOL_FILE,
     ALL_STOCKS_FILE,
-    load_mapping,
-    load_current_pool,
-    load_default_pool,
     refresh_pool,
     init_from_default,
     fetch_all_market_stocks,

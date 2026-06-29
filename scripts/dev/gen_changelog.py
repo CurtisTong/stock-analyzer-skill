@@ -21,7 +21,6 @@
 import argparse
 import re
 import subprocess
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -171,7 +170,7 @@ def append_to_changelog(content: str) -> None:
         new_content = existing[:insert_pos] + header + content + existing[insert_pos:]
 
     changelog_path.write_text(new_content, encoding="utf-8")
-    print(f"✅ 已追加到 CHANGELOG.md")
+    print("✅ 已追加到 CHANGELOG.md")
 
 
 def main() -> None:

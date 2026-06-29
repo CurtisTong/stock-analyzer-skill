@@ -8,7 +8,6 @@
 """
 
 import argparse
-import json
 import statistics
 import sys
 import time

@@ -2,7 +2,7 @@
 策略注册表：管理策略定义和权重配置。
 """
 
-from typing import Dict, Optional
+from typing import Dict
 
 # ---------- 内置策略定义 ----------
 # 九因子：quality / valuation / momentum / liquidity / volatility / dividend / chip / event / analyst

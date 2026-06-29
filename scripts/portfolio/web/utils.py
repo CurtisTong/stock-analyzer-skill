@@ -6,7 +6,6 @@
 
 import json
 import logging
-import os
 import secrets
 import stat
 import threading

@@ -6,7 +6,7 @@
 
 import logging
 from common import clamp
-from datetime import datetime, timedelta
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 

@@ -92,7 +92,7 @@ def render_reports(items: list) -> str:
         title = it.get("title", "").strip()
         org = it.get("orgSName", "")
         date = it.get("publishDate", "")[:10]
-        rating = it.get("infoCode", "")  # 简化
+        it.get("infoCode", "")  # 简化
         lines.append(f"{date} | {org} | {title}")
     return "\n".join(lines)
 
@@ -132,5 +132,5 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except DataError as e:
+    except DataError:
         sys.exit(1)

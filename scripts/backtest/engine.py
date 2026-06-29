@@ -9,14 +9,12 @@ from common import (
     to_float,
     normalize_quote_code,
     normalize_finance_code,
-    get_shared_executor,
     parallel_fetch_dict,
 )
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
 from strategies.factors.chip import chip_score_dynamic as _chip_score
-from strategies.factors.event import event_score as _event_score
 from strategies.factors.quality import quality_score
 from strategies.factors.valuation import valuation_score
 from strategies.factors.liquidity import liquidity_score

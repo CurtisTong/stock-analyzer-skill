@@ -218,7 +218,7 @@ def format_reasoning(result: dict) -> str:
     total = sum(scores.get(dim, 0) * w for dim, w in weights.items())
 
     lines = [
-        f"📊 巴菲特评分详情",
+        "📊 巴菲特评分详情",
         "",
         f"总分：{total:.0f}/100",
         "",
