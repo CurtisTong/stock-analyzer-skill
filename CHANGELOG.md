@@ -11,6 +11,20 @@
 
 ### Documentation
 - auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
+
+### CI/CD
+- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
+- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
+
+### Other
+- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
+
+## [Unreleased] - 2026-06-29
+
+### Documentation
+- auto-update CHANGELOG.md [skip ci]
 - **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
 
 ### CI/CD
