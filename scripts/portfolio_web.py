@@ -22,9 +22,14 @@ if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
 from portfolio.web.app import make_server, Handler, VERSION, main
-from portfolio.web.utils import _TOKEN_FILE, _TOKEN_DIR, _token  # noqa: F401 — re-export for tests
+from portfolio.web.utils import (  # noqa: F401 — re-export for tests
+    _TOKEN_FILE,
+    _TOKEN_DIR,
+    _token,
+    _ensure_token,
+)
 
-__all__ = ["make_server", "Handler", "VERSION", "_TOKEN_FILE", "_TOKEN_DIR", "_token"]
+__all__ = ["make_server", "Handler", "VERSION", "_TOKEN_FILE", "_TOKEN_DIR", "_token", "_ensure_token"]
 
 if __name__ == "__main__":
     main()
