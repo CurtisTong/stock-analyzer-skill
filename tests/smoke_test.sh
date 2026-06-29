@@ -133,7 +133,7 @@ for s in stock market sector portfolio screener monitor backtest stock-help lear
 done
 
 echo "==> 4.1 SKILL.md 版本一致性（package.json 主版本）"
-EXPECTED_VERSION=$(node -p "require('./package.json').version")
+EXPECTED_VERSION=$(cd "$PKG_ROOT" && node -p "require('./package.json').version")
 VERSION_COUNT=0
 for s in stock market sector portfolio screener monitor backtest stock-help learn portfolio-natural portfolio-web research stock-technical; do
   if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ]; then
