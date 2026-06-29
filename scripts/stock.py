@@ -19,10 +19,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from business import StockAnalysisService
+from common.formatters import format_footer, format_output, now_str
 
 
 def render_text(result: dict) -> str:
-    """把五层分析结果渲染为可读文本。"""
+    """把五层分析结果渲染为可读文本。
+
+    遵循 ``common.formatters`` 统一输出约定：保留原分段结构，
+    但在末尾附加数据时间戳 + 数据源 footer，使每个 skill 输出结构一致。
+    """
     lines = []
     code = result.get("code", "")
     name = result.get("name", "(未知)")
@@ -108,25 +113,48 @@ def render_text(result: dict) -> str:
         if s.get("sell_signals"):
             lines.append(f"   ⚠️ 卖出信号: {'; '.join(s['sell_signals'][:3])}")
 
-    lines.append(f"{'━' * 40}")
+    # 统一 footer：数据时间戳 + 数据源（按 12 个 skill 共享约定）。
+    data_time = result.get("data_time") or now_str()
+    sources = result.get("data_sources") or ["行情", "财务", "K线"]
+    failed = result.get("data_failed") or []
+    footer = format_footer(
+        data_time=data_time, sources=sources, failed_sources=failed, ttl_sec=900
+    )
+    if footer:
+        lines.append(footer)
+
     return "\n".join(lines)
 
 
 def render_brief(result: dict) -> str:
-    """brief 模式：一句话结论 + 关键数据表 + 操作建议（<500字）。"""
-    lines = []
+    """brief 模式：使用 ``format_output`` 走统一一句话结论模板（<500字）。"""
     code = result.get("code", "")
     name = result.get("name", "(未知)")
     price = result.get("price", 0)
     change_pct = result.get("change_pct", 0)
 
-    # 一句话结论
     s = result.get("score", {})
     grade = s.get("grade", "?")
     score_val = s.get("score", 0)
-    lines.append(
-        f"{code} {name} | 现价 {price} ({change_pct:+.2f}%) | "
-        f"综合评分 {score_val:.1f} 评级 {grade}"
+    buy = s.get("buy_signals", [])
+    sell = s.get("sell_signals", [])
+
+    # 一句话结论：以综合评分定基调（信号列表补充多空方向）
+    if score_val >= 75:
+        action = "关注买入"
+    elif score_val >= 55:
+        action = "观望"
+    else:
+        action = "谨慎回避"
+    if buy and not sell:
+        action = "关注买入"
+    elif sell and not buy:
+        action = "谨慎回避"
+    direction = result.get("change_pct", 0) >= 0
+    trend_icon = "🟢" if direction else "🔴"
+    conclusion = (
+        f"{trend_icon} {name}（{code}）现价 {price:.2f}（{change_pct:+.2f}%）｜"
+        f"综合评分 {score_val:.1f}（{grade}）｜{action}"
     )
 
     # 关键数据表（紧凑单行）
@@ -140,26 +168,26 @@ def render_brief(result: dict) -> str:
     if fin:
         parts.append(f"ROE:{fin.get('roe', 0):.1f}%")
         parts.append(f"净利YoY:{fin.get('net_profit_yoy', 0):+.0f}%")
+    body_lines = []
     if parts:
-        lines.append(" | ".join(parts))
-
-    # 操作建议
-    buy = s.get("buy_signals", [])
-    sell = s.get("sell_signals", [])
-    if score_val >= 75:
-        action = "关注买入"
-    elif score_val >= 55:
-        action = "观望"
-    else:
-        action = "谨慎回避"
-    advice_parts = [action]
+        body_lines.append(" | ".join(parts))
+    advice_parts = []
     if buy:
         advice_parts.append(f"买入信号: {buy[0]}")
     if sell:
         advice_parts.append(f"卖出信号: {sell[0]}")
-    lines.append(" → ".join(advice_parts))
+    if advice_parts:
+        body_lines.append(" → ".join(advice_parts))
 
-    return "\n".join(lines)
+    return format_output(
+        conclusion=conclusion,
+        data_time=result.get("data_time") or now_str(),
+        sources=result.get("data_sources") or ["行情", "财务", "K线"],
+        failed_sources=result.get("data_failed") or [],
+        ttl_sec=900,
+        body="\n".join(body_lines) if body_lines else None,
+        emoji="🎯",
+    )
 
 
 def main():

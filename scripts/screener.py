@@ -486,6 +486,13 @@ def render(rows, strategy, top, title=None, show_chip=True):
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
 
+    # ROE 格式化辅助：避免 str(x)[:6] 截断效果不可预测（v1.14.2 修复）
+    def _fmt_roe(v):
+        try:
+            return f"{float(v):.1f}"
+        except (TypeError, ValueError):
+            return "N/A"
+
     # 表头：根据 show_chip 决定是否显示筹码列
     if show_chip:
         header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动 | 筹码 | PE | ROE | RSI | 20日% | 趋势 | 量价"
@@ -508,14 +515,14 @@ def render(rows, strategy, top, title=None, show_chip=True):
                 f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
                 f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
                 f"{r['momentum']:>5} | {r['liquidity']:>5} | {chip_display:>5} | {r['pe']:>6} | "
-                f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
+                f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
             )
         else:
             print(
                 f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
                 f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
                 f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
-                f"{str(r['roe'])[:6]:>6} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
+                f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
             )
 
     if rejected:
