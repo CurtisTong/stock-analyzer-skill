@@ -18,7 +18,7 @@
 - 深度审查 P0-P3 全量修复 — 算法正确性/安全/架构/性能
 - 异常提示对内置异常做精细化分类（JSONDecodeError/KeyError/TimeoutError/ConnectionError）
 - `stock.py` 接入统一输出模板（render_text 加 footer / render_brief 改用 format_output）
-- `screener.py` ROE 列格式化：str(x)[:6] 截断改为 `.1f` 控制小数位
+- `screener.py` ROE 列格式化：`str(x)[:6]` 截断改为 `:.1f` 控制小数位
 - `backtest/engine.py` 不再依赖顶级 screener.py（解耦到 strategies.factors.*）
 
 ### Documentation
