@@ -36,3 +36,13 @@ runs:
         # 防止开发者 bump 版本后忘记同步 test_skill_metadata.py，
         # 导致 release workflow 的 test job 失败阻塞 publish。
         python3 scripts/dev/sync_skill_test_versions.py
+
+    - name: 创建 .gitignore 占位文件（check_allowed_tools 路径校验用）
+      shell: bash
+      run: |
+        # scripts/data/portfolio*.json 在 .gitignore 中，CI 环境 checkout 后不存在，
+        # 但 SKILL.md 声明了 Read(./scripts/data/portfolio.json) allowed-tools，
+        # check_allowed_tools.py --ci 会校验路径存在性。
+        mkdir -p scripts/data
+        [ -f scripts/data/portfolio.json ] || echo '{"version":2,"positions":[],"watchlist":[]}' > scripts/data/portfolio.json
+        [ -f scripts/data/portfolio_virtual.json ] || echo '{"version":2,"positions":[],"watchlist":[]}' > scripts/data/portfolio_virtual.json
