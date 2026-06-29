@@ -1,7 +1,7 @@
 ---
 name: stock-technical
 description: 纯技术分析子模块（从 /stock 拆分）。触发词：技术面分析 XX、纯技术角度看 XX、K 线分析 XX、缠论分析 XX、战法识别 XX。支持均线/MACD/KDJ/BOLL/RSI/缠论/本土战法。
-version: 1.14.1
+version: 1.14.2
 model: sonnet
 allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.py *) Read(./skills/_shared/references/*.md)
 ---
