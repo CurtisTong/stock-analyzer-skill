@@ -1,6 +1,6 @@
-# 实战演练：用 12 个 Skill 分析贵州茅台（600519）
+# 实战演练：用 13 个 Skill 分析贵州茅台（600519）
 
-> 本教程以贵州茅台（sh600519）为例，演示如何用 stock-analyzer-skill 的 12 个 skill 完成一次完整的投资研究流程。
+> 本教程以贵州茅台（sh600519）为例，演示如何用 stock-analyzer-skill 的 13 个 skill 完成一次完整的投资研究流程。
 
 ## 前置条件
 
@@ -110,7 +110,7 @@ python3 scripts/monitor.py --sources
 /stock sh600519 full
 ```
 
-### 8 人专家圆桌辩论
+### 9 人活跃专家圆桌辩论（15 份人设）
 
 ```bash
 /stock sh600519 debate
