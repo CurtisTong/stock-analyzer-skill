@@ -7,6 +7,15 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-06-30
+
+### Fixed
+- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+
+### Documentation
+- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+- auto-update CHANGELOG.md [skip ci]
+
 ## [Unreleased]
 
 ### Fixed
