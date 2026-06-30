@@ -61,9 +61,9 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
     简单网格搜索优化策略权重。
 
     在当前权重基础上，对 quality/valuation/momentum/liquidity 各 ±5% 做网格搜索。
+    权重通过 run_backtest(weights=...) 参数传入，**不修改全局 STRATEGIES**，
+    避免并发场景下的数据竞争（issue: backtest 直接修改全局字典）。
     """
-    import copy
-
     base_keys = ["quality", "valuation", "momentum", "liquidity"]
     original_weights = {k: STRATEGIES[strategy_name][k] for k in base_keys}
 
@@ -86,12 +86,8 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
             total = sum(test_weights.values())
             test_weights = {k: v / total for k, v in test_weights.items()}
 
-            backup = copy.deepcopy(STRATEGIES[strategy_name])
-            try:
-                STRATEGIES[strategy_name].update(test_weights)
-                report = run_backtest(strategy_name, codes, top_n, days, 3)
-            finally:
-                STRATEGIES[strategy_name].update(backup)
+            # 通过 weights 参数传入，不修改全局 STRATEGIES（避免并发数据竞争）
+            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights)
 
             score = report.get("sharpe_ratio", 0)
 

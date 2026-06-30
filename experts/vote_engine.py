@@ -157,8 +157,8 @@ _LEGACY_TO_MERGED = {
 def _find_expert(expert_by_name: Dict[str, dict], legacy_name: str) -> Optional[dict]:
     """按 legacy 名查找专家结果，找不到则回退到其合并型专家名。
 
-    保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新 8 人
-    （active 合并型名）输入，降权规则在两种输入下都触发。
+    保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新 9 人
+    （6 长线 + 3 短线 active 合并型名）输入，降权规则在两种输入下都触发。
     """
     expert = expert_by_name.get(legacy_name)
     if expert is not None:
@@ -377,7 +377,7 @@ def aggregate_votes(
 
     # 一次性构建专家查找字典，避免重复线性搜索
     expert_by_name = {r.get("name"): r for r in expert_results}
-    # 通过 _find_expert 查找：旧 8 人输入认 legacy 名，新 8 人输入回退到合并型名
+    # 通过 _find_expert 查找：旧 8 人输入认 legacy 名，新 9 人输入回退到合并型名
     yangjia = _find_expert(expert_by_name, "chaogu_yangjia")
     buffett = _find_expert(expert_by_name, "buffett")
 

@@ -1,4 +1,4 @@
-<!-- markdownlint-disable MD024 MD033 -->
+<!-- markdownlint-disable MD024 MD033 MD022 MD032 MD050 -->
 
 # Changelog
 
@@ -7,26 +7,24 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [Unreleased] - 2026-06-29
+## [Unreleased]
 
 ### Fixed
 - **portfolio-web**: 暴露 _collect_code_name_map 给 test_auth
 - **portfolio-web**: 暴露 ALLOWED_ACTIONS/MAX_BODY_BYTES 给 test_module_level
 - **portfolio-web**: 暴露 _ensure_token 给 test_portfolio_web.TestRouting
 - **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
+- **数字漂移**: CLAUDE.md / plugin.json / marketplace.json 同步"13 个 skill / 9 人圆桌"（之前 12/8 已过时）
+- **backtest**: 引入 `weights` 参数，消除 optimize_weights 直接修改全局 STRATEGIES 的并发数据竞争
+- **portfolio-web**: token stdout 泄露修复，仅打印前 8 位 + 提示 token 文件路径
 
 ### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
 - **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
+- **changelog**: 合并 10 个重复 [Unreleased] 段 + 过滤 auto-update / 持仓操作噪音
+- **9 人圆桌**: 同步 13 处 "8 人圆桌" 残留（.agents/skills/、experts/__init__.py、skill-catalog.md、sector_specialist/institution/risk_manager.md、decide.md §四 表格）
+
+### Security
+- **.gitignore**: 追加 trade_log.json（交易历史）/ .env* / .hypothesis / .mypy_cache / .ruff_cache / .venv 防御纵深
 
 ### CI/CD
 - ruff 参数名 --max-line-length 改为 --line-length（新 ruff 已重命名）
@@ -37,220 +35,9 @@
 ### Maintenance
 - ruff/flake8/fix 全部修复 + pyproject.toml ruff 配置
 - black 格式化 scripts/ experts/ tests/（104 文件）
+- **strategies/registry.py**: register_strategy 加 `replace=False` 保护，重复注册 raise（防止并发数据竞争）
 
 ### Other
-- 记录 2026-06-29 18:52 持仓交易操作
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **portfolio-web**: 暴露 ALLOWED_ACTIONS/MAX_BODY_BYTES 给 test_module_level
-- **portfolio-web**: 暴露 _ensure_token 给 test_portfolio_web.TestRouting
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- ruff 参数名 --max-line-length 改为 --line-length（新 ruff 已重命名）
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Maintenance
-- ruff/flake8/fix 全部修复 + pyproject.toml ruff 配置
-- black 格式化 scripts/ experts/ tests/（104 文件）
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **portfolio-web**: 暴露 _ensure_token 给 test_portfolio_web.TestRouting
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- ruff 参数名 --max-line-length 改为 --line-length（新 ruff 已重命名）
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Maintenance
-- ruff/flake8/fix 全部修复 + pyproject.toml ruff 配置
-- black 格式化 scripts/ experts/ tests/（104 文件）
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- ruff 参数名 --max-line-length 改为 --line-length（新 ruff 已重命名）
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Maintenance
-- ruff/flake8/fix 全部修复 + pyproject.toml ruff 配置
-- black 格式化 scripts/ experts/ tests/（104 文件）
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- ruff 参数名 --max-line-length 改为 --line-length（新 ruff 已重命名）
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Maintenance
-- black 格式化 scripts/ experts/ tests/（104 文件）
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Maintenance
-- black 格式化 scripts/ experts/ tests/（104 文件）
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Fixed
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Other
-- 记录 2026-06-29 16:11 持仓交易操作（reduce_to_zero × 3 / manual × 2）
-
-## [Unreleased] - 2026-06-29
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-## [Unreleased] - 2026-06-29
-
-### Documentation
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-
-### CI/CD
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
 
 ## [1.14.2] - 2026-06-29（异常分类 + 输出模板统一 + backtest 解耦 + 文档对齐）
 

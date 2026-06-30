@@ -83,7 +83,7 @@ scripts/
 
 | Skill                | 触发场景                                     | 主入口脚本                                                                            | 备注                                   |
 | :------------------- | :------------------------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------- |
-| `/stock`             | 单股五层分析 + 8 人圆桌辩论                  | `scripts/stock.py`                                                                    | 业务层 JSON 友好入口                   |
+| `/stock`             | 单股五层分析 + 9 人圆桌辩论                 | `scripts/stock.py`                                                                    | JSON 入口（6+3 圆桌）                     |
 | `/stock-technical`   | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） | `scripts/technical.py`                                                                | stock 子模块                           |
 | `/market`            | 大盘快评 / 完整复盘 / 盘中分时               | `scripts/quote.py` + `scripts/kline.py`                                               | 指数/ETF/美股                          |
 | `/sector`            | 板块全景 / 标的对比 / 板块内筛选             | `scripts/sector.py` + `scripts/refresh_pool.py`                                       |                                        |

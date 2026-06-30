@@ -1,5 +1,5 @@
 """
-8 人专家圆桌 · 可调用 API。
+9 人专家圆桌（6 长线 + 3 短线）· 可调用 API。
 
 本模块把 experts/*.md 的人设和评分矩阵沉淀为 Python 数据结构，
 使 `stock` skill 的 debate 模式可在代码层查询专家维度权重和一票否决条件。
@@ -83,10 +83,11 @@ def list_short_term_experts() -> List[ExpertProfile]:
 
 
 def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
-    """列出 active=True 的专家（v2.1.0 默认 8 人）。
+    """列出 active=True 的专家（v2.2.0 默认 9 人 = 6 长线 + 3 短线）。
 
-    构成：lynch + soros（2 独立保留）+ value_anchor/topic_leader/emotion_tech
-    （3 合并型）+ sector_specialist/institution/risk_manager（3 补盲区型）。
+    构成：lynch + soros + value_anchor（3 长线独立/合并）+ sector_specialist +
+    institution + risk_manager（3 长线补盲区型）+ topic_leader + emotion_tech +
+    momentum_trader（3 短线）。
 
     新框架默认调用此 API，legacy 6 人需显式 `list_legacy_experts()`。
     """

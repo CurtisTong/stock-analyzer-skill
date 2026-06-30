@@ -12,6 +12,7 @@ def run_backtest(
     days: int = 60,
     rounds: int = 5,
     benchmark: str = None,
+    weights=None,
 ):
     """
     运行滚动窗口回测。
@@ -26,13 +27,14 @@ def run_backtest(
         days: 回测天数
         rounds: 回测轮数（已弃用，保留兼容性）
         benchmark: 基准指数代码（如 "sh000300" 沪深300），用于信息比率计算
+        weights: 可选覆盖权重 dict（透传给 simulate_strategy）。None 时从 STRATEGIES[strategy_name] 读取。
 
     Returns:
         回测报告 dict
     """
     holding_days = max(1, days // rounds)
     result = simulate_strategy(
-        strategy_name, codes, top_n, holding_days=holding_days, total_days=days
+        strategy_name, codes, top_n, holding_days=holding_days, total_days=days, weights=weights
     )
 
     if "error" in result:

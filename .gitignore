@@ -3,14 +3,28 @@ __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
 
 # 测试输出
 tests/output/
 *.log
 
+# 环境变量与密钥（防御纵深）
+.env
+.env.*
+
+# 虚拟环境
+.venv/
+venv/
+
 # 用户自定义持仓（实际路径在 scripts/data/，修正历史规则路径错误）
 scripts/data/portfolio.json
 scripts/data/portfolio_virtual.json
+
+# 交易日志（含买卖时间/价格/盈亏，禁止提交）
+scripts/data/trade_log.json
 
 # 专家校准数据（用户本地运行时产生）
 scripts/data/expert_calibration.json

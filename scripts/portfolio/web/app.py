@@ -512,7 +512,12 @@ def main():
         flush=True,
     )
     print(f"  模式: {mode_label}", flush=True)
-    print(f"  Token: {token}", flush=True)
+    # token 不再 stdout 明文打印，避免进入容器/系统日志；完整 token 写入 ~/.config/stock-analyzer/portfolio_web.token (chmod 0o600)
+    token_file = Path(__file__).parent / "utils.py"  # utils.py 内定义 _TOKEN_FILE 路径
+    print(
+        f"  Token: {token[:8]}…（完整 token 见 ~/.config/stock-analyzer/portfolio_web.token）",
+        flush=True,
+    )
     print(
         f"  数据文件: {args.data_file or Path(__file__).parent.parent.parent / 'data' / 'portfolio.json'}",
         flush=True,

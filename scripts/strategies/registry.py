@@ -92,7 +92,7 @@ STRATEGIES: Dict[str, dict] = {
 # ---------- 策略注册 API ----------
 
 
-def register_strategy(name: str, weights: dict, label: str = "") -> None:
+def register_strategy(name: str, weights: dict, label: str = "", replace: bool = False) -> None:
     """注册新策略。
 
     Args:
@@ -100,6 +100,10 @@ def register_strategy(name: str, weights: dict, label: str = "") -> None:
         weights: 因子权重 dict，需包含 quality/valuation/momentum/liquidity
                  volatility 和 dividend 为可选因子（默认 0）
         label: 策略中文标签
+        replace: 是否允许覆盖已存在策略（默认 False，保护已注册策略不可变）。
+
+    Raises:
+        ValueError: 权重缺失必需键 / 权重和不等于 1.0 / 重复注册（replace=False）
     """
     weights = {**weights}
     required_keys = {"quality", "valuation", "momentum", "liquidity"}
@@ -112,6 +116,10 @@ def register_strategy(name: str, weights: dict, label: str = "") -> None:
     total = sum(weights.get(k, 0) for k in all_keys)
     if abs(total - 1.0) > 0.01:
         raise ValueError(f"权重之和应为 1.0，当前为 {total}")
+    if name in STRATEGIES and not replace:
+        raise ValueError(
+            f"策略 {name!r} 已注册；如需覆盖请显式传 replace=True（保护全局状态不被并发修改）"
+        )
     STRATEGIES[name] = {**weights, "label": label or name}
 
 

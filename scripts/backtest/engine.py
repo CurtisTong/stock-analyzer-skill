@@ -69,6 +69,7 @@ def simulate_strategy(
     commission: float = 0.00025,
     stamp_tax: float = 0.001,
     slippage: float = 0.001,
+    weights=None,
 ):
     """
     模拟策略收益（滚动窗口回测，无前瞻偏差）。
@@ -91,11 +92,13 @@ def simulate_strategy(
         holding_days: 持有天数
         initial_capital: 初始资金
         total_days: 回测总天数
+        weights: 可选覆盖权重 dict（不修改全局 STRATEGIES）。None 时从 STRATEGIES[strategy_name] 读取。
 
     Returns:
         回测结果 dict
     """
-    weights = STRATEGIES[strategy_name]
+    if weights is None:
+        weights = STRATEGIES[strategy_name]
     min_history = 60
 
     datalen = min_history + total_days + 10
