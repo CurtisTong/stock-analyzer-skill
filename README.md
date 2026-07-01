@@ -404,7 +404,7 @@ PEG &lt; 1
 | 🔍 帮我分析一只股票 | `/stock sh600519` | 5 层分析（基本面 / 估值 / 技术 / 板块 / 风险收益比） |
 | 📊 今天大盘怎么样   | `/market quick`   | 三大指数 + 板块 Top3 + 一句话策略                    |
 | 💼 我的持仓怎么样   | `/portfolio`      | 涨跌 + 板块集中度 + 风险预警 + 调仓建议              |
-| 🤔 不知道买什么     | `/screener`       | 5 种策略 × 5 因子筛选 → 10 只候选 + 跟踪清单         |
+| 🤔 不知道买什么     | `/screener`       | 6 种策略 × 9 因子筛选 → 10 只候选 + 跟踪清单         |
 
 > 💡 不写代码、零配置可用。30 秒完成 `/screener init` 初始化股票池，3 分钟跑通 `/stock sh600519 quick`。
 
@@ -484,7 +484,7 @@ flowchart LR
 | 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md)     | `/stock-technical <代码>`                        | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） |
 | 🌐 **环境** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
 | 🌐 **环境** | [sector](skills/sector/SKILL.md)                       | `/sector <板块> [overview\|compare\|stock]`      | 板块全景 / 标的对比 / 板块内筛选             |
-| 🔎 **选股** | [screener](skills/screener/SKILL.md)                   | `/screener [--strategy 策略] [init]`             | 5 种策略 × 6 因子维度批量选股 + 股票池初始化 |
+| 🔎 **选股** | [screener](skills/screener/SKILL.md)                   | `/screener [--strategy 策略] [init]`             | 6 种策略 × 9 因子维度批量选股 + 股票池初始化 |
 | 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance\|compare]`        | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比    |
 | 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md)         | `/portfolio web [--port 8765]`                   | Web 录入服务（HTTP API :8765）               |
 | 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                                 | NL → 命令映射（我买了/减仓/破位止损）        |
@@ -568,7 +568,7 @@ scripts/
 ├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
 ├── fetchers/      # 28 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
-├── strategies/    # 5 种选股策略 + 因子库
+├── strategies/    # 6 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 实时监控 + 多通道通知
 ├── portfolio/     # 持仓管理

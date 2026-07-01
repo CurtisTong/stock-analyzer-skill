@@ -75,8 +75,8 @@ scripts/
 - **异常体系** (`scripts/common/exceptions/__init__.py`): `StockAnalyzerError` → `DataError` / `BusinessError`
 - **ConfigLoader** (`scripts/config/loader.py`): YAML 配置加载器，支持点分路径访问和缓存
 - **数据类型** (`scripts/data/types.py`): `Quote`、`KlineBar`、`FinanceRecord` dataclass
-- **策略注册表** (`scripts/strategies/registry.py`): 5 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point）
-- **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（71.4% 胜率，+6.39% 平均收益）+ 三阴一阳战法
+- **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
+- **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
 - **专家系统** (`experts/`): 15 份投资专家人设（6 legacy active=False + 9 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech`，补盲区 `sector_specialist` / `institution` / `risk_manager`，v2.2.0 新增 `momentum_trader`）+ `decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 
 ## Skill 索引表（13 个）
