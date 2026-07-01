@@ -67,6 +67,8 @@ def running_server(tmp_path: Path):
     port = _free_port()
     srv = portfolio_web.make_server("127.0.0.1", port, str(data_file))
     token = portfolio_web._ensure_token()
+    # 清空 IP 限流历史：所有 TestEndToEnd 共享 127.0.0.1，不清空会导致跨测试限流累加
+    portfolio_web.Handler.reset_rate_limit_for_tests()
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     try:

@@ -60,6 +60,24 @@ _monitor_enabled = False
 _monitor_thread = None
 _virtual_mode = False
 
+# 跨域白名单：只接受 127.0.0.1 / localhost 来源的请求（防 CSRF / 跨站攻击）
+# 空 Origin 头（如 curl）放行；带 Origin 但不在白名单则 403
+_ALLOWED_ORIGINS = frozenset(
+    (
+        "http://127.0.0.1:8765",
+        "http://localhost:8765",
+        "https://127.0.0.1:8765",
+        "https://localhost:8765",
+    )
+)
+
+# 简单滑动窗口限流：每个 IP 每秒最多 N 个请求；超出返回 429
+# 默认 100 req/s：覆盖浏览器并发 (6-8) + 一次性脚本测试 (15-30)；模块级可被测试改写
+_RATE_LIMIT_REQUESTS = 100
+_RATE_LIMIT_WINDOW = 1.0  # 秒
+_rate_limit_lock = threading.Lock()
+_rate_limit_history: dict[str, list[float]] = {}  # ip -> list[timestamp]
+
 
 class Handler(BaseHTTPRequestHandler):
     """HTTP 请求处理器。"""
@@ -116,6 +134,50 @@ class Handler(BaseHTTPRequestHandler):
             _err("method_not_allowed", 405, f"allowed: {allowed}"),
         )
 
+    def _check_origin(self) -> bool:
+        """校验 Origin 头：拒绝非本机来源（防 CSRF / 跨站攻击）。
+
+        空 Origin 头（curl / 脚本）放行；非白名单 Origin 返回 403。
+        """
+        origin = (self.headers.get("Origin") or "").strip()
+        if not origin:
+            return True  # 无 Origin 头（curl / 服务器端调用）
+        if origin not in _ALLOWED_ORIGINS:
+            self._write_json(
+                HTTPStatus.FORBIDDEN,
+                _err("forbidden_origin", 403, f"origin {origin!r} not in allowlist"),
+            )
+            return False
+        return True
+
+    def _check_rate_limit(self) -> bool:
+        """IP 滑动窗口限流：每秒最多 _RATE_LIMIT_REQUESTS 个请求。"""
+        client_ip = self.client_address[0] if self.client_address else "unknown"
+        now = time.time()
+        with _rate_limit_lock:
+            history = _rate_limit_history.setdefault(client_ip, [])
+            # 清理窗口外的旧记录
+            cutoff = now - _RATE_LIMIT_WINDOW
+            history[:] = [t for t in history if t > cutoff]
+            if len(history) >= _RATE_LIMIT_REQUESTS:
+                self._write_json(
+                    HTTPStatus.TOO_MANY_REQUESTS,
+                    _err(
+                        "rate_limited",
+                        429,
+                        f"max {_RATE_LIMIT_REQUESTS} req/{_RATE_LIMIT_WINDOW}s per IP",
+                    ),
+                )
+                return False
+            history.append(now)
+            return True
+
+    @classmethod
+    def reset_rate_limit_for_tests(cls) -> None:
+        """测试辅助：清空限流历史（让高并发测试不受限流影响）。"""
+        with _rate_limit_lock:
+            _rate_limit_history.clear()
+
     def _check_auth(self) -> bool:
         """校验 Authorization: Bearer <token>（API）或 URL ?token=<token>（仅页面导航）。"""
         token = _ensure_token()
@@ -138,6 +200,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         """处理 GET 请求。"""
+        if not self._check_origin() or not self._check_rate_limit():
+            return
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path not in ("/api/health", "/favicon.ico") and not self._check_auth():
             return
@@ -166,6 +230,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_HEAD(self):
         """处理 HEAD 请求。"""
+        if not self._check_origin() or not self._check_rate_limit():
+            return
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path not in ("/api/health", "/favicon.ico") and not self._check_auth():
             return
@@ -182,6 +248,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         """处理 POST 请求。"""
+        if not self._check_origin() or not self._check_rate_limit():
+            return
         if not self._check_auth():
             return
         path = urlparse(self.path).path.rstrip("/") or "/"

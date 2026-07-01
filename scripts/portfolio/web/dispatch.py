@@ -97,7 +97,12 @@ def _do_add_position(pm, body: dict, code: str) -> dict:
 
 
 def _do_reduce_position(pm, body: dict, code: str) -> dict:
-    """处理 reduce_position 动作。"""
+    """处理 reduce_position 动作。
+
+    注意：数量上限校验不在本函数进行——交给 PortfolioManager.reduce_position 自行处理
+    （超量时自动清仓返回 None，handler 透传 data:null + warn=position_removed）。
+    这是 v1.14.2 测试 test_reduce_position_overflow_returns_null 的约定。
+    """
     qty = _parse_int(body.get("quantity"))
     if qty is None:
         return _err("invalid_quantity", 400, "'quantity' must be an integer")
