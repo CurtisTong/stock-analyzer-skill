@@ -1,6 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "auto",
     "allow": [
       "Bash(npm test*)",
       "Bash(npm run dev*)",
@@ -39,10 +38,7 @@
       "WebFetch(domain:push2.eastmoney.com)",
       "WebFetch(domain:xueqiu.com)"
     ],
-    "deny": [
-      "Bash(sudo:*)",
-      "Bash(rm -rf:*)",
-      "Bash(chmod 777:*)"
-    ]
+    "deny": ["Bash(sudo:*)", "Bash(rm -rf:*)", "Bash(chmod 777:*)"],
+    "defaultMode": "auto"
   }
 }
