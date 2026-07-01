@@ -7,6 +7,27 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-07-01
+
+### Added
+- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
+
+### Fixed
+- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
+- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
+- *****: 优化设置
+- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+
+### Documentation
+- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
+- auto-update CHANGELOG.md [skip ci]
+- auto-update CHANGELOG.md [skip ci]
+- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+- auto-update CHANGELOG.md [skip ci]
+
+### Maintenance
+- **settings**: 合并 IDE 自动学习的权限 allowlist
+
 ## [Unreleased] - 2026-06-30
 
 ### Fixed
