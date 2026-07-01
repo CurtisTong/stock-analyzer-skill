@@ -617,6 +617,11 @@ scripts/
 <td><a href="CONTRIBUTING.md">贡献指南</a></td>
 <td><a href="CHANGELOG.md">变更日志</a></td>
 </tr>
+<tr>
+<td>📐 <b>审查视角</b></td>
+<td><a href="docs/persona.md">用户画像</a></td>
+<td><a href="docs/user_expert.md">用户专家</a> · <a href="docs/visual_expert.md">视觉专家</a></td>
+</tr>
 </table>
 
 ---
