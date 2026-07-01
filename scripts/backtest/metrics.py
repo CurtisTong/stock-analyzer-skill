@@ -34,7 +34,12 @@ def run_backtest(
     """
     holding_days = max(1, days // rounds)
     result = simulate_strategy(
-        strategy_name, codes, top_n, holding_days=holding_days, total_days=days, weights=weights
+        strategy_name,
+        codes,
+        top_n,
+        holding_days=holding_days,
+        total_days=days,
+        weights=weights,
     )
 
     if "error" in result:

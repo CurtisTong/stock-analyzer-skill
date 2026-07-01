@@ -87,7 +87,9 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
             test_weights = {k: v / total for k, v in test_weights.items()}
 
             # 通过 weights 参数传入，不修改全局 STRATEGIES（避免并发数据竞争）
-            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights)
+            report = run_backtest(
+                strategy_name, codes, top_n, days, 3, weights=test_weights
+            )
 
             score = report.get("sharpe_ratio", 0)
 
