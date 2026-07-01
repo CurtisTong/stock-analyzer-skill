@@ -43,6 +43,16 @@ TYPE_MAP = {
 # 忽略的类型
 IGNORE_TYPES = {"merge", "revert"}
 
+# 噪声 commit 模式（subject 命中任一即跳过）
+# 1. auto-update 自引用——CHANGELOG 自己产生的 commit 不应再次进入
+# 2. data: 持仓操作流水——散户交易不应混入 CHANGELOG
+NOISE_PATTERNS = [
+    re.compile(r"auto-update\s+CHANGELOG\.md", re.IGNORECASE),
+    re.compile(
+        r"^data\s*:", re.IGNORECASE
+    ),  # e.g. "data: 记录 2026-06-29 持仓交易操作"
+]
+
 
 def get_commits(since: str | None = None, all_commits: bool = False) -> list[dict]:
     """获取 git commits。"""
@@ -112,6 +122,9 @@ def generate_changelog(commits: list[dict]) -> str:
     categories: dict[str, list[str]] = {}
 
     for commit in commits:
+        # 过滤噪声 commit（auto-update 自引用 / data: 持仓流水）
+        if any(p.search(commit["subject"]) for p in NOISE_PATTERNS):
+            continue
         parsed = parse_commit(commit["subject"])
         if not parsed:
             # 非 Conventional Commit，归入 "Other"
