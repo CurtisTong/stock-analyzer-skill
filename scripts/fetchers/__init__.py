@@ -143,7 +143,6 @@ def get_finance_fetchers() -> list:
         fetchers.append(EastmoneyFinanceFetcher())
 
         for mod, cls in [
-            ("efinance_finance", "EfinanceFinanceFetcher"),
             ("akshare_finance", "AkshareFinanceFetcher"),
         ]:
             c = _try_import(mod, cls)

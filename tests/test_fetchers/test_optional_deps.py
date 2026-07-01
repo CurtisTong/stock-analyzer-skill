@@ -145,88 +145,12 @@ class TestAkshareFinanceFetcher:
 
 
 # ═══════════════════════════════════════════════════════════════
-# efinance_finance
+# 注：原 TestEfinanceFinanceFetcher 已删除（PR-E）
+# 原因：原 efinance_finance.py 用 get_quote_history（K 线数据）伪装成财务字段
+# （EPSJB/ROEJQ 等），是最危险的"反向填充 schema"兜底。
+# 测试 mock 的 get_base_info 与代码实际用的 get_quote_history 不一致，
+# 是 v1.14.2 代码-测试漂移——删除 fetcher + 测试消除该错误数据源。
 # ═══════════════════════════════════════════════════════════════
-
-
-class TestEfinanceFinanceFetcher:
-    """EfinanceFinanceFetcher 测试。"""
-
-    def _make_fetcher(self):
-        from fetchers.efinance_finance import EfinanceFinanceFetcher
-
-        return EfinanceFinanceFetcher()
-
-    def test_name_and_priority(self):
-        f = self._make_fetcher()
-        assert f.name == "efinance_finance"
-        assert f.priority == 5
-
-    def test_fetch_no_efinance(self):
-        """efinance 未安装时返回 None。"""
-        f = self._make_fetcher()
-        with patch("fetchers.efinance_finance.HAS_EFINANCE", False):
-            result = f.fetch("sh600519")
-        assert result is None
-
-    @requires_pandas
-    @requires_efinance
-    def test_fetch_normal(self):
-        """正常响应：返回 DataFrame 字典。"""
-        f = self._make_fetcher()
-        df = pd.DataFrame(
-            [{"股票代码": "600519", "股票名称": "贵州茅台", "最新价": 1800.00}]
-        )
-        mock_ef = MagicMock()
-        mock_ef.stock.get_base_info.return_value = df
-        with (
-            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
-            patch("fetchers.efinance_finance.ef", mock_ef),
-        ):
-            result = f.fetch("sh600519")
-        assert result is not None
-        assert len(result) == 1
-        assert result[0]["股票代码"] == "600519"
-
-    @requires_pandas
-    @requires_efinance
-    def test_fetch_empty_df(self):
-        """空 DataFrame：返回 None。"""
-        f = self._make_fetcher()
-        mock_ef = MagicMock()
-        mock_ef.stock.get_base_info.return_value = pd.DataFrame()
-        with (
-            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
-            patch("fetchers.efinance_finance.ef", mock_ef),
-        ):
-            result = f.fetch("sh600519")
-        assert result is None
-
-    @requires_efinance
-    def test_fetch_none_df(self):
-        """None DataFrame：返回 None。"""
-        f = self._make_fetcher()
-        mock_ef = MagicMock()
-        mock_ef.stock.get_base_info.return_value = None
-        with (
-            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
-            patch("fetchers.efinance_finance.ef", mock_ef),
-        ):
-            result = f.fetch("sh600519")
-        assert result is None
-
-    @requires_efinance
-    def test_fetch_exception(self):
-        """异常时返回 None。"""
-        f = self._make_fetcher()
-        mock_ef = MagicMock()
-        mock_ef.stock.get_base_info.side_effect = RuntimeError("api error")
-        with (
-            patch("fetchers.efinance_finance.HAS_EFINANCE", True),
-            patch("fetchers.efinance_finance.ef", mock_ef),
-        ):
-            result = f.fetch("sh600519")
-        assert result is None
 
 
 # ═══════════════════════════════════════════════════════════════
