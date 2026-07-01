@@ -2,6 +2,7 @@
 策略注册表：管理策略定义和权重配置。
 """
 
+import threading
 from typing import Dict
 
 # ---------- 内置策略定义 ----------
@@ -11,6 +12,12 @@ from typing import Dict
 # chip 为筹码因子（2026新增），股东户数变化率+融资融券趋势
 # event 为事件因子（待调优），当前权重 0.0
 # analyst 为分析师预期因子（待调优），当前权重 0.0
+
+# RLock 守护 STRATEGIES 全局 dict 的写路径；
+# 外部 12+ 个读取点（strategy_performance.py / screener.py / screening_service.py / backtest/*）
+# 暂未迁移到本 API，故保留 dict 直读以避免大范围 API 变更。
+# 新代码请用 get_strategy() / list_strategies() 走锁路径。
+_STRATEGIES_LOCK = threading.RLock()
 
 STRATEGIES: Dict[str, dict] = {
     "balanced": {
@@ -92,7 +99,9 @@ STRATEGIES: Dict[str, dict] = {
 # ---------- 策略注册 API ----------
 
 
-def register_strategy(name: str, weights: dict, label: str = "", replace: bool = False) -> None:
+def register_strategy(
+    name: str, weights: dict, label: str = "", replace: bool = False
+) -> None:
     """注册新策略。
 
     Args:
@@ -106,30 +115,39 @@ def register_strategy(name: str, weights: dict, label: str = "", replace: bool =
         ValueError: 权重缺失必需键 / 权重和不等于 1.0 / 重复注册（replace=False）
     """
     weights = {**weights}
-    required_keys = {"quality", "valuation", "momentum", "liquidity"}
-    if not required_keys.issubset(weights.keys()):
-        raise ValueError(f"策略权重必须包含 {required_keys}")
-    for opt_key in ("volatility", "dividend", "chip", "event", "analyst"):
-        if opt_key not in weights:
-            weights[opt_key] = 0.0
-    all_keys = required_keys | {"volatility", "dividend", "chip", "event", "analyst"}
-    total = sum(weights.get(k, 0) for k in all_keys)
-    if abs(total - 1.0) > 0.01:
-        raise ValueError(f"权重之和应为 1.0，当前为 {total}")
-    if name in STRATEGIES and not replace:
-        raise ValueError(
-            f"策略 {name!r} 已注册；如需覆盖请显式传 replace=True（保护全局状态不被并发修改）"
-        )
-    STRATEGIES[name] = {**weights, "label": label or name}
+    with _STRATEGIES_LOCK:
+        required_keys = {"quality", "valuation", "momentum", "liquidity"}
+        if not required_keys.issubset(weights.keys()):
+            raise ValueError(f"策略权重必须包含 {required_keys}")
+        for opt_key in ("volatility", "dividend", "chip", "event", "analyst"):
+            if opt_key not in weights:
+                weights[opt_key] = 0.0
+        all_keys = required_keys | {
+            "volatility",
+            "dividend",
+            "chip",
+            "event",
+            "analyst",
+        }
+        total = sum(weights.get(k, 0) for k in all_keys)
+        if abs(total - 1.0) > 0.01:
+            raise ValueError(f"权重之和应为 1.0，当前为 {total}")
+        if name in STRATEGIES and not replace:
+            raise ValueError(
+                f"策略 {name!r} 已注册；如需覆盖请显式传 replace=True（保护全局状态不被并发修改）"
+            )
+        STRATEGIES[name] = {**weights, "label": label or name}
 
 
 def get_strategy(name: str) -> dict:
     """获取策略配置。"""
-    if name not in STRATEGIES:
-        raise KeyError(f"未知策略: {name}，可用: {list(STRATEGIES.keys())}")
-    return STRATEGIES[name]
+    with _STRATEGIES_LOCK:
+        if name not in STRATEGIES:
+            raise KeyError(f"未知策略: {name}，可用: {list(STRATEGIES.keys())}")
+        return STRATEGIES[name]
 
 
 def list_strategies() -> list:
     """列出所有策略名称。"""
-    return list(STRATEGIES.keys())
+    with _STRATEGIES_LOCK:
+        return list(STRATEGIES.keys())

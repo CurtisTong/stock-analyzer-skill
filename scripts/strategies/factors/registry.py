@@ -12,6 +12,7 @@
 """
 
 import logging
+import threading
 from enum import Enum
 from typing import Callable, Dict, List
 
@@ -79,6 +80,10 @@ class FactorDescriptor:
 
 _FACTORS: Dict[str, FactorDescriptor] = {}
 
+# RLock 守护 _FACTORS 全局 dict 的写路径；compute_all_factors / compute_phase_factors
+# 在锁内 snapshot，避免并发 register_factor 触发的 RuntimeError
+_FACTORS_LOCK = threading.RLock()
+
 
 def register_factor(
     name: str,
@@ -100,42 +105,48 @@ def register_factor(
         default_weight: balanced 策略下的默认权重
         requires_kline: 是否需要 K 线数据
     """
-    _FACTORS[name] = FactorDescriptor(
-        name=name,
-        compute_fn=compute_fn,
-        phase=Phase(phase),
-        args_style=ArgsStyle(args_style),
-        label=label or name,
-        default_weight=default_weight,
-        requires_kline=requires_kline,
-    )
+    with _FACTORS_LOCK:
+        _FACTORS[name] = FactorDescriptor(
+            name=name,
+            compute_fn=compute_fn,
+            phase=Phase(phase),
+            args_style=ArgsStyle(args_style),
+            label=label or name,
+            default_weight=default_weight,
+            requires_kline=requires_kline,
+        )
 
 
 def get_factor(name: str) -> FactorDescriptor:
     """获取因子描述符。"""
-    if name not in _FACTORS:
-        raise KeyError(f"未知因子: {name}，可用: {list(_FACTORS.keys())}")
-    return _FACTORS[name]
+    with _FACTORS_LOCK:
+        if name not in _FACTORS:
+            raise KeyError(f"未知因子: {name}，可用: {list(_FACTORS.keys())}")
+        return _FACTORS[name]
 
 
 def list_factors() -> List[str]:
     """列出所有已注册因子名。"""
-    return list(_FACTORS.keys())
+    with _FACTORS_LOCK:
+        return list(_FACTORS.keys())
 
 
 def list_phase_factors(phase: int) -> List[str]:
     """列出指定阶段的因子名。"""
-    return [name for name, desc in _FACTORS.items() if desc.phase.value == phase]
+    with _FACTORS_LOCK:
+        return [name for name, desc in _FACTORS.items() if desc.phase.value == phase]
 
 
 def clear_factors() -> None:
     """清空注册表（仅用于测试隔离）。"""
-    _FACTORS.clear()
+    with _FACTORS_LOCK:
+        _FACTORS.clear()
 
 
 def get_factor_keys() -> List[str]:
     """获取所有因子名（用于 normalize_factors_batch 等场景）。"""
-    return list(_FACTORS.keys())
+    with _FACTORS_LOCK:
+        return list(_FACTORS.keys())
 
 
 # ---------- 自动调用器 ----------
@@ -175,7 +186,9 @@ def compute_all_factors(fin, quote, features, industry, code) -> dict:
     """
     result = {}
     degraded = []
-    for name, desc in _FACTORS.items():
+    with _FACTORS_LOCK:
+        factors_snapshot = list(_FACTORS.items())
+    for name, desc in factors_snapshot:
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:
             result[name] = desc.compute_fn(**kwargs)
@@ -196,7 +209,9 @@ def compute_phase_factors(phase, fin, quote, features, industry, code) -> dict:
     result = {}
     degraded = []
     target = Phase(phase) if isinstance(phase, int) else phase
-    for name, desc in _FACTORS.items():
+    with _FACTORS_LOCK:
+        factors_snapshot = list(_FACTORS.items())
+    for name, desc in factors_snapshot:
         if desc.phase != target:
             continue
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)

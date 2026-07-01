@@ -57,10 +57,13 @@ class CircuitBreaker:
     def record_success(self) -> None:
         with self._lock:
             if self.state == CircuitState.HALF_OPEN:
-                # 半开期任一试探成功即恢复（标准熔断器模式）
+                # 半开期试探成功即恢复 CLOSED（v1.14.2 标准熔断器行为，DataFetcherManager 测试
+                # test_circuit_breaker_recovery 依赖此约定）。
+                # half_open_success 字段保留为扩展接口，未来如需"N 次成功守卫"可在此启用。
                 self.state = CircuitState.CLOSED
                 self.failure_count = 0
                 self._half_open_attempts = 0
+                self.half_open_success = 0
             elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
 

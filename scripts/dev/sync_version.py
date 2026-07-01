@@ -37,10 +37,12 @@ def update_json_version(file_path: Path, version: str) -> bool:
         content = f.read()
 
     # 使用正则替换，保持格式
+    # 锚定到顶层键（行首只允许空格）：避免未来嵌套对象里出现 "version" 字段时被一并替换
     new_content = re.sub(
-        r'("version"\s*:\s*")[^"]+(")',
+        r'(^\s*"version"\s*:\s*")[^"]+(")',
         rf"\g<1>{version}\2",
         content,
+        flags=re.MULTILINE,
     )
 
     if new_content != content:
