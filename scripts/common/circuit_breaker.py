@@ -15,7 +15,13 @@ class CircuitState(Enum):
 
 
 class CircuitBreaker:
-    """线程安全的熔断器：连续失败 N 次后熔断，超时后半开试探。"""
+    """线程安全的熔断器：连续失败 N 次后熔断，超时后半开试探。
+
+    半开期恢复策略（可配置）：
+    - 默认（half_open_success_threshold=1）：任一试探成功即 CLOSED（v1.14.2 兼容）
+    - 严格（half_open_success_threshold=N）：累计 N 次成功才 CLOSED，
+      与 half_open_max 对齐——避免本地网络抽风导致的"假恢复"
+    """
 
     def __init__(
         self,
@@ -23,11 +29,13 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         recovery_timeout: int = 60,
         half_open_max: int = 3,
+        half_open_success_threshold: int = 1,
     ):
         self.name = name
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
         self.half_open_max = half_open_max
+        self.half_open_success_threshold = half_open_success_threshold
 
         self._lock = threading.Lock()
         self.state = CircuitState.CLOSED
@@ -57,13 +65,15 @@ class CircuitBreaker:
     def record_success(self) -> None:
         with self._lock:
             if self.state == CircuitState.HALF_OPEN:
-                # 半开期试探成功即恢复 CLOSED（v1.14.2 标准熔断器行为，DataFetcherManager 测试
-                # test_circuit_breaker_recovery 依赖此约定）。
-                # half_open_success 字段保留为扩展接口，未来如需"N 次成功守卫"可在此启用。
-                self.state = CircuitState.CLOSED
-                self.failure_count = 0
-                self._half_open_attempts = 0
-                self.half_open_success = 0
+                # 半开期累计 half_open_success_threshold 次成功才恢复 CLOSED。
+                # threshold=1 时单次成功即恢复（默认行为，与 v1.14.2 测试约定兼容）；
+                # 显式传 threshold>1 启用严格守卫（如 half_open_success_threshold=3）。
+                self.half_open_success += 1
+                if self.half_open_success >= self.half_open_success_threshold:
+                    self.state = CircuitState.CLOSED
+                    self.failure_count = 0
+                    self._half_open_attempts = 0
+                    self.half_open_success = 0
             elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
 

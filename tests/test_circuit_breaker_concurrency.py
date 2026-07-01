@@ -152,3 +152,69 @@ class TestHalfOpenConcurrency:
         cb.reset()
         assert cb.state == CircuitState.CLOSED
         assert cb._half_open_attempts == 0
+
+
+class TestHalfOpenSuccessThreshold:
+    """half_open_success_threshold 参数：可选的"累计 N 次成功"守卫。"""
+
+    def test_threshold_default_1_compatible(self):
+        """默认 threshold=1：1 次成功即恢复 CLOSED（兼容 v1.14.2 行为）。"""
+        cb = CircuitBreaker(
+            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+        )
+        cb.record_failure()
+        cb.record_failure()
+        time.sleep(0.01)
+        assert cb.can_execute() is True
+        cb.record_success()
+        assert cb.state == CircuitState.CLOSED
+
+    def test_threshold_3_requires_three_successes(self):
+        """threshold=3：累计 3 次成功才 CLOSED（前 2 次仍 HALF_OPEN）。"""
+        cb = CircuitBreaker(
+            "test",
+            failure_threshold=2,
+            recovery_timeout=0,
+            half_open_max=3,
+            half_open_success_threshold=3,
+        )
+        cb.record_failure()
+        cb.record_failure()
+        time.sleep(0.01)
+        # 第 1 次试探：消耗 can_execute 配额
+        assert cb.can_execute() is True
+        cb.record_success()
+        assert cb.state == CircuitState.HALF_OPEN  # 1/3 不足
+        # 第 2 次
+        assert cb.can_execute() is True
+        cb.record_success()
+        assert cb.state == CircuitState.HALF_OPEN  # 2/3 不足
+        # 第 3 次
+        assert cb.can_execute() is True
+        cb.record_success()
+        assert cb.state == CircuitState.CLOSED  # 3/3 达标
+
+    def test_threshold_3_failure_resets_success_counter(self):
+        """threshold=3：失败会把成功计数清零重新累计（防止半成功状态泄漏）。"""
+        cb = CircuitBreaker(
+            "test",
+            failure_threshold=2,
+            recovery_timeout=0,
+            half_open_max=3,
+            half_open_success_threshold=3,
+        )
+        cb.record_failure()
+        cb.record_failure()
+        time.sleep(0.01)
+        cb.can_execute()
+        cb.record_success()
+        cb.can_execute()
+        cb.record_success()
+        assert cb.half_open_success == 2
+        # 失败一次应清零成功计数 + 回到 OPEN
+        cb.record_failure()
+        assert cb.state == CircuitState.OPEN
+        # 重新进入 HALF_OPEN 时 half_open_success 应被重置
+        time.sleep(0.01)
+        cb.can_execute()
+        assert cb.half_open_success == 0
