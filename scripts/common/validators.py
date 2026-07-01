@@ -11,6 +11,84 @@ from .exceptions import ValidationError
 # 股票代码正则
 STOCK_CODE_PATTERN = re.compile(r"^(sh|sz|bj)?(\d{6})$", re.IGNORECASE)
 
+# 常用 A 股中文名 → 代码映射（覆盖 README/user-guide 高频示例）
+# 故意不全：散户最常说的几十只龙头股，README 重点示例必须在列
+NAME_TO_CODE: dict = {
+    "贵州茅台": "sh600519",
+    "茅台": "sh600519",
+    "五粮液": "sh000858",
+    "中国平安": "sh601318",
+    "平安银行": "sz000001",
+    "招商银行": "sh600036",
+    "招行": "sh600036",
+    "工商银行": "sh601398",
+    "建设银行": "sh601939",
+    "中国银行": "sh601988",
+    "农业银行": "sh601288",
+    "腾讯": "sh00700",  # 港股占位（实际通过其它通道访问）
+    "阿里巴巴": "us:baba",
+    "宁德时代": "sz300750",
+    "比亚迪": "sz002594",
+    "隆基绿能": "sh601012",
+    "通威股份": "sh600438",
+    "宝丰能源": "sh600989",
+    "云铝股份": "sz000807",
+    "北方华创": "sz002371",
+    "恒瑞医药": "sh600276",
+    "迈瑞医疗": "sz300760",
+    "药明康德": "sh603259",
+    "中信证券": "sh600030",
+}
+
+
+def _try_resolve_chinese_name(name: str) -> str | None:
+    """从 NAME_TO_CODE 表查中文名/模糊匹配，未命中返回 None。"""
+    if not name:
+        return None
+    cleaned = name.strip()
+    if cleaned in NAME_TO_CODE:
+        return NAME_TO_CODE[cleaned]
+    # 模糊匹配：字典键是 cleaned 的子串 / cleaned 是字典键的子串
+    for k, v in NAME_TO_CODE.items():
+        if k in cleaned or cleaned in k:
+            return v
+    return None
+
+
+def resolve_code(name_or_code: str) -> str:
+    """统一入口：接受股票代码或常用中文名，返回标准化代码。
+
+    - 已合法代码（含 sh/sz/bj 前缀或纯 6 位数字）走 normalize_code 路径
+    - 命中 NAME_TO_CODE 表（含模糊匹配）走中文名解析路径
+    - 都未命中：抛 ValidationError
+
+    Args:
+        name_or_code: 股票代码或中文名称
+
+    Returns:
+        标准化股票代码（如 "sh600519"）
+
+    Raises:
+        ValidationError: 无法识别
+    """
+    if not name_or_code or not isinstance(name_or_code, str):
+        raise ValidationError("name_or_code", name_or_code, "不能为空")
+
+    s = name_or_code.strip()
+
+    # 优先按代码处理（含纯 6 位数字 / 带前缀）
+    if STOCK_CODE_PATTERN.match(s):
+        return normalize_code(s)
+
+    # 中文名 → 代码
+    resolved = _try_resolve_chinese_name(s)
+    if resolved:
+        return resolved
+
+    raise ValidationError(
+        "name_or_code", name_or_code, "无法识别为股票代码或已收录的中文名"
+    )
+
 
 def validate_code(code: str) -> bool:
     """
@@ -205,6 +283,8 @@ __all__ = [
     "validate_code",
     "normalize_code",
     "validate_codes",
+    "resolve_code",
+    "NAME_TO_CODE",
     "validate_date",
     "validate_date_range",
     "validate_positive",

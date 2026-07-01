@@ -6,6 +6,19 @@ from experts import direction_from_score
 
 logger = logging.getLogger(__name__)
 
+# AI 判断边界声明：所有圆桌输出强制尾部注入，避免散户误把 AI 建议当真
+RISK_DISCLAIMER = (
+    "⚠️ 本结果由 AI 辅助生成，仅供参考，不构成投资建议。"
+    "过往表现不代表未来收益，市场有风险，决策需谨慎。"
+)
+
+
+def _append_disclaimer(lines: list) -> None:
+    """在 lines 末尾注入 RISK_DISCLAIMER。"""
+    lines.append("")
+    lines.append("---")
+    lines.append(RISK_DISCLAIMER)
+
 
 def format_debate_output(result: dict) -> str:
     """格式化 debate 输出（decide.md §四 格式）。"""
@@ -91,6 +104,7 @@ def format_debate_output(result: dict) -> str:
     except Exception as e:
         logger.debug("校准数据不可用，跳过胜率卡片: %s", e)
 
+    _append_disclaimer(lines)
     return "\n".join(lines)
 
 
@@ -219,4 +233,5 @@ def format_group_output(result: dict) -> str:
     lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}%")
     lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
 
+    _append_disclaimer(lines)
     return "\n".join(lines)

@@ -13,6 +13,8 @@ from common.validators import (
     validate_code,
     normalize_code,
     validate_codes,
+    resolve_code,
+    NAME_TO_CODE,
     validate_date,
     validate_date_range,
     validate_positive,
@@ -180,3 +182,52 @@ class TestValidateInRange:
         """测试范��外值。"""
         with pytest.raises(ValidationError):
             validate_in_range(15, "value", 0, 10)
+
+
+class TestResolveCode:
+    """resolve_code 测试：接受代码或中文名 → 标准代码（PR-B 兑现 README 中文名输入承诺）。"""
+
+    @pytest.mark.parametrize(
+        "name,expected",
+        [
+            # 纯代码路径不破坏
+            ("sh600989", "sh600989"),
+            ("600989", "sh600989"),
+            ("SH600519", "sh600519"),
+            ("sz000807", "sz000807"),
+            # 中文名精确匹配
+            ("贵州茅台", "sh600519"),
+            ("茅台", "sh600519"),
+            ("中国平安", "sh601318"),
+            ("招商银行", "sh600036"),
+            ("招行", "sh600036"),
+            ("宝丰能源", "sh600989"),
+            # 中文名模糊匹配（用户输入前缀/后缀）
+            ("贵州茅台股份", "sh600519"),
+            ("平安", "sh601318"),
+        ],
+    )
+    def test_resolve_code(self, name, expected):
+        """代码 + 中文名统一入口。"""
+        assert resolve_code(name) == expected
+
+    def test_resolve_code_name_table_nonempty(self):
+        """NAME_TO_CODE 表至少覆盖 README 重点示例。"""
+        assert "贵州茅台" in NAME_TO_CODE
+        assert "宝丰能源" in NAME_TO_CODE
+        assert "中国平安" in NAME_TO_CODE
+
+    def test_resolve_code_unknown_name(self):
+        """未知中文名抛 ValidationError。"""
+        with pytest.raises(ValidationError):
+            resolve_code("不存在的虚拟股票xyz")
+
+    def test_resolve_code_empty(self):
+        """空值抛 ValidationError。"""
+        with pytest.raises(ValidationError):
+            resolve_code("")
+
+    def test_resolve_code_non_string(self):
+        """非字符串抛 ValidationError。"""
+        with pytest.raises(ValidationError):
+            resolve_code(123)
