@@ -33,11 +33,12 @@
         }
       },
       "backtest_results": {
-        "stock": "宝丰能源",
+        "stock": "宝丰能源（单股最优）",
         "period": "2025-08-22 至 2026-06-24",
         "win_rate": 71.4,
         "avg_return": 6.39,
-        "total_return": 44.71
+        "total_return": 44.71,
+        "disclosure": "样本内拟合（5 只 × 200 日），未经外样本验证；见 multi_stock_validation.avg_win_rate"
       },
       "multi_stock_validation": {
         "stocks_tested": 5,

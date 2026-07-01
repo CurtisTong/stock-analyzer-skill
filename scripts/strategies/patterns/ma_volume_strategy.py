@@ -212,8 +212,13 @@ def get_strategy_params():
             "win_rate": 71.4,
             "avg_return": 6.39,
             "total_return": 44.71,
+            "disclosure": (
+                "样本内拟合（5 只股票 × 200 个交易日，单股最优参数），"
+                "未经外样本验证；5 只平均胜率 59.7%（见 config.json）。"
+                "数字仅供参考，不构成投资建议。"
+            ),
         },
-        "source": "基于宝丰能源等 5 只股票回测优化",
+        "source": "基于宝丰能源等 5 只股票样本内回测",
     }
 
 
