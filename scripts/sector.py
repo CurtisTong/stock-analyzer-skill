@@ -97,9 +97,17 @@ def _fetch_one_finance(code: str) -> tuple:
 
 
 def fetch_sector_finance(codes: list) -> dict:
-    """并行获取板块内标的最新财务数据。"""
+    """并行获取板块内标的最新财务数据。
+
+    parallel_map 在任务异常时返回 None（而非 (code, None)），
+    需先过滤 None 再解包，否则会抛 TypeError: cannot unpack non-iterable NoneType。
+    """
     raw = parallel_map(_fetch_one_finance, codes, timeout=30)
-    return {code: fin for code, fin in raw.values() if fin is not None}
+    return {
+        code: fin
+        for code, fin in (v for v in raw.values() if v is not None)
+        if fin is not None
+    }
 
 
 def print_table(quotes: list, finance: dict):
