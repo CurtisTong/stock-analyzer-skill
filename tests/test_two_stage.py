@@ -102,8 +102,12 @@ class TestAnalyzeCodePhase1:
             kline_called["n"] += 1
             return []
 
-        monkeypatch.setattr("screener.get_kline", mock_get_kline)
         monkeypatch.setattr("data.get_kline", mock_get_kline)
+        # screening_service 也可能引用 get_kline（compute_features 内部延迟导入）
+        import business.screening_service as ss
+
+        if hasattr(ss, "get_kline"):
+            monkeypatch.setattr(ss, "get_kline", mock_get_kline)
 
         quote = {
             "code": "sh600519",

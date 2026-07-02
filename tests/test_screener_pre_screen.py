@@ -1,6 +1,7 @@
 """
 screener.py 覆盖率测试（Sprint 13）。
-覆盖 pre_screen_quotes / _prefetch_kline_all / daily_features 等函数。
+覆盖 pre_screen_quotes / prefetch_kline_all / compute_features 等函数。
+下沉后这些函数位于 business.screening_service，通过 re-export 仍可从 screener 访问。
 """
 
 import argparse
@@ -12,6 +13,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import screener  # noqa: E402
+import business.screening_service as ss  # noqa: E402
 from common import to_float  # noqa: E402
 
 
@@ -100,7 +102,7 @@ class TestPreScreenQuotes:
 
 
 class TestPrefetchKlineAll:
-    """_prefetch_kline_all 批量 K 线预拉测试。"""
+    """prefetch_kline_all 批量 K 线预拉测试。"""
 
     def test_returns_dict_mapping_codes_to_bars(self, monkeypatch):
         """返回 {code: bars} 字典。"""
@@ -112,7 +114,7 @@ class TestPrefetchKlineAll:
         import data
 
         monkeypatch.setattr(data, "get_kline", mock_get_kline)
-        result = screener._prefetch_kline_all(["sh600519", "sh600989"])
+        result = ss.prefetch_kline_all(["sh600519", "sh600989"])
         assert isinstance(result, dict)
         assert "sh600519" in result
         assert len(result["sh600519"]) == 1
@@ -130,13 +132,13 @@ class TestPrefetchKlineAll:
         import data
 
         monkeypatch.setattr(data, "get_kline", mock_get_kline)
-        result = screener._prefetch_kline_all(["sh600519", "sh600989"])
+        result = ss.prefetch_kline_all(["sh600519", "sh600989"])
         assert "sh600519" not in result
         assert "sh600989" in result
 
 
-class TestDailyFeatures:
-    """daily_features 函数测试。"""
+class TestComputeFeatures:
+    """compute_features 函数测试（原 daily_features 已合并）。"""
 
     def test_returns_dict_with_features(self, monkeypatch):
         """返回 features dict。"""
@@ -155,8 +157,8 @@ class TestDailyFeatures:
                 "closes": [10.0, 11.0, 12.0],
             }
 
-        monkeypatch.setattr(screener, "compute_features", mock_compute_features)
-        result = screener.daily_features("sh600519")
+        monkeypatch.setattr(ss, "compute_features", mock_compute_features)
+        result = ss.compute_features("sh600519")
         assert "trend" in result
         assert "rsi" in result
         assert "ret20" in result

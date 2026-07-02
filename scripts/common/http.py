@@ -76,6 +76,9 @@ def _parse_url(url: str) -> tuple[str, str, int, str, str]:
     """一次性解析 URL，返回 (key, scheme, host, port, path_query)。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
+    # P3: scheme 白名单，防御 file:// 等非 HTTP(S) scheme（SSRF 防御纵深）
+    if scheme not in ("http", "https"):
+        raise ValueError(f"不支持的 URL scheme: {scheme}（仅允许 http/https）")
     host = parsed.hostname or "localhost"
     port = parsed.port or (443 if scheme == "https" else 80)
     path = parsed.path or "/"

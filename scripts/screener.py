@@ -15,6 +15,7 @@ import json
 import sys
 
 from common import normalize_quote_code
+from data.helpers import fetch_finance_first
 from strategies import (
     STRATEGIES,
     quality_score,  # noqa: F401 — re-export
@@ -39,7 +40,49 @@ from business.screening_service import (
     pre_screen_quotes,
     apply_portfolio_constraints,
     run_screening,
+    ScreeningService,
 )
+from data.helpers import prefetch_finance_all, prefetch_kline_all
+
+# 向后兼容别名（原 screener 模块级函数名）
+_prefetch_kline_all = prefetch_kline_all
+
+
+def hard_filter(quote, fin, args):
+    """硬过滤（薄包装，委托给 ScreeningService._hard_filter）。"""
+    filters = {
+        "min_amount": args.min_amount,
+        "min_cap": args.min_cap,
+        "exclude_loss": args.exclude_loss,
+    }
+    return ScreeningService()._hard_filter(quote, fin, filters)
+
+
+def latest_finance(code):
+    """获取最新财务数据（薄包装，委托给 data.helpers）。"""
+    from common import normalize_finance_code
+
+    return fetch_finance_first(normalize_finance_code(code))
+
+
+def daily_features(code):
+    """计算技术指标特征（薄包装，委托给 screening_service.compute_features）。"""
+    return compute_features(code)
+
+
+def volume_price_features(closes, volumes):
+    """量价关系分析。"""
+    from technical.volume import volume_analysis
+
+    if len(closes) < 6 or len(volumes) < 6:
+        return {"signal": 0, "desc": "数据不足"}
+    result = volume_analysis(closes, volumes)
+    if result is None:
+        return {"signal": 0, "desc": "数据不足"}
+    return {
+        "signal": result.get("volume_price_signal", 0),
+        "desc": result.get("volume_price", "量价中性"),
+    }
 
 
 def render(rows, strategy, top, title=None, show_chip=True):

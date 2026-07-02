@@ -523,9 +523,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "sector_stocks.json"
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args(sector="白酒"))
         assert len(result) == 2
@@ -539,9 +539,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "sector_stocks.json"
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args())
         assert len(result) == 4
@@ -552,11 +552,11 @@ class TestLoadUniverse:
         fake_file = tmp_path / "sector_stocks.json"
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
         # mock _try_fetch_from_mapping 返回空
-        monkeypatch.setattr(screener, "_try_fetch_from_mapping", lambda s: [])
+        monkeypatch.setattr(ss, "_try_fetch_from_mapping", lambda s: [])
 
         with pytest.raises(SystemExit):
             load_universe(self._make_args(sector="不存在的板块"))
@@ -574,9 +574,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "all_stocks.json"
         fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
 
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args(full_market=True))
         assert len(result) == 5
@@ -592,9 +592,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "all_stocks.json"
         fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
 
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
 
         # "主板" 应匹配 "主板沪"
         result = load_universe(self._make_args(full_market=True, sector="主板"))
@@ -603,9 +603,9 @@ class TestLoadUniverse:
 
     def test_full_market_missing_file_raises(self, monkeypatch, tmp_path):
         """全市场模式文件不存在应抛出 SystemExit。"""
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(screener, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
 
         with pytest.raises(SystemExit):
             load_universe(self._make_args(full_market=True))
@@ -752,15 +752,15 @@ class TestAnalyzeCode:
     """综合评分逻辑，mock K 线和财务数据。"""
 
     def test_returns_all_fields(self, sample_quote, sample_finance, monkeypatch):
-        import screener
+        # mock kline 和 finance 避免网络请求（下沉后 analyze_code 走 compute_features/fetch_finance_first）
+        import business.screening_service as ss
 
-        # mock kline 和 finance 避免网络请求
-        monkeypatch.setattr(
-            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
-        )
-        monkeypatch.setattr(
-            screener, "_fetch_finance_dicts", lambda code: [sample_finance]
-        )
+        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
+            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
+            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
+            "closes": [],
+        })
+        monkeypatch.setattr(ss, "fetch_finance_first", lambda code: sample_finance)
 
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
@@ -792,14 +792,14 @@ class TestAnalyzeCode:
     def test_score_is_weighted_combination(
         self, sample_quote, sample_finance, monkeypatch
     ):
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(
-            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
-        )
-        monkeypatch.setattr(
-            screener, "_fetch_finance_dicts", lambda code: [sample_finance]
-        )
+        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
+            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
+            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
+            "closes": [],
+        })
+        monkeypatch.setattr(ss, "fetch_finance_first", lambda code: sample_finance)
 
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
@@ -818,14 +818,14 @@ class TestAnalyzeCode:
         assert result["score"] == pytest.approx(expected, abs=0.5)
 
     def test_rejected_stock_has_reasons(self, sample_finance, monkeypatch):
-        import screener
+        import business.screening_service as ss
 
-        monkeypatch.setattr(
-            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
-        )
-        monkeypatch.setattr(
-            screener, "_fetch_finance_dicts", lambda code: [sample_finance]
-        )
+        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
+            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
+            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
+            "closes": [],
+        })
+        monkeypatch.setattr(ss, "fetch_finance_first", lambda code: sample_finance)
 
         st_quote = {
             "code": "sh600001",
@@ -844,18 +844,20 @@ class TestAnalyzeCode:
 
     def test_finance_cache_used(self, sample_quote, sample_finance, monkeypatch):
         """传入 finance_cache 时不应调用 fetch_finance。"""
-        import screener
+        import business.screening_service as ss
 
         call_count = {"n": 0}
 
         def _should_not_be_called(code):
             call_count["n"] += 1
-            return []
+            return {}
 
-        monkeypatch.setattr(
-            screener, "_fetch_kline_dicts", lambda code, limit=240, scale=30: []
-        )
-        monkeypatch.setattr(screener, "_fetch_finance_dicts", _should_not_be_called)
+        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
+            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
+            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
+            "closes": [],
+        })
+        monkeypatch.setattr(ss, "fetch_finance_first", _should_not_be_called)
 
         args = _make_args()
         cache = {"sh600519": [sample_finance]}

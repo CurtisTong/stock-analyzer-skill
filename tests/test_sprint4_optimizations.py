@@ -74,23 +74,22 @@ class TestParallelFetch:
     """review#11：行情+财务并行（通过结构验证）。"""
 
     def test_screener_main_uses_threadpool(self, monkeypatch):
-        """screener.main 使用 ThreadPoolExecutor 并行拉取行情和财务。"""
-        import screener
-        from concurrent.futures import ThreadPoolExecutor
+        """run_screening 使用 ThreadPoolExecutor 并行拉取行情和财务。"""
+        import business.screening_service as ss
 
-        # monkeypatch 关键函数以避免网络调用
-        monkeypatch.setattr(screener, "load_universe", lambda args: ["sh600519"])
+        # monkeypatch 关键函数以避免网络调用（下沉后在 screening_service 模块）
+        monkeypatch.setattr(ss, "load_universe", lambda args: ["sh600519"])
         monkeypatch.setattr(
-            screener,
-            "_fetch_batch_dicts",
+            ss,
+            "fetch_batch_dicts",
             lambda codes: [{"code": "sh600519", "name": "贵州茅台"}],
         )
         monkeypatch.setattr(
-            screener, "prefetch_finance_all", lambda codes: {"sh600519": []}
+            ss, "prefetch_finance_all", lambda codes: {"sh600519": []}
         )
-        monkeypatch.setattr(screener, "_prefetch_kline_all", lambda codes: {})
+        monkeypatch.setattr(ss, "prefetch_kline_all", lambda *a, **k: {})
         monkeypatch.setattr(
-            screener,
+            ss,
             "analyze_code",
             lambda *a, **k: {
                 "code": "sh600519",
@@ -100,35 +99,12 @@ class TestParallelFetch:
             },
         )
         monkeypatch.setattr(
-            screener, "apply_portfolio_constraints", lambda rows, **k: rows
+            ss, "apply_portfolio_constraints", lambda rows, **k: rows
         )
-        monkeypatch.setattr(screener, "render", lambda *a, **k: None)
 
-        # 替换 argparse
-        import argparse
-
-        args = argparse.Namespace(
-            strategy="balanced",
-            sector=None,
-            codes=None,
-            top=10,
-            min_amount=5000,
-            min_cap=40,
-            exclude_loss=False,
-            no_constraints=True,
-            sector_cap=0.30,
-            full_market=False,
-            board_limit=0,
-            exclude_board="北交所",
-            no_normalize=True,
-            no_regime=True,
-            json=False,
-        )
-        # 直接调用 main 的内部逻辑（绕过 argparse）
-        # 实际 _run_main 流程现在包含 ThreadPoolExecutor，
-        # 通过 inspect 验证源码包含此模式（V2.1 重构：_run_main 替代 main）
+        # 通过 inspect 验证 run_screening 源码包含并行模式
         import inspect
 
-        source = inspect.getsource(screener._run_main)
+        source = inspect.getsource(ss.run_screening)
         assert "ThreadPoolExecutor" in source
-        assert "_prefetch_kline_all" in source
+        assert "prefetch_kline_all" in source

@@ -21,6 +21,10 @@ def add_risk_disclaimer(text: str) -> str:
 def export_to_csv(data: List[dict], filename: str, output_dir: str = "output") -> str:
     """导出数据到 CSV 文件。"""
     import csv
+    import re
+
+    # P3: 清洗 filename，防止路径遍历（../）和非法字符
+    filename = re.sub(r"[^\w一-龥.-]", "_", filename) or "export"
 
     output_path = Path(output_dir)
     output_path.mkdir(exist_ok=True)
