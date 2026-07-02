@@ -31,7 +31,7 @@ def limit_analysis(records, board, quote):
     # 当前涨跌停状态
     if limit_up_price > 0 and last_close >= limit_up_price * 0.995:
         result["board_status"] = "封涨停"
-    elif last_low <= limit_down_price * 1.005 if limit_down_price > 0 else False:
+    elif limit_down_price > 0 and last_low <= limit_down_price * 1.005:
         if last_close > limit_down_price * 1.01:
             result["board_status"] = "翘板(跌停打开)"
         else:

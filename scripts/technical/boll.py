@@ -17,7 +17,7 @@ def bollinger(closes, period=20, multiplier=2.0):
     lower = mid - multiplier * sd
     bandwidth = (upper - lower) / mid if mid > 0 else 0
     last = closes[-1]
-    position = (last - lower) / (upper - lower) if upper != lower else 0.5
+    position = (last - lower) / (upper - lower) if (upper - lower) > 1e-6 else 0.5
 
     # 带宽状态
     if bandwidth < 0.05:

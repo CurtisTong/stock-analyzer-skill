@@ -389,7 +389,6 @@ if __name__ == "__main__":
     if sys.argv[1] == "--compare":
         # 多股票对比
         stocks = {
-            "宝丰能源": "/Users/curtis/.claude/projects/-Users-curtis-Documents-curtis-stock-analyzer-skill/88aca278-9a3e-428d-be8c-cfbafdc492bc/tool-results/bj2bc1xr5.txt",
             "贵州茅台": "/tmp/kline_600519.json",
             "宁德时代": "/tmp/kline_300750.json",
             "招商银行": "/tmp/kline_600036.json",

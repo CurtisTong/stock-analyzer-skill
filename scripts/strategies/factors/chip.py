@@ -199,7 +199,7 @@ def _score_northbound_flow(code: str) -> float:
     if not flow or len(flow) < 3:
         return 0
 
-    sum(f.get("net_buy", 0) for f in flow[:5])
+    net_5d = sum(f.get("net_buy", 0) for f in flow[:5])
     net_20d = sum(f.get("net_buy", 0) for f in flow[:20])
     pos_5d = sum(1 for f in flow[:5] if f.get("net_buy", 0) > 0)
 
@@ -213,10 +213,16 @@ def _score_northbound_flow(code: str) -> float:
     elif pos_5d <= 0:
         score -= 5.0
 
+    # 5 日累计净买入
+    if net_5d > 0:
+        score += 3.0
+    elif net_5d < 0:
+        score -= 2.0
+
     # 20 日累计净买入
     if net_20d > 0:
         score += 4.0
     elif net_20d < 0:
         score -= 3.0
 
-    return clamp(score, -12, 12)
+    return clamp(score, -15, 15)

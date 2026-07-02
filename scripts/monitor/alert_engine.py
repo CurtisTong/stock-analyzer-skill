@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # 添加 scripts 目录到 path
 
-from common import normalize_quote_code, to_float, board_type, board_limit_pct
+from common import normalize_quote_code, to_float, board_type, board_limit_pct, board_exact_limit_pct
 from data import get_quotes
 from data.helpers import fetch_quote_dict_or_none, fetch_kline_dicts
 from technical.moving_average import ma_system
@@ -62,10 +62,12 @@ def _reset_cache():
 try:
     from config.loader import ConfigLoader
 
-    _STOP_LOSS_PCT = ConfigLoader.get("limits.yaml", "stop_loss_pct", -8)
-    _TAKE_PROFIT_PCT = ConfigLoader.get("limits.yaml", "take_profit_pct", 20)
+    _raw_stop_loss = ConfigLoader.get("limits.yaml", "stop_loss_pct", 8)
+    _STOP_LOSS_PCT = -abs(_raw_stop_loss)  # 确保为负数
+    _raw_take_profit = ConfigLoader.get("limits.yaml", "take_profit_pct", 20)
+    _TAKE_PROFIT_PCT = abs(_raw_take_profit)  # 确保为正数
 except Exception as e:
-    logger.debug("加载止损/止盈配置失败，使用默认值: %s", e)
+    logger.warning("加载止损/止盈配置失败，使用默认值: %s", e)
     _STOP_LOSS_PCT = -8
     _TAKE_PROFIT_PCT = 20
 
@@ -265,9 +267,9 @@ def compute_key_levels(
     prev_close = to_float(data["quote"].get("prev_close", 0))
     if prev_close > 0:
         bd = board_type(code)
-        limit_pct = board_limit_pct(bd)
-        limit_up = round(prev_close * (1 + limit_pct / 100), 2)
-        limit_down = round(prev_close * (1 - limit_pct / 100), 2)
+        exact_pct = board_exact_limit_pct(bd)
+        limit_up = round(prev_close * (1 + exact_pct / 100), 2)
+        limit_down = round(prev_close * (1 - exact_pct / 100), 2)
         levels["limit_up"] = limit_up
         levels["limit_down"] = limit_down
         dist_up = (limit_up - price) / price * 100

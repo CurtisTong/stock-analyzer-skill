@@ -16,7 +16,7 @@ STOCK_CODE_PATTERN = re.compile(r"^(sh|sz|bj)?(\d{6})$", re.IGNORECASE)
 NAME_TO_CODE: dict = {
     "贵州茅台": "sh600519",
     "茅台": "sh600519",
-    "五粮液": "sh000858",
+    "五粮液": "sz000858",
     "中国平安": "sh601318",
     "平安银行": "sz000001",
     "招商银行": "sh600036",
@@ -42,16 +42,22 @@ NAME_TO_CODE: dict = {
 
 
 def _try_resolve_chinese_name(name: str) -> str | None:
-    """从 NAME_TO_CODE 表查中文名/模糊匹配，未命中返回 None。"""
+    """从 NAME_TO_CODE 表查中文名/模糊匹配，未命中返回 None。
+
+    精确匹配优先，模糊匹配允许双向子串匹配，
+    多个匹配时取最长键（最具体匹配）。
+    """
     if not name:
         return None
     cleaned = name.strip()
     if cleaned in NAME_TO_CODE:
         return NAME_TO_CODE[cleaned]
-    # 模糊匹配：字典键是 cleaned 的子串 / cleaned 是字典键的子串
-    for k, v in NAME_TO_CODE.items():
-        if k in cleaned or cleaned in k:
-            return v
+    # 模糊匹配：双向子串，多匹配时取最长键
+    matches = [(k, v) for k, v in NAME_TO_CODE.items() if k in cleaned or cleaned in k]
+    if matches:
+        # 多个匹配时取最长键（最具体），如"贵州茅台"优先于"茅台"
+        best = max(matches, key=lambda kv: len(kv[0]))
+        return best[1]
     return None
 
 

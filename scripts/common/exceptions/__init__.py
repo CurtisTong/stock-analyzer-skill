@@ -54,8 +54,10 @@ class NetworkError(DataError):
     def __init__(self, url: str, reason: str, retry_count: int = 0):
         self.url = url
         self.retry_count = retry_count
+        self.reason = reason
         super().__init__(
-            f"网络请求失败: {reason}", {"url": url, "retry_count": retry_count}
+            f"网络请求失败: {reason}",
+            {"url": url, "retry_count": retry_count, "reason": reason},
         )
 
 
@@ -66,6 +68,7 @@ class RateLimitError(NetworkError):
         self.retry_after = retry_after
         super().__init__(url, "429 Too Many Requests", 0)
         self.message = f"触发速率限制，请 {retry_after} 秒后重试"
+        self.details["retry_after"] = retry_after
 
 
 class ParseError(DataError):

@@ -84,31 +84,51 @@ class DataConfig:
             "recovery_timeout", cfg.circuit_recovery_timeout
         )
 
-        # 环境变量覆盖
-        cfg.http_timeout = int(os.getenv("DATA_HTTP_TIMEOUT", cfg.http_timeout))
-        cfg.parallel_timeout = int(
-            os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout)
+        # 环境变量覆盖（容错：非法值回退到默认）
+        def _safe_int(env_val, default: int) -> int:
+            try:
+                return int(env_val)
+            except (TypeError, ValueError):
+                return default
+
+        cfg.http_timeout = _safe_int(
+            os.getenv("DATA_HTTP_TIMEOUT", cfg.http_timeout), cfg.http_timeout
         )
-        cfg.quote_cache_ttl = int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl))
-        cfg.intraday_quote_cache_ttl = int(
-            os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl)
+        cfg.parallel_timeout = _safe_int(
+            os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout),
+            cfg.parallel_timeout,
         )
-        cfg.kline_cache_ttl = int(os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl))
-        cfg.kline_1m_cache_ttl = int(
-            os.getenv("DATA_KLINE_1M_TTL", cfg.kline_1m_cache_ttl)
+        cfg.quote_cache_ttl = _safe_int(
+            os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl), cfg.quote_cache_ttl
         )
-        cfg.kline_240m_cache_ttl = int(
-            os.getenv("DATA_KLINE_240M_TTL", cfg.kline_240m_cache_ttl)
+        cfg.intraday_quote_cache_ttl = _safe_int(
+            os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl),
+            cfg.intraday_quote_cache_ttl,
         )
-        cfg.finance_cache_ttl = int(
-            os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl)
+        cfg.kline_cache_ttl = _safe_int(
+            os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl), cfg.kline_cache_ttl
         )
-        cfg.margin_cache_ttl = int(os.getenv("DATA_MARGIN_TTL", cfg.margin_cache_ttl))
-        cfg.circuit_failure_threshold = int(
-            os.getenv("DATA_CIRCUIT_THRESHOLD", cfg.circuit_failure_threshold)
+        cfg.kline_1m_cache_ttl = _safe_int(
+            os.getenv("DATA_KLINE_1M_TTL", cfg.kline_1m_cache_ttl),
+            cfg.kline_1m_cache_ttl,
         )
-        cfg.circuit_recovery_timeout = int(
-            os.getenv("DATA_CIRCUIT_TIMEOUT", cfg.circuit_recovery_timeout)
+        cfg.kline_240m_cache_ttl = _safe_int(
+            os.getenv("DATA_KLINE_240M_TTL", cfg.kline_240m_cache_ttl),
+            cfg.kline_240m_cache_ttl,
+        )
+        cfg.finance_cache_ttl = _safe_int(
+            os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl), cfg.finance_cache_ttl
+        )
+        cfg.margin_cache_ttl = _safe_int(
+            os.getenv("DATA_MARGIN_TTL", cfg.margin_cache_ttl), cfg.margin_cache_ttl
+        )
+        cfg.circuit_failure_threshold = _safe_int(
+            os.getenv("DATA_CIRCUIT_THRESHOLD", cfg.circuit_failure_threshold),
+            cfg.circuit_failure_threshold,
+        )
+        cfg.circuit_recovery_timeout = _safe_int(
+            os.getenv("DATA_CIRCUIT_TIMEOUT", cfg.circuit_recovery_timeout),
+            cfg.circuit_recovery_timeout,
         )
         # max_workers 通过 @property 动态计算，不从环境变量读取
         return cfg

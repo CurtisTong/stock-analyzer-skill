@@ -259,13 +259,15 @@ class PortfolioManager:
         positions = self._data.get("positions", [])
         for i, p in enumerate(positions):
             if p["code"].lower() == code:
-                p["quantity"] -= quantity
+                # 超量减仓 → 全部清仓
+                actual_qty = min(quantity, p["quantity"])
+                p["quantity"] -= actual_qty
                 if p["quantity"] <= 0:
                     self._record_trade_log(
                         code,
                         p.get("name", ""),
                         p.get("cost", 0),
-                        quantity,
+                        actual_qty,
                         reason="reduce_to_zero",
                         sell_price=sell_price,
                     )
@@ -277,7 +279,7 @@ class PortfolioManager:
                         code,
                         p.get("name", ""),
                         p.get("cost", 0),
-                        quantity,
+                        actual_qty,
                         reason="partial_reduce",
                         sell_price=sell_price,
                     )

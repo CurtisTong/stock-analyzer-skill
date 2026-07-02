@@ -5,6 +5,9 @@ MACD 指标（含背离检测）。
 
 from .core import _ema_series, _find_swing_points
 
+# 浮点比较 epsilon，避免 DIF/DEA 极度接近时产生虚假信号
+_EPS = 1e-6
+
 
 def macd_full(closes):
     """MACD 完整分析：DIF/DEA/柱/金叉死叉 + 顶背离/底背离。"""
@@ -28,11 +31,11 @@ def macd_full(closes):
     prev_dea = dea_series[-2] if len(dea_series) >= 2 else dea
     macd_bar = (dif - dea) * 2
 
-    # 金叉死叉检测
+    # 金叉死叉检测（使用 epsilon 避免浮点噪声）
     signal = 0
-    if prev_dif <= prev_dea and dif > dea:
+    if prev_dif < prev_dea - _EPS and dif > dea + _EPS:
         signal = 1
-    elif prev_dif >= prev_dea and dif < dea:
+    elif prev_dif > prev_dea + _EPS and dif < dea - _EPS:
         signal = -1
 
     # 柱状图趋势

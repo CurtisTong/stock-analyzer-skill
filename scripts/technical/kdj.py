@@ -58,12 +58,13 @@ def kdj_full(closes, highs, lows, n=9, board="主板"):
     d_now = d_series[-1]
     j_now = 3 * k_now - 2 * d_now
 
-    # 金叉死叉
+    # 金叉死叉（使用 epsilon 避免浮点噪声）
     kdj_signal = "正常"
+    _EPS = 1e-6
     if len(k_series) >= 2:
-        if k_series[-2] <= d_series[-2] and k_now > d_now:
+        if k_series[-2] < d_series[-2] - _EPS and k_now > d_now + _EPS:
             kdj_signal = "金叉"
-        elif k_series[-2] >= d_series[-2] and k_now < d_now:
+        elif k_series[-2] > d_series[-2] + _EPS and k_now < d_now - _EPS:
             kdj_signal = "死叉"
 
     # 超买超卖区（差异化阈值）

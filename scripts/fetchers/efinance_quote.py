@@ -1,6 +1,7 @@
 """efinance 行情数据源（需要 efinance 包）。"""
 
 import logging
+import threading
 import time
 
 from common import BaseFetcher
@@ -17,6 +18,7 @@ except ImportError:
 # 内存缓存：同一次运行内只拉一次全量行情（避免重复请求）
 _ef_cache = {"df": None, "ts": 0}
 _EF_CACHE_TTL = 60  # 秒
+_ef_cache_lock = threading.Lock()
 
 
 class EfinanceQuoteFetcher(BaseFetcher):
@@ -33,15 +35,16 @@ class EfinanceQuoteFetcher(BaseFetcher):
             plain = code.lstrip("shszSHSZbjBJ")
 
             # 使用内存缓存避免重复拉取全量数据
-            now = time.time()
-            if _ef_cache["df"] is None or now - _ef_cache["ts"] > _EF_CACHE_TTL:
-                df = ef.stock.get_realtime_quotes()
-                if df is None or df.empty:
-                    return None
-                _ef_cache["df"] = df
-                _ef_cache["ts"] = now
-            else:
-                df = _ef_cache["df"]
+            with _ef_cache_lock:
+                now = time.time()
+                if _ef_cache["df"] is None or now - _ef_cache["ts"] > _EF_CACHE_TTL:
+                    df = ef.stock.get_realtime_quotes()
+                    if df is None or df.empty:
+                        return None
+                    _ef_cache["df"] = df
+                    _ef_cache["ts"] = now
+                else:
+                    df = _ef_cache["df"]
 
             row = df[df["股票代码"] == plain]
             if row.empty:
