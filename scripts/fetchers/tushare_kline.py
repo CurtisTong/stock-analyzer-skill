@@ -58,6 +58,7 @@ class TushareKlineFetcher(BaseFetcher):
                         "high": str(row.get("high", 0)),
                         "low": str(row.get("low", 0)),
                         "volume": str(row.get("vol", 0)),
+                        "source": "tushare",
                     }
                 )
             result.reverse()  # tushare 返回倒序

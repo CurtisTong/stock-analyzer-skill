@@ -208,10 +208,10 @@ class StockAnalysisService:
             pb = to_float(quote_dict.get("pb"))
             industry = profile.get("industry", "默认")
             pe_pct = pe_percentile(pe, industry)
-            # PEG 统一：优先用 3 年 CAGR，回退到单期同比增速
-            growth = to_float(fin.get("net_profit_cagr_3y", 0))
-            if growth <= 0:
-                growth = to_float(fin.get("net_profit_yoy", 0))
+            # PEG：用净利同比增速（net_profit_yoy）。
+            # 注：FinanceRecord 暂无 3 年 CAGR 字段（多期绝对值未采集），
+            # 故用单期 yoy 近似；未来补全多期数据后再升级为 3 年 CAGR。
+            growth = to_float(fin.get("net_profit_yoy", 0))
             peg = (pe / growth) if (pe > 0 and growth > 0) else 0
             features["valuation"] = {
                 "pe": pe,

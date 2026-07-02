@@ -130,17 +130,19 @@ def run_one_strategy(
 ) -> dict:
     """跑单个策略在指定股票池上的回测，返回结构化结果。"""
     try:
-        from backtest.engine import simulate_strategy
+        from backtest.metrics import run_backtest
     except ImportError as e:
-        return {"error": f"engine import failed: {e}", "strategy": strategy_name}
+        return {"error": f"metrics import failed: {e}", "strategy": strategy_name}
 
     try:
-        result = simulate_strategy(
+        # P0-11 修复：改调 run_backtest（返回 total_return_pct/sharpe_ratio 等完整指标），
+        # 而非 simulate_strategy（只返回原始收益序列，导致 format_report 读取不到字段而全零）。
+        # run_backtest 内部按 days//rounds 推导 holding_days，此处透传 days。
+        result = run_backtest(
             strategy_name=strategy_name,
             codes=codes,
             top_n=top_n,
-            holding_days=holding_days,
-            total_days=total_days,
+            days=total_days,
         )
         return {
             "strategy": strategy_name,
@@ -158,17 +160,16 @@ def run_one_strategy(
 def run_benchmark(code: str, name: str, total_days: int = 60) -> dict:
     """跑基准指数回测（用 balanced 策略权重在指数上）。"""
     try:
-        from backtest.engine import simulate_strategy
+        from backtest.metrics import run_backtest
     except ImportError as e:
-        return {"error": f"engine import failed: {e}", "benchmark": name}
+        return {"error": f"metrics import failed: {e}", "benchmark": name}
 
     try:
-        result = simulate_strategy(
+        result = run_backtest(
             strategy_name="balanced",
             codes=[code],
             top_n=1,
-            holding_days=total_days,
-            total_days=total_days,
+            days=total_days,
         )
         return {"benchmark": name, "code": code, "result": result}
     except Exception as e:
@@ -188,8 +189,8 @@ def format_report(
     lines.append("")
 
     lines.append("## 1. 策略回测结果\n")
-    lines.append("| 策略 | 股票数 | 总收益 | 年化 | 夏普 | 最大回撤 | 胜率 |")
-    lines.append("|------|--------|--------|------|------|----------|------|")
+    lines.append("| 策略 | 股票数 | 总收益% | 平均收益% | 夏普 | 最大回撤% | 胜率% |")
+    lines.append("|------|--------|---------|-----------|------|-----------|-------|")
     for sr in strategy_results:
         if "error" in sr:
             lines.append(
@@ -197,17 +198,18 @@ def format_report(
             )
             continue
         r = sr["result"]
+        # run_backtest 返回 *_pct 为数值（如 15.0 表示 15%），直接显示，不用 % 格式化
         lines.append(
             f"| {sr['strategy']} | {sr['codes_count']} | "
-            f"{r.get('total_return', 0):.2%} | {r.get('annual_return', 0):.2%} | "
-            f"{r.get('sharpe', 0):.2f} | {r.get('max_drawdown', 0):.2%} | "
-            f"{r.get('win_rate', 0):.1%} |"
+            f"{r.get('total_return_pct', 0):.2f} | {r.get('avg_return_pct', 0):.2f} | "
+            f"{r.get('sharpe_ratio', 0):.2f} | {r.get('max_drawdown_pct', 0):.2f} | "
+            f"{r.get('win_rate_pct', 0):.1f} |"
         )
     lines.append("")
 
     lines.append("## 2. 基准对比\n")
-    lines.append("| 基准 | 代码 | 总收益 | 年化 | 夏普 | 最大回撤 |")
-    lines.append("|------|------|--------|------|------|----------|")
+    lines.append("| 基准 | 代码 | 总收益% | 平均收益% | 夏普 | 最大回撤% |")
+    lines.append("|------|------|---------|-----------|------|-----------|")
     for br in benchmark_results:
         if "error" in br:
             lines.append(
@@ -217,8 +219,8 @@ def format_report(
         r = br["result"]
         lines.append(
             f"| {br['benchmark']} | {br['code']} | "
-            f"{r.get('total_return', 0):.2%} | {r.get('annual_return', 0):.2%} | "
-            f"{r.get('sharpe', 0):.2f} | {r.get('max_drawdown', 0):.2%} |"
+            f"{r.get('total_return_pct', 0):.2f} | {r.get('avg_return_pct', 0):.2f} | "
+            f"{r.get('sharpe_ratio', 0):.2f} | {r.get('max_drawdown_pct', 0):.2f} |"
         )
     lines.append("")
 
@@ -227,11 +229,12 @@ def format_report(
         sr = strategy_results[0]
         br = benchmark_results[0]
         if "error" not in sr and "error" not in br:
-            alpha = sr["result"].get("annual_return", 0) - br["result"].get(
-                "annual_return", 0
+            # 用平均收益差近似 alpha（run_backtest 未返回年化收益）
+            alpha = sr["result"].get("avg_return_pct", 0) - br["result"].get(
+                "avg_return_pct", 0
             )
             lines.append(
-                f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2%}\n"
+                f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2f}%\n"
             )
 
     lines.append("## 4. 重要提示\n")
@@ -288,7 +291,7 @@ def main() -> None:
         else:
             r = result["result"]
             print(
-                f"   ✅ 总收益 {r.get('total_return', 0):.2%}, 胜率 {r.get('win_rate', 0):.1%}"
+                f"   ✅ 总收益 {r.get('total_return_pct', 0):.2f}%, 胜率 {r.get('win_rate_pct', 0):.1f}%"
             )
 
     benchmark_results = []
@@ -300,7 +303,7 @@ def main() -> None:
             print(f"   ❌ {result['error']}")
         else:
             r = result["result"]
-            print(f"   ✅ 总收益 {r.get('total_return', 0):.2%}")
+            print(f"   ✅ 总收益 {r.get('total_return_pct', 0):.2f}%")
 
     report = format_report(strategy_results, benchmark_results, codes)
 

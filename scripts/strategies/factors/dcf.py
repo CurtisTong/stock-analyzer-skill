@@ -83,18 +83,13 @@ def dcf_valuation(
 
     # 2. 推断增长率
     if growth_rate is None:
-        # 优先用 3 年复合增速
-        cagr_3y = to_float(fin.get("net_profit_cagr_3y", 0))
-        if cagr_3y > 0:
-            growth_rate = cagr_3y / 100
+        # 用单期净利同比增速（FinanceRecord 暂无 3 年 CAGR 字段）
+        profit_yoy = to_float(
+            fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0))
+        )
+        if profit_yoy > 0:
+            growth_rate = min(profit_yoy / 100, 0.30)  # 上限 30%
         else:
-            # 用单期增速
-            profit_yoy = to_float(
-                fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0))
-            )
-            if profit_yoy > 0:
-                growth_rate = min(profit_yoy / 100, 0.30)  # 上限 30%
-            else:
                 growth_rate = 0.05  # 默认 5%
 
     # 增长率合理性约束

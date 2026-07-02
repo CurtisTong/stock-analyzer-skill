@@ -214,40 +214,51 @@ class PortfolioManager:
     ) -> dict:
         """添加持仓。如果已存在则加仓（加权平均成本）。"""
         code = code.lower()
-        existing = self._find_position(code)
+        result_holder = {}
 
-        if existing:
-            # 加仓：计算加权平均成本
-            old_qty = existing.get("quantity", 0)
-            old_cost = existing.get("cost", 0)
-            new_qty = old_qty + quantity
-            if new_qty > 0:
-                new_cost = (old_cost * old_qty + cost * quantity) / new_qty
+        def _apply(data: dict) -> dict:
+            positions = data.setdefault("positions", [])
+            existing = None
+            for p in positions:
+                if p["code"].lower() == code:
+                    existing = p
+                    break
+            if existing:
+                # 加仓：计算加权平均成本
+                old_qty = existing.get("quantity", 0)
+                old_cost = existing.get("cost", 0)
+                new_qty = old_qty + quantity
+                if new_qty > 0:
+                    new_cost = (old_cost * old_qty + cost * quantity) / new_qty
+                else:
+                    new_cost = cost
+                existing["cost"] = round(new_cost, 3)
+                existing["quantity"] = new_qty
+                if name and not existing.get("name"):
+                    existing["name"] = name
+                if buy_date:
+                    existing["buy_date"] = buy_date
+                if tags:
+                    existing["tags"] = list(set(existing.get("tags", []) + tags))
+                result_holder["r"] = existing
             else:
-                new_cost = cost
-            existing["cost"] = round(new_cost, 3)
-            existing["quantity"] = new_qty
-            if name and not existing.get("name"):
-                existing["name"] = name
-            if buy_date:
-                existing["buy_date"] = buy_date
-            if tags:
-                existing["tags"] = list(set(existing.get("tags", []) + tags))
-            result = existing
-        else:
-            result = {
-                "code": code,
-                "name": name or "",
-                "cost": round(cost, 3),
-                "quantity": quantity,
-                "buy_date": buy_date or _today(),
-                "tags": tags or [],
-            }
-            self._data.setdefault("positions", []).append(result)
+                new_pos = {
+                    "code": code,
+                    "name": name or "",
+                    "cost": round(cost, 3),
+                    "quantity": quantity,
+                    "buy_date": buy_date or _today(),
+                    "tags": tags or [],
+                }
+                positions.append(new_pos)
+                result_holder["r"] = new_pos
+            return data
 
         if auto_save:
-            self.save()
-        return result
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+        return result_holder["r"]
 
     def reduce_position(
         self, code: str, quantity: int, auto_save: bool = True, sell_price: float = None
@@ -256,56 +267,87 @@ class PortfolioManager:
         if quantity <= 0:
             raise ValueError("quantity must be positive")
         code = code.lower()
-        positions = self._data.get("positions", [])
-        for i, p in enumerate(positions):
-            if p["code"].lower() == code:
-                # 超量减仓 → 全部清仓
-                actual_qty = min(quantity, p["quantity"])
-                p["quantity"] -= actual_qty
-                if p["quantity"] <= 0:
-                    self._record_trade_log(
-                        code,
-                        p.get("name", ""),
-                        p.get("cost", 0),
-                        actual_qty,
-                        reason="reduce_to_zero",
-                        sell_price=sell_price,
-                    )
-                    positions.pop(i)
-                    return None
-                # 部分减仓也记录交易日志
-                if sell_price:
-                    self._record_trade_log(
-                        code,
-                        p.get("name", ""),
-                        p.get("cost", 0),
-                        actual_qty,
-                        reason="partial_reduce",
-                        sell_price=sell_price,
-                    )
-                if auto_save:
-                    self.save()
-                return p
-        return None
+        result_holder = {"r": None, "cleared": False, "pos": None}
+
+        def _apply(data: dict) -> dict:
+            positions = data.get("positions", [])
+            for i, p in enumerate(positions):
+                if p["code"].lower() == code:
+                    # 超量减仓 → 全部清仓
+                    actual_qty = min(quantity, p["quantity"])
+                    p["quantity"] -= actual_qty
+                    if p["quantity"] <= 0:
+                        result_holder["cleared"] = True
+                        result_holder["pos"] = p
+                        result_holder["actual_qty"] = actual_qty
+                        positions.pop(i)
+                        return data
+                    # 部分减仓
+                    result_holder["r"] = p
+                    result_holder["pos"] = p
+                    result_holder["actual_qty"] = actual_qty
+                    return data
+            return data
+
+        if auto_save:
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+
+        # 交易日志在锁外记录（独立文件，失败不阻塞持仓操作）
+        pos = result_holder.get("pos")
+        actual_qty = result_holder.get("actual_qty", 0)
+        if pos is not None:
+            if result_holder.get("cleared"):
+                self._record_trade_log(
+                    code,
+                    pos.get("name", ""),
+                    pos.get("cost", 0),
+                    actual_qty,
+                    reason="reduce_to_zero",
+                    sell_price=sell_price,
+                )
+            elif sell_price:
+                self._record_trade_log(
+                    code,
+                    pos.get("name", ""),
+                    pos.get("cost", 0),
+                    actual_qty,
+                    reason="partial_reduce",
+                    sell_price=sell_price,
+                )
+        return result_holder["r"]
 
     def remove_position(self, code: str, auto_save: bool = True) -> bool:
         """清仓（移除持仓）并记录交易日志。"""
         code = code.lower()
-        positions = self._data.get("positions", [])
-        for i, p in enumerate(positions):
-            if p["code"].lower() == code:
-                self._record_trade_log(
-                    code,
-                    p.get("name", ""),
-                    p.get("cost", 0),
-                    p.get("quantity", 0),
-                    reason="manual",
-                )
-                positions.pop(i)
-                if auto_save:
-                    self.save()
-                return True
-        return False
+        holder = {"found": False, "pos": None}
+
+        def _apply(data: dict) -> dict:
+            positions = data.get("positions", [])
+            for i, p in enumerate(positions):
+                if p["code"].lower() == code:
+                    holder["found"] = True
+                    holder["pos"] = p
+                    positions.pop(i)
+                    return data
+            return data
+
+        if auto_save:
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+
+        if holder["found"] and holder["pos"] is not None:
+            p = holder["pos"]
+            self._record_trade_log(
+                code,
+                p.get("name", ""),
+                p.get("cost", 0),
+                p.get("quantity", 0),
+                reason="manual",
+            )
+        return holder["found"]
 
     def _record_trade_log(
         self,
@@ -337,45 +379,69 @@ class PortfolioManager:
     ) -> Optional[dict]:
         """更新持仓字段（cost, quantity, name, buy_date, tags）。"""
         code = code.lower()
-        p = self._find_position(code)
-        if not p:
-            return None
-        for key in ("cost", "quantity", "name", "buy_date", "tags"):
-            if key in kwargs:
-                p[key] = kwargs[key]
+        holder = {"r": None}
+
+        def _apply(data: dict) -> dict:
+            for p in data.get("positions", []):
+                if p["code"].lower() == code:
+                    for key in ("cost", "quantity", "name", "buy_date", "tags"):
+                        if key in kwargs:
+                            p[key] = kwargs[key]
+                    holder["r"] = p
+                    break
+            return data
+
         if auto_save:
-            self.save()
-        return p
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+        return holder["r"]
 
     def tag_position(
         self, code: str, *tags: str, auto_save: bool = True
     ) -> Optional[dict]:
         """给持仓添加标签。"""
         code = code.lower()
-        p = self._find_position(code)
-        if not p:
-            return None
-        existing = set(p.get("tags", []))
-        existing.update(tags)
-        p["tags"] = sorted(existing)
+        holder = {"r": None}
+
+        def _apply(data: dict) -> dict:
+            for p in data.get("positions", []):
+                if p["code"].lower() == code:
+                    existing = set(p.get("tags", []))
+                    existing.update(tags)
+                    p["tags"] = sorted(existing)
+                    holder["r"] = p
+                    break
+            return data
+
         if auto_save:
-            self.save()
-        return p
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+        return holder["r"]
 
     def untag_position(
         self, code: str, *tags: str, auto_save: bool = True
     ) -> Optional[dict]:
         """移除持仓标签。"""
         code = code.lower()
-        p = self._find_position(code)
-        if not p:
-            return None
-        existing = set(p.get("tags", []))
-        existing -= set(tags)
-        p["tags"] = sorted(existing)
+        holder = {"r": None}
+
+        def _apply(data: dict) -> dict:
+            for p in data.get("positions", []):
+                if p["code"].lower() == code:
+                    existing = set(p.get("tags", []))
+                    existing -= set(tags)
+                    p["tags"] = sorted(existing)
+                    holder["r"] = p
+                    break
+            return data
+
         if auto_save:
-            self.save()
-        return p
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+        return holder["r"]
 
     # ---------- 自选操作 ----------
 
@@ -389,40 +455,60 @@ class PortfolioManager:
     ) -> dict:
         """添加自选股。"""
         code = code.lower()
-        existing = self._find_watch(code)
-        if existing:
-            if name:
-                existing["name"] = name
-            if target_buy:
-                existing["target_buy"] = target_buy
-            if target_sell:
-                existing["target_sell"] = target_sell
-            result = existing
-        else:
-            result = {
-                "code": code,
-                "name": name or "",
-                "target_buy": target_buy,
-                "target_sell": target_sell,
-                "added_date": _today(),
-            }
-            self._data.setdefault("watchlist", []).append(result)
+        holder = {}
+
+        def _apply(data: dict) -> dict:
+            watchlist = data.setdefault("watchlist", [])
+            existing = None
+            for w in watchlist:
+                if w["code"].lower() == code:
+                    existing = w
+                    break
+            if existing:
+                if name:
+                    existing["name"] = name
+                if target_buy:
+                    existing["target_buy"] = target_buy
+                if target_sell:
+                    existing["target_sell"] = target_sell
+                holder["r"] = existing
+            else:
+                new_watch = {
+                    "code": code,
+                    "name": name or "",
+                    "target_buy": target_buy,
+                    "target_sell": target_sell,
+                    "added_date": _today(),
+                }
+                watchlist.append(new_watch)
+                holder["r"] = new_watch
+            return data
 
         if auto_save:
-            self.save()
-        return result
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+        return holder["r"]
 
     def remove_watch(self, code: str, auto_save: bool = True) -> bool:
         """移除自选股。"""
         code = code.lower()
-        watchlist = self._data.get("watchlist", [])
-        for i, w in enumerate(watchlist):
-            if w["code"].lower() == code:
-                watchlist.pop(i)
-                if auto_save:
-                    self.save()
-                return True
-        return False
+        holder = {"found": False}
+
+        def _apply(data: dict) -> dict:
+            watchlist = data.get("watchlist", [])
+            for i, w in enumerate(watchlist):
+                if w["code"].lower() == code:
+                    watchlist.pop(i)
+                    holder["found"] = True
+                    return data
+            return data
+
+        if auto_save:
+            self.atomic_update(_apply)
+        else:
+            _apply(self._data)
+        return holder["found"]
 
     # ---------- 导入导出 ----------
 

@@ -128,17 +128,37 @@ def run_backtest(
     total_trades = top_n * total_periods
 
     # 信息比率
+    # P0-12 修复：原实现用 all_daily_returns（多期拼接、不连续）与 benchmark_returns
+    # （连续 N 天）按 min_len 前对齐，时间区间错开数周到数月，数值无意义。
+    # 改为基于"每期收益 vs 基准同期持有期收益"的超额收益，不依赖日序列时间对齐。
     information_ratio = 0
-    if benchmark_returns and len(benchmark_returns) > 1 and len(all_daily_returns) > 1:
+    if benchmark_returns and len(benchmark_returns) > 1 and len(all_returns) > 1:
         import statistics
 
-        min_len = min(len(all_daily_returns), len(benchmark_returns))
-        excess_returns_daily = [
-            all_daily_returns[i] - benchmark_returns[i] for i in range(min_len)
-        ]
-        mean_excess = sum(excess_returns_daily) / len(excess_returns_daily)
-        te = statistics.stdev(excess_returns_daily)
-        information_ratio = round(mean_excess / te * (252**0.5), 2) if te > 0 else 0
+        # 基准按 holding_days 切分为各期持有期收益（连乘）
+        n_bench_periods = len(benchmark_returns) // max(1, holding_days)
+        bench_period_returns = []
+        for k in range(n_bench_periods):
+            seg = benchmark_returns[k * holding_days : (k + 1) * holding_days]
+            cum = 1.0
+            for dr in seg:
+                cum *= 1 + dr
+            bench_period_returns.append((cum - 1) * 100)  # 转百分比
+
+        # 与策略各期收益对齐（取 min 期数），每期都是 holding_days 的持有期收益
+        n_periods = min(len(all_returns), len(bench_period_returns))
+        if n_periods > 1:
+            excess = [
+                all_returns[i] - bench_period_returns[i] for i in range(n_periods)
+            ]
+            mean_excess = sum(excess) / len(excess)
+            te = statistics.stdev(excess)
+            periods_per_year = 252 / holding_days if holding_days > 0 else 0
+            information_ratio = (
+                round(mean_excess / te * (periods_per_year**0.5), 2)
+                if te > 0
+                else 0
+            )
 
     # 换手率估算
     annual_turnover = (252 / holding_days) * top_n if holding_days > 0 else 0

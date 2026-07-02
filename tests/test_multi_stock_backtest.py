@@ -75,11 +75,11 @@ class TestFormatReport:
                 "strategy": "balanced",
                 "codes_count": 50,
                 "result": {
-                    "total_return": 0.05,
-                    "annual_return": 0.30,
-                    "sharpe": 1.2,
-                    "max_drawdown": -0.10,
-                    "win_rate": 0.55,
+                    "total_return_pct": 5.0,
+                    "avg_return_pct": 30.0,
+                    "sharpe_ratio": 1.2,
+                    "max_drawdown_pct": 10.0,
+                    "win_rate_pct": 55.0,
                 },
             }
         ]
@@ -88,10 +88,10 @@ class TestFormatReport:
                 "benchmark": "沪深300",
                 "code": "sh000300",
                 "result": {
-                    "total_return": 0.03,
-                    "annual_return": 0.18,
-                    "sharpe": 0.9,
-                    "max_drawdown": -0.12,
+                    "total_return_pct": 3.0,
+                    "avg_return_pct": 18.0,
+                    "sharpe_ratio": 0.9,
+                    "max_drawdown_pct": 12.0,
                 },
             }
         ]
@@ -102,8 +102,8 @@ class TestFormatReport:
         assert "## 4. 重要提示" in out
         assert "balanced" in out
         assert "沪深300" in out
-        assert "30.00%" in out  # annual_return 30%
-        assert "+12.00%" in out  # alpha = 30% - 18%
+        assert "30.00" in out  # avg_return_pct 30%
+        assert "+12.00%" in out  # alpha = 30 - 18
 
     def test_report_handles_errors(self):
         """engine import 失败时报告仍可生成（标 ⚠️）。"""

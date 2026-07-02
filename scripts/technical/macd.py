@@ -68,9 +68,10 @@ def _detect_macd_divergence(closes, dif_series, dea_series):
     if len(dif_series) < 60:
         return None
 
-    # dif_series 比 closes 短 25 个元素（EMA26 warmup），需对齐到相同时间段
+    # dif_series[i] 对应 closes[i + offset]（offset = EMA26 warmup = 25），
+    # 即 dif_series 末尾对齐 closes 末尾，故 c 与 d 取相同末尾窗口一一对应
     lookback = min(60, len(dif_series))
-    c = closes[-lookback - (len(closes) - len(dif_series)) :][:lookback]
+    c = closes[-lookback:]
     d = dif_series[-lookback:]
 
     price_highs, price_lows = _find_swing_points(c, window=5)

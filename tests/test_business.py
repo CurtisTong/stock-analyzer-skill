@@ -36,13 +36,14 @@ class TestThresholdHelpers:
     """模块级阈值读取函数。"""
 
     def test_board_limit_known_boards(self):
-        assert _board_limit("主板") == 9.5
-        assert _board_limit("创业板") == 19.5
-        assert _board_limit("科创板") == 19.5
-        assert _board_limit("北交所") == 29.5
+        # P0-7: 涨跌停硬过滤改用精确阈值（非预警宽松阈值）
+        assert _board_limit("主板") == 10.0
+        assert _board_limit("创业板") == 20.0
+        assert _board_limit("科创板") == 20.0
+        assert _board_limit("北交所") == 30.0
 
     def test_board_limit_unknown_board(self):
-        assert _board_limit("unknown") == 9.5
+        assert _board_limit("unknown") == 10.0
 
     def test_min_survival_cap_known_boards(self):
         assert _min_survival_cap("主板") == 5

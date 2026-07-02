@@ -192,11 +192,19 @@ class NotificationManager:
         return [ch.name for ch in self._channels]
 
     def _check_throttle(self, key: str, urgent: bool = False) -> bool:
-        """检查是否被频率限制。返回 True 表示允许发送。
+        """检查是否被频率限制，并在允许时**原子地占位**（写入去重时间戳+递增计数）。
+
+        检查与占位合并为单一临界区操作，避免并发 send 同一 key 时
+        双双通过检查导致重复推送（P0-10 C1 竞态修复）。
+        占位独立于发送结果：即使后续推送失败，去重窗口内也不会重试，
+        避免"失败不计数→无效重试循环"（P0-10 C2）。
 
         Args:
             key: 去重键
             urgent: 紧急消息不受每日上限限制（但仍受去重窗口限制）
+
+        Returns:
+            True 表示本次占位成功、允许发送；False 表示被去重或达上限。
         """
         throttle_cfg = self._config.get("throttle", {})
         dedup_window = throttle_cfg.get("dedup_window", 15) * 60  # 分钟转秒
@@ -218,6 +226,10 @@ class NotificationManager:
             last = self._throttle_log.get(key, 0)
             if now - last < dedup_window:
                 return False
+
+            # 原子占位：立即写入时间戳并递增计数，确保并发请求被去重
+            self._throttle_log[key] = now
+            self._daily_count += 1
 
         return True
 
@@ -296,7 +308,8 @@ class NotificationManager:
         if self._is_quiet_hours():
             return {"sent": 0, "failed": 0, "results": {}, "reason": "quiet_hours"}
 
-        # 频率控制
+        # 频率控制（_check_throttle 已原子占位：写去重时间戳+递增计数，
+        # 无论后续发送成功或失败，去重窗口内都不会重试）
         if not self._check_throttle(key, urgent=urgent):
             return {"sent": 0, "failed": 0, "results": {}, "reason": "throttled"}
 
@@ -316,11 +329,6 @@ class NotificationManager:
                 sent += 1
             else:
                 failed += 1
-
-        if sent > 0:
-            with self._lock:
-                self._throttle_log[key] = time.time()
-                self._daily_count += 1
 
         return {"sent": sent, "failed": failed, "results": results}
 

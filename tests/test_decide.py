@@ -474,7 +474,20 @@ class TestAggregateGroupVotes:
         assert agg["direction"] == "看空"
         assert agg["position_factor"] == 0.0
 
-    def test_all_below_30_strong_bear(self):
+    def test_short_2_bear_1_bull_bearish(self):
+        """P0-8 回归：短线 3 人组 2看空+1看多应判"看空"而非"中性"。
+
+        修复前：均势分歧分支（abs(bull-bear)<=1）先于看空多数分支命中，
+        导致 2/3 看空被误判为中性，与 decide.md §七"≥2/3看空→看空"冲突。
+        """
+        experts = [
+            _make_expert("e1", 70),  # 看多
+            _make_expert("e2", 25),  # 看空
+            _make_expert("e3", 28),  # 看空
+        ]
+        agg = aggregate_group_votes(experts, group="short_term")
+        assert agg["direction"] == "看空"
+        assert agg["position_factor"] == 0.0
         """全 ≤30：看空/强烈看空，factor=0.0。"""
         experts = [_make_expert(f"e{i}", 25) for i in range(4)]
         agg = aggregate_group_votes(experts, group="short_term")

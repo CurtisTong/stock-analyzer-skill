@@ -52,8 +52,11 @@ class TestDcfValuation:
         assert result["margin_of_safety"] < 0
 
     def test_growth_rate_auto_infer(self):
-        """自动推断增长率（优先用 3 年复合增速）。"""
-        fin = {"eps": 5.0, "net_profit_cagr_3y": 20.0}
+        """自动推断增长率（用单期净利同比增速）。
+
+        P0-6: FinanceRecord 暂无 net_profit_cagr_3y 字段，直接用 net_profit_yoy。
+        """
+        fin = {"eps": 5.0, "net_profit_yoy": 20.0}
         result = dcf_valuation(100, fin)
         assert result["growth_rate"] == 20.0
 
@@ -71,7 +74,7 @@ class TestDcfValuation:
 
     def test_growth_rate_capped_at_30(self):
         """增长率上限 30%。"""
-        fin = {"eps": 5.0, "net_profit_cagr_3y": 50.0}
+        fin = {"eps": 5.0, "net_profit_yoy": 50.0}
         result = dcf_valuation(100, fin)
         assert result["growth_rate"] == 30.0
 

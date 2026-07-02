@@ -70,6 +70,7 @@ class YfinanceKlineFetcher(BaseFetcher):
                         "high": str(round(row.get("High", 0), 2)),
                         "low": str(round(row.get("Low", 0), 2)),
                         "volume": str(int(row.get("Volume", 0))),
+                        "source": "yfinance",
                     }
                 )
             return result if result else None

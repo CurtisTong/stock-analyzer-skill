@@ -423,13 +423,13 @@ class TestHardFilter:
 
     def test_limit_up_filtered(self, sample_finance):
         args = _make_args()
-        # 主板涨跌停 >= 9.5%
+        # P0-7: 主板涨跌停精确阈值 >= 10.0%（9.8% 仍可交易，不被过滤）
         quote = {
             "name": "测试",
             "code": "sh600001",
             "amount": "1000000000",
             "total_cap": "100",
-            "change_pct": "9.8",
+            "change_pct": "10.0",
         }
         reasons = hard_filter(quote, sample_finance, args)
         assert any("涨跌停" in r for r in reasons)

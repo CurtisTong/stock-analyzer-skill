@@ -7,7 +7,12 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from common import to_float, normalize_quote_code, board_type
+from common import (
+    to_float,
+    normalize_quote_code,
+    board_type,
+    board_exact_limit_pct,
+)
 from common.exceptions import ValidationError
 from common.validators import validate_code
 from data import get_quotes, get_kline, get_finance
@@ -33,16 +38,12 @@ def _limit(key: str, default):
 
 
 def _board_limit(board: str) -> float:
-    """获取板块涨跌停限制（%）。"""
-    return _limit(
-        f"board_limits.{board}",
-        {
-            "主板": 9.5,
-            "创业板": 19.5,
-            "科创板": 19.5,
-            "北交所": 29.5,
-        }.get(board, 9.5),
-    )
+    """获取板块精确涨跌停限制（%）。
+
+    涨跌停硬过滤必须用精确阈值（主板 10.0、创业板/科创板 20.0、北交所 30.0），
+    而非预警宽松阈值（低 0.5%），否则会误排除 9.5%-9.99% 仍可交易的股票。
+    """
+    return board_exact_limit_pct(board)
 
 
 def _min_survival_cap(board: str) -> float:

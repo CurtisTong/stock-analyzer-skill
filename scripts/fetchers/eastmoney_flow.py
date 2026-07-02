@@ -35,29 +35,36 @@ class NorthboundFlowFetcher(BaseFetcher):
         # 深股通
         sz_data = data.get("data", {}).get("n2s", [])
 
-        # 解析沪股通数据
+        # 按 date 合并沪/深股通，避免按索引对齐导致的天数不一致/错位
+        # （某日可能只有沪股通开通，或两接口返回天数不同）
+        merged = {}  # {date: {sh_buy, sh_sell, sh_net, sz_buy, sz_sell, sz_net, total_net}}
+
+        # 解析沪股通
         for line in sh_data:
             parts = line.split(",")
             if len(parts) >= 4:
-                result["days"].append(
-                    {
-                        "date": parts[0],
-                        "sh_buy": to_float(parts[1]),  # 沪股通买入（万元）
-                        "sh_sell": to_float(parts[2]),  # 沪股通卖出
-                        "sh_net": to_float(parts[3]),  # 沪股通净买入
-                    }
-                )
+                d = merged.setdefault(parts[0], {})
+                d["sh_buy"] = to_float(parts[1])  # 沪股通买入（万元）
+                d["sh_sell"] = to_float(parts[2])  # 沪股通卖出
+                d["sh_net"] = to_float(parts[3])  # 沪股通净买入
 
-        # 合并深股通
-        for i, line in enumerate(sz_data):
+        # 解析深股通并合并到同一日期
+        for line in sz_data:
             parts = line.split(",")
-            if len(parts) >= 4 and i < len(result["days"]):
-                result["days"][i]["sz_buy"] = to_float(parts[1])
-                result["days"][i]["sz_sell"] = to_float(parts[2])
-                result["days"][i]["sz_net"] = to_float(parts[3])
-                result["days"][i]["total_net"] = result["days"][i].get(
-                    "sh_net", 0
-                ) + to_float(parts[3])
+            if len(parts) >= 4:
+                d = merged.setdefault(parts[0], {})
+                d["sz_buy"] = to_float(parts[1])  # 深股通买入
+                d["sz_sell"] = to_float(parts[2])  # 深股通卖出
+                d["sz_net"] = to_float(parts[3])  # 深股通净买入
+
+        # 计算每个日期的 total_net，并按日期升序输出
+        for date in sorted(merged.keys()):
+            d = merged[date]
+            sh_net = d.get("sh_net", 0)
+            sz_net = d.get("sz_net", 0)
+            d["total_net"] = sh_net + sz_net
+            d["date"] = date
+            result["days"].append(d)
 
         return result
 

@@ -551,12 +551,23 @@ def aggregate_group_votes(
         # 多数看多 + 存在否决票
         direction = "看多"
         position_factor = 0.7
-    elif votes["bull"] >= 1 and votes["bear"] >= 1 and abs(votes["bull"] - votes["bear"]) <= 1:
-        # 接近均势分歧（如 2:1 或 3:3）
-        direction = "中性"
-        position_factor = 0.0
-    elif votes["bear"] >= majority:
+    elif votes["bear"] >= majority and votes["bull"] == 0:
+        # 多数看空且无看多票
         direction = "看空"
+        position_factor = 0.0
+    elif votes["bear"] >= majority and any(s >= 70 for s in scores):
+        # 多数看空 + 存在强烈看多票（否决票）
+        direction = "看空"
+        position_factor = 0.0
+    elif (
+        votes["bull"] < majority
+        and votes["bear"] < majority
+        and votes["bull"] >= 1
+        and votes["bear"] >= 1
+        and abs(votes["bull"] - votes["bear"]) <= 1
+    ):
+        # 接近均势分歧（如 2:1 或 3:3），且任一方均未达多数
+        direction = "中性"
         position_factor = 0.0
     elif all(s <= 30 for s in scores):
         direction = "强烈看空"

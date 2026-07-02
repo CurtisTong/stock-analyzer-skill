@@ -63,6 +63,7 @@ class PytdxKlineFetcher(BaseFetcher):
                         "high": str(d.get("high", 0)),
                         "low": str(d.get("low", 0)),
                         "volume": str(d.get("vol", 0)),
+                        "source": "pytdx",
                     }
                 )
             return result if result else None

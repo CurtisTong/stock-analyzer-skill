@@ -61,6 +61,9 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     """获取单只股票行情。"""
     _load_fetchers()
     get_config()
+    from common import normalize_quote_code
+
+    code = normalize_quote_code(code)  # 归一化缓存键，避免 SH/sh/无前缀产生多份缓存
     key = f"quote_{code}"
 
     if use_cache:
@@ -103,6 +106,9 @@ def get_kline(
     """
     _load_fetchers()
     cfg = get_config()
+    from common import normalize_quote_code
+
+    code = normalize_quote_code(code)  # 归一化缓存键
 
     # 根据周期选择合适的 TTL
     if scale == 1:
@@ -135,7 +141,11 @@ def get_finance(code: str, use_cache: bool = True) -> list:
     """获取财务数据。"""
     _load_fetchers()
     cfg = get_config()
+    from common import normalize_finance_code
+
+    code = normalize_finance_code(code)  # 归一化缓存键（东财大写前缀）
     key = f"finance_{code}"
+    zero_key = f"{key}_zero"
 
     if use_cache:
         cached = cache.get_json(key, cfg.finance_cache_ttl)
@@ -146,13 +156,15 @@ def get_finance(code: str, use_cache: bool = True) -> list:
                 return records
             # 零值缓存：可能是新股无数据或字段映射失败
             # 使用短 TTL 缓存避免重复网络请求
-            zero_key = f"{key}_zero"
             zero_cached = cache.get_json(zero_key, 300)  # 5 分钟短缓存
             if zero_cached:
                 return [_dict_to_finance(r) for r in zero_cached]
 
     result = _finance_manager.fetch(code)
     if not result:
+        # P0-4: fetch 返回空也写 zero_key，避免对无数据股票的缓存穿透
+        if use_cache:
+            cache.set_json(zero_key, [])
         return []
 
     records = [_dict_to_finance(r) for r in result]
@@ -161,7 +173,6 @@ def get_finance(code: str, use_cache: bool = True) -> list:
     # 使用短 TTL 缓存避免重复网络请求
     if records and all(r.eps == 0 and r.roe == 0 for r in records):
         if use_cache:
-            zero_key = f"{key}_zero"
             cache.set_json(zero_key, [r.to_dict() for r in records])
         return records
 

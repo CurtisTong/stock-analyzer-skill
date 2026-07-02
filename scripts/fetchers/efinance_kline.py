@@ -43,6 +43,7 @@ class EfinanceKlineFetcher(BaseFetcher):
                         "high": str(row.get("最高", 0)),
                         "low": str(row.get("最低", 0)),
                         "volume": str(row.get("成交量", 0)),
+                        "source": "efinance",
                     }
                 )
             return result if result else None

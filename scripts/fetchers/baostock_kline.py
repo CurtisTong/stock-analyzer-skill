@@ -95,6 +95,7 @@ class BaostockKlineFetcher(BaseFetcher):
                             "low": row[3],
                             "close": row[4],
                             "volume": row[5],
+                            "source": "baostock",
                         }
                     )
             return result if result else None
