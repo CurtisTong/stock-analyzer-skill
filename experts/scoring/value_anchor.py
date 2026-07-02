@@ -16,10 +16,18 @@ def score(stock_data: dict) -> Dict[str, float]:
     from . import buffett, duan_yongping
     from ._merge import weighted_merge
 
-    return weighted_merge(
+    result = weighted_merge(
         [buffett.score(stock_data), duan_yongping.score(stock_data)],
         weights=[0.55, 0.45],
     )
+    # P1-17: score() 也输出 buffett_sub_score，使 score_expert_precise（SKILL.md 推荐
+    # 量化基线路径，调用 score() 而非 score_with_reasoning）能正确判断巴菲特否决权，
+    # 避免 v2.1.2 否决权隔离在推荐路径下静默失效。
+    buffett_dims = buffett.score(stock_data)
+    buffett_weights = {"基本面": 0.42, "估值": 0.28, "技术面": 0.05, "情绪": 0.05, "安全边际": 0.20}
+    buffett_total = sum(buffett_dims.get(dim, 0) * w for dim, w in buffett_weights.items())
+    result["buffett_sub_score"] = round(buffett_total, 1)
+    return result
 
 
 def score_with_reasoning(stock_data: dict) -> Dict[str, object]:

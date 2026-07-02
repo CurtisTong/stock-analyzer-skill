@@ -577,14 +577,16 @@ async function loadTrades() {
     // 渲染统计
     const statsEl = $("#trades-stats");
     if (history.length > 0) {
-      const winRate = stats.win_rate != null ? (stats.win_rate * 100).toFixed(1) + "%" : "—";
-      const totalPnl = stats.total_pnl != null ? fmtMoney(stats.total_pnl) : "—";
-      const avgHold = stats.avg_hold_days != null ? stats.avg_hold_days.toFixed(1) + " 天" : "—";
+      // P1-20: 字段对齐 Python trade_log.stats() 返回值
+      // win_rate 已是百分比（如 60.0），total_profit 为绝对盈亏数值
+      const winRate = stats.win_rate != null ? stats.win_rate.toFixed(1) + "%" : "—";
+      const totalPnl = stats.total_profit != null ? fmtMoney(stats.total_profit) : "—";
+      const avgProfit = stats.avg_profit != null ? fmtMoney(stats.avg_profit) : "—";
       statsEl.innerHTML = ''
         + '<div class="stat-item"><div class="stat-label">总交易</div><div class="stat-value">' + history.length + '</div></div>'
-        + '<div class="stat-item"><div class="stat-label">胜率</div><div class="stat-value ' + (stats.win_rate > 0.5 ? 'positive' : stats.win_rate < 0.5 ? 'negative' : '') + '">' + winRate + '</div></div>'
-        + '<div class="stat-item"><div class="stat-label">总盈亏</div><div class="stat-value ' + profitClass(stats.total_pnl) + '">' + totalPnl + '</div></div>'
-        + '<div class="stat-item"><div class="stat-label">平均持仓</div><div class="stat-value">' + avgHold + '</div></div>';
+        + '<div class="stat-item"><div class="stat-label">胜率</div><div class="stat-value ' + (stats.win_rate > 50 ? 'positive' : stats.win_rate < 50 ? 'negative' : '') + '">' + winRate + '</div></div>'
+        + '<div class="stat-item"><div class="stat-label">总盈亏</div><div class="stat-value ' + profitClass(stats.total_profit) + '">' + totalPnl + '</div></div>'
+        + '<div class="stat-item"><div class="stat-label">平均盈亏</div><div class="stat-value ' + profitClass(stats.avg_profit) + '">' + avgProfit + '</div></div>';
       statsEl.style.display = "";
     } else {
       statsEl.style.display = "none";

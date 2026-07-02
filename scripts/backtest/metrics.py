@@ -66,7 +66,10 @@ def run_backtest(
     win_rate = sum(1 for r in all_returns if r > 0) / len(all_returns) * 100
 
     # 夏普比率（年化，假设无风险利率 3%，一年 252 个交易日）
+    # P1-28: 统一用 all_daily_returns 计算；不足时报样本不足而非退化到非独立期收益
+    # （原 elif 路径用小样本 stdev + periods_per_year**0.5 年化，非独立样本下数学不成立）。
     annual_risk_free = 0.03
+    sharpe = 0
     if len(all_daily_returns) > 1:
         import statistics
 
@@ -75,17 +78,7 @@ def run_backtest(
         mean_excess = sum(daily_excess) / len(daily_excess)
         std = statistics.stdev(daily_excess)
         sharpe = mean_excess / std * (252**0.5) if std > 0 else 0
-    elif len(all_returns) > 1:
-        import statistics
-
-        risk_free_per_round = annual_risk_free * holding_days / 252
-        excess_returns = [r / 100 - risk_free_per_round for r in all_returns]
-        mean_excess = sum(excess_returns) / len(excess_returns)
-        std = statistics.stdev(excess_returns)
-        periods_per_year = 252 / holding_days
-        sharpe = mean_excess / std * (periods_per_year**0.5) if std > 0 else 0
-    else:
-        sharpe = 0
+    # all_daily_returns 不足时 sharpe 保持 0（样本不足，不退化到非独立期收益路径）
 
     # 最大回撤
     max_drawdown = 0

@@ -17,7 +17,7 @@ import urllib.request
 import urllib.parse
 from typing import Optional, Tuple
 
-from .base import NotificationChannel
+from .base import NotificationChannel, send_with_retry
 
 
 class DingtalkChannel(NotificationChannel):
@@ -96,18 +96,18 @@ class DingtalkChannel(NotificationChannel):
             method="POST",
         )
 
-        try:
+        def _do_request():
             with urllib.request.urlopen(req, timeout=10) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 if result.get("errcode") == 0:
                     return True, ""
+                # API 业务错误不重试
                 return (
                     False,
                     f"dingtalk api returned errcode={result.get('errcode')}, errmsg={result.get('errmsg')}",
                 )
-        except urllib.error.URLError as e:
-            return False, f"network error: {e.reason}"
+
+        try:
+            return send_with_retry(_do_request)
         except json.JSONDecodeError as e:
             return False, f"invalid response: {e}"
-        except OSError as e:
-            return False, f"os error: {e}"

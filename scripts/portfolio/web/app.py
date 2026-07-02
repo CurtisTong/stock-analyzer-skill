@@ -575,10 +575,23 @@ def main():
     bound_host, bound_port = server.server_address
     token = _ensure_token()
     mode_label = "虚拟持仓（模拟盘）" if args.virtual else "实盘持仓"
-    print(
-        f"Portfolio Web 启动: http://{bound_host}:{bound_port}/?token={token}",
-        flush=True,
-    )
+    is_public = args.host == "0.0.0.0"
+    # P1-22: 公网绑定时不在 stdout 打印完整 token（HTTP 明文可被同网段嗅探），
+    # 仅提示访问方式与 token 文件位置；本机绑定可带 token 便于直接打开。
+    if is_public:
+        print(
+            f"Portfolio Web 启动（公网模式）: http://{bound_host}:{bound_port}/",
+            flush=True,
+        )
+        print(
+            "  ⚠️ 公网绑定: 请经反代 TLS 暴露，否则 token 明文传输有被嗅探风险",
+            flush=True,
+        )
+    else:
+        print(
+            f"Portfolio Web 启动: http://{bound_host}:{bound_port}/?token={token}",
+            flush=True,
+        )
     print(f"  模式: {mode_label}", flush=True)
     # token 不再 stdout 明文打印，避免进入容器/系统日志；完整 token 写入 ~/.config/stock-analyzer/portfolio_web.token (chmod 0o600)
     token_file = Path(__file__).parent / "utils.py"  # utils.py 内定义 _TOKEN_FILE 路径

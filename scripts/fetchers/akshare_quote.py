@@ -66,6 +66,7 @@ class AkshareQuoteFetcher(BaseFetcher):
                 "pb": str(r.get("市净率", 0)),
                 "total_cap": str(r.get("总市值", 0)),
                 "circulating_cap": str(r.get("流通市值", 0)),
+                "source": "akshare",
             }
         except Exception as e:
             logger.debug("akshare_quote 获取失败 %s: %s", code, e)

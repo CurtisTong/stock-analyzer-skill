@@ -201,18 +201,26 @@ def compute_all_factors(fin, quote, features, industry, code) -> dict:
     return result
 
 
-def compute_phase_factors(phase, fin, quote, features, industry, code) -> dict:
+def compute_phase_factors(
+    phase, fin, quote, features, industry, code, exclude=None
+) -> dict:
     """自动调用指定阶段的因子，返回 {name: score} dict。
 
     替代原 compute_phase1_parts() / compute_phase2_parts() 中的硬编码映射。
+
+    Args:
+        exclude: 需跳过的因子名集合（如 Phase 2 跳过 chip 避免无意义的网络请求）。
     """
     result = {}
     degraded = []
     target = Phase(phase) if isinstance(phase, int) else phase
+    skip = set(exclude) if exclude else set()
     with _FACTORS_LOCK:
         factors_snapshot = list(_FACTORS.items())
     for name, desc in factors_snapshot:
         if desc.phase != target:
+            continue
+        if name in skip:
             continue
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:

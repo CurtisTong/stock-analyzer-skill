@@ -280,17 +280,20 @@ def generate_backtest_report(
     # 总结
     report.append("=" * 70)
     report.append("📝 总结:")
+    # P1-15: 强制过拟合警示，避免 71.4% 胜率被误读为实盘可用
+    report.append("  ⚠️ 本结果基于样本内回测，未经外样本验证，不构成实盘依据")
+    report.append("  ⚠️ 历史业绩不代表未来收益")
     if stats["win_rate"] >= 60:
-        report.append("  ✅ 策略表现良好，胜率超过 60%")
+        report.append("  ✅ 策略表现良好，胜率超过 60%（样本内）")
     elif stats["win_rate"] >= 50:
-        report.append("  ⚠️ 策略表现一般，胜率在 50-60% 之间")
+        report.append("  ⚠️ 策略表现一般，胜率在 50-60% 之间（样本内）")
     else:
-        report.append("  ❌ 策略表现较差，胜率低于 50%")
+        report.append("  ❌ 策略表现较差，胜率低于 50%（样本内）")
 
     if stats["avg_return"] > 0:
-        report.append(f"  ✅ 平均收益为正 ({stats['avg_return']}%)")
+        report.append(f"  ✅ 平均收益为正 ({stats['avg_return']}%, 样本内)")
     else:
-        report.append(f"  ❌ 平均收益为负 ({stats['avg_return']}%)")
+        report.append(f"  ❌ 平均收益为负 ({stats['avg_return']}%, 样本内)")
 
     if stats["profit_factor"] > 1.5:
         report.append(f"  ✅ 盈亏比良好 ({stats['profit_factor']})")
@@ -364,13 +367,16 @@ def generate_comparison_report(stocks_data, ma_short=10, ma_long=21, vol_thresho
     report.append("")
     report.append("=" * 80)
     report.append("📝 结论:")
+    # P1-15: 强制过拟合警示
+    report.append("  ⚠️ 本结果基于样本内回测，未经外样本验证，不构成实盘依据")
+    report.append("  ⚠️ 历史业绩不代表未来收益")
     if avg_win_rate >= 60:
-        report.append(f"  ✅ 策略整体表现良好，平均胜率 {avg_win_rate:.1f}%")
+        report.append(f"  ✅ 策略整体表现良好，平均胜率 {avg_win_rate:.1f}%（样本内）")
     else:
-        report.append(f"  ⚠️ 策略整体表现一般，平均胜率 {avg_win_rate:.1f}%")
+        report.append(f"  ⚠️ 策略整体表现一般，平均胜率 {avg_win_rate:.1f}%（样本内）")
 
-    report.append(f"  • 平均收益: {avg_return:.2f}%")
-    report.append(f"  • 平均累计收益: {avg_total:.2f}%")
+    report.append(f"  • 平均收益: {avg_return:.2f}%（样本内）")
+    report.append(f"  • 平均累计收益: {avg_total:.2f}%（样本内）")
     report.append("=" * 80)
 
     return "\n".join(report)

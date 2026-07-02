@@ -78,11 +78,12 @@ def _candle_single(bar, prev_close):
     # 十字星
     if body / total < 0.1:
         patterns.append("十字星(变盘信号)")
-    # 锤子线
-    elif lower > 2 * body and (bar["high"] - bar["close"]) < body:
+    # 锤子线（下影长 > 2×实体，上影 < 实体）
+    # P1-30: 复用 _body_shadow 的 upper，避免阴线时 (high-close) 计算上影偏小误判
+    elif lower > 2 * body and upper < body:
         patterns.append("锤子线(底部反转)")
-    # 倒锤子
-    elif upper > 2 * body and (bar["close"] - bar["low"]) < body:
+    # 倒锤子（上影长 > 2×实体，下影 < 实体）
+    elif upper > 2 * body and lower < body:
         patterns.append("倒锤子(可能见顶)")
     # 光头光脚阳线（浮点容差比较）
     elif (

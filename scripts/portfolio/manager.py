@@ -521,6 +521,7 @@ class PortfolioManager:
         single_stock_limit: float = 0.20,
         top3_limit: float = 0.50,
         industry_limit: float = 0.30,
+        quotes: dict = None,
     ) -> dict:
         """检查持仓集中度。
 
@@ -528,6 +529,8 @@ class PortfolioManager:
             single_stock_limit: 单一标的上限（默认 20%）
             top3_limit: 前 3 大持仓上限（默认 50%）
             industry_limit: 单一行业上限（默认 30%）
+            quotes: 可选 {code: current_price} 行情映射。提供时按市值（现价×数量）
+                计算集中度，否则回退到成本口径。
 
         Returns:
             {"warnings": [str], "details": {"single": {...}, "top3": {...}, "industry": {...}}}
@@ -536,7 +539,14 @@ class PortfolioManager:
         if not positions:
             return {"warnings": [], "details": {}}
 
-        total_value = sum(p.get("cost", 0) * p.get("quantity", 0) for p in positions)
+        def _value(p) -> float:
+            # P1-21: 优先用市值（现价×数量），无行情时回退成本口径
+            if quotes and p["code"] in quotes:
+                price = quotes[p["code"]] or 0
+                return price * p.get("quantity", 0)
+            return p.get("cost", 0) * p.get("quantity", 0)
+
+        total_value = sum(_value(p) for p in positions)
         if total_value <= 0:
             return {"warnings": [], "details": {}}
 
@@ -546,7 +556,7 @@ class PortfolioManager:
         # 单一标的集中度
         stock_pcts = []
         for p in positions:
-            value = p.get("cost", 0) * p.get("quantity", 0)
+            value = _value(p)
             pct = value / total_value
             stock_pcts.append(
                 {"code": p["code"], "name": p.get("name", ""), "pct": pct}
@@ -579,7 +589,7 @@ class PortfolioManager:
             # 从 tags 中提取行业标签
             tags = p.get("tags", [])
             industry = tags[0] if tags else "未分类"
-            value = p.get("cost", 0) * p.get("quantity", 0)
+            value = _value(p)
             industry_values[industry] = industry_values.get(industry, 0) + value
 
         industry_pcts = {k: v / total_value for k, v in industry_values.items()}

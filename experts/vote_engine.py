@@ -340,6 +340,10 @@ def aggregate_votes(
     """
     from experts.scoring import compute_confidence_index
 
+    # P1-19: 入口浅拷贝 expert_results，避免 veto_results 原地修改 r["score"]/direction
+    # 污染调用方持有的原始评分（影响风险提示、A/B 对比、校准记录、二次渲染）。
+    expert_results = [dict(r) for r in expert_results]
+
     # 一票否决机制：当某专家的否决条件被触发时，强制降分至 20（强烈看空）
     veto_notes = []
     if veto_results:
@@ -360,10 +364,22 @@ def aggregate_votes(
     long_experts = [r for r in expert_results if r.get("group") == "long_term"]
     short_experts = [r for r in expert_results if r.get("group") == "short_term"]
 
-    # 如果没有 group 信息，按前4后4分
-    if not long_experts and not short_experts and len(expert_results) == 8:
-        long_experts = expert_results[:4]
-        short_experts = expert_results[4:]
+    # 如果没有 group 信息，按规模切分（避免 9 人输入被静默丢弃退化为 50/50）
+    # P1-18: 原 fallback 仅处理 8 人，9 人 active 输入无 group 时 long/short 均空，
+    # 导致所有评分被丢弃、composite_score 恒为 50。扩展为 8 人(4+4)和 9 人(6+3)。
+    if not long_experts and not short_experts and expert_results:
+        n = len(expert_results)
+        if n == 8:
+            long_experts = expert_results[:4]
+            short_experts = expert_results[4:]
+        elif n == 9:
+            long_experts = expert_results[:6]
+            short_experts = expert_results[6:]
+        else:
+            # 其他规模：前 2/3 长线，后 1/3 短线
+            split = max(1, n * 2 // 3)
+            long_experts = expert_results[:split]
+            short_experts = expert_results[split:]
 
     long_scores = [r["score"] for r in long_experts]
     short_scores = [r["score"] for r in short_experts]

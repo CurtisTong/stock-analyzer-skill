@@ -131,8 +131,12 @@ def normalize_code(code: str) -> str:
 
     code = code.strip().lower()
 
-    # 已经是标准格式
-    if code.startswith(("sh", "sz", "bj")) and len(code) >= 8:
+    # 已经是标准格式（严格校验：2 位前缀 + 6 位数字，避免接受超长非法代码）
+    if (
+        code.startswith(("sh", "sz", "bj"))
+        and len(code) == 8
+        and code[2:].isdigit()
+    ):
         return code
 
     # 提取纯数字
@@ -186,7 +190,10 @@ def validate_codes(codes: List[str]) -> List[str]:
 
 def validate_date(date_str: str) -> bool:
     """
-    验证日期格式 (YYYY-MM-DD)。
+    验证日期格式与有效性 (YYYY-MM-DD)。
+
+    P1-31: 原仅用正则校验格式，2024-13-45 等非法日期会通过。
+    改用 strptime 既校验格式又校验有效性。
 
     Args:
         date_str: 日期字符串
@@ -197,8 +204,17 @@ def validate_date(date_str: str) -> bool:
     if not date_str:
         return False
 
+    from datetime import datetime
+
+    # 先校验严格格式 YYYY-MM-DD（两位月日），再校验日期有效性
     pattern = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-    return bool(pattern.match(date_str))
+    if not pattern.match(date_str):
+        return False
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True
+    except (ValueError, TypeError):
+        return False
 
 
 def validate_date_range(start_date: str, end_date: str) -> bool:

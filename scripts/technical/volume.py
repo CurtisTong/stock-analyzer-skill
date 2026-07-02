@@ -79,8 +79,12 @@ def volume_analysis(closes, volumes):
     shrink_desc = ""
     if len(volumes) >= 5:
         shrink_days = 0
-        for i in range(-1, -min(6, len(volumes)), -1):
-            if i - 1 >= -len(volumes) and volumes[i] < volumes[i - 1]:
+        # P1-29: 用绝对索引避免负索引越界（原 range(-1, -min(6,len), -1)
+        # 在 i-1 == -len 时仍访问 volumes[-len-1] 越界）。
+        # 从最后一根向前回溯，最多 5 根，比较 volumes[k] vs volumes[k-1]。
+        n = len(volumes)
+        for k in range(n - 1, max(0, n - 6) - 1, -1):
+            if k - 1 >= 0 and volumes[k] < volumes[k - 1]:
                 shrink_days += 1
             else:
                 break

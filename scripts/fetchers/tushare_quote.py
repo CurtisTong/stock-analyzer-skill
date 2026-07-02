@@ -59,6 +59,7 @@ class TushareQuoteFetcher(BaseFetcher):
                 "pb": "",
                 "total_cap": "",
                 "circulating_cap": "",
+                "source": "tushare",
             }
         except Exception as e:
             logger.debug("tushare_quote 获取失败 %s: %s", code, e)

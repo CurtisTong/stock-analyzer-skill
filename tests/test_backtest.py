@@ -507,14 +507,18 @@ class TestCalcDailyReturns:
         assert len(result) == 3
 
     def test_returns_reflect_price_changes(self):
-        """日收益 = (close[t] - close[t-1]) / close[t-1]。"""
+        """日收益 = (close[t] - close[t-1]) / close[t-1]。
+
+        P1-26: 持仓从 bars[start].close 起算，第 1 天收益为 bars[start+1] 相对 bars[start]，
+        不再混入信号日当日波动。
+        """
         import backtest
 
         bars = _make_kline_bars([10.0, 11.0, 12.0, 13.0, 14.0, 15.0])
         result = backtest._calc_daily_returns(bars, 1, 3)
-        assert abs(result[0] - 0.1) < 0.001  # (11-10)/10
-        assert abs(result[1] - 1 / 11) < 0.001  # (12-11)/11
-        assert abs(result[2] - 1 / 12) < 0.001  # (13-12)/12
+        assert abs(result[0] - 1 / 11) < 0.001  # (12-11)/11
+        assert abs(result[1] - 1 / 12) < 0.001  # (13-12)/12
+        assert abs(result[2] - 1 / 13) < 0.001  # (14-13)/13
 
     def test_empty_when_prev_close_zero(self):
         """前收为 0 时跳过。"""
@@ -522,7 +526,7 @@ class TestCalcDailyReturns:
 
         bars = _make_kline_bars([0.0, 10.0, 11.0])
         result = backtest._calc_daily_returns(bars, 1, 2)
-        # bar[0].close=0 → bar[1] 跳过；bar[1].close=10 → bar[2] 记录
+        # start=1：result[0]=bars[2]相对bars[1]=(11-10)/10；bars[1].close=10 非零
         assert len(result) == 1
         assert abs(result[0] - 0.1) < 0.001
 

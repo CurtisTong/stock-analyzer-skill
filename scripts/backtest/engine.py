@@ -14,7 +14,7 @@ from common import (
 from data import get_kline, get_finance
 from strategies import STRATEGIES
 from strategies.factors.volatility import volatility_score as _volatility_score
-from strategies.factors.chip import chip_score_dynamic as _chip_score
+from strategies.factors.chip import chip_score_static as _chip_score
 from strategies.factors.quality import quality_score
 from strategies.factors.valuation import valuation_score
 from strategies.factors.liquidity import liquidity_score
@@ -181,9 +181,12 @@ def simulate_strategy(
             if dividend > 0:
                 parts["dividend"] = dividend
 
-            # 筹码因子（融资融券/股东户数/十大流通）
+            # 筹码因子（股东户数变化率，静态评分，零网络开销）
+            # P1-13 修复：原调用 chip_score_dynamic(hist_quote, fin, industry) 签名错误
+            # （chip_score_dynamic 只收 code），TypeError 被 except 吞掉致 chip 因子永远为 0。
+            # 改用 chip_score_static(code)，回测中避免网络请求。
             try:
-                chip = _chip_score(hist_quote, fin, industry)
+                chip = _chip_score(code)
                 if chip > 0:
                     parts["chip"] = chip
             except Exception:
@@ -281,13 +284,17 @@ def simulate_strategy(
 
 
 def _calc_daily_returns(bars, start, holding_days):
-    """计算持有期内的日收益率序列（用于精确回撤计算）。"""
+    """计算持有期内的日收益率序列（用于精确回撤计算）。
+
+    P1-26 修复：持仓从 bars[start].close 起算，第 1 天收益应为 bars[start+1]
+    相对 bars[start] 的变化。原实现从 j=start 起算（含信号日日内波动），
+    与 entry_price=bars[start].close 错位一天，导致回撤/夏普基准偏移。
+    """
     returns = []
-    for j in range(start, start + holding_days):
-        if j > 0 and bars[j - 1].close > 0:
+    for j in range(start + 1, start + 1 + holding_days):
+        if j < len(bars) and j > 0 and bars[j - 1].close > 0:
             returns.append((bars[j].close - bars[j - 1].close) / bars[j - 1].close)
     return returns
-
 
 def _calc_return_with_stop_loss(
     bars, start, holding_days, stop_loss=-0.08, take_profit=0.20
@@ -308,20 +315,24 @@ def _calc_return_with_stop_loss(
     if entry_price <= 0:
         return 0.0, holding_days, "invalid"
 
-    for day in range(holding_days):
+    # P1-27: 止损/止盈用日内 low/high 判断是否触及（而非收盘价），
+    # 触及后按阈值价成交（保守估计，避免收盘价回升导致乐观偏差）。
+    # day=0 为信号日次日（持仓第 1 天），与 entry_price=bars[start].close 对齐。
+    for day in range(1, holding_days + 1):
         idx = start + day
         if idx >= len(bars):
             break
-        current_price = bars[idx].close
-        pnl = (current_price - entry_price) / entry_price
+        bar = bars[idx]
+        # 日内触及止损（最低价跌破止损线）→ 按止损价成交
+        stop_price = entry_price * (1 + stop_loss)
+        take_price = entry_price * (1 + take_profit)
+        if bar.low <= stop_price:
+            return stop_loss, day, "stop_loss"
+        if bar.high >= take_price:
+            return take_profit, day, "take_profit"
 
-        if pnl <= stop_loss:
-            return pnl, day + 1, "stop_loss"
-        if pnl >= take_profit:
-            return pnl, day + 1, "take_profit"
-
-    # 未触发止损止盈，持有到期
-    exit_idx = min(start + holding_days - 1, len(bars) - 1)
+    # 未触发止损止盈，持有到期，用末日收盘价
+    exit_idx = min(start + holding_days, len(bars) - 1)
     exit_price = bars[exit_idx].close
     ret = (exit_price - entry_price) / entry_price
     return ret, holding_days, "normal"

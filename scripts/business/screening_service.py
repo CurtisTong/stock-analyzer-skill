@@ -340,10 +340,13 @@ class ScreeningService:
             reasons.append("ST风险")
         else:
             # 财务类退市风险预警（2026新增）：营收<1亿+净利润为负+审计意见非标
-            revenue = to_float(fin.get("revenue", fin.get("TOTALOPERATEREVE", 0)))
-            revenue_billion = revenue / 100000000  # 转为亿元
-            if eps < 0 and 0 < revenue_billion < 1:
-                warnings.append("营收<1亿+亏损(退市风险警示)")
+            # P1-16: FinanceRecord 暂无营收绝对值字段（只有 revenue_yoy 同比%），
+            # 原读 fin.get("revenue", TOTALOPERATEREVE) 永远为 0，预警永不触发，
+            # 形成虚假安全感。改为基于 revenue_yoy 异常下滑的近似预警：
+            # 营收同比大幅下滑（<-30%）+ 亏损，提示退市风险。
+            revenue_yoy = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ", 0)))
+            if eps < 0 and revenue_yoy < -30:
+                warnings.append("营收大幅下滑+亏损(退市风险警示)")
 
         # 亏损过滤（改为可配置，默认过滤）
         filter_loss = filters.get("filter_loss", True)
@@ -448,9 +451,11 @@ def compute_phase2_parts(
     chip 在 Phase 1 已用静态评分，Phase 2 不重复计算。
     """
     code = quote_dict.get("code", "")
-    parts = compute_phase_factors(2, fin, quote_dict, features, industry, code)
-    # chip 已在 Phase 1 用静态评分，移除 Phase 2 的动态评分
-    parts.pop("chip", None)
+    # P1-14: Phase 2 跳过 chip 因子（chip 注册为 phase=2 但 Phase 1 已用静态评分）。
+    # 避免 compute_phase_factors 执行 chip_score_dynamic（3 次网络请求）后又被 pop 丢弃。
+    parts = compute_phase_factors(
+        2, fin, quote_dict, features, industry, code, exclude={"chip"}
+    )
     return parts
 
 

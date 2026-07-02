@@ -12,6 +12,7 @@
 import json
 import logging
 import sys
+import threading
 from datetime import datetime
 from typing import Optional
 
@@ -29,25 +30,30 @@ from technical.trend import support_resistance
 # 模块级缓存（惰性初始化）
 _nm = None
 _pm = None
+_singleton_lock = threading.Lock()
 
 
 def _get_nm():
-    """获取 NotificationManager 单例。"""
+    """获取 NotificationManager 单例（线程安全）。"""
     global _nm
     if _nm is None:
-        from monitor import NotificationManager
+        with _singleton_lock:
+            if _nm is None:
+                from monitor import NotificationManager
 
-        _nm = NotificationManager()
+                _nm = NotificationManager()
     return _nm
 
 
 def _get_pm():
-    """获取 PortfolioManager 单例。"""
+    """获取 PortfolioManager 单例（线程安全）。"""
     global _pm
     if _pm is None:
-        from portfolio import PortfolioManager
+        with _singleton_lock:
+            if _pm is None:
+                from portfolio import PortfolioManager
 
-        _pm = PortfolioManager()
+                _pm = PortfolioManager()
     return _pm
 
 

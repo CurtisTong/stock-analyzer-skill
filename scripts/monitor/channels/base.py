@@ -1,9 +1,42 @@
 """通知通道抽象基类。"""
 
 import ipaddress
+import time
+import urllib.error
+import urllib.request
 import urllib.parse
 from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
+
+
+def send_with_retry(
+    do_request: Callable[[], Tuple[bool, str]],
+    max_retries: int = 2,
+    backoff: float = 1.0,
+) -> Tuple[bool, str]:
+    """对网络错误做指数退避重试的包装器。
+
+    P1-23: 通知通道单次 HTTP 失败即返回会漏推关键预警（如止损）。
+    对网络错误（URLError/OSError）重试，API 业务错误（errcode!=0）不重试。
+
+    Args:
+        do_request: 执行单次 HTTP 请求的函数，返回 (success, error_msg)。
+            若抛 URLError/OSError 视为可重试网络错误。
+        max_retries: 网络错误重试次数（不含首次）。
+        backoff: 退避基数（秒），第 n 次重试等待 backoff * n。
+
+    Returns:
+        最终的 (success, error_msg)。
+    """
+    last_err = ""
+    for attempt in range(max_retries + 1):
+        try:
+            return do_request()
+        except (urllib.error.URLError, OSError) as e:
+            last_err = f"network error: {getattr(e, 'reason', e)}"
+            if attempt < max_retries:
+                time.sleep(backoff * (attempt + 1))
+    return False, last_err
 
 
 def validate_webhook_url(url: str) -> str:
