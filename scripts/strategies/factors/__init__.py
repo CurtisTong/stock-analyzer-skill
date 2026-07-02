@@ -87,7 +87,8 @@ register_factor(
     phase=1,
     args_style="code",
     label="事件",
-    default_weight=0.08,
+    # P2-H2: 与 6 策略配置对齐（event 权重均为 0.0），default_weight 改 0.0
+    default_weight=0.0,
 )
 
 register_factor(

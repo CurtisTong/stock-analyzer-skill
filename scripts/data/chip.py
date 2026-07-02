@@ -6,6 +6,9 @@
     margin = get_margin("sh600989", days=20)
     holders = get_holders("sh600989", periods=4)
     top_holders = get_top_holders("sh600989")
+
+内部走 fetchers.get_chip_fetchers() 拿 fetcher 列表，按 name 查找对应 fetcher。
+chip 域的 3 个 fetcher（margin/holder/top_holder）返回不同子类型数据，不走 manager 故障转移。
 """
 
 import threading
@@ -17,29 +20,29 @@ from common import to_float, to_int
 
 # 延迟导入 fetchers（避免循环导入），线程安全
 _fetchers_lock = threading.Lock()
-_fetchers_loaded = False
-_margin_fetcher = None
-_holder_fetcher = None
-_top_holder_fetcher = None
+_fetchers_cache: list | None = None
 
 
-def _load_fetchers():
-    global _fetchers_loaded, _margin_fetcher, _holder_fetcher, _top_holder_fetcher
-    if _fetchers_loaded:
-        return
+def _get_chip_fetchers():
+    """延迟导入并缓存 chip fetcher 列表。"""
+    global _fetchers_cache
+    if _fetchers_cache is not None:
+        return _fetchers_cache
     with _fetchers_lock:
-        if _fetchers_loaded:
-            return
-        from fetchers.eastmoney_chip import (
-            MarginFetcher,
-            HolderFetcher,
-            TopHolderFetcher,
-        )
+        if _fetchers_cache is not None:
+            return _fetchers_cache
+        from fetchers import get_chip_fetchers
 
-        _margin_fetcher = MarginFetcher()
-        _holder_fetcher = HolderFetcher()
-        _top_holder_fetcher = TopHolderFetcher()
-        _fetchers_loaded = True
+        _fetchers_cache = get_chip_fetchers()
+    return _fetchers_cache
+
+
+def _find_fetcher(name_prefix: str):
+    """按 name 前缀查找 fetcher。"""
+    for f in _get_chip_fetchers():
+        if f.name.startswith(name_prefix):
+            return f
+    return None
 
 
 def get_margin(code: str, days: int = 20) -> List[MarginData]:
@@ -52,8 +55,10 @@ def get_margin(code: str, days: int = 20) -> List[MarginData]:
     Returns:
         融资融券数据列表，失败返回空列表
     """
-    _load_fetchers()
-    result = _margin_fetcher.fetch(code, days=days)
+    fetcher = _find_fetcher("margin")
+    if fetcher is None:
+        return []
+    result = fetcher.fetch(code, days=days)
     if not result:
         return []
 
@@ -70,8 +75,10 @@ def get_holders(code: str, periods: int = 4) -> List[HolderData]:
     Returns:
         股东户数数据列表，失败返回空列表
     """
-    _load_fetchers()
-    result = _holder_fetcher.fetch(code, periods=periods)
+    fetcher = _find_fetcher("holder")
+    if fetcher is None:
+        return []
+    result = fetcher.fetch(code, periods=periods)
     if not result:
         return []
 
@@ -88,8 +95,10 @@ def get_top_holders(code: str, date: str = "") -> List[TopHolderRecord]:
     Returns:
         十大流通股东数据列表，失败返回空列表
     """
-    _load_fetchers()
-    result = _top_holder_fetcher.fetch(code, date=date)
+    fetcher = _find_fetcher("top_holder")
+    if fetcher is None:
+        return []
+    result = fetcher.fetch(code, date=date)
     if not result:
         return []
 
@@ -110,6 +119,9 @@ def get_margin_summary(code: str, days: int = 20) -> dict:
     data = get_margin(code, days=days)
     if not data:
         return {}
+
+    # P2-H1: 显式按日期降序排序，避免依赖 fetcher 返回顺序假设
+    data = sorted(data, key=lambda d: getattr(d, "date", "") or "", reverse=True)
 
     # 近5日融资净买入
     recent_5 = data[:5]

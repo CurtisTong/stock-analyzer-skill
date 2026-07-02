@@ -158,6 +158,11 @@ def pull() -> bool:
         print("❌ 无法读取远程校准数据。")
         return False
 
+    # P2-H4: 校验远程数据结构，避免远程损坏/篡改覆盖本地有效数据
+    if not isinstance(remote_data, dict) or "predictions" not in remote_data:
+        print("❌ 远程数据结构无效（缺少 predictions 字段），拒绝写入。")
+        return False
+
     # 备份本地数据
     if _CALIBRATION_FILE.exists():
         backup = _CALIBRATION_FILE.with_suffix(".json.bak")
@@ -166,7 +171,7 @@ def pull() -> bool:
         )
         print(f"📦 本地数据已备份到 {backup.name}")
 
-    # 写入远程数据
+    # 写入远程数据（远程优先，本地独有数据保留在 .bak 中）
     _CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
     _CALIBRATION_FILE.write_text(
         json.dumps(remote_data, ensure_ascii=False, indent=2) + "\n",

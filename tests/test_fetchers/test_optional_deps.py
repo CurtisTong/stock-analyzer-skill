@@ -141,7 +141,7 @@ class TestAkshareFinanceFetcher:
             patch("fetchers.akshare_finance.ak", mock_ak),
         ):
             f.fetch("sh600519")
-        mock_ak.stock_financial_abstract.assert_called_once_with("600519")
+        mock_ak.stock_financial_abstract.assert_called_once_with(symbol="600519")
 
 
 # ═══════════════════════════════════════════════════════════════

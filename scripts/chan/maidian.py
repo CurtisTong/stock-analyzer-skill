@@ -1,12 +1,17 @@
 """三类买卖点识别。"""
 
 
-def chan_maidian(merged_bars, bi_list, zs_list, closes):
+def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None):
     """
     识别缠论三类买卖点。
     一买：离开最后一个中枢后的底背驰结束点
     二买：一买后不创新低的次低点
     三买：突破中枢后，回踩不落入中枢的点
+
+    Args:
+        beichi: chan_beichi 的返回结果。P2-C4 修复：一买/一卖必须依赖背驰结果，
+            无背驰不构成一买/一卖（缠论标准定义）。未提供 beichi 时仅退化为
+            "中枢下方+下跌笔结束"的弱信号并标注 confidence=低。
     """
     if not zs_list or not bi_list or len(closes) < 20:
         return {"buy_points": [], "sell_points": [], "summary": "数据不足"}
@@ -16,24 +21,43 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes):
     # bi 的 end_idx 基于 merged_bars 的 idx 字段，用 merged_bars 最后一个 idx 作为参考
     last_idx = merged_bars[-1]["idx"] if merged_bars else len(closes) - 1
 
+    trend_beichi = (beichi or {}).get("trend_beichi")
+    range_beichi = (beichi or {}).get("range_beichi", [])
+    # 盘整底背驰也算一买的背驰确认
+    has_bottom_beichi = trend_beichi == "底背驰(看涨)" or any(
+        "看涨" in rb.get("type", "") for rb in range_beichi
+    )
+    has_top_beichi = trend_beichi == "顶背驰(看跌)" or any(
+        "看跌" in rb.get("type", "") for rb in range_beichi
+    )
+
     buy_points = []
     sell_points = []
 
     # ── 一买：离开中枢的底背驰段结束 ──
-    # 条件：价格在中枢下方 + 下跌笔的结束点 + 出现底背驰
+    # P2-C4: 缠论标准要求"离开中枢的下跌走势出现底背驰后的结束点"，无背驰非一买。
     if last_close < last_zs["zd"]:
         down_bis = [b for b in bi_list if b["direction"] == "down"]
         if down_bis:
             last_down = down_bis[-1]
-            # 判断是否为背驰段结尾
             if last_down["end_idx"] >= last_idx - 5:
-                buy_points.append(
-                    {
-                        "type": "一买",
-                        "desc": f"离开中枢(ZD={last_zs['zd']})后底背驰结束",
-                        "confidence": "中",
-                    }
-                )
+                if has_bottom_beichi:
+                    buy_points.append(
+                        {
+                            "type": "一买",
+                            "desc": f"离开中枢(ZD={last_zs['zd']})后底背驰结束",
+                            "confidence": "中",
+                        }
+                    )
+                elif beichi is None:
+                    # 未提供背驰结果，退化为弱信号并降级置信度
+                    buy_points.append(
+                        {
+                            "type": "一买(弱)",
+                            "desc": "离开中枢后下跌笔结束（未确认背驰）",
+                            "confidence": "低",
+                        }
+                    )
 
     # ── 二买：中枢下方 + 近期次低高于前低（不依赖一买） ──
     if last_close < last_zs["zd"]:
@@ -71,18 +95,28 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes):
             )
 
     # ── 一卖：离开中枢的顶背驰段结束 ──
+    # P2-C4: 同一买，需顶背驰确认
     if last_close > last_zs["zg"]:
         up_bis = [b for b in bi_list if b["direction"] == "up"]
         if up_bis:
             last_up = up_bis[-1]
             if last_up["end_idx"] >= last_idx - 5:
-                sell_points.append(
-                    {
-                        "type": "一卖",
-                        "desc": f"离开中枢(ZG={last_zs['zg']})后顶背驰",
-                        "confidence": "中",
-                    }
-                )
+                if has_top_beichi:
+                    sell_points.append(
+                        {
+                            "type": "一卖",
+                            "desc": f"离开中枢(ZG={last_zs['zg']})后顶背驰",
+                            "confidence": "中",
+                        }
+                    )
+                elif beichi is None:
+                    sell_points.append(
+                        {
+                            "type": "一卖(弱)",
+                            "desc": "离开中枢后上涨笔结束（未确认背驰）",
+                            "confidence": "低",
+                        }
+                    )
 
     # ── 二卖：中枢上方 + 近期次低于前高（不创新高） ──
     if last_close > last_zs["zg"]:

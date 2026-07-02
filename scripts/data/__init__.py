@@ -357,3 +357,45 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         source=d.get("source", ""),
         fetch_time=d.get("fetch_time") or _now_iso(),
     )
+
+
+# ---------- chip / event / flow / lhb 域统一入口 re-export ----------
+# 这 4 个域的 fetcher 返回不同子类型数据，不走 DataFetcherManager 故障转移，
+# 而是各自在 data/chip.py、data/event.py、data/flow.py、data/lhb.py 中
+# 遍历 fetcher 列表按子类型聚合。这里 re-export 保持与 quote/kline/finance 一致的 API 风格。
+
+def get_chip(code: str, days: int = 20) -> dict:
+    """获取指定股票的资金面汇总数据（融资融券 + 股东户数 + 十大流通股东）。
+
+    Args:
+        code: 股票代码
+        days: 融资融券获取天数（默认 20）
+
+    Returns:
+        {"margin": [...], "holders": [...], "top_holders": [...],
+         "margin_summary": dict, "holders_summary": dict}
+    """
+    from data.chip import get_margin, get_holders, get_top_holders, get_margin_summary, get_holders_summary
+
+    return {
+        "margin": get_margin(code, days=days),
+        "holders": get_holders(code),
+        "top_holders": get_top_holders(code),
+        "margin_summary": get_margin_summary(code, days=days),
+        "holders_summary": get_holders_summary(code),
+    }
+
+
+def get_events(code: str, days: int = 30) -> dict:
+    """获取指定股票的近期事件（财报/解禁/分红/增减持/违规）。"""
+    from data.event import get_events as _get_events
+
+    return _get_events(code, days)
+
+
+def get_northbound_flow(code: str, days: int = 20) -> list:
+    """获取北向资金近期数据（按日期升序）。"""
+    from data.flow import get_northbound_flow as _get_nb
+
+    return _get_nb(code, days=days)
+

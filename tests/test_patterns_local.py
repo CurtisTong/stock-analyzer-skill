@@ -1,5 +1,5 @@
 """
-patterns_local.py 单元测试：覆盖 A 股本土战法检测。
+strategies.patterns 单元测试：覆盖 A 股本土战法检测。
 """
 
 import pytest
@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from patterns_local import (
+from strategies.patterns import (
     detect_sanying_yiyang,
     detect_laoyatou,
     detect_meirenjian,

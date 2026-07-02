@@ -16,13 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fetchers.eastmoney_event import (
-    EarningsCalendarFetcher,
-    LockupCalendarFetcher,
-    DividendCalendarFetcher,
-    ShareholderChangeFetcher,
-    ViolationFetcher,
-)
+from data.event import get_events
 
 
 def fetch_events(code: str, days: int = 30) -> dict:
@@ -35,79 +29,11 @@ def fetch_events(code: str, days: int = 30) -> dict:
     Returns:
         {"earnings": [...], "lockup": [...], "dividend": [...],
          "shareholder": [...], "violation": [...], "summary": str}
+
+    委托 data.event.get_events 实现，保留原签名和返回结构以兼容调用方
+    （strategies/factors/event.py 依赖 from events import fetch_events）。
     """
-    result = {
-        "code": code,
-        "query_days": days,
-        "earnings": [],
-        "lockup": [],
-        "dividend": [],
-        "shareholder": [],
-        "violation": [],
-    }
-
-    # 日历类 fetcher（code 为空时返回近期全部）
-    calendar_fetchers = [
-        EarningsCalendarFetcher(),
-        LockupCalendarFetcher(),
-        DividendCalendarFetcher(),
-    ]
-
-    for fetcher in calendar_fetchers:
-        try:
-            data = fetcher.fetch(code, days=days)
-            if data and data.get("items"):
-                result[data["type"]] = data["items"]
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).debug(
-                "事件 fetcher %s 失败 %s: %s", fetcher.__class__.__name__, code, e
-            )
-
-    # 个股类 fetcher（需要指定 code）
-    stock_fetchers = [
-        ShareholderChangeFetcher(),
-        ViolationFetcher(),
-    ]
-
-    for fetcher in stock_fetchers:
-        try:
-            data = fetcher.fetch(code)
-            if data and data.get("items"):
-                result[data["type"]] = data["items"]
-        except Exception as e:
-            import logging
-
-            logging.getLogger(__name__).debug(
-                "事件 fetcher %s 失败 %s: %s", fetcher.__class__.__name__, code, e
-            )
-
-    # 生成摘要
-    summary_parts = []
-    if result["earnings"]:
-        nearest = result["earnings"][0]
-        summary_parts.append(f"📊 财报披露: {nearest.get('disclosure_date', '?')}")
-    if result["lockup"]:
-        nearest = result["lockup"][0]
-        summary_parts.append(f"🔓 解禁: {nearest.get('free_date', '?')}")
-    if result["dividend"]:
-        nearest = result["dividend"][0]
-        summary_parts.append(f"💰 分红: {nearest.get('ex_date', '?')}")
-    if result["shareholder"]:
-        nearest = result["shareholder"][0]
-        direction = "增持" if nearest.get("direction") == "increase" else "减持"
-        summary_parts.append(f"👤 大股东{direction}: {nearest.get('end_date', '?')}")
-    if result["violation"]:
-        nearest = result["violation"][0]
-        summary_parts.append(f"⚠️ 违规: {nearest.get('punish_date', '?')}")
-
-    if summary_parts:
-        result["summary"] = " | ".join(summary_parts)
-    else:
-        result["summary"] = f"近 {days} 日无重大事件"
-
-    return result
+    return get_events(code, days)
 
 
 def format_events_text(events: dict) -> str:

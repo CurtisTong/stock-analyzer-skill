@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 from common.circuit_breaker import get_circuit_breaker
 
 logger = logging.getLogger(__name__)
-from common.exceptions import RateLimitError
+from common.exceptions import RateLimitError, HTTPStatusError
 
 # 股票代码安全白名单：允许字母、数字、下划线、点号、冒号、脱字符（美股指数如 us:^gspc）
 _SAFE_CODE_PATTERN = re.compile(r"^[a-zA-Z0-9_.:^]+$")
@@ -155,6 +155,11 @@ class DataFetcherManager:
             except RateLimitError:
                 fetcher.on_failure()
                 raise
+            except HTTPStatusError as e:
+                # P2-H2(common): 4xx 业务错误（如 404 数据不存在）不计入熔断，
+                # 直接换下一个源尝试，避免误熔断数据源
+                self._last_error = e
+                continue
             except Exception as e:
                 fetcher.on_failure()
                 self._last_error = e

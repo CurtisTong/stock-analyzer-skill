@@ -24,7 +24,7 @@ try:
 except ImportError:
     _HAS_REQUESTS = False
 
-from common.exceptions import RateLimitError, NetworkError
+from common.exceptions import RateLimitError, NetworkError, HTTPStatusError
 
 # ---------- requests 连接池（可选） ----------
 
@@ -161,10 +161,14 @@ def _do_request(
 
     if status >= 400:
         try:
-            resp.read()
+            body = resp.read()
         except Exception as e:
             logger.debug("读取 HTTP %d 响应体失败: %s", status, e)
-        raise http.client.HTTPException(f"HTTP {status} for {url}")
+            body = b""
+        # P2-H2(common): 4xx 业务错误抛 HTTPStatusError（DataError 子类），
+        # 让 DataFetcherManager 能区分业务错误（不熔断）与网络故障（熔断），
+        # 避免 404 被当作数据源故障误触发熔断。
+        raise HTTPStatusError(url, status, body.decode("utf-8", "replace") if body else "")
 
     # 分块读取响应体，限制最大大小防止 OOM
     chunks = []
@@ -267,11 +271,14 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
         except RateLimitError:
             raise
         except Exception as e:
-            # 4xx 业务错误不降级重试，直接抛出
+            # P2-H2(common): 4xx 业务错误转 HTTPStatusError，与 http.client 路径统一，
+            # 让 manager 能区分业务错误（不熔断）与网络故障（熔断）
             if hasattr(e, "response") and hasattr(e.response, "status_code"):
                 status = e.response.status_code
                 if 400 <= status < 500:
-                    raise
+                    raise HTTPStatusError(
+                        url, status, e.response.text[:200] if hasattr(e.response, "text") else ""
+                    )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     return _http_get_internal(
         url, headers=None, timeout=timeout, max_retries=max_retries
@@ -291,11 +298,13 @@ def http_get_with_headers(
         except RateLimitError:
             raise
         except Exception as e:
-            # 4xx 业务错误不降级重试，直接抛出
+            # 4xx 业务错误转 HTTPStatusError（同 http_get）
             if hasattr(e, "response") and hasattr(e.response, "status_code"):
                 status = e.response.status_code
                 if 400 <= status < 500:
-                    raise
+                    raise HTTPStatusError(
+                        url, status, e.response.text[:200] if hasattr(e.response, "text") else ""
+                    )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     return _http_get_internal(
         url, headers=headers, timeout=timeout, max_retries=max_retries

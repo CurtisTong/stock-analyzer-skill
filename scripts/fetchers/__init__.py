@@ -191,17 +191,29 @@ def get_lhb_fetchers() -> list:
 
 
 def get_event_fetchers() -> list:
-    """获取所有可用的事件日历数据源。"""
+    """获取所有可用的事件日历数据源（5 个 fetcher）。
+
+    calendar 类（3 个）：EarningsCalendarFetcher / LockupCalendarFetcher / DividendCalendarFetcher
+    个股类（2 个）：ShareholderChangeFetcher / ViolationFetcher
+    """
     fetchers = []
 
     from .eastmoney_event import (
         EarningsCalendarFetcher,
         LockupCalendarFetcher,
         DividendCalendarFetcher,
+        ShareholderChangeFetcher,
+        ViolationFetcher,
     )
 
     fetchers.extend(
-        [EarningsCalendarFetcher(), LockupCalendarFetcher(), DividendCalendarFetcher()]
+        [
+            EarningsCalendarFetcher(),
+            LockupCalendarFetcher(),
+            DividendCalendarFetcher(),
+            ShareholderChangeFetcher(),
+            ViolationFetcher(),
+        ]
     )
 
     return fetchers

@@ -11,6 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import screener  # noqa: E402
+import business.screening_service as ss  # noqa: E402
 
 
 def _make_args(**overrides):
@@ -43,7 +44,9 @@ def _make_args(**overrides):
 
 @pytest.fixture
 def mock_data_layer(monkeypatch):
-    """Mock 整个数据层（不真实拉取）。"""
+    """Mock 整个数据层（不真实拉取）。
+    下沉后业务函数在 screening_service 模块，mock 点迁移过去。
+    """
     quote_dict = {
         "sh600519": {
             "code": "sh600519",
@@ -70,7 +73,7 @@ def mock_data_layer(monkeypatch):
     def mock_prefetch_finance(codes):
         return {c: [{"eps": 50.0, "roe": 30.0, "net_profit_yoy": 20.0}] for c in codes}
 
-    def mock_prefetch_kline(codes):
+    def mock_prefetch_kline(codes, scale=240, datalen=240):
         return {}
 
     def mock_analyze(
@@ -89,12 +92,14 @@ def mock_data_layer(monkeypatch):
     def mock_render(rows, strategy, top, title=None, show_chip=True):
         pass
 
-    monkeypatch.setattr(screener, "load_universe", mock_load_universe)
-    monkeypatch.setattr(screener, "_fetch_batch_dicts", mock_fetch_batch)
-    monkeypatch.setattr(screener, "prefetch_finance_all", mock_prefetch_finance)
-    monkeypatch.setattr(screener, "_prefetch_kline_all", mock_prefetch_kline)
-    monkeypatch.setattr(screener, "analyze_code", mock_analyze)
-    monkeypatch.setattr(screener, "apply_portfolio_constraints", mock_apply)
+    # mock 点迁移到 screening_service 模块
+    monkeypatch.setattr(ss, "load_universe", mock_load_universe)
+    monkeypatch.setattr(ss, "fetch_batch_dicts", mock_fetch_batch)
+    monkeypatch.setattr(ss, "prefetch_finance_all", mock_prefetch_finance)
+    monkeypatch.setattr(ss, "prefetch_kline_all", mock_prefetch_kline)
+    monkeypatch.setattr(ss, "analyze_code", mock_analyze)
+    monkeypatch.setattr(ss, "apply_portfolio_constraints", mock_apply)
+    # render 仍在 screener 模块
     monkeypatch.setattr(screener, "render", mock_render)
     return quote_dict
 

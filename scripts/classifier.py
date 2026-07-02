@@ -68,7 +68,6 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     circulating_cap = (
         to_float(quote_record.get("circulating_cap")) if quote_record else 0
     )
-    to_float(quote_record.get("total_cap")) if quote_record else 0
     turnover = to_float(quote_record.get("turnover")) if quote_record else 0
 
     # 提取财务特征

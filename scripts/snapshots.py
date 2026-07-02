@@ -187,6 +187,7 @@ def main():
     diff_cmd = sub.add_parser("diff", help="对比两个快照")
     diff_cmd.add_argument("path_a")
     diff_cmd.add_argument("path_b")
+    diff_cmd.add_argument("-j", "--json", action="store_true", help="输出 JSON 格式")
 
     args = parser.parse_args()
 
@@ -196,7 +197,7 @@ def main():
             print(p)
     elif args.command == "diff":
         diff = diff_snapshots(Path(args.path_a), Path(args.path_b))
-        if args.json if hasattr(args, "json") else False:
+        if args.json:
             print(json.dumps(diff, ensure_ascii=False, indent=2))
         else:
             print(f"A: {diff['snapshot_a']} ({diff['timestamp_a']})")

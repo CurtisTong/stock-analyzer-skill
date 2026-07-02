@@ -14,7 +14,7 @@ ok() { echo "  ✓ $1"; pass=$((pass+1)); }
 ko() { echo "  ✗ $1"; fail=$((fail+1)); }
 
 echo "==> 1. scripts/ 完整性"
-for f in common quote.py finance.py kline.py announcements.py screener.py technical.py classifier.py chan.py patterns_local.py stock.py chip.py; do
+for f in common quote.py finance.py kline.py announcements.py screener.py technical.py classifier.py chan.py stock.py chip.py; do
   if [ -d "$SCRIPTS/$f" ] || [ -x "$SCRIPTS/$f" ]; then
     ok "$f 可执行"
   else
@@ -97,13 +97,6 @@ if echo "$output" | grep -qE "valid|fenxing"; then
   ok "chan.py 输出含缠论"
 else
   ko "chan.py 输出异常: $output"
-fi
-
-output=$(python3 patterns_local.py sh600989 2>&1 || true)
-if echo "$output" | grep -q "patterns"; then
-  ok "patterns_local.py 输出含战法"
-else
-  ko "patterns_local.py 输出异常: $output"
 fi
 
 output=$(python3 chip.py sh600989 -j --days 5 2>&1 || true)

@@ -179,7 +179,8 @@ def _score_institution_change(code: str) -> float:
     inst_up = sum(1 for t in top if t.is_institution and t.change_type == "增持")
     inst_down = sum(1 for t in top if t.is_institution and t.change_type == "减持")
 
-    return (inst_up - inst_down) * 8
+    # P2-H4: 限制在 ±10，避免机构全增持时 +80 远超注释声称的 ±10
+    return max(-10, min(10, (inst_up - inst_down) * 8))
 
 
 def _score_northbound_flow(code: str) -> float:

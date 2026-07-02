@@ -77,9 +77,10 @@ def put(key: str, data: bytes) -> None:
         if _USE_FCNTL:
             fcntl.flock(fd, fcntl.LOCK_EX)
         os.write(fd, data)
+        # P2-H3(common): 持锁 replace，避免锁释放后、replace 前其他进程写入导致 last-write-wins
+        os.replace(tmp_path, f)
         os.close(fd)
         fd = -1
-        os.replace(tmp_path, f)
     except Exception as e:
         logger.debug("缓存写入失败 %s: %s", key, e)
         if fd >= 0:
@@ -124,7 +125,8 @@ def clear(prefix: str = "") -> None:
         return
     for f in CACHE_DIR.glob("*.cache"):
         if not prefix or f.stem.startswith(prefix):
-            f.unlink()
+            # P2-H3: missing_ok 避免并发清理时文件已被删除抛 FileNotFoundError
+            f.unlink(missing_ok=True)
 
 
 def cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:

@@ -691,27 +691,42 @@ class TestChanMaidian:
         assert result["buy_points"] == []
 
     def test_one_buy_below_zhongshu(self):
-        """价格在中枢下方 + 下跌笔结束 → 可能触发一买。"""
+        """价格在中枢下方 + 下跌笔结束 + 底背驰 → 触发一买。"""
         closes = [8.0] * 30
         zs = _make_zs(12, 10)  # 中枢 10-12
         bi_list = [
             _make_bi("up", 0, 5, 11, 8),
             _make_bi("down", 5, 25, 10, 7),  # 下跌笔，end_idx=25 接近 len(closes)-1=29
         ]
-        result = chan_maidian([], bi_list, [zs], closes)
+        # P2-C4: 一买需背驰确认
+        beichi = {"trend_beichi": "底背驰(看涨)", "range_beichi": []}
+        result = chan_maidian([], bi_list, [zs], closes, beichi)
         has_one_buy = any(bp["type"] == "一买" for bp in result["buy_points"])
-        # last_close=8 < zd=10, last_down.end_idx=25 >= 29-5=24 → 一买
         assert has_one_buy
 
+    def test_one_buy_no_beichi_degraded(self):
+        """P2-C4: 未确认背驰时一买退化为弱信号。"""
+        closes = [8.0] * 30
+        zs = _make_zs(12, 10)
+        bi_list = [
+            _make_bi("up", 0, 5, 11, 8),
+            _make_bi("down", 5, 25, 10, 7),
+        ]
+        result = chan_maidian([], bi_list, [zs], closes, beichi=None)
+        # 无背驰不构成标准一买，退化为弱信号
+        has_weak = any("一买(弱)" in bp["type"] for bp in result["buy_points"])
+        assert has_weak
+
     def test_sell_point_above_zhongshu(self):
-        """价格在中枢上方 + 上升笔结束 → 可能触发一卖。"""
+        """价格在中枢上方 + 上升笔结束 + 顶背驰 → 触发一卖。"""
         closes = [15.0] * 30
         zs = _make_zs(12, 10)
         bi_list = [
             _make_bi("down", 0, 5, 12, 8),
             _make_bi("up", 5, 25, 10, 16),  # 上升笔
         ]
-        result = chan_maidian([], bi_list, [zs], closes)
+        beichi = {"trend_beichi": "顶背驰(看跌)", "range_beichi": []}
+        result = chan_maidian([], bi_list, [zs], closes, beichi)
         has_sell = any(sp["type"] == "一卖" for sp in result["sell_points"])
         assert has_sell
 

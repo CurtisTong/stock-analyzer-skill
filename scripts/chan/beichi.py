@@ -4,14 +4,30 @@ from technical.core import _ema_series
 from .area import _macd_area  # v1.3.2: was chan/macd.py
 
 
-def chan_beichi(bi_list, zs_list, closes):
+def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None):
     """
     背驰检测。
     趋势背驰：比较两段同向走势的 MACD 面积，面积衰减+价格创极端=背驰。
     盘整背驰：比较中枢前后两段的力度。
+
+    Args:
+        date_to_close_idx: {date: closes_index} 映射，用于将 bi 的 merged 坐标系
+            idx 正确映射到 closes 坐标系（P2-C3 修复：原直接减 _dea_offset 因
+            bi idx 是 merged 空间而非 closes 空间，会导致面积计算错位）。
     """
     if len(closes) < 34 or len(bi_list) < 4:
         return {"trend_beichi": None, "range_beichi": [], "summary": "数据不足"}
+
+    def _mapped_idx(bi, key):
+        """将 bi 的 merged idx 通过 date 映射到 closes idx；映射失败回退原值。"""
+        merged_idx = bi[key] if key in bi else None
+        # bi 的 start/end 是 fenxing dict，含 bar.date
+        fx = bi.get("start") if key == "start_idx" else bi.get("end")
+        bar = fx.get("bar", {}) if fx else {}
+        d = bar.get("date", "")
+        if date_to_close_idx and d and d in date_to_close_idx:
+            return date_to_close_idx[d]
+        return merged_idx
 
     # 计算 DIF/DEA 序列
     # ema12 比 ema26 多 14 个元素（warmup 差异），需对齐到相同时间点
@@ -54,11 +70,12 @@ def chan_beichi(bi_list, zs_list, closes):
                 break
 
         if entry_bi and exit_bi and entry_bi["direction"] == exit_bi["direction"]:
-            # bi 索引基于 closes 数组，需映射到 trim 后的 dif_series 索引
-            e_start = entry_bi["start_idx"] - _dea_offset
-            e_end = entry_bi["end_idx"] - _dea_offset
-            x_start = exit_bi["start_idx"] - _dea_offset
-            x_end = exit_bi["end_idx"] - _dea_offset
+            # P2-C3: bi idx 是 merged 坐标系，通过 date 映射到 closes 坐标系，
+            # 再减 _dea_offset 映射到 trim 后的 dif_series
+            e_start = _mapped_idx(entry_bi, "start_idx") - _dea_offset
+            e_end = _mapped_idx(entry_bi, "end_idx") - _dea_offset
+            x_start = _mapped_idx(exit_bi, "start_idx") - _dea_offset
+            x_end = _mapped_idx(exit_bi, "end_idx") - _dea_offset
 
             if (
                 0 <= e_start
@@ -104,11 +121,11 @@ def chan_beichi(bi_list, zs_list, closes):
                 break
 
         if entry_bi and exit_bi:
-            # bi 索引基于 closes 数组，需映射到 trim 后的 dif_series 索引
-            e_start = entry_bi["start_idx"] - _dea_offset
-            e_end = entry_bi["end_idx"] - _dea_offset
-            x_start = exit_bi["start_idx"] - _dea_offset
-            x_end = exit_bi["end_idx"] - _dea_offset
+            # P2-C3: 通过 date 映射坐标系
+            e_start = _mapped_idx(entry_bi, "start_idx") - _dea_offset
+            e_end = _mapped_idx(entry_bi, "end_idx") - _dea_offset
+            x_start = _mapped_idx(exit_bi, "start_idx") - _dea_offset
+            x_end = _mapped_idx(exit_bi, "end_idx") - _dea_offset
 
             if (
                 0 <= e_start

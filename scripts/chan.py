@@ -48,6 +48,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     code = normalize_quote_code(sys.argv[1])
-    records = fetch_kline(code, 240, 250)
-    result = chan_full_analysis(records)
-    print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    try:
+        records = fetch_kline(code, 240, 250)
+        result = chan_full_analysis(records)
+        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+    except Exception as e:
+        print(f"❌ 缠论分析失败 ({code}): {e}", file=sys.stderr)
+        sys.exit(1)

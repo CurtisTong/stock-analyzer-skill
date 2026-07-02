@@ -83,6 +83,24 @@ class ParseError(DataError):
         )
 
 
+class HTTPStatusError(DataError):
+    """HTTP 状态码错误（4xx 业务错误，非网络故障，不应触发熔断）。
+
+    用于区分 404（数据不存在）等业务错误与网络故障：
+    - 4xx（非 429）：业务错误，DataFetcherManager 应不熔断、换源。
+    - 网络超时/连接失败：NetworkError，应熔断。
+    """
+
+    def __init__(self, url: str, status: int, body: str = ""):
+        self.url = url
+        self.status = status
+        self.body = body[:200] if body else ""
+        super().__init__(
+            f"HTTP {status} for {url}",
+            {"url": url, "status": status},
+        )
+
+
 class DataUnavailableError(DataError):
     """数据源不可用（连续失败）。"""
 
@@ -274,6 +292,7 @@ __all__ = [
     "NetworkError",
     "RateLimitError",
     "ParseError",
+    "HTTPStatusError",
     "DataUnavailableError",
     "BusinessError",
     "ValidationError",

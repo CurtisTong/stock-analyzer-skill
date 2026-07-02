@@ -84,7 +84,7 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
 
     # 本土战法（始终运行，计算成本低）
     try:
-        from patterns_local import detect_all_local_patterns
+        from strategies.patterns import detect_all_local_patterns
 
         local_result = detect_all_local_patterns(
             records, closes, highs, lows, volumes, mas, code=quote.get("code", "")
