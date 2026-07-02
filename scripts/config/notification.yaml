@@ -11,11 +11,12 @@ channels:
 
   # wechat_work:
   #   enabled: false
-  #   webhook: ""                        # 企业微信机器人 Webhook URL
+  #   key: ""                             # 企业微信机器人 Key
 
   # dingtalk:
   #   enabled: false
-  #   webhook: ""                        # 钉钉机器人 Webhook URL
+  #   token: ""                           # 钉钉机器人 Token
+  #   secret: ""                          # 钉钉机器人 Secret（加签模式）
 
   # webhook:
   #   enabled: false
@@ -45,15 +46,17 @@ rules:
 
   portfolio_alert:
     enabled: true
-    risk_change: true                    # 风险状态变更
-    underperform_days: 2                 # 连续跑输天数
-    concentration: true                  # 集中度超标
+    # TODO: 以下规则尚未实现，配置后不会触发
+    risk_change: true                    # 风险状态变更（TODO: 待实现）
+    underperform_days: 2                 # 连续跑输天数（TODO: 待实现）
+    concentration: true                  # 集中度超标（TODO: 待实现）
 
   market_alert:
     enabled: true
-    index_change: 2.0                    # 大盘涨跌幅阈值 (%)
-    sector_moved: true                   # 持仓板块异动
-    northbound_flow: 50                  # 北向资金净流入/出 (亿)
+    # TODO: 以下规则尚未实现，配置后不会触发
+    index_change: 2.0                    # 大盘涨跌幅阈值 (%)（TODO: 待实现）
+    sector_moved: true                   # 持仓板块异动（TODO: 待实现）
+    northbound_flow: 50                  # 北向资金净流入/出 (亿)（TODO: 待实现）
 
   strategy_alert:
     enabled: true

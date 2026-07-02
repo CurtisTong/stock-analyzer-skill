@@ -1,6 +1,6 @@
 ---
 name: backtest
-description: 策略回测。触发词：回测一下、策略效果怎么样、哪个策略好、验证选股策略、回测收益、对比策略表现、优化策略权重。验证5种策略的历史胜率/累计收益/夏普/最大回撤等11项指标，支持基准对比和权重优化。
+description: 策略回测。触发词：回测一下、策略效果怎么样、哪个策略好、验证选股策略、回测收益、对比策略表现、优化策略权重。验证6种策略的历史胜率/累计收益/夏普/最大回撤等11项指标，支持基准对比和权重优化。
 version: 1.14.2
 model: haiku
 disable-model-invocation: true
@@ -66,7 +66,7 @@ python3 scripts/backtest.py [参数]
 输出示例（`--all` 模式）：
 
 ```
-📊 5 策略 60 日回测对比 (sh000300 基准)
+📊 6 策略 60 日回测对比 (sh000300 基准)
 
 | 策略 | 累计收益 | 年化 | 最大回撤 | 胜率 | 夏普 | 信息比 |
 |------|---------|------|---------|------|------|--------|
@@ -75,13 +75,14 @@ python3 scripts/backtest.py [参数]
 | growth_momentum| +18.7% | +120%| -12.3%| 55% | 1.5 | 0.38 |
 | defensive     | +6.8%   | +40% | -4.5% | 65% | 1.9 | 0.30 |
 | turning_point | +22.3%  | +150%| -15.8%| 52% | 1.3 | 0.45 |
+| ma_volume_momentum | +10.1% | +60% | -9.0% | 56% | 1.4 | 0.32 |
 
 ✅ 推荐：当前震荡市，quality_value 风险调整收益最优。
 ```
 
 ## 策略说明
 
-5 策略定义详见 [`../_shared/references/strategies.md`](../_shared/references/strategies.md)。
+6 策略定义详见 [`../_shared/references/strategies.md`](../_shared/references/strategies.md)。
 回测场景下侧重看 `适用市场` 列选择对应策略。
 
 ## Guardrails

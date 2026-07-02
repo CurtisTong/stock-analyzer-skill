@@ -47,7 +47,7 @@ allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.m
 - 上游来自 `screener`：接收候选分数、策略和剔除/入选理由，做五层验证。
 - 上游来自 `sector`：接收板块景气和同业比较，避免孤立看个股。
 - 下游到 `technical`：当结论是买入/持有/观察时，必须确认技术触发、支撑阻力和失效位。
-- 下游到 `financial-analyst`：当财务数据异常、估值分歧大或需要预测时，进入建模。
+- 下游到 `/research financial`：当财务数据异常、估值分歧大或需要预测时，进入建模。
 - 下游到 `portfolio`：当涉及实际操作时，输出仓位计划、止损、替代方案。
 
 输出必须包含 `fundamental_rating`、`valuation_view`、`sector_context`、`technical_next_step`、`position_plan`。
@@ -210,8 +210,8 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 1. **获取数据**：同全模式步骤1（行情+财务+K线），无需获取大盘数据。
 2. **仅调用对应组专家打分**：长线模式只跑 lynch/soros/value_anchor/sector_specialist/institution/risk_manager（6人），短线模式只跑 topic_leader/emotion_tech/momentum_trader（3人）。
-3. **组内投票**：按 decide.md §七 规则——组内 ≥3/4 看多=看多，≥3/4 看空=看空，2:2=中性。
-4. **输出**：评分表（仅该组4人）+ 组内方向 + 风险 + 仓位。信心指数基于4人标准差计算。
+3. **组内投票**：按 decide.md §七 规则——长线组 ≥4/6 看多=看多，≥4/6 看空=看空，3:3=中性；短线组 ≥2/3 看多=看多，≥2/3 看空=看空。
+4. **输出**：评分表（仅该组专家）+ 组内方向 + 风险 + 仓位。信心指数基于组内标准差计算。
 
 ### Step 5: 技术分析（technical 模式）
 

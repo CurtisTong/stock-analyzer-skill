@@ -13,7 +13,6 @@ def volume_analysis(closes, volumes):
     if len(closes) < 6 or len(volumes) < 6:
         return None
 
-    closes[-1]
     recent_vol_avg = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else volumes[-1]
     base_vol_avg = (
         statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol_avg
@@ -73,8 +72,21 @@ def volume_analysis(closes, volumes):
 
     # OBV 及背离
     obv_values = _obv_series(closes, volumes)
-    obv_values[-1] if obv_values else 0
     obv_div = _detect_obv_divergence(closes, obv_values)
+
+    # 连续缩量检测（signals.py 引用 shrink_signal / shrink_desc）
+    shrink_signal = 0
+    shrink_desc = ""
+    if len(volumes) >= 5:
+        shrink_days = 0
+        for i in range(-1, -min(6, len(volumes)), -1):
+            if i - 1 >= -len(volumes) and volumes[i] < volumes[i - 1]:
+                shrink_days += 1
+            else:
+                break
+        if shrink_days >= 3:
+            shrink_signal = 1
+            shrink_desc = f"连续{shrink_days}日缩量(抛压枯竭，底部信号)"
 
     return {
         "volume_ratio": round(volume_ratio, 2),
@@ -82,6 +94,8 @@ def volume_analysis(closes, volumes):
         "volume_price": vp_desc,
         "volume_price_signal": vp_signal,
         "obv_divergence": obv_div,
+        "shrink_signal": shrink_signal,
+        "shrink_desc": shrink_desc,
     }
 
 

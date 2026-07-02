@@ -25,7 +25,7 @@ disable-model-invocation: false
 | ------------------------------- | ---------------------- | ------------------------------------------------- |
 | 📊 看今天大盘涨跌               | `/market quick`        | 三大指数 + 板块 Top3 + 一句话策略                 |
 | 🔍 找几只值得买的股票           | `/screener`            | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单           |
-| 🎤 听 9 位 active 专家圆桌（15 份人设中 9 active = 4 长线 + 3 短线 + 2 中性：行业专家/风控）辩论一只股票 | `/stock <代码> debate` | 9 active（4 长 + 3 短 + 2 中性）投票 + 最终方向 + 仓位 |
+| 🎤 听 9 位 active 专家圆桌（15 份人设中 9 active = 6 长线 + 3 短线）辩论一只股票 | `/stock <代码> debate` | 9 active（6 长 + 3 短）投票 + 最终方向 + 仓位 |
 
 ### 进阶（组合管理）
 
@@ -58,7 +58,7 @@ disable-model-invocation: false
 如果你是第一次使用，建议按以下顺序：
 
 1. **先看一只股票**：`/stock 贵州茅台 quick` → 了解五层分析框架
-2. **听专家辩论**：`→ 贵州茅台 debate` → 了解 9 人（4 长线 + 3 短线 + 2 中性：行业/风控）圆桌投票
+2. **听专家辩论**：`→ 贵州茅台 debate` → 了解 9 人（6 长线 + 3 短线）圆桌投票
 3. **看今天市场**：`/market quick` → 了解大盘状态
 4. **选几只股票**：`/screener` → 了解多因子选股
 5. **学投资知识**：`/learn` → 系统化学习路径
@@ -69,7 +69,7 @@ disable-model-invocation: false
 
 | Skill        | 命令                                             | 用途                                  |
 | ------------ | ------------------------------------------------ | ------------------------------------- |
-| `/stock`     | `<代码或名称> [quick\|full\|debate\|technical]`  | 单股 5 层分析 / 9 人圆桌辩论（15 份人设中 9 active = 4 长线 + 3 短线 + 2 中性） |
+| `/stock`     | `<代码或名称> [quick\|full\|debate\|technical]`  | 单股 5 层分析 / 9 人圆桌辩论（15 份人设中 9 active = 6 长线 + 3 短线） |
 | `/market`    | `[full\|quick\|intraday]`                        | 大盘复盘（指数/板块/风格/资金）       |
 | `/sector`    | `<板块> [overview\|compare\|stock]`              | 板块全景 / 标的对比 / 板块内筛选      |
 | `/portfolio` | `[health\|rebalance\|compare\|web]`              | 持仓健康 / 调仓 / 模拟盘 / Web 录入   |
@@ -139,7 +139,7 @@ disable-model-invocation: false
 
 | Skill              | 子模式                                                                    | 用途                                                                   |
 | ------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `/stock`           | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=9 人圆桌（4 长 + 3 短 + 2 中性）；technical=纯技术分析 |
+| `/stock`           | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=9 人圆桌（6 长 + 3 短）；technical=纯技术分析 |
 | `/market`          | `full`（默认）/ `quick` / `intraday`                                      | intraday=盘中分时（5 分钟 K 线）                                       |
 | `/sector`          | `overview`（默认）/ `compare` / `stock`                                   | compare=标的横向对比；stock=板块内个股深挖                             |
 | `/portfolio`       | `health`（默认）/ `rebalance` / `compare` / `web`                         | rebalance=按 workflow 联动；web=本地录入服务                           |
@@ -154,7 +154,7 @@ disable-model-invocation: false
 
 - 完整工作流：[`workflow.md`](../../workflow.md)
 - 投资方法论：[`methodology.md`](../../methodology.md)
-- 9 位 active 专家档案（15 份人设中 9 active = 4 长线 + 3 短线 + 2 中性：行业专家/风控）：[`experts/`](../../experts/)
+- 9 位 active 专家档案（15 份人设中 9 active = 6 长线 + 3 短线）：[`experts/`](../../experts/)
 - 完整文档：[`README.md`](../../README.md) · [`docs/user-guide.md`](../../docs/user-guide.md) · [`docs/quick-start.md`](../../docs/quick-start.md)
 
 ## 当用户触发此 skill 时
