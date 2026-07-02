@@ -44,8 +44,25 @@ def _resolve_conflict(
     long_divergent = long_votes["bull"] < 4 and long_votes["bear"] < 4
     short_divergent = short_votes["bull"] < 2 and short_votes["bear"] < 2
 
+    # 极端两极分化检测（优先于其他分支）
+    # 一组压倒性看多 + 另一组压倒性看空 = 最危险的分歧场景
+    long_extreme_bull = long_votes["bull"] >= 5 and long_votes["bear"] == 0
+    long_extreme_bear = long_votes["bear"] >= 5 and long_votes["bull"] == 0
+    short_extreme_bull = short_votes["bull"] == 3 and short_votes["bear"] == 0
+    short_extreme_bear = short_votes["bear"] == 3 and short_votes["bull"] == 0
+    polarized = (
+        (long_extreme_bull and short_extreme_bear)
+        or (long_extreme_bear and short_extreme_bull)
+    )
+
+    if polarized:
+        direction = "中性"
+        position_factor = 0.0
+        total_bull = long_votes["bull"] + short_votes["bull"]
+        total_bear = long_votes["bear"] + short_votes["bear"]
+        notes.append(f"两极分化（{total_bull} 看多 + {total_bear} 看空），建议观望")
     # 双一致看多：长线 ≥4/6 看多 + 短线 ≥2/3 看多
-    if long_votes["bull"] >= 4 and short_votes["bull"] >= 2:
+    elif long_votes["bull"] >= 4 and short_votes["bull"] >= 2:
         direction = "强烈看多"
         position_factor = 1.0
     # 双一致看空：长线 ≥4/6 看空 + 短线 ≥2/3 看空
@@ -73,22 +90,8 @@ def _resolve_conflict(
         direction = "中性"
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
-    # 极端两极分化：一组全多 + 另一组全空（6+3=9 人全部投票且方向对立）
-    elif (
-        long_votes["bull"] + long_votes["bear"] == 6
-        and short_votes["bull"] + short_votes["bear"] == 3
-        and (
-            (long_votes["bull"] >= 5 and short_votes["bear"] >= 2)
-            or (long_votes["bear"] >= 5 and short_votes["bull"] >= 2)
-        )
-    ):
-        direction = "中性"
-        position_factor = 0.0
-        total_bull = long_votes["bull"] + short_votes["bull"]
-        total_bear = long_votes["bear"] + short_votes["bear"]
-        notes.append(f"两极分化（{total_bull} 看多 + {total_bear} 看空），建议观望")
     else:
-        # 按综合分判断
+        # 按综合分判断（覆盖长线看多+短线看空等非极端分歧场景）
         avg = (long_avg + short_avg) / 2
         direction = direction_from_score(avg)
         if avg >= 60:
@@ -212,14 +215,19 @@ def _buffett_downweight_policy(buffett_score: float, horizon: str) -> dict:
 def _apply_buffett_long_downweight(long_experts: List[dict]) -> float:
     """短期模式下，对除 buffett/value_anchor 外的长线专家×0.8 加权平均。
 
+    v2.3.0 修正：使用加权平均（权重和为分母），而非简单平均（人数为分母），
+    避免所有专家评分相同时结果系统性偏低。
+
     单一来源（v2.2.0 收敛），原 aggregate_votes 内联实现已替换为此函数。
     """
     identity_names = {"buffett", "value_anchor"}
-    total = sum(
-        r["score"] * (1.0 if r.get("name") in identity_names else 0.8)
-        for r in long_experts
-    )
-    return total / len(long_experts) if long_experts else 50.0
+    weighted_sum = 0.0
+    weight_total = 0.0
+    for r in long_experts:
+        w = 1.0 if r.get("name") in identity_names else 0.8
+        weighted_sum += r["score"] * w
+        weight_total += w
+    return weighted_sum / weight_total if weight_total > 0 else 50.0
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -382,7 +390,18 @@ def aggregate_votes(
     buffett = _find_expert(expert_by_name, "buffett")
 
     yangjia_score = yangjia["score"] if yangjia else 50
-    buffett_score = buffett["score"] if buffett else 50
+
+    # 巴菲特否决权评分：优先使用 buffett_sub_score（独立子评分），
+    # 避免合并型专家（value_anchor）中段永平的看多稀释巴菲特的看空。
+    # v2.1.2 修正：否决权判断应基于巴菲特独立观点，而非合并后总分。
+    if buffett and buffett.get("name") == "value_anchor":
+        # 合并型专家场景：从 buffett_sub_score 字段读取巴菲特独立评分
+        buffett_score = buffett.get("buffett_sub_score", buffett["score"])
+    elif buffett:
+        # legacy 场景：直接使用巴菲特评分
+        buffett_score = buffett["score"]
+    else:
+        buffett_score = 50
 
     # 提取养家情绪得分，判断是否冰点期
     emotion_score = _get_yangjia_emotion_score(yangjia)
@@ -395,13 +414,19 @@ def aggregate_votes(
 
     # 养家情绪退潮降权（非冰点时）：降权规则自身不降，其余短线 ×0.7
     # identity_name 认旧名（chaogu_yangjia）与新合并型名（emotion_tech）
+    # v2.3.0 修正：降权后同步更新 short_scores 和 short_votes，避免投票方向与均值矛盾
     if yangjia_score < 30 and not is_yangjia_ice:
         identity_names = {"chaogu_yangjia", "emotion_tech"}
-        total_score = sum(
-            r["score"] * (1.0 if r.get("name") in identity_names else 0.7)
-            for r in short_experts
-        )
-        short_avg = total_score / len(short_experts) if short_experts else short_avg
+        adjusted_scores = []
+        for r in short_experts:
+            if r.get("name") in identity_names:
+                adjusted_scores.append(r["score"])
+            else:
+                adjusted_scores.append(r["score"] * 0.7)
+        short_avg = statistics.mean(adjusted_scores) if adjusted_scores else short_avg
+        # 同步更新投票统计，确保方向与均值一致
+        short_scores = adjusted_scores
+        short_votes = _count_votes(adjusted_scores)
 
     # 巴菲特降权（短期模式看空时）：巴菲特自身不降，其余长线 ×0.8
     # v2.2.0 起收敛到 _buffett_downweight_policy + _apply_buffett_long_downweight
@@ -493,8 +518,11 @@ def aggregate_group_votes(
 ) -> dict:
     """单组模式投票整合（decide.md §七）。
 
+    v2.3.0 适配：长线组 6 人、短线组 3 人，投票阈值动态计算。
+    多数阈值 = ceil(n * 2/3)，即 6 人需 4 票、3 人需 2 票。
+
     Args:
-        expert_results: 该组 4 位专家的评分结果
+        expert_results: 该组专家的评分结果
         group: "long_term" 或 "short_term"
         calibration_factor: 校准因子
 
@@ -505,24 +533,29 @@ def aggregate_group_votes(
     avg = statistics.mean(scores) if scores else 50
 
     votes = _count_votes(scores)
+    n = len(scores)
+    # 动态多数阈值：67% 多数（与双组模式一致）
+    majority = max(1, -(-n * 2 // 3))  # ceil(n * 2/3)
+
     direction = "中性"
     position_factor = 0.0
 
-    # 组内投票规则 (§七.1)
+    # 组内投票规则（动态阈值）
     if all(s >= 70 for s in scores):
         direction = "强烈看多"
         position_factor = 1.2
-    elif votes["bull"] >= 3 and votes["bear"] == 0:
+    elif votes["bull"] >= majority and votes["bear"] == 0:
         direction = "看多"
         position_factor = 1.0
-    elif votes["bull"] == 3 and any(s <= 39 for s in scores):
-        # 3/4看多 + 1票否决
+    elif votes["bull"] >= majority and any(s <= 39 for s in scores):
+        # 多数看多 + 存在否决票
         direction = "看多"
         position_factor = 0.7
-    elif votes["bull"] == 2 and votes["bear"] == 2:
+    elif votes["bull"] >= 1 and votes["bear"] >= 1 and abs(votes["bull"] - votes["bear"]) <= 1:
+        # 接近均势分歧（如 2:1 或 3:3）
         direction = "中性"
         position_factor = 0.0
-    elif votes["bear"] >= 3:
+    elif votes["bear"] >= majority:
         direction = "看空"
         position_factor = 0.0
     elif all(s <= 30 for s in scores):

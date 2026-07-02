@@ -1085,4 +1085,9 @@ class TestIntegration:
         }
         result = composite_score(features)
         assert 0 <= result["score"] <= 100
-        assert result["grade"] in ("强烈看多", "偏多", "中性", "偏空", "强烈看空")
+        # 包含所有可能的 grade 值（含中间模糊区间档位）
+        valid_grades = (
+            "强烈看多", "偏多(强)", "偏多", "中性(偏多)",
+            "中性", "中性(偏空)", "偏空", "偏空(强)", "强烈看空",
+        )
+        assert result["grade"] in valid_grades

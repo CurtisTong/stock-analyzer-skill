@@ -633,8 +633,10 @@ class TestMergedExpertFallback:
 
         # 降权后 long_avg 应低于原始均值（70,70,70,20 → 降权后更低）
         raw_long_mean = mean([70, 70, 70, 20])  # =57.5 未降权
-        # buffett/value_anchor 自身不降，其余三个 70 ×0.8=56
-        expected_after = (20 + 56 + 56 + 56) / 4  # =47.0
+        # v2.3.0 修正：使用加权平均（权重和为分母），而非简单平均
+        # buffett/value_anchor 自身不降(×1.0)，其余三个 70 ×0.8=56
+        # weighted_sum = 20 + 56 + 56 + 56 = 188, weight_total = 1.0 + 0.8×3 = 3.4
+        expected_after = 188 / 3.4  # ≈55.3
         assert abs(agg["long_avg"] - round(expected_after, 1)) < 0.2
         assert agg["long_avg"] < raw_long_mean
 

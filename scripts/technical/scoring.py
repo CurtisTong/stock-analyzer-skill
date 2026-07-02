@@ -29,6 +29,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 1.5,
         "chan": 0.5,
         "chip": 0.8,
+        "valuation": 0.3,  # 题材股估值权重低，以情绪/技术为主
     },
     "蓝筹股": {
         "ma": 1.3,
@@ -41,6 +42,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 0.3,
         "chan": 0.8,
         "chip": 1.3,
+        "valuation": 1.5,  # 蓝筹股估值权重高，PE/PB/股息率是核心
     },
     "强成长股": {
         "ma": 0.9,
@@ -53,6 +55,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 0.5,
         "chan": 0.7,
         "chip": 1.0,
+        "valuation": 0.8,  # 成长股用 PEG 而非绝对 PE，权重适中
     },
     "周期股": {
         "ma": 0.6,
@@ -65,6 +68,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 0.4,
         "chan": 1.3,
         "chip": 1.1,
+        "valuation": 1.0,  # 周期股用 PB/商品价格，权重中等
     },
     "稳成长股": {
         "ma": 1.2,
@@ -77,6 +81,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 0.3,
         "chan": 0.8,
         "chip": 1.2,
+        "valuation": 1.3,  # 稳成长股估值是重要参考
     },
     "防御股": {
         "ma": 0.8,
@@ -89,6 +94,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 0.3,
         "chan": 0.9,
         "chip": 1.0,
+        "valuation": 1.4,  # 防御股估值+股息率是核心
     },
     "普通股": {
         "ma": 1.0,
@@ -101,6 +107,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "limit": 1.0,
         "chan": 1.0,
         "chip": 1.0,
+        "valuation": 1.0,  # 普通股估值等权
     },
 }
 
@@ -421,6 +428,7 @@ def composite_score(
         "chan": 15,
         "local": 10,
         "chip": 10,  # chip 允许负分（下限 -5），归一化时特殊处理
+        "valuation": 100,  # 估值因子（PE/PB/PEG/PS），满分 100
     }
 
     # 计算各子评分原始值
@@ -435,6 +443,7 @@ def composite_score(
         "chan": _score_chan(features.get("chan_theory") or {}, adj),
         "local": _score_local(features.get("local_patterns") or {}),
         "chip": _score_chip(features.get("chip") or {}, type_w),
+        "valuation": features.get("valuation_score", 50),  # 估值因子评分（0-100）
     }
 
     # 市场宽度惩罚（徐翔、赵老哥、养家建议）

@@ -202,6 +202,7 @@ class StockAnalysisService:
         # 估值数据注入（反追涨杀跌）
         if quote_dict:
             from strategies.factors.common import pe_percentile
+            from strategies.factors.valuation import valuation_score
 
             pe = to_float(quote_dict.get("pe"))
             pb = to_float(quote_dict.get("pb"))
@@ -218,6 +219,10 @@ class StockAnalysisService:
                 "pe_percentile": round(pe_pct, 1),
                 "peg": round(peg, 2),
             }
+            # 估值因子评分纳入综合评分（v2.3.0 修正：估值不再与技术面脱节）
+            features["valuation_score"] = valuation_score(
+                quote_dict, fin, industry
+            )
 
         # 检测市场环境（获取大盘指数行情）
         market_state = "震荡"
