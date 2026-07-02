@@ -7,6 +7,32 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [Unreleased] - 2026-07-02
+
+### Added
+- **docs**: 新增用户专家与视觉专家审查视角档案
+- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
+- **scripts**: CB 加 half_open_success_threshold 可选守卫
+- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
+- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
+
+### Fixed
+- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
+- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
+- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
+- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
+- *****: 优化设置
+- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+
+### Documentation
+- **docs**: 文档双视角审查后批量修正事实性错误
+- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
+- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+
+### Maintenance
+- black 折行（backtest cli/metrics 无逻辑变化）
+- **settings**: 合并 IDE 自动学习的权限 allowlist
+
 ## [Unreleased] - 2026-07-01
 
 ### Added
