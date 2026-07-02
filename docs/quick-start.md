@@ -6,7 +6,7 @@
 
 ## 前置条件
 
-- Python 3.x
+- **Python 3.11+**（`pyproject.toml` `requires-python = ">=3.11"`）
 - Claude Code 环境
 
 ## 安装
@@ -40,7 +40,7 @@ cd ~/Documents/curtis/stock-analyzer-skill
 
 首次使用前，初始化股票池：
 
-```
+```bash
 /screener init
 ```
 
@@ -50,19 +50,19 @@ cd ~/Documents/curtis/stock-analyzer-skill
 
 如需联网获取最新数据：
 
-```
+```bash
 /screener init force
 ```
 
 如需离线模式（不访问 API）：
 
-```
+```bash
 /screener init default
 ```
 
 ## 第一个命令
 
-```
+```bash
 /stock sh600989 quick
 ```
 
@@ -118,7 +118,7 @@ cd ~/Documents/curtis/stock-analyzer-skill
 ./tests/smoke_test.sh
 
 # 如果仍有问题，检查 Python 版本
-python3 --version  # 需要 3.9+
+python3 --version  # 需要 3.11+
 ```
 
 ### Claude Code 不识别 skills？
