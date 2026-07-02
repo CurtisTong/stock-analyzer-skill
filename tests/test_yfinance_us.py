@@ -16,14 +16,14 @@ class TestYfinanceQuoteHelpers:
     """us: 前缀识别和符号转换。"""
 
     def test_is_us_code_with_prefix(self):
-        from fetchers.yfinance_quote import _is_us_code
+        from fetchers.quote.yfinance_quote import _is_us_code
 
         assert _is_us_code("us:^gspc") is True
         assert _is_us_code("us:spy") is True
         assert _is_us_code("US:SPY") is True
 
     def test_is_us_code_without_prefix(self):
-        from fetchers.yfinance_quote import _is_us_code
+        from fetchers.quote.yfinance_quote import _is_us_code
 
         assert _is_us_code("sh600519") is False
         assert _is_us_code("sz000858") is False
@@ -31,12 +31,12 @@ class TestYfinanceQuoteHelpers:
 
     def test_is_us_code_empty_prefix(self):
         """'us:' 本身也识别为 us 代码（符号为空，fetch 时应返回 None）。"""
-        from fetchers.yfinance_quote import _is_us_code
+        from fetchers.quote.yfinance_quote import _is_us_code
 
         assert _is_us_code("us:") is True
 
     def test_to_yf_symbol_lowercase(self):
-        from fetchers.yfinance_quote import _to_yf_symbol
+        from fetchers.quote.yfinance_quote import _to_yf_symbol
 
         assert _to_yf_symbol("us:^gspc") == "^gspc"
         assert _to_yf_symbol("us:spy") == "spy"
@@ -44,14 +44,14 @@ class TestYfinanceQuoteHelpers:
 
     def test_to_yf_symbol_uppercase(self):
         """大写前缀 US:SPY 应正确提取符号 spy。"""
-        from fetchers.yfinance_quote import _to_yf_symbol
+        from fetchers.quote.yfinance_quote import _to_yf_symbol
 
         assert _to_yf_symbol("US:SPY") == "SPY"
         assert _to_yf_symbol("US:^GSPC") == "^GSPC"
 
     def test_to_yf_symbol_empty(self):
         """'us:' 无符号部分应返回 None。"""
-        from fetchers.yfinance_quote import _to_yf_symbol
+        from fetchers.quote.yfinance_quote import _to_yf_symbol
 
         assert _to_yf_symbol("us:") is None
 
@@ -61,21 +61,21 @@ class TestYfinanceQuoteFetcher:
 
     def test_returns_not_handled_for_non_us_code(self):
         """非 us: 前缀代码应返回 NOT_HANDLED，不触发熔断计数。"""
-        from fetchers.yfinance_quote import YfinanceQuoteFetcher
+        from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
         fetcher = YfinanceQuoteFetcher()
         assert fetcher.fetch("sh600519") is NOT_HANDLED
         assert fetcher.fetch("sz000858") is NOT_HANDLED
 
-    @patch("fetchers.yfinance_quote.yf", None)
+    @patch("fetchers.quote.yfinance_quote.yf", None)
     def test_returns_not_handled_when_yfinance_missing(self):
         """yfinance 未安装时返回 NOT_HANDLED。"""
-        from fetchers.yfinance_quote import YfinanceQuoteFetcher
+        from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
         fetcher = YfinanceQuoteFetcher()
         assert fetcher.fetch("us:^gspc") is NOT_HANDLED
 
-    @patch("fetchers.yfinance_quote.yf")
+    @patch("fetchers.quote.yfinance_quote.yf")
     def test_fetch_returns_quote_dict(self, mock_yf):
         """正常 fetch 应返回标准 quote dict。"""
         mock_ticker = MagicMock()
@@ -94,7 +94,7 @@ class TestYfinanceQuoteFetcher:
         }
         mock_yf.Ticker.return_value = mock_ticker
 
-        from fetchers.yfinance_quote import YfinanceQuoteFetcher
+        from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
         fetcher = YfinanceQuoteFetcher()
         result = fetcher.fetch("us:^gspc")
@@ -107,7 +107,7 @@ class TestYfinanceQuoteFetcher:
         assert "change_pct" in result
         assert "volume" in result
 
-    @patch("fetchers.yfinance_quote.yf")
+    @patch("fetchers.quote.yfinance_quote.yf")
     def test_fetch_fallback_to_history(self, mock_yf):
         """info 无 regularMarketPrice 时应回退到 history 数据。"""
         mock_ticker = MagicMock()
@@ -140,7 +140,7 @@ class TestYfinanceQuoteFetcher:
         mock_ticker.history.return_value = mock_hist
         mock_yf.Ticker.return_value = mock_ticker
 
-        from fetchers.yfinance_quote import YfinanceQuoteFetcher
+        from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
         fetcher = YfinanceQuoteFetcher()
         result = fetcher.fetch("us:spy")
@@ -149,7 +149,7 @@ class TestYfinanceQuoteFetcher:
         assert result["price"] == "103.0"
         assert result["prev_close"] == "101.0"
 
-    @patch("fetchers.yfinance_quote.yf")
+    @patch("fetchers.quote.yfinance_quote.yf")
     def test_fetch_info_returns_none(self, mock_yf):
         """ticker.info 返回 None 时应回退到 history。"""
         mock_ticker = MagicMock()
@@ -163,7 +163,7 @@ class TestYfinanceQuoteFetcher:
         mock_ticker.history.return_value = mock_hist
         mock_yf.Ticker.return_value = mock_ticker
 
-        from fetchers.yfinance_quote import YfinanceQuoteFetcher
+        from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
         fetcher = YfinanceQuoteFetcher()
         result = fetcher.fetch("us:test")
@@ -172,7 +172,7 @@ class TestYfinanceQuoteFetcher:
 
     def test_fetch_empty_symbol_returns_none(self):
         """'us:' 无符号部分应返回 None（失败，非 NOT_HANDLED）。"""
-        from fetchers.yfinance_quote import YfinanceQuoteFetcher
+        from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
         fetcher = YfinanceQuoteFetcher()
         # yf is None in test env，所以返回 NOT_HANDLED
@@ -188,7 +188,7 @@ class TestYfinanceKlineUsPrefix:
     """YfinanceKlineFetcher us: 前缀支持。"""
 
     def test_to_yf_symbol_us_prefix(self):
-        from fetchers.yfinance_kline import _to_yf_symbol
+        from fetchers.kline.yfinance_kline import _to_yf_symbol
 
         assert _to_yf_symbol("us:^gspc") == "^gspc"
         assert _to_yf_symbol("us:spy") == "spy"
@@ -196,14 +196,14 @@ class TestYfinanceKlineUsPrefix:
 
     def test_to_yf_symbol_us_uppercase(self):
         """大写 US: 前缀应正确处理。"""
-        from fetchers.yfinance_kline import _to_yf_symbol
+        from fetchers.kline.yfinance_kline import _to_yf_symbol
 
         assert _to_yf_symbol("US:SPY") == "SPY"
         assert _to_yf_symbol("US:^GSPC") == "^GSPC"
 
     def test_to_yf_symbol_ashare_unchanged(self):
         """A 股代码转换逻辑不变。"""
-        from fetchers.yfinance_kline import _to_yf_symbol
+        from fetchers.kline.yfinance_kline import _to_yf_symbol
 
         assert _to_yf_symbol("sh600519") == "600519.SS"
         assert _to_yf_symbol("sz000858") == "000858.SZ"

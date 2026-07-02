@@ -2,17 +2,18 @@
 数据源集合：自动发现并加载可用的数据源。
 依赖包未安装时自动跳过对应数据源。
 
-v1.3.2 起按数据域分组（7 个数据域 × 21 个 fetcher），便于扩展时定位代码。
-文件保持平铺以避免破坏 import 路径；如需子目录化请参考 docs/improvement-roadmap.md。
+v1.3.2 起按数据域分组（7 个数据域 × 26 个 fetcher 模块 / 33 个 fetcher 类），
+便于扩展时定位代码。子目录化后通过 __init__.py re-export 屏蔽 import 路径变更。
 
 数据域分块：
-  quote   - 实时行情        （9 个：tencent/eastmoney/sina/xueqiu/ths/efinance/akshare/tushare/pytdx）
-  kline   - K 线            （9 个：sina/eastmoney/tencent/efinance/akshare/tushare/baostock/pytdx/yfinance）
-  finance - 财务            （3 个：eastmoney/efinance/akshare）
-  flow    - 资金流向        （1 个：eastmoney）
-  lhb     - 龙虎榜          （1 个：eastmoney）
-  event   - 事件日历        （1 个：eastmoney）
-  chip    - 融资融券/股东   （1 个：eastmoney）
+  quote   - 实时行情        （10 个模块：tencent/eastmoney/sina/xueqiu/ths/efinance/akshare/tushare/pytdx/yfinance）
+  kline   - K 线            （9 个模块：sina/eastmoney/tencent/efinance/akshare/tushare/baostock/pytdx/yfinance）
+  finance - 财务            （2 个模块：eastmoney/akshare）
+  flow    - 资金流向        （1 个模块：eastmoney，2 个 fetcher 类）
+  lhb     - 龙虎榜          （1 个模块：eastmoney，2 个 fetcher 类）
+  event   - 事件日历        （1 个模块：eastmoney，5 个 fetcher 类）
+  chip    - 融资融券/股东   （1 个模块：eastmoney，3 个 fetcher 类）
+  _common - 内部辅助        （1 个模块：pytdx_pool，非 fetcher）
 """
 
 import logging
@@ -54,11 +55,11 @@ def get_quote_fetchers() -> list:
         fetchers = []
 
         # 直接 HTTP 数据源（无依赖）
-        from .tencent_quote import TencentQuoteFetcher
-        from .eastmoney_quote import EastmoneyQuoteFetcher
-        from .sina_quote import SinaQuoteFetcher
-        from .xueqiu_quote import XueqiuQuoteFetcher
-        from .ths_quote import ThsQuoteFetcher
+        from .quote.tencent_quote import TencentQuoteFetcher
+        from .quote.eastmoney_quote import EastmoneyQuoteFetcher
+        from .quote.sina_quote import SinaQuoteFetcher
+        from .quote.xueqiu_quote import XueqiuQuoteFetcher
+        from .quote.ths_quote import ThsQuoteFetcher
 
         fetchers.extend(
             [
@@ -72,11 +73,11 @@ def get_quote_fetchers() -> list:
 
         # 可选依赖数据源
         for mod, cls in [
-            ("efinance_quote", "EfinanceQuoteFetcher"),
-            ("akshare_quote", "AkshareQuoteFetcher"),
-            ("tushare_quote", "TushareQuoteFetcher"),
-            ("pytdx_quote", "PytdxQuoteFetcher"),
-            ("yfinance_quote", "YfinanceQuoteFetcher"),
+            ("quote.efinance_quote", "EfinanceQuoteFetcher"),
+            ("quote.akshare_quote", "AkshareQuoteFetcher"),
+            ("quote.tushare_quote", "TushareQuoteFetcher"),
+            ("quote.pytdx_quote", "PytdxQuoteFetcher"),
+            ("quote.yfinance_quote", "YfinanceQuoteFetcher"),
         ]:
             c = _try_import(mod, cls)
             if c:
@@ -100,21 +101,21 @@ def get_kline_fetchers() -> list:
             return _fetcher_cache["kline"]
         fetchers = []
 
-        from .sina_kline import SinaKlineFetcher
-        from .eastmoney_kline import EastmoneyKlineFetcher
-        from .tencent_kline import TencentKlineFetcher
+        from .kline.sina_kline import SinaKlineFetcher
+        from .kline.eastmoney_kline import EastmoneyKlineFetcher
+        from .kline.tencent_kline import TencentKlineFetcher
 
         fetchers.extend(
             [SinaKlineFetcher(), EastmoneyKlineFetcher(), TencentKlineFetcher()]
         )
 
         for mod, cls in [
-            ("efinance_kline", "EfinanceKlineFetcher"),
-            ("akshare_kline", "AkshareKlineFetcher"),
-            ("tushare_kline", "TushareKlineFetcher"),
-            ("baostock_kline", "BaostockKlineFetcher"),
-            ("yfinance_kline", "YfinanceKlineFetcher"),
-            ("pytdx_kline", "PytdxKlineFetcher"),
+            ("kline.efinance_kline", "EfinanceKlineFetcher"),
+            ("kline.akshare_kline", "AkshareKlineFetcher"),
+            ("kline.tushare_kline", "TushareKlineFetcher"),
+            ("kline.baostock_kline", "BaostockKlineFetcher"),
+            ("kline.yfinance_kline", "YfinanceKlineFetcher"),
+            ("kline.pytdx_kline", "PytdxKlineFetcher"),
         ]:
             c = _try_import(mod, cls)
             if c:
@@ -138,12 +139,12 @@ def get_finance_fetchers() -> list:
             return _fetcher_cache["finance"]
         fetchers = []
 
-        from .eastmoney_finance import EastmoneyFinanceFetcher
+        from .finance.eastmoney_finance import EastmoneyFinanceFetcher
 
         fetchers.append(EastmoneyFinanceFetcher())
 
         for mod, cls in [
-            ("akshare_finance", "AkshareFinanceFetcher"),
+            ("finance.akshare_finance", "AkshareFinanceFetcher"),
         ]:
             c = _try_import(mod, cls)
             if c:
@@ -162,7 +163,7 @@ def get_flow_fetchers() -> list:
     """获取所有可用的资金流向数据源。"""
     fetchers = []
 
-    from .eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
+    from .flow.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
 
     fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher()])
 
@@ -178,7 +179,7 @@ def get_lhb_fetchers() -> list:
     """获取所有可用的龙虎榜数据源。"""
     fetchers = []
 
-    from .eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
+    from .lhb.eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
 
     fetchers.extend([LhbDetailFetcher(), LhbSeatFetcher()])
 
@@ -198,7 +199,7 @@ def get_event_fetchers() -> list:
     """
     fetchers = []
 
-    from .eastmoney_event import (
+    from .event.eastmoney_event import (
         EarningsCalendarFetcher,
         LockupCalendarFetcher,
         DividendCalendarFetcher,
@@ -228,7 +229,7 @@ def get_chip_fetchers() -> list:
     """获取所有可用的筹码相关数据源。"""
     fetchers = []
 
-    from .eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
+    from .chip.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
 
     fetchers.extend([MarginFetcher(), HolderFetcher(), TopHolderFetcher()])
 

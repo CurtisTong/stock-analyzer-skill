@@ -89,7 +89,7 @@ class TestChipFetcher:
 
     def test_margin_fetcher_init(self):
         """MarginFetcher 初始化正确。"""
-        from fetchers.eastmoney_chip import MarginFetcher
+        from fetchers.chip.eastmoney_chip import MarginFetcher
 
         fetcher = MarginFetcher()
         assert fetcher.name == "margin"
@@ -97,7 +97,7 @@ class TestChipFetcher:
 
     def test_holder_fetcher_init(self):
         """HolderFetcher 初始化正确。"""
-        from fetchers.eastmoney_chip import HolderFetcher
+        from fetchers.chip.eastmoney_chip import HolderFetcher
 
         fetcher = HolderFetcher()
         assert fetcher.name == "holder"
@@ -105,7 +105,7 @@ class TestChipFetcher:
 
     def test_top_holder_fetcher_init(self):
         """TopHolderFetcher 初始化正确。"""
-        from fetchers.eastmoney_chip import TopHolderFetcher
+        from fetchers.chip.eastmoney_chip import TopHolderFetcher
 
         fetcher = TopHolderFetcher()
         assert fetcher.name == "top_holder"
@@ -118,7 +118,7 @@ class TestChipFetcherNetwork:
 
     def test_margin_fetch_real(self):
         """真实获取融资融券数据。"""
-        from fetchers.eastmoney_chip import MarginFetcher
+        from fetchers.chip.eastmoney_chip import MarginFetcher
 
         fetcher = MarginFetcher()
         result = fetcher.fetch("sh600989", days=5)
@@ -131,7 +131,7 @@ class TestChipFetcherNetwork:
 
     def test_holder_fetch_real(self):
         """真实获取股东户数数据。"""
-        from fetchers.eastmoney_chip import HolderFetcher
+        from fetchers.chip.eastmoney_chip import HolderFetcher
 
         fetcher = HolderFetcher()
         result = fetcher.fetch("sh600989", periods=2)
@@ -144,7 +144,7 @@ class TestChipFetcherNetwork:
 
     def test_top_holder_fetch_real(self):
         """真实获取十大流通股东数据。"""
-        from fetchers.eastmoney_chip import TopHolderFetcher
+        from fetchers.chip.eastmoney_chip import TopHolderFetcher
 
         fetcher = TopHolderFetcher()
         result = fetcher.fetch("sh600989")

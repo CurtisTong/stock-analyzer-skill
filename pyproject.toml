@@ -4,6 +4,14 @@ version = "1.14.2"
 description = "A-share stock analyzer Claude Code plugin"
 requires-python = ">=3.11"
 
+# 已知限制：akshare 是可选依赖（fetcher 层 try: import akshare 模式），
+# 其传递依赖 py_mini_racer 在 Python 3.14 报 DeprecationWarning（_pack_ 无 _layout_），
+# Python 3.19 起升级为 error。届时 akshare 导入会失败，HAS_AKSHARE=False，
+# akshare 系列 fetcher 自动降级为不可用（不崩溃，但丢失该数据源）。
+# 这是上游 py_mini_racer/akshare 的问题，项目无法直接修复；
+# 可选依赖模式已隔离影响——未安装 akshare 的环境完全不受影响。
+# 解决时机：等上游 py_mini_racer 发布适配 3.19 的版本后，用户升级即可。
+
 [project.optional-dependencies.test]
 pytest = ">=8.0"
 pytest-xdist = ">=3.0"

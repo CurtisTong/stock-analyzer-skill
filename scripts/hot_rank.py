@@ -165,7 +165,7 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
         f"📡 拉取 {len(target_codes)} 只的 K 线（直调 sina fetcher 绕开 manager）...",
         flush=True,
     )
-    from fetchers.sina_kline import SinaKlineFetcher
+    from fetchers.kline.sina_kline import SinaKlineFetcher
     import time as _t
 
     fetcher = SinaKlineFetcher()

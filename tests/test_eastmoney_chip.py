@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 
 from common import NetworkError
-from fetchers.eastmoney_chip import (
+from fetchers.chip.eastmoney_chip import (
     _get_secid,
     MarginFetcher,
     HolderFetcher,
@@ -50,7 +50,7 @@ class TestMarginFetcher:
         """NetworkError 应传播到 DataFetcherManager 统一处理故障转移。"""
         f = MarginFetcher()
         with patch(
-            "fetchers.eastmoney_chip.http_get",
+            "fetchers.chip.eastmoney_chip.http_get",
             side_effect=NetworkError("http://example.com", "网络错误"),
         ):
             with pytest.raises(NetworkError):
@@ -58,14 +58,14 @@ class TestMarginFetcher:
 
     def test_fetch_returns_none_on_invalid_json(self):
         f = MarginFetcher()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=b"not json"):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=b"not json"):
             result = f.fetch("sh600989")
         assert result is None
 
     def test_fetch_returns_none_on_api_failure(self):
         f = MarginFetcher()
         resp = json.dumps({"success": False}).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989")
         assert result is None
 
@@ -92,7 +92,7 @@ class TestMarginFetcher:
                 },
             }
         ).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989")
 
         assert result is not None
@@ -112,14 +112,14 @@ class TestHolderFetcher:
     def test_fetch_returns_none_on_empty_gdrs(self):
         f = HolderFetcher()
         resp = json.dumps({"gdrs": []}).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989")
         assert result is None
 
     def test_fetch_returns_none_on_missing_gdrs(self):
         f = HolderFetcher()
         resp = json.dumps({"other": "data"}).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989")
         assert result is None
 
@@ -145,7 +145,7 @@ class TestHolderFetcher:
                 ]
             }
         ).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989", periods=2)
 
         assert result is not None
@@ -181,7 +181,7 @@ class TestHolderFetcher:
                     ]
                 }
             ).encode()
-            with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+            with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
                 result = f.fetch("sh600989", periods=1)
             assert result[0]["concentration"] == expected, f"HOLD_FOCUS={hold_focus}"
 
@@ -197,7 +197,7 @@ class TestTopHolderFetcher:
     def test_fetch_returns_none_on_missing_sdltgd(self):
         f = TopHolderFetcher()
         resp = json.dumps({"other": "data"}).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989")
         assert result is None
 
@@ -229,7 +229,7 @@ class TestTopHolderFetcher:
                 ]
             }
         ).encode()
-        with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
             result = f.fetch("sh600989")
 
         assert result is not None
@@ -261,6 +261,6 @@ class TestTopHolderFetcher:
                     ]
                 }
             ).encode()
-            with patch("fetchers.eastmoney_chip.http_get", return_value=resp):
+            with patch("fetchers.chip.eastmoney_chip.http_get", return_value=resp):
                 result = f.fetch("sh600989")
             assert result[0]["is_institution"] is True, f"Failed for: {name}"

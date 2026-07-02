@@ -8,9 +8,9 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from fetchers.eastmoney_quote import EastmoneyQuoteFetcher
-from fetchers.eastmoney_kline import EastmoneyKlineFetcher
-from fetchers.eastmoney_finance import EastmoneyFinanceFetcher
+from fetchers.quote.eastmoney_quote import EastmoneyQuoteFetcher
+from fetchers.kline.eastmoney_kline import EastmoneyKlineFetcher
+from fetchers.finance.eastmoney_finance import EastmoneyFinanceFetcher
 from common.exceptions import NetworkError
 
 
@@ -48,7 +48,7 @@ class TestEastmoneyQuoteFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -62,13 +62,13 @@ class TestEastmoneyQuoteFetcher:
 
     def test_fetch_empty_response(self):
         """空 JSON 对象：返回 None。"""
-        with patch("fetchers.eastmoney_quote.http_get", return_value=b"{}"):
+        with patch("fetchers.quote.eastmoney_quote.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_invalid_json(self):
         """无效 JSON：返回 None。"""
-        with patch("fetchers.eastmoney_quote.http_get", return_value=b"not json"):
+        with patch("fetchers.quote.eastmoney_quote.http_get", return_value=b"not json"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -76,7 +76,7 @@ class TestEastmoneyQuoteFetcher:
         """rc != 0：返回 None。"""
         data = {"rc": -1, "data": {}}
         with patch(
-            "fetchers.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -85,7 +85,7 @@ class TestEastmoneyQuoteFetcher:
         """缺少 data 字段：返回 None。"""
         data = {"rc": 0}
         with patch(
-            "fetchers.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -94,7 +94,7 @@ class TestEastmoneyQuoteFetcher:
         """data 为 None：返回 None。"""
         data = {"rc": 0, "data": None}
         with patch(
-            "fetchers.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -123,7 +123,7 @@ class TestEastmoneyQuoteFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sz000858")
         assert result is not None
@@ -132,7 +132,7 @@ class TestEastmoneyQuoteFetcher:
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.eastmoney_quote.http_get",
+            "fetchers.quote.eastmoney_quote.http_get",
             side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
@@ -161,7 +161,7 @@ class TestEastmoneyKlineFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -187,7 +187,7 @@ class TestEastmoneyKlineFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519", scale=60, datalen=1)
         assert result is not None
@@ -195,13 +195,13 @@ class TestEastmoneyKlineFetcher:
 
     def test_fetch_empty_response(self):
         """空响应：返回 None。"""
-        with patch("fetchers.eastmoney_kline.http_get", return_value=b"{}"):
+        with patch("fetchers.kline.eastmoney_kline.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_invalid_json(self):
         """无效 JSON：返回 None。"""
-        with patch("fetchers.eastmoney_kline.http_get", return_value=b"bad"):
+        with patch("fetchers.kline.eastmoney_kline.http_get", return_value=b"bad"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -209,7 +209,7 @@ class TestEastmoneyKlineFetcher:
         """rc != 0：返回 None。"""
         data = {"rc": -1, "data": {}}
         with patch(
-            "fetchers.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -218,7 +218,7 @@ class TestEastmoneyKlineFetcher:
         """klines 为空列表：返回 None。"""
         data = {"rc": 0, "data": {"klines": []}}
         with patch(
-            "fetchers.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -235,7 +235,7 @@ class TestEastmoneyKlineFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -244,7 +244,7 @@ class TestEastmoneyKlineFetcher:
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.eastmoney_kline.http_get",
+            "fetchers.kline.eastmoney_kline.http_get",
             side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
@@ -270,7 +270,7 @@ class TestEastmoneyFinanceFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_finance.http_get",
+            "fetchers.finance.eastmoney_finance.http_get",
             return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
@@ -287,7 +287,7 @@ class TestEastmoneyFinanceFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_finance.http_get",
+            "fetchers.finance.eastmoney_finance.http_get",
             return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
@@ -296,13 +296,13 @@ class TestEastmoneyFinanceFetcher:
 
     def test_fetch_empty_response(self):
         """空响应：返回 None。"""
-        with patch("fetchers.eastmoney_finance.http_get", return_value=b"{}"):
+        with patch("fetchers.finance.eastmoney_finance.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_invalid_json(self):
         """无效 JSON：返回 None。"""
-        with patch("fetchers.eastmoney_finance.http_get", return_value=b"bad"):
+        with patch("fetchers.finance.eastmoney_finance.http_get", return_value=b"bad"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -310,7 +310,7 @@ class TestEastmoneyFinanceFetcher:
         """缺少 data 字段：返回 None。"""
         data = {"other": "value"}
         with patch(
-            "fetchers.eastmoney_finance.http_get",
+            "fetchers.finance.eastmoney_finance.http_get",
             return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
@@ -320,7 +320,7 @@ class TestEastmoneyFinanceFetcher:
         """data 为空列表：返回 None。"""
         data = {"data": []}
         with patch(
-            "fetchers.eastmoney_finance.http_get",
+            "fetchers.finance.eastmoney_finance.http_get",
             return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
@@ -329,7 +329,7 @@ class TestEastmoneyFinanceFetcher:
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.eastmoney_finance.http_get",
+            "fetchers.finance.eastmoney_finance.http_get",
             side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):

@@ -8,14 +8,14 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from fetchers.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
-from fetchers.eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
-from fetchers.eastmoney_event import (
+from fetchers.flow.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
+from fetchers.lhb.eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
+from fetchers.event.eastmoney_event import (
     EarningsCalendarFetcher,
     LockupCalendarFetcher,
     DividendCalendarFetcher,
 )
-from fetchers.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
+from fetchers.chip.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
 from common.exceptions import NetworkError
 
 # ═══════════════════════════════════════════════════════════════
@@ -40,7 +40,7 @@ class TestNorthboundFlowFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+            "fetchers.flow.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is not None
@@ -51,26 +51,26 @@ class TestNorthboundFlowFetcher:
         assert result["days"][0]["total_net"] == 90000.0
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_flow.http_get", return_value=b"{}"):
+        with patch("fetchers.flow.eastmoney_flow.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("")
         assert result is None
 
     def test_fetch_invalid_json(self):
-        with patch("fetchers.eastmoney_flow.http_get", return_value=b"bad"):
+        with patch("fetchers.flow.eastmoney_flow.http_get", return_value=b"bad"):
             result = self.fetcher.fetch("")
         assert result is None
 
     def test_fetch_rc_not_zero(self):
         data = {"rc": -1}
         with patch(
-            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+            "fetchers.flow.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is None
 
     def test_fetch_http_error(self):
         with patch(
-            "fetchers.eastmoney_flow.http_get",
+            "fetchers.flow.eastmoney_flow.http_get",
             side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
@@ -96,7 +96,7 @@ class TestStockFlowFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+            "fetchers.flow.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -107,14 +107,14 @@ class TestStockFlowFetcher:
         assert "main_net_5d" in result["summary"]
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_flow.http_get", return_value=b"{}"):
+        with patch("fetchers.flow.eastmoney_flow.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_empty_klines(self):
         data = {"rc": 0, "data": {"klines": []}}
         with patch(
-            "fetchers.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
+            "fetchers.flow.eastmoney_flow.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -154,7 +154,7 @@ class TestLhbDetailFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
+            "fetchers.lhb.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is not None
@@ -181,7 +181,7 @@ class TestLhbDetailFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
+            "fetchers.lhb.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -189,14 +189,14 @@ class TestLhbDetailFetcher:
         assert result["items"][0]["code"] == "600519"
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_lhb.http_get", return_value=b"{}"):
+        with patch("fetchers.lhb.eastmoney_lhb.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("")
         assert result is None
 
     def test_fetch_success_false(self):
         data = {"success": False}
         with patch(
-            "fetchers.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
+            "fetchers.lhb.eastmoney_lhb.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is None
@@ -238,7 +238,7 @@ class TestLhbSeatFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_lhb.http_get",
+            "fetchers.lhb.eastmoney_lhb.http_get",
             side_effect=[
                 json.dumps(buy_data).encode(),
                 json.dumps(sell_data).encode(),
@@ -251,7 +251,7 @@ class TestLhbSeatFetcher:
         assert len(result["sell_seats"]) == 1
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_lhb.http_get", return_value=b"{}"):
+        with patch("fetchers.lhb.eastmoney_lhb.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519", date="2025-06-12")
         assert result is None
 
@@ -284,7 +284,7 @@ class TestEarningsCalendarFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+            "fetchers.event.eastmoney_event.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is not None
@@ -292,14 +292,14 @@ class TestEarningsCalendarFetcher:
         assert len(result["items"]) == 1
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_event.http_get", return_value=b"{}"):
+        with patch("fetchers.event.eastmoney_event.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("")
         assert result is None
 
     def test_fetch_success_false(self):
         data = {"success": False}
         with patch(
-            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+            "fetchers.event.eastmoney_event.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is None
@@ -330,14 +330,14 @@ class TestLockupCalendarFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+            "fetchers.event.eastmoney_event.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is not None
         assert result["type"] == "lockup"
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_event.http_get", return_value=b"{}"):
+        with patch("fetchers.event.eastmoney_event.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("")
         assert result is None
 
@@ -367,7 +367,7 @@ class TestDividendCalendarFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_event.http_get", return_value=json.dumps(data).encode()
+            "fetchers.event.eastmoney_event.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("")
         assert result is not None
@@ -375,7 +375,7 @@ class TestDividendCalendarFetcher:
         assert result["items"][0]["bonus_per_share"] == 50.0
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_event.http_get", return_value=b"{}"):
+        with patch("fetchers.event.eastmoney_event.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("")
         assert result is None
 
@@ -414,7 +414,7 @@ class TestMarginFetcher:
             },
         }
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -423,20 +423,20 @@ class TestMarginFetcher:
         assert result[0]["rzye"] == 100000000.0
 
     def test_fetch_empty(self):
-        with patch("fetchers.eastmoney_chip.http_get", return_value=b"{}"):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_success_false(self):
         data = {"success": False}
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_invalid_json(self):
-        with patch("fetchers.eastmoney_chip.http_get", return_value=b"bad"):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=b"bad"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -462,7 +462,7 @@ class TestHolderFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -491,7 +491,7 @@ class TestHolderFetcher:
                 ]
             }
             with patch(
-                "fetchers.eastmoney_chip.http_get",
+                "fetchers.chip.eastmoney_chip.http_get",
                 return_value=json.dumps(data).encode(),
             ):
                 result = self.fetcher.fetch("sh600519")
@@ -501,13 +501,13 @@ class TestHolderFetcher:
     def test_fetch_empty_gdrs(self):
         data = {"gdrs": []}
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_no_gdrs_key(self):
-        with patch("fetchers.eastmoney_chip.http_get", return_value=b"{}"):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -535,7 +535,7 @@ class TestTopHolderFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -569,7 +569,7 @@ class TestTopHolderFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -610,7 +610,7 @@ class TestTopHolderFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -645,7 +645,7 @@ class TestTopHolderFetcher:
             ],
         }
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -655,12 +655,12 @@ class TestTopHolderFetcher:
     def test_fetch_empty_sdltgd(self):
         data = {"sdltgd": []}
         with patch(
-            "fetchers.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
+            "fetchers.chip.eastmoney_chip.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_no_sdltgd_key(self):
-        with patch("fetchers.eastmoney_chip.http_get", return_value=b"{}"):
+        with patch("fetchers.chip.eastmoney_chip.http_get", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None

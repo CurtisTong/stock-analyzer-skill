@@ -3,7 +3,7 @@
 import logging
 
 from common import BaseFetcher
-from fetchers.pytdx_pool import HAS_PYTDX, get_default_pool
+from fetchers._common.pytdx_pool import HAS_PYTDX, get_default_pool
 
 logger = logging.getLogger(__name__)
 

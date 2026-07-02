@@ -17,8 +17,8 @@ mock_tdx = MagicMock()
 mock_tdx.hq = mock_tdx_hq
 
 with patch.dict("sys.modules", {"pytdx": mock_tdx, "pytdx.hq": mock_tdx_hq}):
-    from fetchers import pytdx_pool as _pool_mod
-    from fetchers.pytdx_pool import TdxPool
+    from fetchers._common import pytdx_pool as _pool_mod
+    from fetchers._common.pytdx_pool import TdxPool
 
 
 class TestTdxPool:

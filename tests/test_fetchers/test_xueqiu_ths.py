@@ -8,8 +8,8 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from fetchers.xueqiu_quote import XueqiuQuoteFetcher, _to_xueqiu_symbol, _parse_quote
-from fetchers.ths_quote import (
+from fetchers.quote.xueqiu_quote import XueqiuQuoteFetcher, _to_xueqiu_symbol, _parse_quote
+from fetchers.quote.ths_quote import (
     ThsQuoteFetcher,
     _to_ths_params,
     _parse_quote as _ths_parse_quote,
@@ -98,7 +98,7 @@ class TestXueqiuQuoteFetcher:
             }
         }
         with patch(
-            "fetchers.xueqiu_quote.http_get_with_headers",
+            "fetchers.quote.xueqiu_quote.http_get_with_headers",
             return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
@@ -106,21 +106,21 @@ class TestXueqiuQuoteFetcher:
         assert result["name"] == "贵州茅台"
 
     def test_fetch_empty_response(self):
-        with patch("fetchers.xueqiu_quote.http_get_with_headers", return_value=b"{}"):
+        with patch("fetchers.quote.xueqiu_quote.http_get_with_headers", return_value=b"{}"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_http_error(self):
         """HTTP 错误：返回 None（xueqiu 内部 catch）。"""
         with patch(
-            "fetchers.xueqiu_quote.http_get_with_headers",
+            "fetchers.quote.xueqiu_quote.http_get_with_headers",
             side_effect=NetworkError("url", "err", 3),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_invalid_json(self):
-        with patch("fetchers.xueqiu_quote.http_get_with_headers", return_value=b"bad"):
+        with patch("fetchers.quote.xueqiu_quote.http_get_with_headers", return_value=b"bad"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -171,20 +171,20 @@ class TestThsQuoteFetcher:
 
     def test_fetch_normal(self):
         raw = b'{"data":"2025-06-10,1790.00,1810.00,1785.00,1800.00,12345;2025-06-11,1800.00,1815.00,1795.00,1805.00,11000"}'
-        with patch("fetchers.ths_quote.http_get", return_value=raw):
+        with patch("fetchers.quote.ths_quote.http_get", return_value=raw):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert result["source"] == "ths"
 
     def test_fetch_empty_response(self):
-        with patch("fetchers.ths_quote.http_get", return_value=b""):
+        with patch("fetchers.quote.ths_quote.http_get", return_value=b""):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_http_error(self):
         """HTTP 错误：返回 None（ths 内部 catch）。"""
         with patch(
-            "fetchers.ths_quote.http_get", side_effect=NetworkError("url", "err", 3)
+            "fetchers.quote.ths_quote.http_get", side_effect=NetworkError("url", "err", 3)
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -192,6 +192,6 @@ class TestThsQuoteFetcher:
     def test_fetch_short_fields(self):
         """数据字段不足 5 个：返回 None。"""
         raw = b'{"data":"2025-06-10,1790.00"}'
-        with patch("fetchers.ths_quote.http_get", return_value=raw):
+        with patch("fetchers.quote.ths_quote.http_get", return_value=raw):
             result = self.fetcher.fetch("sh600519")
         assert result is None

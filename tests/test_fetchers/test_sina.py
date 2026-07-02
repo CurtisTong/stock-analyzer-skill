@@ -8,8 +8,8 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from fetchers.sina_quote import SinaQuoteFetcher
-from fetchers.sina_kline import SinaKlineFetcher
+from fetchers.quote.sina_quote import SinaQuoteFetcher
+from fetchers.kline.sina_kline import SinaKlineFetcher
 from common.exceptions import NetworkError
 
 
@@ -32,7 +32,7 @@ class TestSinaQuoteFetcher:
             "15:00:03,2025-06-12,01,10.00,0.56,1810.00,1790.00,1.12,22600.00,22600.00,"
             '8.20,2069.00,1611.00,1.00";'
         ).encode("gbk")
-        with patch("fetchers.sina_quote.http_get_with_headers", return_value=raw):
+        with patch("fetchers.quote.sina_quote.http_get_with_headers", return_value=raw):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         assert result["name"] == "贵州茅台"
@@ -54,7 +54,7 @@ class TestSinaQuoteFetcher:
             "15:00:03,2025-06-12,01,10.00,0.56,115.00,95.00,1.12,100.00,100.00,"
             '8.20,100.00,100.00,1.00";'
         ).encode("gbk")
-        with patch("fetchers.sina_quote.http_get_with_headers", return_value=raw):
+        with patch("fetchers.quote.sina_quote.http_get_with_headers", return_value=raw):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
         # (110 / 100 - 1) * 100 = 10.0
@@ -64,14 +64,14 @@ class TestSinaQuoteFetcher:
 
     def test_fetch_empty_response(self):
         """空响应：返回 None。"""
-        with patch("fetchers.sina_quote.http_get_with_headers", return_value=b""):
+        with patch("fetchers.quote.sina_quote.http_get_with_headers", return_value=b""):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_malformed_response(self):
         """格式错误的响应：返回 None。"""
         with patch(
-            "fetchers.sina_quote.http_get_with_headers", return_value=b"not_valid"
+            "fetchers.quote.sina_quote.http_get_with_headers", return_value=b"not_valid"
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -79,14 +79,14 @@ class TestSinaQuoteFetcher:
     def test_fetch_fields_too_few(self):
         """字段少于 32 个：返回 None。"""
         raw = 'var hq_str_sh600519="贵州茅台,1795.00,1790.00";'.encode("gbk")
-        with patch("fetchers.sina_quote.http_get_with_headers", return_value=raw):
+        with patch("fetchers.quote.sina_quote.http_get_with_headers", return_value=raw):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.sina_quote.http_get_with_headers",
+            "fetchers.quote.sina_quote.http_get_with_headers",
             side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
@@ -124,7 +124,7 @@ class TestSinaKlineFetcher:
             },
         ]
         with patch(
-            "fetchers.sina_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.sina_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -146,7 +146,7 @@ class TestSinaKlineFetcher:
             },
         ]
         with patch(
-            "fetchers.sina_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.sina_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519", scale=60, datalen=1)
         assert result is not None
@@ -154,20 +154,20 @@ class TestSinaKlineFetcher:
 
     def test_fetch_empty_list(self):
         """空列表：返回 None。"""
-        with patch("fetchers.sina_kline.http_get", return_value=b"[]"):
+        with patch("fetchers.kline.sina_kline.http_get", return_value=b"[]"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_invalid_json(self):
         """无效 JSON：返回 None。"""
-        with patch("fetchers.sina_kline.http_get", return_value=b"not json"):
+        with patch("fetchers.kline.sina_kline.http_get", return_value=b"not json"):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.sina_kline.http_get", side_effect=NetworkError("url", "err", 3)
+            "fetchers.kline.sina_kline.http_get", side_effect=NetworkError("url", "err", 3)
         ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("sh600519")
@@ -186,7 +186,7 @@ class TestSinaKlineFetcher:
             },
         ]
         with patch(
-            "fetchers.sina_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.sina_kline.http_get", return_value=json.dumps(data).encode()
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None

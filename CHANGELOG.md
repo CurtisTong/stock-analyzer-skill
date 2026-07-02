@@ -41,6 +41,12 @@
 - **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
 - 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
 
+### Architecture
+- **data**: 补齐 chip/event/flow/lhb 4 个数据域 data 层统一入口（`data/chip.py` 接入 fetcher 列表、新建 `data/event.py`、`data/flow.py`、`data/lhb.py`），消除 `data/flow.py` 死引用（北向资金评分从永远返回 0 变为真实数据）
+- **fetchers**: 按数据域子目录化（quote/kline/finance/flow/lhb/event/chip + _common），`__init__.py` re-export 屏蔽 import 路径；删除悬空 roadmap 引用，修正 docstring fetcher 数量
+- **scripts**: 4 个胖入口下沉——`patterns_local.py` → `strategies/patterns/` 子包（8 文件）；`screener.py` 336 行业务逻辑下沉到 `screening_service.run_screening` + progress_callback 模式拆分 `_run_main`，消除 `analyze_code` 与 `_analyze_stock` 镜像重复；`alert_engine.py` 626 行下沉到 `monitor/{rules,data_fetch,levels,scanner,notifier,briefing}.py`；`refresh_pool.py` 472 行下沉到 `data/pool.py`
+- **pyproject**: 记录 py_mini_racer（akshare 传递依赖）在 Python 3.19 的兼容性限制
+
 ### Fixed
 - **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
 - **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
@@ -48,6 +54,7 @@
 - **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
 - *****: 优化设置
 - **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+- **tests**: 修复 `test_fetch_strips_prefix` 断言（位置参数→关键字参数，匹配 fetcher 实际调用方式）
 
 ### Documentation
 - 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
