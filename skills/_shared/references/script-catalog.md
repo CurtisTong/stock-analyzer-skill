@@ -19,7 +19,6 @@
 | `python3 scripts/technical.py`      | 纯技术分析报告                   |
 | `python3 scripts/chan.py`           | 缠论（笔-线段-中枢-买卖点-背驰） |
 | `python3 scripts/classifier.py`     | 个股类型自适应分类               |
-| `python3 scripts/patterns_local.py` | A 股本土战法形态                 |
 | `python3 scripts/screener.py`       | 多因子选股                       |
 | `python3 scripts/backtest.py`       | 策略回测                         |
 

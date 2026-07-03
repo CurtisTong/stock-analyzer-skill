@@ -29,7 +29,6 @@ python3 scripts/screener.py --strategy balanced
 python3 scripts/chan.py sh600989
 python3 scripts/classifier.py sh600989
 python3 scripts/backtest.py sh600989
-python3 scripts/patterns_local.py sh600989
 python3 scripts/strategies/patterns/ma_volume_strategy.py sh600989  # MA+成交量组合策略
 python3 scripts/monitor/strategy_signals.py sh600989 sh600519       # 策略信号监控
 python3 scripts/monitor.py

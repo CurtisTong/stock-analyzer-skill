@@ -22,7 +22,13 @@
 
 import json
 import sys
+import os
 from datetime import datetime
+
+# 确保 scripts/ 在 sys.path（直接运行 scripts/monitor/alert_engine.py 时需要）
+_scripts_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _scripts_dir not in sys.path:
+    sys.path.insert(0, _scripts_dir)
 
 # ── re-export：保持外部兼容性 ──
 from monitor.rules import ALERT_LEVELS, _LEVEL_META, get_alert_level, _check_alerts
