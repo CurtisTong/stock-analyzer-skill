@@ -9,6 +9,7 @@ from data import get_kline, get_finance  # 重导出供测试 monkeypatch
 from .engine import (
     fetch_historical_returns,
     simulate_strategy,
+    SimContext,
     _calc_rsi,
     _calc_daily_returns,
     _compute_momentum_from_bars,
@@ -21,6 +22,7 @@ from .cli import compare_strategies, optimize_weights, load_test_universe, main
 __all__ = [
     "fetch_historical_returns",
     "simulate_strategy",
+    "SimContext",
     "run_backtest",
     "compare_strategies",
     "optimize_weights",

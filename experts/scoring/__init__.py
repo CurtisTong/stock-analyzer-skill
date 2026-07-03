@@ -250,13 +250,16 @@ def _consistency_from_scores(scores: List[float]) -> float:
 
 
 def score_expert_precise_proxy(stock_data: dict) -> Dict[str, float]:
-    """fallback 评分代理：转调通用启发式 score_expert 的 dim_scores。
+    """fallback 评分代理：当 profile 未注册时返回均分 50。
 
     v2.2.0 score_expert_with_reasoning 的兜底路径使用。
+    警告：此处无实际评分逻辑，仅作为 unknown profile 的安全回退。
     """
-    from experts import ExpertProfile as _EP
+    import logging
 
-    # 实际调用方应传 profile，此处仅占位
+    _log = logging.getLogger(__name__)
+    _log.warning("score_expert_precise_proxy: fallback 路径触发，返回默认均分 50，传入数据键: %s",
+                 list(stock_data.keys()) if stock_data else "None")
     return {"基本面": 50.0, "估值": 50.0, "技术面": 50.0, "情绪": 50.0, "风险": 50.0}
 
 

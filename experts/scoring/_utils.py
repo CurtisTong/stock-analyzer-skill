@@ -4,6 +4,7 @@
 包含所有专家共用的基础工具：安全浮点转换、数值钳制、维度评分计算等。
 """
 
+import threading
 from typing import Dict, Optional
 
 from .. import ExpertProfile
@@ -14,38 +15,45 @@ from .. import ExpertProfile
 
 _clamp_fn = None
 _get_scoring_config_fn = None
+_lock = threading.Lock()
 
 
 def _get_clamp():
-    """延迟导入 clamp，处理跨模块路径问题（缓存避免重复 import 查找）。"""
+    """延迟导入 clamp，处理跨模块路径问题（DCL + threading.Lock 保护）。"""
     global _clamp_fn
     if _clamp_fn is not None:
         return _clamp_fn
-    try:
-        from common.utils import clamp
+    with _lock:
+        if _clamp_fn is not None:
+            return _clamp_fn
+        try:
+            from common.utils import clamp
 
-        _clamp_fn = clamp
-    except ImportError:
+            _clamp_fn = clamp
+        except ImportError:
 
-        def _clamp_fn(val, lo=0.0, hi=100.0):
-            return max(lo, min(hi, val))
+            def _clamp_fn(val, lo=0.0, hi=100.0):
+                return max(lo, min(hi, val))
 
     return _clamp_fn
 
 
 def _get_scoring_config():
-    """延迟导入 get_scoring_config，处理跨模块路径问题。"""
+    """延迟导入 get_scoring_config，处理跨模块路径问题（DCL + threading.Lock 保护）。"""
     global _get_scoring_config_fn
     if _get_scoring_config_fn is not None:
         return _get_scoring_config_fn
-    try:
-        from config import get_scoring_config
+    with _lock:
+        if _get_scoring_config_fn is not None:
+            return _get_scoring_config_fn
+        try:
+            from config import get_scoring_config
 
-        _get_scoring_config_fn = get_scoring_config
-    except ImportError:
+            _get_scoring_config_fn = get_scoring_config
+        except ImportError:
 
-        def _get_scoring_config_fn(key=None, default=None):
-            return default
+            def _get_scoring_config_fn(key=None, default=None):
+                return default
 
     return _get_scoring_config_fn
 

@@ -134,6 +134,3 @@ class TopHolderRecord:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
-# ChipDistribution 已移除（v1.14.0）：全项目零实例化，technical/scoring.py 对应评分逻辑已注释。
-# 如需筹码分布功能，可从 git 历史恢复（commit 之前版本）。

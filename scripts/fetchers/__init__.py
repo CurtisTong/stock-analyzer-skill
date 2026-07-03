@@ -160,14 +160,20 @@ def get_finance_fetchers() -> list:
 
 
 def get_flow_fetchers() -> list:
-    """获取所有可用的资金流向数据源。"""
-    fetchers = []
+    """获取所有可用的资金流向数据源（缓存单例）。"""
+    if "flow" in _fetcher_cache:
+        return _fetcher_cache["flow"]
+    with _cache_lock:
+        if "flow" in _fetcher_cache:
+            return _fetcher_cache["flow"]
+        fetchers = []
 
-    from .flow.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
+        from .flow.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
 
-    fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher()])
+        fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher()])
 
-    return fetchers
+        _fetcher_cache["flow"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -176,14 +182,20 @@ def get_flow_fetchers() -> list:
 
 
 def get_lhb_fetchers() -> list:
-    """获取所有可用的龙虎榜数据源。"""
-    fetchers = []
+    """获取所有可用的龙虎榜数据源（缓存单例）。"""
+    if "lhb" in _fetcher_cache:
+        return _fetcher_cache["lhb"]
+    with _cache_lock:
+        if "lhb" in _fetcher_cache:
+            return _fetcher_cache["lhb"]
+        fetchers = []
 
-    from .lhb.eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
+        from .lhb.eastmoney_lhb import LhbDetailFetcher, LhbSeatFetcher
 
-    fetchers.extend([LhbDetailFetcher(), LhbSeatFetcher()])
+        fetchers.extend([LhbDetailFetcher(), LhbSeatFetcher()])
 
-    return fetchers
+        _fetcher_cache["lhb"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -192,32 +204,38 @@ def get_lhb_fetchers() -> list:
 
 
 def get_event_fetchers() -> list:
-    """获取所有可用的事件日历数据源（5 个 fetcher）。
+    """获取所有可用的事件日历数据源（缓存单例）。
 
     calendar 类（3 个）：EarningsCalendarFetcher / LockupCalendarFetcher / DividendCalendarFetcher
     个股类（2 个）：ShareholderChangeFetcher / ViolationFetcher
     """
-    fetchers = []
+    if "event" in _fetcher_cache:
+        return _fetcher_cache["event"]
+    with _cache_lock:
+        if "event" in _fetcher_cache:
+            return _fetcher_cache["event"]
+        fetchers = []
 
-    from .event.eastmoney_event import (
-        EarningsCalendarFetcher,
-        LockupCalendarFetcher,
-        DividendCalendarFetcher,
-        ShareholderChangeFetcher,
-        ViolationFetcher,
-    )
+        from .event.eastmoney_event import (
+            EarningsCalendarFetcher,
+            LockupCalendarFetcher,
+            DividendCalendarFetcher,
+            ShareholderChangeFetcher,
+            ViolationFetcher,
+        )
 
-    fetchers.extend(
-        [
-            EarningsCalendarFetcher(),
-            LockupCalendarFetcher(),
-            DividendCalendarFetcher(),
-            ShareholderChangeFetcher(),
-            ViolationFetcher(),
-        ]
-    )
+        fetchers.extend(
+            [
+                EarningsCalendarFetcher(),
+                LockupCalendarFetcher(),
+                DividendCalendarFetcher(),
+                ShareholderChangeFetcher(),
+                ViolationFetcher(),
+            ]
+        )
 
-    return fetchers
+        _fetcher_cache["event"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -226,14 +244,20 @@ def get_event_fetchers() -> list:
 
 
 def get_chip_fetchers() -> list:
-    """获取所有可用的筹码相关数据源。"""
-    fetchers = []
+    """获取所有可用的筹码相关数据源（缓存单例）。"""
+    if "chip" in _fetcher_cache:
+        return _fetcher_cache["chip"]
+    with _cache_lock:
+        if "chip" in _fetcher_cache:
+            return _fetcher_cache["chip"]
+        fetchers = []
 
-    from .chip.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
+        from .chip.eastmoney_chip import MarginFetcher, HolderFetcher, TopHolderFetcher
 
-    fetchers.extend([MarginFetcher(), HolderFetcher(), TopHolderFetcher()])
+        fetchers.extend([MarginFetcher(), HolderFetcher(), TopHolderFetcher()])
 
-    return fetchers
+        _fetcher_cache["chip"] = fetchers
+        return fetchers
 
 
 # ═══════════════════════════════════════════════════════════════

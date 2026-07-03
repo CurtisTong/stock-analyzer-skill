@@ -1,6 +1,7 @@
 """通知通道抽象基类。"""
 
 import ipaddress
+import os
 import time
 import urllib.error
 import urllib.request
@@ -58,9 +59,11 @@ def validate_webhook_url(url: str) -> str:
     parsed = urllib.parse.urlparse(url)
     scheme = (parsed.scheme or "").lower()
 
-    # 允许 file:// 用于测试
+    # 允许 file:// 仅限测试环境（pytest）
     if scheme == "file":
-        return url
+        if "PYTEST_CURRENT_TEST" in os.environ:
+            return url
+        raise ValueError("webhook URL 不允许 file:// scheme（仅 pytest 测试环境放行）")
 
     if scheme != "https":
         raise ValueError(f"webhook URL 必须使用 https://，当前: {scheme}://")

@@ -10,37 +10,21 @@
 lhb 域的 2 个 fetcher 返回不同类型数据（明细/席位），不走 manager 故障转移。
 """
 
-import threading
 import logging
 
-from common import fetch_with_breaker
+from common import fetch_with_breaker, LazyFetcherRegistry
 
 logger = logging.getLogger(__name__)
 
-_fetchers_cache: list | None = None
-_fetchers_lock = threading.Lock()
+
+def _get_lhb_fetchers_import():
+    """fetcher 导入工厂函数。"""
+    from fetchers import get_lhb_fetchers
+
+    return get_lhb_fetchers()
 
 
-def _get_lhb_fetchers():
-    """延迟导入并缓存 lhb fetcher 列表。"""
-    global _fetchers_cache
-    if _fetchers_cache is not None:
-        return _fetchers_cache
-    with _fetchers_lock:
-        if _fetchers_cache is not None:
-            return _fetchers_cache
-        from fetchers import get_lhb_fetchers
-
-        _fetchers_cache = get_lhb_fetchers()
-    return _fetchers_cache
-
-
-def _find_fetcher(name_prefix: str):
-    """按 name 前缀查找 fetcher。"""
-    for f in _get_lhb_fetchers():
-        if f.name.startswith(name_prefix):
-            return f
-    return None
+_registry = LazyFetcherRegistry(_get_lhb_fetchers_import)
 
 
 def get_lhb_detail(code: str = "", days: int = 7) -> dict | None:
@@ -53,7 +37,7 @@ def get_lhb_detail(code: str = "", days: int = 7) -> dict | None:
     Returns:
         {"type":"lhb_detail", "items":[...]}，失败返回 None。
     """
-    fetcher = _find_fetcher("lhb_detail")
+    fetcher = _registry.find("lhb_detail")
     if fetcher is None:
         return None
     try:
@@ -73,7 +57,7 @@ def get_lhb_seats(code: str, date: str = "") -> dict | None:
     Returns:
         {"type":"lhb_seat", "items":[...]}，失败返回 None。
     """
-    fetcher = _find_fetcher("lhb_seat")
+    fetcher = _registry.find("lhb_seat")
     if fetcher is None:
         return None
     try:

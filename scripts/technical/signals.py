@@ -8,6 +8,47 @@ _LIMIT_DOWN_FREEZING = 50  # 跌停>50 判为冰点
 _CONTINUOUS_HEIGHT_LOW = 2  # 连板高度<=2 判为接力生态恶化
 
 
+def _signal_limit_up_down(limit_up, limit_down):
+    """涨停家数/跌停家数信号。
+
+    Returns:
+        dict: {signal_name: signal_desc} 或空 dict
+    """
+    signals = {}
+    # 退潮期信号（徐翔建议：涨停家数<20家）
+    if limit_up < _LIMIT_UP_RETREAT and limit_up > 0:
+        signals["退潮"] = f"市场退潮(涨停{limit_up}家<20)"
+    # 冰点期信号（养家建议：跌停>50家）
+    if limit_down > _LIMIT_DOWN_FREEZING:
+        signals["冰点"] = f"市场冰点(跌停{limit_down}家)"
+    return signals
+
+
+def _signal_continuous_height(continuous_height):
+    """连板高度信号。
+
+    Returns:
+        dict: {signal_name: signal_desc} 或空 dict
+    """
+    signals = {}
+    # 接力生态恶化（赵老哥建议：连板高度<2板）
+    if continuous_height <= _CONTINUOUS_HEIGHT_LOW and continuous_height > 0:
+        signals["接力恶化"] = f"接力生态恶化(连板{continuous_height}板)"
+    return signals
+
+
+def _signal_advance_decline(up_ratio):
+    """涨跌比信号。
+
+    Returns:
+        dict: {signal_name: signal_desc} 或空 dict
+    """
+    signals = {}
+    if up_ratio > 2:
+        signals["普涨"] = f"市场普涨(涨跌比{up_ratio})"
+    return signals
+
+
 def _generate_signals(features, market_breadth=None):
     """汇总买卖信号。
 
@@ -46,21 +87,17 @@ def _generate_signals(features, market_breadth=None):
         continuous_height = market_breadth.get("continuous_limit_height", 0)
         up_ratio = market_breadth.get("up_ratio", 0)
 
-        # 退潮期信号（徐翔建议：涨停家数<20家）
-        if limit_up < _LIMIT_UP_RETREAT and limit_up > 0:
-            sell.append(f"市场退潮(涨停{limit_up}家<20)")
+        # 涨停/跌停信号
+        for desc in _signal_limit_up_down(limit_up, limit_down).values():
+            sell.append(desc)
 
-        # 冰点期信号（养家建议：跌停>50家）
-        if limit_down > _LIMIT_DOWN_FREEZING:
-            sell.append(f"市场冰点(跌停{limit_down}家)")
+        # 连板高度信号
+        for desc in _signal_continuous_height(continuous_height).values():
+            sell.append(desc)
 
-        # 接力生态恶化（赵老哥建议：连板高度<2板）
-        if continuous_height <= _CONTINUOUS_HEIGHT_LOW and continuous_height > 0:
-            sell.append(f"接力生态恶化(连板{continuous_height}板)")
-
-        # 普涨信号
-        if up_ratio > 2:
-            buy.append(f"市场普涨(涨跌比{up_ratio})")
+        # 涨跌比信号
+        for desc in _signal_advance_decline(up_ratio).values():
+            buy.append(desc)
 
     # 买入信号
     if macd.get("signal") == 1:

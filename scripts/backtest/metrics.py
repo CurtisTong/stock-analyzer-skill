@@ -2,7 +2,7 @@
 回测统计指标计算：夏普比率、最大回撤、卡玛比率、信息比率等。
 """
 
-from .engine import simulate_strategy
+from .engine import simulate_strategy, SimContext
 
 
 def run_backtest(
@@ -34,12 +34,14 @@ def run_backtest(
     """
     holding_days = max(1, days // rounds)
     result = simulate_strategy(
-        strategy_name,
-        codes,
-        top_n,
-        holding_days=holding_days,
-        total_days=days,
-        weights=weights,
+        SimContext(
+            strategy_name=strategy_name,
+            codes=codes,
+            top_n=top_n,
+            holding_days=holding_days,
+            total_days=days,
+            weights=weights,
+        )
     )
 
     if "error" in result:

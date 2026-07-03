@@ -1,7 +1,8 @@
 """
 公共工具包：HTTP 请求、字段映射、工具函数、熔断器、数据源抽象。
 
-采用 PEP 562 __getattr__ 懒加载，import common 时不触发子模块加载。
+核心子模块（fetcher_base/circuit_breaker/exceptions/validators）在 import common 时加载；
+可选子模块（parsers/exporters）通过 PEP 562 __getattr__ 延迟加载。
 """
 
 # ---------- 从子模块 re-export（零破坏迁移） ----------
@@ -12,6 +13,7 @@ from common.circuit_breaker import (
     _circuit_breakers,
 )
 from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager, fetch_with_breaker
+from common.lazy_registry import LazyFetcherRegistry
 
 # ---------- 异常类（零副作用，顶层导入） ----------
 
@@ -218,6 +220,7 @@ __all__ = [
     "BaseFetcher",
     "DataFetcherManager",
     "fetch_with_breaker",
+    "LazyFetcherRegistry",
     # 输入验证器
     "validate_code",
     "normalize_code",

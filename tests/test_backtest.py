@@ -139,7 +139,9 @@ class TestSimulateStrategy:
         self._mock_all(monkeypatch, sample_finance, kline_uptrend)
 
         result = backtest.simulate_strategy(
-            "balanced", ["sh600519"], top_n=1, holding_days=5
+            backtest.SimContext(
+                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=5
+            )
         )
         assert "strategy" in result
         assert "selections" in result
@@ -157,7 +159,9 @@ class TestSimulateStrategy:
         )
         monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [])
 
-        result = backtest.simulate_strategy("balanced", ["sh600519"])
+        result = backtest.simulate_strategy(
+            backtest.SimContext(strategy_name="balanced", codes=["sh600519"])
+        )
         assert "error" in result
 
     def test_rolling_window_generates_returns(
@@ -193,7 +197,9 @@ class TestSimulateStrategy:
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         result = backtest.simulate_strategy(
-            "balanced", ["sh600519"], top_n=1, holding_days=10
+            backtest.SimContext(
+                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10
+            )
         )
         assert "error" not in result
         assert result["total_periods"] > 1  # 滚动窗口应产生多个周期
@@ -234,7 +240,11 @@ class TestSimulateStrategy:
 
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
-        backtest.simulate_strategy("balanced", ["sh600519"], top_n=1, holding_days=5)
+        backtest.simulate_strategy(
+            backtest.SimContext(
+                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=5
+            )
+        )
         assert finance_called["count"] > 0
 
 

@@ -10,29 +10,21 @@
 不同类型的数据，不是同数据多源故障转移场景。
 """
 
-import threading
 import logging
 
-from common import fetch_with_breaker
+from common import fetch_with_breaker, LazyFetcherRegistry
 
 logger = logging.getLogger(__name__)
 
-_fetchers_cache: list | None = None
-_fetchers_lock = threading.Lock()
+
+def _get_event_fetchers_import():
+    """fetcher 导入工厂函数。"""
+    from fetchers import get_event_fetchers
+
+    return get_event_fetchers()
 
 
-def _get_event_fetchers():
-    """延迟导入并缓存 event fetcher 列表。"""
-    global _fetchers_cache
-    if _fetchers_cache is not None:
-        return _fetchers_cache
-    with _fetchers_lock:
-        if _fetchers_cache is not None:
-            return _fetchers_cache
-        from fetchers import get_event_fetchers
-
-        _fetchers_cache = get_event_fetchers()
-    return _fetchers_cache
+_registry = LazyFetcherRegistry(_get_event_fetchers_import)
 
 
 def get_events(code: str, days: int = 30) -> dict:
@@ -56,7 +48,7 @@ def get_events(code: str, days: int = 30) -> dict:
         "violation": [],
     }
 
-    fetchers = _get_event_fetchers()
+    fetchers = _registry.get_all()
     # 全部 fetcher 都接受 **kwargs，calendar 类用 days，个股类忽略
     for fetcher in fetchers:
         try:

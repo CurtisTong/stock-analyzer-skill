@@ -3,6 +3,7 @@
 """
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from common import (
@@ -59,18 +60,23 @@ def _build_hist_quote(bars, i, fin, code):
     }
 
 
-def simulate_strategy(
-    strategy_name: str,
-    codes: list,
-    top_n: int = 5,
-    holding_days: int = 5,
-    initial_capital: float = 100000,
-    total_days: int = 60,
-    commission: float = 0.00025,
-    stamp_tax: float = 0.001,
-    slippage: float = 0.001,
-    weights=None,
-):
+@dataclass
+class SimContext:
+    """simulate_strategy 的参数封装。"""
+
+    strategy_name: str
+    codes: list
+    top_n: int = 5
+    holding_days: int = 5
+    initial_capital: float = 100000
+    total_days: int = 60
+    commission: float = 0.00025
+    stamp_tax: float = 0.001
+    slippage: float = 0.001
+    weights: dict = None
+
+
+def simulate_strategy(ctx: SimContext):
     """
     模拟策略收益（滚动窗口回测，无前瞻偏差）。
 
@@ -86,17 +92,22 @@ def simulate_strategy(
     基于历史 K 线价格计算，严格无前瞻。
 
     Args:
-        strategy_name: 策略名称
-        codes: 候选股票代码列表
-        top_n: 买入数量
-        holding_days: 持有天数
-        initial_capital: 初始资金
-        total_days: 回测总天数
-        weights: 可选覆盖权重 dict（不修改全局 STRATEGIES）。None 时从 STRATEGIES[strategy_name] 读取。
+        ctx: 回测上下文（strategy_name, codes, top_n, holding_days,
+             initial_capital, total_days, commission, stamp_tax, slippage, weights）
 
     Returns:
         回测结果 dict
     """
+    strategy_name = ctx.strategy_name
+    codes = ctx.codes
+    top_n = ctx.top_n
+    holding_days = ctx.holding_days
+    total_days = ctx.total_days
+    commission = ctx.commission
+    stamp_tax = ctx.stamp_tax
+    slippage = ctx.slippage
+    weights = ctx.weights
+
     if weights is None:
         weights = get_strategy(strategy_name)
     min_history = 60

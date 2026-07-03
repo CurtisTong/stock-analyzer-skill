@@ -278,48 +278,54 @@ def _build_parser():
 
 def _default_progress_callback(event, payload):
     """默认 callback：把业务事件转 print（保持原 CLI 输出等价）。"""
-    if event == "empty_universe":
-        print("❌ 股票池为空，无法选股。")
-        print()
-        print("请先初始化股票池:")
-        print("  /screener init          # 联网获取最新数据")
-        print("  /screener init default  # 使用预置数据（离线可用）")
-    elif event == "market_regime":
+    if event == "init":
+        # empty_universe
+        if payload.get("halted"):
+            reason = payload.get("reason", "")
+            if reason == "empty_universe":
+                print("❌ 股票池为空，无法选股。")
+                print()
+                print("请先初始化股票池:")
+                print("  /screener init          # 联网获取最新数据")
+                print("  /screener init default  # 使用预置数据（离线可用）")
+            elif reason == "macro_red":
+                print("⚠️ 系统性风险，暂停选股", flush=True)
+            return
+        # market_regime
         regime = payload.get("regime")
         if regime:
             print(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
-    elif event == "macro":
-        msg = payload.get("msg")
-        if msg:
-            print(msg, flush=True)
-    elif event == "macro_red":
-        print("⚠️ 系统性风险，暂停选股", flush=True)
-    elif event == "pre_screen":
-        # pre_screen_quotes 内部已 print，此处无需重复
-        pass
-    elif event == "phase1_done":
+        # macro
+        macro_msg = payload.get("macro_msg")
+        if macro_msg:
+            print(macro_msg, flush=True)
+    elif event == "phase1":
         print(
             f"⚡ Phase 1: {payload['count_in']} 只 → Top {payload['count_out']} 只 "
             f"({payload['elapsed']:.2f}s)",
             flush=True,
         )
-    elif event == "phase2_done":
+    elif event == "phase2":
         print(
             f"🎯 Phase 2: {payload['count']} 只精排 ({payload['elapsed']:.2f}s)",
             flush=True,
         )
-        print(
-            f"✅ 两阶段管线完成: {payload['total']:.2f}s "
-            f"(节省 K 线 {payload['saved_kline']} 只)",
-            flush=True,
-        )
+        saved = payload.get("saved_kline", 0)
+        if saved:
+            print(
+                f"✅ 两阶段管线完成: {payload['total']:.2f}s "
+                f"(节省 K 线 {saved} 只)",
+                flush=True,
+            )
     elif event == "snapshot":
         print(f"📸 快照已保存: {payload['path']}", flush=True)
 
 
 def _run_main(args):
     """main() 核心逻辑（瘦身后：callback + 调用 run_screening + 输出分发）。"""
-    result = run_screening(args, progress_callback=_default_progress_callback)
+    # JSON 模式使用静默 callback，避免进度输出混入 JSON
+    callback = _default_progress_callback if not args.json else (lambda e, p: None)
+    result = run_screening(args, progress_callback=callback)
 
     if result["halted"]:
         # 宏观 RED 且非 JSON 模式 → 暂停；JSON 模式仍输出空结果

@@ -5,6 +5,8 @@
 
 import logging
 
+import yaml
+
 from common import to_float
 
 logger = logging.getLogger(__name__)
@@ -17,7 +19,7 @@ try:
     _STOP_LOSS_PCT = -abs(_raw_stop_loss)  # 确保为负数
     _raw_take_profit = ConfigLoader.get("limits.yaml", "take_profit_pct", 20)
     _TAKE_PROFIT_PCT = abs(_raw_take_profit)  # 确保为正数
-except Exception as e:
+except (FileNotFoundError, yaml.YAMLError) as e:
     logger.warning("加载止损/止盈配置失败，使用默认值: %s", e)
     _STOP_LOSS_PCT = -8
     _TAKE_PROFIT_PCT = 20

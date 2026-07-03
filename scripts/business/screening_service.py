@@ -46,6 +46,7 @@ from strategies.factors.registry import (
     compute_phase_factors,
     get_factor_keys,
 )
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +100,21 @@ def _pledge_threshold() -> float:
 
 def _st_prefixes() -> list:
     return _limit("st_prefixes", ["ST", "*ST"])
+
+
+@dataclass
+class AnalyzeContext:
+    """_analyze_stock 的参数封装。"""
+
+    code: str
+    quote: dict
+    fin_records: list
+    strategy: str
+    filters: dict
+    kline_bars: list = None
+    phase1: bool = False
+    regime: str = "neutral"
+    no_chip: bool = False
 
 
 def compute_features(code: str, bars=None) -> dict:
@@ -242,12 +258,14 @@ class ScreeningService:
 
             try:
                 stock_result = self._analyze_stock(
-                    code,
-                    quote,
-                    fin_cache.get(code, []),
-                    strategy,
-                    filters,
-                    kline_cache.get(code),
+                    AnalyzeContext(
+                        code=code,
+                        quote=quote,
+                        fin_records=fin_cache.get(code, []),
+                        strategy=strategy,
+                        filters=filters,
+                        kline_bars=kline_cache.get(code),
+                    )
                 )
                 if stock_result:
                     results.append(stock_result)
@@ -290,66 +308,53 @@ class ScreeningService:
 
         return parallel_fetch_dict(codes, fetch_one, label="kline")
 
-    def _analyze_stock(
-        self,
-        code: str,
-        quote,
-        fin_records: List[dict],
-        strategy: str,
-        filters: Dict[str, Any],
-        kline_bars: list = None,
-        phase1: bool = False,
-        regime=None,
-        no_chip: bool = False,
-    ) -> Optional[Dict[str, Any]]:
+    def _analyze_stock(self, ctx: AnalyzeContext) -> Optional[Dict[str, Any]]:
         """分析单只股票。
 
         Args:
-            phase1: True 时执行两阶段拐点过滤（仅 two_stage 策略生效）。
-                    对应原 screener.analyze_code 中的两阶段逻辑。
-            regime: 可选市场状态枚举，传入时加权应用 overlay。
-            no_chip: True 时 chip 因子给中性分 50。
+            ctx: 分析上下文（code, quote, fin_records, strategy, filters,
+                 kline_bars, phase1, regime, no_chip）
         """
-        quote_dict = quote.to_dict() if hasattr(quote, "to_dict") else quote
-        fin = fin_records[0] if fin_records else {}
+        quote_dict = ctx.quote.to_dict() if hasattr(ctx.quote, "to_dict") else ctx.quote
+        fin = ctx.fin_records[0] if ctx.fin_records else {}
 
         # 行业分类
         industry = infer_industry(
             quote_dict.get("name", ""),
-            code,
+            ctx.code,
             fetcher_industry=quote_dict.get("industry", ""),
         )
 
         # 硬过滤
-        rejected = self._hard_filter(quote_dict, fin, filters)
+        rejected = self._hard_filter(quote_dict, fin, ctx.filters)
         if rejected:
             return {
-                "code": code,
+                "code": ctx.code,
                 "name": quote_dict.get("name", ""),
                 "score": 0,
                 "rejected": rejected,
             }
 
         # 计算因子得分
-        features = self._compute_features(code, kline_bars)
+        features = self._compute_features(ctx.code, ctx.kline_bars)
         parts = compute_factor_parts(fin, quote_dict, features, industry)
-        if no_chip:
+        if ctx.no_chip:
             parts["chip"] = 50
 
         # 两阶段策略：Stage 1 硬条件过滤（review#2）
-        if phase1 and STRATEGIES.get(strategy, {}).get("two_stage"):
+        if ctx.phase1 and STRATEGIES.get(ctx.strategy, {}).get("two_stage"):
             from strategies.filters.turning_point import turning_point_filter
 
             pass_, reason = turning_point_filter(quote_dict, fin, features)
             if not pass_:
                 rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
                 return build_result_row(
-                    code, quote_dict, fin, features, industry, 0, parts, rejected
+                    ctx.code, quote_dict, fin, features, industry, 0, parts, rejected
                 )
 
-        total = compute_weighted_score(parts, strategy, regime=regime)
+        total = compute_weighted_score(parts, ctx.strategy, regime=ctx.regime)
         return build_result_row(
-            code, quote_dict, fin, features, industry, total, parts, []
+            ctx.code, quote_dict, fin, features, industry, total, parts, []
         )
 
     @staticmethod
@@ -911,8 +916,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     Args:
         args: CLI Namespace
         progress_callback: 可选回调，签名 callback(event: str, payload: dict) -> None。
-            事件类型：market_regime / macro / phase1_done / phase2_done /
-            single_done / pre_screen / snapshot / empty_universe
+            事件类型：init / phase1 / phase2 / snapshot
 
     Returns:
         dict: {rows, regime, macro_state, phase_stats, snapshot_path, halted}
@@ -925,7 +929,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
     codes = load_universe(args)
     if not codes:
-        _cb("empty_universe")
+        _cb("init", {"halted": True, "reason": "empty_universe"})
         return {"rows": [], "regime": None, "macro_state": None,
                 "phase_stats": {}, "snapshot_path": None, "halted": True}
 
@@ -951,7 +955,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
             signals = detect_signals()
             regime = classify_regime(signals)
-            _cb("market_regime", {"regime": regime})
+            _cb("init", {"regime": regime})
         except Exception as e:
             print(f"⚠️ 市场状态检测失败: {e}", file=sys.stderr)
             regime = None
@@ -965,9 +969,9 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
             gate = MacroSafetyGate()
             macro_state, macro_msg = gate.check()
-            _cb("macro", {"msg": macro_msg, "state": macro_state})
+            _cb("init", {"macro_msg": macro_msg, "macro_state": macro_state})
             if macro_state.value == "RED":
-                _cb("macro_red")
+                _cb("init", {"halted": True, "reason": "macro_red"})
                 halted = True
                 return {"rows": [], "regime": regime, "macro_state": macro_state,
                         "phase_stats": phase_stats, "snapshot_path": None,
@@ -989,8 +993,8 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             :top_n_phase2
         ]
         t_p1 = _time.perf_counter() - t_p1
-        _cb("phase1_done", {"count_in": len(quotes), "count_out": len(top_quotes),
-                            "elapsed": t_p1})
+        _cb("phase1", {"count_in": len(quotes), "count_out": len(top_quotes),
+                       "elapsed": t_p1})
 
         t_p2 = _time.perf_counter()
         kline_cache = prefetch_kline_all([q["code"] for q in top_quotes])
@@ -1005,8 +1009,8 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         t_total = _time.perf_counter() - t_pipeline_start
         phase_stats = {"p1_elapsed": t_p1, "p2_elapsed": t_p2, "total": t_total,
                        "saved_kline": len(quotes) - len(top_quotes)}
-        _cb("phase2_done", {"count": len(rows), "elapsed": t_p2, "total": t_total,
-                            "saved_kline": len(quotes) - len(top_quotes)})
+        _cb("phase2", {"count": len(rows), "elapsed": t_p2, "total": t_total,
+                       "saved_kline": len(quotes) - len(top_quotes)})
     else:
         kline_cache = prefetch_kline_all([q["code"] for q in quotes])
         rows = [
@@ -1016,7 +1020,8 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         ]
         if not args.no_normalize and len(rows) >= 3:
             _apply_factor_normalization(rows, args.strategy, regime=regime)
-        _cb("single_done", {"count": len(rows)})
+        t_total = _time.perf_counter() - t_pipeline_start
+        _cb("phase2", {"count": len(rows), "elapsed": t_total, "total": t_total})
 
     rows.sort(key=lambda r: r["score"], reverse=True)
 

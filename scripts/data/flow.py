@@ -10,37 +10,21 @@
 flow 域的 2 个 fetcher 返回不同类型数据（北向资金/个股资金），不走 manager 故障转移。
 """
 
-import threading
 import logging
 
-from common import fetch_with_breaker
+from common import fetch_with_breaker, LazyFetcherRegistry
 
 logger = logging.getLogger(__name__)
 
-_fetchers_cache: list | None = None
-_fetchers_lock = threading.Lock()
+
+def _get_flow_fetchers_import():
+    """fetcher 导入工厂函数。"""
+    from fetchers import get_flow_fetchers
+
+    return get_flow_fetchers()
 
 
-def _get_flow_fetchers():
-    """延迟导入并缓存 flow fetcher 列表。"""
-    global _fetchers_cache
-    if _fetchers_cache is not None:
-        return _fetchers_cache
-    with _fetchers_lock:
-        if _fetchers_cache is not None:
-            return _fetchers_cache
-        from fetchers import get_flow_fetchers
-
-        _fetchers_cache = get_flow_fetchers()
-    return _fetchers_cache
-
-
-def _find_fetcher(name_prefix: str):
-    """按 name 前缀查找 fetcher。"""
-    for f in _get_flow_fetchers():
-        if f.name.startswith(name_prefix):
-            return f
-    return None
+_registry = LazyFetcherRegistry(_get_flow_fetchers_import)
 
 
 def get_northbound_flow(code: str, days: int = 20) -> list:
@@ -58,7 +42,7 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
     注意：返回值用 net_buy 字段（= total_net），与 strategies/factors/chip.py
     的 _score_northbound_flow 期望的字段名对齐。
     """
-    fetcher = _find_fetcher("northbound")
+    fetcher = _registry.find("northbound")
     if fetcher is None:
         return []
     try:
@@ -90,7 +74,7 @@ def get_stock_flow(code: str, days: int = 10) -> dict | None:
     Returns:
         fetcher 原始返回的 dict（含 type/days 字段），失败返回 None。
     """
-    fetcher = _find_fetcher("stock_flow")
+    fetcher = _registry.find("stock_flow")
     if fetcher is None:
         return None
     try:

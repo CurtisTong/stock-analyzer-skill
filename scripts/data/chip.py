@@ -11,38 +11,21 @@
 chip 域的 3 个 fetcher（margin/holder/top_holder）返回不同子类型数据，不走 manager 故障转移。
 """
 
-import threading
 from typing import List
 
 
 from data.types import MarginData, HolderData, TopHolderRecord
-from common import to_float, to_int, fetch_with_breaker
-
-# 延迟导入 fetchers（避免循环导入），线程安全
-_fetchers_lock = threading.Lock()
-_fetchers_cache: list | None = None
+from common import to_float, to_int, fetch_with_breaker, LazyFetcherRegistry
 
 
-def _get_chip_fetchers():
-    """延迟导入并缓存 chip fetcher 列表。"""
-    global _fetchers_cache
-    if _fetchers_cache is not None:
-        return _fetchers_cache
-    with _fetchers_lock:
-        if _fetchers_cache is not None:
-            return _fetchers_cache
-        from fetchers import get_chip_fetchers
+def _get_chip_fetchers_import():
+    """fetcher 导入工厂函数。"""
+    from fetchers import get_chip_fetchers
 
-        _fetchers_cache = get_chip_fetchers()
-    return _fetchers_cache
+    return get_chip_fetchers()
 
 
-def _find_fetcher(name_prefix: str):
-    """按 name 前缀查找 fetcher。"""
-    for f in _get_chip_fetchers():
-        if f.name.startswith(name_prefix):
-            return f
-    return None
+_registry = LazyFetcherRegistry(_get_chip_fetchers_import)
 
 
 def get_margin(code: str, days: int = 20) -> List[MarginData]:
@@ -55,7 +38,7 @@ def get_margin(code: str, days: int = 20) -> List[MarginData]:
     Returns:
         融资融券数据列表，失败返回空列表
     """
-    fetcher = _find_fetcher("margin")
+    fetcher = _registry.find("margin")
     if fetcher is None:
         return []
     result = fetch_with_breaker(fetcher, code, days=days)
@@ -75,7 +58,7 @@ def get_holders(code: str, periods: int = 4) -> List[HolderData]:
     Returns:
         股东户数数据列表，失败返回空列表
     """
-    fetcher = _find_fetcher("holder")
+    fetcher = _registry.find("holder")
     if fetcher is None:
         return []
     result = fetch_with_breaker(fetcher, code, periods=periods)
@@ -95,7 +78,7 @@ def get_top_holders(code: str, date: str = "") -> List[TopHolderRecord]:
     Returns:
         十大流通股东数据列表，失败返回空列表
     """
-    fetcher = _find_fetcher("top_holder")
+    fetcher = _registry.find("top_holder")
     if fetcher is None:
         return []
     result = fetch_with_breaker(fetcher, code, date=date)
