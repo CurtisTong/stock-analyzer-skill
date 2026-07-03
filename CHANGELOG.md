@@ -33,6 +33,45 @@
 - **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
 
 ### Changed
+- **arch**: 深度审查后修复 90+ 项技术债
+- **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
+- **arch**: 胖入口下沉 + 补齐数据域 data 层
+
+### Documentation
+- **docs**: 文档双视角审查后批量修正事实性错误
+- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
+- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+
+### Maintenance
+- black 折行（backtest cli/metrics 无逻辑变化）
+- **settings**: 合并 IDE 自动学习的权限 allowlist
+
+## [Unreleased] - 2026-07-03
+
+### Added
+- **docs**: 新增用户专家与视觉专家审查视角档案
+- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
+- **scripts**: CB 加 half_open_success_threshold 可选守卫
+- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
+- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
+
+### Fixed
+- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
+- **data**: sector fetch_sector_finance 解包 None 崩溃
+- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
+- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
+- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
+- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
+- **experts**: 修复投票引擎5项严重/中等问题 + 估值纳入综合评分
+- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
+- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
+- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
+- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
+- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
+- *****: 优化设置
+- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+
+### Changed
 - **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
 - **arch**: 胖入口下沉 + 补齐数据域 data 层
 
