@@ -119,7 +119,10 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         return None
     try:
         result = fetcher.fetch(*args, **kwargs)
-    except Exception:
+    except Exception as e:
+        logger.debug(
+            "fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e
+        )
         fetcher.on_failure()
         return None
     if result is not None and result is not NOT_HANDLED:

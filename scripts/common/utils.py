@@ -234,7 +234,7 @@ def get_shared_executor() -> ThreadPoolExecutor:
 def parallel_map(
     fn: Callable[[str], Any],
     items: list[str],
-    timeout: int = 60,
+    timeout: int = 30,
 ) -> dict[str, Any]:
     """并发执行 fn(item)，返回 {item: result} 字典。
 
@@ -244,7 +244,7 @@ def parallel_map(
     Args:
         fn: 处理函数，接收单个 item 字符串
         items: 待处理的 item 列表
-        timeout: 总超时秒数（默认 60）
+        timeout: 总超时秒数（默认 30）
 
     Returns:
         {item: result} 字典，失败的 item 值为 None

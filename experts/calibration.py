@@ -54,7 +54,7 @@ def _get_calibration_threshold() -> float:
 
         cfg = ConfigLoader.load("scoring.yaml")
         return float(cfg.get("calibration", {}).get("calibration_threshold_pct", 5.0))
-    except Exception as e:
+    except (KeyError, ValueError, TypeError) as e:
         logging.getLogger(__name__).debug("校准阈值配置加载失败，使用默认 5.0%%: %s", e)
         return 5.0
 
@@ -91,7 +91,8 @@ def _save(data: dict) -> None:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(tmp, _CALIBRATION_FILE)
-        except Exception:
+        except (OSError, TypeError, ValueError) as e:
+            logging.getLogger(__name__).debug("校准文件写入失败: %s", e)
             if os.path.exists(tmp):
                 os.unlink(tmp)
             raise
@@ -201,7 +202,7 @@ def verify_predictions(
                     actual_direction = "下跌"
                 else:
                     actual_direction = "横盘"
-            except Exception as e:
+            except (KeyError, ValueError, TypeError) as e:
                 logging.getLogger(__name__).debug(
                     "获取 %s 实际收益率失败: %s", pred["stock"], e
                 )

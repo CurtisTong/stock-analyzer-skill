@@ -15,246 +15,75 @@
 - **scripts**: CB 加 half_open_success_threshold 可选守卫
 - **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
 - 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
-
-### Fixed
-- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
-- **data**: sector fetch_sector_finance 解包 None 崩溃
-- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
-- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
-- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
-- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
-- **experts**: 修复投票引擎5项严重/中等问题 + 估值纳入综合评分
-- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
-- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
-- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
-- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
-- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
-- *****: 优化设置
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Changed
-- **arch**: LazyFetcherRegistry抽取 + 高复杂度拆分 + PEP562修正 + 4域工厂缓存
-- **arch**: 深度审查后修复 90+ 项技术债
-- **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
-- **arch**: 胖入口下沉 + 补齐数据域 data 层
-
-### Documentation
-- **docs**: 文档双视角审查后批量修正事实性错误
-- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-
-### Maintenance
-- black 折行（backtest cli/metrics 无逻辑变化）
-- **settings**: 合并 IDE 自动学习的权限 allowlist
-
-## [Unreleased] - 2026-07-03
-
-### Added
-- **docs**: 新增用户专家与视觉专家审查视角档案
-- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
-- **scripts**: CB 加 half_open_success_threshold 可选守卫
-- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
-- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
-
-### Fixed
-- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
-- **data**: sector fetch_sector_finance 解包 None 崩溃
-- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
-- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
-- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
-- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
-- **experts**: 修复投票引擎5项严重/中等问题 + 估值纳入综合评分
-- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
-- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
-- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
-- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
-- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
-- *****: 优化设置
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Changed
-- **arch**: 深度审查后修复 90+ 项技术债
-- **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
-- **arch**: 胖入口下沉 + 补齐数据域 data 层
-
-### Documentation
-- **docs**: 文档双视角审查后批量修正事实性错误
-- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-
-### Maintenance
-- black 折行（backtest cli/metrics 无逻辑变化）
-- **settings**: 合并 IDE 自动学习的权限 allowlist
-
-## [Unreleased] - 2026-07-03
-
-### Added
-- **docs**: 新增用户专家与视觉专家审查视角档案
-- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
-- **scripts**: CB 加 half_open_success_threshold 可选守卫
-- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
-- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
-
-### Fixed
-- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
-- **data**: sector fetch_sector_finance 解包 None 崩溃
-- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
-- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
-- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
-- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
-- **experts**: 修复投票引擎5项严重/中等问题 + 估值纳入综合评分
-- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
-- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
-- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
-- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
-- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
-- *****: 优化设置
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Changed
-- **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
-- **arch**: 胖入口下沉 + 补齐数据域 data 层
-
-### Documentation
-- **docs**: 文档双视角审查后批量修正事实性错误
-- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-
-### Maintenance
-- black 折行（backtest cli/metrics 无逻辑变化）
-- **settings**: 合并 IDE 自动学习的权限 allowlist
-
-## [Unreleased] - 2026-07-02
-
-### Added
-- **docs**: 新增用户专家与视觉专家审查视角档案
-- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
-- **scripts**: CB 加 half_open_success_threshold 可选守卫
-- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
-- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
-
-### Fixed
-- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
-- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
-- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
-- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
-- *****: 优化设置
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Documentation
-- **docs**: 文档双视角审查后批量修正事实性错误
-- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-
-### Maintenance
-- black 折行（backtest cli/metrics 无逻辑变化）
-- **settings**: 合并 IDE 自动学习的权限 allowlist
-
-## [Unreleased] - 2026-07-01
-
-### Added
-- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
-- **scripts**: CB 加 half_open_success_threshold 可选守卫
-- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
-- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
+- **common**: `fetch_with_breaker()` 工具函数，为非 manager 数据域（chip/event/flow/lhb）提供熔断保护
+- **common**: `LazyFetcherRegistry` 泛型类，替代 4 个数据域文件中重复的 fetcher 缓存模板
+- **tests**: 新增 `test_fetch_with_breaker.py`（8 case）、`test_lazy_registry.py`（12 case）、`test_contexts.py`（14 case）、`test_data_pool.py`（30 case）
 
 ### Architecture
 - **data**: 补齐 chip/event/flow/lhb 4 个数据域 data 层统一入口（`data/chip.py` 接入 fetcher 列表、新建 `data/event.py`、`data/flow.py`、`data/lhb.py`），消除 `data/flow.py` 死引用（北向资金评分从永远返回 0 变为真实数据）
 - **fetchers**: 按数据域子目录化（quote/kline/finance/flow/lhb/event/chip + _common），`__init__.py` re-export 屏蔽 import 路径；删除悬空 roadmap 引用，修正 docstring fetcher 数量
 - **scripts**: 4 个胖入口下沉——`patterns_local.py` → `strategies/patterns/` 子包（8 文件）；`screener.py` 336 行业务逻辑下沉到 `screening_service.run_screening` + progress_callback 模式拆分 `_run_main`，消除 `analyze_code` 与 `_analyze_stock` 镜像重复；`alert_engine.py` 626 行下沉到 `monitor/{rules,data_fetch,levels,scanner,notifier,briefing}.py`；`refresh_pool.py` 472 行下沉到 `data/pool.py`
+- **refactor**: 参数对象化——`AnalyzeContext`/`ResultRowContext`（screening_service）、`SimContext`（backtest engine）、`TechnicalInput`（technical）、`PatternInput`（patterns）替代 7-10 个位置参数
+- **refactor**: `progress_callback` 事件类型从 8 个精简为 4 个（init/phase1/phase2/snapshot）
+- **refactor**: `_generate_signals`（CCN 57）拆分为 3 个子函数；`render_report`（CCN 54）拆分为 17 个 section render 函数
 - **pyproject**: 记录 py_mini_racer（akshare 传递依赖）在 Python 3.19 的兼容性限制
 
 ### Fixed
+- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
+- **data**: sector fetch_sector_finance 解包 None 崩溃
+- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
+- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
+- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
+- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
+- **experts**: 修复投票引擎 5 项严重/中等问题 + 估值纳入综合评分
+- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
 - **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
 - **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
 - **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
 - **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
-- *****: 优化设置
 - **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
 - **tests**: 修复 `test_fetch_strips_prefix` 断言（位置参数→关键字参数，匹配 fetcher 实际调用方式）
+- **cb**: CircuitBreaker half-open 状态 `recovery_timeout=0` 时无限重置 bug（`>=` 改 `>` + `recovery_timeout > 0` 守卫）
+- **tushare**: 模块级 `HAS_TUSHARE` 改为运行时 `_check_tushare()` 函数，避免可选依赖在导入时被固化
+- **http**: `allow_redirects=False` 防止 SSRF 重定向攻击
+- **portfolio-web**: CSRF 空 Origin 校验修复（Bearer token 检查）
+- **portfolio**: Bark webhook URL 加 `validate_webhook_url` 校验
+- **calibration_sync**: 远程 Gist 数据 schema 校验
+- **helpers**: 3 处 `except Exception` 收窄为具体异常类型
+- **experts**: calibration 3 处 `except Exception` 收窄
+- **fetch_with_breaker**: 异常分支补 `logger.debug` 日志
+
+### Changed
+- **arch**: 深度审查后修复 90+ 项技术债
+- **arch**: LazyFetcherRegistry 抽取 + 高复杂度拆分 + PEP562 修正 + 4 域工厂缓存
+- **fetchers**: 4 个域工厂函数加 `_fetcher_cache` 缓存避免重复构建
+- **common**: `parallel_map` 默认超时 60→30 秒
+- **monitor**: `health.py` chip 域纳入；`get_cache_stats` 委托 `cache.get_cache_stats()`
+- **monitor**: `scanner.py` `scan_all(pm=None)` 接受注入点
+- **snapshots**: 路径注入校验（`_validate_strategy()`）
+- **portfolio**: `manager.py` `_load(acquire_lock=True)` 参数
+- **data**: `is_trading_hours()` 使用 `dev.clock.now()` 注入时间
+- **data**: `pool.py` `sys.path.insert` 移至 `if __name__ == "__main__"`
+- **experts**: `_get_clamp`/`_get_scoring_config` 加 DCL 锁
+- **strategies**: `STRATEGIES` 全局 dict 改为 `get_strategy()` 线程安全 API
 
 ### Documentation
+- **docs**: 文档双视角审查后批量修正事实性错误
 - 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
 - **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+- **CLAUDE.md**: 移除 `patterns_local.py` 引用；补齐 `multi_stock_backtest.py`、`strategy_performance.py` 辅助脚本
 
 ### Maintenance
 - black 折行（backtest cli/metrics 无逻辑变化）
 - **settings**: 合并 IDE 自动学习的权限 allowlist
+- **ci**: Python 3.13 加入 CI 矩阵；pre-commit 加 ruff hook；`.coveragerc` `fail_under` 60→65
 
-## [Unreleased] - 2026-07-01
-
-### Added
-- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
-
-### Fixed
-- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
-- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
-- *****: 优化设置
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Documentation
-- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
-- auto-update CHANGELOG.md [skip ci]
-- auto-update CHANGELOG.md [skip ci]
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-- auto-update CHANGELOG.md [skip ci]
-
-### Maintenance
-- **settings**: 合并 IDE 自动学习的权限 allowlist
-
-## [Unreleased] - 2026-06-30
-
-### Fixed
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Documentation
-- auto-update CHANGELOG.md [skip ci]
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-- auto-update CHANGELOG.md [skip ci]
-
-### Maintenance
-- **settings**: 合并 IDE 自动学习的权限 allowlist
-
-## [Unreleased] - 2026-06-30
-
-### Fixed
-- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
-
-### Documentation
-- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
-- auto-update CHANGELOG.md [skip ci]
-
-## [Unreleased]
-
-### Fixed
-- **portfolio-web**: 暴露 _collect_code_name_map 给 test_auth
-- **portfolio-web**: 暴露 ALLOWED_ACTIONS/MAX_BODY_BYTES 给 test_module_level
-- **portfolio-web**: 暴露 _ensure_token 给 test_portfolio_web.TestRouting
-- **smoke**: node 读 package.json 用绝对路径，避免 cd scripts/ 后找不到
-- **数字漂移**: CLAUDE.md / plugin.json / marketplace.json 同步"13 个 skill / 9 人圆桌"（之前 12/8 已过时）
-- **backtest**: 引入 `weights` 参数，消除 optimize_weights 直接修改全局 STRATEGIES 的并发数据竞争
-- **portfolio-web**: token stdout 泄露修复，仅打印前 8 位 + 提示 token 文件路径
-
-### Documentation
-- **changelog**: 清理 [Unreleased] - 2026-06-24 孤儿段（内容已并入 [1.14.0]）
-- **changelog**: 合并 10 个重复 [Unreleased] 段 + 过滤 auto-update / 持仓操作噪音
-- **9 人圆桌**: 同步 13 处 "8 人圆桌" 残留（.agents/skills/、experts/__init__.py、skill-catalog.md、sector_specialist/institution/risk_manager.md、decide.md §四 表格）
-
-### Security
-- **.gitignore**: 追加 trade_log.json（交易历史）/ .env* / .hypothesis / .mypy_cache / .ruff_cache / .venv 防御纵深
-
-### CI/CD
-- ruff 参数名 --max-line-length 改为 --line-length（新 ruff 已重命名）
-- **setup-test**: 创建 .gitignore 占位文件以通过 allowed-tools 路径校验
-- 修复 smoke + 集成测试的版本漂移与 symlink 缺失问题
-- 删除命令行 --cov-fail-under=70，覆盖率阈值统一用 .coveragerc (60%)
-
-### Maintenance
-- ruff/flake8/fix 全部修复 + pyproject.toml ruff 配置
-- black 格式化 scripts/ experts/ tests/（104 文件）
-- **strategies/registry.py**: register_strategy 加 `replace=False` 保护，重复注册 raise（防止并发数据竞争）
-
-### Other
+### Planned
+- 回测权重网格搜索优化
+- 回测模拟实盘模式
+- 港股深度支持
+- 多语言（英文）输出
+- 更多本土战法形态
 
 ## [1.14.2] - 2026-06-29（异常分类 + 输出模板统一 + backtest 解耦 + 文档对齐）
 
@@ -275,16 +104,6 @@
 - CLAUDE.md 补齐 5 个未列出的辅助脚本（`calibration_sync` / `hot_rank` / `market_breadth` / `perf_bench` / `snapshots`）
 - `scoring.yaml` 未被读取字段加 DEPRECATED 警告（`industry_defaults` / `experts.soros.market_liquidity_floor_yi`）
 - 修复 CHANGELOG.md markdown lint 警告
-
-## [Unreleased]
-
-### Planned
-
-- 回测权重网格搜索优化
-- 回测模拟实盘模式
-- 港股深度支持
-- 多语言（英文）输出
-- 更多本土战法形态
 
 ## [1.14.0] - 2026-06-24（回测增强 + 估值模型 + 事件驱动 + 架构重构）
 

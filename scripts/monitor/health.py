@@ -55,46 +55,45 @@ def get_fetcher_health() -> dict:
 
 
 def get_cache_stats() -> dict:
-    """获取缓存统计信息。"""
+    """获取缓存统计信息。
+
+    委托 common.cache.get_cache_stats() 获取基础统计，
+    在此基础上增加 by_prefix 分组、阈值告警等扩展信息。
+    """
     from common import cache
 
-    cache_dir = cache.CACHE_DIR
-    if not cache_dir.exists():
+    if not cache.CACHE_DIR.exists():
         return {"error": "缓存目录不存在"}
 
-    # 配置阈值（可通过环境变量调整）
+    # 基础统计委托 cache.py
+    base = cache.get_cache_stats()
+
     max_size_mb = int(os.getenv("STOCK_CACHE_MAX_SIZE_MB", "500"))
 
     stats = {
-        "cache_dir": str(cache_dir),
-        "total_files": 0,
-        "total_size_bytes": 0,
+        "cache_dir": str(cache.CACHE_DIR),
+        "total_files": base["total_files"],
+        "total_size_mb": base["total_size_mb"],
         "by_prefix": {},
         "max_size_mb": max_size_mb,
         "warnings": [],
     }
 
-    for f in cache_dir.iterdir():
+    # by_prefix 分组（cache.py 不提供，此处补充）
+    for f in cache.CACHE_DIR.iterdir():
         if f.is_file() and f.suffix == ".cache":
-            stats["total_files"] += 1
-            size = f.stat().st_size
-            stats["total_size_bytes"] += size
-
-            # 按前缀统计
             name = f.stem
             prefix = name.split("_")[0]
             if prefix not in stats["by_prefix"]:
                 stats["by_prefix"][prefix] = {"count": 0, "size": 0}
             stats["by_prefix"][prefix]["count"] += 1
-            stats["by_prefix"][prefix]["size"] += size
+            stats["by_prefix"][prefix]["size"] += f.stat().st_size
 
     # 格式化大小
     for prefix, data in stats["by_prefix"].items():
         data["size_mb"] = round(data["size"] / 1024 / 1024, 2)
 
-    total_mb = round(stats["total_size_bytes"] / 1024 / 1024, 2)
-    stats["total_size_mb"] = total_mb
-    del stats["total_size_bytes"]
+    total_mb = stats["total_size_mb"]
 
     # 阈值告警
     if total_mb > max_size_mb:

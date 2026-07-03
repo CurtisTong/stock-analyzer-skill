@@ -15,6 +15,7 @@ import argparse
 import json
 import logging
 import sys
+from dataclasses import dataclass, field
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -54,8 +55,32 @@ from technical.report import render_report, render_quick
 from technical.valuation import pe_percentile_score, incremental_ma
 
 
-def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, args=None):
+@dataclass
+class TechnicalInput:
+    """_compute_all 的参数封装。"""
+
+    closes: list
+    opens: list
+    highs: list
+    lows: list
+    volumes: list
+    records: list
+    board: str
+    quote: dict
+    args: object = None
+
+
+def _compute_all(inp: TechnicalInput):
     """计算所有技术指标。args 为 CLI 参数，用于控制可选模块。"""
+    closes = inp.closes
+    opens = inp.opens
+    highs = inp.highs
+    lows = inp.lows
+    volumes = inp.volumes
+    records = inp.records
+    board = inp.board
+    quote = inp.quote
+    args = inp.args
     features = {}
 
     features["ma_system"] = ma_system(closes)
@@ -84,10 +109,13 @@ def _compute_all(closes, opens, highs, lows, volumes, records, board, quote, arg
 
     # 本土战法（始终运行，计算成本低）
     try:
-        from strategies.patterns import detect_all_local_patterns
+        from strategies.patterns import detect_all_local_patterns, PatternInput
 
         local_result = detect_all_local_patterns(
-            records, closes, highs, lows, volumes, mas, code=quote.get("code", "")
+            PatternInput(
+                records=records, closes=closes, highs=highs, lows=lows,
+                volumes=volumes, mas=mas, code=quote.get("code", ""),
+            )
         )
         features["local_patterns"] = local_result
     except Exception as e:
@@ -241,7 +269,10 @@ def main():
 
     # 计算所有指标
     features = _compute_all(
-        closes, opens, highs, lows, volumes, records, board, quote, args
+        TechnicalInput(
+            closes=closes, opens=opens, highs=highs, lows=lows,
+            volumes=volumes, records=records, board=board, quote=quote, args=args,
+        )
     )
 
     # 综合评分（自适应）

@@ -117,6 +117,20 @@ class AnalyzeContext:
     no_chip: bool = False
 
 
+@dataclass
+class ResultRowContext:
+    """build_result_row 的参数封装。"""
+
+    code: str
+    quote_dict: dict
+    fin: dict
+    features: dict
+    industry: str
+    total: float
+    parts: dict
+    rejected: list
+
+
 def compute_features(code: str, bars=None) -> dict:
     """计算技术指标特征（模块级函数，供 screener.py 等外部复用）。
 
@@ -349,12 +363,20 @@ class ScreeningService:
             if not pass_:
                 rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
                 return build_result_row(
-                    ctx.code, quote_dict, fin, features, industry, 0, parts, rejected
+                    ResultRowContext(
+                        code=ctx.code, quote_dict=quote_dict, fin=fin,
+                        features=features, industry=industry, total=0,
+                        parts=parts, rejected=rejected,
+                    )
                 )
 
         total = compute_weighted_score(parts, ctx.strategy, regime=ctx.regime)
         return build_result_row(
-            ctx.code, quote_dict, fin, features, industry, total, parts, []
+            ResultRowContext(
+                code=ctx.code, quote_dict=quote_dict, fin=fin,
+                features=features, industry=industry, total=total,
+                parts=parts, rejected=[],
+            )
         )
 
     @staticmethod
@@ -598,8 +620,16 @@ def compute_weighted_score_with_norm(
     return [compute_weighted_score(p, strategy) for p in normed]
 
 
-def build_result_row(code, quote_dict, fin, features, industry, total, parts, rejected):
+def build_result_row(ctx: ResultRowContext):
     """装配标准化结果 dict。"""
+    code = ctx.code
+    quote_dict = ctx.quote_dict
+    fin = ctx.fin
+    features = ctx.features
+    industry = ctx.industry
+    total = ctx.total
+    parts = ctx.parts
+    rejected = ctx.rejected
     bd = board_type(code)
     return {
         "code": code,
@@ -685,11 +715,21 @@ def analyze_code(
         if not pass_:
             rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
             return build_result_row(
-                quote_code, quote, fin, features, industry, 0, parts, rejected
+                ResultRowContext(
+                    code=quote_code, quote_dict=quote, fin=fin,
+                    features=features, industry=industry, total=0,
+                    parts=parts, rejected=rejected,
+                )
             )
 
     total = compute_weighted_score(parts, strategy, regime=regime)
-    return build_result_row(quote_code, quote, fin, features, industry, total, parts, rejected)
+    return build_result_row(
+        ResultRowContext(
+            code=quote_code, quote_dict=quote, fin=fin,
+            features=features, industry=industry, total=total,
+            parts=parts, rejected=rejected,
+        )
+    )
 
 
 def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
@@ -717,14 +757,16 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
         parts["chip"] = 50
     total = compute_weighted_score(parts, args.strategy, regime=regime)
     return build_result_row(
-        quote_code,
-        quote,
-        fin,
-        {"ret20": 0, "rsi": 50, "macd_signal": 0, "vol_price_signal": 0, "trend": 0},
-        industry,
-        total,
-        parts,
-        rejected,
+        ResultRowContext(
+            code=quote_code,
+            quote_dict=quote,
+            fin=fin,
+            features={"ret20": 0, "rsi": 50, "macd_signal": 0, "vol_price_signal": 0, "trend": 0},
+            industry=industry,
+            total=total,
+            parts=parts,
+            rejected=rejected,
+        )
     )
 
 
@@ -1050,6 +1092,8 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
 __all__ = [
     "ScreeningService",
+    "AnalyzeContext",
+    "ResultRowContext",
     "compute_features",
     "compute_factor_parts",
     "compute_weighted_score",

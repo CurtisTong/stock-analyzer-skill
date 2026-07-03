@@ -27,11 +27,20 @@ def _now_iso() -> str:
 from common import cache
 
 
-def _get_common_helpers():
-    """延迟导入 common，避免 common.py ↔ data/__init__.py 循环导入。"""
-    from common import to_float, to_int
+_helpers_cache = None
 
-    return to_float, to_int
+
+def _get_common_helpers():
+    """延迟导入 common，避免 common.py ↔ data/__init__.py 循环导入。
+
+    首次调用后缓存到模块级 _helpers_cache，后续直接返回。
+    """
+    global _helpers_cache
+    if _helpers_cache is None:
+        from common import to_float, to_int
+
+        _helpers_cache = (to_float, to_int)
+    return _helpers_cache
 
 
 # 延迟导入 fetchers（避免循环导入），线程安全

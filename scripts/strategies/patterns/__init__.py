@@ -12,6 +12,8 @@
 - 本土战法顶层编排（detect_all_local_patterns）
 """
 
+from dataclasses import dataclass
+
 from .ma_volume_strategy import (
     detect_ma_volume_signal,
     backtest_strategy,
@@ -25,6 +27,7 @@ from .zhangting import detect_zhangting
 from .dibu_shouban import detect_dibu_shouban
 
 __all__ = [
+    "PatternInput",
     "detect_ma_volume_signal",
     "backtest_strategy",
     "get_strategy_params",
@@ -38,18 +41,25 @@ __all__ = [
 ]
 
 
-def detect_all_local_patterns(records, closes, highs, lows, volumes, mas, code=""):
+@dataclass
+class PatternInput:
+    """detect_all_local_patterns 的参数封装（并行数组）。"""
+
+    records: list
+    closes: list
+    highs: list
+    lows: list
+    volumes: list
+    mas: dict
+    code: str = ""
+
+
+def detect_all_local_patterns(inp: PatternInput):
     """
     运行所有本土战法形态识别，返回汇总结果。
 
     Args:
-        records: K 线数据 list
-        closes: 收盘价序列
-        highs: 最高价序列
-        lows: 最低价序列
-        volumes: 成交量序列
-        mas: 移动平均线 dict {"ma5": [...], "ma10": [...], "ma20": [...], "ma60": [...]}
-        code: 股票代码（用于板块判断）
+        inp: PatternInput，封装 records/closes/highs/lows/volumes/mas/code
 
     Returns:
         {
@@ -58,6 +68,13 @@ def detect_all_local_patterns(records, closes, highs, lows, volumes, mas, code="
             "count": N,
         }
     """
+    records = inp.records
+    closes = inp.closes
+    highs = inp.highs
+    lows = inp.lows
+    volumes = inp.volumes
+    mas = inp.mas
+    code = inp.code
     all_patterns = []
 
     # 三阴一阳/三阳一阴

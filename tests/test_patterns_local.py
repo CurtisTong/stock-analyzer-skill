@@ -16,6 +16,7 @@ from strategies.patterns import (
     detect_zhangting,
     detect_dibu_shouban,
     detect_all_local_patterns,
+    PatternInput,
 )
 
 
@@ -151,7 +152,10 @@ class TestDetectAllLocalPatterns:
         records = _make_records(opens, closes, highs, lows)
 
         result = detect_all_local_patterns(
-            records, closes, highs, lows, volumes, mas, "sh600519"
+            PatternInput(
+                records=records, closes=closes, highs=highs, lows=lows,
+                volumes=volumes, mas=mas, code="sh600519",
+            )
         )
         assert "patterns" in result
         assert isinstance(result["patterns"], list)

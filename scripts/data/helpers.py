@@ -8,6 +8,12 @@ import logging
 from typing import Optional
 
 from common import get_shared_executor
+from common.exceptions import (
+    DataError,
+    NetworkError,
+    ParseError,
+    HTTPStatusError,
+)
 from data import get_quote, get_quotes, get_kline, get_finance
 
 logger = logging.getLogger(__name__)
@@ -63,15 +69,15 @@ def fetch_stock_bundle(code: str, kline_scale: int = 240, kline_len: int = 120) 
     result = {"quote": None, "kline": [], "finance": []}
     try:
         result["quote"] = f_q.result(timeout=30)
-    except Exception as e:
+    except (TimeoutError, ConnectionError, OSError, DataError, NetworkError, ParseError) as e:
         logger.warning("获取行情失败 %s: %s", code, e)
     try:
         result["kline"] = f_k.result(timeout=30)
-    except Exception as e:
+    except (TimeoutError, ConnectionError, OSError, DataError, NetworkError, ParseError) as e:
         logger.warning("获取K线失败 %s: %s", code, e)
     try:
         result["finance"] = f_f.result(timeout=30)
-    except Exception as e:
+    except (TimeoutError, ConnectionError, OSError, DataError, NetworkError, ParseError) as e:
         logger.warning("获取财务数据失败 %s: %s", code, e)
     return result
 
