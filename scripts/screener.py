@@ -17,7 +17,9 @@ import sys
 from common import normalize_quote_code
 from data.helpers import fetch_finance_first
 from strategies import (
-    STRATEGIES,
+    STRATEGIES,  # noqa: F401 — re-export（向后兼容：测试通过 screener.STRATEGIES 访问）
+    get_strategy,
+    list_strategies,
     quality_score,  # noqa: F401 — re-export
     valuation_score,  # noqa: F401 — re-export
     momentum_score,  # noqa: F401 — re-export
@@ -90,7 +92,7 @@ def render(rows, strategy, top, title=None, show_chip=True):
     rejected = [r for r in rows if r["rejected"]]
     accepted.sort(key=lambda r: r["score"], reverse=True)
 
-    label = title or STRATEGIES[strategy]["label"]
+    label = title or get_strategy(strategy)["label"]
     print(f"策略: {label} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
     print()
@@ -147,7 +149,7 @@ def render_brief(rows, strategy, top, title=None):
     rejected = [r for r in rows if r["rejected"]]
     accepted.sort(key=lambda r: r["score"], reverse=True)
 
-    label = title or STRATEGIES[strategy]["label"]
+    label = title or get_strategy(strategy)["label"]
     top_rows = accepted[:top]
 
     # 一句话结论
@@ -206,7 +208,7 @@ def _build_parser():
         "-v", "--version", action="version", version=f"screener {__version__}"
     )
     parser.add_argument("-h", "--help", action="help", help="显示帮助")
-    parser.add_argument("--strategy", choices=STRATEGIES.keys(), default="balanced")
+    parser.add_argument("--strategy", choices=list_strategies(), default="balanced")
     parser.add_argument("--sector", help="内置板块名称，支持模糊匹配")
     parser.add_argument("--codes", help="逗号分隔代码列表，优先于 --sector")
     parser.add_argument("--top", type=int, default=10)

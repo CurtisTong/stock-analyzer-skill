@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from datetime import timedelta
 
 from dev.clock import now
@@ -10,6 +11,11 @@ from dev.clock import now
 from common import BaseFetcher, http_get, to_float, to_int
 
 logger = logging.getLogger(__name__)
+
+
+def _strip_prefix(code: str) -> str:
+    """去除 sh/sz/bj 前缀（大小写无关），支持多前缀（如 shsh600519）。"""
+    return re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)+', '', code)
 
 
 # 融资融券 API (datacenter-web)
@@ -51,7 +57,7 @@ class MarginFetcher(BaseFetcher):
         """
         days = kwargs.get("days", 20)
         # 提取纯数字代码（支持 sh/sz/bj 前缀，大小写无关）
-        pure_code = code.lstrip("shszSHSZbjBJ")
+        pure_code = _strip_prefix(code)
         # 考虑节假日：交易日约占自然日的 50%，故向前多取一倍天数确保覆盖
         start_date = (now() - timedelta(days=days * 2)).strftime("%Y-%m-%d")
 

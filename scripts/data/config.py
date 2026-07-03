@@ -149,7 +149,9 @@ def is_trading_hours() -> bool:
     Returns:
         True 当前处于 A 股正常交易时段；False 非交易时段（含周末/午休/节假日）
     """
-    now = datetime.now()
+    from dev.clock import now as _now
+
+    now = _now()
 
     # 1. 周末
     if now.weekday() >= 5:

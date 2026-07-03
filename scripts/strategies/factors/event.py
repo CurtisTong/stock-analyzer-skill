@@ -28,9 +28,9 @@ def event_score(code: str) -> float:
         0-100 事件因子得分（50=中性）
     """
     try:
-        from events import fetch_events
+        from data.event import get_events
 
-        events = fetch_events(code, days=60)
+        events = get_events(code, days=60)
     except Exception as e:
         logger.debug("fetch_events 失败 %s: %s", code, e)
         return 50  # 无数据给中性分

@@ -11,7 +11,7 @@ from common.circuit_breaker import (
     get_circuit_breaker,
     _circuit_breakers,
 )
-from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager
+from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager, fetch_with_breaker
 
 # ---------- 异常类（零副作用，顶层导入） ----------
 
@@ -113,31 +113,33 @@ def __getattr__(name: str):
 # ---------- 带缓存的 HTTP 包装 ----------
 
 
-def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600) -> bytes:
-    """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。"""
+def http_get_cached(
+    url: str, timeout: int = 10, ttl: int = 21600, key: str = None
+) -> bytes:
+    """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。
+
+    Args:
+        url: 请求 URL
+        timeout: 超时秒数
+        ttl: 缓存有效期秒数
+        key: 自定义缓存键，为 None 时用 cache_key(url) 自动生成
+    """
     from common import cache, http_get
 
-    key = cache.cache_key(url)
-    cached = cache.get(key, ttl)
+    cache_key_ = key if key is not None else cache.cache_key(url)
+    cached = cache.get(cache_key_, ttl)
     if cached is not None:
         return cached
     data = http_get(url, timeout)
-    cache.put(key, data)
+    cache.put(cache_key_, data)
     return data
 
 
 def http_get_cached_keyed(
     url: str, key: str, timeout: int = 10, ttl: int = 21600
 ) -> bytes:
-    """带语义缓存键的 HTTP GET。"""
-    from common import cache, http_get
-
-    cached = cache.get(key, ttl)
-    if cached is not None:
-        return cached
-    data = http_get(url, timeout)
-    cache.put(key, data)
-    return data
+    """带语义缓存键的 HTTP GET（向后兼容别名，委托 http_get_cached）。"""
+    return http_get_cached(url, timeout=timeout, ttl=ttl, key=key)
 
 
 # ---------- 导出列表 ----------
@@ -215,6 +217,7 @@ __all__ = [
     "NOT_HANDLED",
     "BaseFetcher",
     "DataFetcherManager",
+    "fetch_with_breaker",
     # 输入验证器
     "validate_code",
     "normalize_code",

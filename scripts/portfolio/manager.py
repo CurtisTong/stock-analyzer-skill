@@ -71,26 +71,36 @@ class PortfolioManager:
         self._is_virtual = virtual
         self._data = self._load()
 
-    def _load(self) -> dict:
-        """加载持仓文件，自动兼容 v1 格式。"""
-        if not self._path.exists():
-            # 回退到示例文件
-            ex = _example_path()
-            if ex.exists():
-                data = json.loads(ex.read_text(encoding="utf-8"))
-                self._is_example = True
+    def _load(self, acquire_lock: bool = True) -> dict:
+        """加载持仓文件，自动兼容 v1 格式。
+
+        Args:
+            acquire_lock: 是否获取文件锁。调用方已持锁时传 False 避免死锁。
+        """
+        def _do_load() -> dict:
+            if not self._path.exists():
+                # 回退到示例文件
+                ex = _example_path()
+                if ex.exists():
+                    data = json.loads(ex.read_text(encoding="utf-8"))
+                    self._is_example = True
+                else:
+                    data = {"version": 2, "positions": [], "watchlist": []}
+                    self._is_example = True
             else:
-                data = {"version": 2, "positions": [], "watchlist": []}
-                self._is_example = True
-        else:
-            data = json.loads(self._path.read_text(encoding="utf-8"))
-            self._is_example = False
+                data = json.loads(self._path.read_text(encoding="utf-8"))
+                self._is_example = False
 
-        # v1 向后兼容：只有 codes 列表
-        if data.get("version", 1) == 1 and "codes" in data:
-            data = self._migrate_v1(data)
+            # v1 向后兼容：只有 codes 列表
+            if data.get("version", 1) == 1 and "codes" in data:
+                data = self._migrate_v1(data)
 
-        return data
+            return data
+
+        if acquire_lock:
+            with _file_lock(self._path, timeout=5.0):
+                return _do_load()
+        return _do_load()
 
     def _migrate_v1(self, data: dict) -> dict:
         """将 v1 格式迁移为 v2。"""
@@ -119,7 +129,7 @@ class PortfolioManager:
     def reload(self) -> None:
         """重新从磁盘加载数据（用于外部修改后的同步）。"""
         with _file_lock(self._path, timeout=5.0):
-            self._data = self._load()
+            self._data = self._load(acquire_lock=False)
 
     @property
     def is_virtual(self) -> bool:
@@ -147,7 +157,7 @@ class PortfolioManager:
         """
         with _file_lock(self._path):
             # 重新加载最新数据（_load 内部不获取锁，避免死锁）
-            self._data = self._load()
+            self._data = self._load(acquire_lock=False)
             # 执行更新
             self._data = updater(self._data)
             # 写回（使用 _raw_write，因为已持锁）

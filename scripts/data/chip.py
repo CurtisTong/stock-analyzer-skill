@@ -16,7 +16,7 @@ from typing import List
 
 
 from data.types import MarginData, HolderData, TopHolderRecord
-from common import to_float, to_int
+from common import to_float, to_int, fetch_with_breaker
 
 # 延迟导入 fetchers（避免循环导入），线程安全
 _fetchers_lock = threading.Lock()
@@ -58,7 +58,7 @@ def get_margin(code: str, days: int = 20) -> List[MarginData]:
     fetcher = _find_fetcher("margin")
     if fetcher is None:
         return []
-    result = fetcher.fetch(code, days=days)
+    result = fetch_with_breaker(fetcher, code, days=days)
     if not result:
         return []
 
@@ -78,7 +78,7 @@ def get_holders(code: str, periods: int = 4) -> List[HolderData]:
     fetcher = _find_fetcher("holder")
     if fetcher is None:
         return []
-    result = fetcher.fetch(code, periods=periods)
+    result = fetch_with_breaker(fetcher, code, periods=periods)
     if not result:
         return []
 
@@ -98,7 +98,7 @@ def get_top_holders(code: str, date: str = "") -> List[TopHolderRecord]:
     fetcher = _find_fetcher("top_holder")
     if fetcher is None:
         return []
-    result = fetcher.fetch(code, date=date)
+    result = fetch_with_breaker(fetcher, code, date=date)
     if not result:
         return []
 

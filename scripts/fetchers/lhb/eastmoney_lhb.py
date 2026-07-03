@@ -1,9 +1,15 @@
 """东方财富龙虎榜数据源。"""
 
 import json
+import re
 
 
 from common import BaseFetcher, http_get, to_float
+
+
+def _strip_prefix(code: str) -> str:
+    """去除 sh/sz/bj 前缀（大小写无关），支持多前缀（如 shsh600519）。"""
+    return re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)+', '', code)
 
 # 龙虎榜个股明细 API
 LHB_DETAIL_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=SECURITY_CODE&sortTypes=1&pageSize=50&pageNumber=1&reportName=RPT_DAILYBILLBOARD_DETAILSNEW&columns=ALL&filter=(TRADE_DATE>='{start_date}')(TRADE_DATE<='{end_date}')"
@@ -57,7 +63,7 @@ class LhbDetailFetcher(BaseFetcher):
                 "reason": r.get("EXPLANATION", ""),  # 上榜原因
             }
             # 如果指定了 code，只返回该股票的记录
-            if code and item["code"] != code.lstrip("shszSHSZbjBJ"):
+            if code and item["code"] != _strip_prefix(code):
                 continue
             items.append(item)
 
@@ -78,7 +84,7 @@ class LhbSeatFetcher(BaseFetcher):
         if not date:
             date = now().strftime("%Y-%m-%d")
 
-        plain = code.lstrip("shszSHSZbjBJ")
+        plain = _strip_prefix(code)
 
         # 获取买入席位
         buy_url = LHB_SEAT_URL.format(date=date, code=plain)

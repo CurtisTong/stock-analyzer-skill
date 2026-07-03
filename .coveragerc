@@ -15,7 +15,7 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 
-fail_under = 60
+fail_under = 65
 show_missing = true
 skip_empty = true
 precision = 1

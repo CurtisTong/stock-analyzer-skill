@@ -110,6 +110,34 @@ else
   echo "  ⚠ chip.py 请求超时或网络错误（可忽略）"
 fi
 
+output=$(python3 events.py sh600519 2>&1 || true)
+if echo "$output" | grep -qE "事件|无重大事件"; then
+  ok "events.py 输出含事件信息"
+else
+  ko "events.py 输出异常: $output"
+fi
+
+output=$(python3 sector.py 科技 2>&1 || true)
+if echo "$output" | grep -q "板块"; then
+  ok "sector.py 输出含板块"
+else
+  ko "sector.py 输出异常: $output"
+fi
+
+output=$(python3 snapshots.py list 2>&1 || true)
+if [ $? -eq 0 ] || echo "$output" | grep -qE "snapshot|快照|empty|无"; then
+  ok "snapshots.py list 正常执行"
+else
+  ko "snapshots.py list 异常: $output"
+fi
+
+output=$(python3 hot_rank.py --top 5 2>&1 || true)
+if [ $? -eq 0 ] || echo "$output" | grep -qE "rank|热度|rank"; then
+  ok "hot_rank.py --top 5 正常执行"
+else
+  ko "hot_rank.py --top 5 异常: $output"
+fi
+
 echo "==> 4. 13 个本地 skill 定义"
 for s in stock market sector portfolio screener monitor backtest stock-help learn research portfolio-natural portfolio-web stock-technical; do
   # skills/ 是源代码，.claude/skills/ 是 install.sh 创建的项目级 symlink

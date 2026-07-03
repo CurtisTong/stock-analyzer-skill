@@ -66,7 +66,7 @@ def main():
         )
         all_records = []
         for batch in batches:
-            all_records.extend(results.get(batch, []))
+            all_records.extend(results.get(batch) or [])
     else:
         all_records = fetch_batch(batches[0])
 

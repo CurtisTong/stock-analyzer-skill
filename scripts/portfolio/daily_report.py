@@ -304,11 +304,15 @@ class DailyReportGenerator:
         """发送 Bark 通知。"""
         try:
             from config.loader import ConfigLoader
+            from monitor.channels.base import validate_webhook_url
 
             bark_url = ConfigLoader.get("notification.yaml", "bark.url", "")
             if not bark_url:
                 print("Bark URL 未配置，跳过发送")
                 return
+
+            # 校验 webhook URL，防止 SSRF 攻击
+            bark_url = validate_webhook_url(bark_url)
 
             # 发送通知
             url = f"{bark_url}/持仓日报"

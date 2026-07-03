@@ -101,6 +101,32 @@ class BaseFetcher(ABC):
         self.circuit_breaker.record_failure()
 
 
+def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
+    """带熔断器保护的 fetch 调用。
+
+    用于不走 DataFetcherManager 的数据域（chip/event/flow/lhb，
+    返回不同子类型数据故不走 manager 故障转移）。
+
+    - fetcher 不可用（熔断器开启）→ 返回 None
+    - fetch 成功 → 记录成功，返回结果
+    - fetch 返回 None/NOT_HANDLED → 不记录成功/失败（数据不存在，非故障）
+    - fetch 抛异常 → 记录失败，返回 None
+
+    Returns:
+        fetcher.fetch() 的返回值，或熔断/异常时 None
+    """
+    if not fetcher.is_available():
+        return None
+    try:
+        result = fetcher.fetch(*args, **kwargs)
+    except Exception:
+        fetcher.on_failure()
+        return None
+    if result is not None and result is not NOT_HANDLED:
+        fetcher.on_success()
+    return result
+
+
 class DataFetcherManager:
     """数据源策略管理器：按优先级尝试，自动故障切换。"""
 

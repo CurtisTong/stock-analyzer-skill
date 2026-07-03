@@ -3,6 +3,10 @@
 无内部依赖。
 """
 
+_LIMIT_UP_RETREAT = 20  # 涨停家数<20 判为退潮
+_LIMIT_DOWN_FREEZING = 50  # 跌停>50 判为冰点
+_CONTINUOUS_HEIGHT_LOW = 2  # 连板高度<=2 判为接力生态恶化
+
 
 def _generate_signals(features, market_breadth=None):
     """汇总买卖信号。
@@ -43,15 +47,15 @@ def _generate_signals(features, market_breadth=None):
         up_ratio = market_breadth.get("up_ratio", 0)
 
         # 退潮期信号（徐翔建议：涨停家数<20家）
-        if limit_up < 20 and limit_up > 0:
+        if limit_up < _LIMIT_UP_RETREAT and limit_up > 0:
             sell.append(f"市场退潮(涨停{limit_up}家<20)")
 
         # 冰点期信号（养家建议：跌停>50家）
-        if limit_down > 50:
+        if limit_down > _LIMIT_DOWN_FREEZING:
             sell.append(f"市场冰点(跌停{limit_down}家)")
 
         # 接力生态恶化（赵老哥建议：连板高度<2板）
-        if continuous_height <= 2 and continuous_height > 0:
+        if continuous_height <= _CONTINUOUS_HEIGHT_LOW and continuous_height > 0:
             sell.append(f"接力生态恶化(连板{continuous_height}板)")
 
         # 普涨信号

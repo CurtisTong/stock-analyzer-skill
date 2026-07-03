@@ -18,6 +18,13 @@ repos:
         args: [--config=.flake8]
         files: ^(scripts|experts|tests)/.*\.py$
 
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.0
+    hooks:
+      - id: ruff
+        args: [--line-length=120, --fix]
+        files: ^(scripts|experts|tests)/.*\.py$
+
   - repo: local
     hooks:
       - id: pytest-sprint-tests

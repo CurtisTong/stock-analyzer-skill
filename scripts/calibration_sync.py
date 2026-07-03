@@ -163,6 +163,21 @@ def pull() -> bool:
         print("❌ 远程数据结构无效（缺少 predictions 字段），拒绝写入。")
         return False
 
+    # 深度 schema 校验：predictions 必须是 list，每个元素是 dict 且含 expert 和 calibration 键
+    predictions = remote_data.get("predictions")
+    if not isinstance(predictions, list):
+        print("❌ 远程数据结构无效（predictions 不是 list），拒绝写入。")
+        return False
+    for i, pred in enumerate(predictions):
+        if not isinstance(pred, dict):
+            print(f"❌ 远程数据结构无效（predictions[{i}] 不是 dict），拒绝写入。")
+            return False
+        if "expert" not in pred or "calibration" not in pred:
+            print(
+                f"❌ 远程数据结构无效（predictions[{i}] 缺少 expert/calibration 键），拒绝写入。"
+            )
+            return False
+
     # 备份本地数据
     if _CALIBRATION_FILE.exists():
         backup = _CALIBRATION_FILE.with_suffix(".json.bak")

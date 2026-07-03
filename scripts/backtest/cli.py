@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import normalize_quote_code, DATA_DIR
-from strategies import STRATEGIES
+from strategies import get_strategy, list_strategies
 from .metrics import run_backtest
 
 
@@ -33,8 +33,8 @@ def compare_strategies(
         scenarios: 情景列表
     """
     results = {}
-    for strategy_name in STRATEGIES:
-        print(f"  回测策略: {STRATEGIES[strategy_name]['label']}...", flush=True)
+    for strategy_name in list_strategies():
+        print(f"  回测策略: {get_strategy(strategy_name)['label']}...", flush=True)
         report = run_backtest(strategy_name, codes, top_n, days, rounds, benchmark)
         if scenarios:
             scenario_results = {}
@@ -65,7 +65,7 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
     避免并发场景下的数据竞争（issue: backtest 直接修改全局字典）。
     """
     base_keys = ["quality", "valuation", "momentum", "liquidity"]
-    original_weights = {k: STRATEGIES[strategy_name][k] for k in base_keys}
+    original_weights = {k: get_strategy(strategy_name)[k] for k in base_keys}
 
     best_score = -999
     best_weights = original_weights.copy()
@@ -170,7 +170,7 @@ def main():
     )
     parser.add_argument("-h", "--help", action="help")
     parser.add_argument(
-        "--strategy", choices=STRATEGIES.keys(), default="balanced", help="回测策略"
+        "--strategy", choices=list_strategies(), default="balanced", help="回测策略"
     )
     parser.add_argument("--all", action="store_true", help="比较所有策略")
     parser.add_argument("--optimize", action="store_true", help="优化权重")

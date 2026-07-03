@@ -12,7 +12,7 @@ from common import (
     parallel_fetch_dict,
 )
 from data import get_kline, get_finance
-from strategies import STRATEGIES
+from strategies import get_strategy
 from strategies.factors.volatility import volatility_score as _volatility_score
 from strategies.factors.chip import chip_score_static as _chip_score
 from strategies.factors.quality import quality_score
@@ -98,7 +98,7 @@ def simulate_strategy(
         回测结果 dict
     """
     if weights is None:
-        weights = STRATEGIES[strategy_name]
+        weights = get_strategy(strategy_name)
     min_history = 60
 
     datalen = min_history + total_days + 10
@@ -189,8 +189,8 @@ def simulate_strategy(
                 chip = _chip_score(code)
                 if chip > 0:
                     parts["chip"] = chip
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("chip 因子计算失败: %s", e)
 
             # 事件因子（解禁/分红/增减持/违规）
             # 注意：event_score 涉及网络请求，回测中禁用以避免超时

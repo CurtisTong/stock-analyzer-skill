@@ -7,29 +7,35 @@ from common import BaseFetcher
 
 logger = logging.getLogger(__name__)
 
-try:
-    import tushare as ts
 
-    token = os.environ.get("TUSHARE_TOKEN", "")
-    if token:
-        ts.set_token(token)
-        HAS_TUSHARE = True
-    else:
-        HAS_TUSHARE = False
-except ImportError:
-    HAS_TUSHARE = False
+def _check_tushare() -> bool:
+    """运行时检查 tushare 是否可用（包已安装 + token 已设置）。"""
+    if not os.environ.get("TUSHARE_TOKEN"):
+        return False
+    try:
+        import tushare  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
 
 
 class TushareQuoteFetcher(BaseFetcher):
     """Tushare 行情数据源 (优先级 -1) - 需要安装 tushare 包并设置 TUSHARE_TOKEN。"""
 
     def __init__(self):
-        super().__init__("tushare_quote", priority=-1 if HAS_TUSHARE else 2)
+        super().__init__("tushare_quote", priority=-1 if _check_tushare() else 2)
 
     def fetch(self, code: str, **kwargs) -> dict | None:
-        if not HAS_TUSHARE:
+        if not _check_tushare():
             return None
         try:
+            import tushare as ts
+
+            token = os.environ.get("TUSHARE_TOKEN", "")
+            if token:
+                ts.set_token(token)
+
             plain = code.lstrip("shszSHSZbjBJ")
             # 转换为 tushare 格式: 600989.SH
             if code.startswith(("sh", "SH")):

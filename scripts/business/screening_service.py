@@ -38,6 +38,7 @@ from classifier import infer_industry
 from strategies import (
     STRATEGIES,
     chip_score_static,
+    get_strategy,
 )
 from strategies.filters import PRE_SCREEN_FILTER as _PRE_SCREEN
 from strategies.factors.registry import (
@@ -525,7 +526,7 @@ def compute_weighted_score(parts, strategy, regime=None):
         regime: 可选 RegimeState 枚举（bull/bear/range/panic）。
                 None 时不应用 overlay。
     """
-    weights = STRATEGIES[strategy]
+    weights = get_strategy(strategy)
     if regime is not None:
         from strategies.regime import compute_overlay_weights
 

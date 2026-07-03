@@ -12,7 +12,8 @@ lhb 域的 2 个 fetcher 返回不同类型数据（明细/席位），不走 ma
 
 import threading
 import logging
-from typing import List
+
+from common import fetch_with_breaker
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ def get_lhb_detail(code: str = "", days: int = 7) -> dict | None:
     if fetcher is None:
         return None
     try:
-        return fetcher.fetch(code, days=days)
+        return fetch_with_breaker(fetcher, code, days=days)
     except Exception as e:
         logger.debug("龙虎榜明细 fetch 失败 %s: %s", code, e)
         return None
@@ -76,7 +77,7 @@ def get_lhb_seats(code: str, date: str = "") -> dict | None:
     if fetcher is None:
         return None
     try:
-        return fetcher.fetch(code, date=date)
+        return fetch_with_breaker(fetcher, code, date=date)
     except Exception as e:
         logger.debug("龙虎榜席位 fetch 失败 %s: %s", code, e)
         return None

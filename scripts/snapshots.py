@@ -11,6 +11,7 @@
 import argparse
 import hashlib
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -22,9 +23,19 @@ from common import DATA_DIR  # noqa: E402
 
 SNAPSHOT_VERSION = "1.14.1"
 
+# 策略名只允许字母数字下划线横杠，防止路径注入（如 ../）
+_STRATEGY_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _validate_strategy(strategy: str) -> None:
+    """校验策略名合法性，防止路径遍历攻击。"""
+    if not strategy or not _STRATEGY_NAME_RE.match(strategy):
+        raise ValueError(f"非法策略名: {strategy!r}（仅允许字母数字下划线横杠）")
+
 
 def _snapshot_path(strategy: str, date_str: str, hash_id: str) -> Path:
     """构造快照文件路径。"""
+    _validate_strategy(strategy)
     return Path(DATA_DIR) / "snapshots" / strategy / date_str / f"{hash_id}.json"
 
 
@@ -113,6 +124,7 @@ def list_snapshots(strategy: Optional[str] = None, limit: int = 20) -> List[Path
     if not base.exists():
         return []
     if strategy:
+        _validate_strategy(strategy)
         pattern = f"{strategy}/**/*.json"
     else:
         pattern = "**/*.json"

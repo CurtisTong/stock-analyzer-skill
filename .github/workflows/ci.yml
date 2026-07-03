@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
       fail-fast: false
 
     steps:
@@ -64,10 +64,10 @@ jobs:
         run: black --check scripts/ experts/ tests/
 
       - name: ruff 静态检查
-        run: ruff check scripts/ experts/ --line-length=120
+        run: ruff check scripts/ experts/ tests/ --line-length=120
 
       - name: flake8 静态检查
-        run: flake8 scripts/ experts/ --max-line-length=120
+        run: flake8 scripts/ experts/ tests/ --max-line-length=120
 
   integration:
     name: 集成测试

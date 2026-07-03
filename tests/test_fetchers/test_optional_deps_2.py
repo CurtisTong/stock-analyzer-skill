@@ -63,7 +63,7 @@ class TestTushareQuoteFetcher:
 
     def test_fetch_no_tushare(self):
         f = self._make_fetcher()
-        with patch("fetchers.quote.tushare_quote.HAS_TUSHARE", False):
+        with patch("fetchers.quote.tushare_quote._check_tushare", return_value=False):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -89,8 +89,8 @@ class TestTushareQuoteFetcher:
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.return_value = df
         with (
-            patch("fetchers.quote.tushare_quote.HAS_TUSHARE", True),
-            patch("fetchers.quote.tushare_quote.ts", mock_ts),
+            patch("fetchers.quote.tushare_quote._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
         ):
             result = f.fetch("sh600519")
         assert result is not None
@@ -104,8 +104,8 @@ class TestTushareQuoteFetcher:
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.return_value = pd.DataFrame()
         with (
-            patch("fetchers.quote.tushare_quote.HAS_TUSHARE", True),
-            patch("fetchers.quote.tushare_quote.ts", mock_ts),
+            patch("fetchers.quote.tushare_quote._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
         ):
             result = f.fetch("sh600519")
         assert result is None
@@ -116,8 +116,8 @@ class TestTushareQuoteFetcher:
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.side_effect = RuntimeError("error")
         with (
-            patch("fetchers.quote.tushare_quote.HAS_TUSHARE", True),
-            patch("fetchers.quote.tushare_quote.ts", mock_ts),
+            patch("fetchers.quote.tushare_quote._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
         ):
             result = f.fetch("sh600519")
         assert result is None
@@ -140,7 +140,7 @@ class TestTushareKlineFetcher:
 
     def test_fetch_no_tushare(self):
         f = self._make_fetcher()
-        with patch("fetchers.kline.tushare_kline.HAS_TUSHARE", False):
+        with patch("fetchers.kline.tushare_kline._check_tushare", return_value=False):
             result = f.fetch("sh600519")
         assert result is None
 
@@ -171,8 +171,8 @@ class TestTushareKlineFetcher:
         mock_ts = MagicMock()
         mock_ts.pro_api.return_value.daily.return_value = df
         with (
-            patch("fetchers.kline.tushare_kline.HAS_TUSHARE", True),
-            patch("fetchers.kline.tushare_kline.ts", mock_ts),
+            patch("fetchers.kline.tushare_kline._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
         ):
             result = f.fetch("sh600519")
         assert result is not None
@@ -183,7 +183,7 @@ class TestTushareKlineFetcher:
     def test_fetch_non_daily_scale(self):
         """非日线返回 None。"""
         f = self._make_fetcher()
-        with patch("fetchers.kline.tushare_kline.HAS_TUSHARE", True):
+        with patch("fetchers.kline.tushare_kline._check_tushare", return_value=True):
             result = f.fetch("sh600519", scale=60)
         assert result is None
 

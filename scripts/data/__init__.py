@@ -57,6 +57,20 @@ def _load_fetchers():
         _fetchers_loaded = True
 
 
+def _reset_fetchers():
+    """重置 fetcher 全局状态（仅用于测试隔离）。
+
+    清空已加载的 manager 单例，使下次 get_quote/get_kline/get_finance
+    调用重新触发 _load_fetchers，便于单元测试在干净状态下运行。
+    """
+    global _fetchers_loaded, _quote_manager, _kline_manager, _finance_manager
+    with _fetchers_lock:
+        _fetchers_loaded = False
+        _quote_manager = None
+        _kline_manager = None
+        _finance_manager = None
+
+
 def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     """获取单只股票行情。"""
     _load_fetchers()
@@ -398,4 +412,24 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
     from data.flow import get_northbound_flow as _get_nb
 
     return _get_nb(code, days=days)
+
+
+# ---------- lhb 域统一入口 re-export ----------
+from data.lhb import get_lhb_detail, get_lhb_seats  # noqa: E402, F401
+
+
+__all__ = [
+    "Quote",
+    "KlineBar",
+    "FinanceRecord",
+    "get_quote",
+    "get_quotes",
+    "get_kline",
+    "get_finance",
+    "get_chip",
+    "get_events",
+    "get_northbound_flow",
+    "get_lhb_detail",
+    "get_lhb_seats",
+]
 

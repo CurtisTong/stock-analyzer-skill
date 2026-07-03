@@ -24,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import DATA_DIR  # noqa: E402
-from strategies import STRATEGIES  # noqa: E402
+from strategies import get_strategy, list_strategies  # noqa: E402
 from backtest import run_backtest, load_test_universe  # noqa: E402
 
 PERFORMANCE_FILE = Path(DATA_DIR) / "strategy_performance.json"
@@ -72,7 +72,7 @@ def record_all(days: int = 60, top: int = 5, codes: List[str] = None) -> Dict:
         "strategies": {},
     }
 
-    for name in STRATEGIES:
+    for name in list_strategies():
         result = run_backtest(name, codes, top_n=top, days=days, rounds=5)
         if "error" in result:
             record["strategies"][name] = {"error": result["error"]}
@@ -112,7 +112,7 @@ def report(month: str = None) -> Dict:
         if month and m != month:
             continue
         if m not in by_month:
-            by_month[m] = {name: [] for name in STRATEGIES}
+            by_month[m] = {name: [] for name in list_strategies()}
         for sname, sdata in r.get("strategies", {}).items():
             if "error" not in sdata and sdata.get("total_return_pct") is not None:
                 by_month[m][sname].append(sdata)
@@ -172,7 +172,7 @@ def compare(metric: str = "sharpe_ratio") -> Dict:
         }
 
     # 聚合所有记录的指标
-    by_strategy: Dict[str, List[float]] = {name: [] for name in STRATEGIES}
+    by_strategy: Dict[str, List[float]] = {name: [] for name in list_strategies()}
     for r in records:
         for sname, sdata in r.get("strategies", {}).items():
             if "error" in sdata:
@@ -189,7 +189,7 @@ def compare(metric: str = "sharpe_ratio") -> Dict:
         ranking.append(
             {
                 "strategy": sname,
-                "label": STRATEGIES[sname].get("label", sname),
+                "label": get_strategy(sname).get("label", sname),
                 "value": round(avg, 3),
                 "runs": len(values),
             }

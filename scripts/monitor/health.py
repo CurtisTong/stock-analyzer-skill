@@ -18,6 +18,7 @@ def get_fetcher_health() -> dict:
         get_flow_fetchers,
         get_lhb_fetchers,
         get_event_fetchers,
+        get_chip_fetchers,
     )
 
     categories = {
@@ -27,6 +28,7 @@ def get_fetcher_health() -> dict:
         "资金流向": get_flow_fetchers,
         "龙虎榜": get_lhb_fetchers,
         "事件日历": get_event_fetchers,
+        "资金面": get_chip_fetchers,
     }
 
     result = {"timestamp": datetime.now().isoformat(), "sources": {}}

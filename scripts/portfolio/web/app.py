@@ -17,6 +17,7 @@ import argparse
 import hmac
 import html
 import json
+import logging
 import sys
 import threading
 import time
@@ -51,6 +52,8 @@ from .utils import (
 )
 
 __all__ = ["make_server", "Handler", "VERSION"]
+
+logger = logging.getLogger(__name__)
 
 VERSION = "2.0.0"
 
@@ -137,11 +140,17 @@ class Handler(BaseHTTPRequestHandler):
     def _check_origin(self) -> bool:
         """校验 Origin 头：拒绝非本机来源（防 CSRF / 跨站攻击）。
 
-        空 Origin 头（curl / 脚本）放行；非白名单 Origin 返回 403。
+        空 Origin 头不直接放行——对公开端点（health/favicon）放行，
+        其余路径需验证 Authorization Bearer token 是否有效（支持 curl
+        等非浏览器客户端），无则拒绝。
         """
         origin = (self.headers.get("Origin") or "").strip()
         if not origin:
-            return True  # 无 Origin 头（curl / 服务器端调用）
+            # 无 Origin 头：非浏览器请求（curl / 脚本）
+            path = urlparse(self.path).path.rstrip("/") or "/"
+            if path in ("/api/health", "/favicon.ico"):
+                return True  # 公开端点免认证
+            return self._check_auth()
         if origin not in _ALLOWED_ORIGINS:
             self._write_json(
                 HTTPStatus.FORBIDDEN,
@@ -372,8 +381,8 @@ class Handler(BaseHTTPRequestHandler):
 
                 quotes = get_quotes(all_codes, use_cache=True)
                 quote_map = {q.code: q for q in quotes if q}
-            except Exception:
-                pass  # 行情获取失败不影响列表
+            except Exception as e:
+                logger.debug("行情获取失败: %s", e)
 
         # 为持仓附加行情数据
         for p in positions:
@@ -479,7 +488,8 @@ class Handler(BaseHTTPRequestHandler):
                 },
             }
             self._write_json(HTTPStatus.OK, payload)
-        except Exception:
+        except Exception as e:
+            logger.debug("TradeLog 查询失败: %s", e)
             self._write_json(
                 HTTPStatus.OK,
                 {"ok": True, "data": {"history": [], "stats": {}}},

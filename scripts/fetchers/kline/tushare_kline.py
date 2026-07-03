@@ -7,17 +7,17 @@ from common import BaseFetcher
 
 logger = logging.getLogger(__name__)
 
-try:
-    import tushare as ts
 
-    token = os.environ.get("TUSHARE_TOKEN", "")
-    if token:
-        ts.set_token(token)
-        HAS_TUSHARE = True
-    else:
-        HAS_TUSHARE = False
-except ImportError:
-    HAS_TUSHARE = False
+def _check_tushare() -> bool:
+    """运行时检查 tushare 是否可用（包已安装 + token 已设置）。"""
+    if not os.environ.get("TUSHARE_TOKEN"):
+        return False
+    try:
+        import tushare  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
 
 
 class TushareKlineFetcher(BaseFetcher):
@@ -27,9 +27,15 @@ class TushareKlineFetcher(BaseFetcher):
         super().__init__("tushare_kline", priority=2)
 
     def fetch(self, code: str, **kwargs) -> list | None:
-        if not HAS_TUSHARE:
+        if not _check_tushare():
             return None
         try:
+            import tushare as ts
+
+            token = os.environ.get("TUSHARE_TOKEN", "")
+            if token:
+                ts.set_token(token)
+
             scale = kwargs.get("scale", 240)
             datalen = kwargs.get("datalen", 30)
             plain = code.lstrip("shszSHSZbjBJ")

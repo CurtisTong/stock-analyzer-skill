@@ -35,8 +35,7 @@ class TestIsTradingHours:
     def test_weekday_holiday_file_open_during_morning(self):
         """工作日上午 10:00 应判为交易时段。"""
         fake_now = datetime(2026, 6, 15, 10, 0)  # 周一 10:00
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is True
@@ -44,8 +43,7 @@ class TestIsTradingHours:
     def test_lunch_break_returns_false(self):
         """午休 12:00 应判为非交易时段。"""
         fake_now = datetime(2026, 6, 15, 12, 0)  # 周一 12:00
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is False, "12:00 应判为午休时段"
@@ -53,8 +51,7 @@ class TestIsTradingHours:
     def test_afternoon_session_returns_true(self):
         """下午 14:00 应判为交易时段。"""
         fake_now = datetime(2026, 6, 15, 14, 0)  # 周一 14:00
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is True
@@ -62,8 +59,7 @@ class TestIsTradingHours:
     def test_before_open_returns_false(self):
         """开盘前 9:00 应判为非交易时段。"""
         fake_now = datetime(2026, 6, 15, 9, 0)  # 周一 9:00
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is False, "9:00 早于 9:30 开盘"
@@ -71,8 +67,7 @@ class TestIsTradingHours:
     def test_after_close_returns_false(self):
         """收盘后 15:30 应判为非交易时段。"""
         fake_now = datetime(2026, 6, 15, 15, 30)  # 周一 15:30
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is False, "15:30 晚于 15:00 收盘"
@@ -80,8 +75,7 @@ class TestIsTradingHours:
     def test_weekend_returns_false(self):
         """周六/周日应判为非交易时段。"""
         fake_now = datetime(2026, 6, 13, 10, 0)  # 周六 10:00
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is False, "周六应判为非交易时段"
@@ -89,8 +83,7 @@ class TestIsTradingHours:
     def test_national_day_holiday_returns_false(self):
         """国庆节（2026-10-01）应判为非交易时段。"""
         fake_now = datetime(2026, 10, 1, 10, 0)  # 周四 10:00 但国庆节
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is False, "国庆节应判为非交易时段"
@@ -98,8 +91,7 @@ class TestIsTradingHours:
     def test_spring_festival_returns_false(self):
         """春节（2026-02-17）应判为非交易时段。"""
         fake_now = datetime(2026, 2, 17, 10, 0)  # 周二 10:00 但春节
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is False
@@ -107,8 +99,7 @@ class TestIsTradingHours:
     def test_normal_trading_day(self):
         """普通交易日（2026-06-15 周一）10:30 应判为交易时段。"""
         fake_now = datetime(2026, 6, 15, 10, 30)
-        with patch("data.config.datetime") as mock_dt:
-            mock_dt.now.return_value = fake_now
+        with patch("dev.clock._now_func", return_value=fake_now):
             from data.config import is_trading_hours
 
             assert is_trading_hours() is True

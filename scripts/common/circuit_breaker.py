@@ -43,6 +43,7 @@ class CircuitBreaker:
         self.last_failure_time: float = 0.0
         self.half_open_success = 0
         self._half_open_attempts = 0
+        self._half_open_started: float = 0.0
 
     def can_execute(self) -> bool:
         with self._lock:
@@ -53,11 +54,21 @@ class CircuitBreaker:
                     self.state = CircuitState.HALF_OPEN
                     self.half_open_success = 0
                     self._half_open_attempts = 1  # 当前请求计入首次试探
+                    self._half_open_started = time.time()
                     return True
                 return False
             if self.state == CircuitState.HALF_OPEN:
                 if self._half_open_attempts < self.half_open_max:
                     self._half_open_attempts += 1
+                    return True
+                # 试探次数耗尽：若距进入 HALF_OPEN 已超过 recovery_timeout，重置允许重试。
+                # recovery_timeout=0 时不重置（避免无限试探，由 record_failure 回到 OPEN 再等超时）
+                if (
+                    self.recovery_timeout > 0
+                    and time.time() - self._half_open_started > self.recovery_timeout
+                ):
+                    self._half_open_attempts = 1
+                    self._half_open_started = time.time()
                     return True
                 return False
             return False
@@ -84,6 +95,7 @@ class CircuitBreaker:
             if self.state == CircuitState.HALF_OPEN:
                 self.state = CircuitState.OPEN
                 self._half_open_attempts = 0
+                self._half_open_started = 0.0
             elif self.failure_count >= self.failure_threshold:
                 self.state = CircuitState.OPEN
 
@@ -93,6 +105,7 @@ class CircuitBreaker:
             self.failure_count = 0
             self.last_failure_time = 0
             self._half_open_attempts = 0
+            self._half_open_started = 0.0
 
 
 _circuit_breakers: dict[str, CircuitBreaker] = {}

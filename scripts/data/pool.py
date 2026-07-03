@@ -15,10 +15,19 @@ import sys
 import time
 from datetime import datetime
 
-# 复用 common 的 HTTP、编码、分类工具
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from common import http_get_cached, board_type, infer_exchange
-from strategies.filters import PRE_SCREEN_FILTER as FILTER  # noqa: F401
+
+def _get_common_deps():
+    """延迟导入 common，避免模块顶层 sys.path 修改破坏包隔离。"""
+    from common import http_get_cached, board_type, infer_exchange
+
+    return http_get_cached, board_type, infer_exchange
+
+
+def _get_filter():
+    """延迟导入筛选配置。"""
+    from strategies.filters import PRE_SCREEN_FILTER as FILTER
+
+    return FILTER
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +56,7 @@ XUANGU_FIELDS = "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,MARKET"
 
 def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
     """获取板块成分股，返回 [{code, name, price, change_pct, amount, turnover, pe, cap}]"""
+    http_get_cached, _, infer_exchange = _get_common_deps()
     ut_param = f"&ut={API_TOKEN}" if API_TOKEN else ""
     url = (
         f"{API_BASE}?pn=1&pz=500&np=1{ut_param}"
@@ -214,6 +224,7 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
         time.sleep(0.3)
 
     # 按板块分类
+    _, board_type, infer_exchange = _get_common_deps()
     for s in all_stocks:
         code = str(s.get("SECURITY_CODE", ""))
         name = str(s.get("SECURITY_NAME_ABBR", ""))
@@ -233,6 +244,7 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
 
 def _fetch_push2_market(boards: dict[str, list[str]]) -> None:
     """使用 push2 API 获取全市场股票（原始方案）。"""
+    http_get_cached, board_type, infer_exchange = _get_common_deps()
     FULL_MARKET_FS = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81"
     page = 1
     page_size = 5000
@@ -303,6 +315,8 @@ def is_st(name: str) -> bool:
 
 def passes_filter(stock: dict) -> tuple[bool, str]:
     """硬过滤，返回 (通过, 原因)"""
+    _, board_type, _ = _get_common_deps()
+    FILTER = _get_filter()
     name = stock.get("name", "")
     code = stock.get("code", "")
     bt = board_type(code)
@@ -562,3 +576,28 @@ def init_from_default(top_n: int = 20, dry_run: bool = False) -> dict:
         logger.info("dry-run 模式，未写入")
 
     return new_pool
+
+
+def main():
+    """CLI 入口：刷新股票池（委托 refresh_pool 业务逻辑）。"""
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="刷新股票池")
+    parser.add_argument("--top", type=int, default=20, help="每板块取 Top N")
+    parser.add_argument("--sort", default="amount", help="排序字段")
+    parser.add_argument("--dry-run", action="store_true", help="只打印不写入")
+    parser.add_argument("--diff", action="store_true", help="显示变更对比")
+    args = parser.parse_args()
+
+    refresh_pool(
+        top_n=args.top,
+        sort_by=args.sort,
+        dry_run=args.dry_run,
+        show_diff=args.diff,
+    )
+
+
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    main()

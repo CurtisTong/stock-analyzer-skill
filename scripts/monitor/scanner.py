@@ -28,9 +28,16 @@ def _get_pm():
     return _pm
 
 
-def scan_all() -> list:
-    """扫描持仓+自选股，返回关键点位集合。"""
-    pm = _get_pm()
+def scan_all(pm=None) -> list:
+    """扫描持仓+自选股，返回关键点位集合。
+
+    Args:
+        pm: 可选的 PortfolioManager 实例（依赖注入）。None 时使用本模块
+            的 _get_pm() 单例，保持向后兼容。调用方若已有 portfolio/web/utils.py
+            的 _get_pm() 单例，应显式传入以避免双单例问题。
+    """
+    if pm is None:
+        pm = _get_pm()
     positions = pm.get_positions()
     watchlist = pm.get_watchlist()
 

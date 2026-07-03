@@ -4,6 +4,10 @@ P3: 从 pyproject.toml 动态读取，避免第四处硬编码（package.json/SK
 README 已由 sync_version.py 同步，version.py 此前未纳入）。
 """
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 try:
     from pathlib import Path
 
@@ -16,8 +20,8 @@ try:
                 for line in pyproject.read_text(encoding="utf-8").splitlines():
                     if line.strip().startswith("version"):
                         return line.split("=", 1)[1].strip().strip('"').strip("'")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("版本检查失败: %s", e)
         return "0.0.0"
 
 

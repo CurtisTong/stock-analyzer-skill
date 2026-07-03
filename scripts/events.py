@@ -19,23 +19,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from data.event import get_events
 
 
-def fetch_events(code: str, days: int = 30) -> dict:
-    """获取指定股票的近期事件。
-
-    Args:
-        code: 股票代码（如 sh600519）
-        days: 查询天数（默认 30）
-
-    Returns:
-        {"earnings": [...], "lockup": [...], "dividend": [...],
-         "shareholder": [...], "violation": [...], "summary": str}
-
-    委托 data.event.get_events 实现，保留原签名和返回结构以兼容调用方
-    （strategies/factors/event.py 依赖 from events import fetch_events）。
-    """
-    return get_events(code, days)
-
-
 def format_events_text(events: dict) -> str:
     """格式化事件为人类可读文本。"""
     lines = []
@@ -106,7 +89,7 @@ def main():
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
-    events = fetch_events(args.code, args.days)
+    events = get_events(args.code, args.days)
 
     if args.json:
         print(json.dumps(events, ensure_ascii=False, indent=2))

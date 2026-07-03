@@ -12,7 +12,8 @@
 
 import threading
 import logging
-from typing import List
+
+from common import fetch_with_breaker
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def get_events(code: str, days: int = 30) -> dict:
     # 全部 fetcher 都接受 **kwargs，calendar 类用 days，个股类忽略
     for fetcher in fetchers:
         try:
-            data = fetcher.fetch(code, days=days)
+            data = fetch_with_breaker(fetcher, code, days=days)
             if data and data.get("items"):
                 result[data["type"]] = data["items"]
         except Exception as e:

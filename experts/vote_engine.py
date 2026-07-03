@@ -10,11 +10,15 @@ from experts.scoring import _consistency_from_scores
 # 投票整合 (decide.md §一 + §三)
 # ═══════════════════════════════════════════════════════════════
 
+_BULL_THRESHOLD = 60  # 评分>=60 计为看多
+_BEAR_THRESHOLD = 39  # 评分<=39 计为看空
+_BULL_MAJORITY = 4  # 长线组看多多数阈值（6人中>=4）
+
 
 def _count_votes(scores: List[float]) -> Dict[str, int]:
     """统计看多/看空票数。"""
-    bull = sum(1 for s in scores if s >= 60)
-    bear = sum(1 for s in scores if s <= 39)
+    bull = sum(1 for s in scores if s >= _BULL_THRESHOLD)
+    bear = sum(1 for s in scores if s <= _BEAR_THRESHOLD)
     return {"bull": bull, "bear": bear, "total": len(scores)}
 
 
@@ -41,7 +45,7 @@ def _resolve_conflict(
     position_factor = 1.0
 
     # 分歧检测（组内无多数方向）
-    long_divergent = long_votes["bull"] < 4 and long_votes["bear"] < 4
+    long_divergent = long_votes["bull"] < _BULL_MAJORITY and long_votes["bear"] < _BULL_MAJORITY
     short_divergent = short_votes["bull"] < 2 and short_votes["bear"] < 2
 
     # 极端两极分化检测（优先于其他分支）

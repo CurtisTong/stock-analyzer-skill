@@ -115,8 +115,8 @@ def _get_connection(
             if now - ts > _CONN_IDLE_TIMEOUT:
                 try:
                     conn.close()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("关闭连接失败: %s", e)
                 continue
             if hasattr(conn, "sock") and conn.sock is not None:
                 return conn
@@ -252,7 +252,7 @@ def _http_get_requests(
     if headers:
         req_headers.update(headers)
 
-    resp = session.get(url, headers=req_headers, timeout=timeout)
+    resp = session.get(url, headers=req_headers, timeout=timeout, allow_redirects=False)
 
     if resp.status_code == 429:
         retry_after = resp.headers.get("Retry-After")
