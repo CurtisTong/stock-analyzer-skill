@@ -50,7 +50,7 @@ class TestMomentumTraderScore:
         prices = [10 + i * 0.1 for i in range(120)]  # 单调上升 120 日
         result = momentum_trader.score(
             {
-                "quote": {"pe": 30, "amount": 10},
+                "quote": {"pe": 30, "amount": 1e9},  # 10 亿（元）
                 "finance": {
                     "ROEJQ": 15,
                     "PARENTNETPROFITTZ": 10,
@@ -72,7 +72,7 @@ class TestMomentumTraderScore:
         prices = [22 - i * 0.1 for i in range(120)]  # 单调下跌 120 日
         result = momentum_trader.score(
             {
-                "quote": {"pe": 30, "amount": 10},
+                "quote": {"pe": 30, "amount": 1e9},  # 10 亿（元）
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline(prices),
                 "kline_features": {"trend": -1},
@@ -84,7 +84,7 @@ class TestMomentumTraderScore:
         """亏损股 → 基本面低分（动量派避免价值陷阱）。"""
         result = momentum_trader.score(
             {
-                "quote": {"pe": -5, "amount": 10},
+                "quote": {"pe": -5, "amount": 1e9},  # 10 亿（元）
                 "finance": {"ROEJQ": -10, "PARENTNETPROFITTZ": -50},
                 "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
             }
@@ -95,7 +95,7 @@ class TestMomentumTraderScore:
         """流动性枯竭 → 风险维度应极低（动量派无法止损）。"""
         result = momentum_trader.score(
             {
-                "quote": {"amount": 0.5},  # 5 千万，远低于 2 亿阈值
+                "quote": {"amount": 5e7},  # 5 千万（元），远低于 2 亿阈值
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
             }
@@ -106,7 +106,7 @@ class TestMomentumTraderScore:
         """流动性充裕 → 风险维度应较高。"""
         result = momentum_trader.score(
             {
-                "quote": {"amount": 20},  # 20 亿
+                "quote": {"amount": 2e9},  # 20 亿（元）
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
             }
@@ -118,7 +118,7 @@ class TestMomentumTraderScore:
         prices = [10 + i * 0.05 for i in range(120)]
         result = momentum_trader.score(
             {
-                "quote": {"pe": 30, "amount": 10},
+                "quote": {"pe": 30, "amount": 1e9},  # 10 亿（元）
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline(prices),
                 "market_features": {
@@ -138,7 +138,7 @@ class TestMomentumTraderScore:
         prices = [10 + i * 0.05 for i in range(120)]
         result = momentum_trader.score(
             {
-                "quote": {"pe": 30, "amount": 10},
+                "quote": {"pe": 30, "amount": 1e9},  # 10 亿（元）
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline(prices),
                 "market_features": {
@@ -158,7 +158,7 @@ class TestMomentumTraderScore:
         prices = [10] * 60 + [12] * 60  # 前 60 日横盘 10，后 60 日 12
         result = momentum_trader.score(
             {
-                "quote": {"pe": 30, "amount": 10},
+                "quote": {"pe": 30, "amount": 1e9},  # 10 亿（元）
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline(prices),
             }
@@ -209,7 +209,7 @@ class TestMomentumTraderScoringIntegration:
 
         prices = [10 + i * 0.1 for i in range(120)]
         data = {
-            "quote": {"pe": 30, "amount": 10},
+            "quote": {"pe": 30, "amount": 1e9},  # 10 亿（元）
             "finance": {"ROEJQ": 15, "PARENTNETPROFITTZ": 10, "TOTALOPERATEREVETZ": 8},
             "kline_data": _build_kline(prices),
             "market_features": {
@@ -230,7 +230,7 @@ class TestMomentumTraderScoringIntegration:
         result = score_expert_with_reasoning(
             EXPERT_REGISTRY["momentum_trader"],
             {
-                "quote": {"amount": 10},
+                "quote": {"amount": 1e9},  # 10 亿（元）
                 "finance": {"ROEJQ": 15},
                 "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
             },

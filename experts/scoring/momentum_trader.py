@@ -151,19 +151,18 @@ def score(stock_data: dict) -> Dict[str, float]:
     # ── 风险：流动性 + ATR + 距止损空间 ──
     risk_score = 50
 
-    # 流动性（成交额）
+    # 流动性（成交额，单位：元，与 Quote.amount 一致）
     amount = _safe_float(quote.get("amount"))
-    if amount <= 0 and len(volumes) >= 1 and len(closes) >= 1:
-        # 用成交量 × 价格估算成交额（亿元）
-        amount = volumes[-1] * closes[-1] / 1e8  # 假设单位是元，转换为亿
+    # 转换为亿元：10 亿、5 亿、2 亿为流动性阈值
+    amount_yi = amount / 1e8 if amount > 0 else 0
 
-    if amount >= 10:
+    if amount_yi >= 10:
         risk_score += 25  # 流动性充裕
-    elif amount >= 5:
+    elif amount_yi >= 5:
         risk_score += 15
-    elif amount >= 2:
+    elif amount_yi >= 2:
         risk_score += 5
-    elif amount > 0:
+    elif amount_yi > 0:
         risk_score -= 30  # 流动性不足，无法止损
     else:
         risk_score -= 20  # 数据缺失

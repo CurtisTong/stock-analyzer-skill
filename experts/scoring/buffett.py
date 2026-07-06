@@ -132,7 +132,7 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     else:
         val_reason = f"❌ PE 高估：{pe:.1f} > 40 阈值"
 
-    if 0 <= pe_percentile < 20 and scores["估值"] >= 40:
+    if 0 <= pe_percentile < 20 and scores["估值"] >= 25:
         val_reason += f"（历史分位 {pe_percentile:.0f}%，低估加分 +15）"
     elif pe_percentile > 80:
         val_reason += f"（历史分位 {pe_percentile:.0f}%，高估扣分 -20）"

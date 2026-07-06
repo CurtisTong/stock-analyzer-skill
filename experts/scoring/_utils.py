@@ -355,7 +355,6 @@ def format_generic_reasoning(
 
     与 buffett.py 的 format_reasoning 等价但通用化。
     """
-    result["scores"]
     reasoning = result["reasoning"]
     dimensions = result["dimensions"]
     name = result.get("display_name", result.get("expert_id", "专家"))
