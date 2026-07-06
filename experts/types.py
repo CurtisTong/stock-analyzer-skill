@@ -1,7 +1,10 @@
 """专家系统类型定义。"""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Dict, List
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -18,6 +21,15 @@ class ExpertProfile:
     veto_conditions: List[str] = field(default_factory=list)
     md_path: str = ""  # 关联的 markdown 路径
     active: bool = True  # v2.1.0 起：False 表示 deprecated，新框架不再调用
+
+    def __post_init__(self) -> None:
+        """校验权重加和是否接近 100（允许浮点误差 ±0.5）。"""
+        total = sum(self.weights.values())
+        if abs(total - 100.0) > 0.5:
+            logger.warning(
+                "专家 %s 权重加和 = %.1f（期望 100），维度: %s",
+                self.name, total, list(self.weights.keys()),
+            )
 
 
 # 方向判定阈值（与 experts/decide.md §一.1.1 一致）

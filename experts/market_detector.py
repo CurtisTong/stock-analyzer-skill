@@ -88,8 +88,8 @@ def detect_market_state(
                 base = statistics.mean(volumes[-10:])
                 vol_ratio = recent / base if base > 0 else 1.0
 
-        above_ma20 = price > ma20 > 0 if ma20 > 0 else False
-        below_ma20 = price < ma20 > 0 if ma20 > 0 else False
+        above_ma20 = price > ma20 > 0
+        below_ma20 = price < ma20 > 0
 
         advance_ratio = breadth_data.get("advance_ratio", 0.5) if breadth_data else 0.5
         high_low_ratio = (

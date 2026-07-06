@@ -106,6 +106,11 @@ def _resolve_conflict(
             position_factor = 0.0
 
     # 巴菲特否决权 / 强势确认（中长期模式）
+    # 注意：此处仅调整方向和仓位因子，不影响 long_avg 均值。
+    # aggregate_votes 中的 _buffett_downweight_policy + _apply_buffett_long_downweight
+    # 负责调整 long_avg 均值（短期模式下其余长线×0.8），两套机制作用域互补：
+    #   - _resolve_conflict: 调整输出方向 + 仓位因子（medium/long 降一级+×0.7）
+    #   - _apply_buffett_long_downweight: 调整输入均值（short 模式降权×0.8）
     if buffett_score <= 39:
         if horizon in ("medium", "long"):
             notes.append("巴菲特否决权触发：中长期模式下方向至少降一级")
@@ -141,12 +146,13 @@ def _resolve_conflict(
 def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     """提取养家的情绪得分。
 
-    查找顺序与原始逻辑一致：先 "情绪"，再 fallback "情绪周期"。
+    查找顺序：先 "情绪"，再 "情绪/资金"，再 fallback "情绪周期"。
+    支持不同专家使用不同维度命名（momentum_trader 用"情绪/资金"）。
     """
     if not yangjia or not yangjia.get("breakdown"):
         return 50
     dim_scores = yangjia.get("dim_scores", {})
-    return dim_scores.get("情绪", dim_scores.get("情绪周期", 50))
+    return dim_scores.get("情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50)))
 
 
 # legacy 专家名 → 合并型专家名映射（v2.1.0）。
@@ -459,7 +465,9 @@ def aggregate_votes(
 
     # 投票统计
     long_votes = _count_votes(long_scores)
-    short_votes = _count_votes(short_scores)
+    # 养家降权已更新 short_votes 时不再覆盖（避免用原始 short_scores 重算覆盖降权结果）
+    if yangjia_score >= 30 or is_yangjia_ice:
+        short_votes = _count_votes(short_scores)
 
     # 冲突解决
     conflict = _resolve_conflict(
@@ -575,8 +583,8 @@ def aggregate_group_votes(
         # 多数看空且无看多票
         direction = "看空"
         position_factor = 0.0
-    elif votes["bear"] >= majority and any(s >= 70 for s in scores):
-        # 多数看空 + 存在强烈看多票（否决票）
+    elif votes["bear"] >= majority:
+        # 多数看空（可能存在少数看多票，仍判定看空）
         direction = "看空"
         position_factor = 0.0
     elif (

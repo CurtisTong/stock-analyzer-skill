@@ -70,7 +70,7 @@ def score_expert(
             dim_scores[dim] = _score_valuation(quote, fin)
         elif dim in ("技术面", "technical"):
             dim_scores[dim] = _score_technical(kline_features)
-        elif dim in ("情绪", "情绪/题材", "情绪/反身性", "sentiment"):
+        elif dim in ("情绪", "情绪/题材", "情绪/反身性", "情绪/资金", "sentiment"):
             dim_scores[dim] = _score_sentiment(market_features)
         elif dim in ("安全边际", "margin_of_safety", "margin"):
             margin = _score_valuation(quote, fin) * 0.5 + _score_fundamentals(fin) * 0.5

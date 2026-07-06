@@ -1,7 +1,7 @@
 """
 作手新一专属评分函数。
 
-维度：基本面(8%) + 估值(5%) + 技术面(40%) + 情绪(35%) + 风险(12%)
+维度：基本面(8%) + 估值(12%) + 技术面(33%) + 情绪(35%) + 风险(12%)
 精确复现 experts/zuoshou_xinyi.md §九 评分矩阵中的阈值规则。
 """
 
@@ -14,7 +14,6 @@ from ._utils import _safe_float, _get_clamp
 def score(stock_data: dict) -> Dict[str, float]:
     """作手新一专属评分：缩量回调 + K线反转形态 + 强势股基因。"""
     quote = stock_data.get("quote") or {}
-    stock_data.get("finance") or {}
     market = stock_data.get("market_features") or {}
     kline_data = stock_data.get("kline_data") or {}
 

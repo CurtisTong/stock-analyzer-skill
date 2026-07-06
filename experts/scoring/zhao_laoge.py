@@ -1,7 +1,7 @@
 """
 赵老哥专属评分函数。
 
-维度：基本面(10%) + 估值(8%) + 技术面(35%) + 情绪/题材(35%) + 风险(12%)
+维度：基本面(10%) + 估值(12%) + 技术面(31%) + 情绪(35%) + 风险(12%)
 精确复现 experts/zhao_laoge.md §九 评分矩阵中的阈值规则。
 """
 
@@ -16,7 +16,6 @@ def score(stock_data: dict) -> Dict[str, float]:
     quote = stock_data.get("quote") or {}
     kline = stock_data.get("kline_features") or {}
     kline_data = stock_data.get("kline_data") or {}
-    stock_data.get("market_features") or {}
 
     # 基本面：题材容量（简化）
     base = 50
@@ -48,7 +47,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         trend = kline.get("trend", 0)
         tech = 80 if trend > 0 else (40 if trend == 0 else 10)
 
-    # 情绪/题材：量价配合
+    # 情绪：量价配合
     volumes = kline_data.get("volumes") or []
     if len(closes) >= 10 and len(volumes) >= 10:
         recent_vol = statistics.mean(volumes[-5:])
@@ -84,7 +83,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         "基本面": base,
         "估值": val,
         "技术面": tech,
-        "情绪/题材": sent,
+        "情绪": sent,
         "风险": risk,
     }
 

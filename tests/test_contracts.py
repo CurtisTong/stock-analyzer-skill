@@ -109,10 +109,10 @@ class TestDebateSchema:
         return json.loads((CONTRACTS_DIR / "debate.schema.json").read_text())
 
     def test_experts_min_max(self, schema):
-        """experts 数组应有 4-8 个元素。"""
+        """experts 数组应有 4-9 个元素（v2.2.0 起 9 人圆桌）。"""
         experts = schema["properties"]["experts"]
         assert experts.get("minItems") == 4
-        assert experts.get("maxItems") == 8
+        assert experts.get("maxItems") == 9
 
     def test_group_enum(self, schema):
         """expert.group 枚举含 long_term 和 short_term。"""

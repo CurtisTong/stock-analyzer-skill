@@ -291,10 +291,16 @@ def compute_calibration_factor() -> float:
 
     校准因子 = 校准均值 × (1 - min(校准CV, 0.5))，归一化到 [-1, 1]。
     无历史数据时返回 0.0。
+
+    v2.3.0 修正：仅使用 active 专家（9 人）的校准数据，
+    legacy 专家（6 人）不参与 debate 也不应稀释校准因子。
     """
+    from experts.registry import EXPERT_REGISTRY
+
     experts = get_calibration()
     rates = []
-    for name in _get_all_expert_names():
+    active_names = [n for n, p in EXPERT_REGISTRY.items() if p.active]
+    for name in active_names:
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)

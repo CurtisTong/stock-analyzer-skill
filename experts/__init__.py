@@ -68,12 +68,12 @@ def list_experts(group: Optional[str] = None) -> List[ExpertProfile]:
 
 
 def list_long_term_experts() -> List[ExpertProfile]:
-    """长线 4 人：巴菲特 / 林奇 / 索罗斯 / 段永平。"""
+    """长线组专家：按 group='long_term' 过滤。"""
     return list_experts("long_term")
 
 
 def list_short_term_experts() -> List[ExpertProfile]:
-    """短线 4 人：徐翔 / 赵老哥 / 养家 / 作手新一。"""
+    """短线组专家：按 group='short_term' 过滤。"""
     return list_experts("short_term")
 
 

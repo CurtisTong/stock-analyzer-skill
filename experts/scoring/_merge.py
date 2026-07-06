@@ -43,7 +43,10 @@ def weighted_merge(
 
     if weights is None:
         weights = [1.0 / len(expert_results)] * len(expert_results)
-    assert len(weights) == len(expert_results), "weights 与 expert_results 长度不一致"
+    if len(weights) != len(expert_results):
+        raise ValueError(
+            f"weights 长度({len(weights)})与 expert_results 长度({len(expert_results)})不一致"
+        )
     total_w = sum(weights)
     weights = [w / total_w for w in weights]  # 归一化
 

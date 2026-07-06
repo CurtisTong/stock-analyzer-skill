@@ -23,11 +23,8 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     维度：基本面（深度尽调）+ 估值（PEG 视角）+ 安全边际（FCF）。
     """
-    pass  # 通用评分函数未使用，各维度自行计算
     fin = stock_data.get("finance") or {}
     quote = stock_data.get("quote") or {}
-    stock_data.get("kline_features") or {}
-    stock_data.get("market_features") or {}
 
     # ── 基本面：深度尽调（ROE + 净利增速 + 毛利率）──
     roe = _safe_float(fin.get("ROEJQ") or fin.get("roe"))

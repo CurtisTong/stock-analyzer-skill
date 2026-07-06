@@ -281,8 +281,10 @@ def _ensure_loaded() -> None:
         yaml_experts = load_all_experts()
         for name, profile in yaml_experts.items():
             EXPERT_REGISTRY[name] = profile
+    except ImportError:
+        logger.debug("PyYAML 不可用，回退到硬编码专家配置")
     except Exception as e:
-        logger.debug("YAML 专家配置加载失败，回退到硬编码: %s", e)
+        logger.warning("YAML 专家配置加载失败，回退到硬编码: %s", e)
 
     total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)
@@ -478,7 +480,7 @@ _register(
             "基本面": 10.0,
             "估值": 5.0,
             "技术面": 40.0,
-            "情绪": 25.0,
+            "情绪/资金": 25.0,
             "风险": 20.0,
         },
         veto_conditions=[
