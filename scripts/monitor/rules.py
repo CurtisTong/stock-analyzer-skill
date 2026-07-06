@@ -118,14 +118,15 @@ def _check_alerts(
             }
         )
 
-    # 目标卖出价
+    # 目标卖出价（止损价：价格跌破此价应卖出）
     ts = levels.get("target_sell", 0)
-    if ts > 0 and price >= ts:
+    if ts > 0 and price <= ts:
+        dist_pct = (price - ts) / ts * 100
         alerts.append(
             {
                 "type": "target_sell",
                 "level": ts,
-                "message": f"到达目标卖出价 {ts}",
+                "message": f"已跌破目标卖出/止损价 {ts}（偏离 {dist_pct:+.1f}%）",
                 "urgent": True,
             }
         )

@@ -107,13 +107,20 @@ class TestCheckAlerts:
         assert alerts[0]["urgent"] is True
 
     def test_target_sell_alert(self):
+        """target_sell 是止损价：价格跌破止损价时触发预警。"""
         from monitor.alert_engine import _check_alerts
 
         levels = {"target_sell": 120.0}
-        alerts = _check_alerts(price=121.0, levels=levels)
+        # 价格低于止损价 → 触发
+        alerts = _check_alerts(price=115.0, levels=levels)
         assert len(alerts) == 1
         assert alerts[0]["type"] == "target_sell"
         assert alerts[0]["urgent"] is True
+        assert "跌破" in alerts[0]["message"]
+
+        # 价格高于止损价 → 不触发
+        alerts_above = _check_alerts(price=121.0, levels=levels)
+        assert len(alerts_above) == 0
 
     def test_macd_golden_cross_alert(self):
         from monitor.alert_engine import _check_alerts
