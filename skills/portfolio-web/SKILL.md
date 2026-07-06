@@ -1,7 +1,7 @@
 ---
 name: portfolio-web
 description: 持仓 Web 录入与查询服务。触发词：持仓 web、portfolio web、启动 Web 录入、查持仓 API。从 portfolio 拆分：仅负责 Web 服务子功能。
-version: 1.14.2
+version: 1.14.3
 model: sonnet
 allowed-tools: Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(./scripts/data/portfolio.json) Read(./scripts/config/notification.yaml) Read(./skills/_shared/references/*.md)
 ---

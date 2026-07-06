@@ -1,7 +1,7 @@
 ---
 name: stock-help
 description: Stock Analyzer 帮助索引 `/stock-help`：哪些功能、怎么用、技能列表、新手怎么开始。显示所有skills和使用说明。
-version: 1.14.2
+version: 1.14.3
 model: haiku
 disable-model-invocation: false
 ---
