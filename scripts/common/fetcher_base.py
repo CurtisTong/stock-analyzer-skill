@@ -51,9 +51,24 @@ class BaseFetcher(ABC):
 
     _cb_config_cache: dict[str, int] | None = None  # 类级缓存，避免每次实例化读 YAML
 
-    def __init__(self, name: str, priority: int = 0):
+    def __init__(self, name: str, priority: int = 0, provider: str | None = None):
         self.name = name
-        self.provider = name.split("_")[0]
+        # 显式 provider 优先；否则从 name 推断（取最后一个 _ 前的段落，
+        # 这样 "northbound_flow_eastmoney" → "eastmoney"，"tencent_quote" → "tencent"）
+        if provider is not None:
+            self.provider = provider
+        elif "_" in name:
+            # 尝试取最后一段作为 provider（如 xxx_eastmoney → eastmoney），
+            # 兼容旧格式 xxx_tencent → tencent
+            parts = name.split("_")
+            # 如果最后一段是已知 provider，用它；否则用第一段
+            _KNOWN_PROVIDERS = {
+                "tencent", "eastmoney", "sina", "xueqiu", "ths", "efinance",
+                "akshare", "tushare", "pytdx", "baostock", "yfinance",
+            }
+            self.provider = parts[-1] if parts[-1] in _KNOWN_PROVIDERS else parts[0]
+        else:
+            self.provider = name
         self.priority = priority
         self.enabled = True  # 可通过 data_source.yaml 的 enabled 字段覆盖
         self.circuit_breaker = get_circuit_breaker(name, **self._load_cb_config())
@@ -222,6 +237,6 @@ class DataFetcherManager:
                     import json
 
                     return json.loads(cached)
-                except (json.JSONDecodeError, Exception):
-                    pass
+                except (json.JSONDecodeError, Exception) as e:
+                    logger.warning("缓存数据损坏(key=%s)，回退到实时获取: %s", key, e)
         return fallback

@@ -3,6 +3,7 @@
 import atexit
 import concurrent.futures
 import os
+import re
 import statistics
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -351,6 +352,11 @@ def board_exact_limit_pct(board: str) -> float:
         "北交所": 30.0,
     }
     return _EXACT.get(board, 10.0)
+
+
+def strip_prefix(code: str) -> str:
+    """去除 sh/sz/bj 前缀（大小写无关），支持多前缀（如 shsh600519）。"""
+    return re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)+', '', code)
 
 
 __all__ = [

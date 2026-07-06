@@ -67,7 +67,10 @@ class RateLimitError(NetworkError):
     def __init__(self, url: str, retry_after: int | None = None):
         self.retry_after = retry_after
         super().__init__(url, "429 Too Many Requests", 0)
-        self.message = f"触发速率限制，请 {retry_after} 秒后重试"
+        if retry_after is not None:
+            self.message = f"触发速率限制，请 {retry_after} 秒后重试"
+        else:
+            self.message = "触发速率限制，请稍后重试"
         self.details["retry_after"] = retry_after
 
 
@@ -282,6 +285,9 @@ def is_retryable_error(error: Exception) -> bool:
     if isinstance(error, RateLimitError):
         return True
     if isinstance(error, NetworkError):
+        return True
+    # 5xx 服务端错误（502/503/504 等）通常为临时故障，应可重试
+    if isinstance(error, HTTPStatusError) and error.status >= 500:
         return True
     return False
 

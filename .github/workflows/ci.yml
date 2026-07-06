@@ -31,7 +31,8 @@ jobs:
             --timeout=60 \
             -n auto \
             --durations=10 \
-            --cov=scripts --cov=experts
+            --cov=scripts --cov=experts \
+            --cov-fail-under=50
 
       - name: 跑 skill 元数据校验
         run: |
@@ -47,7 +48,7 @@ jobs:
         uses: ./.github/actions/setup-test
 
       - name: 安装 lint 工具
-        run: pip install black flake8 ruff
+        run: pip install black ruff mypy
 
       - name: 版本一致性检查
         run: python3 scripts/dev/sync_version.py --check
@@ -66,8 +67,8 @@ jobs:
       - name: ruff 静态检查
         run: ruff check scripts/ experts/ tests/ --line-length=120
 
-      - name: flake8 静态检查
-        run: flake8 scripts/ experts/ tests/ --max-line-length=120
+      - name: mypy 类型检查
+        run: mypy scripts/common/
 
   integration:
     name: 集成测试

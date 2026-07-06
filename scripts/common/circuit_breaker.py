@@ -103,7 +103,7 @@ class CircuitBreaker:
         with self._lock:
             self.state = CircuitState.CLOSED
             self.failure_count = 0
-            self.last_failure_time = 0
+            self.last_failure_time = 0.0
             self._half_open_attempts = 0
             self._half_open_started = 0.0
 

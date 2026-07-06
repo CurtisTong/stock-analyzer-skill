@@ -2,17 +2,9 @@
 
 import json
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 
-from dev.clock import now
-
-
-from common import BaseFetcher, http_get, to_float
-
-
-def _strip_prefix(code: str) -> str:
-    """去除 sh/sz/bj 前缀（大小写无关），支持多前缀（如 shsh600519）。"""
-    return re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)+', '', code)
+from common import BaseFetcher, http_get, to_float, strip_prefix
 
 # 财报披露日历 API
 EARNINGS_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=SECURITY_CODE&sortTypes=1&pageSize=50&pageNumber=1&reportName=RPT_PUBLIC_OP_NEWDATE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,REPORT_DATE,OP_DATE,OP_CHANGE,PREPLAN_DATE&filter=(OP_DATE>='{start_date}')(OP_DATE<='{end_date}')"
@@ -39,8 +31,8 @@ class EarningsCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取财报披露日历。code 为空时返回近期全部。"""
         days = kwargs.get("days", 30)
-        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = now().strftime("%Y-%m-%d")
+        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = datetime.now().strftime("%Y-%m-%d")
 
         url = EARNINGS_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)
@@ -65,7 +57,7 @@ class EarningsCalendarFetcher(BaseFetcher):
                 "disclosure_date": r.get("OP_DATE", "")[:10],
                 "change": r.get("OP_CHANGE", ""),
             }
-            if code and item["code"] != _strip_prefix(code):
+            if code and item["code"] != strip_prefix(code):
                 continue
             items.append(item)
 
@@ -81,8 +73,8 @@ class LockupCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取限售解禁日历。"""
         days = kwargs.get("days", 30)
-        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = now().strftime("%Y-%m-%d")
+        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = datetime.now().strftime("%Y-%m-%d")
 
         url = LOCKUP_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)
@@ -108,7 +100,7 @@ class LockupCalendarFetcher(BaseFetcher):
                 "lift_market_cap": to_float(r.get("LIFT_MARKET_CAP", 0)),
                 "price": to_float(r.get("NEW_PRICE", 0)),
             }
-            if code and item["code"] != _strip_prefix(code):
+            if code and item["code"] != strip_prefix(code):
                 continue
             items.append(item)
 
@@ -124,8 +116,8 @@ class DividendCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取分红日历。"""
         days = kwargs.get("days", 30)
-        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = now().strftime("%Y-%m-%d")
+        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = datetime.now().strftime("%Y-%m-%d")
 
         url = DIVIDEND_URL.format(start_date=start_date, end_date=end_date)
         raw = http_get(url)
@@ -151,7 +143,7 @@ class DividendCalendarFetcher(BaseFetcher):
                 "notice_date": r.get("PLAN_NOTICE_DATE", "")[:10],
                 "record_date": r.get("REG_DATE", "")[:10],
             }
-            if code and item["code"] != _strip_prefix(code):
+            if code and item["code"] != strip_prefix(code):
                 continue
             items.append(item)
 
@@ -168,7 +160,7 @@ class ShareholderChangeFetcher(BaseFetcher):
         """获取大股东增减持数据。需要指定 code。"""
         if not code:
             return None
-        clean_code = _strip_prefix(code)
+        clean_code = strip_prefix(code)
         url = SHAREHOLDER_URL.format(code=clean_code)
         raw = http_get(url)
         try:
@@ -213,7 +205,7 @@ class ViolationFetcher(BaseFetcher):
         """获取监管处罚记录。需要指定 code。"""
         if not code:
             return None
-        clean_code = _strip_prefix(code)
+        clean_code = strip_prefix(code)
         url = VIOLATION_URL.format(code=clean_code)
         raw = http_get(url)
         try:

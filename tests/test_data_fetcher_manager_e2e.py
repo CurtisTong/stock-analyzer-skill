@@ -21,8 +21,8 @@ from common import (
     DataFetcherManager,
     NOT_HANDLED,
     RateLimitError,
-    _circuit_breakers,
 )
+from common.circuit_breaker import _circuit_breakers
 
 
 @pytest.fixture(autouse=True)

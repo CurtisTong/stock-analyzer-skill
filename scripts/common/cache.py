@@ -249,8 +249,9 @@ def get_cache_stats() -> dict[str, Any]:
 
     from datetime import datetime
 
-    files_with_time = [(f, f.stat().st_mtime) for f in files]
-    total_size = sum(f.stat().st_size for f, _ in files_with_time)
+    files_with_stat = [(f, f.stat()) for f in files]
+    files_with_time = [(f, s.st_mtime) for f, s in files_with_stat]
+    total_size = sum(s.st_size for _, s in files_with_stat)
 
     return {
         "total_files": len(files),

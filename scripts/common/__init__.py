@@ -10,7 +10,6 @@ from common.circuit_breaker import (
     CircuitState,
     CircuitBreaker,
     get_circuit_breaker,
-    _circuit_breakers,
 )
 from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager, fetch_with_breaker
 from common.lazy_registry import LazyFetcherRegistry
@@ -23,6 +22,7 @@ from common.exceptions import (
     NetworkError,
     RateLimitError,
     ParseError,
+    HTTPStatusError,
     DataUnavailableError,
     BusinessError,
     ValidationError,
@@ -94,6 +94,8 @@ _LAZY_IMPORTS = {
     "cache_cleanup": ("common.cache", "cache_cleanup"),
     "cache_key": ("common.cache", "cache_key"),
     "cache_key_for_stock": ("common.cache", "cache_key_for_stock"),
+    # 前缀工具
+    "strip_prefix": ("common.utils", "strip_prefix"),
 }
 
 
@@ -164,6 +166,7 @@ __all__ = [
     "cache_cleanup",
     "cache_key",
     "cache_key_for_stock",
+    "strip_prefix",
     "cache",
     # 字段映射
     "TENCENT_FIELDS",
@@ -200,6 +203,7 @@ __all__ = [
     "NetworkError",
     "RateLimitError",
     "ParseError",
+    "HTTPStatusError",
     "DataUnavailableError",
     "BusinessError",
     "ValidationError",

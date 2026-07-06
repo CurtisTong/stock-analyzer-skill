@@ -16,6 +16,12 @@ quote_sources:
     timeout: 10
     retry: 3
 
+  xueqiu:
+    priority: 8
+    enabled: true
+    timeout: 10
+    retry: 2
+
   pytdx:
     priority: 9
     enabled: true
@@ -26,6 +32,12 @@ quote_sources:
 
   sina:
     priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+
+  ths:
+    priority: 3
     enabled: true
     timeout: 10
     retry: 2
@@ -100,6 +112,12 @@ kline_sources:
     timeout: 30
     max_datalen: 500
 
+  yfinance:
+    priority: 0
+    enabled: false
+    timeout: 30
+    max_datalen: 500
+
 # 财务数据源配置
 finance_sources:
   eastmoney:
@@ -107,13 +125,7 @@ finance_sources:
     enabled: true
     timeout: 15
     retry: 3
-  
-  efinance:
-    priority: 5
-    enabled: true
-    timeout: 20
-    retry: 2
-  
+
   akshare:
     priority: 3
     enabled: true
