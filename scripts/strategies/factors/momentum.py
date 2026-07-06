@@ -91,10 +91,12 @@ def momentum_score(features: dict, quote: dict) -> float:
     elif vol_price_signal < 0:
         score -= 10
 
-    # 量化衰减：趋势信号部分按regime打折，量价信号全额保留
+    # 量化衰减：除量价信号外的所有信号按 regime 打折，量价信号全额保留
     # 量在量化环境中更可靠（成交量反映真实资金动向）
-    trend_part = score
+    # 注意：base_score 包含趋势+收益+量比+换手+MACD+RSI 所有信号，
+    # vol_price_part 已在上方加/减到 base_score 中，此处先减出再衰减后加回
+    base_score = score
     vol_price_part = 8 if vol_price_signal > 0 else (-10 if vol_price_signal < 0 else 0)
 
-    final_score = (trend_part - vol_price_part) * decay + vol_price_part
+    final_score = (base_score - vol_price_part) * decay + vol_price_part
     return clamp(final_score)

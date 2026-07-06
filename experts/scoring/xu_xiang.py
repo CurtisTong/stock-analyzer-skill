@@ -1,7 +1,7 @@
 """
 徐翔专属评分函数。
 
-维度：基本面(5%) + 估值(5%) + 技术面(30%) + 情绪(50%) + 风险(10%)
+维度：基本面(5%) + 估值(12%) + 技术面(30%) + 情绪/题材(43%) + 风险(10%)
 精确复现 experts/xu_xiang.md §九 评分矩阵中的阈值规则。
 """
 
@@ -50,7 +50,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         tech = 0
 
-    # 情绪：板块联动 + 封单强度
+    # 情绪/题材：板块联动 + 封单强度
     sector_limits = market.get("sector_limit_up_count", 0)
     seal_ratio = market.get("seal_to_circ_ratio", 0)
     if sector_limits >= 3 and seal_ratio > 0.01:
@@ -76,7 +76,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         "基本面": base,
         "估值": val,
         "技术面": tech,
-        "情绪": sent,
+        "情绪/题材": sent,
         "风险": risk,
     }
 

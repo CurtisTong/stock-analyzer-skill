@@ -1,7 +1,7 @@
 """
 索罗斯专属评分函数。
 
-维度：基本面(15%) + 估值(10%) + 技术面(25%) + 情绪(30%) + 风险(20%)
+维度：基本面(15%) + 估值(10%) + 技术面(25%) + 情绪/反身性(30%) + 风险(20%)
 精确复现 experts/soros.md §九 评分矩阵中的阈值规则。
 """
 
@@ -54,7 +54,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         trend = kline.get("trend", 0)
         tech = 80 if trend > 0 else (40 if trend == 0 else 10)
 
-    # 情绪：逆向——极度悲观=机会，高度一致看多=风险
+    # 情绪/反身性：逆向——极度悲观=机会，高度一致看多=风险
     limit_up = market.get("limit_up_count", 0)
     adv = market.get("advance_ratio")
     if limit_up > 80 or (adv is not None and adv > 0.7):
@@ -84,7 +84,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         "基本面": base,
         "估值": val,
         "技术面": tech,
-        "情绪": sent,
+        "情绪/反身性": sent,
         "风险": risk,
     }
 
