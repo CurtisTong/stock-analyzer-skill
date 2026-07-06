@@ -3,8 +3,6 @@
 依赖: core (sma, stddev)
 """
 
-import statistics
-
 from .core import sma, stddev
 
 _MA_PERIODS = [5, 10, 20, 60, 120, 250]
@@ -34,15 +32,20 @@ def ma_system(closes):
 
     # MA 粘合度 (MA5/10/20)
     short_mas = [result.get(f"ma{p}") for p in [5, 10, 20] if result.get(f"ma{p}")]
-    if len(short_mas) >= 3 and statistics.mean(short_mas) > 0:
-        conv = stddev(short_mas) / statistics.mean(short_mas)
-        result["convergence"] = round(conv, 4)
-        if conv < 0.02:
-            result["convergence_desc"] = "高度粘合(变盘窗口)"
-        elif conv < 0.05:
-            result["convergence_desc"] = "中度粘合"
+    if len(short_mas) >= 3:
+        mean_val = sma(short_mas, len(short_mas))
+        if mean_val and mean_val > 0:
+            conv = stddev(short_mas) / mean_val
+            result["convergence"] = round(conv, 4)
+            if conv < 0.02:
+                result["convergence_desc"] = "高度粘合(变盘窗口)"
+            elif conv < 0.05:
+                result["convergence_desc"] = "中度粘合"
+            else:
+                result["convergence_desc"] = "发散"
         else:
-            result["convergence_desc"] = "发散"
+            result["convergence"] = None
+            result["convergence_desc"] = "数据不足"
     else:
         result["convergence"] = None
         result["convergence_desc"] = "数据不足"

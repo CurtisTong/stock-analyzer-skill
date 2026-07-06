@@ -820,7 +820,7 @@ class TestActions:
                 "POST",
                 {
                     "action": "update_watch",
-                    "code": "nope",
+                    "code": "sz999999",
                     "target_buy": 10,
                 },
                 token=token,

@@ -5,6 +5,8 @@ KDJ 指标（含钝化检测 + 涨跌幅板差异化处理）。
 20cm 股票的高波特性使其 KDJ 更容易进入超买/超卖区，钝化阈值更宽松。
 """
 
+from .core import _EPS
+
 
 def kdj_full(closes, highs, lows, n=9, board="主板"):
     """KDJ 指标 + 钝化检测。
@@ -58,9 +60,8 @@ def kdj_full(closes, highs, lows, n=9, board="主板"):
     d_now = d_series[-1]
     j_now = 3 * k_now - 2 * d_now
 
-    # 金叉死叉（使用 epsilon 避免浮点噪声）
+    # 金叉死叉（使用共享 epsilon 避免浮点噪声）
     kdj_signal = "正常"
-    _EPS = 1e-6
     if len(k_series) >= 2:
         if k_series[-2] < d_series[-2] - _EPS and k_now > d_now + _EPS:
             kdj_signal = "金叉"

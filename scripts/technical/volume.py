@@ -52,7 +52,7 @@ def volume_analysis(closes, volumes):
     )
 
     price_chg = statistics.mean(recent_c) / max(statistics.mean(prev_c), 0.01) - 1
-    vol_chg = statistics.mean(recent_v) / max(statistics.mean(prev_v), 0.01) - 1
+    vol_chg = statistics.mean(recent_v) / max(statistics.mean(prev_v), 1) - 1
 
     if price_chg > 0.01 and vol_chg > 0:
         vp_desc = "放量上涨(资金介入)"

@@ -448,11 +448,16 @@ class Handler(BaseHTTPRequestHandler):
             self._write_json(HTTPStatus.NOT_FOUND, _err("not_found", 404, "empty code"))
             return
         from .utils import _lock
+        from common.exceptions import ValidationError
 
-        with _lock:
-            pm = _get_pm()
-            pos = pm.get_position(code)
-            watch = pm.get_watch(code)
+        try:
+            with _lock:
+                pm = _get_pm()
+                pos = pm.get_position(code)
+                watch = pm.get_watch(code)
+        except ValidationError:
+            self._write_json(HTTPStatus.NOT_FOUND, _err("not_found", 404, code))
+            return
         if pos is None and watch is None:
             self._write_json(HTTPStatus.NOT_FOUND, _err("not_found", 404, code))
             return

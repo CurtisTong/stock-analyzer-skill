@@ -29,9 +29,8 @@ from common import (
 from kline import fetch as fetch_kline
 from quote import fetch_batch
 
-# 从 technical 包导入所有公开函数
-from technical import *  # noqa: F401,F403
-from technical.core import _parse_records
+# 从 technical 包导入所有公开函数（显式导入，避免通配符污染命名空间）
+from technical.core import sma, ema, stddev, _parse_records
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.kdj import kdj_full

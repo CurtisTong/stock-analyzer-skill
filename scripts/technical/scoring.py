@@ -141,13 +141,11 @@ def _score_ma(alignment: str, type_w: dict, adj: dict, alignment_scores: dict) -
 
 def _score_macd(macd: dict, type_w: dict, adj: dict) -> float:
     """MACD 评分（上限 20）。"""
-    from config.loader import safe_get
-
     macd_signal = macd.get("signal", 0)
     bar_trend = macd.get("bar_trend", "")
     divergence = macd.get("divergence", "")
     # 从 scoring.yaml 读取评分档位，支持配置热更新
-    scores = safe_get("scoring.yaml", "macd_scores", {})
+    scores = _scoring_config("macd_scores") or {}
     macd_base = scores.get("中性", 7)
     if macd_signal == 1 and "放大" in bar_trend:
         macd_base = scores.get("金叉放大", 15)
@@ -539,7 +537,7 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
     signals = []
 
     if index_quote and isinstance(index_quote, dict):
-        to_float(index_quote.get("price"))
+        _price = to_float(index_quote.get("price"))
         change_pct = to_float(index_quote.get("change_pct"))
         turnover = to_float(index_quote.get("turnover"))
 

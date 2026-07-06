@@ -19,6 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from common.validators import normalize_code
 from portfolio._file_utils import (
     atomic_write,
     data_dir,
@@ -123,7 +124,7 @@ class TradeLog:
         Returns:
             新增的交易记录
         """
-        code = code.lower()
+        code = normalize_code(code)
         sell_date = sell_date or _today()
 
         # 计算盈亏
@@ -177,8 +178,8 @@ class TradeLog:
 
         # 按代码过滤
         if code:
-            code = code.lower()
-            records = [r for r in records if r.get("code", "").lower() == code]
+            code = normalize_code(code)
+            records = [r for r in records if r.get("code", "") == code]
 
         # 按日期范围过滤
         if start_date:

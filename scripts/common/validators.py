@@ -115,7 +115,10 @@ def validate_code(code: str) -> bool:
 
 def normalize_code(code: str) -> str:
     """
-    标准化股票代码为 sh/sz 前缀格式。
+    标准化股票代码为 sh/sz/bj 前缀格式。
+
+    始终根据数字段判断交易所前缀，即使输入已有前缀也会校正。
+    例如 sh001330 → sz001330（00 开头为深市）。
 
     Args:
         code: 原始代码
@@ -131,20 +134,12 @@ def normalize_code(code: str) -> str:
 
     code = code.strip().lower()
 
-    # 已经是标准格式（严格校验：2 位前缀 + 6 位数字，避免接受超长非法代码）
-    if (
-        code.startswith(("sh", "sz", "bj"))
-        and len(code) == 8
-        and code[2:].isdigit()
-    ):
-        return code
-
     # 提取纯数字
     digits = re.sub(r"\D", "", code)
     if len(digits) != 6:
         raise ValidationError("code", code, "必须为6位数字")
 
-    # 根据代码段判断交易所
+    # 始终根据数字段判断交易所（校正错误前缀，如 sh001330 → sz001330）
     if digits.startswith(("60", "68", "51", "56", "58")):
         return f"sh{digits}"
     elif digits.startswith(("00", "30", "15", "16", "18")):
@@ -152,14 +147,12 @@ def normalize_code(code: str) -> str:
     elif digits.startswith(("43", "83", "87", "88", "92")):
         return f"bj{digits}"
     else:
-        # 默认根据前缀判断
-        if code.startswith("sh"):
-            return f"sh{digits}"
-        elif code.startswith("sz"):
+        # 非标准数字段，回退到原始前缀判断
+        if code.startswith("sz"):
             return f"sz{digits}"
         elif code.startswith("bj"):
             return f"bj{digits}"
-        # 未知格式，尝试返回
+        # 未知格式，默认 sh
         return f"sh{digits}"
 
 

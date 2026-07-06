@@ -70,6 +70,9 @@ def dispatch(pm, body: dict) -> dict:
     except ValueError as e:
         return _err("validation_error", 400, str(e))
     except Exception as e:
+        from common.exceptions import ValidationError as VE
+        if isinstance(e, VE):
+            return _err("invalid_code", 400, str(e))
         return _err("internal_error", 500, f"{type(e).__name__}: {e}")
 
     return _err("unknown_action", 400, "unreachable")

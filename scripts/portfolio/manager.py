@@ -19,6 +19,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from common.validators import normalize_code
+
 logger = logging.getLogger(__name__)
 
 from portfolio._file_utils import (
@@ -180,7 +182,7 @@ class PortfolioManager:
 
     def _find_position(self, code: str) -> Optional[dict]:
         """按代码查找持仓（内部引用，用于修改）。"""
-        code = code.lower()
+        code = normalize_code(code)
         for p in self.get_positions():
             if p["code"].lower() == code:
                 return p
@@ -193,7 +195,7 @@ class PortfolioManager:
 
     def _find_watch(self, code: str) -> Optional[dict]:
         """按代码查找自选（内部引用，用于修改）。"""
-        code = code.lower()
+        code = normalize_code(code)
         for w in self.get_watchlist():
             if w["code"].lower() == code:
                 return w
@@ -203,7 +205,6 @@ class PortfolioManager:
         """按代码查找自选（返回浅副本，防止外部意外修改内部状态）。"""
         w = self._find_watch(code)
         return dict(w) if w else None
-
     def get_all_codes(self) -> list:
         """返回所有持仓 + 自选的代码列表。"""
         codes = [p["code"] for p in self.get_positions()]
@@ -223,14 +224,14 @@ class PortfolioManager:
         auto_save: bool = True,
     ) -> dict:
         """添加持仓。如果已存在则加仓（加权平均成本）。"""
-        code = code.lower()
+        code = normalize_code(code)
         result_holder = {}
 
         def _apply(data: dict) -> dict:
             positions = data.setdefault("positions", [])
             existing = None
             for p in positions:
-                if p["code"].lower() == code:
+                if p["code"] == code:
                     existing = p
                     break
             if existing:
@@ -276,13 +277,13 @@ class PortfolioManager:
         """减仓。返回减仓后的持仓信息，如果全部卖出则移除并记录交易日志。"""
         if quantity <= 0:
             raise ValueError("quantity must be positive")
-        code = code.lower()
+        code = normalize_code(code)
         result_holder = {"r": None, "cleared": False, "pos": None}
 
         def _apply(data: dict) -> dict:
             positions = data.get("positions", [])
             for i, p in enumerate(positions):
-                if p["code"].lower() == code:
+                if p["code"] == code:
                     # 超量减仓 → 全部清仓
                     actual_qty = min(quantity, p["quantity"])
                     p["quantity"] -= actual_qty
@@ -330,13 +331,13 @@ class PortfolioManager:
 
     def remove_position(self, code: str, auto_save: bool = True) -> bool:
         """清仓（移除持仓）并记录交易日志。"""
-        code = code.lower()
+        code = normalize_code(code)
         holder = {"found": False, "pos": None}
 
         def _apply(data: dict) -> dict:
             positions = data.get("positions", [])
             for i, p in enumerate(positions):
-                if p["code"].lower() == code:
+                if p["code"] == code:
                     holder["found"] = True
                     holder["pos"] = p
                     positions.pop(i)
@@ -388,12 +389,12 @@ class PortfolioManager:
         self, code: str, auto_save: bool = True, **kwargs
     ) -> Optional[dict]:
         """更新持仓字段（cost, quantity, name, buy_date, tags）。"""
-        code = code.lower()
+        code = normalize_code(code)
         holder = {"r": None}
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
-                if p["code"].lower() == code:
+                if p["code"] == code:
                     for key in ("cost", "quantity", "name", "buy_date", "tags"):
                         if key in kwargs:
                             p[key] = kwargs[key]
@@ -411,12 +412,12 @@ class PortfolioManager:
         self, code: str, *tags: str, auto_save: bool = True
     ) -> Optional[dict]:
         """给持仓添加标签。"""
-        code = code.lower()
+        code = normalize_code(code)
         holder = {"r": None}
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
-                if p["code"].lower() == code:
+                if p["code"] == code:
                     existing = set(p.get("tags", []))
                     existing.update(tags)
                     p["tags"] = sorted(existing)
@@ -434,12 +435,12 @@ class PortfolioManager:
         self, code: str, *tags: str, auto_save: bool = True
     ) -> Optional[dict]:
         """移除持仓标签。"""
-        code = code.lower()
+        code = normalize_code(code)
         holder = {"r": None}
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
-                if p["code"].lower() == code:
+                if p["code"] == code:
                     existing = set(p.get("tags", []))
                     existing -= set(tags)
                     p["tags"] = sorted(existing)
@@ -464,14 +465,14 @@ class PortfolioManager:
         auto_save: bool = True,
     ) -> dict:
         """添加自选股。"""
-        code = code.lower()
+        code = normalize_code(code)
         holder = {}
 
         def _apply(data: dict) -> dict:
             watchlist = data.setdefault("watchlist", [])
             existing = None
             for w in watchlist:
-                if w["code"].lower() == code:
+                if w["code"] == code:
                     existing = w
                     break
             if existing:
@@ -502,13 +503,13 @@ class PortfolioManager:
 
     def remove_watch(self, code: str, auto_save: bool = True) -> bool:
         """移除自选股。"""
-        code = code.lower()
+        code = normalize_code(code)
         holder = {"found": False}
 
         def _apply(data: dict) -> dict:
             watchlist = data.get("watchlist", [])
             for i, w in enumerate(watchlist):
-                if w["code"].lower() == code:
+                if w["code"] == code:
                     watchlist.pop(i)
                     holder["found"] = True
                     return data

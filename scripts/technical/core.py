@@ -13,6 +13,10 @@ from common import to_float
 # ═══════════════════════════════════════════════════════════════
 
 
+# 浮点比较 epsilon，避免金叉/死叉等信号判断中的浮点噪声
+_EPS = 1e-6
+
+
 def sma(values, period):
     """简单移动平均。数据不足时返回 None。"""
     if len(values) < period:
