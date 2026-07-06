@@ -40,6 +40,15 @@
     "CHANGELOG.md",
     "!**/__pycache__",
     "!**/*.pyc",
-    "!**/*.pyo"
+    "!**/*.pyo",
+    "!scripts/data/portfolio.json",
+    "!scripts/data/portfolio_virtual.json",
+    "!scripts/data/trade_log.json",
+    "!scripts/data/strategy_performance.json",
+    "!scripts/data/all_stocks.json",
+    "!scripts/data/sector_stocks.json",
+    "!scripts/data/snapshots/",
+    "!scripts/data/.cache/",
+    "!scripts/dev/"
   ]
 }

@@ -1,6 +1,54 @@
+# ===== 用户私密数据（强制排除，绝不外发）=====
+scripts/data/portfolio.json
+scripts/data/portfolio_virtual.json
+scripts/data/trade_log.json
+
+# ===== 运行时缓存（用户环境下生成，不属于 skill 资产）=====
+.cache/
+scripts/data/.cache/
+scripts/data/all_stocks.json
+scripts/data/sector_stocks.json
+scripts/data/strategy_performance.json
+scripts/data/snapshots/
+
+# ===== 开发/发布工具（不属于 skill 运行时）=====
+scripts/dev/
+.github/
+
+# ===== 测试代码与产物 =====
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+tests/output/
+*.log
+
+# ===== Python 编译缓存（防御纵深）=====
 **/__pycache__/
 **/*.pyc
 **/*.pyo
-.git/
+
+# ===== 环境变量与密钥 =====
 .env
 .env.*
+
+# ===== VCS 与本地软链 =====
+.git/
+.gitignore
+.gitattributes
+.claude/skills/
+.codex/skills/
+.claude-plugin/skills/
+
+# ===== IDE 与 OS 临时文件 =====
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ===== 规划文档（仅本地使用）=====
+docs/superpowers/plans
