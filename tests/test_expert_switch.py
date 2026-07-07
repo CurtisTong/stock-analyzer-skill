@@ -20,9 +20,9 @@ from experts import (
 
 class TestExpertSwitchAPI:
     def test_list_active_returns_9(self):
-        """v2.2.0 active 数 = 9（v2.1.0 的 8 + 动量派）。"""
+        """v2.4.0 active 数 = 8（value_anchor+institution 合并为 value_institution）。"""
         active = list_active_experts()
-        assert len(active) == 9, f"expected 9, got {len(active)}"
+        assert len(active) == 8, f"expected 8, got {len(active)}"
         assert all(p.active for p in active)
 
     def test_list_legacy_returns_at_least_6(self):
@@ -32,9 +32,9 @@ class TestExpertSwitchAPI:
         assert all(not p.active for p in legacy)
 
     def test_list_experts_returns_15(self):
-        """list_experts() 返回 15（active + legacy）。"""
+        """list_experts() 返回 16（v2.4.0 新增 value_institution：9 active + 7 legacy）。"""
         all_experts = list_experts()
-        assert len(all_experts) == 15
+        assert len(all_experts) == 16
 
     def test_active_and_legacy_disjoint(self):
         """active 和 legacy 不重叠。"""
@@ -50,12 +50,12 @@ class TestExpertSwitchAPI:
         assert active_ids | legacy_ids == registry_ids
 
     def test_filter_by_group(self):
-        """group 过滤：长线 active = 6，短线 active = 3（topic_leader/emotion_tech/momentum_trader）。"""
+        """group 过滤：长线 active = 5（v2.4.0 合并 value_anchor+institution→value_institution），短线 active = 3。"""
         long_active = list_active_experts("long_term")
         short_active = list_active_experts("short_term")
         assert (
-            len(long_active) == 6
-        ), f"long_term active expected 6, got {len(long_active)}"
+            len(long_active) == 5
+        ), f"long_term active expected 5, got {len(long_active)}: {[e.name for e in long_active]}"
         assert (
             len(short_active) == 3
         ), f"short_term active expected 3, got {len(short_active)}"

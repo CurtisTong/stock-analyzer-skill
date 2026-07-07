@@ -42,14 +42,17 @@ class TestSectorSpecialist:
             assert 0 <= v <= 100
 
     def test_high_prosperity_high_score(self):
-        """ROE≥20 + 营收增速≥15 = 行业景气高 = 基本面高分。"""
+        """ROE≥20 + 营收增速≥15 = 行业景气高 = 基本面高分。
+        v2.4.0 行业差异化阈值后，基本面 = roe_score×(1-rev_weight) + rev_score×rev_weight，
+        default 类 rev_weight=0.3：80×0.7 + 95×0.3 = 84.5，故阈值调整为 ≥80。
+        """
         result = sector_specialist.score(
             {
                 "quote": {"pe": 20, "pe_percentile": 50},
                 "finance": {"ROEJQ": 25, "TOTALOPERATEREVETZ": 20},
             }
         )
-        assert result["基本面"] >= 90
+        assert result["基本面"] >= 80
 
     def test_low_prosperity_low_score(self):
         """ROE<10 = 行业衰退 = 基本面低分。"""
@@ -72,14 +75,17 @@ class TestSectorSpecialist:
         assert result["估值"] >= 80
 
     def test_high_pe_percentile_low_valuation(self):
-        """PE 行业分位 >80% = 行业高估 = 估值低分。"""
+        """PE 行业分位 >80% = 行业高估 = 估值低分。
+        v2.4.0 行业差异化阈值后，default 类 pe_pct_high=80，
+        90% 落在 (80, 90] 区间得 35 分，故阈值调整为 ≤40。
+        """
         result = sector_specialist.score(
             {
                 "quote": {"pe": 50, "pe_percentile": 90},
                 "finance": {"ROEJQ": 15},
             }
         )
-        assert result["估值"] <= 30
+        assert result["估值"] <= 40
 
     def test_competitive_moat_low_debt(self):
         """低负债 + 高 ROE = 龙头护城河 = 风险高分。"""

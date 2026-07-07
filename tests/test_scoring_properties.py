@@ -171,8 +171,8 @@ def test_score_from_dimensions_range(dim_scores: dict[str, float]):
 
 
 def test_expert_registry_count():
-    """v2.2.0：8 legacy + 6 extended + 1 momentum = 15。"""
-    assert len(EXPERT_REGISTRY) in (8, 14, 15)
+    """v2.4.0：8 legacy + 6 extended + 1 momentum + 1 value_institution = 16。"""
+    assert len(EXPERT_REGISTRY) in (8, 14, 15, 16)
 
 
 def test_expert_weights_sum_to_100():

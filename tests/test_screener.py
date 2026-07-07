@@ -523,9 +523,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "sector_stocks.json"
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
-        import business.screening_service as ss
+        import business.universe_loader as ul
 
-        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ul, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args(sector="白酒"))
         assert len(result) == 2
@@ -539,9 +539,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "sector_stocks.json"
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
-        import business.screening_service as ss
+        import business.universe_loader as ul
 
-        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ul, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args())
         assert len(result) == 4
@@ -552,11 +552,11 @@ class TestLoadUniverse:
         fake_file = tmp_path / "sector_stocks.json"
         fake_file.write_text(json.dumps(sector_data), encoding="utf-8")
 
-        import business.screening_service as ss
+        import business.universe_loader as ul
 
-        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ul, "DATA_DIR", tmp_path)
         # mock _try_fetch_from_mapping 返回空
-        monkeypatch.setattr(ss, "_try_fetch_from_mapping", lambda s: [])
+        monkeypatch.setattr(ul, "_try_fetch_from_mapping", lambda s: [])
 
         with pytest.raises(SystemExit):
             load_universe(self._make_args(sector="不存在的板块"))
@@ -574,9 +574,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "all_stocks.json"
         fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
 
-        import business.screening_service as ss
+        import business.universe_loader as ul
 
-        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ul, "DATA_DIR", tmp_path)
 
         result = load_universe(self._make_args(full_market=True))
         assert len(result) == 5
@@ -592,9 +592,9 @@ class TestLoadUniverse:
         fake_file = tmp_path / "all_stocks.json"
         fake_file.write_text(json.dumps(all_stocks), encoding="utf-8")
 
-        import business.screening_service as ss
+        import business.universe_loader as ul
 
-        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ul, "DATA_DIR", tmp_path)
 
         # "主板" 应匹配 "主板沪"
         result = load_universe(self._make_args(full_market=True, sector="主板"))
@@ -603,9 +603,9 @@ class TestLoadUniverse:
 
     def test_full_market_missing_file_raises(self, monkeypatch, tmp_path):
         """全市场模式文件不存在应抛出 SystemExit。"""
-        import business.screening_service as ss
+        import business.universe_loader as ul
 
-        monkeypatch.setattr(ss, "DATA_DIR", tmp_path)
+        monkeypatch.setattr(ul, "DATA_DIR", tmp_path)
 
         with pytest.raises(SystemExit):
             load_universe(self._make_args(full_market=True))

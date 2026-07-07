@@ -36,7 +36,7 @@ def _make_args(**overrides):
         snapshot=False,
         two_stage=False,
         json=False,
-        brief=False,
+        full=False,
     )
     defaults.update(overrides)
     return argparse.Namespace(**defaults)
@@ -108,13 +108,11 @@ class TestRunMainSingleStage:
     """单阶段管线测试。"""
 
     def test_basic_run(self, mock_data_layer, capsys):
-        """基本流程：加载 → 抓取 → 评分 → 输出。"""
+        """基本流程：加载 → 抓取 → 评分 → 输出（默认 brief 模式）。"""
         screener._run_main(_make_args())
         captured = capsys.readouterr()
-        # 至少应包含一些输出（render mock 不输出）
-        # 应有 no-constraints 提示或类似
-        # 验证不抛异常
-        assert "sh600519" not in captured.out  # render mock 无输出
+        # v2.4.0 默认 brief 模式，render_brief 会输出精简表格
+        assert "sh600519" in captured.out  # brief 模式有输出
 
     def test_json_output(self, mock_data_layer, capsys):
         """--json 输出 JSON。"""

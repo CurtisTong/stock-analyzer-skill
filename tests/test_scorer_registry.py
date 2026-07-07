@@ -43,6 +43,8 @@ class TestScorerRegistry:
             "risk_manager",
             # v2.2.0 新增：动量派
             "momentum_trader",
+            # v2.4.0 新增：价值机构锚
+            "value_institution",
         }
         registered = set(_EXPERT_SCORING_FUNCTIONS.keys())
         assert registered == expected_experts, (
@@ -51,8 +53,8 @@ class TestScorerRegistry:
         )
 
     def test_registry_count(self):
-        """v2.2.0：15 个专家（8 legacy + 6 extended + 1 momentum）。"""
-        assert len(_EXPERT_SCORING_FUNCTIONS) == 15
+        """v2.4.0：16 个专家（8 legacy + 6 extended + 1 momentum + 1 value_institution）。"""
+        assert len(_EXPERT_SCORING_FUNCTIONS) == 16
 
     def test_all_scoring_functions_callable(self):
         """所有注册的评分函数都应可调用。"""

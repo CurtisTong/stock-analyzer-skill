@@ -284,31 +284,34 @@ class TestNotHandled:
 class TestRateLimitError:
     """限流错误测试。"""
 
-    def test_rate_limit_error_raises(self):
-        """RateLimitError 直接抛出，不继续尝试其他 fetcher。"""
+    def test_rate_limit_error_falls_through(self):
+        """RateLimitError 不再直接抛出，而是记录失败并继续尝试下一个 fetcher。"""
         f1 = MockFetcher("f1", priority=10, rate_limit=True)
         f2 = MockFetcher("f2", priority=5, fail=False)
 
         mgr = DataFetcherManager([f1, f2])
 
-        with pytest.raises(RateLimitError):
-            mgr.fetch("sh600989")
+        # 应返回 f2 的结果而非 raise
+        result = mgr.fetch("sh600989")
+        assert result is not None
+        assert result.get("source") == "f2"
 
         # f1 记录失败
         assert f1.circuit_breaker.failure_count == 1
-        # f2 不应被调用
-        assert f2.call_count == 0
+        # f2 应被调用
+        assert f2.call_count == 1
 
-    def test_rate_limit_records_failure(self):
-        """限流后 fetcher 记录失败。"""
+    def test_rate_limit_all_sources_exhausted(self):
+        """所有源都限速时返回 None。"""
         f1 = MockFetcher("f1", priority=10, rate_limit=True)
+        f2 = MockFetcher("f2", priority=5, rate_limit=True)
 
-        mgr = DataFetcherManager([f1])
+        mgr = DataFetcherManager([f1, f2])
 
-        with pytest.raises(RateLimitError):
-            mgr.fetch("sh600989")
-
+        result = mgr.fetch("sh600989")
+        assert result is None
         assert f1.circuit_breaker.failure_count == 1
+        assert f2.circuit_breaker.failure_count == 1
 
 
 class TestSourceConfig:
