@@ -688,3 +688,62 @@ class PortfolioManager:
                 "自选: " + ", ".join(w.get("name") or w["code"] for w in watch)
             )
         return "\n".join(lines)
+
+    def risk_summary(self, quotes: dict = None, confidence: float = 0.95) -> str:
+        """持仓组合 VaR 风险摘要（基于 business.risk_metrics，v2.4.0 新增）。
+
+        Args:
+            quotes: {code: current_price} 估值（未提供时用成本）
+            confidence: 置信度（0.95 / 0.99）
+
+        Returns:
+            风险摘要文本
+        """
+        try:
+            from business.risk_metrics import position_var_summary
+        except ImportError:
+            return "⚠️ risk_metrics 模块不可用，无法生成风险摘要"
+
+        positions = self.get_positions()
+        if not positions:
+            return "暂无持仓"
+
+        # 计算权重
+        total_value = sum(
+            (quotes.get(p["code"], p.get("cost", 0)) if quotes else p.get("cost", 0))
+            * p.get("quantity", 0)
+            for p in positions
+        )
+        if total_value <= 0:
+            return "持仓总市值 ≤ 0，无法计算风险"
+
+        # 经验波动率：根据持仓只数和行业分散度估算（10%-25%）
+        industry_set = set(p.get("tags", ["未分类"])[0] for p in positions)
+        dispersion = min(len(industry_set), 5) / 5  # 0.2 ~ 1.0
+        default_vol = 0.25 - 0.05 * dispersion  # 分散度高则波动率略低
+
+        portfolio = [
+            {
+                "code": p["code"],
+                "name": p.get("name", ""),
+                "weight": ((quotes.get(p["code"], p.get("cost", 0)) if quotes else p.get("cost", 0))
+                           * p.get("quantity", 0)) / total_value,
+                "vol": default_vol,
+            }
+            for p in positions
+        ]
+
+        result = position_var_summary(portfolio, quotes=quotes, confidence=confidence)
+        lines = [
+            f"## 组合风险摘要（{int(confidence*100)}% 置信度）",
+            f"- 1 日 VaR: {result['var_pct']:.2f}%（最大单日亏损幅度）",
+            f"- 1 日 CVaR: {result['cvar_pct']:.2f}%（超出 VaR 后的平均损失）",
+            "",
+            "### 风险贡献 Top 5",
+        ]
+        for w in result.get("worst_scenarios", []):
+            weight_pct = w["weight"] * 100
+            lines.append(
+                f"- {w['code']} {w['name']}: 权重 {weight_pct:.1f}%, 1 日 VaR {w['var_1d_pct']:.2f}%"
+            )
+        return "\n".join(lines)
