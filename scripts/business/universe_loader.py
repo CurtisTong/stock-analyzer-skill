@@ -139,12 +139,25 @@ def load_universe(args):
 
 
 def pre_screen_quotes(quotes, args):
-    """全市场模式预筛选：排除 ST / 停牌 / 低流动性 / 低市值股票。"""
+    """全市场模式预筛选：排除 ST / 停牌 / 低流动性 / 低市值股票 + 用户 blacklist。"""
     before = len(quotes)
+
+    # v2.4.0：加载用户偏好（blacklist / sector_exclusions）
+    user_blacklist: set = set()
+    try:
+        from common.user_profile import get_user_preference
+        user_blacklist = set(get_user_preference("blacklist") or [])
+    except Exception:
+        user_blacklist = set()
+
     result = []
     for q in quotes:
         name = q.get("name", "")
+        code = q.get("code", "")
         if "ST" in name.upper():
+            continue
+        # v2.4.0：用户自定义 blacklist
+        if code and code.lower() in {c.lower() for c in user_blacklist}:
             continue
         amount_yuan = to_float(q.get("amount", 0))
         if amount_yuan <= 0:
