@@ -46,17 +46,15 @@ rules:
 
   portfolio_alert:
     enabled: true
-    # TODO: 以下规则尚未实现，配置后不会触发
-    risk_change: true                    # 风险状态变更（TODO: 待实现）
-    underperform_days: 2                 # 连续跑输天数（TODO: 待实现）
-    concentration: true                  # 集中度超标（TODO: 待实现）
+    risk_change: true                    # 风险状态变更（GREEN→RED 等升级预警）
+    underperform_days: 2                 # 组合跑输基准阈值（%）
+    concentration: true                  # 集中度超标（单标的>20%或前3>50%）
 
   market_alert:
     enabled: true
-    # TODO: 以下规则尚未实现，配置后不会触发
-    index_change: 2.0                    # 大盘涨跌幅阈值 (%)（TODO: 待实现）
-    sector_moved: true                   # 持仓板块异动（TODO: 待实现）
-    northbound_flow: 50                  # 北向资金净流入/出 (亿)（TODO: 待实现）
+    index_change: 2.0                    # 大盘涨跌幅阈值 (%)
+    sector_moved: true                   # 持仓板块异动（≥3%）
+    northbound_flow: 50                  # 北向资金净流入/出阈值 (亿)
 
   strategy_alert:
     enabled: true
