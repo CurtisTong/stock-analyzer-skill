@@ -269,9 +269,9 @@ def _build_parser():
     )
     parser.add_argument("-j", "--json", action="store_true")
     parser.add_argument(
-        "--brief",
+        "--full",
         action="store_true",
-        help="简要模式：一句话结论 + 精简表格 + 操作建议",
+        help="完整模式：16 列因子详情（默认为精简模式）",
     )
     return parser
 
@@ -340,11 +340,11 @@ def _run_main(args):
         title = None
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"
-        if args.brief:
-            render_brief(rows, args.strategy, args.top, title=title)
-        else:
+        if args.full:
             show_chip = not getattr(args, "no_chip", False)
             render(rows, args.strategy, args.top, title=title, show_chip=show_chip)
+        else:
+            render_brief(rows, args.strategy, args.top, title=title)
 
 
 def main():

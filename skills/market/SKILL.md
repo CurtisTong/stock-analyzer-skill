@@ -16,8 +16,8 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 /market [范围: full|quick|intraday]
 ```
 
-- `full`（默认）：完整复盘，指数+板块+风格+持仓影响+明日预判
-- `quick`：3分钟快评，涨跌+最强最弱板块+一句话结论
+- `quick`（默认）：3分钟快评，涨跌+最强最弱板块+一句话结论
+- `full`：完整复盘，指数+板块+风格+持仓影响+明日预判
 - `intraday`：分时复盘，大盘+关键标的5分钟走势分析
 
 ## 共享约定

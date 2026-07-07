@@ -20,16 +20,18 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 /screener init full-market  # 初始化全市场股票池（约 5000 只）
 ```
 
+默认使用精简模式（一句话结论 + 核心表格 + 操作建议）。如需完整 16 列因子详情，加 `--full`。
+
 ## 高级选项（Sprint 2-5）
 
 ```text
---brief          精简模式：一句话结论 + 核心表格 + 操作建议（<500字）
---no-regime      禁用市场状态 overlay（保留 V1 固定权重）
---no-normalize   禁用因子 z-score 标准化（保留 V1 原始分数）
---snapshot       保存本次筛选快照到 data/snapshots/<strategy>/<date>/<hash>.json
---full-market    全市场模式（约 5000 只股票）
---exclude-board  排除指定板块（默认排除北交所）
---no-constraints 禁用组合约束（板块集中度 + 趋势降权）
+--full            完整模式：16 列因子详情（默认为精简模式）
+--no-regime       禁用市场状态 overlay（保留 V1 固定权重）
+--no-normalize    禁用因子 z-score 标准化（保留 V1 原始分数）
+--snapshot        保存本次筛选快照到 data/snapshots/<strategy>/<date>/<hash>.json
+--full-market     全市场模式（约 5000 只股票）
+--exclude-board   排除指定板块（默认排除北交所）
+--no-constraints  禁用组合约束（板块集中度 + 趋势降权）
 ```
 
 也可直接用自然语言触发，例如"按成长动量筛资源板块前 5 名"。
