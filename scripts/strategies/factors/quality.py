@@ -71,6 +71,9 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     # ESG/治理维度：合计 ±12 分（2026新增）
     score += _esg_score(fin)
 
+    # A 股排雷维度：合计 ±10 分（v2.4.0 新增）
+    score += _a_stock_red_flag_score(fin)
+
     return clamp(score)
 
 
@@ -177,3 +180,80 @@ def _esg_score(fin: dict) -> float:
         esg_score -= 3.0
 
     return clamp(esg_score, -12, 12)
+
+
+def _a_stock_red_flag_score(fin: dict) -> float:
+    """A 股排雷维度（v2.4.0 新增，针对 A 股常见造假手法）。
+
+    维度（合计 ±10 分）：
+    - 商誉/净资产比（-4~0）：>30% 商誉减值风险高
+    - 存贷双高（-4~0）：货币资金充裕但短期借款高，需警惕财务造假
+    - 关联交易占比（-2~0）：相关收入/总营收 >30% 独立性差
+    - 经营现金流/净利润持续背离（-2~+2）：<0.8 持续 2 年以上扣分
+
+    数据字段：
+    - goodwill / GOODWILL（商誉）
+    - net_assets / TOTAL_EQUITY（净资产）
+    - cash_and_equivalents / CASH_AND_EQUIVALENTS（货币资金）
+    - short_term_borrowing / SHORT_BORROW（短期借款）
+    - related_party_revenue / RELATED_REVENUE（关联收入）
+    - total_revenue / TOTALOPERATEREVETZ（总营收）
+    """
+    if not fin:
+        return 0
+
+    flag_score = 0.0
+
+    # 1. 商誉/净资产比（-4~0）
+    goodwill = to_float(fin.get("goodwill", fin.get("GOODWILL", 0)))
+    net_assets = to_float(fin.get("net_assets", fin.get("TOTAL_EQUITY", 0)))
+    if net_assets > 0 and goodwill > 0:
+        gw_ratio = goodwill / net_assets * 100
+        if gw_ratio > 50:  # 商誉 > 净资产 50%
+            flag_score -= 4.0
+        elif gw_ratio > 30:
+            flag_score -= 2.0
+
+    # 2. 存贷双高（-4~0）
+    # 货币资金充裕但短期借款高 → 财务造假信号（如康美药业、康得新）
+    cash = to_float(fin.get("cash_and_equivalents", fin.get("CASH_AND_EQUIVALENTS", 0)))
+    short_borrow = to_float(
+        fin.get("short_term_borrowing", fin.get("SHORT_BORROW", 0))
+    )
+    if cash > 0 and short_borrow > 0:
+        cash_borrow_ratio = cash / short_borrow
+        # 货币资金 > 短期借款 2 倍且都有余额 → 存贷双高
+        if cash_borrow_ratio > 2.0 and cash > 5e8:  # 5 亿阈值
+            flag_score -= 4.0
+        elif cash_borrow_ratio > 1.5:
+            flag_score -= 1.5
+
+    # 3. 关联交易占比（-2~0）
+    related_rev = to_float(
+        fin.get("related_party_revenue", fin.get("RELATED_REVENUE", 0))
+    )
+    total_rev = to_float(
+        fin.get("total_revenue", fin.get("TOTALOPERATEREVETZ", 0))
+    )
+    if total_rev > 0 and related_rev > 0:
+        related_pct = related_rev / total_rev * 100
+        if related_pct > 50:
+            flag_score -= 2.0
+        elif related_pct > 30:
+            flag_score -= 1.0
+
+    # 4. 经营现金流/净利润背离（-2~+2）
+    ocf = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE", 0)))
+    eps = to_float(fin.get("eps", fin.get("EPSJB", 0)))
+    if eps > 0 and ocf > 0:
+        ocf_eps = ocf / eps
+        if ocf_eps >= 1.0:
+            flag_score += 2.0
+        elif ocf_eps >= 0.7:
+            flag_score += 0.5
+        elif ocf_eps < 0.3:  # 现金流远低于净利润
+            flag_score -= 2.0
+        elif ocf_eps < 0.5:
+            flag_score -= 1.0
+
+    return clamp(flag_score, -10, 10)
