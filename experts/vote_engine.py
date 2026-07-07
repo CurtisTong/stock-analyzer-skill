@@ -105,25 +105,19 @@ def _resolve_conflict(
         else:
             position_factor = 0.0
 
-    # 巴菲特否决权 / 强势确认（中长期模式）
-    # 注意：此处仅调整方向和仓位因子，不影响 long_avg 均值。
-    # aggregate_votes 中的 _buffett_downweight_policy + _apply_buffett_long_downweight
-    # 负责调整 long_avg 均值（短期模式下其余长线×0.8），两套机制作用域互补：
-    #   - _resolve_conflict: 调整输出方向 + 仓位因子（medium/long 降一级+×0.7）
-    #   - _apply_buffett_long_downweight: 调整输入均值（short 模式降权×0.8）
+    # 巴菲特警示 / 强势确认（中长期模式）
+    # v2.4.0 改进：原"否决权"改为"否决警示"——保留信号但不强制推翻投票共识。
+    # 触发时降低信心指数（confidence -15）而非强制改变方向，方向仍由 9 人投票统计决定。
+    # 短期模式保持不变：仅长线组降权×0.8。
     if buffett_score <= 39:
         if horizon in ("medium", "long"):
-            notes.append("巴菲特否决权触发：中长期模式下方向至少降一级")
-            direction = _downgrade_direction(direction)
-            position_factor *= 0.7
+            notes.append("巴菲特否决警示：中长期模式下巴菲特看空，信心指数降低")
+            # 不再强制降级方向和仓位因子，仅通过信心指数传导
         else:
             notes.append("巴菲特看空，短期模式下不触发否决权，长线组降权×0.8")
     elif buffett_score >= 70 and horizon in ("medium", "long") and "看多" in direction:
-        # 对称处理：巴菲特强烈看多时，已看多的方向升一级，仓位×1.1
-        # 不把中性/看空升级为看多，避免改变方向性质
-        notes.append("巴菲特强势确认：中长期模式下方向升一级，仓位×1.1")
-        direction = _upgrade_direction(direction)
-        position_factor *= 1.1
+        # 对称处理：巴菲特强烈看多时，标注强势确认
+        notes.append("巴菲特强势确认：中长期模式下巴菲特强烈看多")
 
     # 养家情绪周期降权
     if yangjia_score < 30 and not is_yangjia_ice:
@@ -146,10 +140,19 @@ def _resolve_conflict(
 def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     """提取养家的情绪得分。
 
-    查找顺序：先 "情绪"，再 "情绪/资金"，再 fallback "情绪周期"。
-    支持不同专家使用不同维度命名（momentum_trader 用"情绪/资金"）。
+    v2.4.0 改进：优先使用 yangjia_sub_score（养家独立情绪评分），
+    避免合并型专家（emotion_tech）中作手新一的评分稀释养家的退潮信号。
+
+    回退链：yangjia_sub_score → dim_scores["情绪"] → 50
     """
-    if not yangjia or not yangjia.get("breakdown"):
+    if not yangjia:
+        return 50
+    # 优先使用独立子评分
+    sub_score = yangjia.get("yangjia_sub_score")
+    if sub_score is not None:
+        return float(sub_score)
+    # 回退到 dim_scores
+    if not yangjia.get("breakdown"):
         return 50
     dim_scores = yangjia.get("dim_scores", {})
     return dim_scores.get("情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50)))
@@ -160,8 +163,10 @@ def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
 # 合并进 value_anchor / emotion_tech。本映射让降权规则同时认旧名与新名，
 # 避免输入新框架 active 专家集时规则静默失效。
 _LEGACY_TO_MERGED = {
-    "buffett": "value_anchor",
-    "duan_yongping": "value_anchor",
+    "buffett": "value_institution",  # v2.4.0: buffett → value_anchor → value_institution
+    "duan_yongping": "value_institution",  # v2.4.0: 段永平 → value_anchor → value_institution
+    "value_anchor": "value_institution",  # v2.4.0: value_anchor → value_institution
+    "institution": "value_institution",  # v2.4.0: institution → value_institution
     "chaogu_yangjia": "emotion_tech",
     "zuoshou_xinyi": "emotion_tech",
 }
@@ -172,12 +177,31 @@ def _find_expert(expert_by_name: Dict[str, dict], legacy_name: str) -> Optional[
 
     保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新 9 人
     （6 长线 + 3 短线 active 合并型名）输入，降权规则在两种输入下都触发。
+
+    查找顺序：
+    1. 直接按 legacy_name 查找
+    2. 按 _LEGACY_TO_MERGED 映射的合并名查找
+    3. 同组合并名查找：如果映射目标不存在，查找映射到同一合并名的其他旧名
+       （例如 buffett→value_institution 不存在时，尝试 value_anchor→value_institution
+        回退到 expert_by_name 中的 "value_anchor"）
     """
+    # 1. 直接查找
     expert = expert_by_name.get(legacy_name)
     if expert is not None:
         return expert
+    # 2. 按 _LEGACY_TO_MERGED 映射查找
     merged_name = _LEGACY_TO_MERGED.get(legacy_name)
-    return expert_by_name.get(merged_name) if merged_name else None
+    if merged_name:
+        expert = expert_by_name.get(merged_name)
+        if expert is not None:
+            return expert
+        # 3. 同组合并名查找：找到所有映射到同一合并名的旧名，逐个尝试
+        for old_name, target in _LEGACY_TO_MERGED.items():
+            if target == merged_name and old_name != legacy_name:
+                expert = expert_by_name.get(old_name)
+                if expert is not None:
+                    return expert
+    return None
 
 
 def _downgrade_direction(direction: str) -> str:
@@ -212,13 +236,13 @@ def _buffett_downweight_policy(buffett_score: float, horizon: str) -> dict:
     """返回巴菲特降权策略（v2.2.0 收敛）。
 
     巴菲特在两种模式下触发降权：
-    - medium/long：中长期模式下视为"否决权"，方向降一级 + 仓位×0.7
+    - medium/long：中长期模式下改为"否决警示"，降低信心指数而非强制改变方向
     - short：短期模式下仅"权重警示"，其余长线专家评分×0.8
     """
     if buffett_score > 39:
         return {"triggered": False, "mode": None, "factor": 1.0}
     if horizon in ("medium", "long"):
-        return {"triggered": True, "mode": "veto", "factor": 0.7}
+        return {"triggered": True, "mode": "warning", "factor": 1.0}
     return {"triggered": True, "mode": "weight", "factor": 0.8}
 
 
@@ -270,6 +294,11 @@ def _compute_position(
         position = 0
     elif direction == "谨慎看空":
         position = min(position, 20)
+    elif direction in ("看多", "谨慎看多", "强烈看多", "中性"):
+        # 否决叠加地板值保护：多个否决条件叠加时确保有最低试探仓位
+        # 仅在非看空方向时生效，看空方向仓位应为 0
+        if position > 0 and position < 10:
+            position = 10
 
     if position == 0:
         return {
@@ -500,9 +529,20 @@ def aggregate_votes(
             notes.append(f"估值偏低：长线组估值分{val_avg:.0f}（偏高估），仓位×0.7")
             position_factor *= 0.7
 
+    # v2.4.0: 仓位因子地板值——防止多个否决条件叠加导致仓位建议为 0
+    # 仅在方向为正向（看多/谨慎看多）时保护，中性/看空方向允许 position_factor=0
+    if position_factor < 0.3 and direction in ("强烈看多", "看多", "谨慎看多"):
+        notes.append(f"否决叠加保护：仓位因子 {position_factor:.2f} → 0.3（地板值）")
+        position_factor = 0.3
+
     # 信心指数
     all_scores = long_scores + short_scores
     confidence = compute_confidence_index(all_scores, composite, calibration_factor)
+
+    # 巴菲特否决警示效果：降低信心指数而非改变方向
+    # v2.4.0：原否决权改为警示，保留信号但不推翻投票共识
+    if buffett_score <= 39 and horizon in ("medium", "long"):
+        confidence = max(0, confidence - 15)
 
     # 仓位建议
     position = _compute_position(direction, confidence, position_factor)

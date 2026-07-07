@@ -15,4 +15,4 @@ veto_conditions:
   - 行业空间天花板可见
   - 管理层短视（季度业绩导向）
 md_path: experts/institution.md
-active: true
+active: false  # v2.4.0: 合并到 value_institution

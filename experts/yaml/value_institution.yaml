@@ -1,0 +1,21 @@
+name: value_institution
+display_name: 价值机构锚（价值双锚+机构派）
+group: long_term
+style: 价值+机构长期主义（合并 value_anchor+institution）
+horizon: 月/季/年/多年
+core_signal: 基本面+估值+商业本质+行业空间+公司治理
+weights:
+  基本面: 45.0
+  估值: 22.5
+  技术面: 5.0
+  情绪: 5.0
+  安全边际: 22.5
+veto_conditions:
+  - ROE < 10% 或负债率 > 70%（金融业除外）
+  - FCF 连续 2 年为负
+  - 公司涉财务造假或管理层失信
+  - 商业模式看不懂（"不熟不做"）
+  - 行业空间天花板可见（5 年 TAM 增长 < 5%）
+  - 管理层短视（季度业绩导向、不做长期投入）
+md_path: experts/value_institution.md
+active: true

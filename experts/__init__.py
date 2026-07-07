@@ -83,13 +83,15 @@ def list_short_term_experts() -> List[ExpertProfile]:
 
 
 def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
-    """列出 active=True 的专家（v2.2.0 默认 9 人 = 6 长线 + 3 短线）。
+    """列出 active=True 的专家（v2.4.0 默认 8 人 = 5 长线 + 3 短线）。
 
-    构成：lynch + soros + value_anchor（3 长线独立/合并）+ sector_specialist +
-    institution + risk_manager（3 长线补盲区型）+ topic_leader + emotion_tech +
+    构成：lynch + soros + value_institution（3 长线独立/合并）+ sector_specialist +
+    risk_manager（2 长线补盲区型）+ topic_leader + emotion_tech +
     momentum_trader（3 短线）。
 
-    新框架默认调用此 API，legacy 6 人需显式 `list_legacy_experts()`。
+    v2.4.0 变更：value_anchor + institution 合并为 value_institution。
+
+    新框架默认调用此 API，legacy 8 人需显式 `list_legacy_experts()`。
     """
     all_experts = [p for p in EXPERT_REGISTRY.values() if p.active]
     if group is None:

@@ -7,6 +7,7 @@
 - aggregate_votes(expert_results, market_state, horizon, calibration_factor) -> dict
 - aggregate_group_votes(expert_results, group, calibration_factor) -> dict
 - format_debate_output(result) -> str
+- format_debate_brief(result) -> str  (v2.4.0 新增)
 - format_debate_card(result) -> str
 - format_group_output(result) -> str
 """
@@ -15,6 +16,7 @@ from experts.market_detector import detect_market_state
 from experts.vote_engine import aggregate_votes, aggregate_group_votes
 from experts.formatter import (
     format_debate_output,
+    format_debate_brief,
     format_debate_card,
     format_group_output,
 )
@@ -24,6 +26,7 @@ __all__ = [
     "aggregate_votes",
     "aggregate_group_votes",
     "format_debate_output",
+    "format_debate_brief",
     "format_debate_card",
     "format_group_output",
 ]

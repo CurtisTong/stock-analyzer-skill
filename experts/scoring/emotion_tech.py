@@ -11,14 +11,27 @@ from typing import Dict
 
 
 def score(stock_data: dict) -> Dict[str, float]:
-    """情绪技术复合：养家 0.5 + 作手新一 0.5 加权平均。"""
+    """情绪技术复合：养家 0.5 + 作手新一 0.5 加权平均。
+
+    v2.4.0: 新增 yangjia_sub_score 字段，供 vote_engine 的养家降权逻辑
+    使用养家的独立情绪评分而非合并后的综合分，避免作手新一稀释养家的退潮信号。
+    """
     from . import chaogu_yangjia, zuoshou_xinyi
     from ._merge import weighted_merge
 
-    return weighted_merge(
-        [chaogu_yangjia.score(stock_data), zuoshou_xinyi.score(stock_data)],
+    yangjia_dims = chaogu_yangjia.score(stock_data)
+    xinyi_dims = zuoshou_xinyi.score(stock_data)
+    result = weighted_merge(
+        [yangjia_dims, xinyi_dims],
         weights=[0.5, 0.5],
     )
+
+    # v2.4.0: 保留养家独立子评分
+    # 养家的"情绪"维度是降权和冰点判定的核心输入
+    yangjia_emotion = yangjia_dims.get("情绪", yangjia_dims.get("情绪/题材", 50))
+    result["yangjia_sub_score"] = yangjia_emotion
+
+    return result
 
 
 def score_with_reasoning(stock_data: dict) -> Dict[str, object]:

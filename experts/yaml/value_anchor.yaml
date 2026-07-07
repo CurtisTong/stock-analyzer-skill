@@ -16,4 +16,4 @@ veto_conditions:
   - 公司涉财务造假或管理层失信
   - 商业模式看不懂（"不熟不做"）
 md_path: experts/value_anchor.md
-active: true
+active: false  # v2.4.0: 合并到 value_institution

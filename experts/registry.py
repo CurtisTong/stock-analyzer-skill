@@ -1,5 +1,5 @@
 """
-15 份专家人设的评分注册表（9 active + 6 legacy）。
+16 份专家人设的评分注册表（8 active + 8 legacy）。
 
 数据来源：experts/*.md §九、评分矩阵。
 每条记录的 weights 字段对应原 markdown 表格中的 5 维度权重百分比，
@@ -253,19 +253,20 @@ _register(
 def _ensure_loaded() -> None:
     """注册表在模块导入时已填充，此函数仅作显式触发点。
 
-    v2.2.0 的不变量：
-    - 注册表总数 = 15（6 legacy + 9 active：2 独立保留 + 3 合并型 + 3 补盲区 + 1 动量派）
-    - active 专家数 = 9（lynch/soros 独立 + value_anchor/topic_leader/emotion_tech
-      + sector_specialist/institution/risk_manager + momentum_trader）
+    v2.4.0 的不变量：
+    - 注册表总数 = 16（8 legacy + 8 active：2 独立保留 + 2 合并型 + 3 补盲区 + 1 动量派）
+    - active 专家数 = 8（lynch/soros 独立 + value_institution/topic_leader/emotion_tech
+      + sector_specialist/risk_manager + momentum_trader）
 
     legacy（active=False）指已被合并视角取代、新框架不再调用的旧专家，
     仍保留在注册表中供向后兼容与 A/B 对比。
 
-    合并型专家的权重映射（v2.1.0）：
-    - value_anchor = buffett(0.55) + duan_yongping(0.45)
+    合并型专家的权重映射：
+    - value_institution = value_anchor(0.5) + institution(0.5)
+      其中 value_anchor = buffett(0.55) + duan_yongping(0.45)
     - topic_leader = xu_xiang(0.5) + zhao_laoge(0.5)
     - emotion_tech = chaogu_yangjia(0.5) + zuoshou_xinyi(0.5)
-    合并实现位于 experts/scoring/{value_anchor,topic_leader,emotion_tech}.py。
+    合并实现位于 experts/scoring/{value_institution,topic_leader,emotion_tech}.py。
 
     v2.2.0 新增动量派（momentum_trader）：基于利弗莫尔的关键转折点理论 +
     理查德·丹尼斯的海龟交易法则，补齐纯趋势跟踪视角。技术面 40% + 情绪/资金 25%
@@ -298,9 +299,9 @@ def _ensure_loaded() -> None:
             f"Expected at least 5 active experts, found {active_count}: "
             f"{[p.name for p in EXPERT_REGISTRY.values() if p.active]}"
         )
-    if total != 15 or active_count != 9:
+    if total != 16 or active_count != 8:
         logger.warning(
-            "专家数量变化: total=%d (期望15), active=%d (期望9)", total, active_count
+            "专家数量变化: total=%d (期望16), active=%d (期望8)", total, active_count
         )
 
 
@@ -331,7 +332,7 @@ _register(
             "商业模式看不懂（'不熟不做'）",
         ],
         md_path="experts/value_anchor.md",
-        active=True,
+        active=False,  # v2.4.0: 合并到 value_institution
     )
 )
 
@@ -433,7 +434,7 @@ _register(
             "管理层短视（季度业绩导向）",
         ],
         md_path="experts/institution.md",
-        active=True,
+        active=False,  # v2.4.0: 合并到 value_institution
     )
 )
 
@@ -490,6 +491,41 @@ _register(
             "连续2年亏损（避免价值陷阱+退市风险）",
         ],
         md_path="experts/momentum_trader.md",
+        active=True,
+    )
+)
+
+# ═══════════════════════════════════════════════════════════════
+# v2.4.0 合并：价值机构锚（value_anchor + institution → value_institution）
+# 两者 90% 权重同构（基本面+估值+安全边际），实测评分仅差 0.5 分，
+# 属于"伪多元化"。合并为单一专家释放名额。
+# 权重：value_anchor 0.5 + institution 0.5
+# ═══════════════════════════════════════════════════════════════
+
+_register(
+    ExpertProfile(
+        name="value_institution",
+        display_name="价值机构锚（价值双锚+机构派）",
+        group="long_term",
+        style="价值+机构长期主义（合并 value_anchor+institution）",
+        horizon="月/季/年/多年",
+        core_signal="基本面+估值+商业本质+行业空间+公司治理",
+        weights={
+            "基本面": 45.0,
+            "估值": 22.5,
+            "技术面": 5.0,
+            "情绪": 5.0,
+            "安全边际": 22.5,
+        },
+        veto_conditions=[
+            "ROE < 10% 或负债率 > 70%（金融业除外）",
+            "FCF 连续 2 年为负",
+            "公司涉财务造假或管理层失信",
+            "商业模式看不懂（'不熟不做'）",
+            "行业空间天花板可见（5 年 TAM 增长 < 5%）",
+            "管理层短视（季度业绩导向、不做长期投入）",
+        ],
+        md_path="experts/value_institution.md",
         active=True,
     )
 )

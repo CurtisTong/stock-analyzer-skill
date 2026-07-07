@@ -47,6 +47,9 @@ from . import sector_specialist, institution, risk_manager
 # v2.2.0 新增：动量派（利弗莫尔+丹尼斯）
 from . import momentum_trader
 
+# v2.4.0 新增：价值机构锚（合并 value_anchor + institution）
+from . import value_institution
+
 
 def score_expert(
     profile: ExpertProfile,
@@ -116,6 +119,8 @@ _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
     "risk_manager": risk_manager.score,
     # v2.2.0 新增：动量派
     "momentum_trader": momentum_trader.score,
+    # v2.4.0 新增：价值机构锚
+    "value_institution": value_institution.score,
 }
 
 
@@ -138,6 +143,8 @@ _EXPERT_SCORING_WITH_REASONING: Dict[str, Callable[[dict], Dict[str, object]]] =
     "risk_manager": risk_manager.score_with_reasoning,
     # v2.2.0 新增：动量派
     "momentum_trader": momentum_trader.score_with_reasoning,
+    # v2.4.0 新增：价值机构锚
+    "value_institution": value_institution.score_with_reasoning,
 }
 
 

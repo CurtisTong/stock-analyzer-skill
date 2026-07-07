@@ -195,6 +195,45 @@ def _find_dissent(expert_results: list) -> str:
     return f"{','.join(names)}看空：{reason_short}"
 
 
+def format_debate_brief(result: dict) -> str:
+    """格式化 debate 简要输出——仅方向+信心+仓位+核心分歧，适合快速决策。
+
+    v2.4.0 新增：解决 debate 模式信息过载问题（9 人逐一评分 >2000 字），
+    brief 模式仅输出约 200 字核心结论。
+    """
+    lines = []
+
+    direction = result.get("direction", "中性")
+    confidence = result.get("confidence", 50)
+    composite = result.get("composite_score", 50)
+
+    dir_emoji = {
+        "强烈看多": "🟢", "看多": "🟢", "谨慎看多": "🟡", "中性": "🟡",
+        "谨慎看空": "🔴", "看空": "🔴", "强烈看空": "🔴",
+    }.get(direction, "🟡")
+
+    lines.append(f"## {dir_emoji} 圆桌结论：{direction}")
+    lines.append(f"综合分 {composite}/100 | 信心指数 {confidence}/100")
+    lines.append("")
+
+    pos = result.get("position", {})
+    if pos.get("position_pct", 0) > 0:
+        lines.append(f"📌 建议仓位 {pos['position_pct']}% | 止损 {pos.get('stop_loss', '-')}")
+    else:
+        lines.append("📌 建议观望，暂不开仓")
+
+    risk_notes = result.get("risk_notes", [])
+    if risk_notes:
+        lines.append(f"⚠️ 看空方：{risk_notes[0]}")
+
+    notes = result.get("notes", [])
+    if notes:
+        lines.append(f"📋 {notes[0]}")
+
+    _append_disclaimer(lines)
+    return "\n".join(lines)
+
+
 def format_group_output(result: dict) -> str:
     """格式化单组模式输出（decide.md §七.4）。"""
     group_name = "长线模式" if result["group"] == "long_term" else "短线模式"
