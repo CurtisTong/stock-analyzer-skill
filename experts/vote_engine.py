@@ -125,6 +125,12 @@ def _resolve_conflict(
     elif is_yangjia_ice and yangjia_score < 30:
         notes.append("养家判定冰点期，标注'冰点机会，需确认转折信号'（不降权）")
 
+    # I15: position_factor 地板值保护——多个否决条件叠加时确保有最低试探空间
+    # 仅在看多方向时生效（中性/看空方向 position_factor 降为 0 是合理风控）
+    if direction in ("看多", "谨慎看多", "强烈看多") and position_factor < 0.3:
+        notes.append(f"仓位因子地板值保护：{position_factor:.2f} → 0.30")
+        position_factor = 0.3
+
     return {
         "direction": direction,
         "position_factor": position_factor,

@@ -26,6 +26,7 @@ from strategies.factors.registry import get_factor_keys
 
 from business.screening_service import (
     ScreeningService,
+    AnalyzeContext,
     compute_features,
     compute_factor_parts,
     compute_phase1_parts,
@@ -53,7 +54,7 @@ def analyze_code(
 ):
     """分析单只股票（CLI 友好入口，接受 quote dict）。
 
-    合并自原 screener.analyze_code，两阶段拐点过滤在 two_stage 策略时生效。
+    委托给 ScreeningService._analyze_stock()，消除重复逻辑。
     """
     code = quote["code"]
     quote_code = normalize_quote_code(code)
@@ -64,47 +65,27 @@ def analyze_code(
         fin = fetch_finance_first(normalize_finance_code(quote_code))
     # 复用预拉 K 线，避免每只股票独立 get_kline
     if kline_cache is not None and quote_code in kline_cache:
-        features = compute_features(quote_code, bars=kline_cache[quote_code])
+        kline_bars = kline_cache[quote_code]
     else:
-        features = compute_features(quote_code)
+        kline_bars = None
 
     filters = {
         "min_amount": args.min_amount,
         "min_cap": args.min_cap,
         "exclude_loss": args.exclude_loss,
     }
-    rejected = ScreeningService()._hard_filter(quote, fin, filters)
-
-    industry = infer_industry(
-        quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
+    ctx = AnalyzeContext(
+        code=quote_code,
+        quote=quote,
+        fin_records=[fin] if fin else [],
+        strategy=strategy,
+        filters=filters,
+        kline_bars=kline_bars,
+        phase1=True,
+        regime=regime,
+        no_chip=getattr(args, "no_chip", False),
     )
-    parts = compute_factor_parts(fin, quote, features, industry)
-    if getattr(args, "no_chip", False):
-        parts["chip"] = 50
-
-    # 两阶段策略：Stage 1 硬条件过滤（review#2）
-    if STRATEGIES.get(strategy, {}).get("two_stage"):
-        from strategies.filters.turning_point import turning_point_filter
-
-        pass_, reason = turning_point_filter(quote, fin, features)
-        if not pass_:
-            rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
-            return build_result_row(
-                ResultRowContext(
-                    code=quote_code, quote_dict=quote, fin=fin,
-                    features=features, industry=industry, total=0,
-                    parts=parts, rejected=rejected,
-                )
-            )
-
-    total = compute_weighted_score(parts, strategy, regime=regime)
-    return build_result_row(
-        ResultRowContext(
-            code=quote_code, quote_dict=quote, fin=fin,
-            features=features, industry=industry, total=total,
-            parts=parts, rejected=rejected,
-        )
-    )
+    return ScreeningService()._analyze_stock(ctx)
 
 
 def analyze_code_phase1(quote, args, finance_cache=None, regime=None):

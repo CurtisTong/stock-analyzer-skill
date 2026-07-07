@@ -40,8 +40,7 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
     dif_series = [ema12[offset + i] - ema26[i] for i in range(len(ema26))]
     dea_series = _ema_series(dif_series, 9)
     # dea_series 比 dif_series 短 8 元素（EMA 9 的 warmup），
-    # 记录偏移量以便后续索引映射。
-    _dif_offset = len(closes) - len(dif_series)  # noqa: F841 — 备用偏移量
+    # 记录 dea 偏移量以便后续索引映射。
     _dea_offset = len(closes) - len(
         dea_series
     )  # dea_series[0] 对应 closes[_dea_offset]
