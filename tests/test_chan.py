@@ -992,3 +992,35 @@ class TestChanMarketPrefix:
             "sh600519",
             "sz000807",
         ], f"fetch 链应传递 ['sh600519', 'sz000807']，实际: {captured_codes}"
+
+
+class TestAlignedMacd:
+    """aligned_macd 统一 DIF/DEA 接口测试（v2.4.0）。"""
+
+    def test_aligned_macd_basic(self):
+        from technical.core import aligned_macd
+        closes = [10.0 + i * 0.1 for i in range(40)]  # 40 个递增收盘价
+        result = aligned_macd(closes, fast=12, slow=26, signal=9)
+        assert "dif_series" in result
+        assert "dea_series" in result
+        assert "dea_offset" in result
+        # DEA 序列应 <= DIF 序列（warmup 差异）
+        assert len(result["dea_series"]) <= len(result["dif_series"])
+        # offset 应为 dea 序列第一个元素对应的 closes 索引
+        assert result["dea_offset"] >= 0
+
+    def test_aligned_macd_short_input(self):
+        from technical.core import aligned_macd
+        # 不足 slow 周期时返回空
+        closes = [10.0, 11.0, 12.0]
+        result = aligned_macd(closes)
+        assert result["dif_series"] == []
+        assert result["dea_series"] == []
+
+    def test_aligned_macd_custom_periods(self):
+        from technical.core import aligned_macd
+        closes = [10.0 + i * 0.1 for i in range(50)]
+        # 自定义参数
+        result = aligned_macd(closes, fast=5, slow=15, signal=4)
+        assert len(result["dif_series"]) > 0
+        assert len(result["dea_series"]) > 0
