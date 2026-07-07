@@ -747,3 +747,29 @@ class PortfolioManager:
                 f"- {w['code']} {w['name']}: 权重 {weight_pct:.1f}%, 1 日 VaR {w['var_1d_pct']:.2f}%"
             )
         return "\n".join(lines)
+
+    def attribution_report(self, quotes: dict = None, period: str = "1M") -> str:
+        """组合 Brinson 归因报告（基于 portfolio.brinson，v2.4.0 新增）。
+
+        Args:
+            quotes: {code: current_price} 估值（必传，否则使用成本）
+            period: 期间（仅显示用途，不影响计算）
+
+        Returns:
+            归因报告文本
+        """
+        try:
+            from portfolio.brinson import brinson_from_holdings, format_brinson_report
+        except ImportError:
+            return "⚠️ brinson 模块不可用，无法生成归因报告"
+
+        positions = self.get_positions()
+        if not positions:
+            return "暂无持仓"
+
+        # quotes 默认成本（cost 作为当前价，归因为 0）
+        if not quotes:
+            quotes = {p["code"]: p.get("cost", 0) for p in positions}
+
+        result = brinson_from_holdings(positions, quotes, period=period)
+        return format_brinson_report(result)
