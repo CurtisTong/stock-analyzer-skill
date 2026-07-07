@@ -42,6 +42,19 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 
 输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
 
+### 一键深度分析（v2.4.0 新增）
+
+screener 输出后，对 Top 1-3 候选股自动提示可执行 `/stock <code>` 深度分析。用户说"分析一下"或"详细看看"时，自动对 Top 3 逐一执行五层分析：
+
+```bash
+# screener 输出后，对 Top 3 自动执行
+python3 scripts/stock.py <top1_code>
+python3 scripts/stock.py <top2_code>
+python3 scripts/stock.py <top3_code>
+```
+
+也可在 screener 命令后直接加 `--analyze` 触发自动分析。
+
 ## 共享约定
 
 - 代码前缀：`../_shared/references/code-prefix.md`

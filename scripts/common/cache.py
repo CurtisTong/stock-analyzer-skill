@@ -39,13 +39,19 @@ def _validate_key(key: str) -> None:
 
 
 def get(key: str, ttl_seconds: int) -> Optional[bytes]:
-    """读取缓存，TTL 超时返回 None。"""
+    """读取缓存，TTL 超时返回 None。
+
+    v2.4.0: TTL 加抖动（+0~10%），防止大量缓存同时过期（雪崩）。
+    """
     _validate_key(key)
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
     if not f.exists():
         return None
-    if time.time() - f.stat().st_mtime > ttl_seconds:
+    # TTL 抖动：基于 key 哈值的确定性偏移（0~10%），避免雪崩
+    jitter = (hash(key) % 100) / 1000.0  # 0~0.1 的确定性抖动
+    effective_ttl = ttl_seconds * (1 + jitter)
+    if time.time() - f.stat().st_mtime > effective_ttl:
         f.unlink(missing_ok=True)
         return None
     return f.read_bytes()

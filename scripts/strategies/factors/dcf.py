@@ -60,6 +60,21 @@ def dcf_valuation(
     }
     capex_ratio = _CAPEX_RATIO.get(industry, _CAPEX_RATIO["默认"])
 
+    # v2.4.0: 行业差异化折现率（WACC 近似）
+    # 高 beta 行业（科技/周期）折现率更高，低 beta 行业（消费/公用）折现率更低
+    _DISCOUNT_RATES = {
+        "科技": 0.12,    # 高成长高波动，需更高风险补偿
+        "周期": 0.11,    # 盈利波动大，折现率略高
+        "医药": 0.10,    # 中等风险
+        "重资产": 0.10,  # 中等风险
+        "默认": 0.10,    # 10% 基准
+        "金融": 0.09,    # 低 beta，杠杆业务但监管兜底
+        "消费": 0.09,    # 低 beta，现金流稳定
+    }
+    if discount_rate == 0.10:
+        # 仅在默认值时自动选择行业折现率，显式传入时尊重用户选择
+        discount_rate = _DISCOUNT_RATES.get(industry, _DISCOUNT_RATES["默认"])
+
     # 1. 估算每股自由现金流（FCF）
     ocf = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE", 0)))
     eps = to_float(fin.get("eps", fin.get("EPSJB", 0)))
