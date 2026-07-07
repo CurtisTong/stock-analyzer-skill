@@ -336,12 +336,18 @@ screening_service.py (1100+ 行)
 
 ### 未完成项
 
-| 改进项 | 优先级 | 说明 |
-|:-------|:-------|:-----|
-| portfolio 操作历史 + undo | 🟡 P1 | 需设计操作日志 schema + undo 命令 |
-| screener → stock 一键分析 | 🟡 P1 | 需 SKILL.md 集成 |
-| DCF 行业差异化折现率 | 🟡 P2 | 需 5 行业 beta 参数 |
-| `_FINANCE_FIELD_MAP` 迁入 fetcher 层 | 🟡 P2 | 80+ 行映射表位置调整 |
-| 缓存雪崩 TTL 抖动 | 🟡 P2 | TTL + random(0, base*0.1) |
-| 风控模块扩展（VaR/CVaR） | 🟡 P3 | 8h 工作量 |
-| A 股排雷指标增强 | 🟡 P3 | 4h 工作量 |
+| 改进项 | 优先级 | 状态 | Commit |
+| :------ | :----- | :-- | :----- |
+| portfolio 操作历史 + undo | 🟡 P1 | ✅ | `3c30209` |
+| screener → stock 一键分析 | 🟡 P1 | ✅ | `47349c5` |
+| DCF 行业差异化折现率 | 🟡 P2 | ✅ | `47349c5` |
+| `_FINANCE_FIELD_MAP` 迁入 fetcher 层 | 🟡 P2 | ✅ | `9f61a77` |
+| 缓存雪崩 TTL 抖动 | 🟡 P2 | ✅ | `47349c5` |
+| 风控模块扩展（VaR/CVaR） | 🟡 P3 | ✅ | `9f61a77` |
+| A 股排雷指标增强 | 🟡 P3 | ✅ | `9f61a77` |
+
+### 🎉 全部改进项完成（2026-07-07）
+
+Phase 1 + Phase 2 + Phase 3 全部完成，共 24 个改进项均已落地。下一阶段可关注：
+- 🟢 Phase 4：北向资金 fetcher、Brinson 归因、缠论线段增强
+- 🟢 体验打磨：盘前简报场景、跨市场支持（港股/美股）
