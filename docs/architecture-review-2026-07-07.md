@@ -295,3 +295,53 @@ screening_service.py (1100+ 行)
 3. 🟡 **代码可维护性**：`screening_service.py` 过大 + 重复逻辑 + 缓存版本缺失 + 配置硬编码
 
 **最大的商业机会**：9 人专家圆桌辩论 + 历史校准是无可替代的差异化，但"伪多元化"问题正在侵蚀这个核心卖点的可信度。必须先解决同质化和否决权过度问题，才能让专家辩论真正成为可靠的决策工具而非"看起来多元"的自确认系统。
+
+---
+
+## 八、改进执行状态（2026-07-07 更新）
+
+### Phase 1：紧急修复 ✅ 全部完成
+
+| 改进项 | 状态 | Commit |
+| :------ | :--- | :------ |
+| `/market` 默认改 `quick` | ✅ | `14687f6` |
+| 模式策略输出加"样本内"警告 | ✅ | `afaae1e` |
+| `_apply_factor_normalization` 硬编码改用 `get_factor_keys()` | ✅ | `afaae1e` |
+| `apply_portfolio_constraints` 副作用修复（dict copy） | ✅ | `afaae1e` |
+| `RateLimitError` 换源策略 | ✅ | `afaae1e` |
+| 巴菲特否决权 → 否决警示 | ✅ | `b6db17a` |
+| 缓存键版本前缀 | ✅ 已实现 | `_DATA_FORMAT_VERSION=v2` |
+
+### Phase 2：核心改进 ✅ 大部分完成
+
+| 改进项 | 状态 | Commit |
+| :------ | :--- | :------ |
+| 拆分 `screening_service.py` | ✅ | pipeline.py + universe_loader.py |
+| 合并 value_anchor + institution → value_institution | ✅ | `b6db17a` |
+| `analyze_code()` 委托 `_analyze_stock()` | ✅ | `a7eddb2` |
+| 缠论分型条件放宽 | ✅ | 已实现（fenxing.py v2.4.0） |
+| debate brief 模式 | ✅ | `format_debate_brief()` 已实现 |
+| 养家 yangjia_sub_score | ✅ | emotion_tech.py 已添加 |
+| position_factor 地板值 min=0.3 | ✅ | `a7eddb2` |
+| sector_specialist 行业差异化阈值 | ✅ | 已实现（5 大行业类） |
+| 降级置信度标识 | ✅ | formatters.py confidence<60 标识 |
+| 背驰容差/回踩容忍度配置化 | ✅ | beichi `range_tolerance` + maidian `pullback_pct` |
+| `compute_features()` 统一 | ✅ | stock_analysis 引用 screening_service |
+| ConfigLoader 线程锁 | ✅ | 已实现 `_lock` + 双重检查 |
+| decide.md 文档与代码对齐 | ✅ | `a7eddb2` |
+| beichi.py 移除 `_dif_offset` | ✅ | `a7eddb2` |
+| DIF/DEA 偏移量统一接口 | ✅ | `dcf1844` aligned_macd() |
+| screener 默认精简模式 | ✅ | `14687f6` --full 切换完整 |
+| 中文名映射扩充到 50+ | ✅ | `01a48e8` |
+
+### 未完成项
+
+| 改进项 | 优先级 | 说明 |
+|:-------|:-------|:-----|
+| portfolio 操作历史 + undo | 🟡 P1 | 需设计操作日志 schema + undo 命令 |
+| screener → stock 一键分析 | 🟡 P1 | 需 SKILL.md 集成 |
+| DCF 行业差异化折现率 | 🟡 P2 | 需 5 行业 beta 参数 |
+| `_FINANCE_FIELD_MAP` 迁入 fetcher 层 | 🟡 P2 | 80+ 行映射表位置调整 |
+| 缓存雪崩 TTL 抖动 | 🟡 P2 | TTL + random(0, base*0.1) |
+| 风控模块扩展（VaR/CVaR） | 🟡 P3 | 8h 工作量 |
+| A 股排雷指标增强 | 🟡 P3 | 4h 工作量 |
