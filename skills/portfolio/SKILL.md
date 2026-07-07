@@ -30,6 +30,8 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 | `update <code> [字段=值]` | 更新持仓信息  | `/portfolio update sh600989 cost=19.00` |
 | `tag <code> <标签...>`    | 添加标签      | `/portfolio tag sh600989 长线 能源`     |
 | `untag <code> <标签...>`  | 移除标签      | `/portfolio untag sh600989 短线`        |
+| `undo`                    | 撤销最近操作  | `/portfolio undo`                       |
+| `history`                 | 查看操作历史  | `/portfolio history`                    |
 
 ### 自选操作
 
@@ -99,6 +101,20 @@ python3 scripts/portfolio_web.py --virtual
 
 Web 服务相关命令（`web` / `--port` / `--stop` 等）见 [`/portfolio-web`](../portfolio-web/SKILL.md)。
 - 不要阻塞当前会话等 `serve_forever()` 结束。
+
+### 撤销操作（v2.4.0 新增）
+
+每次买入/减仓/清仓/加自选/移除自选操作前，系统自动保存操作前的完整快照。误操作后可撤销：
+
+```python
+# 撤销最近一次操作
+pm = PortfolioManager()
+result = pm.undo()  # 恢复到操作前状态
+# 查看操作历史
+history = pm.oplog_history(limit=10)
+```
+
+命令行：`/portfolio undo` 撤销、`/portfolio history` 查看历史。最多保留 50 条操作记录。
 
 ## 共享约定
 

@@ -12,6 +12,8 @@ v2 数据模型：
 }
 
 向后兼容 v1 格式（只有 codes 列表）。
+
+v2.4.0：每次修改操作前自动 push 快照到 OpLog，支持 undo 回滚。
 """
 
 import json
@@ -165,6 +167,47 @@ class PortfolioManager:
             # 写回（使用 _raw_write，因为已持锁）
             _raw_write(self._path, self._data)
 
+    def _push_oplog(self, op: str, code: str = "") -> None:
+        """操作前推入快照到 OpLog（异常隔离，不影响主操作）。"""
+        try:
+            from portfolio.oplog import OpLog
+            ol = OpLog()
+            ol.push(op, code=code, snapshot_before=dict(self._data))
+        except Exception as e:
+            logger.debug("操作日志记录失败: %s", e)
+
+    def undo(self) -> Optional[dict]:
+        """回滚最近一次操作。
+
+        从 OpLog 取出最近快照，恢复 portfolio 到操作前状态。
+
+        Returns:
+            被回滚的操作记录，无记录时返回 None
+        """
+        try:
+            from portfolio.oplog import OpLog
+            ol = OpLog()
+            snapshot = ol.undo()
+            if snapshot is None:
+                return None
+            # 恢复快照
+            with _file_lock(self._path):
+                _raw_write(self._path, snapshot)
+            self._data = snapshot
+            return {"restored": True, "timestamp": snapshot.get("timestamp", "")}
+        except Exception as e:
+            logger.debug("undo 失败: %s", e)
+            return None
+
+    def oplog_history(self, limit: int = 20) -> list:
+        """查看操作历史。"""
+        try:
+            from portfolio.oplog import OpLog
+            ol = OpLog()
+            return ol.history(limit)
+        except Exception:
+            return []
+
     # ---------- 查询 ----------
 
     @property
@@ -225,6 +268,7 @@ class PortfolioManager:
     ) -> dict:
         """添加持仓。如果已存在则加仓（加权平均成本）。"""
         code = normalize_code(code)
+        self._push_oplog("add_position", code=code)
         result_holder = {}
 
         def _apply(data: dict) -> dict:
@@ -278,6 +322,7 @@ class PortfolioManager:
         if quantity <= 0:
             raise ValueError("quantity must be positive")
         code = normalize_code(code)
+        self._push_oplog("reduce_position", code=code)
         result_holder = {"r": None, "cleared": False, "pos": None}
 
         def _apply(data: dict) -> dict:
@@ -332,6 +377,7 @@ class PortfolioManager:
     def remove_position(self, code: str, auto_save: bool = True) -> bool:
         """清仓（移除持仓）并记录交易日志。"""
         code = normalize_code(code)
+        self._push_oplog("remove_position", code=code)
         holder = {"found": False, "pos": None}
 
         def _apply(data: dict) -> dict:
@@ -466,6 +512,7 @@ class PortfolioManager:
     ) -> dict:
         """添加自选股。"""
         code = normalize_code(code)
+        self._push_oplog("add_watch", code=code)
         holder = {}
 
         def _apply(data: dict) -> dict:
@@ -504,6 +551,7 @@ class PortfolioManager:
     def remove_watch(self, code: str, auto_save: bool = True) -> bool:
         """移除自选股。"""
         code = normalize_code(code)
+        self._push_oplog("remove_watch", code=code)
         holder = {"found": False}
 
         def _apply(data: dict) -> dict:
