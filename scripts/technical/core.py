@@ -46,6 +46,39 @@ def _ema_series(values, period):
     return result
 
 
+def aligned_macd(closes, fast=12, slow=26, signal=9):
+    """计算对齐的 DIF/DEA 序列，统一偏移量处理。
+
+    解决 beichi.py / macd.py 各自计算 DIF/DEA 偏移量导致的重复和不一致。
+    所有序列末尾对齐 closes 末尾（最新价），便于按索引取值。
+
+    Returns:
+        dict with:
+            dif_series: DIF 序列（已对齐到 dea 时间范围）
+            dea_series: DEA 序列
+            dea_offset: dea_series[0] 对应的 closes 索引偏移量
+    """
+    if len(closes) < slow:
+        return {"dif_series": [], "dea_series": [], "dea_offset": 0}
+
+    ema_fast = _ema_series(closes, fast)
+    ema_slow = _ema_series(closes, slow)
+    offset = len(ema_fast) - len(ema_slow)
+    dif_series = [ema_fast[offset + i] - ema_slow[i] for i in range(len(ema_slow))]
+    dea_series = _ema_series(dif_series, signal)
+    dea_offset = len(closes) - len(dea_series)
+
+    # 将 dif_series 对齐到 dea_series 的时间范围
+    if len(dea_series) < len(dif_series):
+        dif_series = dif_series[-len(dea_series):]
+
+    return {
+        "dif_series": dif_series,
+        "dea_series": dea_series,
+        "dea_offset": dea_offset,
+    }
+
+
 def stddev(values):
     """总体标准差。"""
     if len(values) < 2:

@@ -1,6 +1,6 @@
 """背驰检测。"""
 
-from technical.core import _ema_series
+from technical.core import aligned_macd
 from .area import _macd_area  # v1.3.2: was chan/macd.py
 
 
@@ -32,21 +32,11 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
             return date_to_close_idx[d]
         return merged_idx
 
-    # 计算 DIF/DEA 序列
-    # ema12 比 ema26 多 14 个元素（warmup 差异），需对齐到相同时间点
-    ema12 = _ema_series(closes, 12)
-    ema26 = _ema_series(closes, 26)
-    offset = len(ema12) - len(ema26)  # = 14
-    dif_series = [ema12[offset + i] - ema26[i] for i in range(len(ema26))]
-    dea_series = _ema_series(dif_series, 9)
-    # dea_series 比 dif_series 短 8 元素（EMA 9 的 warmup），
-    # 记录 dea 偏移量以便后续索引映射。
-    _dea_offset = len(closes) - len(
-        dea_series
-    )  # dea_series[0] 对应 closes[_dea_offset]
-    # 将 dif_series 对齐到 dea_series 的时间范围
-    if len(dea_series) < len(dif_series):
-        dif_series = dif_series[-len(dea_series) :]
+    # 计算 DIF/DEA 序列（统一使用 aligned_macd 接口）
+    macd_data = aligned_macd(closes)
+    dif_series = macd_data["dif_series"]
+    dea_series = macd_data["dea_series"]
+    _dea_offset = macd_data["dea_offset"]
 
     result = {"trend_beichi": None, "range_beichi": [], "summary": ""}
 
