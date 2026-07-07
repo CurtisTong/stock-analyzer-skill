@@ -196,9 +196,12 @@ class DataFetcherManager:
                     fetcher.on_success()
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
-            except RateLimitError:
+            except RateLimitError as e:
+                # 429 限速：记录失败并尝试下一个源，而非直接 raise。
+                # 限速通常是针对特定 API key 的限制，其他源未必受限。
                 fetcher.on_failure()
-                raise
+                self._last_error = e
+                continue
             except HTTPStatusError as e:
                 # P2-H2(common): 4xx 业务错误（如 404 数据不存在）不计入熔断，
                 # 直接换下一个源尝试，避免误熔断数据源

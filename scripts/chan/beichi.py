@@ -4,11 +4,14 @@ from technical.core import _ema_series
 from .area import _macd_area  # v1.3.2: was chan/macd.py
 
 
-def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None):
+def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_tolerance=0.8):
     """
     背驰检测。
     趋势背驰：比较两段同向走势的 MACD 面积，面积衰减+价格创极端=背驰。
     盘整背驰：比较中枢前后两段的力度。
+
+    Args:
+        range_tolerance: 盘整背驰容差阈值（默认 0.8，即面积比 < 80% 视为背驰）
 
     Args:
         date_to_close_idx: {date: closes_index} 映射，用于将 bi 的 merged 坐标系
@@ -136,8 +139,10 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None):
                 entry_area = _macd_area(dif_series, dea_series, e_start, e_end)
                 exit_area = _macd_area(dif_series, dea_series, x_start, x_end)
 
-                # 离开段面积 < 进入段面积 = 盘整背驰
-                if exit_area < entry_area * 0.8:  # 允许 20% 容差
+                # 离开段面积 < 进入段面积 * 容差阈值 = 盘整背驰
+                # v2.4.0: 容差阈值从函数参数读取，默认 0.8（允许 20% 容差）
+                range_tolerance_local = range_tolerance
+                if exit_area < entry_area * range_tolerance_local:
                     zs.get("mid", 0)
                     last_close = closes[-1]
                     if last_close > zs.get("zg", 0):

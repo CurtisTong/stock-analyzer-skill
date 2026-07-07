@@ -46,10 +46,20 @@ def format_output(
     body: Optional[str] = None,
     *,
     emoji: str = "🎯",
+    confidence: Optional[float] = None,
 ) -> str:
-    """生成统一格式的 skill 输出。"""
+    """生成统一格式的 skill 输出。
+
+    v2.4.0 新增 confidence 参数：当数据源部分降级时，
+    低于 60 的置信度会在结论行后显示 ⚠️ 置信度标识。
+    """
     lines = []
     lines.append(f"{emoji} {conclusion}")
+
+    # v2.4.0: 降级置信度标识
+    if confidence is not None and confidence < 60:
+        lines.append(f"⚠️ 数据置信度: {confidence:.0f}/100（部分数据源降级）")
+
     lines.append("")
     if body:
         lines.append(body.rstrip())

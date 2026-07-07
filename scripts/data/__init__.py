@@ -87,7 +87,7 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     from common import normalize_quote_code
 
     code = normalize_quote_code(code)  # 归一化缓存键，避免 SH/sh/无前缀产生多份缓存
-    key = f"quote_{code}"
+    key = cache.cache_key_for_stock("quote", code)
 
     if use_cache:
         from .config import get_quote_cache_ttl
@@ -141,7 +141,7 @@ def get_kline(
     else:
         cache_ttl = cfg.kline_cache_ttl
 
-    key = f"kline_{code}_{scale}_{datalen}"
+    key = cache.cache_key_for_stock("kline", code, scale=scale, datalen=datalen)
 
     if use_cache:
         cached = cache.get_json(key, cache_ttl)
@@ -167,7 +167,7 @@ def get_finance(code: str, use_cache: bool = True) -> list:
     from common import normalize_finance_code
 
     code = normalize_finance_code(code)  # 归一化缓存键（东财大写前缀）
-    key = f"finance_{code}"
+    key = cache.cache_key_for_stock("finance", code)
     zero_key = f"{key}_zero"
 
     if use_cache:

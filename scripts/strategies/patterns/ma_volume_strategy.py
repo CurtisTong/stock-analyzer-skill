@@ -122,6 +122,13 @@ def detect_ma_volume_signal(
 
             signals.append(signal)
 
+    # ⚠️ 样本内回测警告
+    if signals:
+        signals[0]["_warning"] = (
+            "⚠️ 本策略回测基于 5 只股票样本内优化（71.4%胜率），"
+            "未经外样本验证，实盘表现可能显著偏差"
+        )
+
     return signals
 
 

@@ -13,6 +13,7 @@
 由 strategies.thresholds.get_industry_threshold 加载。
 """
 
+import threading
 import time
 
 import yaml
@@ -24,11 +25,15 @@ _MTIME_TTL = 0.05
 
 
 class ConfigLoader:
-    """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存 + TTL）。"""
+    """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存 + TTL）。
+
+    v2.4.0：增加线程锁，避免多线程首次调用时竞态（mtime 检查+读取+写入不是原子操作）。
+    """
 
     _cache: dict[str, tuple[float, dict]] = {}
     _cache_time: dict[str, float] = {}
     _config_dir: Path = Path(__file__).parent
+    _lock = threading.Lock()
 
     @classmethod
     def load(cls, filename: str, use_cache: bool = True) -> dict:
@@ -53,21 +58,29 @@ class ConfigLoader:
             last_check = cls._cache_time.get(filename, 0)
             if now - last_check < _MTIME_TTL:
                 return cls._cache[filename][1]
-            # TTL 过期，检查 mtime
-            current_mtime = config_path.stat().st_mtime
-            cls._cache_time[filename] = now
-            cached_mtime, cached_data = cls._cache[filename]
-            if current_mtime <= cached_mtime:
-                return cached_data
-        else:
-            current_mtime = config_path.stat().st_mtime
-            cls._cache_time[filename] = now
 
-        with open(config_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f) or {}
+        # 需要检查 mtime 或加载文件时加锁，避免多线程竞态
+        with cls._lock:
+            # 双重检查：获取锁后再次确认缓存
+            if use_cache and filename in cls._cache:
+                last_check = cls._cache_time.get(filename, 0)
+                if now - last_check < _MTIME_TTL:
+                    return cls._cache[filename][1]
+                # TTL 过期，检查 mtime
+                current_mtime = config_path.stat().st_mtime
+                cls._cache_time[filename] = now
+                cached_mtime, cached_data = cls._cache[filename]
+                if current_mtime <= cached_mtime:
+                    return cached_data
+            else:
+                current_mtime = config_path.stat().st_mtime
+                cls._cache_time[filename] = now
 
-        cls._cache[filename] = (current_mtime, config)
-        return config
+            with open(config_path, "r", encoding="utf-8") as f:
+                config = yaml.safe_load(f) or {}
+
+            cls._cache[filename] = (current_mtime, config)
+            return config
 
     @classmethod
     def get(cls, filename: str, key_path: str, default: Any = None) -> Any:
