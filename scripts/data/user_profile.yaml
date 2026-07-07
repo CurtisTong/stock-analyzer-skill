@@ -1,0 +1,40 @@
+# 用户偏好配置 v2.4.0
+# 用法：将本文件复制到 scripts/data/user_profile.yaml 并按需修改
+
+# 风险偏好（conservative / medium / aggressive）
+risk_tolerance: medium
+
+# 默认投资周期（short / medium / long）
+preferred_horizon: medium
+
+# 默认选股策略
+default_strategy: balanced  # balanced / quality_value / growth_momentum / defensive / turning_point
+
+# 默认输出格式
+output_format: brief  # brief / full
+
+# 永不买入的代码列表
+blacklist: []
+# 示例：
+# blacklist:
+#   - sh601318
+#   - sh601398
+
+# 自选优先级排序
+watchlist_priority: []
+
+# 仓位上限配置
+position_limit:
+  single_stock_max: 0.20  # 单一标的 20%
+  top3_max: 0.50         # 前 3 大持仓 50%
+  industry_max: 0.30     # 单一行业 30%
+
+# 板块排除
+sector_exclusions:
+  - 北交所
+
+# 通知配置
+notifications:
+  price_alert: true       # 价格预警
+  strategy_signal: true   # 策略信号
+  research_alert: false   # 研报推送

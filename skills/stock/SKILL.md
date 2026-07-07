@@ -26,6 +26,22 @@ allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.m
 
 > `/stock` 不带参数时走 `quick`；需要专家圆桌必须显式写 `debate`。
 
+### 龙虎榜（v2.4.0 新增）
+
+短线交易者可调用龙虎榜查看机构/游资席位净买入：
+
+```bash
+python3 scripts/data/lhb.py sh600519              # 最近 30 日龙虎榜
+python3 scripts/data/lhb.py sh600519 --days 10    # 最近 10 日
+```
+
+输出包含：
+- 上榜次数、累计净买入额
+- 买入/卖出前 5 营业部（机构/游资识别）
+- 关联游资标签（"赵老哥"、"孙哥"、"章盟主"等）
+
+数据源：`scripts/fetchers/lhb/` 多源适配器（东财/同花顺）。
+
 ## 共享约定
 
 - 代码前缀（`sh`/`sz`/`SH`/`SZ` 大小写规则）：`../_shared/references/code-prefix.md`
