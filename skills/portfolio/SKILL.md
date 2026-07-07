@@ -116,6 +116,23 @@ history = pm.oplog_history(limit=10)
 
 命令行：`/portfolio undo` 撤销、`/portfolio history` 查看历史。最多保留 50 条操作记录。
 
+### 风险与归因报告（v2.4.0 新增）
+
+```python
+pm = PortfolioManager()
+
+# VaR 风险摘要（默认 95% 置信度）
+risk = pm.risk_summary(quotes={"sh600519": 1900, "sh601318": 48})
+
+# Brinson 归因报告（行业配置效应 + 选择效应 + 交互效应）
+report = pm.attribution_report(quotes={"sh600519": 1900})
+print(report)  # 配置效应、选择效应、交互效应三栏
+```
+
+输出：
+- `risk_summary`：1 日 VaR/CVaR + 风险贡献 Top5
+- `attribution_report`：组合超额收益的归因解释（"跑赢基准是选股贡献还是行业配置？"）
+
 ## 共享约定
 
 - 代码前缀：`../_shared/references/code-prefix.md`
