@@ -30,6 +30,9 @@ _registry = LazyFetcherRegistry(_get_flow_fetchers_import)
 def get_northbound_flow(code: str, days: int = 20) -> list:
     """获取北向资金近期数据。
 
+    v2.4.0: 支持多源故障转移（eastmoney → sina 备份）
+    优先使用 eastmoney 的明细（沪/深股通分离），失败回退到 sina。
+
     Args:
         code: 股票代码（北向资金是市场整体数据，code 参数实际忽略）
         days: 获取天数（默认 20）
@@ -38,30 +41,27 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
         按日期升序排列的列表，元素形如
         {"date":..., "net_buy": float, "sh_net":..., "sz_net":...}
         失败返回空列表。
-
-    注意：返回值用 net_buy 字段（= total_net），与 strategies/factors/chip.py
-    的 _score_northbound_flow 期望的字段名对齐。
     """
-    fetcher = _registry.find("northbound")
-    if fetcher is None:
-        return []
-    try:
-        result = fetch_with_breaker(fetcher, code, days=days)
-    except Exception as e:
-        logger.debug("北向资金 fetch 失败 %s: %s", code, e)
-        return []
-    if not result or "days" not in result:
-        return []
-    # 映射 total_net -> net_buy，保持调用方期望的字段名
-    return [
-        {
-            "date": d.get("date", ""),
-            "net_buy": d.get("total_net", 0),
-            "sh_net": d.get("sh_net", 0),
-            "sz_net": d.get("sz_net", 0),
-        }
-        for d in result["days"]
-    ]
+    # v2.4.0: 多源故障转移
+    fetchers = [f for f in _registry.get_all() if f.name.startswith("northbound")]
+    for fetcher in fetchers:
+        try:
+            result = fetch_with_breaker(fetcher, code, days=days)
+        except Exception as e:
+            logger.debug("北向资金 %s 失败: %s", type(fetcher).__name__, e)
+            continue
+        if not result or "days" not in result:
+            continue
+        return [
+            {
+                "date": d.get("date", ""),
+                "net_buy": d.get("total_net", 0),
+                "sh_net": d.get("sh_net", 0),
+                "sz_net": d.get("sz_net", 0),
+            }
+            for d in result["days"]
+        ]
+    return []
 
 
 def get_stock_flow(code: str, days: int = 10) -> dict | None:
