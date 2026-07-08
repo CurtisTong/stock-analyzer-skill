@@ -33,6 +33,95 @@
 - 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
 
 ### Fixed
+- 修复架构审查剩余 9 项技术债+投资逻辑问题
+- 修复第五轮剩余4个P1问题
+- 修复第五轮回归审查发现的9个P0问题
+- 修复第四轮审查4个剩余P1问题
+- 修复第三轮深度审查发现的7个P0+5个P1问题
+- 修复第三轮审查发现的P0+P1问题
+- 修复第二轮审查发现的安全+准确性问题
+- 修复全模块审查24项阻塞+重要问题
+- **scripts**: factor normalization, rate-limit failover, chan params, sample warning
+- **experts**: dimension key mismatch — align score() return keys with registry weights
+- **experts**: linter fixes — amount unit, dead expr, buffett threshold
+- **experts**: deep audit — 3 bugs + 8 logic fixes + 6 quality improvements
+- **technical**: 审查优化技术分析模块 — 修死代码/除零/重复定义/冗余导入
+- **monitor**: correct target_sell alert direction — price <= ts means stop-loss triggered
+- **release**: 补全 .npmignore + package.json ! 反白名单排除敏感数据
+- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
+- **data**: sector fetch_sector_finance 解包 None 崩溃
+- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
+- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
+- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
+- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
+- **experts**: 修复投票引擎5项严重/中等问题 + 估值纳入综合评分
+- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
+- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
+- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
+- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
+- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
+- *****: 优化设置
+- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+
+### Changed
+- **technical**: fix review findings -- dedup API call, config-externalize thresholds, restructure modules
+- 全面深度优化--安全修复+消除重复+文档同步
+- **chan**: unified aligned_macd() interface for DIF/DEA offset
+- **arch**: 第5轮修复——参数对象化+测试补齐+异常收窄+CHANGELOG合并
+- **arch**: LazyFetcherRegistry抽取 + 高复杂度拆分 + PEP562修正 + 4域工厂缓存
+- **arch**: 深度审查后修复 90+ 项技术债
+- **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
+- **arch**: 胖入口下沉 + 补齐数据域 data 层
+
+### Documentation
+- **portfolio**: document risk_summary() and attribution_report() methods
+- mark all 24 improvement items complete in architecture review
+- update architecture review with execution status tracker
+- **changelog**: 合并 2026-07-03 双 Unreleased 段并更新日期
+- **docs**: 文档双视角审查后批量修正事实性错误
+- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
+- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+
+### Testing
+- **chan**: add 3 tests for aligned_macd unified interface
+- add unit tests for v2.4.0 new modules
+- adapt assertions for v2.4.0 expert merge + sector thresholds + screener brief
+
+### Maintenance
+- **release**: 同步至 v1.14.3
+- black 折行（backtest cli/metrics 无逻辑变化）
+- **settings**: 合并 IDE 自动学习的权限 allowlist
+
+### Other
+- Merge remote-tracking branch 'origin/main'
+- Merge remote-tracking branch 'origin/main'
+
+## [Unreleased] - 2026-07-08
+
+### Added
+- **phase4**: 港股跨市场支持 + 盘前简报增强 + 北向资金 Guardrail 修正
+- **scripts**: add markdown_table and numbered_table formatters
+- **portfolio**: add attribution_report() with Brinson integration
+- **portfolio**: add risk_summary() with VaR/CVaR integration
+- **screener**: apply user black list in pre_screen_quotes
+- **monitor**: implement 6 notification rules from yaml config
+- **phase4**: Brinson attribution + chan feature sequence + NB multi-source
+- **profile,skills,install**: user profile + lhb skill doc + 3-step quick start
+- **risk,quality**: VaR/CVaR metrics + A-share red flag indicators
+- **dcf,cache,screener**: sector discount rates, TTL jitter, one-click analysis
+- **portfolio**: add oplog + undo for all CRUD operations
+- **validators**: expand NAME_TO_CODE to 50+ stocks across 5 sectors
+- **experts,chan**: position floor, analyze_code delegation, dead code removal
+- **screener,market**: brief as default, --full for detail; market default quick
+- **experts**: merge value_anchor+institution → value_institution, buffett veto → warning
+- *****: 优化
+- **docs**: 新增用户专家与视觉专家审查视角档案
+- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
+- **scripts**: CB 加 half_open_success_threshold 可选守卫
+- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
+- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
+
+### Fixed
 - 修复第五轮剩余4个P1问题
 - 修复第五轮回归审查发现的9个P0问题
 - 修复第四轮审查4个剩余P1问题
