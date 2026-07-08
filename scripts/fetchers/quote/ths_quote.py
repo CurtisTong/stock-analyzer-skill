@@ -74,12 +74,19 @@ class ThsQuoteFetcher(BaseFetcher):
         super().__init__("ths_quote", priority=3)
 
     def fetch(self, code: str, **kwargs) -> dict | None:
-        market, stock_code = _to_ths_params(code)
+        # P0-12: 透传前先标准化为规范 sh/sz/bj+6位 格式
+        from common import normalize_quote_code
+        canonical = normalize_quote_code(code)
+        market, stock_code = _to_ths_params(canonical)
         url = THS_URL.format(market=market, code=stock_code)
         try:
             raw = http_get(url, timeout=10)
             text = raw.decode("utf-8", errors="ignore")
-            return _parse_quote(text, code)
+            result = _parse_quote(text, canonical)
+            if result:
+                # 输出 code 统一为 sh/sz/bj+6位 格式（与其它 fetcher 一致）
+                result["code"] = canonical
+            return result
         except Exception as e:
             logger.debug("ths_quote 获取失败 %s: %s", code, e)
             return None

@@ -441,7 +441,8 @@ def composite_score(
         "chan": _score_chan(features.get("chan_theory") or {}, adj),
         "local": _score_local(features.get("local_patterns") or {}),
         "chip": _score_chip(features.get("chip") or {}, type_w),
-        "valuation": features.get("valuation_score", 50),  # 估值因子评分（0-100）
+        # 估值因子评分（0-100），None 时用中性 50（与下游 max_val=100 兼容）
+        "valuation": features.get("valuation_score") or 50,
     }
 
     # 市场宽度惩罚（徐翔、赵老哥、养家建议）

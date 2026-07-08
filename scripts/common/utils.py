@@ -175,11 +175,11 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 
 def normalize_volume(raw: int | str | None, source: str) -> int:
     """将不同数据源的成交量归一化为股。
-    腾讯/东财/efinance/akshare/tushare/pytdx: 手 → 股 (×100)
+    腾讯/东财/efinance/akshare/tushare/pytdx/ths/xueqiu: 手 → 股 (×100)
     新浪/baostock/yfinance: 股 (原值)
     """
     v = to_int(raw)
-    if source in ("tencent", "eastmoney", "efinance", "akshare", "tushare", "pytdx"):
+    if source in ("tencent", "eastmoney", "efinance", "akshare", "tushare", "pytdx", "ths", "xueqiu"):
         return v * 100
     return v
 
@@ -188,7 +188,7 @@ def normalize_amount(raw: object, source: str) -> float:
     """将不同数据源的成交额归一化为元。
     腾讯: 万元 → 元 (×10000)
     tushare: 千元 → 元 (×1000)
-    东财/efinance/akshare/新浪: 元 (原值)
+    东财/efinance/akshare/新浪/ths/xueqiu/baostock/yfinance: 元 (原值)
     """
     v = to_float(raw)
     if source == "tencent":

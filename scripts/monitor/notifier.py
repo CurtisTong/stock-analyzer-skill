@@ -31,8 +31,18 @@ def _should_notify_signal(code: str, alert_type: str) -> bool:
     today = datetime.now().strftime("%Y-%m-%d")
     key = f"{code}:{alert_type}"
     with _notified_lock:
+        # P0-21: 硬上限 LRU 强制淘汰最旧条目
+        if len(_notified_signals) >= _NOTIFIED_MAX_SIZE:
+            # 按时间戳升序排序，淘汰最早的 10%
+            sorted_keys = sorted(
+                _notified_signals.items(),
+                key=lambda kv: kv[1][1] if isinstance(kv[1], tuple) else 0,
+            )
+            evict_count = max(1, _NOTIFIED_MAX_SIZE // 10)
+            for k, _ in sorted_keys[:evict_count]:
+                _notified_signals.pop(k, None)
         # 容量 + TTL 过期清理
-        if len(_notified_signals) > _NOTIFIED_MAX_SIZE:
+        if len(_notified_signals) > _NOTIFIED_MAX_SIZE // 2:
             expired = [
                 k for k, v in _notified_signals.items()
                 if isinstance(v, tuple) and now - v[1] > _NOTIFIED_TTL_SECONDS
