@@ -140,3 +140,46 @@ def format_with_enhancements(
     if risk_disclaimer:
         result = add_risk_disclaimer(result)
     return result
+
+
+def markdown_table(headers: list, rows: list, align: str = "left") -> str:
+    """生成 Markdown 表格字符串（统一输出风格）。
+
+    Args:
+        headers: 列名列表
+        rows: 行数据列表（每行是列表/tuple）
+        align: 列对齐方式（"left"/"right"/"center"，单值适用所有列）
+
+    Returns:
+        Markdown 表格字符串
+
+    Example:
+        >>> markdown_table(["代码", "名称", "评分"], [("sh600519", "茅台", 78)])
+        '| 代码 | 名称 | 评分 |\\n|------|------|------|\\n| sh600519 | 茅台 | 78 |'
+    """
+    if not headers or not rows:
+        return ""
+    aligns = {"left": ":------", "right": "------:", "center": ":------:"}
+    sep = aligns.get(align, ":------")
+    header_row = "| " + " | ".join(str(h) for h in headers) + " |"
+    sep_row = "|" + "|".join([sep] * len(headers)) + "|"
+    body_rows = []
+    for row in rows:
+        body_rows.append("| " + " | ".join(str(c) for c in row) + " |")
+    return "\n".join([header_row, sep_row] + body_rows)
+
+
+def numbered_table(headers: list, rows: list, start: int = 1, align: str = "right") -> str:
+    """带序号的 Markdown 表格（首列自动为排名序号）。
+
+    Args:
+        headers: 列名列表（不含排名列）
+        rows: 行数据列表
+        start: 起始序号
+        align: 数值列对齐方式
+    """
+    if not headers:
+        return ""
+    full_headers = ["排名"] + list(headers)
+    numbered_rows = [(start + i, *r) for i, r in enumerate(rows)]
+    return markdown_table(full_headers, numbered_rows, align=align)
