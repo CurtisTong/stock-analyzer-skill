@@ -109,10 +109,16 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
 
 
 def get_quotes(codes: list, use_cache: bool = True) -> list:
-    """批量获取行情。"""
+    """批量获取行情。
+
+    T17: 超时按 codes 数量动态调整，避免全市场 5000+ 只时部分结果丢失。
+    基准 30 秒 + 每 500 只追加 10 秒，上限 120 秒。
+    """
     from common import parallel_map
 
-    results = parallel_map(lambda c: get_quote(c, use_cache), codes, timeout=30)
+    n = len(codes)
+    timeout = min(30 + (n // 500) * 10, 120)
+    results = parallel_map(lambda c: get_quote(c, use_cache), codes, timeout=timeout)
     return [q for q in results.values() if q is not None]
 
 
@@ -230,6 +236,9 @@ def _dict_to_quote(d: dict) -> Quote:
         circulating_cap=_normalize_cap(to_float(d.get("circulating_cap")), source),
         source=source,
         fetch_time=d.get("fetch_time") or _now_iso(),
+        is_suspended=bool(d.get("is_suspended", False)),
+        limit_up=to_float(d.get("limit_up")),
+        limit_down=to_float(d.get("limit_down")),
     )
 
 

@@ -25,6 +25,10 @@ class Quote:
     circulating_cap: float = 0.0
     source: str = ""
     fetch_time: str = ""  # 数据获取时间 ISO 格式
+    # T23: 停牌/涨跌停标识（fetcher 可选填充，默认 False/0 表示未知或未停牌）
+    is_suspended: bool = False  # 是否停牌
+    limit_up: float = 0.0  # 涨停价（0 表示未知）
+    limit_down: float = 0.0  # 跌停价（0 表示未知）
 
     def has_basic_data(self) -> bool:
         return self.price > 0
@@ -76,6 +80,10 @@ class FinanceRecord:
     violation_penalty: float = 0.0  # 违规处罚金额
     audit_opinion: str = ""  # 审计意见类型
     dividend_yield: float = 0.0  # 股息率(%)
+    # I18: 成长可持续性 + 管理层量化维度（fetcher 可选填充，默认 0 表示未知）
+    revenue_growth_trend_3y: float = 0.0  # 近 3 年营收 CAGR(%)
+    insider_buy_pct: float = 0.0  # 近期内部人增持比例(%)
+    r_and_d_ratio: float = 0.0  # 研发投入/营收(%)
 
     def to_dict(self) -> dict:
         return asdict(self)

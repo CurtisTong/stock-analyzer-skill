@@ -46,7 +46,22 @@ def _resolve_conflict(
 
     # 分歧检测（组内无多数方向）
     long_divergent = long_votes["bull"] < _BULL_MAJORITY and long_votes["bear"] < _BULL_MAJORITY
-    short_divergent = short_votes["bull"] < 2 and short_votes["bear"] < 2
+    # I14: 短线组仅 3 人，1 人翻转即变分歧。投票分歧时用评分均值辅助--
+    # 若 short_avg 明确偏向一方（>=60 看多阈值 或 <=40 看空阈值），不算分歧而是弱信号
+    short_vote_divergent = short_votes["bull"] < 2 and short_votes["bear"] < 2
+    if short_vote_divergent:
+        if short_avg >= _BULL_THRESHOLD:
+            short_divergent = False
+            short_votes = {"bull": 2, "bear": 1, "total": 3}
+            notes.append(f"短线组投票分歧但均值 {short_avg:.0f} 达看多阈值，按弱看多处理")
+        elif short_avg <= _BEAR_THRESHOLD:
+            short_divergent = False
+            short_votes = {"bull": 1, "bear": 2, "total": 3}
+            notes.append(f"短线组投票分歧但均值 {short_avg:.0f} 达看空阈值，按弱看空处理")
+        else:
+            short_divergent = True
+    else:
+        short_divergent = short_vote_divergent
 
     # 极端两极分化检测（优先于其他分支）
     # 一组压倒性看多 + 另一组压倒性看空 = 最危险的分歧场景
@@ -496,7 +511,12 @@ def aggregate_votes(
         long_avg = _apply_buffett_long_downweight(long_experts)
 
     # 综合分
-    composite = long_avg * lw + short_avg * sw
+    # I16: 综合分用校准率加权--校准率越高（历史预测越准）的组权重越大
+    # calibration_factor ∈ [-1, 1]，映射为长线权重调整 ±0.1
+    calib_adj = calibration_factor * 0.1
+    adj_lw = max(0.3, min(0.7, lw + calib_adj))
+    adj_sw = 1.0 - adj_lw
+    composite = long_avg * adj_lw + short_avg * adj_sw
 
     # 投票统计
     long_votes = _count_votes(long_scores)

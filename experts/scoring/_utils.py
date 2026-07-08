@@ -59,6 +59,27 @@ def _get_scoring_config():
 
 
 # ═══════════════════════════════════════════════════════════════
+# 维度名别名映射（I19）
+# 不同专家可能用不同的维度名（如 momentum_trader 用"情绪/资金"而非标准"情绪"）
+# ═══════════════════════════════════════════════════════════════
+
+_DIM_ALIASES: Dict[str, str] = {
+    "情绪/资金": "情绪",
+    "资金/情绪": "情绪",
+    "资金面": "资金",
+    "估值/质量": "估值",
+    "质量/估值": "质量",
+    "技术/趋势": "技术",
+    "趋势/技术": "技术",
+}
+
+
+def _normalize_dim_name(name: str) -> str:
+    """将维度名别名映射到标准名称。"""
+    return _DIM_ALIASES.get(name, name)
+
+
+# ═══════════════════════════════════════════════════════════════
 # 基础工具函数
 # ═══════════════════════════════════════════════════════════════
 
@@ -85,7 +106,10 @@ def score_from_dimensions(
     """
     total = 0.0
     for dim, weight in profile.weights.items():
-        score = dim_scores.get(dim, 50.0)
+        # I19: 维度名别名映射--允许专家用"情绪/资金"等非标准名
+        score = dim_scores.get(dim)
+        if score is None:
+            score = dim_scores.get(_normalize_dim_name(dim), 50.0)
         score = max(0.0, min(100.0, float(score)))
         total += score * (weight / 100.0)
     return max(0.0, min(100.0, total))

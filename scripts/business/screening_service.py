@@ -118,81 +118,30 @@ class ResultRowContext:
 def compute_features(code: str, bars=None) -> dict:
     """计算技术指标特征（模块级函数，供 screener.py 等外部复用）。
 
+    v2.4.1: 统一委托给 technical.pipeline.compute_indicators()，消除双份实现（T12）。
+
     Args:
         code: 股票代码（带 sh/sz 前缀）
         bars: 预取的 KlineBar 列表（可选，为 None 时自动获取）
     Returns:
         技术指标 dict：trend/ret20/ma10/ma20/volume_ratio/macd_signal/rsi/rsi_signal/vol_price_signal/closes
     """
-    import statistics
-    from technical import macd_full, rsi_features
-    from technical.volume import volume_analysis as _vol_analysis
+    from technical.pipeline import compute_indicators
 
     if bars is None:
         from data import get_kline
 
         bars = get_kline(code, scale=240, datalen=240)
-    # 统一过滤：整条记录 close 和 volume 都 > 0 才保留，确保数组对齐
-    valid_bars = [b for b in bars if b.close > 0 and b.volume > 0]
-    closes = [b.close for b in valid_bars]
-    volumes = [b.volume for b in valid_bars]
 
-    if len(closes) < 10:
-        # K 线数据不足时返回中性特征，避免下游因子函数 KeyError
-        return {
-            "trend": 0,
-            "ret20": 0,
-            "ma10": 0,
-            "ma20": 0,
-            "volume_ratio": 1.0,
-            "rsi": 50,
-            "rsi_signal": 0,
-            "macd_signal": 0,
-            "vol_price_signal": 0,
-            "closes": [],
-        }
+    result = compute_indicators(bars)
 
-    # 趋势
-    ma10 = statistics.mean(closes[-10:])
-    ma20 = (
-        statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
-    )
-    trend = 1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
+    # 补齐 compute_indicators 在数据不足时省略的字段，保持下游兼容
+    result.setdefault("ma10", 0)
+    result.setdefault("ma20", 0)
+    result.setdefault("volume_ratio", 1.0)
+    result.setdefault("rsi_signal", 0)
 
-    # 20日收益率
-    base = closes[-21] if len(closes) >= 21 else closes[0]
-    ret20 = (closes[-1] / base - 1) * 100 if base else 0
-
-    # 量比
-    recent_vol = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else 0
-    base_vol = statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol
-    volume_ratio = recent_vol / base_vol if base_vol else 1
-
-    # RSI
-    rsi_data = rsi_features(closes) or {}
-    rsi = rsi_data.get("rsi", 50)
-    rsi_signal = rsi_data.get("signal", 0)
-
-    # MACD
-    macd = macd_full(closes) or {}
-    macd_signal = macd.get("signal", 0)
-
-    # 量价关系（v1.3.2：复用 technical.volume.volume_analysis）
-    vp = _vol_analysis(closes, volumes) or {}
-    vol_price_signal = vp.get("volume_price_signal", 0)
-
-    return {
-        "trend": trend,
-        "ret20": ret20,
-        "ma10": ma10,
-        "ma20": ma20,
-        "volume_ratio": volume_ratio,
-        "macd_signal": macd_signal,
-        "rsi": round(rsi, 1),
-        "rsi_signal": rsi_signal,
-        "vol_price_signal": vol_price_signal,
-        "closes": closes,
-    }
+    return result
 
 
 class ScreeningService:

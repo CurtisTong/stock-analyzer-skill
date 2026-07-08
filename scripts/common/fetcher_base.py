@@ -107,6 +107,13 @@ class BaseFetcher(ABC):
         pass
 
     def is_available(self) -> bool:
+        """检查 fetcher 是否可用（启用 + 熔断器未打开）。
+
+        注意（T16）：can_execute() 与 record_*() 分两步调用存在 TOCTOU 竞态--
+        多线程下可能在 can_execute() 返回 True 后、实际 fetch 前另一线程触发熔断。
+        本项目采用"乐观并发"策略：容忍少量竞态（最多多放行 1-2 次请求），
+        因 fetch 本身有超时保护，不会导致雪崩。如需严格原子性可合并为 try_fetch() 原子操作。
+        """
         return self.enabled and self.circuit_breaker.can_execute()
 
     def on_success(self) -> None:
