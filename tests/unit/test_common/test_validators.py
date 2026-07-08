@@ -231,3 +231,59 @@ class TestResolveCode:
         """非字符串抛 ValidationError。"""
         with pytest.raises(ValidationError):
             resolve_code(123)
+
+
+class TestCrossMarketCode:
+    """跨市场代码（us:/hk:）校验与解析测试。"""
+
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            ("us:spy", True),
+            ("us:^gspc", True),
+            ("US:SPY", True),
+            ("hk:0700", True),
+            ("HK:9988", True),
+            ("hk:00700", True),
+            ("us:", False),
+            ("hk:", False),
+            ("sh600989", True),
+            ("invalid", False),
+        ],
+    )
+    def test_validate_code_cross_market(self, code, expected):
+        """跨市场代码格式校验。"""
+        assert validate_code(code) == expected
+
+    @pytest.mark.parametrize(
+        "code,expected",
+        [
+            ("us:spy", "us:spy"),
+            ("US:SPY", "us:SPY"),
+            ("hk:0700", "hk:0700"),
+            ("HK:9988", "hk:9988"),
+        ],
+    )
+    def test_resolve_code_cross_market(self, code, expected):
+        """跨市场代码经 resolve_code 原样返回（小写前缀）。"""
+        assert resolve_code(code) == expected
+
+    def test_validate_codes_cross_market_mix(self):
+        """批量校验混合 A 股 + 跨市场代码。"""
+        result = validate_codes(["sh600519", "us:spy", "hk:0700"])
+        assert result == ["sh600519", "us:spy", "hk:0700"]
+
+    def test_resolve_code_cross_market_empty_symbol(self):
+        """跨市场前缀但符号为空应抛错。"""
+        with pytest.raises(ValidationError):
+            resolve_code("us:")
+        with pytest.raises(ValidationError):
+            resolve_code("hk:")
+
+    def test_resolve_code_chinese_name_hk_us(self):
+        """港股/美股中文名映射。"""
+        assert resolve_code("腾讯") == "hk:0700"
+        assert resolve_code("腾讯控股") == "hk:0700"
+        assert resolve_code("阿里") == "hk:9988"
+        assert resolve_code("苹果") == "us:aapl"
+        assert resolve_code("英伟达") == "us:nvda"

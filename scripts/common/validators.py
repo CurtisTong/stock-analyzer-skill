@@ -11,6 +11,9 @@ from .exceptions import ValidationError
 # 股票代码正则
 STOCK_CODE_PATTERN = re.compile(r"^(sh|sz|bj)?(\d{6})$", re.IGNORECASE)
 
+# 跨市场代码前缀（美股/港股）
+CROSS_MARKET_PREFIX_PATTERN = re.compile(r"^(us|hk):", re.IGNORECASE)
+
 # 常用 A 股中文名 → 代码映射（覆盖 README/user-guide 高频示例 + 板块龙头）
 # v2.4.0: 扩充至 50+ 只，覆盖消费/科技/医药/周期/金融五大板块龙头
 NAME_TO_CODE: dict = {
@@ -66,6 +69,26 @@ NAME_TO_CODE: dict = {
     "中国石化": "sh600028",
     "宝钢股份": "sh600019",
     "海螺水泥": "sh600585",
+    # ── 港股（hk: 前缀，yfinance 符号）──
+    "腾讯": "hk:0700",
+    "腾讯控股": "hk:0700",
+    "阿里": "hk:9988",
+    "阿里巴巴": "hk:9988",
+    "美团": "hk:3690",
+    "小米": "hk:1810",
+    "比亚迪股份": "hk:1211",
+    "港交所": "hk:0388",
+    "友邦保险": "hk:1299",
+    "汇丰": "hk:0005",
+    "中移动": "hk:0941",
+    # ── 美股（us: 前缀，yfinance 符号）──
+    "苹果": "us:aapl",
+    "英伟达": "us:nvda",
+    "微软": "us:msft",
+    "特斯拉": "us:tsla",
+    "亚马逊": "us:amzn",
+    "谷歌": "us:googl",
+    "脸书": "us:meta",
 }
 
 
@@ -92,6 +115,7 @@ def _try_resolve_chinese_name(name: str) -> str | None:
 def resolve_code(name_or_code: str) -> str:
     """统一入口：接受股票代码或常用中文名，返回标准化代码。
 
+    - 跨市场代码（us:/hk: 前缀）原样返回（小写前缀）
     - 已合法代码（含 sh/sz/bj 前缀或纯 6 位数字）走 normalize_code 路径
     - 命中 NAME_TO_CODE 表（含模糊匹配）走中文名解析路径
     - 都未命中：抛 ValidationError
@@ -100,7 +124,7 @@ def resolve_code(name_or_code: str) -> str:
         name_or_code: 股票代码或中文名称
 
     Returns:
-        标准化股票代码（如 "sh600519"）
+        标准化股票代码（如 "sh600519"、"us:spy"、"hk:0700"）
 
     Raises:
         ValidationError: 无法识别
@@ -110,11 +134,19 @@ def resolve_code(name_or_code: str) -> str:
 
     s = name_or_code.strip()
 
+    # 跨市场代码（us:/hk:）原样返回，仅规范化为小写前缀
+    if CROSS_MARKET_PREFIX_PATTERN.match(s):
+        prefix, _, symbol = s.partition(":")
+        symbol = symbol.strip()
+        if not symbol:
+            raise ValidationError("name_or_code", name_or_code, "跨市场代码符号不能为空")
+        return f"{prefix.lower()}:{symbol}"
+
     # 优先按代码处理（含纯 6 位数字 / 带前缀）
     if STOCK_CODE_PATTERN.match(s):
         return normalize_code(s)
 
-    # 中文名 → 代码
+    # 中文名 -> 代码
     resolved = _try_resolve_chinese_name(s)
     if resolved:
         return resolved
@@ -129,7 +161,8 @@ def validate_code(code: str) -> bool:
     验证股票代码格式。
 
     Args:
-        code: 股票代码 (支持 sh600989, sz000807, 600989, 000807 等格式)
+        code: 股票代码 (支持 sh600989, sz000807, 600989, 000807 等 A 股格式，
+              以及 us:spy, hk:0700 等跨市场格式)
 
     Returns:
         是否有效
@@ -138,6 +171,10 @@ def validate_code(code: str) -> bool:
         return False
 
     code = code.strip().lower()
+    # 跨市场代码（us:/hk:）有符号即可
+    if CROSS_MARKET_PREFIX_PATTERN.match(code):
+        _, _, symbol = code.partition(":")
+        return bool(symbol.strip())
     return bool(STOCK_CODE_PATTERN.match(code))
 
 
@@ -204,7 +241,11 @@ def validate_codes(codes: List[str]) -> List[str]:
     for code in codes:
         if not validate_code(code):
             raise ValidationError("code", code, "格式无效")
-        result.append(normalize_code(code))
+        # 跨市场代码（us:/hk:）原样保留，A 股走 normalize_code
+        if CROSS_MARKET_PREFIX_PATTERN.match(code.strip().lower()):
+            result.append(code.strip().lower())
+        else:
+            result.append(normalize_code(code))
 
     return result
 
@@ -328,6 +369,8 @@ __all__ = [
     "validate_codes",
     "resolve_code",
     "NAME_TO_CODE",
+    "STOCK_CODE_PATTERN",
+    "CROSS_MARKET_PREFIX_PATTERN",
     "validate_date",
     "validate_date_range",
     "validate_positive",

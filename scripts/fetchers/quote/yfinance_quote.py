@@ -1,6 +1,7 @@
-"""Yahoo Finance 美股行情数据源（需要 yfinance 包）。
+"""Yahoo Finance 美股/港股行情数据源（需要 yfinance 包）。
 
-仅处理 us: 前缀的美股代码（如 us:^gspc、us:spy），A 股代码返回 NOT_HANDLED 不干扰现有链路。
+处理 us: 前缀的美股代码（如 us:^gspc、us:spy）和 hk: 前缀的港股代码（如 hk:0700、hk:00700），
+A 股代码返回 NOT_HANDLED 不干扰现有链路。
 """
 
 import logging
@@ -14,31 +15,43 @@ try:
 except ImportError:
     yf = None
 
-# 美股代码前缀
+# 跨市场代码前缀
 US_PREFIX = "us:"
+HK_PREFIX = "hk:"
 
 
-def _is_us_code(code: str) -> bool:
-    """判断是否为 us: 前缀的美股代码（大小写无关）。"""
-    return code.lower().startswith(US_PREFIX)
+def _is_cross_market_code(code: str) -> bool:
+    """判断是否为 us:/hk: 前缀的跨市场代码（大小写无关）。"""
+    c = code.lower()
+    return c.startswith(US_PREFIX) or c.startswith(HK_PREFIX)
 
 
 def _to_yf_symbol(code: str) -> str | None:
-    """从 us: 前缀代码提取 yfinance 符号。
+    """从 us:/hk: 前缀代码提取 yfinance 符号。
 
-    us:^gspc → ^gspc, us:spy → spy, US:SPY → spy
+    us:^gspc -> ^gspc, us:spy -> spy, US:SPY -> spy
+    hk:0700 -> 0700.HK, hk:00700 -> 0700.HK, HK:09988 -> 9988.HK
     返回 None 表示符号为空（如输入 'us:'）。
     """
-    # 按第一个冒号分割，取符号部分（大小写无关）
+    c = code.lower()
     _, _, symbol = code.partition(":")
     symbol = symbol.strip()
-    return symbol if symbol else None
+    if not symbol:
+        return None
+    # 港股：补 5 位 + .HK 后缀（yfinance 港股格式 0700.HK）
+    if c.startswith(HK_PREFIX):
+        digits = symbol.lstrip("0")
+        # yfinance 接受 4 位（0700）或带前导零，统一补齐 4 位
+        padded = digits.zfill(4)
+        return f"{padded}.HK"
+    # 美股：原样返回（保留 ^ 等特殊字符）
+    return symbol
 
 
 class YfinanceQuoteFetcher(BaseFetcher):
-    """Yahoo Finance 美股行情数据源 (优先级 6) - 需要安装 yfinance 包。
+    """Yahoo Finance 美股/港股行情数据源 (优先级 6) - 需要安装 yfinance 包。
 
-    仅处理 us: 前缀代码，不处理 A 股，避免干扰国内数据源链路。
+    处理 us: 前缀（美股）和 hk: 前缀（港股）代码，不处理 A 股，避免干扰国内数据源链路。
     """
 
     def __init__(self):
@@ -47,7 +60,7 @@ class YfinanceQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         if yf is None:
             return NOT_HANDLED
-        if not _is_us_code(code):
+        if not _is_cross_market_code(code):
             return NOT_HANDLED
 
         try:

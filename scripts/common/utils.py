@@ -44,8 +44,14 @@ def plain_code(code: str) -> str:
 
 
 def infer_exchange(code: str) -> str:
-    """按 A 股代码段推断交易所前缀。如果代码已带前缀则直接使用。"""
+    """按 A 股代码段推断交易所前缀。如果代码已带前缀则直接使用。
+
+    跨市场代码（us:/hk:）返回空字符串，由调用方按原样保留。
+    """
     c = code.strip().lower()
+    # 跨市场代码（us:/hk:）不属于 A 股交易所
+    if c.startswith(("us:", "hk:")):
+        return ""
     # 如果已带交易所前缀，直接返回
     if c.startswith(("sh", "sz", "bj")):
         return c[:2]
@@ -61,10 +67,18 @@ def infer_exchange(code: str) -> str:
 
 
 def normalize_quote_code(code: str) -> str:
-    """归一化为腾讯/新浪使用的小写交易所前缀代码。"""
-    c = plain_code(code)
+    """归一化为腾讯/新浪使用的小写交易所前缀代码。
+
+    A 股代码归一化为 sh/sz/bj + 6 位数字；跨市场代码（us:/hk:）原样小写返回，
+    交由 yfinance 等数据源自行解析。
+    """
+    c = code.strip().lower()
+    # 跨市场代码原样保留（仅小写化）
+    if c.startswith(("us:", "hk:")):
+        return c
+    plain = plain_code(code)
     market = infer_exchange(code)
-    return f"{market}{c}" if market else code.strip().lower()
+    return f"{market}{plain}" if market else code.strip().lower()
 
 
 def normalize_finance_code(code: str) -> str:

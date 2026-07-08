@@ -64,6 +64,16 @@ class TestInferExchange:
     def test_etf_15(self):
         assert infer_exchange("159915") == "sz"
 
+    def test_cross_market_us(self):
+        """美股代码返回空交易所前缀。"""
+        assert infer_exchange("us:spy") == ""
+        assert infer_exchange("us:^gspc") == ""
+
+    def test_cross_market_hk(self):
+        """港股代码返回空交易所前缀。"""
+        assert infer_exchange("hk:0700") == ""
+        assert infer_exchange("HK:9988") == ""
+
 
 class TestNormalizeQuoteCode:
     def test_with_prefix(self):
@@ -74,6 +84,17 @@ class TestNormalizeQuoteCode:
 
     def test_sz(self):
         assert normalize_quote_code("000858") == "sz000858"
+
+    def test_cross_market_us(self):
+        """美股代码原样小写返回。"""
+        assert normalize_quote_code("us:spy") == "us:spy"
+        assert normalize_quote_code("US:SPY") == "us:spy"
+        assert normalize_quote_code("us:^gspc") == "us:^gspc"
+
+    def test_cross_market_hk(self):
+        """港股代码原样小写返回。"""
+        assert normalize_quote_code("hk:0700") == "hk:0700"
+        assert normalize_quote_code("HK:9988") == "hk:9988"
 
 
 class TestNormalizeFinanceCode:

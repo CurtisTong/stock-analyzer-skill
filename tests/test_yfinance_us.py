@@ -1,5 +1,5 @@
 """
-美股数据源单元测试：覆盖 us: 前缀识别、符号转换、fetcher 行为、边界情况。
+美股/港股数据源单元测试：覆盖 us:/hk: 前缀识别、符号转换、fetcher 行为、边界情况。
 """
 
 import pytest
@@ -13,47 +13,65 @@ from common import NOT_HANDLED
 
 
 class TestYfinanceQuoteHelpers:
-    """us: 前缀识别和符号转换。"""
+    """us:/hk: 前缀识别和符号转换。"""
 
-    def test_is_us_code_with_prefix(self):
-        from fetchers.quote.yfinance_quote import _is_us_code
+    def test_is_cross_market_code_with_us_prefix(self):
+        from fetchers.quote.yfinance_quote import _is_cross_market_code
 
-        assert _is_us_code("us:^gspc") is True
-        assert _is_us_code("us:spy") is True
-        assert _is_us_code("US:SPY") is True
+        assert _is_cross_market_code("us:^gspc") is True
+        assert _is_cross_market_code("us:spy") is True
+        assert _is_cross_market_code("US:SPY") is True
 
-    def test_is_us_code_without_prefix(self):
-        from fetchers.quote.yfinance_quote import _is_us_code
+    def test_is_cross_market_code_with_hk_prefix(self):
+        from fetchers.quote.yfinance_quote import _is_cross_market_code
 
-        assert _is_us_code("sh600519") is False
-        assert _is_us_code("sz000858") is False
-        assert _is_us_code("^GSPC") is False
+        assert _is_cross_market_code("hk:0700") is True
+        assert _is_cross_market_code("HK:9988") is True
+        assert _is_cross_market_code("hk:00700") is True
 
-    def test_is_us_code_empty_prefix(self):
-        """'us:' 本身也识别为 us 代码（符号为空，fetch 时应返回 None）。"""
-        from fetchers.quote.yfinance_quote import _is_us_code
+    def test_is_cross_market_code_without_prefix(self):
+        from fetchers.quote.yfinance_quote import _is_cross_market_code
 
-        assert _is_us_code("us:") is True
+        assert _is_cross_market_code("sh600519") is False
+        assert _is_cross_market_code("sz000858") is False
+        assert _is_cross_market_code("^GSPC") is False
 
-    def test_to_yf_symbol_lowercase(self):
+    def test_is_cross_market_code_empty_prefix(self):
+        """'us:'/'hk:' 本身也识别为跨市场代码（符号为空，fetch 时应返回 None）。"""
+        from fetchers.quote.yfinance_quote import _is_cross_market_code
+
+        assert _is_cross_market_code("us:") is True
+        assert _is_cross_market_code("hk:") is True
+
+    def test_to_yf_symbol_us_lowercase(self):
         from fetchers.quote.yfinance_quote import _to_yf_symbol
 
         assert _to_yf_symbol("us:^gspc") == "^gspc"
         assert _to_yf_symbol("us:spy") == "spy"
         assert _to_yf_symbol("us:.ixic") == ".ixic"
 
-    def test_to_yf_symbol_uppercase(self):
+    def test_to_yf_symbol_us_uppercase(self):
         """大写前缀 US:SPY 应正确提取符号 spy。"""
         from fetchers.quote.yfinance_quote import _to_yf_symbol
 
         assert _to_yf_symbol("US:SPY") == "SPY"
         assert _to_yf_symbol("US:^GSPC") == "^GSPC"
 
+    def test_to_yf_symbol_hk(self):
+        """港股代码应转为 .HK 后缀，补齐 4 位。"""
+        from fetchers.quote.yfinance_quote import _to_yf_symbol
+
+        assert _to_yf_symbol("hk:0700") == "0700.HK"
+        assert _to_yf_symbol("hk:9988") == "9988.HK"
+        assert _to_yf_symbol("hk:00700") == "0700.HK"
+        assert _to_yf_symbol("HK:09988") == "9988.HK"
+
     def test_to_yf_symbol_empty(self):
-        """'us:' 无符号部分应返回 None。"""
+        """'us:'/'hk:' 无符号部分应返回 None。"""
         from fetchers.quote.yfinance_quote import _to_yf_symbol
 
         assert _to_yf_symbol("us:") is None
+        assert _to_yf_symbol("hk:") is None
 
 
 class TestYfinanceQuoteFetcher:
@@ -185,7 +203,7 @@ class TestYfinanceQuoteFetcher:
 
 
 class TestYfinanceKlineUsPrefix:
-    """YfinanceKlineFetcher us: 前缀支持。"""
+    """YfinanceKlineFetcher us:/hk: 前缀支持。"""
 
     def test_to_yf_symbol_us_prefix(self):
         from fetchers.kline.yfinance_kline import _to_yf_symbol
@@ -200,6 +218,14 @@ class TestYfinanceKlineUsPrefix:
 
         assert _to_yf_symbol("US:SPY") == "SPY"
         assert _to_yf_symbol("US:^GSPC") == "^GSPC"
+
+    def test_to_yf_symbol_hk_prefix(self):
+        """港股代码应转为 .HK 后缀。"""
+        from fetchers.kline.yfinance_kline import _to_yf_symbol
+
+        assert _to_yf_symbol("hk:0700") == "0700.HK"
+        assert _to_yf_symbol("hk:9988") == "9988.HK"
+        assert _to_yf_symbol("hk:00700") == "0700.HK"
 
     def test_to_yf_symbol_ashare_unchanged(self):
         """A 股代码转换逻辑不变。"""

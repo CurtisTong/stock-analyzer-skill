@@ -13,16 +13,28 @@ except ImportError:
 
 
 US_PREFIX = "us:"
+HK_PREFIX = "hk:"
 
 
 def _to_yf_symbol(code: str) -> str:
     """转换为 yfinance 符号格式。
 
-    us: 前缀代码直接提取符号（us:^gspc → ^gspc, US:SPY → spy），A 股代码按交易所转换。
+    us: 前缀代码直接提取符号（us:^gspc -> ^gspc, US:SPY -> spy）
+    hk: 前缀港股代码转 .HK 后缀（hk:0700 -> 0700.HK, hk:00700 -> 0700.HK）
+    A 股代码按交易所转换（600519 -> 600519.SS）
     """
-    if code.lower().startswith(US_PREFIX):
+    c = code.lower()
+    if c.startswith(US_PREFIX):
         _, _, symbol = code.partition(":")
         return symbol.strip()
+    if c.startswith(HK_PREFIX):
+        _, _, symbol = code.partition(":")
+        symbol = symbol.strip()
+        if not symbol:
+            return symbol
+        # 港股：去前导零后补 4 位 + .HK
+        digits = symbol.lstrip("0")
+        return f"{digits.zfill(4)}.HK"
     plain = plain_code(code).zfill(6)
     if plain.startswith(("60", "68", "51", "56", "58")):
         return f"{plain}.SS"

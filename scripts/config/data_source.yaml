@@ -60,6 +60,15 @@ quote_sources:
     timeout: 20
     retry: 1
 
+  yfinance:
+    priority: 6
+    enabled: true
+    timeout: 15
+    retry: 1
+    # 跨市场数据源：处理 us:（美股）和 hk:（港股）前缀代码
+    # 需要安装 yfinance 包：pip install yfinance>=0.2
+    # 未安装时自动跳过，不影响 A 股数据源链路
+
 # K线数据源配置
 kline_sources:
   sina:
@@ -113,10 +122,12 @@ kline_sources:
     max_datalen: 500
 
   yfinance:
-    priority: 0
-    enabled: false
+    priority: 2
+    enabled: true
     timeout: 30
     max_datalen: 500
+    # 跨市场 K 线：处理 us:（美股）和 hk:（港股）前缀代码
+    # 需要安装 yfinance 包：pip install yfinance>=0.2
 
 # 财务数据源配置
 finance_sources:

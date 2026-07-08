@@ -128,6 +128,8 @@ def render_briefing(data: dict) -> str:
         拼装好的简报文本
     """
     market_lines = data.get("market_lines", [])
+    overnight_lines = data.get("overnight_lines", [])
+    northbound_lines = data.get("northbound_lines", [])
     pos_lines = data.get("pos_lines", [])
     alert_lines = data.get("alerts", [])
     positions_count = data.get("positions_count", 0)
@@ -141,6 +143,16 @@ def render_briefing(data: dict) -> str:
         "━━ 市场状态 ━━",
     ]
     lines.extend(market_lines)
+
+    if overnight_lines:
+        lines.append("")
+        lines.append("━━ 隔夜外盘 ━━")
+        lines.extend(overnight_lines)
+
+    if northbound_lines:
+        lines.append("")
+        lines.append("━━ 北向资金 ━━")
+        lines.extend(northbound_lines)
 
     lines.append("")
     lines.append(f"━━ 持仓概要（{positions_count} 只）━━")

@@ -1,24 +1,25 @@
 ---
 name: market
 description: 大盘复盘。触发词：今天大盘怎么样、市场今天如何、行情怎么样、今天涨跌、大盘分析、市场复盘、今日行情、美股昨晚怎么样。用于市场快评/完整复盘/盘中分时、指数/板块ETF/风格轮动/资金偏好判断、美股收盘参考。
-version: 1.14.3
+version: 1.15.0
 model: sonnet
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Read(./data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/monitor/alert_engine.py *) Read(./data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
 ---
 
 # Market Review
 
-每日大盘复盘——指数+板块+风格+资金+预判。
+每日大盘复盘--指数+板块+风格+资金+预判。
 
 ## Usage
 
 ```text
-/market [范围: full|quick|intraday]
+/market [范围: full|quick|intraday|briefing]
 ```
 
 - `quick`（默认）：3分钟快评，涨跌+最强最弱板块+一句话结论
 - `full`：完整复盘，指数+板块+风格+持仓影响+明日预判
 - `intraday`：分时复盘，大盘+关键标的5分钟走势分析
+- `briefing`：盘前简报，一键输出 A 股指数+隔夜美股+北向资金+持仓盈亏+关键预警（调用 `alert_engine.py briefing`）
 
 ## 共享约定
 
@@ -52,13 +53,15 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 **美股代码约定**：使用 `us:` 前缀 + yfinance 符号（如 `us:^gspc` = 标普500, `us:spy` = 标普500 ETF）。
 
-**启用美股功能**：美股数据依赖可选第三方包 yfinance，**未安装时自动跳过且不影响 A 股功能**。安装命令：
+**港股代码约定**：使用 `hk:` 前缀 + 数字代码（如 `hk:0700` = 腾讯控股, `hk:9988` = 阿里巴巴）。支持 4-5 位数字，自动补齐。
+
+**启用美股/港股功能**：跨市场数据依赖可选第三方包 yfinance，**未安装时自动跳过且不影响 A 股功能**。安装命令：
 
 ```bash
 pip install yfinance>=0.2
 ```
 
-未安装时调用 `us:` 前缀代码会返回空，不报错也不影响主链路。
+未安装时调用 `us:`/`hk:` 前缀代码会返回空，不报错也不影响主链路。
 
 **通达信局域网数据源（v1.7.1 可选启用）**：如有本地通达信客户端并开启了 7709 端口，可启用局域网直连数据源：
 
@@ -116,7 +119,7 @@ pip install pytdx
 
 ## Guardrails
 
-- 不要虚构北向资金、成交额、融资余额等脚本无法直接提供的数据；如用户需要，说明当前工具未覆盖或另行查询。
+- 不要虚构成交额、融资余额等脚本无法直接提供的数据；如用户需要，说明当前工具未覆盖或另行查询。北向资金已通过 `data.get_northbound_flow` 接入（`briefing` 模式自动包含），可放心引用。
 - 若市场休市，明确说明行情数据可能是上一交易日。
 - 输出建议按”进攻/均衡/防守”分层，不给无条件满仓或清仓指令。
-- 美股参考依赖 `yfinance` 包；未安装时 `quote.py` 返回 `NOT_HANDLED`，`market full` 应**自动跳过美股段落**而不是失败——遇到该情况需在输出中说明”美股参考未启用（yfinance 未安装）”，不要硬塞假数据。
+- 美股/港股参考依赖 `yfinance` 包；未安装时 `quote.py` 返回 `NOT_HANDLED`，`market full`/`briefing` 应**自动跳过跨市场段落**而不是失败——遇到该情况需在输出中说明跨市场参考未启用（yfinance 未安装），不要硬塞假数据。
