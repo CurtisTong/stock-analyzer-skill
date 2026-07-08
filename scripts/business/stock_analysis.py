@@ -115,7 +115,7 @@ class StockAnalysisService:
         # 5. 综合评分
         if "technical" in result and "profile" in result:
             quote_dict = quote.to_dict() if quote else {}
-            result["score"] = self._calculate_composite_score(result, quote_dict)
+            result["score"] = self._calculate_composite_score(result, quote_dict, index_quote=quote)
 
         return result
 
@@ -176,7 +176,7 @@ class StockAnalysisService:
             "debt_ratio": fin.get("debt_ratio", 0),
         }
 
-    def _calculate_composite_score(self, result: dict, quote_dict: dict = None) -> dict:
+    def _calculate_composite_score(self, result: dict, quote_dict: dict = None, index_quote=None) -> dict:
         """计算综合评分（注入市场环境状态）。"""
         from technical import composite_score
         from technical.scoring import detect_market_environment
@@ -224,10 +224,11 @@ class StockAnalysisService:
                 quote_dict, fin, industry
             )
 
-        # 检测市场环境（获取大盘指数行情）
+        # 检测市场环境：复用已获取的大盘行情，避免重复请求
         market_state = "震荡"
         try:
-            index_quote = get_quote("sh000001")
+            if index_quote is None:
+                index_quote = get_quote("sh000001")
             if index_quote:
                 env = detect_market_environment(index_quote.to_dict())
                 market_state = env.get("state", "震荡")

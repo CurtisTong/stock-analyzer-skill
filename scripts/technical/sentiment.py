@@ -25,10 +25,7 @@ from config.loader import safe_get
 
 logger = logging.getLogger(__name__)
 
-_EASTMONEY_UT = os.getenv(
-    "EASTMONEY_UT_TOKEN",
-    "fa5fd1943c7b386f172d6893dbbd4dc1",
-)
+_EASTMONEY_UT = os.getenv("EASTMONEY_UT_TOKEN", "")
 
 # ═══════════════════════════════════════════════════════════════
 # 市场数据获取
@@ -59,6 +56,14 @@ class MarketDataFetcher:
                 "broken_limit_rate": float, # 炸板率
             }
         """
+        if not _EASTMONEY_UT:
+            logger.warning("EASTMONEY_UT_TOKEN 未配置，跳过涨跌停数据获取")
+            return {
+                "limit_up_count": 0,
+                "limit_down_count": 0,
+                "continuous_limit_height": 0,
+                "broken_limit_rate": 0,
+            }
         try:
             # 使用东方财富接口获取涨停数据
             url = "https://push2ex.eastmoney.com/getTopicZTPool"
@@ -99,6 +104,8 @@ class MarketDataFetcher:
 
     def _get_limit_down_count(self) -> int:
         """获取跌停家数。"""
+        if not _EASTMONEY_UT:
+            return 0
         try:
             url = "https://push2ex.eastmoney.com/getTopicDTPool"
             params = {

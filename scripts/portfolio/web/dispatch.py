@@ -4,6 +4,8 @@
 根据 action 调用对应的 PortfolioManager 方法。
 """
 
+from common import normalize_quote_code
+
 from .utils import _err, _ok, _parse_float, _parse_int, _to_bool_str_list
 
 # action 白名单
@@ -47,6 +49,12 @@ def dispatch(pm, body: dict) -> dict:
     code = body.get("code")
     if not code or not isinstance(code, str):
         return _err("missing_code", 400, "'code' is required (e.g. sh600989)")
+
+    # 标准化代码格式（如 "600989" → "sh600989"）
+    try:
+        code = normalize_quote_code(code)
+    except Exception:
+        pass  # 无法标准化时保留原始输入
 
     try:
         if action == "add_position":

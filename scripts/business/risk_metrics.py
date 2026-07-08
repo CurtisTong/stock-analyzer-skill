@@ -68,6 +68,8 @@ def max_drawdown(prices: List[float]) -> Dict[str, float]:
     max_dd = 0.0
     trough_idx = 0
     recovery_idx = 0
+    # 记录产生最大回撤时的 peak 值，用于 recovery 判断
+    peak_at_max_dd = peak
 
     for i, p in enumerate(prices):
         if p > peak:
@@ -78,10 +80,11 @@ def max_drawdown(prices: List[float]) -> Dict[str, float]:
             max_dd = dd
             trough_idx = i
             recovery_idx = i  # 默认未恢复
+            peak_at_max_dd = peak  # 记录产生最大回撤时的 peak
 
-    # 寻找 trough 后的价格回到 peak 的位置
+    # 寻找 trough 后的价格回到产生最大回撤时 peak 的位置
     for j in range(trough_idx + 1, len(prices)):
-        if prices[j] >= peak:
+        if prices[j] >= peak_at_max_dd:
             recovery_idx = j
             break
 

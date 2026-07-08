@@ -44,8 +44,9 @@ def chan_zhongshu(xd_list):
     merged_zs = [zs_list[0]]
     for zs in zs_list[1:]:
         last = merged_zs[-1]
-        # 有重叠（新中枢的低点 < 旧中枢的高点）
-        if zs["zd"] < last["zg"] and zs["zg"] > last["zd"]:
+        # 有重叠（新中枢的低点 < 旧中枢的高点）且线段索引连续
+        index_continuous = zs["xd_start"] <= last["xd_end"] + 1
+        if zs["zd"] < last["zg"] and zs["zg"] > last["zd"] and index_continuous:
             merged_zs[-1] = {
                 "zg": round(max(last["zg"], zs["zg"]), 3),
                 "zd": round(min(last["zd"], zs["zd"]), 3),

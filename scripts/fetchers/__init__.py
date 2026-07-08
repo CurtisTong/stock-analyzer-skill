@@ -169,8 +169,9 @@ def get_flow_fetchers() -> list:
         fetchers = []
 
         from .flow.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
+        from .flow.sina_flow import SinaNorthboundFlowFetcher
 
-        fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher()])
+        fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher(), SinaNorthboundFlowFetcher()])
 
         _fetcher_cache["flow"] = fetchers
         return fetchers

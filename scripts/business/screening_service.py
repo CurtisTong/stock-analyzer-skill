@@ -554,10 +554,24 @@ def compute_weighted_score(parts, strategy, regime=None):
         from strategies.regime import compute_overlay_weights
 
         weights = compute_overlay_weights(weights, regime)
+
+    # 检查 key 不匹配：parts 有但 weights 没有，或反之
+    all_keys = set(parts) | set(weights) - {"label", "two_stage"}
+    part_keys = set(parts) - {"label", "two_stage"}
+    weight_keys = set(weights) - {"label", "two_stage"}
+    missing_weights = part_keys - weight_keys
+    missing_parts = weight_keys - part_keys
+    if missing_weights or missing_parts:
+        import logging
+        logger = logging.getLogger(__name__)
+        if missing_weights:
+            logger.debug("compute_weighted_score: 因子 %s 有分数但无权重（策略 %s），按零贡献处理", missing_weights, strategy)
+        if missing_parts:
+            logger.debug("compute_weighted_score: 因子 %s 有权重但无分数（策略 %s），按零贡献处理", missing_parts, strategy)
+
     return sum(
         parts.get(k, 0) * weights.get(k, 0)
-        for k in set(parts) | set(weights)
-        if k not in ("label", "two_stage")
+        for k in all_keys
     )
 
 

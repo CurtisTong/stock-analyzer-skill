@@ -130,9 +130,7 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
 
                 # 离开段面积 < 进入段面积 * 容差阈值 = 盘整背驰
                 # v2.4.0: 容差阈值从函数参数读取，默认 0.8（允许 20% 容差）
-                range_tolerance_local = range_tolerance
-                if exit_area < entry_area * range_tolerance_local:
-                    zs.get("mid", 0)
+                if exit_area < entry_area * range_tolerance:
                     last_close = closes[-1]
                     if last_close > zs.get("zg", 0):
                         result["range_beichi"].append(

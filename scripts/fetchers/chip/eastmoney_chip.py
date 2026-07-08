@@ -92,15 +92,23 @@ class MarginFetcher(BaseFetcher):
 
 
 def _get_secid(code: str) -> str:
-    """将股票代码转换为 secid 格式（如 SH600989）。"""
+    """将股票代码转换为东财 F10 API 格式（如 SH600519, SZ000858, BJ430047）。
+
+    复用 common.utils.infer_exchange 统一推断交易所前缀，正确处理北交所。
+    """
+    from common.utils import infer_exchange, plain_code
+
     code = code.strip()
-    if code.startswith(("sh", "sz", "SH", "SZ")):
-        return code.upper()
-    # 纯数字代码，根据首位判断交易所
-    if code.startswith(("6", "9")):
-        return f"SH{code}"
-    else:
-        return f"SZ{code}"
+    plain = plain_code(code)
+    market = infer_exchange(code)
+    if market:
+        return f"{market.upper()}{plain}"
+    # fallback: 根据数字段推断
+    if plain.startswith(("60", "68", "51", "56", "58", "90")):
+        return f"SH{plain}"
+    if plain.startswith(("43", "83", "87", "88", "92")):
+        return f"BJ{plain}"
+    return f"SZ{plain}"
 
 
 class HolderFetcher(BaseFetcher):

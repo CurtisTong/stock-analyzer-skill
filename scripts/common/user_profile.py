@@ -42,6 +42,21 @@ DEFAULT_USER_PROFILE = {
 }
 
 
+def _deep_merge(base: dict, override: dict) -> dict:
+    """递归深合并：override 覆盖 base 的值，嵌套 dict 递归合并而非替换。
+
+    确保 position_limit 等嵌套配置只覆盖用户指定的字段，
+    保留未配置字段的默认值。
+    """
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
 def _profile_path() -> Path:
     return Path(__file__).resolve().parent.parent / "data" / "user_profile.yaml"
 
@@ -71,9 +86,8 @@ def load_user_profile(path: Optional[str] = None) -> dict:
         logger.warning("user_profile 解析失败: %s，使用默认", e)
         return dict(DEFAULT_USER_PROFILE)
 
-    # 与默认合并
-    merged = dict(DEFAULT_USER_PROFILE)
-    merged.update(user_data)
+    # 与默认合并（深合并，保留嵌套默认值）
+    merged = _deep_merge(dict(DEFAULT_USER_PROFILE), user_data)
     return merged
 
 

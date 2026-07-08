@@ -37,6 +37,18 @@ class TestGetSecid:
     def test_pure_code_starts_with_9(self):
         assert _get_secid("900901") == "SH900901"
 
+    def test_bj_prefix(self):
+        """北交所代码应返回 BJ 前缀。"""
+        assert _get_secid("bj430047") == "BJ430047"
+
+    def test_pure_code_starts_with_43(self):
+        """43 开头纯数字应识别为北交所。"""
+        assert _get_secid("430047") == "BJ430047"
+
+    def test_pure_code_starts_with_83(self):
+        """83 开头纯数字应识别为北交所。"""
+        assert _get_secid("830001") == "BJ830001"
+
 
 class TestMarginFetcher:
     """MarginFetcher 测试。"""

@@ -15,20 +15,39 @@ logger = logging.getLogger(__name__)
 
 # P2-H5: 持续性信号（MACD 金叉/死叉、均线突破等）edge-triggered 状态记录。
 # 同一标的同一信号类型当日只推送一次，避免调度间隔 > 去重窗口时重复推送。
-# key: f"{code}:{alert_type}", value: 日期字符串（YYYY-MM-DD）
+# key: f"{code}:{alert_type}", value: (日期字符串, 记录时间戳)
+_NOTIFIED_MAX_SIZE = 10000  # 最大容量限制
+_NOTIFIED_TTL_SECONDS = 86400  # 24h 过期清理
+
 _notified_signals: dict = {}
 _notified_lock = threading.Lock()
 
 
 def _should_notify_signal(code: str, alert_type: str) -> bool:
-    """持续性信号当日是否首次触发（edge-triggered）。"""
+    """持续性信号当日是否首次触发（edge-triggered），同时清理过期条目。"""
+    import time
+
+    now = time.time()
     today = datetime.now().strftime("%Y-%m-%d")
     key = f"{code}:{alert_type}"
     with _notified_lock:
+        # 容量 + TTL 过期清理
+        if len(_notified_signals) > _NOTIFIED_MAX_SIZE:
+            expired = [
+                k for k, v in _notified_signals.items()
+                if isinstance(v, tuple) and now - v[1] > _NOTIFIED_TTL_SECONDS
+            ]
+            for k in expired:
+                del _notified_signals[k]
         last = _notified_signals.get(key)
-        if last == today:
-            return False
-        _notified_signals[key] = today
+        if isinstance(last, tuple):
+            if last[0] == today:
+                return False
+        elif isinstance(last, str):
+            # 向后兼容旧格式（纯日期字符串）
+            if last == today:
+                return False
+        _notified_signals[key] = (today, now)
     return True
 
 # 模块级缓存（惰性初始化）

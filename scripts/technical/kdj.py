@@ -45,16 +45,24 @@ def kdj_full(closes, highs, lows, n=9, board="主板"):
         dunhua_periods = 5
 
     # 计算 KDJ 序列
+    # 从 i=0 开始迭代，前 n-1 根仅更新 K/D 冷启动值（不输出），
+    # 确保 50 初始值有足够迭代收敛，避免跳过前 n-1 根导致冷启动偏差
     k_series, d_series = [], []
     k_val, d_val = 50, 50
-    for i in range(n - 1, len(closes)):
-        low_n = min(lows[i - n + 1 : i + 1])
-        high_n = max(highs[i - n + 1 : i + 1])
+    for i in range(len(closes)):
+        if i < n - 1:
+            # 数据不足 n 根，仅更新 K/D 值用于冷启动
+            low_n = min(lows[: i + 1])
+            high_n = max(highs[: i + 1])
+        else:
+            low_n = min(lows[i - n + 1 : i + 1])
+            high_n = max(highs[i - n + 1 : i + 1])
         rsv = ((closes[i] - low_n) / (high_n - low_n) * 100) if high_n != low_n else 50
         k_val = 2 / 3 * k_val + 1 / 3 * rsv
         d_val = 2 / 3 * d_val + 1 / 3 * k_val
-        k_series.append(k_val)
-        d_series.append(d_val)
+        if i >= n - 1:
+            k_series.append(k_val)
+            d_series.append(d_val)
 
     k_now = k_series[-1]
     d_now = d_series[-1]

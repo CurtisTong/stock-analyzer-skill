@@ -187,11 +187,14 @@ def normalize_volume(raw: int | str | None, source: str) -> int:
 def normalize_amount(raw: object, source: str) -> float:
     """将不同数据源的成交额归一化为元。
     腾讯: 万元 → 元 (×10000)
+    tushare: 千元 → 元 (×1000)
     东财/efinance/akshare/新浪: 元 (原值)
     """
     v = to_float(raw)
     if source == "tencent":
         return v * 10000
+    if source == "tushare":
+        return v * 1000
     return v
 
 

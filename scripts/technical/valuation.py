@@ -16,7 +16,7 @@ def pe_percentile_score(
       - pe > pe_high  → 80 ~ 95 封顶
     """
     if pe <= 0:
-        return 50.0
+        return 85.0  # 亏损股高估值风险，不应被评为"中性"
     if pe <= pe_low:
         return 15.0
     if pe <= pe_mid:

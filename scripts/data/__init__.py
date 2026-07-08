@@ -210,8 +210,9 @@ def get_finance(code: str, use_cache: bool = True) -> list:
 
 def _dict_to_quote(d: dict) -> Quote:
     to_float, to_int = _get_common_helpers()
+    source = d.get("source", "")
     return Quote(
-        code=d.get("code", ""),
+        code=_normalize_quote_code(d.get("code", "")),
         name=d.get("name", ""),
         price=to_float(d.get("price")),
         prev_close=to_float(d.get("prev_close")),
@@ -220,14 +221,14 @@ def _dict_to_quote(d: dict) -> Quote:
         low=to_float(d.get("low")),
         change_pct=to_float(d.get("change_pct")),
         change_amt=to_float(d.get("change_amt")),
-        volume=to_int(d.get("volume")),
-        amount=to_float(d.get("amount")),
+        volume=_normalize_volume(to_int(d.get("volume")), source),
+        amount=_normalize_amount(to_float(d.get("amount")), source),
         turnover=to_float(d.get("turnover")),
         pe=to_float(d.get("pe")),
         pb=to_float(d.get("pb")),
-        total_cap=to_float(d.get("total_cap")),
-        circulating_cap=to_float(d.get("circulating_cap")),
-        source=d.get("source", ""),
+        total_cap=_normalize_cap(to_float(d.get("total_cap")), source),
+        circulating_cap=_normalize_cap(to_float(d.get("circulating_cap")), source),
+        source=source,
         fetch_time=d.get("fetch_time") or _now_iso(),
     )
 
@@ -242,6 +243,37 @@ def _normalize_volume(raw_volume: int, source: str) -> int:
     return normalize_volume(raw_volume, source)
 
 
+def _normalize_amount(raw_amount: float, source: str) -> float:
+    """将 amount 统一归一化为"元"。
+
+    委托给 common.normalize_amount，保持单一真相源。
+    """
+    from common import normalize_amount
+
+    return normalize_amount(raw_amount, source)
+
+
+def _normalize_cap(raw_cap: float, source: str) -> float:
+    """将 total_cap/circulating_cap 归一化为"亿"。
+
+    efinance/akshare 返回单位为元，需除以 1e8。
+    其他源（东财/腾讯/雪球等）已为亿元单位。
+    """
+    if source in ("efinance", "akshare"):
+        return raw_cap / 1e8
+    return raw_cap
+
+
+def _normalize_quote_code(code: str) -> str:
+    """将 quote 中的 code 归一化为 sh/sz/bj 前缀格式。"""
+    from common import normalize_quote_code
+
+    try:
+        return normalize_quote_code(code)
+    except Exception:
+        return code
+
+
 def _dict_to_kline_bar(d: dict) -> KlineBar:
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
@@ -253,7 +285,7 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
         low=to_float(d.get("low")),
         close=to_float(d.get("close")),
         volume=_normalize_volume(raw_volume, source),
-        amount=to_float(d.get("amount")),
+        amount=_normalize_amount(to_float(d.get("amount")), source),
         pct_chg=to_float(d.get("pct_chg")),
         source=source,
         fetch_time=d.get("fetch_time") or _now_iso(),

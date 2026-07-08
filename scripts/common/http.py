@@ -259,7 +259,15 @@ def _http_get_requests(
         raise RateLimitError(url, retry_after=int(retry_after) if retry_after else None)
 
     resp.raise_for_status()
-    return resp.content
+
+    # 响应体大小检查（与 stdlib 路径保持一致，防止 OOM）
+    content = resp.content
+    if len(content) > MAX_RESPONSE_SIZE:
+        logger.warning(
+            "响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url
+        )
+        return content[:MAX_RESPONSE_SIZE]
+    return content
 
 
 def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:

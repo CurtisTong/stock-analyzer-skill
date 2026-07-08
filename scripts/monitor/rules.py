@@ -278,7 +278,9 @@ def check_portfolio_alerts(
             )
 
     # 2. 连续跑输基准
-    # 简化：当前持仓平均收益 vs 基准收益差值过大
+    # 当前为单次快照模式：组合当日加权收益 vs 基准收益的差值超过阈值时触发。
+    # underperform_days 阈值含义：跑输基准的百分点差值（非天数），
+    # 默认 2 表示跑输基准 2 个百分点时触发预警。
     if benchmark_change_pct is not None and positions:
         total_value = sum(
             quotes.get(p["code"], {}).get("price", p.get("cost", 0))
@@ -300,11 +302,11 @@ def check_portfolio_alerts(
                 / total_value
             )
             diff = weighted_pnl_pct - benchmark_change_pct
-            if diff < -cfg["underperform_days"] * 1.0:  # 跑输阈值（每跑输一天记 1%）
+            if diff < -cfg["underperform_days"]:
                 alerts.append(
                     {
                         "type": "underperform_days",
-                        "message": f"组合跑输沪深300 {diff:.1f}%（{benchmark_change_pct:.1f}% vs {weighted_pnl_pct:.1f}%）",
+                        "message": f"组合跑输沪深300 {abs(diff):.1f}个百分点（基准{benchmark_change_pct:.1f}% vs 组合{weighted_pnl_pct:.1f}%）",
                         "urgent": False,
                     }
                 )

@@ -220,8 +220,10 @@ def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
     trend_penalty = 0.6 if vol_signal == -1 else 1.0
 
     rsi_base = 7
-    if 20 <= rsi < 30:
-        rsi_base = 10 * trend_penalty  # 深度超卖，反弹概率最高
+    if rsi < 20:
+        rsi_base = 12 * trend_penalty  # 极度超卖（<20），反弹概率最高
+    elif 20 <= rsi < 30:
+        rsi_base = 10 * trend_penalty  # 深度超卖，反弹概率较高
     elif 30 <= rsi <= 40:
         rsi_base = 8 * trend_penalty  # 超卖区，反弹机会较好
     elif 40 < rsi <= 60:
@@ -230,8 +232,6 @@ def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
         rsi_base = 5
     elif rsi > 70:
         rsi_base = 3
-    else:
-        rsi_base = 5 * trend_penalty  # 极度超卖（<20）也降权，避免抄底陷阱
     return clamp(rsi_base * type_w["rsi"], 0, 15)
 
 

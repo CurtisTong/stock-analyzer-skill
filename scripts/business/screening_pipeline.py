@@ -43,6 +43,17 @@ from business.universe_loader import (
 
 logger = logging.getLogger(__name__)
 
+# ScreeningService 模块级缓存：避免循环中重复创建实例
+_screening_service_instance = None
+
+
+def _get_screening_service() -> ScreeningService:
+    """获取 ScreeningService 单例（缓存复用，避免循环中重复创建）。"""
+    global _screening_service_instance
+    if _screening_service_instance is None:
+        _screening_service_instance = ScreeningService()
+    return _screening_service_instance
+
 
 def analyze_code(
     quote,
@@ -85,7 +96,7 @@ def analyze_code(
         regime=regime,
         no_chip=getattr(args, "no_chip", False),
     )
-    return ScreeningService()._analyze_stock(ctx)
+    return _get_screening_service()._analyze_stock(ctx)
 
 
 def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
@@ -103,7 +114,7 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
         "min_cap": args.min_cap,
         "exclude_loss": args.exclude_loss,
     }
-    svc = ScreeningService()
+    svc = _get_screening_service()
     rejected = svc._hard_filter(quote, fin, filters)
     industry = infer_industry(
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")

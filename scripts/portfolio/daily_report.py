@@ -33,16 +33,65 @@ class DailyReportGenerator:
     """持仓日报生成器。"""
 
     def __init__(self, portfolio_path: str = None):
-        if portfolio_path is None:
-            portfolio_path = PROJECT_ROOT / "scripts" / "data" / "portfolio.json"
-        self.portfolio_path = Path(portfolio_path)
+        self._portfolio_path = portfolio_path
+        self._pm = None
+
+    def _get_pm(self):
+        """惰性初始化 PortfolioManager（通过架构层操作而非直接读写文件）。"""
+        if self._pm is None:
+            from portfolio.manager import PortfolioManager
+
+            try:
+                if self._portfolio_path:
+                    self._pm = PortfolioManager(self._portfolio_path)
+                else:
+                    self._pm = PortfolioManager()
+            except Exception:
+                # PortfolioManager 对非标准格式（如 v1 纯列表）会抛异常，回退 None
+                self._pm = None
+        return self._pm
+
+    def _is_real_portfolio(self) -> bool:
+        """判断是否有真实持仓（排除示例数据）。"""
+        pm = self._get_pm()
+        if pm is None:
+            # PortfolioManager 初始化失败，回退直接文件读取
+            return bool(self._load_portfolio_raw())
+        # PortfolioManager 对不存在文件会返回示例数据，需排除
+        if pm.is_example or pm.is_virtual:
+            return False
+        return bool(pm.get_positions())
+
+    def _load_portfolio_raw(self) -> list:
+        """直接读取持仓文件（回退方案，兼容 v1 纯列表格式）。"""
+        if self._portfolio_path:
+            p = Path(self._portfolio_path)
+        else:
+            p = PROJECT_ROOT / "scripts" / "data" / "portfolio.json"
+        if not p.exists():
+            return []
+        try:
+            with open(p, encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return []
+        if isinstance(data, dict) and "positions" in data:
+            return data["positions"]
+        if isinstance(data, list):
+            return data
+        return []
 
     def generate(self) -> str:
         """生成日报。"""
-        portfolio = self._load_portfolio()
-
-        if not portfolio:
+        # 先判断是否有真实持仓（排除示例数据）
+        if not self._is_real_portfolio():
             return self._generate_empty_report()
+
+        pm = self._get_pm()
+        if pm is not None:
+            portfolio = pm.get_positions()
+        else:
+            portfolio = self._load_portfolio_raw()
 
         # 获取实时行情
         quotes = self._fetch_quotes(portfolio)
@@ -55,7 +104,7 @@ class DailyReportGenerator:
         for holding in portfolio:
             code = holding.get("code", "")
             name = holding.get("name", code)
-            # 兼容 v2 格式（quantity/cost）和旧格式（shares/cost_price）
+            # 兼容 v2 格式（quantity/cost）和 v1 格式（shares/cost_price）
             quantity = holding.get("quantity") or holding.get("shares", 0)
             cost = holding.get("cost") or holding.get("cost_price", 0)
 
@@ -99,25 +148,6 @@ class DailyReportGenerator:
         )
 
         return report
-
-    def _load_portfolio(self) -> list:
-        """加载持仓数据（兼容 v1/v2 格式）。"""
-        if not self.portfolio_path.exists():
-            return []
-
-        try:
-            with open(self.portfolio_path, encoding="utf-8") as f:
-                data = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return []
-
-        # v2 格式：{"version": 2, "positions": [...]}
-        if isinstance(data, dict) and "positions" in data:
-            return data["positions"]
-        # v1 格式：[...] 平铺列表
-        if isinstance(data, list):
-            return data
-        return []
 
     def _parse_quote(self, response: str, code: str) -> dict:
         """解析腾讯行情数据（兼容旧测试接口）。"""
