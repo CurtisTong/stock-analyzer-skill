@@ -42,10 +42,13 @@ def lock_path(path: Path) -> Path:
 
 @contextmanager
 def file_lock(path: Path, timeout: float = 10.0):
-    """基于文件锁的并发保护机制（含 stale lock 检测）。
+    """基于文件锁的并发保护机制（含 stale lock 检测 + PID 复用防御）。
 
-    锁文件中写入 PID，启动时检查持有锁的进程是否存活。
-    若进程已退出则清理残留锁文件，避免永久阻塞。
+    锁文件格式：`{pid}:{created_at_ts}`（ISO 紧凑格式或 epoch）。
+    - PID 存活 + 锁创建时间在 _LOCK_STALE_SECONDS 内 → 锁有效，等待
+    - PID 已死 或 锁创建时间超时 → 视为 stale lock，自动清理
+    - 文件内容损坏 → 视为 stale lock，自动清理
+    - PID 复用 + 旧锁未超时 → 仍视为有效（保守策略，避免误删活锁）
 
     Args:
         path: 数据文件路径
@@ -61,6 +64,9 @@ def file_lock(path: Path, timeout: float = 10.0):
     # 先获取进程内线程锁，确保同进程多线程不会因共享 PID 而互相删除锁文件
     intra_lock = _get_intra_lock(str(lp))
 
+    # 锁超过此秒数视为 stale（即便 PID 还活着）
+    _LOCK_STALE_SECONDS = 300  # 5 分钟
+
     def _is_pid_alive(pid: int) -> bool:
         try:
             os.kill(pid, 0)
@@ -68,14 +74,36 @@ def file_lock(path: Path, timeout: float = 10.0):
         except (OSError, ProcessLookupError):
             return False
 
+    def _parse_lock_content(content: str):
+        """解析锁文件内容，返回 (pid, created_ts) 或 (None, None)。"""
+        try:
+            parts = content.strip().split(":", 1)
+            if len(parts) == 2:
+                return int(parts[0]), float(parts[1])
+            return int(parts[0]), 0.0
+        except (ValueError, IndexError):
+            return None, None
+
     def _try_clean_stale_lock() -> None:
         try:
             content = lp.read_text(encoding="utf-8").strip()
-            old_pid = int(content)
-            if not _is_pid_alive(old_pid):
+            old_pid, created_ts = _parse_lock_content(content)
+            if old_pid is None:
+                # 文件内容损坏：清掉
+                lp.unlink(missing_ok=True)
+                return
+            # 三种 stale 情形：进程已死 / 内容超时 / 文件过老
+            pid_dead = not _is_pid_alive(old_pid)
+            too_old = (created_ts > 0
+                       and datetime.now().timestamp() - created_ts > _LOCK_STALE_SECONDS)
+            if pid_dead or too_old:
                 lp.unlink(missing_ok=True)
         except (ValueError, OSError):
-            pass
+            # 损坏文件：尝试清掉
+            try:
+                lp.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     try:
         # 进程内线程锁优先（阻止同进程线程并发进入文件锁竞争）
@@ -85,7 +113,9 @@ def file_lock(path: Path, timeout: float = 10.0):
             while True:
                 try:
                     lock_fd = os.open(str(lp), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                    os.write(lock_fd, str(os.getpid()).encode())
+                    # 写 pid:created_at 复合键，防御 PID 复用
+                    payload = f"{os.getpid()}:{datetime.now().timestamp()}"
+                    os.write(lock_fd, payload.encode())
                     break
                 except FileExistsError:
                     _try_clean_stale_lock()

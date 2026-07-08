@@ -105,7 +105,7 @@ def dcf_valuation(
         if profit_yoy > 0:
             growth_rate = min(profit_yoy / 100, 0.30)  # 上限 30%
         else:
-                growth_rate = 0.05  # 默认 5%
+            growth_rate = 0.05  # 默认 5%
 
     # 增长率合理性约束
     growth_rate = max(0.01, min(growth_rate, 0.30))  # 1%-30%

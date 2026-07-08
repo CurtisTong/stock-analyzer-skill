@@ -152,7 +152,12 @@ class TradeLog:
         self._data.setdefault("records", []).append(record)
 
         if auto_save:
-            self.save()
+            # P0-7: 在锁内重读磁盘+追加+写回，避免并发 record() 后写者覆盖前者
+            with _file_lock(self._path, timeout=5.0):
+                latest = self._load()
+                latest.setdefault("records", []).append(record)
+                _raw_write(self._path, latest)
+            self._data = latest
 
         return record
 

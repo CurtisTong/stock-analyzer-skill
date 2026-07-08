@@ -40,20 +40,27 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
     pe = to_float(quote.get("pe", 0))
     if dividend_yield <= 0 and price > 0 and pe > 0:
         # PE 倒数作为股息率近似（按行业差异化分红率）
+        # 上限 10%：PE<3 时 (1/PE)*payout_ratio 可能超 30%，误判为"高分红"
         payout_ratio = _get_industry_payout_ratio(industry)
-        dividend_yield = (1 / pe) * payout_ratio * 100
+        dividend_yield = min((1 / pe) * payout_ratio * 100, 10.0)
 
     yield_score = _score_dividend_yield(dividend_yield, industry)
 
     # ---- 2. 分红连续性评分（24分）----
     # 检查分红记录：从 fin 中获取历史分红信息
     dividend_years = _count_dividend_years(fin)
-    continuity_score = _score_continuity(dividend_years)
+    # None = 数据缺失 → 连续性维度中性（不扣分）
+    if dividend_years is None:
+        continuity_score = 8.0  # 中性，约 1/3 满分
+    else:
+        continuity_score = _score_continuity(dividend_years)
 
     # ---- 3. 分红率稳定性评分（16分）----
     # 分红率 = 每股分红 / EPS，合理区间 20%-70%
     payout_ratio = _calc_payout_ratio(fin)
-    stability_score = _score_stability(payout_ratio, dividend_years)
+    # dividend_years 为 None 时稳定性维度也走中性
+    years_for_stability = dividend_years if dividend_years is not None else 0
+    stability_score = _score_stability(payout_ratio, years_for_stability)
 
     total = yield_score + continuity_score + stability_score
     return clamp(total)
@@ -122,11 +129,17 @@ def _score_dividend_yield(yield_pct: float, industry: str) -> float:
         return 0.0
 
 
-def _count_dividend_years(fin: dict) -> int:
-    """估算连续分红年数。返回 0-10。使用 FinanceRecord.consecutive_dividend_years 字段。"""
-    if not fin:
-        return 0
+def _count_dividend_years(fin: dict):
+    """估算连续分红年数。返回 0-10 或 None（数据缺失）。
 
+    None 表示"数据未采集"，调用方应中性处理（不扣分），
+    而 0 表示"确认连续 0 年"，按连续不分红扣分。
+    """
+    if not fin:
+        return None
+    # 区分缺失和 0：字段不存在时返回 None（中性）
+    if "consecutive_dividend_years" not in fin:
+        return None
     consecutive_years = int(fin.get("consecutive_dividend_years", 0) or 0)
     return min(consecutive_years, 10)
 

@@ -140,6 +140,7 @@ class NotificationManager:
         self._throttle_log: dict[str, float] = {}  # key -> last_sent_ts
         self._daily_count = 0
         self._daily_date = ""
+        self._last_throttle_gc: float = 0  # 上次清理 throttle_log 的时间戳
         self._lock = threading.Lock()
         self._log_write_count = 0  # 写入计数器，用于批量检查轮转
         self._setup_channels()
@@ -217,6 +218,13 @@ class NotificationManager:
                 self._daily_date = today
                 self._daily_count = 0
 
+            # P0-19: 惰性清理过期 throttle 条目（每小时一次），
+            # 防止 throttle_key 含动态数据时无限增长
+            if (not self._last_throttle_gc
+                    or time.time() - self._last_throttle_gc > 3600):
+                self._gc_throttle_log(dedup_window)
+                self._last_throttle_gc = time.time()
+
             # 每日上限（紧急消息不受限）
             if not urgent and self._daily_count >= daily_limit:
                 return False
@@ -232,6 +240,13 @@ class NotificationManager:
             self._daily_count += 1
 
         return True
+
+    def _gc_throttle_log(self, dedup_window: int) -> None:
+        """清理过期的 throttle 条目（已超出 dedup_window 即可丢弃）。"""
+        now = time.time()
+        expired = [k for k, v in self._throttle_log.items() if now - v > dedup_window]
+        for k in expired:
+            self._throttle_log.pop(k, None)
 
     def _is_quiet_hours(self) -> bool:
         """检查是否在静默时段（非交易时段）。"""

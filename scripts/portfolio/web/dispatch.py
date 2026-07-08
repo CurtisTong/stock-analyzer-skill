@@ -257,7 +257,11 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
                 400,
                 "'target_buy=0' is ignored by PortfolioManager; omit to leave unchanged",
             )
-        extra["target_buy"] = _parse_float(extra["target_buy"]) or 0
+        # P0-9: 负数校验（与 _do_add_watch 一致）
+        target_buy_raw = _parse_float(extra["target_buy"])
+        if target_buy_raw is not None and target_buy_raw < 0:
+            return _err("invalid_target_buy", 400, "target_buy must be >= 0")
+        extra["target_buy"] = target_buy_raw or 0
     if "target_sell" in extra:
         if extra["target_sell"] == 0:
             return _err(
@@ -265,7 +269,11 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
                 400,
                 "'target_sell=0' is ignored by PortfolioManager; omit to leave unchanged",
             )
-        extra["target_sell"] = _parse_float(extra["target_sell"]) or 0
+        # P0-9: 负数校验（与 _do_add_watch 一致）
+        target_sell_raw = _parse_float(extra["target_sell"])
+        if target_sell_raw is not None and target_sell_raw < 0:
+            return _err("invalid_target_sell", 400, "target_sell must be >= 0")
+        extra["target_sell"] = target_sell_raw or 0
 
     existing = pm.get_watch(code)
     if existing is None:

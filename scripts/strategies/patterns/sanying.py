@@ -40,7 +40,7 @@ def detect_sanying_yiyang(records, volumes, code=""):
             # 排除非下跌序列：三阴一阳本意是"洗盘后拉升"，
             # 三阴整体是上涨的（c2 > o0，total_decline > 0）不构成本形态
             if total_decline > -1.0:
-                return False
+                continue
 
             # 计算成交量比（阳线 vs 三阴均量）
             avg_yin_vol = (v0 + v1 + v2) / 3
