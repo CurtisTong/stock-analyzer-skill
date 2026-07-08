@@ -97,10 +97,9 @@ def _render_rsi_section(rsi_data):
     """渲染 RSI 段落。"""
     lines = []
     lines.append("\n## RSI")
-    rsi_desc = {1: "超卖", -1: "超买"}.get(rsi_data.get("signal", 0), "正常")
-    lines.append(
-        f"  RSI-{rsi_data.get('period', 14)}: {rsi_data.get('rsi', 50)} ({rsi_desc})"
-    )
+    zone = rsi_data.get("zone_desc", "")
+    rsi_val = rsi_data.get("rsi", 50)
+    lines.append(f"  RSI-{rsi_data.get('period', 14)}: {rsi_val} ({zone})")
     return lines
 
 

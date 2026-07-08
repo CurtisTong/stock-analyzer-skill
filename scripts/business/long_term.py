@@ -8,8 +8,8 @@
 - 估值（20%）：PE 分位、PB 分位
 
 用法：
-    python3 scripts/technical/long_term.py sh600519
-    python3 scripts/technical/long_term.py sh600519 --json
+    python3 scripts/business/long_term.py sh600519
+    python3 scripts/business/long_term.py sh600519 --json
 """
 
 import json

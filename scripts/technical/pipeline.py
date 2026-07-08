@@ -1,9 +1,15 @@
 """统一的技术指标计算管道。
 
 为 StockAnalysisService 和 ScreeningService 提供共享的指标计算。
+复用 technical 包的指标函数，避免重复实现导致不一致。
 """
 
 import statistics
+
+from technical.moving_average import ma_system
+from technical.macd import macd_full
+from technical.rsi import rsi_features
+from technical.volume import volume_analysis
 
 
 def compute_indicators(kline_bars: list, indicators: list[str] | None = None) -> dict:
@@ -16,8 +22,6 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
     Returns:
         指标 dict
     """
-    from technical import macd_full, rsi_features, volume_analysis
-
     # 统一过滤：整条记录的 close 和 volume 都 > 0 才保留，确保数组对齐
     valid_bars = [b for b in kline_bars if b.close > 0 and b.volume > 0]
     closes = [b.close for b in valid_bars]
@@ -37,15 +41,25 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
     result = {"closes": closes}
 
     if all_indicators or "trend" in indicators:
-        ma10 = statistics.mean(closes[-10:])
-        ma20 = (
-            statistics.mean(closes[-20:])
-            if len(closes) >= 20
-            else statistics.mean(closes)
-        )
-        result["trend"] = (
-            1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
-        )
+        # 复用 ma_system 的 MA10/MA20，避免重复计算
+        ma_info = ma_system(closes)
+        ma10 = ma_info.get("ma10")
+        ma20 = ma_info.get("ma20")
+        if ma10 is not None and ma20 is not None:
+            result["trend"] = (
+                1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
+            )
+        else:
+            # 数据不足时回退到简单计算
+            ma10 = statistics.mean(closes[-10:])
+            ma20 = (
+                statistics.mean(closes[-20:])
+                if len(closes) >= 20
+                else statistics.mean(closes)
+            )
+            result["trend"] = (
+                1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
+            )
         result["ma10"] = ma10
         result["ma20"] = ma20
 

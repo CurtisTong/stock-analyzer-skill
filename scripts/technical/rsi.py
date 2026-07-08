@@ -34,4 +34,21 @@ def rsi_features(closes, period=14):
         signal = 1
     elif rsi > 70:
         signal = -1
-    return {"rsi": round(rsi, 1), "signal": signal}
+
+    # 区间描述（与 KDJ/BOLL 的 signal_desc/position_desc 风格一致）
+    if rsi < 20:
+        zone_desc = "极度超卖"
+    elif rsi < 30:
+        zone_desc = "超卖区"
+    elif rsi < 40:
+        zone_desc = "偏弱"
+    elif rsi <= 60:
+        zone_desc = "中性"
+    elif rsi <= 70:
+        zone_desc = "偏强"
+    elif rsi <= 80:
+        zone_desc = "超买区"
+    else:
+        zone_desc = "极度超买"
+
+    return {"rsi": round(rsi, 1), "signal": signal, "zone_desc": zone_desc}

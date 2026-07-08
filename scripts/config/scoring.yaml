@@ -173,6 +173,17 @@ experts:
   soros:
     market_liquidity_floor_yi: 7000  # 两市日均成交额（亿元），低于此值视为流动性枯竭
 
+# 情绪温度计阈值（v1.15.0 起可配置）
+# 两融余额绝对阈值（亿元），随市场扩容需定期更新
+sentiment:
+  margin_balance_thresholds:
+    - [19000, 85]  # >19000亿 → 85分
+    - [18000, 75]
+    - [17000, 65]
+    - [16000, 55]
+    - [15000, 45]
+    - [0, 35]      # ≤15000亿 → 35分
+
 # 校准阈值（v1.7.1 起可配置，注意：calibration_threshold_pct 当前未被 experts/calibration.py 读取）
 # 注意：calibration_threshold_pct 当前未被代码读取，校准系统使用 data/expert_calibration.json
 calibration:

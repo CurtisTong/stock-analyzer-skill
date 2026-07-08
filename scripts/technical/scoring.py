@@ -562,11 +562,11 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
             state = "熊市"
             confidence = "高" if avg_change < -2.5 else "中"
             signals.append(f"持续下跌(均值{avg_change:.1f}%)")
-        elif avg_change > 0.3:
+        elif avg_change > 0.5:
             state = "牛市"
             confidence = "低"
             signals.append(f"温和上涨(均值{avg_change:.1f}%)")
-        elif avg_change < -0.3:
+        elif avg_change < -0.5:
             state = "熊市"
             confidence = "低"
             signals.append(f"温和下跌(均值{avg_change:.1f}%)")

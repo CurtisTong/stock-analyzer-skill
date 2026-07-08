@@ -51,7 +51,8 @@ from technical.scoring import (
     _market_weight_adjustments,
 )
 from technical.report import render_report, render_quick
-from technical.valuation import pe_percentile_score, incremental_ma
+from technical.valuation import pe_percentile_score
+from technical.moving_average import incremental_ma
 
 
 @dataclass
@@ -196,6 +197,8 @@ def _compute_all(inp: TechnicalInput):
         "pe_percentile": round(pe_pct, 1),
         "peg": round(peg, 2),
     }
+    # 估值因子评分（供 scoring.py composite_score 使用，与 signals.py 的 pe_percentile 来源统一）
+    features["valuation_score"] = round(pe_pct, 1)
 
     # 市场环境
     if do_classify:

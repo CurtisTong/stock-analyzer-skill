@@ -21,6 +21,7 @@ from datetime import datetime
 from urllib.parse import urlencode
 
 from common import http_get
+from config.loader import safe_get
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +79,8 @@ class MarketDataFetcher:
                 if height > continuous_height:
                     continuous_height = height
 
-            # 计算炸板率（需要另一个接口）
-            broken_rate = self._get_broken_rate()
+            # 计算炸板率（复用已获取的 pool 数据，避免重复请求同一接口）
+            broken_rate = self._calc_broken_rate(pool)
 
             return {
                 "limit_up_count": limit_up_count,
@@ -112,31 +113,12 @@ class MarketDataFetcher:
             logger.debug("获取跌停家数失败: %s", e)
             return 0
 
-    def _get_broken_rate(self) -> float:
-        """获取炸板率。"""
-        try:
-            url = "https://push2ex.eastmoney.com/getTopicZTPool"
-            params = {
-                "ut": _EASTMONEY_UT,
-                "dpt": "wz.ztzt",
-                "date": datetime.now().strftime("%Y%m%d"),
-            }
-            data = _http_get_json(url, params=params)
-
-            pool = data.get("data", {}).get("pool", [])
-            if not pool:
-                return 0
-
-            # 统计炸板次数
-            broken_count = 0
-            for item in pool:
-                if item.get("zbc", 0) > 0:  # 炸板次数
-                    broken_count += 1
-
-            return (broken_count / len(pool)) * 100 if pool else 0
-        except Exception as e:
-            logger.debug("获取炸板率失败: %s", e)
+    def _calc_broken_rate(self, pool: list) -> float:
+        """从已获取的涨停池数据计算炸板率（避免重复请求）。"""
+        if not pool:
             return 0
+        broken_count = sum(1 for item in pool if item.get("zbc", 0) > 0)
+        return (broken_count / len(pool)) * 100
 
     def get_margin_data(self) -> dict:
         """获取两融数据。
@@ -303,20 +285,31 @@ class SentimentCalculator:
         else:
             return 80
 
+    # 默认两融余额阈值（亿元→得分），可从 scoring.yaml::sentiment.margin_balance_thresholds 覆盖
+    _MARGIN_THRESHOLDS_DEFAULT = [
+        (19000, 85),
+        (18000, 75),
+        (17000, 65),
+        (16000, 55),
+        (15000, 45),
+        (0, 35),
+    ]
+
     def _calc_margin_score(self, balance: float) -> int:
-        """计算两融余额得分（亿）。"""
-        if balance > 19000:
-            return 85
-        elif balance > 18000:
-            return 75
-        elif balance > 17000:
-            return 65
-        elif balance > 16000:
-            return 55
-        elif balance > 15000:
-            return 45
-        else:
-            return 35
+        """计算两融余额得分（亿）。阈值从 scoring.yaml 加载，缺失时回退硬编码默认。"""
+        thresholds = self._get_margin_thresholds()
+        for threshold, score in thresholds:
+            if balance > threshold:
+                return score
+        return thresholds[-1][1] if thresholds else 35
+
+    @staticmethod
+    def _get_margin_thresholds() -> list:
+        """从配置加载两融余额阈值；缺失时回退默认。"""
+        cfg = safe_get("scoring.yaml", "sentiment.margin_balance_thresholds")
+        if cfg and isinstance(cfg, list) and len(cfg) >= 2:
+            return [(int(t[0]), int(t[1])) for t in cfg if len(t) >= 2]
+        return SentimentCalculator._MARGIN_THRESHOLDS_DEFAULT
 
     def _calc_level(self, score: int) -> str:
         """计算情绪等级。"""

@@ -8,6 +8,28 @@ from .core import sma, stddev
 _MA_PERIODS = [5, 10, 20, 60, 120, 250]
 
 
+def incremental_ma(closes: list, period: int) -> list:
+    """增量移动平均序列，O(N) 复杂度。
+
+    与传统逐窗口重算的 O(N*period) 相比，利用滑动窗口减去旧值加新值，
+    整体仅需一次遍历。
+
+    数据不足 period 根时返回 None，而非不准确的均值。
+    """
+    result: list[float | None] = []
+    window_sum = 0.0
+    for i, c in enumerate(closes):
+        window_sum += c
+        if i >= period:
+            window_sum -= closes[i - period]
+            result.append(window_sum / period)
+        elif i == period - 1:
+            result.append(window_sum / period)
+        else:
+            result.append(None)
+    return result
+
+
 def ma_system(closes):
     """均线系统分析。返回 MA 值、排列状态、粘合度、支撑/阻力均线。"""
     result = {}
