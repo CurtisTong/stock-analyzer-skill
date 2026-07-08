@@ -40,11 +40,13 @@ class SinaNorthboundFlowFetcher(BaseFetcher):
                 continue
             # 新浪字段：day/open/close/high/low/volume
             # 北向资金的 close 等字段含义：当日净流入额（亿元）
+            # 归一化：与东财（万元）对齐 → 乘以 10000
             date = row.get("day", "")
-            close = to_float(row.get("close"))  # 当日净流入
+            close_yi = to_float(row.get("close"))  # 当日净流入（亿元）
+            close_wan = close_yi * 10000  # → 万元
             result["days"].append({
                 "date": date,
-                "total_net": close,
+                "total_net": close_wan,
                 "sh_net": 0,  # 新浪不区分沪/深
                 "sz_net": 0,
                 "_source_breakdown_unavailable": True,

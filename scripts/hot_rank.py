@@ -190,16 +190,21 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
     rows = []
     for q in rough:
         bars = kline_map.get(q.code) or []
-        bar = next((b for b in bars if getattr(b, "day", "") == date_str), None)
-        if not bar or bar.volume <= 0:
+        # 新浪 fetcher 返回的是 dict，不是 KlineBar 对象，需用键访问
+        bar = next((b for b in bars if b.get("day", "") == date_str), None)
+        if not bar or float(bar.get("volume", 0) or 0) <= 0:
             continue
         # 新浪 K 线 volume 单位 = 股，amount 字段为空 → 用 volume × avg_price 估算（元）
+        high = float(bar.get("high", 0) or 0)
+        low = float(bar.get("low", 0) or 0)
+        close = float(bar.get("close", 0) or 0)
+        volume = float(bar.get("volume", 0) or 0)
         avg_price = (
-            (bar.high + bar.low) / 2
-            if (bar.high and bar.low)
-            else (bar.close or q.price)
+            (high + low) / 2
+            if (high and low)
+            else (close or q.price)
         )
-        amount_est = bar.volume * avg_price
+        amount_est = volume * avg_price
         # turnover = 成交额 / 流通市值
         turnover = (
             (amount_est / (q.circulating_cap * 1e8) * 100)
@@ -210,8 +215,8 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
             {
                 "code": q.code,
                 "name": q.name,
-                "price": getattr(bar, "close", 0) or q.price,
-                "change_pct": getattr(bar, "pct_chg", 0) or 0,
+                "price": close or q.price,
+                "change_pct": float(bar.get("pct_chg", 0) or 0),
                 "amount_1d": round(amount_est, 0),
                 "turnover_est": round(turnover, 2),
                 "hot_score": _hot_score(amount_est, turnover),

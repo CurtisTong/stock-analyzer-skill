@@ -54,6 +54,7 @@ class PytdxQuoteFetcher(BaseFetcher):
                 "pb": "",
                 "total_cap": "",
                 "circulating_cap": "",
+                "source": "pytdx",
             }
         except Exception as e:
             logger.debug("pytdx_quote 请求 %s:%s 失败: %s", host, port, e)

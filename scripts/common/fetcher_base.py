@@ -130,6 +130,10 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
     Returns:
         fetcher.fetch() 的返回值，或熔断/异常时 None
     """
+    # 与 DataFetcherManager.fetch 保持一致：code 白名单防御
+    # chip/event/flow/lhb 域不走 manager 但仍可能收到外部输入
+    if args and not _SAFE_CODE_PATTERN.match(str(args[0])):
+        return None
     if not fetcher.is_available():
         return None
     try:
