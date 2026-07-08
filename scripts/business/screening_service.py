@@ -567,10 +567,11 @@ def compute_weighted_score(parts, strategy, regime=None):
         if missing_weights:
             logger.debug("compute_weighted_score: 因子 %s 有分数但无权重（策略 %s），按零贡献处理", missing_weights, strategy)
         if missing_parts:
-            logger.debug("compute_weighted_score: 因子 %s 有权重但无分数（策略 %s），按零贡献处理", missing_parts, strategy)
+            logger.debug("compute_weighted_score: 因子 %s 有权重但无分数（策略 %s），按中性50处理", missing_parts, strategy)
 
+    # 缺失因子使用 50（中性值）而非 0，避免因数据缺失严重拉低综合评分
     return sum(
-        parts.get(k, 0) * weights.get(k, 0)
+        parts.get(k, 50) * weights.get(k, 0)
         for k in all_keys
     )
 

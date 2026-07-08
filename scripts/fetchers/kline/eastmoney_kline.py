@@ -8,9 +8,8 @@ from common import BaseFetcher, http_get, to_secid
 
 logger = logging.getLogger(__name__)
 
-# ut token 从环境变量读取，避免硬编码泄露
-_DEFAULT_UT = "fa5fd1943c7b386f172d6893dbbd4dc1"
-_UT = os.environ.get("EASTMONEY_UT_TOKEN", _DEFAULT_UT)
+# ut token 从环境变量读取，未配置时为空（API 调用需自行保证 token 有效）
+_UT = os.environ.get("EASTMONEY_UT_TOKEN", "")
 
 EASTMONEY_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid={secid}&ut=" + _UT + "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt={klt}&fqt=1&end=20500101&lmt={lmt}"
 KLT_MAP = {5: 5, 15: 15, 30: 30, 60: 60, 240: 101}
@@ -27,6 +26,8 @@ class EastmoneyKlineFetcher(BaseFetcher):
         datalen = kwargs.get("datalen", 30)
         secid = to_secid(code)
         klt = KLT_MAP.get(scale, 101)
+        if not _UT:
+            logger.debug("东方财富 K 线: EASTMONEY_UT_TOKEN 未配置，使用空 token 尝试")
         url = EASTMONEY_KLINE_URL.format(secid=secid, klt=klt, lmt=datalen)
         raw = http_get(url, timeout=10)
         try:
