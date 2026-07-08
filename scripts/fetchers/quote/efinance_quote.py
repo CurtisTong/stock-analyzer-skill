@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class EfinanceQuoteFetcher(BaseFetcher):
             return None
         try:
             # efinance 接受纯代码如 "600989"
-            plain = code.lstrip("shszSHSZbjBJ")
+            plain = plain_code(code)
 
             # 使用内存缓存避免重复拉取全量数据
             with _ef_cache_lock:

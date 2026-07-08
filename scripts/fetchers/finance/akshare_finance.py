@@ -2,7 +2,7 @@
 
 import logging
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class AkshareFinanceFetcher(BaseFetcher):
         if not HAS_AKSHARE:
             return None
         try:
-            plain = code.lstrip("shszSHSZbjBJ")
+            plain = plain_code(code)
             df = ak.stock_financial_abstract(symbol=plain)
             if df is None or df.empty:
                 return None

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """列出所有可用 skill（动态发现）。
 
-替代 help SKILL.md 中硬编码的"9 个核心 skill"。
+替代 help SKILL.md 中硬编码的 skill 列表。
 """
 
 import sys

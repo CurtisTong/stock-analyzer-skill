@@ -3,11 +3,14 @@
 所有信号都基于 `sh000300` 日 K，避免拉多源数据。
 """
 
+import logging
 import statistics
 from typing import Dict
 
 from common import to_float
 from data import get_kline
+
+logger = logging.getLogger(__name__)
 
 
 def detect_signals(benchmark: str = "sh000300", window: int = 60) -> Dict[str, float]:
@@ -28,7 +31,8 @@ def detect_signals(benchmark: str = "sh000300", window: int = 60) -> Dict[str, f
     """
     try:
         bars = get_kline(benchmark, scale=240, datalen=window)
-    except Exception:
+    except Exception as e:
+        logger.debug("获取基准 K 线失败 %s: %s", benchmark, e)
         return _zero_signals()
 
     if not bars or len(bars) < 20:

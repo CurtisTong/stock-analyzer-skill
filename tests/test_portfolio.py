@@ -319,3 +319,52 @@ class TestPersistence:
         # 重新构造 manager（不复写文件）应能加载
         mgr2 = PortfolioManager(path=str(tmp_path / "portfolio.json"))
         assert mgr2.get_position("sh600989") is not None
+
+
+# ═══════════════════════════════════════════════════════════════
+# 7. Undo 回滚
+# ═══════════════════════════════════════════════════════════════
+class TestUndo:
+    def _make_portfolio_with_oplog(self, tmp_path, monkeypatch):
+        """构造 manager 并将 oplog 路径重定向到临时目录（隔离默认 oplog）。"""
+        import portfolio.oplog as oplog_mod
+
+        oplog_file = tmp_path / "portfolio_oplog.json"
+        monkeypatch.setattr(oplog_mod, "_oplog_path", lambda: oplog_file)
+        return _make_portfolio(tmp_path)
+
+    def test_undo_restores_previous_state(self, tmp_path, monkeypatch):
+        """undo 应恢复 add_position 前的空状态。"""
+        mgr = self._make_portfolio_with_oplog(tmp_path, monkeypatch)
+        assert len(mgr.get_positions()) == 0
+        mgr.add_position("sh600989", "宝丰", 20.0, 100)
+        assert len(mgr.get_positions()) == 1
+        result = mgr.undo()
+        assert result is not None
+        assert len(mgr.get_positions()) == 0
+
+    def test_undo_empty_oplog_returns_none(self, tmp_path, monkeypatch):
+        """空 oplog 时 undo 返回 None。"""
+        mgr = self._make_portfolio_with_oplog(tmp_path, monkeypatch)
+        assert mgr.undo() is None
+
+    def test_undo_after_multiple_ops(self, tmp_path, monkeypatch):
+        """多次操作后 undo 回滚到上一步（而非初始状态）。"""
+        mgr = self._make_portfolio_with_oplog(tmp_path, monkeypatch)
+        mgr.add_position("sh600989", "宝丰", 20.0, 100)
+        mgr.add_position("sh600519", "茅台", 1800.0, 10)
+        assert len(mgr.get_positions()) == 2
+        # undo 撤销最后一次 add
+        mgr.undo()
+        assert len(mgr.get_positions()) == 1
+        assert mgr.get_position("sh600989") is not None
+        assert mgr.get_position("sh600519") is None
+
+    def test_undo_persists_to_file(self, tmp_path, monkeypatch):
+        """undo 后文件状态也应更新。"""
+        mgr = self._make_portfolio_with_oplog(tmp_path, monkeypatch)
+        mgr.add_position("sh600989", "宝丰", 20.0, 100)
+        mgr.undo()
+        # 重新加载确认文件已更新
+        mgr2 = PortfolioManager(path=str(tmp_path / "portfolio.json"))
+        assert len(mgr2.get_positions()) == 0

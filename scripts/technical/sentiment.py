@@ -14,12 +14,15 @@
 """
 
 import json
+import logging
 import os
 import sys
 from datetime import datetime
 from urllib.parse import urlencode
 
 from common import http_get
+
+logger = logging.getLogger(__name__)
 
 _EASTMONEY_UT = os.getenv(
     "EASTMONEY_UT_TOKEN",
@@ -105,7 +108,8 @@ class MarketDataFetcher:
             data = _http_get_json(url, params=params)
             pool = data.get("data", {}).get("pool", [])
             return len(pool)
-        except Exception:
+        except Exception as e:
+            logger.debug("获取跌停家数失败: %s", e)
             return 0
 
     def _get_broken_rate(self) -> float:
@@ -130,7 +134,8 @@ class MarketDataFetcher:
                     broken_count += 1
 
             return (broken_count / len(pool)) * 100 if pool else 0
-        except Exception:
+        except Exception as e:
+            logger.debug("获取炸板率失败: %s", e)
             return 0
 
     def get_margin_data(self) -> dict:

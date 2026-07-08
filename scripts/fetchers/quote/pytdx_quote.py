@@ -2,30 +2,11 @@
 
 import logging
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
+from fetchers._common.pytdx_meta import DEFAULT_SERVERS, get_market as _get_market
 from fetchers._common.pytdx_pool import HAS_PYTDX, get_default_pool
 
 logger = logging.getLogger(__name__)
-
-# 默认服务器列表
-DEFAULT_SERVERS = [
-    ("119.147.212.81", 7709),
-    ("112.74.214.43", 7709),
-    ("221.231.141.60", 7709),
-    ("101.227.73.20", 7709),
-    ("101.227.77.254", 7709),
-    ("14.215.128.18", 7709),
-    ("59.173.18.140", 7709),
-    ("218.75.126.9", 7709),
-]
-
-
-def _get_market(code: str) -> int:
-    """0=深圳, 1=上海。"""
-    plain = code.lstrip("shszSHSZbjBJ").zfill(6)
-    if plain.startswith(("60", "68", "51", "56", "58")):
-        return 1
-    return 0
 
 
 class PytdxQuoteFetcher(BaseFetcher):
@@ -41,7 +22,7 @@ class PytdxQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         if not HAS_PYTDX:
             return None
-        plain = code.lstrip("shszSHSZbjBJ").zfill(6)
+        plain = plain_code(code).zfill(6)
         market = _get_market(code)
         pool = get_default_pool(DEFAULT_SERVERS)
 

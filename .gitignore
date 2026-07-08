@@ -25,6 +25,8 @@ scripts/data/portfolio_virtual.json
 
 # 交易日志（含买卖时间/价格/盈亏，禁止提交）
 scripts/data/trade_log.json
+# 操作日志（含完整持仓快照，与 trade_log 同性质敏感数据）
+scripts/data/portfolio_oplog.json
 
 # 专家校准数据（用户本地运行时产生）
 scripts/data/expert_calibration.json

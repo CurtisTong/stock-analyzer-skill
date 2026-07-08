@@ -214,11 +214,13 @@ def _check_alerts(
 # 组合/市场级预警（v2.4.0 新增，对应 notification.yaml 中 6 项未实现规则）
 # ═══════════════════════════════════════════════════════════════
 
+
 # notification.yaml 配置加载
 def _load_notification_config() -> dict:
     """加载 notification.yaml 中未实现的预警阈值。"""
     try:
         from config.loader import ConfigLoader
+
         notif = ConfigLoader.load("notification.yaml") or {}
         rules = notif.get("notification_rules", {}) or {}
         return {
@@ -227,7 +229,11 @@ def _load_notification_config() -> dict:
             "northbound_threshold_yi": rules.get("northbound_flow", 50),
         }
     except Exception:
-        return {"underperform_days": 2, "index_change_threshold": 2.0, "northbound_threshold_yi": 50}
+        return {
+            "underperform_days": 2,
+            "index_change_threshold": 2.0,
+            "northbound_threshold_yi": 50,
+        }
 
 
 def check_portfolio_alerts(
@@ -263,64 +269,104 @@ def check_portfolio_alerts(
         p = risk_order.get(prev_risk_state, 0)
         c = risk_order.get(current_risk_state, 0)
         if c > p:
-            alerts.append({
-                "type": "risk_change",
-                "message": f"风险状态升级：{prev_risk_state} → {current_risk_state}",
-                "urgent": current_risk_state == "RED",
-            })
+            alerts.append(
+                {
+                    "type": "risk_change",
+                    "message": f"风险状态升级：{prev_risk_state} → {current_risk_state}",
+                    "urgent": current_risk_state == "RED",
+                }
+            )
 
     # 2. 连续跑输基准
     # 简化：当前持仓平均收益 vs 基准收益差值过大
     if benchmark_change_pct is not None and positions:
-        total_value = sum(quotes.get(p["code"], {}).get("price", p.get("cost", 0)) * p.get("quantity", 0) for p in positions)
+        total_value = sum(
+            quotes.get(p["code"], {}).get("price", p.get("cost", 0))
+            * p.get("quantity", 0)
+            for p in positions
+        )
         if total_value > 0:
-            weighted_pnl_pct = sum(
-                (quotes.get(p["code"], {}).get("price", p.get("cost", 0)) / p.get("cost", 1) - 1) * 100
-                * (quotes.get(p["code"], {}).get("price", 0) * p.get("quantity", 0))
-                for p in positions
-            ) / total_value
+            weighted_pnl_pct = (
+                sum(
+                    (
+                        quotes.get(p["code"], {}).get("price", p.get("cost", 0))
+                        / p.get("cost", 1)
+                        - 1
+                    )
+                    * 100
+                    * (quotes.get(p["code"], {}).get("price", 0) * p.get("quantity", 0))
+                    for p in positions
+                )
+                / total_value
+            )
             diff = weighted_pnl_pct - benchmark_change_pct
             if diff < -cfg["underperform_days"] * 1.0:  # 跑输阈值（每跑输一天记 1%）
-                alerts.append({
-                    "type": "underperform_days",
-                    "message": f"组合跑输沪深300 {diff:.1f}%（{benchmark_change_pct:.1f}% vs {weighted_pnl_pct:.1f}%）",
-                    "urgent": False,
-                })
+                alerts.append(
+                    {
+                        "type": "underperform_days",
+                        "message": f"组合跑输沪深300 {diff:.1f}%（{benchmark_change_pct:.1f}% vs {weighted_pnl_pct:.1f}%）",
+                        "urgent": False,
+                    }
+                )
 
     # 3. 持仓集中度超标
     if positions:
-        total = sum(quotes.get(p["code"], {}).get("price", 0) * p.get("quantity", 0) for p in positions)
+        total = sum(
+            quotes.get(p["code"], {}).get("price", 0) * p.get("quantity", 0)
+            for p in positions
+        )
         if total > 0:
             single_max = 0.20  # 单标的上限
-            top3 = 0.50        # 前 3 持仓上限
-            industry_max = 0.30  # 行业上限
+            top3 = 0.50  # 前 3 持仓上限
             # 计算单标的权重
             sorted_by_value = sorted(
-                [(p, quotes.get(p["code"], {}).get("price", 0) * p.get("quantity", 0)) for p in positions],
-                key=lambda x: x[1], reverse=True,
+                [
+                    (
+                        p,
+                        quotes.get(p["code"], {}).get("price", 0)
+                        * p.get("quantity", 0),
+                    )
+                    for p in positions
+                ],
+                key=lambda x: x[1],
+                reverse=True,
             )
             top1 = sorted_by_value[0][1] / total if sorted_by_value else 0
-            top3_pct = sum(v for _, v in sorted_by_value[:3]) / total if len(sorted_by_value) >= 3 else sum(v for _, v in sorted_by_value) / total
+            top3_pct = (
+                sum(v for _, v in sorted_by_value[:3]) / total
+                if len(sorted_by_value) >= 3
+                else sum(v for _, v in sorted_by_value) / total
+            )
             if top1 > single_max:
-                alerts.append({
-                    "type": "concentration",
-                    "message": f"单一标的集中度 {top1*100:.1f}% 超标（>20%）",
-                    "urgent": True,
-                })
+                alerts.append(
+                    {
+                        "type": "concentration",
+                        "message": f"单一标的集中度 {top1*100:.1f}% 超标（>20%）",
+                        "urgent": True,
+                    }
+                )
             elif top3_pct > top3:
-                alerts.append({
-                    "type": "concentration",
-                    "message": f"前3大持仓 {top3_pct*100:.1f}% 超标（>50%）",
-                    "urgent": False,
-                })
+                alerts.append(
+                    {
+                        "type": "concentration",
+                        "message": f"前3大持仓 {top3_pct*100:.1f}% 超标（>50%）",
+                        "urgent": False,
+                    }
+                )
 
     # 4. 大盘涨跌幅超阈值
-    if benchmark_change_pct is not None and abs(benchmark_change_pct) >= cfg["index_change_threshold"]:
-        alerts.append({
-            "type": "index_change",
-            "message": f"沪深300 {benchmark_change_pct:+.1f}%（阈值 ±{cfg['index_change_threshold']}%）",
-            "urgent": abs(benchmark_change_pct) >= cfg["index_change_threshold"] * 1.5,
-        })
+    if (
+        benchmark_change_pct is not None
+        and abs(benchmark_change_pct) >= cfg["index_change_threshold"]
+    ):
+        alerts.append(
+            {
+                "type": "index_change",
+                "message": f"沪深300 {benchmark_change_pct:+.1f}%（阈值 ±{cfg['index_change_threshold']}%）",
+                "urgent": abs(benchmark_change_pct)
+                >= cfg["index_change_threshold"] * 1.5,
+            }
+        )
 
     # 5. 持仓板块异动
     if sector_changes and positions:
@@ -330,20 +376,28 @@ def check_portfolio_alerts(
                 sector = tags[0]
                 sector_chg = sector_changes.get(sector)
                 if sector_chg is not None and abs(sector_chg) >= 3.0:
-                    alerts.append({
-                        "type": "sector_moved",
-                        "message": f"持仓板块 {sector} 涨跌幅 {sector_chg:+.1f}%",
-                        "urgent": False,
-                    })
+                    alerts.append(
+                        {
+                            "type": "sector_moved",
+                            "message": f"持仓板块 {sector} 涨跌幅 {sector_chg:+.1f}%",
+                            "urgent": False,
+                        }
+                    )
                     break  # 只触发一次
 
     # 6. 北向资金大幅净流入/出
-    if northbound_net_yi is not None and abs(northbound_net_yi) >= cfg["northbound_threshold_yi"]:
+    if (
+        northbound_net_yi is not None
+        and abs(northbound_net_yi) >= cfg["northbound_threshold_yi"]
+    ):
         direction = "流入" if northbound_net_yi > 0 else "流出"
-        alerts.append({
-            "type": "northbound_flow",
-            "message": f"北向资金 {direction} {abs(northbound_net_yi):.0f}亿元（阈值 {cfg['northbound_threshold_yi']}亿）",
-            "urgent": abs(northbound_net_yi) >= cfg["northbound_threshold_yi"] * 1.5,
-        })
+        alerts.append(
+            {
+                "type": "northbound_flow",
+                "message": f"北向资金 {direction} {abs(northbound_net_yi):.0f}亿元（阈值 {cfg['northbound_threshold_yi']}亿）",
+                "urgent": abs(northbound_net_yi)
+                >= cfg["northbound_threshold_yi"] * 1.5,
+            }
+        )
 
     return alerts

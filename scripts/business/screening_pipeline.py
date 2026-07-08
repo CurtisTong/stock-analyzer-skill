@@ -117,7 +117,13 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
             code=quote_code,
             quote_dict=quote,
             fin=fin,
-            features={"ret20": 0, "rsi": 50, "macd_signal": 0, "vol_price_signal": 0, "trend": 0},
+            features={
+                "ret20": 0,
+                "rsi": 50,
+                "macd_signal": 0,
+                "vol_price_signal": 0,
+                "trend": 0,
+            },
             industry=industry,
             total=total,
             parts=parts,
@@ -160,8 +166,14 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     codes = load_universe(args)
     if not codes:
         _cb("init", {"halted": True, "reason": "empty_universe"})
-        return {"rows": [], "regime": None, "macro_state": None,
-                "phase_stats": {}, "snapshot_path": None, "halted": True}
+        return {
+            "rows": [],
+            "regime": None,
+            "macro_state": None,
+            "phase_stats": {},
+            "snapshot_path": None,
+            "halted": True,
+        }
 
     t_pipeline_start = _time.perf_counter()
     phase_stats = {}
@@ -192,7 +204,6 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
     # 宏观安全垫检查
     macro_state = None
-    halted = False
     if not getattr(args, "no_macro", False):
         try:
             from strategies.macro import MacroSafetyGate
@@ -202,10 +213,14 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             _cb("init", {"macro_msg": macro_msg, "macro_state": macro_state})
             if macro_state.value == "RED":
                 _cb("init", {"halted": True, "reason": "macro_red"})
-                halted = True
-                return {"rows": [], "regime": regime, "macro_state": macro_state,
-                        "phase_stats": phase_stats, "snapshot_path": None,
-                        "halted": True}
+                return {
+                    "rows": [],
+                    "regime": regime,
+                    "macro_state": macro_state,
+                    "phase_stats": phase_stats,
+                    "snapshot_path": None,
+                    "halted": True,
+                }
         except Exception as e:
             print(f"⚠️ 宏观安全垫检查失败: {e}", file=sys.stderr)
             macro_state = None
@@ -223,29 +238,54 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             :top_n_phase2
         ]
         t_p1 = _time.perf_counter() - t_p1
-        _cb("phase1", {"count_in": len(quotes), "count_out": len(top_quotes),
-                       "elapsed": t_p1})
+        _cb(
+            "phase1",
+            {"count_in": len(quotes), "count_out": len(top_quotes), "elapsed": t_p1},
+        )
 
         t_p2 = _time.perf_counter()
         kline_cache = prefetch_kline_all([q["code"] for q in top_quotes])
         rows = [
-            analyze_code(q, args.strategy, args, finance_cache,
-                         regime=regime, kline_cache=kline_cache)
+            analyze_code(
+                q,
+                args.strategy,
+                args,
+                finance_cache,
+                regime=regime,
+                kline_cache=kline_cache,
+            )
             for q in top_quotes
         ]
         if not args.no_normalize and len(rows) >= 3:
             _apply_factor_normalization(rows, args.strategy, regime=regime)
         t_p2 = _time.perf_counter() - t_p2
         t_total = _time.perf_counter() - t_pipeline_start
-        phase_stats = {"p1_elapsed": t_p1, "p2_elapsed": t_p2, "total": t_total,
-                       "saved_kline": len(quotes) - len(top_quotes)}
-        _cb("phase2", {"count": len(rows), "elapsed": t_p2, "total": t_total,
-                       "saved_kline": len(quotes) - len(top_quotes)})
+        phase_stats = {
+            "p1_elapsed": t_p1,
+            "p2_elapsed": t_p2,
+            "total": t_total,
+            "saved_kline": len(quotes) - len(top_quotes),
+        }
+        _cb(
+            "phase2",
+            {
+                "count": len(rows),
+                "elapsed": t_p2,
+                "total": t_total,
+                "saved_kline": len(quotes) - len(top_quotes),
+            },
+        )
     else:
         kline_cache = prefetch_kline_all([q["code"] for q in quotes])
         rows = [
-            analyze_code(q, args.strategy, args, finance_cache,
-                         regime=regime, kline_cache=kline_cache)
+            analyze_code(
+                q,
+                args.strategy,
+                args,
+                finance_cache,
+                regime=regime,
+                kline_cache=kline_cache,
+            )
             for q in quotes
         ]
         if not args.no_normalize and len(rows) >= 3:
@@ -273,6 +313,11 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         except Exception as e:
             print(f"⚠️ 快照保存失败: {e}", file=sys.stderr)
 
-    return {"rows": rows, "regime": regime, "macro_state": macro_state,
-            "phase_stats": phase_stats, "snapshot_path": snapshot_path,
-            "halted": False}
+    return {
+        "rows": rows,
+        "regime": regime,
+        "macro_state": macro_state,
+        "phase_stats": phase_stats,
+        "snapshot_path": snapshot_path,
+        "halted": False,
+    }

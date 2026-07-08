@@ -64,7 +64,6 @@ _infer_exchange = infer_exchange
 # 硬过滤阈值别名（向后兼容）
 from strategies.filters import PRE_SCREEN_FILTER as FILTER  # noqa: F401
 
-
 # ---------- CLI 输出 ----------
 
 
@@ -157,9 +156,7 @@ def main():
         }
 
     if args.json:
-        import json as _json
-
-        print(_json.dumps({"status": "ok", **result}, ensure_ascii=False, indent=2))
+        print(json.dumps({"status": "ok", **result}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

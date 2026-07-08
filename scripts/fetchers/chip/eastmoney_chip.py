@@ -2,11 +2,9 @@
 
 import json
 import logging
-import re
 from datetime import datetime, timedelta
 
 from common import BaseFetcher, http_get, to_float, to_int, strip_prefix
-
 
 logger = logging.getLogger(__name__)
 

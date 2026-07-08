@@ -1,7 +1,6 @@
 """东方财富龙虎榜数据源。"""
 
 import json
-import re
 
 from common import BaseFetcher, http_get, to_float, strip_prefix
 

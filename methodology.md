@@ -105,7 +105,7 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 
 > 配置文件：`scripts/data/industry_thresholds.json` 与 `experts/yaml/industry_thresholds.yaml` 同步。sector_specialist 通过 `experts/scoring/sector_specialist.py` 应用本表阈值。
 
-## 三、专家讨论模式（15 份专家人设：9 active + 6 legacy）
+## 三、专家讨论模式（16 份专家人设：8 active + 8 legacy）
 
 > 完整档案见 [experts/README.md](experts/README.md)，每位专家独立成文（1200-1500 字深度档）。
 
@@ -131,17 +131,18 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 
 > legacy 4 人已合并入 `topic_leader`（徐翔+赵老哥）与 `emotion_tech`（养家+作手新一）。
 
-### v2.1.0 + v2.2.0 扩展 7 人（active=True，补盲区）
+### v2.1.0 + v2.2.0 + v2.4.0 扩展 8 人（active=True，补盲区）
 
 | 专家         | 风格              | 核心逻辑                            | 档案                                                 | 引入版本 |
 | ------------ | ----------------- | ----------------------------------- | ---------------------------------------------------- | :------: |
-| 价值双锚     | 价值投资（合并）  | 巴菲特 0.55 + 段永平 0.45           | [value_anchor.md](experts/value_anchor.md)           |  v2.1.0  |
 | 题材龙头     | 题材龙头（合并）  | 徐翔 0.5 + 赵老哥 0.5               | [topic_leader.md](experts/topic_leader.md)           |  v2.1.0  |
 | 情绪技术复合 | 情绪+技术（合并） | 养家 0.5 + 作手新一 0.5             | [emotion_tech.md](experts/emotion_tech.md)           |  v2.1.0  |
 | 行业专家     | 行业特异性        | 行业景气+竞争格局+行业 PE 分位      | [sector_specialist.md](experts/sector_specialist.md) |  v2.1.0  |
-| 机构派       | 机构长期主义      | 高瓴/红杉/淡马锡：深度尽调+长期持有 | [institution.md](experts/institution.md)             |  v2.1.0  |
 | 风险管理     | 二阶思维+周期位置 | Howard Marks 周期位置+风险预算      | [risk_manager.md](experts/risk_manager.md)           |  v2.1.0  |
 | 动量派       | 系统化趋势跟踪    | 利弗莫尔关键转折 + 海龟交易法则     | [momentum_trader.md](experts/momentum_trader.md)     |  v2.2.0  |
+| 价值机构锚   | 价值+机构（合并） | value_anchor + institution 合并     | [value_institution.md](experts/value_institution.md) |  v2.4.0  |
+
+> v2.4.0 将 `value_anchor`（巴菲特 0.55 + 段永平 0.45）与 `institution`（高瓴/红杉框架）合并为 `value_institution`，两者转为 legacy。
 
 > 完整权重与 veto 条件见 `experts/yaml/*.yaml`；与本表对齐的代码实现见 `experts/scoring/<name>.py`。
 

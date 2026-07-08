@@ -8,7 +8,7 @@ import logging
 import threading
 
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class BaostockKlineFetcher(BaseFetcher):
             return None  # baostock 只支持日线
 
         # baostock 格式: sh.600989
-        plain = code.lstrip("shszSHSZbjBJ").zfill(6)
+        plain = plain_code(code).zfill(6)
         if plain.startswith(("60", "68", "51", "56", "58")):
             bs_code = f"sh.{plain}"
         else:

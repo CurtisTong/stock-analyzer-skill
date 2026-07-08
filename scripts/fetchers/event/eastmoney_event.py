@@ -1,7 +1,6 @@
 """东方财富事件日历数据源（财报披露、解禁、分红、增减持、违规）。"""
 
 import json
-import re
 from datetime import datetime, timedelta
 
 from common import BaseFetcher, http_get, to_float, strip_prefix

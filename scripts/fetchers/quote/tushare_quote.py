@@ -3,21 +3,10 @@
 import logging
 import os
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
+from fetchers._common.tushare_check import check_tushare as _check_tushare
 
 logger = logging.getLogger(__name__)
-
-
-def _check_tushare() -> bool:
-    """运行时检查 tushare 是否可用（包已安装 + token 已设置）。"""
-    if not os.environ.get("TUSHARE_TOKEN"):
-        return False
-    try:
-        import tushare  # noqa: F401
-
-        return True
-    except ImportError:
-        return False
 
 
 class TushareQuoteFetcher(BaseFetcher):
@@ -36,7 +25,7 @@ class TushareQuoteFetcher(BaseFetcher):
             if token:
                 ts.set_token(token)
 
-            plain = code.lstrip("shszSHSZbjBJ")
+            plain = plain_code(code)
             # 转换为 tushare 格式: 600989.SH
             if code.startswith(("sh", "SH")):
                 ts_code = f"{plain}.SH"

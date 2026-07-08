@@ -13,9 +13,12 @@
 """
 
 import json
+import logging
 
 from common import to_float
 from data.helpers import fetch_quote_dict_or_none, fetch_finance_first
+
+logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════
 # 长期持有评估
@@ -118,14 +121,16 @@ class LongTermEvaluator:
         """获取行情数据。"""
         try:
             return fetch_quote_dict_or_none(code)
-        except Exception:
+        except Exception as e:
+            logger.debug("获取行情失败 %s: %s", code, e)
             return None
 
     def _get_finance(self, code: str) -> dict:
         """获取财务数据。"""
         try:
             return fetch_finance_first(code)
-        except Exception:
+        except Exception as e:
+            logger.debug("获取财务失败 %s: %s", code, e)
             return {}
 
     def _calc_moat(self, finance: dict) -> tuple:

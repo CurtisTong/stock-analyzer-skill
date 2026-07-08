@@ -9,10 +9,10 @@ K 线数据查询（多数据源自动切换）。
   kline.py --sources                      # 显示可用数据源
 """
 
-import sys
 import json
 import argparse
 from common import normalize_quote_code, err, DataError
+from common.cli_base import handle_errors
 from data import get_kline
 
 
@@ -136,15 +136,5 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
+    with handle_errors():
         main()
-    except DataError as e:
-        from common.exceptions import format_error
-
-        print(f"❌ {format_error(e)}", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        from common.exceptions import format_error
-
-        print(f"❌ {format_error(e)}", file=sys.stderr)
-        sys.exit(1)

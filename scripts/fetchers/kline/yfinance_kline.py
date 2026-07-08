@@ -2,7 +2,7 @@
 
 import logging
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ def _to_yf_symbol(code: str) -> str:
     if code.lower().startswith(US_PREFIX):
         _, _, symbol = code.partition(":")
         return symbol.strip()
-    plain = code.lstrip("shszSHSZbjBJ").zfill(6)
+    plain = plain_code(code).zfill(6)
     if plain.startswith(("60", "68", "51", "56", "58")):
         return f"{plain}.SS"
     elif plain.startswith(("00", "30", "15", "16", "18")):

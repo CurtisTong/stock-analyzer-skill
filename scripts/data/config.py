@@ -8,7 +8,7 @@ import os
 
 logger = logging.getLogger(__name__)
 from dataclasses import dataclass
-from datetime import date, datetime  # 顶层导入，便于测试 patch
+from datetime import date  # 顶层导入，便于测试 patch
 
 
 def _load_yaml_config() -> dict:

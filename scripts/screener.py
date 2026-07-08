@@ -12,9 +12,9 @@ A 股多因子选股器。
 
 import argparse
 import json
-import sys
 
 from common import normalize_quote_code
+from common.cli_base import handle_errors
 from data.helpers import fetch_finance_first
 from strategies import (
     STRATEGIES,  # noqa: F401 — re-export（向后兼容：测试通过 screener.STRATEGIES 访问）
@@ -358,10 +358,5 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
+    with handle_errors():
         main()
-    except Exception as e:
-        from common.exceptions import format_error
-
-        print(f"❌ {format_error(e)}", file=sys.stderr)
-        sys.exit(1)

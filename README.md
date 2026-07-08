@@ -14,9 +14,9 @@
 
 ## 🎯 给会写代码的投资者准备的 A 股分析套件
 
-> 装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析 + 9 人活跃专家圆桌（含 15 份专家人设）辩论。
+> 装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析 + 8 人活跃专家圆桌（含 16 份专家人设）辩论。
 
-**五层分析框架** · **15 份专家人设（9 active）** · **28 个数据源故障转移** · **零依赖开箱即用**
+**五层分析框架** · **16 份专家人设（8 active）** · **26 个数据源故障转移** · **零依赖开箱即用**
 
 [![Version](https://img.shields.io/badge/version-1.14.3-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
@@ -128,7 +128,7 @@
 
 ### 🔁 多源故障转移
 
-**28 个 fetcher**<br>
+**26 个 fetcher 模块（33 类）**<br>
 腾讯 · 东财 · 新浪<br>
 雪球 · 同花顺 · 通达信<br>
 AkShare · efinance · yfinance<br>
@@ -196,12 +196,12 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 | ------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
 | 🎮 **模拟盘（虚拟持仓）** | `/portfolio add sh600989 1000 18.50 --virtual` 或 `portfolio_web.py --virtual` | 零风险练习交易策略，虚拟/实盘数据完全隔离            |
 | 📅 **事件日历**           | `python3 scripts/events.py sh600519`                                           | 财报披露、限售解禁、分红一目了然，避免踩雷           |
-| 📋 **统一输出模板**       | 9 个 skill 自动生效——首行结论 + 尾行数据源 + 时间戳                            | 格式一致可复盘，每次输出都带数据来源和时间           |
+| 📋 **统一输出模板**       | 13 个 skill 自动生效——首行结论 + 尾行数据源 + 时间戳                           | 格式一致可复盘，每次输出都带数据来源和时间           |
 | 🔄 **校准数据同步**       | `python3 scripts/calibration_sync.py --auto`（依赖 gh CLI）                    | 跨设备同步专家校准数据，GitHub Gist 双向同步         |
 | 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示每位专家历史胜率，可信度透明         |
 | 📊 **回测胜率附加**       | `/stock sh600519 --with-backtest`                                              | 分析报告附加近 60 日回测（胜率/收益/夏普/回撤）      |
 | 📝 **结构化 JSON 日志**   | `monitor --log-json` / `monitor --sources`                                     | 监控输出机器可解析，数据源健康度矩阵一目了然         |
-| 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 9 skill 串联实战         |
+| 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 13 skill 串联实战        |
 | 🛡️ **自审计 CI**          | 提交 PR 自动运行                                                               | SKILL.md 与 settings.json 一致性自动检查，阻断不一致 |
 | 🎯 **场景化帮助**         | `/stock-help`                                                                  | 5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块） |
 
@@ -569,7 +569,7 @@ scripts/
 ├── common/        # 基础设施（HTTP、缓存、熔断器、异常体系）
 ├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
-├── fetchers/      # 28 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
+├── fetchers/      # 26 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
 ├── strategies/    # 6 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 实时监控 + 多通道通知

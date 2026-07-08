@@ -7,9 +7,23 @@
 import json
 import os
 import tempfile
+import threading
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
+
+# 进程内互斥锁：file_lock 基于文件 PID 无法区分同进程多线程
+# （共享 PID），需额外用 threading.Lock 保证同进程内线程互斥。
+_intra_locks: dict[str, threading.Lock] = {}
+_intra_locks_guard = threading.Lock()
+
+
+def _get_intra_lock(path: str) -> threading.Lock:
+    """获取路径对应的进程内线程锁（惰性创建）。"""
+    with _intra_locks_guard:
+        if path not in _intra_locks:
+            _intra_locks[path] = threading.Lock()
+        return _intra_locks[path]
 
 
 def data_dir() -> Path:
@@ -44,6 +58,8 @@ def file_lock(path: Path, timeout: float = 10.0):
     lp = lock_path(path)
     lock_fd = None
     start_time = datetime.now().timestamp()
+    # 先获取进程内线程锁，确保同进程多线程不会因共享 PID 而互相删除锁文件
+    intra_lock = _get_intra_lock(str(lp))
 
     def _is_pid_alive(pid: int) -> bool:
         try:
@@ -62,29 +78,35 @@ def file_lock(path: Path, timeout: float = 10.0):
             pass
 
     try:
-        while True:
-            try:
-                lock_fd = os.open(str(lp), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.write(lock_fd, str(os.getpid()).encode())
-                break
-            except FileExistsError:
-                _try_clean_stale_lock()
-                if datetime.now().timestamp() - start_time > timeout:
-                    raise TimeoutError(f"获取锁超时: {lp}")
-                import time
+        # 进程内线程锁优先（阻止同进程线程并发进入文件锁竞争）
+        if not intra_lock.acquire(timeout=timeout):
+            raise TimeoutError(f"获取进程内锁超时: {lp}")
+        try:
+            while True:
+                try:
+                    lock_fd = os.open(str(lp), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                    os.write(lock_fd, str(os.getpid()).encode())
+                    break
+                except FileExistsError:
+                    _try_clean_stale_lock()
+                    if datetime.now().timestamp() - start_time > timeout:
+                        raise TimeoutError(f"获取锁超时: {lp}")
+                    import time
 
-                time.sleep(0.05)
-        yield
-    finally:
-        if lock_fd is not None:
+                    time.sleep(0.05)
+            yield
+        finally:
+            if lock_fd is not None:
+                try:
+                    os.close(lock_fd)
+                except OSError:
+                    pass
             try:
-                os.close(lock_fd)
+                lp.unlink(missing_ok=True)
             except OSError:
                 pass
-        try:
-            os.unlink(str(lp))
-        except OSError:
-            pass
+    finally:
+        intra_lock.release()
 
 
 def raw_write(path: Path, data: dict) -> None:

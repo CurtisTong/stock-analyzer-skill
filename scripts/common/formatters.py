@@ -1,6 +1,6 @@
 """统一输出格式化工具。
 
-为 12 个 skill 提供一致的输出结构：
+为 13 个 skill 提供一致的输出结构：
   - 首行：一句话结论（🎯 / 🔴 / 🟢 / 🟡 emoji 前缀）
   - 尾行：数据时间戳 + 数据源 + 失败源
 
@@ -169,7 +169,9 @@ def markdown_table(headers: list, rows: list, align: str = "left") -> str:
     return "\n".join([header_row, sep_row] + body_rows)
 
 
-def numbered_table(headers: list, rows: list, start: int = 1, align: str = "right") -> str:
+def numbered_table(
+    headers: list, rows: list, start: int = 1, align: str = "right"
+) -> str:
     """带序号的 Markdown 表格（首列自动为排名序号）。
 
     Args:

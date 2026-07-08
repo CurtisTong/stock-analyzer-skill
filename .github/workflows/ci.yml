@@ -32,7 +32,7 @@ jobs:
             -n auto \
             --durations=10 \
             --cov=scripts --cov=experts \
-            --cov-fail-under=50
+            --cov-fail-under=60
 
       - name: 跑 skill 元数据校验
         run: |

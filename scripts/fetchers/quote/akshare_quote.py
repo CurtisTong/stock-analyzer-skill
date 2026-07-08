@@ -4,7 +4,7 @@ import logging
 import threading
 import time
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class AkshareQuoteFetcher(BaseFetcher):
         if not HAS_AKSHARE:
             return None
         try:
-            plain = code.lstrip("shszSHSZbjBJ")
+            plain = plain_code(code)
 
             # 使用内存缓存避免重复拉取全量数据
             with _ak_cache_lock:

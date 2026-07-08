@@ -3,6 +3,7 @@
 import json
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -77,3 +78,63 @@ class TestOpLog:
         history = ol2.history()
         assert len(history) == 1
         assert history[0]["op"] == "add_position"
+
+    def test_corrupted_json_fallback(self):
+        """_load 读取损坏 JSON 时回退到空记录。"""
+        Path(self.path).write_text("{invalid json!!!", encoding="utf-8")
+        ol = OpLog(self.path)
+        assert ol.history() == []
+
+    def test_concurrent_push_no_loss(self):
+        """并发 push 不丢失记录（验证 file_lock 保护读-改-写）。"""
+        ol = OpLog(self.path)
+        n_threads = 10
+        n_per_thread = 5
+
+        def worker(tid: int):
+            for i in range(n_per_thread):
+                ol.push("add_position", code=f"sh{600000 + tid * 100 + i}")
+
+        threads = [threading.Thread(target=worker, args=(t,)) for t in range(n_threads)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # 重新加载确认持久化结果（history 默认只返回最近 20 条，用 limit 扩大范围）
+        ol2 = OpLog(self.path)
+        assert len(ol2.history(limit=100)) == n_threads * n_per_thread
+
+    def test_concurrent_push_undo_safe(self):
+        """并发 push + undo 不损坏文件（文件始终是合法 JSON）。"""
+        ol = OpLog(self.path)
+        # 预填一些记录
+        for i in range(5):
+            ol.push("add_position", code=f"sh{600000 + i}", snapshot_before={"i": i})
+
+        errors = []
+
+        def pusher():
+            try:
+                for i in range(10):
+                    ol.push("add_position", code=f"sh{700000 + i}")
+            except Exception as e:
+                errors.append(e)
+
+        def undoer():
+            try:
+                for _ in range(5):
+                    ol.undo()
+            except Exception as e:
+                errors.append(e)
+
+        threads = [threading.Thread(target=pusher), threading.Thread(target=undoer)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert errors == []
+        # 文件始终可被正常解析
+        data = json.loads(Path(self.path).read_text(encoding="utf-8"))
+        assert "entries" in data

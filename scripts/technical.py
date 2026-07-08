@@ -15,7 +15,7 @@ import argparse
 import json
 import logging
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ from kline import fetch as fetch_kline
 from quote import fetch_batch
 
 # 从 technical 包导入所有公开函数（显式导入，避免通配符污染命名空间）
-from technical.core import sma, ema, stddev, _parse_records
+from technical.core import _parse_records
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.kdj import kdj_full
@@ -72,7 +72,6 @@ class TechnicalInput:
 def _compute_all(inp: TechnicalInput):
     """计算所有技术指标。args 为 CLI 参数，用于控制可选模块。"""
     closes = inp.closes
-    opens = inp.opens
     highs = inp.highs
     lows = inp.lows
     volumes = inp.volumes
@@ -112,8 +111,13 @@ def _compute_all(inp: TechnicalInput):
 
         local_result = detect_all_local_patterns(
             PatternInput(
-                records=records, closes=closes, highs=highs, lows=lows,
-                volumes=volumes, mas=mas, code=quote.get("code", ""),
+                records=records,
+                closes=closes,
+                highs=highs,
+                lows=lows,
+                volumes=volumes,
+                mas=mas,
+                code=quote.get("code", ""),
             )
         )
         features["local_patterns"] = local_result
@@ -269,8 +273,15 @@ def main():
     # 计算所有指标
     features = _compute_all(
         TechnicalInput(
-            closes=closes, opens=opens, highs=highs, lows=lows,
-            volumes=volumes, records=records, board=board, quote=quote, args=args,
+            closes=closes,
+            opens=opens,
+            highs=highs,
+            lows=lows,
+            volumes=volumes,
+            records=records,
+            board=board,
+            quote=quote,
+            args=args,
         )
     )
 

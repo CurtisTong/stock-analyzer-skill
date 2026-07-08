@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from business import StockAnalysisService
+from common.cli_base import handle_errors
 from common.formatters import format_footer, format_output, now_str
 
 
@@ -245,10 +246,5 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
+    with handle_errors():
         main()
-    except Exception as e:
-        from common.exceptions import format_error
-
-        print(f"❌ {format_error(e)}", file=sys.stderr)
-        sys.exit(1)

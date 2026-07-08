@@ -3,8 +3,6 @@
 import statistics
 from typing import Optional
 
-from experts import direction_from_score  # noqa: F401 — 保持向后兼容
-
 # ═══════════════════════════════════════════════════════════════
 # 市场环境检测 (decide.md §二)
 # ═══════════════════════════════════════════════════════════════

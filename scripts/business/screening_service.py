@@ -278,7 +278,7 @@ class ScreeningService:
 
     def _prefetch_finance(self, codes: List[str]) -> Dict[str, List[dict]]:
         """预获取财务数据。"""
-        from common import normalize_finance_code, parallel_fetch_dict
+        from common import parallel_fetch_dict
 
         def fetch_one(code):
             try:
@@ -348,18 +348,28 @@ class ScreeningService:
                 rejected = list(rejected) + [f"未通过拐点过滤: {reason}"]
                 return build_result_row(
                     ResultRowContext(
-                        code=ctx.code, quote_dict=quote_dict, fin=fin,
-                        features=features, industry=industry, total=0,
-                        parts=parts, rejected=rejected,
+                        code=ctx.code,
+                        quote_dict=quote_dict,
+                        fin=fin,
+                        features=features,
+                        industry=industry,
+                        total=0,
+                        parts=parts,
+                        rejected=rejected,
                     )
                 )
 
         total = compute_weighted_score(parts, ctx.strategy, regime=ctx.regime)
         return build_result_row(
             ResultRowContext(
-                code=ctx.code, quote_dict=quote_dict, fin=fin,
-                features=features, industry=industry, total=total,
-                parts=parts, rejected=[],
+                code=ctx.code,
+                quote_dict=quote_dict,
+                fin=fin,
+                features=features,
+                industry=industry,
+                total=total,
+                parts=parts,
+                rejected=[],
             )
         )
 
@@ -408,7 +418,9 @@ class ScreeningService:
             # 原读 fin.get("revenue", TOTALOPERATEREVE) 永远为 0，预警永不触发，
             # 形成虚假安全感。改为基于 revenue_yoy 异常下滑的近似预警：
             # 营收同比大幅下滑（<-30%）+ 亏损，提示退市风险。
-            revenue_yoy = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ", 0)))
+            revenue_yoy = to_float(
+                fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ", 0))
+            )
             if eps < 0 and revenue_yoy < -30:
                 warnings.append("营收大幅下滑+亏损(退市风险警示)")
 
@@ -656,7 +668,6 @@ from data.helpers import (  # noqa: E402, F401
     prefetch_finance_all,
     prefetch_kline_all,
     fetch_batch_dicts,
-    fetch_finance_first,
 )
 
 from business.universe_loader import (  # noqa: E402
@@ -673,7 +684,6 @@ from business.screening_pipeline import (  # noqa: E402
     analyze_code_phase1,
     run_screening,
 )
-
 
 __all__ = [
     "ScreeningService",

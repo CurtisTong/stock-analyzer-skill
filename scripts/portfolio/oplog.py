@@ -19,7 +19,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from portfolio._file_utils import atomic_write, data_dir, file_lock
+from portfolio._file_utils import atomic_write, data_dir, file_lock, raw_write
 
 
 def _oplog_path() -> Path:
@@ -87,14 +87,19 @@ class OpLog:
             "code": code,
             "snapshot_before": snapshot_before or {},
         }
-        self._data["entries"].append(entry)
-
-        # 保留最近 N 条
-        if len(self._data["entries"]) > _MAX_HISTORY:
-            self._data["entries"] = self._data["entries"][-_MAX_HISTORY:]
 
         if auto_save:
-            self.save()
+            # 持锁完成「读→改→写」，避免并发 push 丢失记录
+            with file_lock(self._path):
+                self._data = self._load()
+                self._data["entries"].append(entry)
+                if len(self._data["entries"]) > _MAX_HISTORY:
+                    self._data["entries"] = self._data["entries"][-_MAX_HISTORY:]
+                raw_write(self._path, self._data)
+        else:
+            self._data["entries"].append(entry)
+            if len(self._data["entries"]) > _MAX_HISTORY:
+                self._data["entries"] = self._data["entries"][-_MAX_HISTORY:]
         return entry
 
     def undo(self) -> Optional[dict]:
@@ -103,13 +108,15 @@ class OpLog:
         Returns:
             最近操作的 snapshot_before（用于恢复 portfolio），无记录时返回 None
         """
-        entries = self._data.get("entries", [])
-        if not entries:
-            return None
-
-        last = entries.pop()
-        self.save()
-        return last.get("snapshot_before")
+        # 持锁完成「读→改→写」，避免与并发 push 竞争
+        with file_lock(self._path):
+            self._data = self._load()
+            entries = self._data.get("entries", [])
+            if not entries:
+                return None
+            last = entries.pop()
+            raw_write(self._path, self._data)
+            return last.get("snapshot_before")
 
     def peek(self) -> Optional[dict]:
         """查看最近一次操作记录（不删除）。"""
@@ -123,10 +130,12 @@ class OpLog:
 
     def clear(self) -> None:
         """清空操作历史。"""
-        self._data["entries"] = []
-        self.save()
+        with file_lock(self._path):
+            self._data = {"version": 1, "entries": []}
+            raw_write(self._path, self._data)
 
     def to_dict(self) -> dict:
         """返回完整数据副本。"""
         import copy
+
         return copy.deepcopy(self._data)

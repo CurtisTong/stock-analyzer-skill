@@ -2,7 +2,7 @@
 
 import logging
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class EfinanceKlineFetcher(BaseFetcher):
         try:
             scale = kwargs.get("scale", 240)
             datalen = kwargs.get("datalen", 30)
-            plain = code.lstrip("shszSHSZbjBJ")
+            plain = plain_code(code)
             klt = KLT_MAP.get(scale, 101)
             df = ef.stock.get_quote_history(plain, klt=klt, count=datalen)
             if df is None or df.empty:

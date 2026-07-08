@@ -2,7 +2,7 @@
 
 import logging
 
-from common import BaseFetcher
+from common import BaseFetcher, plain_code
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class AkshareKlineFetcher(BaseFetcher):
         try:
             scale = kwargs.get("scale", 240)
             datalen = kwargs.get("datalen", 30)
-            plain = code.lstrip("shszSHSZbjBJ")
+            plain = plain_code(code)
 
             if scale == 240:
                 # 日 K
