@@ -26,16 +26,19 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
     price = to_float(quote.get("price", 0))
 
     # ---- 1. 股息率评分（60分）----
-    # 方式A：直接股息率（有DPS时）
-    eps_dps_bonus = to_float(
-        fin.get("dps") or fin.get("MGJXFH") or fin.get("每股现金分红") or 0
-    )
-    pe = to_float(quote.get("pe", 0))
+    # 优先使用 FinanceRecord.dividend_yield（已归一化为 %）
+    dividend_yield = to_float(fin.get("dividend_yield", 0) or 0) if fin else 0.0
 
-    dividend_yield = 0.0
-    if price > 0 and eps_dps_bonus > 0:
-        dividend_yield = eps_dps_bonus / price * 100
-    elif price > 0 and pe > 0:
+    # fallback：用 DPS / price 计算（若 fin 提供了非标准字段 dps/MGJXFH）
+    if dividend_yield <= 0 and fin:
+        eps_dps_bonus = to_float(
+            fin.get("dps") or fin.get("MGJXFH") or fin.get("每股现金分红") or 0
+        )
+        if price > 0 and eps_dps_bonus > 0:
+            dividend_yield = eps_dps_bonus / price * 100
+
+    pe = to_float(quote.get("pe", 0))
+    if dividend_yield <= 0 and price > 0 and pe > 0:
         # PE 倒数作为股息率近似（按行业差异化分红率）
         payout_ratio = _get_industry_payout_ratio(industry)
         dividend_yield = (1 / pe) * payout_ratio * 100
@@ -120,16 +123,12 @@ def _score_dividend_yield(yield_pct: float, industry: str) -> float:
 
 
 def _count_dividend_years(fin: dict) -> int:
-    """估算连续分红年数。返回 0-10。只使用实际分红数据。"""
+    """估算连续分红年数。返回 0-10。使用 FinanceRecord.consecutive_dividend_years 字段。"""
     if not fin:
         return 0
 
-    dividend_records = fin.get("dividend_records", None)
-    if dividend_records and isinstance(dividend_records, list):
-        return min(len(dividend_records), 10)
-
-    # 无完整记录时不假设连续性，返回 0 避免误导连续性评分
-    return 0
+    consecutive_years = int(fin.get("consecutive_dividend_years", 0) or 0)
+    return min(consecutive_years, 10)
 
 
 def _score_continuity(years: int) -> float:

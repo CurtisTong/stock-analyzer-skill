@@ -43,7 +43,8 @@ def classify_regime(signals: Dict[str, float]) -> RegimeState:
     turnover = signals.get("turnover", 0)
 
     # panic 优先：高波动 OR 极端缩量+大跌
-    if vol >= 35 or (turnover > 0 and turnover < 5000 and trend < -0.3):
+    # A股日均成交额约 1-1.5 万亿（10000-15000亿元），5000亿过低几乎不触发
+    if vol >= 35 or (turnover > 0 and turnover < 8000 and trend < -0.3):
         return RegimeState.PANIC
 
     # bull：强趋势+宽度扩张

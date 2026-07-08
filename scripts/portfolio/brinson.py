@@ -201,7 +201,10 @@ def brinson_from_holdings(
         if qty <= 0:
             continue
         weight = current * qty / total_value
-        ret = (current / cost - 1) if cost > 0 else 0
+        # Brinson 公式要求"当期收益率"（t-1→t），而非"当前/成本"的累计浮盈。
+        # 持仓文件只存成本基准，无上期价数据；此处无法计算真实当期收益，
+        # 保守地以 0 兜底（避免累计浮盈污染归因），实际场景应从 K 线传入 period_returns。
+        ret = 0.0
         # 用 tags[0] 或 "未分类"
         sector = (p.get("tags") or ["未分类"])[0]
         portfolio_weights[sector] = portfolio_weights.get(sector, 0) + weight

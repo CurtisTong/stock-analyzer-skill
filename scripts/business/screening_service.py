@@ -556,7 +556,7 @@ def compute_weighted_score(parts, strategy, regime=None):
         weights = compute_overlay_weights(weights, regime)
 
     # 检查 key 不匹配：parts 有但 weights 没有，或反之
-    all_keys = set(parts) | set(weights) - {"label", "two_stage"}
+    all_keys = (set(parts) | set(weights)) - {"label", "two_stage"}
     part_keys = set(parts) - {"label", "two_stage"}
     weight_keys = set(weights) - {"label", "two_stage"}
     missing_weights = part_keys - weight_keys

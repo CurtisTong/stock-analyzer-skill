@@ -384,8 +384,10 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 logger.debug("行情获取失败: %s", e)
 
-        # 为持仓附加行情数据
+        # 为持仓附加行情数据（用浅拷贝避免修改 pm._data 内部状态污染持久化）
+        enriched_positions = []
         for p in positions:
+            p = dict(p)  # 浅拷贝：防止写回 portfolio.json
             q = quote_map.get(p["code"])
             if q:
                 p["current_price"] = round(q.price, 3) if q.price else None
@@ -408,9 +410,12 @@ class Handler(BaseHTTPRequestHandler):
                 p["market_value"] = None
                 p["profit_pct"] = None
                 p["profit_amount"] = None
+            enriched_positions.append(p)
 
-        # 为自选附加行情数据
+        # 为自选附加行情数据（同理浅拷贝）
+        enriched_watchlist = []
         for w in watchlist:
+            w = dict(w)
             q = quote_map.get(w["code"])
             if q:
                 w["current_price"] = round(q.price, 3) if q.price else None
@@ -430,12 +435,13 @@ class Handler(BaseHTTPRequestHandler):
                 w["change_pct"] = None
                 w["buy_gap_pct"] = None
                 w["sell_gap_pct"] = None
+            enriched_watchlist.append(w)
 
         payload = {
             "ok": True,
             "data": {
-                "positions": positions,
-                "watchlist": watchlist,
+                "positions": enriched_positions,
+                "watchlist": enriched_watchlist,
                 "summary": summary,
                 "virtual": _virtual_mode,
             },

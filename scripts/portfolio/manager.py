@@ -89,8 +89,9 @@ class PortfolioManager:
                     data = json.loads(ex.read_text(encoding="utf-8"))
                     self._is_example = True
                 else:
+                    # 全新空 portfolio（非示例数据），避免误标 is_example
                     data = {"version": 2, "positions": [], "watchlist": []}
-                    self._is_example = True
+                    self._is_example = False
             else:
                 data = json.loads(self._path.read_text(encoding="utf-8"))
                 self._is_example = False

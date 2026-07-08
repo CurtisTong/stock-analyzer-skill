@@ -83,10 +83,11 @@ def _check_alerts(
     """检查当前价格是否触发预警条件。"""
     alerts = []
 
-    # 支撑位触及（强/弱分级）
+    # 支撑位触及（强/弱分级）：价格运行到支撑位 ±1% 区间才报警，
+    # 避免一字跌停/连续阴跌时反复误报
     for s in levels.get("supports", []):
         lv = s.get("level", 0)
-        if lv > 0 and price <= lv * 1.01:
+        if lv > 0 and lv * 0.99 <= price <= lv * 1.01:
             strength = s.get("strength", "中")
             alert_type = "support_touch" if strength == "强" else "support_touch_weak"
             alerts.append(

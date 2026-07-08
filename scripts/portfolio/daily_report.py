@@ -150,7 +150,7 @@ class DailyReportGenerator:
         return report
 
     def _parse_quote(self, response: str, code: str) -> dict:
-        """解析腾讯行情数据（兼容旧测试接口）。"""
+        """解析腾讯行情数据（统一通过 parse_tencent_line 字段映射）。"""
         rec = parse_tencent_line(response)
         if rec:
             return {
@@ -161,7 +161,7 @@ class DailyReportGenerator:
                 "open": float(rec.get("open", 0) or 0),
                 "change_pct": float(rec.get("change_pct", 0) or 0),
             }
-        # 回退：手动解析短格式（测试构造的 35 字段格式）
+        # 兼容旧测试/历史短格式：腾讯 35 字段格式（change_pct 在 parts[32]）
         try:
             if "=" in response and '"' in response:
                 payload = response.split('"', 1)[1].rstrip('";\n')
@@ -171,7 +171,7 @@ class DailyReportGenerator:
             if len(parts) >= 33:
                 return {
                     "name": parts[1],
-                    "code": parts[2],
+                    "code": parts[2] or code,
                     "price": float(parts[3]) if parts[3] else 0,
                     "prev_close": float(parts[4]) if parts[4] else 0,
                     "open": float(parts[5]) if parts[5] else 0,
@@ -336,10 +336,19 @@ class DailyReportGenerator:
             from config.loader import ConfigLoader
             from monitor.channels.base import validate_webhook_url
 
-            bark_url = ConfigLoader.get("notification.yaml", "bark.url", "")
-            if not bark_url:
-                print("Bark URL 未配置，跳过发送")
-                return
+            # Bark 配置：notification.yaml 的 channels.bark.{server,key} 复合
+            server = ConfigLoader.get("notification.yaml", "channels.bark.server", "")
+            key = ConfigLoader.get("notification.yaml", "channels.bark.key", "")
+            if not server or not key:
+                # 兼容旧配置：bark.url 整体写法
+                bark_url = ConfigLoader.get("notification.yaml", "bark.url", "")
+                if bark_url:
+                    pass  # 走旧路径
+                else:
+                    print("Bark URL 未配置，跳过发送")
+                    return
+            else:
+                bark_url = f"{server.rstrip('/')}/{key.lstrip('/')}"
 
             # 校验 webhook URL，防止 SSRF 攻击
             bark_url = validate_webhook_url(bark_url)

@@ -35,7 +35,8 @@ def turning_point_filter(quote: dict, fin: dict, features: dict) -> tuple:
 
     # 1. 超跌确认：20 日跌幅 ≤ -10%
     ret20 = features.get("ret20", 0)
-    if ret20 > -10:
+    # 数据缺失（ret20 == 0 且 features 无该字段）时跳过该检查
+    if "ret20" in features and ret20 > -10:
         reasons.append(f"未超跌(ret20={ret20:.1f}%>-10%)")
 
     # 2. 量能恢复：5 日均量 ≥ 20 日均量 × 1.0（至少不萎缩）
