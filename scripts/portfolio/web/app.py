@@ -307,7 +307,9 @@ class Handler(BaseHTTPRequestHandler):
 
         if result.get("ok") and body.get("action"):
             title, body_text = _format_notify(body["action"], result, body)
-            _notify_async(title, body_text)
+            # 稳定去重 key：剔除动态数量/价格，保留 action+code
+            throttle_key = f"portfolio_web:{body['action']}:{body.get('code', '')}"
+            _notify_async(title, body_text, throttle_key=throttle_key)
 
     def _status_from_error(self, result: dict) -> HTTPStatus:
         """从错误结果中提取 HTTP 状态码。"""

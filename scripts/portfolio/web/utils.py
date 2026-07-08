@@ -143,17 +143,26 @@ def _get_notifier():
 _notify_executor = ThreadPoolExecutor(max_workers=2)
 
 
-def _notify_async(title: str, body: str) -> None:
-    """后台线程发送通知，不阻塞响应。"""
+def _notify_async(title: str, body: str, throttle_key: str = None) -> None:
+    """后台线程发送通知，不阻塞响应。
+
+    Args:
+        title: 通知标题
+        body: 通知正文
+        throttle_key: 去重 key（默认用 title）。同 action+code 应传稳定 key（如
+            f"portfolio_web:{action}:{code}"），避免动态数量导致去重失效。
+    """
     if not _notify_enabled:
         return
     nm = _get_notifier()
     if nm is None:
         return
 
+    key = throttle_key or f"portfolio_web:{title}"
+
     def _send():
         try:
-            nm.send(title, body, throttle_key=f"portfolio_web:{title}")
+            nm.send(title, body, throttle_key=key)
         except Exception as e:
             logging.getLogger(__name__).debug("异步通知发送失败: %s", e)
 

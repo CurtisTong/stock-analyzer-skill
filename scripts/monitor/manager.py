@@ -129,6 +129,14 @@ class NotificationManager:
     def __init__(self, config: Optional[dict] = None):
         self._channels: list[NotificationChannel] = []
         self._config = config or self._load_config()
+        # 实例属性：避免多实例共享全局变量（测试隔离 + 多租户场景）
+        self._log_max_size = _LOG_MAX_SIZE
+        self._log_max_files = _LOG_MAX_FILES
+        log_cfg = self._config.get("logging", {})
+        if "max_size" in log_cfg:
+            self._log_max_size = log_cfg["max_size"] * 1024 * 1024
+        if "max_files" in log_cfg:
+            self._log_max_files = log_cfg["max_files"]
         self._throttle_log: dict[str, float] = {}  # key -> last_sent_ts
         self._daily_count = 0
         self._daily_date = ""
@@ -137,16 +145,8 @@ class NotificationManager:
         self._setup_channels()
 
     def _load_config(self) -> dict:
-        """加载通知配置，并更新日志轮转设置。"""
-        global _LOG_MAX_SIZE, _LOG_MAX_FILES
-        config = ConfigLoader.load("notification.yaml")
-
-        # 从配置中读取日志轮转设置
-        log_cfg = config.get("logging", {})
-        if "max_size" in log_cfg:
-            _LOG_MAX_SIZE = log_cfg["max_size"] * 1024 * 1024  # MB 转 bytes
-        if "max_files" in log_cfg:
-            _LOG_MAX_FILES = log_cfg["max_files"]
+        """加载通知配置。"""
+        return ConfigLoader.load("notification.yaml")
 
         return config
 
@@ -266,7 +266,7 @@ class NotificationManager:
         self._log_write_count += 1
         if self._log_write_count >= 10:
             self._log_write_count = 0
-            _rotate_log_if_needed(log_path, _LOG_MAX_SIZE, _LOG_MAX_FILES)
+            _rotate_log_if_needed(log_path, self._log_max_size, self._log_max_files)
 
         ts = _now().strftime("%Y-%m-%d %H:%M:%S")
         status = "OK" if success else "FAIL"

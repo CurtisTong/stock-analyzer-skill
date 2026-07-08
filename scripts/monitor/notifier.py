@@ -177,6 +177,11 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
                 detail["pushed"] = result.get("sent", 0) > 0
                 if detail["pushed"]:
                     summary["pushed"] += 1
+                elif alert_type in _PERSISTENT_SIGNALS:
+                    # 推送失败：清除去重记录，下次重试
+                    key = f"{code}:{alert_type}"
+                    with _notified_lock:
+                        _notified_signals.pop(key, None)
 
             summary["details"].append(detail)
 
