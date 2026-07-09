@@ -3,7 +3,7 @@
 import logging
 import os
 
-from common import BaseFetcher, plain_code
+from common import BaseFetcher, plain_code, infer_exchange
 from fetchers._common.tushare_check import check_tushare as _check_tushare
 
 logger = logging.getLogger(__name__)
@@ -28,10 +28,8 @@ class TushareKlineFetcher(BaseFetcher):
             scale = kwargs.get("scale", 240)
             datalen = kwargs.get("datalen", 30)
             plain = plain_code(code)
-            if code.startswith(("sh", "SH")):
-                ts_code = f"{plain}.SH"
-            else:
-                ts_code = f"{plain}.SZ"
+            ex = infer_exchange(code)  # "sh"/"sz"/"bj"，按代码段推断而非硬编码
+            ts_code = f"{plain}.{ex.upper()}" if ex else f"{plain}.SZ"
 
             pro = ts.pro_api()
             if scale == 240:
@@ -45,9 +43,12 @@ class TushareKlineFetcher(BaseFetcher):
 
             result = []
             for _, row in df.iterrows():
+                # tushare trade_date 为 YYYYMMDD（如 "20260108"），统一为 YYYY-MM-DD
+                td = str(row.get("trade_date", ""))
+                day = f"{td[:4]}-{td[4:6]}-{td[6:8]}" if len(td) == 8 else td
                 result.append(
                     {
-                        "day": str(row.get("trade_date", "")),
+                        "day": day,
                         "open": str(row.get("open", 0)),
                         "close": str(row.get("close", 0)),
                         "high": str(row.get("high", 0)),

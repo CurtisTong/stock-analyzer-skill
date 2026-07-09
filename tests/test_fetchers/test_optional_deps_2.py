@@ -177,7 +177,9 @@ class TestTushareKlineFetcher:
             result = f.fetch("sh600519")
         assert result is not None
         assert len(result) == 2
-        assert result[0]["day"] == "20250610"
+        # trade_date YYYYMMDD -> YYYY-MM-DD 格式化
+        assert result[0]["day"] == "2025-06-10"
+        assert result[1]["day"] == "2025-06-11"
 
     @requires_tushare
     def test_fetch_non_daily_scale(self):
@@ -186,6 +188,69 @@ class TestTushareKlineFetcher:
         with patch("fetchers.kline.tushare_kline._check_tushare", return_value=True):
             result = f.fetch("sh600519", scale=60)
         assert result is None
+
+    @requires_pandas
+    def test_bj_code_maps_to_bj_exchange(self):
+        """北交所代码（bj430047）应映射到 .BJ 而非 .SZ。"""
+        f = self._make_fetcher()
+        captured = {}
+
+        def fake_daily(**kwargs):
+            captured["ts_code"] = kwargs.get("ts_code")
+            return pd.DataFrame(
+                [{"trade_date": "20250610", "open": 1, "close": 1, "high": 1, "low": 1, "vol": 1}]
+            )
+
+        mock_ts = MagicMock()
+        mock_ts.pro_api.return_value.daily.side_effect = fake_daily
+        with (
+            patch("fetchers.kline.tushare_kline._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
+        ):
+            f.fetch("bj430047")
+        assert captured["ts_code"] == "430047.BJ"
+
+    @requires_pandas
+    def test_sh_code_maps_to_sh_exchange(self):
+        """沪市代码应映射到 .SH。"""
+        f = self._make_fetcher()
+        captured = {}
+
+        def fake_daily(**kwargs):
+            captured["ts_code"] = kwargs.get("ts_code")
+            return pd.DataFrame(
+                [{"trade_date": "20250610", "open": 1, "close": 1, "high": 1, "low": 1, "vol": 1}]
+            )
+
+        mock_ts = MagicMock()
+        mock_ts.pro_api.return_value.daily.side_effect = fake_daily
+        with (
+            patch("fetchers.kline.tushare_kline._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
+        ):
+            f.fetch("sh688001")
+        assert captured["ts_code"] == "688001.SH"
+
+    @requires_pandas
+    def test_sz_code_maps_to_sz_exchange(self):
+        """深市代码应映射到 .SZ。"""
+        f = self._make_fetcher()
+        captured = {}
+
+        def fake_daily(**kwargs):
+            captured["ts_code"] = kwargs.get("ts_code")
+            return pd.DataFrame(
+                [{"trade_date": "20250610", "open": 1, "close": 1, "high": 1, "low": 1, "vol": 1}]
+            )
+
+        mock_ts = MagicMock()
+        mock_ts.pro_api.return_value.daily.side_effect = fake_daily
+        with (
+            patch("fetchers.kline.tushare_kline._check_tushare", return_value=True),
+            patch.dict("sys.modules", {"tushare": mock_ts}),
+        ):
+            f.fetch("sz300001")
+        assert captured["ts_code"] == "300001.SZ"
 
 
 # ═══════════════════════════════════════════════════════════════
