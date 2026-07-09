@@ -281,3 +281,201 @@ class TestVolPriceSignalDesc:
 
     def test_zero_signal(self):
         assert ScreeningService._vol_price_signal_desc(0) == "中性"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 6. StockAnalysisService.analyze 数据来源元信息 (P0-02 / P1-17)
+# ═══════════════════════════════════════════════════════════════
+
+
+class _FakeFuture:
+    """模拟 concurrent.futures.Future，直接持有结果或异常。"""
+
+    def __init__(self, value=None, exc=None):
+        self._value = value
+        self._exc = exc
+
+    def result(self, timeout=None):
+        if self._exc:
+            raise self._exc
+        return self._value
+
+
+class _FakeExecutor:
+    """模拟 ThreadPoolExecutor.submit，按函数映射返回 FakeFuture。"""
+
+    def __init__(self, handlers):
+        # handlers: {(fn, args_tuple) -> FakeFuture}
+        self._handlers = handlers
+        self.calls = []
+
+    def submit(self, fn, *args):
+        self.calls.append((fn, args))
+        key = (fn, args)
+        if key in self._handlers:
+            return self._handlers[key]
+        # 默认返回 None
+        return _FakeFuture(value=None)
+
+
+def _make_quote(code="sh600519", source="tencent", fetch_time="2026-07-09T15:00:00"):
+    """构造一个模拟 Quote 对象。"""
+    from data.types import Quote
+
+    return Quote(
+        code=code,
+        name="贵州茅台",
+        price=1800.0,
+        change_pct=1.5,
+        source=source,
+        fetch_time=fetch_time,
+        pe=30,
+        pb=10,
+    )
+
+
+def _make_index_quote():
+    """构造上证指数模拟 Quote。"""
+    from data.types import Quote
+
+    return Quote(code="sh000001", name="上证指数", price=3000.0, change_pct=0.5)
+
+
+def _make_kline(n=60, last_day="2026-07-09"):
+    """构造模拟 KlineBar 列表。"""
+    from data.types import KlineBar
+
+    return [KlineBar(day=last_day, close=1800.0 + i, volume=10000) for i in range(n)]
+
+
+def _make_finance():
+    """构造模拟 FinanceRecord 列表。"""
+    from data.types import FinanceRecord
+
+    return [FinanceRecord(eps=50.0, roe=30.0, net_profit_yoy=20.0)]
+
+
+class TestAnalyzeDataMetadata:
+    """P0-02: analyze() 填充 data_sources / data_failed / data_time。"""
+
+    def test_all_success_fills_sources_and_time(self):
+        """三类数据全部成功 -> data_sources 含三项，data_time 取 quote.fetch_time。"""
+        from business.stock_analysis import StockAnalysisService
+
+        quote = _make_quote()
+        index = _make_index_quote()
+        kline = _make_kline()
+        finance = _make_finance()
+
+        svc = StockAnalysisService()
+        fake_ex = _FakeExecutor({
+            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+            (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
+            (get_quote_fn, ("sh000001",)): _FakeFuture(value=index),
+        })
+
+        with (
+            patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
+            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
+            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+        ):
+            result = svc.analyze("sh600519")
+
+        assert "行情" in result["data_sources"]
+        assert "K线" in result["data_sources"]
+        assert "财务" in result["data_sources"]
+        assert result["data_failed"] == []
+        assert result["data_time"] == "2026-07-09T15:00:00"
+
+    def test_quote_failure_recorded_in_failed(self):
+        """行情获取失败 -> data_failed 含'行情'，data_sources 不含'行情'。"""
+        from business.stock_analysis import StockAnalysisService
+
+        kline = _make_kline()
+        finance = _make_finance()
+
+        svc = StockAnalysisService()
+        fake_ex = _FakeExecutor({
+            (get_quote_fn, ("sh600519",)): _FakeFuture(exc=ConnectionError("timeout")),
+            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+            (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
+            (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
+        })
+
+        with (
+            patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
+            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
+            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+        ):
+            result = svc.analyze("sh600519")
+
+        assert "行情" in result["data_failed"]
+        assert "行情" not in result["data_sources"]
+        # 无 quote.fetch_time 时回退到 K线最后 day
+        assert result["data_time"] == "2026-07-09"
+
+    def test_finance_failure_recorded_in_failed(self):
+        """财务获取失败 -> data_failed 含'财务'。"""
+        from business.stock_analysis import StockAnalysisService
+
+        quote = _make_quote()
+        kline = _make_kline()
+
+        svc = StockAnalysisService()
+        fake_ex = _FakeExecutor({
+            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+            (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
+            (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
+        })
+
+        with (
+            patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
+            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
+            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+        ):
+            result = svc.analyze("sh600519")
+
+        assert "财务" in result["data_failed"]
+        assert "财务" not in result["data_sources"]
+
+    def test_index_quote_fetched_separately(self):
+        """P1-17: 大盘指数行情独立拉取 sh000001，而非复用个股 quote。"""
+        from business.stock_analysis import StockAnalysisService
+
+        quote = _make_quote()
+        kline = _make_kline()
+        finance = _make_finance()
+        index = _make_index_quote()
+
+        svc = StockAnalysisService()
+        fake_ex = _FakeExecutor({
+            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+            (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
+            (get_quote_fn, ("sh000001",)): _FakeFuture(value=index),
+        })
+
+        with (
+            patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
+            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
+            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+            patch.object(StockAnalysisService, "_calculate_composite_score") as mock_score,
+        ):
+            mock_score.return_value = {"total": 75}
+            svc.analyze("sh600519")
+
+        # 确认 _calculate_composite_score 收到的是指数行情（sh000001），而非个股
+        call_args = mock_score.call_args
+        passed_index = call_args.kwargs.get("index_quote")
+        assert passed_index is not None
+        assert passed_index.code == "sh000001"
+
+
+# 模块级引用，供 _FakeExecutor key 匹配
+from data import get_quote as get_quote_fn, get_kline as get_kline_fn, get_finance as get_finance_fn  # noqa: E402

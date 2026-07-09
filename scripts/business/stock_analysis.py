@@ -50,13 +50,19 @@ class StockAnalysisService:
             "price": 0,
             "change_pct": 0,
             "data_warnings": [],
+            # P0-02: 数据来源元信息（供 stock.py footer 使用，避免回退 now_str/硬编码源名）
+            "data_sources": [],
+            "data_failed": [],
+            "data_time": "",
         }
 
-        # 1. 并行获取三类数据（无依赖关系，可同时拉取）
+        # 1. 并行获取三类数据 + 大盘指数行情（无依赖关系，可同时拉取）
         ex = get_shared_executor()
         f_quote = ex.submit(get_quote, code)
         f_kline = ex.submit(get_kline, code, 240, 240)
         f_finance = ex.submit(get_finance, code) if include_finance else None
+        # P1-17: 并行拉取上证指数行情，用于 detect_market_environment
+        f_index = ex.submit(get_quote, "sh000001")
 
         try:
             quote = f_quote.result(timeout=30)
@@ -65,7 +71,11 @@ class StockAnalysisService:
             result["data_warnings"].append(
                 f"⚠ 行情数据获取失败（{type(e).__name__}），以下分析可能不完整"
             )
+            result["data_failed"].append("行情")
             quote = None
+        else:
+            if quote:
+                result["data_sources"].append("行情")
         try:
             kline = f_kline.result(timeout=30)
         except Exception as e:
@@ -73,7 +83,11 @@ class StockAnalysisService:
             result["data_warnings"].append(
                 f"⚠ K线数据获取失败（{type(e).__name__}），技术面分析将跳过"
             )
+            result["data_failed"].append("K线")
             kline = None
+        else:
+            if kline:
+                result["data_sources"].append("K线")
         try:
             finance = f_finance.result(timeout=30) if f_finance else None
         except Exception as e:
@@ -81,7 +95,25 @@ class StockAnalysisService:
             result["data_warnings"].append(
                 f"⚠ 财务数据获取失败（{type(e).__name__}），基本面分析将跳过"
             )
+            result["data_failed"].append("财务")
             finance = None
+        else:
+            if finance:
+                result["data_sources"].append("财务")
+        # 大盘指数行情（P1-17: 不再用个股 quote 当指数 quote）
+        index_quote = None
+        try:
+            index_quote = f_index.result(timeout=30)
+        except Exception as e:
+            logger.debug("获取大盘指数行情失败: %s", e)
+
+        # P0-02: 提取数据时间戳（优先用 quote.fetch_time，无则用 K线最后一根 day）
+        if quote and getattr(quote, "fetch_time", ""):
+            result["data_time"] = quote.fetch_time
+        elif kline and len(kline) > 0:
+            last_day = getattr(kline[-1], "day", "")
+            if last_day:
+                result["data_time"] = last_day
 
         # 2. 行情和画像
         if quote:
@@ -115,7 +147,10 @@ class StockAnalysisService:
         # 5. 综合评分
         if "technical" in result and "profile" in result:
             quote_dict = quote.to_dict() if quote else {}
-            result["score"] = self._calculate_composite_score(result, quote_dict, index_quote=quote)
+            # P1-17: 传入真实大盘指数行情（sh000001），而非个股 quote
+            result["score"] = self._calculate_composite_score(
+                result, quote_dict, index_quote=index_quote
+            )
 
         return result
 
