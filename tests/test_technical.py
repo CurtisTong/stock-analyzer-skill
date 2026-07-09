@@ -795,7 +795,7 @@ class TestCompositeScore:
 
 class TestGenerateSignals:
     def test_empty_features(self):
-        buy, sell = _generate_signals({})
+        buy, sell, _ = _generate_signals({})
         assert isinstance(buy, list)
         assert isinstance(sell, list)
 
@@ -807,7 +807,7 @@ class TestGenerateSignals:
             "rsi": {},
             "volume": {},
         }
-        buy, sell = _generate_signals(features)
+        buy, sell, _ = _generate_signals(features)
         assert "MACD金叉" in buy
 
     def test_macd_death_cross_signal(self):
@@ -818,8 +818,26 @@ class TestGenerateSignals:
             "rsi": {},
             "volume": {},
         }
-        buy, sell = _generate_signals(features)
+        buy, sell, _ = _generate_signals(features)
         assert "MACD死叉" in sell
+
+    def test_structured_signals_p1_16(self):
+        """P1-16: 结构化信号应正确反映各指标状态。"""
+        features = {
+            "macd": {"signal": 1},
+            "kdj": {"signal": "金叉,超卖"},
+            "bollinger": {"position": 0.1},
+            "rsi": {"rsi": 30},
+            "volume": {"volume_price_signal": 1, "volume_price": "放量上涨"},
+        }
+        _, _, s = _generate_signals(features)
+        assert s["macd_golden_cross"] is True
+        assert s["kdj_golden_cross"] is True
+        assert s["kdj_oversold"] is True
+        assert s["boll_lower_band"] is True
+        assert s["rsi_oversold"] is True
+        assert s["volume_inflow"] is True
+        assert s["macd_death_cross"] is False
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -185,4 +185,24 @@ def _generate_signals(features, market_breadth=None):
     if vol_vp == -1 and "出货" in vol_price:
         sell.append("放量下跌(主力出货)")
 
-    return buy, sell
+    # P1-16: 结构化信号（与字符串信号并行输出，供程序化消费）
+    # 消费者可逐步从字符串子串判断迁移到结构化字段
+    structured = {
+        "macd_golden_cross": macd.get("signal") == 1,
+        "macd_death_cross": macd.get("signal") == -1,
+        "macd_bottom_divergence": divergence == "底背离(看涨)",
+        "macd_top_divergence": divergence == "顶背离(看跌)",
+        "kdj_golden_cross": "金叉" in kdj.get("signal", ""),
+        "kdj_death_cross": "死叉" in kdj.get("signal", ""),
+        "kdj_oversold": "超卖" in kdj.get("signal", ""),
+        "kdj_overbought": "超买" in kdj.get("signal", ""),
+        "boll_lower_band": boll.get("position", 0.5) < 0.2,
+        "boll_upper_band": boll.get("position", 0.5) > 0.8,
+        "rsi_oversold": rsi_data.get("rsi", 50) < 35,
+        "rsi_overbought": rsi_data.get("rsi", 50) > 70,
+        "volume_inflow": vol_vp == 1 and "放量上涨" in vol_price,
+        "volume_outflow": vol_vp == -1 and "出货" in vol_price,
+        "is_downtrend": is_downtrend,
+    }
+
+    return buy, sell, structured

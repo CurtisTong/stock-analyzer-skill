@@ -415,6 +415,9 @@ def composite_score(
     vol_signal = vol.get("volume_price_signal", 0)
 
     # 各子评分的理论上限（用于归一化）
+    # P1-15: 这些魔数必须与对应 _score_* 函数的实际满分保持同步。
+    # 若 _score_* 的评分逻辑变更（如新增 pattern 扣分项），需同步更新此处上限，
+    # 否则归一化会饱和或欠饱和。TODO(v2.0): 改为 rank-based 归一化消除魔数依赖。
     _SCORE_MAX = {
         "ma": 30,
         "macd": 20,
@@ -505,13 +508,14 @@ def composite_score(
     else:
         grade = "强烈看空"
 
-    buy_signals, sell_signals = _generate_signals(features, market_breadth)
+    buy_signals, sell_signals, structured_signals = _generate_signals(features, market_breadth)
 
     return {
         "score": round(score, 1),
         "grade": grade,
         "buy_signals": buy_signals,
         "sell_signals": sell_signals,
+        "structured_signals": structured_signals,
     }
 
 
