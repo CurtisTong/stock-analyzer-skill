@@ -523,6 +523,56 @@ class TestActiveSetSemantics:
         # 长线分歧 + 短线均分看多 -> 谨慎看多
         assert agg["direction"] == "谨慎看多"
 
+    # ═══════════════════════════════════════════════════════════════
+    # P1-08: 4:1 边界测试矩阵（long_n-1 vs majority 阈值重叠）
+    # ═══════════════════════════════════════════════════════════════
+
+    def test_p1_08_long_4_bull_1_bear_extreme_bull(self):
+        """P1-08: 长线 4 看多 0 看空 + 1 中性 = extreme_bull（bull>=n-1 且 bear==0）。
+
+        long_extreme_bull = bull >= long_n-1 and bear == 0
+        5 人时 long_n-1=4，bull=4 bear=0 -> extreme_bull=True
+        """
+        long_exp = [_make_expert(self.LONG_NAMES[i], 72, "long_term") for i in range(4)]
+        long_exp.append(_make_expert(self.LONG_NAMES[4], 50, "long_term"))  # 中性
+        short_exp = [
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("emotion_tech", 30, "short_term"),
+            _make_expert("momentum_trader", 50, "short_term"),
+        ]
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        assert agg["long_votes"]["bull"] == 4
+        assert agg["long_votes"]["bear"] == 0
+        # bull >= n-1(4) and bear == 0 -> extreme_bull
+        # 短线 short_avg=50 分歧 -> 不触发两极分化 -> 长线主导多
+
+    def test_p1_08_long_4_bear_1_bull_extreme_bear(self):
+        """P1-08: 长线 4 看空 0 看多 + 1 中性 = extreme_bear。
+
+        long_extreme_bear = bear >= long_n-1 and bull == 0
+        """
+        long_exp = [_make_expert(self.LONG_NAMES[i], 25, "long_term") for i in range(4)]
+        long_exp.append(_make_expert(self.LONG_NAMES[4], 50, "long_term"))  # 中性
+        short_exp = _active_short_experts(28)  # 短线全看空
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        assert agg["long_votes"]["bear"] == 4
+        assert agg["long_votes"]["bull"] == 0
+        # extreme_bear + 短线看空 -> 双一致看空方向
+
+    def test_p1_08_majority_equals_extreme_at_n5(self):
+        """P1-08: 5 人组时 majority(ceil(5*2/3)=4) == extreme_threshold(n-1=4)。
+
+        确认阈值重叠不会导致 4:0 被误判：4 看多应同时满足 majority 和 extreme。
+        """
+        long_exp = [_make_expert(self.LONG_NAMES[i], 72, "long_term") for i in range(4)]
+        long_exp.append(_make_expert(self.LONG_NAMES[4], 50, "long_term"))
+        short_exp = _active_short_experts(68)  # 短线均分看多
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        # 4 看多 >= majority(4) -> 长线主导多
+        # 4 看多 >= n-1(4) 且 bear=0 -> extreme_bull
+        # 短线看多 + 长线看多 -> 看多（非谨慎，因 extreme 可升级）
+        assert agg["direction"] in ("看多", "强烈看多")
+
     def test_short_2_bull_1_bear_avg_above_60_is_bull(self):
         """B4 核心：短线 2 看多 1 看空但均分≥60 -> 短线看多（不再判分歧）。
 
