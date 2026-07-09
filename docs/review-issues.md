@@ -11,7 +11,8 @@
 > - **Round 7（P0 全量）**：15 项 P0 已全部修复（10 项代码修复 + 5 项验证降级/文档对齐），2618 tests passed。
 > - **Round 8（P1 全量）**：30 项 P1 已全部修复，分 5 阶段提交（A: fetcher 加固, B: experts 投票校准, C: technical/chan, D: business, E: skills/tests/CI/config），2639 tests passed。
 > - **Round 9（P2 全量）**：28 项真实/部分真实 P2 已全部修复，分 5 阶段提交（A: experts 清理, B: strategies 治理, C: technical/fetcher, D: business/config, E: tests/docs/release），2663 tests passed。高风险架构项（P2-01/05/10/23）采用保守标注方案，留待 v2.0.0。
-> - 高风险项（P1-14/15/19、P2-01/05/10/23）采用保守方案：标注而非改算法，避免回归风险。
+> - **Round 10（收尾深化）**：清理 20 个遗留 ruff 错误；P0-10 回测财务前瞻偏差修复（report_date+90天披露延迟过滤）；P0-11 walk-forward 回测框架（OOS 验证）；P1-15 composite_score 去魔数化（_SCORE_MAX 提取为模块级常量+YAML 可配置）；P1-27 13 skill E2E 测试扩展（frontmatter 校验+mock 工作流）。2698 tests passed。
+> - 高风险项（P1-14/19、P2-01/05/10/23）采用保守方案：标注而非改算法，避免回归风险。
 
 ---
 
@@ -136,25 +137,25 @@
 9. **changelog.yml 改 PR 模式或加 concurrency**（P0-14）
 10. **关闭 event/analyst 因子默认计算**（P0-12）
 
-### Milestone v1.16.0：回测与策略可信度（7 项）
+### Milestone v1.16.0：回测与策略可信度（7 项）- ✅ 全部完成
 
-1. **回测财务 lookahead bias 披露或修复**（P0-10）
-2. **新增 walk-forward 回测框架**（P0-11）
-3. **本土战法增加 OOS 验证标记**（P0-11 / P2-28）
-4. **缠论中枢补 GG/DD**（P1-12）
-5. **technical composite_score 去魔数化**（P1-15）
-6. **补 StockAnalysisService 单测**（P1-26）
-7. **补 13 skill E2E 工作流测试**（P1-27）
+1. ✅ **回测财务 lookahead bias 披露或修复**（P0-10）-- Round 10: report_date+90天披露延迟过滤
+2. ✅ **新增 walk-forward 回测框架**（P0-11）-- Round 10: walk_forward.py OOS 验证框架
+3. ✅ **本土战法增加 OOS 验证标记**（P0-11 / P2-28）-- Round 9: oos_validated:false 字段
+4. ✅ **缠论中枢补 GG/DD**（P1-12）-- Round 8
+5. ✅ **technical composite_score 去魔数化**（P1-15）-- Round 10: _SCORE_MAX 提取为模块级常量+YAML
+6. ✅ **补 StockAnalysisService 单测**（P1-26）-- Round 8
+7. ✅ **补 13 skill E2E 工作流测试**（P1-27）-- Round 10: frontmatter 校验+mock 工作流
 
-### Milestone v2.0.0：架构治理（7 项）
+### Milestone v2.0.0：架构治理（7 项）- 部分完成
 
-1. **experts 三源合一为 YAML 单源**（P2-01）
-2. **策略因子共线性分析与去相关**（P2-05）
-3. **Config DEPRECATED 段治理机制**（P1-30 / P2-23）
-4. **ADR 文档体系**（P2-27）
-5. **script-catalog 自动生成**（P1-23 / P2-29）
-6. **data/cache shim 清理**（P2-24）
-7. **STRATEGIES 全局直读迁移到 API**（P2-09）
+1. ⏳ **experts 三源合一为 YAML 单源**（P2-01）-- 标注 TODO，留待 v2.0
+2. ⏳ **策略因子共线性分析与去相关**（P2-05）-- 诊断工具已建，去相关留待 v2.0
+3. ✅ **Config DEPRECATED 段治理机制**（P1-30 / P2-23）-- Round 8/9: 死配置清理+并发测试
+4. ✅ **ADR 文档体系**（P2-27）-- Round 9: 4 ADR + README
+5. ✅ **script-catalog 自动生成**（P1-23 / P2-29）-- Round 9: gen_script_catalog.py + CI
+6. ✅ **data/cache shim 清理**（P2-24）-- Round 9: re-export 替换
+7. ✅ **STRATEGIES 全局直读迁移到 API**（P2-09）-- Round 9: strategy_exists() + get_strategy()
 
 ---
 
