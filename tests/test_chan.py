@@ -585,6 +585,26 @@ class TestChanZhongshu:
         # 只有中枢1有效
         assert len(result) <= 1
 
+    def test_merge_uses_intersection_not_union(self):
+        """合并重叠中枢应取交集（zg=min, zd=max），而非并集（扩大范围）。"""
+        xd_list = [
+            _make_xd("up", 3, 12, 8),  # 线段0
+            _make_xd("down", 3, 11, 7),  # 线段1
+            _make_xd("up", 3, 13, 9),  # 线段2
+            _make_xd("down", 3, 14, 10),  # 线段3
+        ]
+        # 中枢1（线段0,1,2）: zg=min(12,11,13)=11, zd=max(8,7,9)=9
+        # 中枢2（线段1,2,3）: zg=min(11,13,14)=11, zd=max(7,9,10)=10
+        # 重叠且索引连续 -> 合并
+        # 交集: zg=min(11,11)=11, zd=max(9,10)=10, width=1
+        # 并集（旧bug）: zg=max(11,11)=11, zd=min(9,10)=9, width=2
+        result = chan_zhongshu(xd_list)
+        assert len(result) >= 1
+        merged = result[0]
+        assert merged["zg"] == 11  # 交集取较低高点
+        assert merged["zd"] == 10  # 交集取较高低点
+        assert merged["width"] == 1  # 交集宽度，非并集的 2
+
 
 # ═══════════════════════════════════════════════════════════════
 # 6. chan_beichi 测试

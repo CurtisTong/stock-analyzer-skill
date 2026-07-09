@@ -47,15 +47,15 @@ def chan_zhongshu(xd_list):
         # 有重叠（新中枢的低点 < 旧中枢的高点）且线段索引连续
         index_continuous = zs["xd_start"] <= last["xd_end"] + 1
         if zs["zd"] < last["zg"] and zs["zg"] > last["zd"] and index_continuous:
+            # 交集：取较低的高点、较高的低点，与初始构建（zg=min, zd=max）一致
+            # 缠论中枢合并应保持交集而非并集（并集会扩大中枢范围，违反定义）
+            new_zg = min(last["zg"], zs["zg"])
+            new_zd = max(last["zd"], zs["zd"])
             merged_zs[-1] = {
-                "zg": round(max(last["zg"], zs["zg"]), 3),
-                "zd": round(min(last["zd"], zs["zd"]), 3),
-                "mid": round(
-                    (max(last["zg"], zs["zg"]) + min(last["zd"], zs["zd"])) / 2, 3
-                ),
-                "width": round(
-                    max(last["zg"], zs["zg"]) - min(last["zd"], zs["zd"]), 3
-                ),
+                "zg": round(new_zg, 3),
+                "zd": round(new_zd, 3),
+                "mid": round((new_zg + new_zd) / 2, 3),
+                "width": round(new_zg - new_zd, 3),
                 "xd_start": last["xd_start"],
                 "xd_end": zs["xd_end"],
             }

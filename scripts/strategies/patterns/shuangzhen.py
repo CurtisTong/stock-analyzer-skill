@@ -17,7 +17,6 @@ def detect_shuangzhen(records, closes, lows, volumes):
 
     for i in range(5, len(records)):
         window = records[i - 5 : i + 1]
-        lows[i - 5 : i + 1]
         w_vol = volumes[i - 5 : i + 1]
 
         # 找长下影线
