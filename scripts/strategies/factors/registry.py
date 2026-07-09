@@ -10,12 +10,11 @@
     from strategies.factors.registry import register_factor
     register_factor("esg", compute_fn=esg_score, phase=1, args_style="fin_industry")
 
-# P2-05: 因子共线性 TODO(v2.0)
-# 当前 9 因子（quality/valuation/momentum/liquidity/volatility/dividend/chip/event/analyst）
-# 存在已知概念重叠：momentum/volatility/liquidity 都基于价格/成交量数据；quality/valuation
-# 都基于财务数据。当前仅做加权求和，未做去相关/VIF/PCA 处理。
-# v2.0 目标：引入因子相关矩阵监控 + VIF 诊断 + 去相关/降维。
-# 诊断工具：compute_factor_correlation_matrix()（仅诊断，不改变打分）。
+P2-05 (v2.0): 因子共线性治理
+  - compute_factor_correlation_matrix(): Pearson 相关矩阵（诊断）
+  - compute_vif(): 方差膨胀因子（诊断，VIF > 10 表示严重共线性）
+  - decorrelate_factors(): 残差化去相关变换（可选，保留 9-key 接口）
+  - decorrelate 默认关闭，通过 compute_weighted_score_with_norm(decorrelate=True) 启用
 """
 
 import logging
@@ -290,3 +289,178 @@ def compute_factor_correlation_matrix(
                 matrix[a][b] = corr
                 matrix[b][a] = corr
     return matrix
+
+
+def compute_vif(factor_scores: dict) -> dict:
+    """P2-05: 计算方差膨胀因子（VIF）。
+
+    VIF_j = 1 / (1 - R²_j)，其中 R²_j 是因子 j 对其他因子的线性回归决定系数。
+    VIF > 10 表示严重共线性，VIF > 5 表示中等共线性。
+
+    Args:
+        factor_scores: {factor_name: [score1, score2, ...]}
+
+    Returns:
+        {factor_name: vif_value}（VIF 越高共线性越严重）
+        数据不足时返回 None。
+    """
+    names = list(factor_scores.keys())
+    n_factors = len(names)
+    result = {}
+
+    for j, target in enumerate(names):
+        y = factor_scores.get(target) or []
+        if len(y) < 3:
+            result[target] = None
+            continue
+
+        # 构建其他因子作为自变量
+        others = [names[i] for i in range(n_factors) if i != j]
+        X_cols = []
+        for o in others:
+            col = factor_scores.get(o) or []
+            if len(col) == len(y):
+                X_cols.append(col)
+
+        if not X_cols:
+            result[target] = 1.0  # 无其他因子，无共线性
+            continue
+
+        # 简单 OLS: y = a + b1*x1 + ... + bk*xk
+        # 用正规方程 (X'X)^-1 X'y
+        n = len(y)
+        # 设计矩阵：第一列全1（截距），后续为因子列
+        X = [[1.0] + [col[i] for col in X_cols] for i in range(n)]
+        k = len(X_cols) + 1  # 含截距
+
+        # X'X
+        XtX = [[0.0] * k for _ in range(k)]
+        for row in X:
+            for a in range(k):
+                for b in range(k):
+                    XtX[a][b] += row[a] * row[b]
+
+        # X'y
+        Xty = [0.0] * k
+        for i, row in enumerate(X):
+            for a in range(k):
+                Xty[a] += row[a] * y[i]
+
+        # 解 XtX * beta = Xty（高斯消元）
+        beta = _solve_linear(XtX, Xty, k)
+        if beta is None:
+            # XtX 奇异 = 回归因子完全共线 -> VIF = inf（最大共线性）
+            result[target] = float("inf")
+            continue
+
+        # 计算 R²
+        y_mean = sum(y) / n
+        ss_res = sum((y[i] - sum(beta[a] * X[i][a] for a in range(k))) ** 2 for i in range(n))
+        ss_tot = sum((yi - y_mean) ** 2 for yi in y)
+        if ss_tot == 0:
+            result[target] = None
+            continue
+        r_squared = max(0.0, 1.0 - ss_res / ss_tot)
+        vif = 1.0 / (1.0 - r_squared) if r_squared < 0.9999 else float("inf")
+        result[target] = round(vif, 3) if vif != float("inf") else float("inf")
+
+    return result
+
+
+def _solve_linear(A: list, b: list, n: int) -> list | None:
+    """高斯消元法解线性方程组 Ax = b。返回 x 或 None（奇异矩阵）。"""
+    # 增广矩阵
+    M = [A[i][:] + [b[i]] for i in range(n)]
+    for col in range(n):
+        # 部分主元
+        pivot = max(range(col, n), key=lambda r: abs(M[r][col]))
+        if abs(M[pivot][col]) < 1e-12:
+            return None  # 奇异
+        M[col], M[pivot] = M[pivot], M[col]
+        # 消元
+        for r in range(n):
+            if r == col:
+                continue
+            factor = M[r][col] / M[col][col]
+            for c in range(col, n + 1):
+                M[r][c] -= factor * M[col][c]
+    return [M[i][n] / M[i][i] for i in range(n)]
+
+
+def decorrelate_factors(
+    parts_list: list, threshold: float = 0.7
+) -> list:
+    """P2-05: 对批量因子得分做残差化去相关。
+
+    对每对相关系数 > threshold 的因子 (A, B)，从 B 中减去 A 对 B 的线性回归残差，
+    消除共线性。保留 9-key 接口，策略权重无需修改。
+
+    残差化方向：低权重因子被高权重因子残差化（保留高权重因子的原始信息）。
+    默认 threshold=0.7，仅处理高共线性对。
+
+    Args:
+        parts_list: [{factor: score, ...}, ...] 每只股票一个 dict
+        threshold: 相关系数阈值，仅处理 > threshold 的因子对
+
+    Returns:
+        去相关后的 parts_list（同结构，同顺序）
+    """
+    if len(parts_list) < 3:
+        return parts_list  # 样本不足，不处理
+
+    # 收集每个因子的得分序列
+    all_factors = set()
+    for p in parts_list:
+        all_factors.update(p.keys())
+    # 只处理有数值的因子
+    factor_names = sorted(
+        f for f in all_factors
+        if all(isinstance(p.get(f), (int, float)) for p in parts_list)
+    )
+
+    if len(factor_names) < 2:
+        return parts_list
+
+    factor_scores = {
+        f: [p.get(f, 0) for p in parts_list] for f in factor_names
+    }
+    corr = compute_factor_correlation_matrix(factor_scores)
+
+    # 找出高相关因子对
+    decorrelated = {f: list(factor_scores[f]) for f in factor_names}
+    processed = set()
+
+    for i, a in enumerate(factor_names):
+        for j in range(i + 1, len(factor_names)):
+            b = factor_names[j]
+            r = corr.get(a, {}).get(b)
+            if r is None or abs(r) < threshold:
+                continue
+            # 残差化 b 对 a：b_new = b - beta * a（保留 a 的原始信息）
+            if b in processed:
+                continue  # 已被残差化，跳过
+            va, vb = decorrelated[a], decorrelated[b]
+            ma = sum(va) / len(va)
+            mb = sum(vb) / len(vb)
+            num = sum((va[k] - ma) * (vb[k] - mb) for k in range(len(va)))
+            den = sum((va[k] - ma) ** 2 for k in range(len(va)))
+            if den > 0:
+                beta = num / den
+                # 残差 = b - beta * a，加回 b 的均值保持尺度
+                decorrelated[b] = [
+                    vb[k] - beta * (va[k] - ma) for k in range(len(vb))
+                ]
+                processed.add(b)
+                logger.debug(
+                    "去相关: %s 被 %s 残差化 (r=%.3f, beta=%.3f)", b, a, r, beta
+                )
+
+    # 重建 parts_list
+    result = []
+    for idx, p in enumerate(parts_list):
+        new_p = dict(p)
+        for f in factor_names:
+            if f in decorrelated and f in processed:
+                new_p[f] = decorrelated[f][idx]
+        result.append(new_p)
+    return result

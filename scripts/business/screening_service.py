@@ -579,19 +579,26 @@ def normalize_factors_batch(
 
 
 def compute_weighted_score_with_norm(
-    parts_list: List[Dict[str, float]], strategy: str
+    parts_list: List[Dict[str, float]], strategy: str, decorrelate: bool = False
 ) -> List[float]:
-    """对批量 6 因子做归一化后加权求和。
+    """对批量因子做归一化后加权求和。
 
     Args:
-        parts_list: 候选股 6 因子 dict 列表
+        parts_list: 候选股因子 dict 列表
         strategy: 策略名
+        decorrelate: P2-05 是否启用残差化去相关（默认关闭，减少高共线性因子对
+                     打分的过度影响）。仅在样本 >= 3 时生效。
 
     Returns:
         每只股票的加权得分列表（与输入顺序对应）
     """
     if not parts_list:
         return []
+    # P2-05: 可选残差化去相关（在归一化前执行，消除共线性）
+    if decorrelate:
+        from strategies.factors.registry import decorrelate_factors
+
+        parts_list = decorrelate_factors(parts_list)
     normed = normalize_factors_batch(parts_list)
     return [compute_weighted_score(p, strategy) for p in normed]
 

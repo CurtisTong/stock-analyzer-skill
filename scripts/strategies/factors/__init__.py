@@ -12,7 +12,13 @@ from .dividend import dividend_score
 from .chip import chip_score_static, chip_score_dynamic, chip_details
 from .event import event_score
 from .analyst import analyst_expectation_score
-from .registry import register_factor, get_factor_keys
+from .registry import (
+    register_factor,
+    get_factor_keys,
+    compute_factor_correlation_matrix,
+    compute_vif,
+    decorrelate_factors,
+)
 
 # ---------- 自动注册内置因子 ----------
 

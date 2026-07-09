@@ -149,8 +149,8 @@
 
 ### Milestone v2.0.0：架构治理（7 项）- 部分完成
 
-1. ⏳ **experts 三源合一为 YAML 单源**（P2-01）-- 标注 TODO，留待 v2.0
-2. ⏳ **策略因子共线性分析与去相关**（P2-05）-- 诊断工具已建，去相关留待 v2.0
+1. ✅ **experts 三源合一为 YAML 单源**（P2-01）-- Round 11: registry.py 删除 490 行硬编码，YAML 单源加载
+2. ✅ **策略因子共线性分析与去相关**（P2-05）-- Round 11: VIF 诊断 + decorrelate_factors 残差化变换
 3. ✅ **Config DEPRECATED 段治理机制**（P1-30 / P2-23）-- Round 8/9: 死配置清理+并发测试
 4. ✅ **ADR 文档体系**（P2-27）-- Round 9: 4 ADR + README
 5. ✅ **script-catalog 自动生成**（P1-23 / P2-29）-- Round 9: gen_script_catalog.py + CI
