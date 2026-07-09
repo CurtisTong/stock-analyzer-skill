@@ -295,6 +295,14 @@ def _default_progress_callback(event, payload):
         regime = payload.get("regime")
         if regime:
             print(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
+            # P2-07: 明确告知用户 overlay 已应用/未应用，避免策略语义被静默改变
+            if getattr(payload, "_no_regime", False):
+                print("⚙️ regime overlay 已禁用（使用固定权重）", flush=True)
+            else:
+                print(
+                    f"⚡ 已应用 {regime.label} regime overlay（--no-regime 可禁用）",
+                    flush=True,
+                )
         # macro
         macro_msg = payload.get("macro_msg")
         if macro_msg:

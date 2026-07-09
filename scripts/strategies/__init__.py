@@ -7,6 +7,7 @@ from .registry import (
     get_strategy,
     register_strategy,
     list_strategies,
+    strategy_exists,
 )
 from .factors import (
     quality_score,

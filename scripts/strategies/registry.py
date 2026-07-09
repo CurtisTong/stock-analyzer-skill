@@ -151,3 +151,9 @@ def list_strategies() -> list:
     """列出所有策略名称。"""
     with _STRATEGIES_LOCK:
         return list(STRATEGIES.keys())
+
+
+def strategy_exists(name: str) -> bool:
+    """检查策略是否已注册（锁内 membership 测试，P2-09 替代直接 STRATEGIES 直读）。"""
+    with _STRATEGIES_LOCK:
+        return name in STRATEGIES

@@ -154,6 +154,16 @@ def render_backtest_summary(report: dict) -> str:
     lines.append(f"📊 回测报告: {strategy}")
     lines.append(f"{'━' * 40}")
 
+    # P2-07: 标注 regime + overlay 应用情况（避免策略语义被静默改变）
+    regime_label = report.get("regime_label")
+    if regime_label:
+        lines.append(f"  ⚡ 市场状态: {regime_label}（已应用 overlay）")
+    overlay_disabled = report.get("no_overlay", False)
+    if overlay_disabled:
+        lines.append("  ⚙️ regime overlay 已禁用（使用固定权重）")
+    if regime_label or overlay_disabled:
+        lines.append(f"{'─' * 40}")
+
     # 核心指标
     total_ret = report.get("total_return_pct", 0)
     win_rate = report.get("win_rate_pct", 0)

@@ -9,6 +9,13 @@
 示例（新增 ESG 因子）：
     from strategies.factors.registry import register_factor
     register_factor("esg", compute_fn=esg_score, phase=1, args_style="fin_industry")
+
+# P2-05: 因子共线性 TODO(v2.0)
+# 当前 9 因子（quality/valuation/momentum/liquidity/volatility/dividend/chip/event/analyst）
+# 存在已知概念重叠：momentum/volatility/liquidity 都基于价格/成交量数据；quality/valuation
+# 都基于财务数据。当前仅做加权求和，未做去相关/VIF/PCA 处理。
+# v2.0 目标：引入因子相关矩阵监控 + VIF 诊断 + 去相关/降维。
+# 诊断工具：compute_factor_correlation_matrix()（仅诊断，不改变打分）。
 """
 
 import logging
@@ -247,3 +254,39 @@ def compute_phase_factors(
     if degraded:
         logger.warning("Phase%d 以下因子计算失败，已降级: %s", phase, degraded)
     return result
+
+
+def compute_factor_correlation_matrix(
+    factor_scores: dict,
+) -> dict:
+    """P2-05: 计算因子得分相关矩阵（诊断工具，不改变打分）。
+
+    Args:
+        factor_scores: {factor_name: [score1, score2, ...]} 每只股票一个分数
+
+    Returns:
+        {factor_name: {other_factor: corr_coef, ...}, ...}
+        对角线为 1.0；缺失数据对的相关系数为 None。
+    """
+    names = list(factor_scores.keys())
+    n = len(names)
+    matrix = {a: {b: None for b in names} for a in names}
+    for a in names:
+        matrix[a][a] = 1.0
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            a, b = names[i], names[j]
+            va, vb = factor_scores.get(a) or [], factor_scores.get(b) or []
+            if not va or not vb or len(va) != len(vb) or len(va) < 2:
+                continue
+            ma = sum(va) / len(va)
+            mb = sum(vb) / len(vb)
+            num = sum((va[k] - ma) * (vb[k] - mb) for k in range(len(va)))
+            den_a = sum((va[k] - ma) ** 2 for k in range(len(va))) ** 0.5
+            den_b = sum((vb[k] - mb) ** 2 for k in range(len(vb))) ** 0.5
+            if den_a > 0 and den_b > 0:
+                corr = round(num / (den_a * den_b), 3)
+                matrix[a][b] = corr
+                matrix[b][a] = corr
+    return matrix

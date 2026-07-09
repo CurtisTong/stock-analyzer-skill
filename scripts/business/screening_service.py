@@ -30,9 +30,9 @@ from data.helpers import (
 )
 from classifier import infer_industry
 from strategies import (
-    STRATEGIES,
     chip_score_static,
     get_strategy,
+    strategy_exists,
 )
 from strategies.factors.registry import (
     compute_all_factors,
@@ -168,8 +168,8 @@ class ScreeningService:
         """
         filters = filters or {}
 
-        # 验证策略
-        if strategy not in STRATEGIES:
+        # 验证策略（P2-09: 走锁内 API 而非直读 STRATEGIES）
+        if not strategy_exists(strategy):
             logger.warning(f"未知策略 {strategy}，使用默认策略")
             strategy = self.default_strategy
 
@@ -291,7 +291,8 @@ class ScreeningService:
             parts["chip"] = 50
 
         # 两阶段策略：Stage 1 硬条件过滤（review#2）
-        if ctx.phase1 and STRATEGIES.get(ctx.strategy, {}).get("two_stage"):
+        # P2-09: 走锁内 API 而非直读 STRATEGIES
+        if ctx.phase1 and get_strategy(ctx.strategy).get("two_stage"):
             from strategies.filters.turning_point import turning_point_filter
 
             pass_, reason = turning_point_filter(quote_dict, fin, features)

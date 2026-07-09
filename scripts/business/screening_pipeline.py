@@ -21,7 +21,7 @@ from data.helpers import (
     prefetch_kline_all,
 )
 from classifier import infer_industry
-from strategies import STRATEGIES, get_strategy
+from strategies import get_strategy
 from strategies.factors.registry import get_factor_keys
 
 from business.screening_service import (

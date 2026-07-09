@@ -74,7 +74,7 @@ register_factor(
 
 register_factor(
     "chip",
-    compute_fn=chip_score_dynamic,
+    compute_fn=chip_score_static,
     phase=2,
     args_style="code",
     label="筹码",
