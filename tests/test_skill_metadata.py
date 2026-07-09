@@ -45,7 +45,7 @@ EXPECTED_SKILLS = {
 COMMAND_LIKE_SKILLS = {"backtest", "stock-help", "monitor"}
 
 # 推荐的 model 值
-ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
+ALLOWED_MODELS = {"haiku", "sonnet", "opus", "glm-5.2"}
 
 
 # ═══════════════════════════════════════════════════════════════
