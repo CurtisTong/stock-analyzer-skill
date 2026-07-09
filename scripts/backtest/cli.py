@@ -182,6 +182,29 @@ def main():
         "--benchmark", default=None, help="基准指数代码（如 sh000300 沪深300）"
     )
     parser.add_argument("--scenarios", action="store_true", help="运行情景分析")
+    parser.add_argument(
+        "--walk-forward",
+        action="store_true",
+        help="Walk-forward 回测（train+test 滚动窗口 OOS 验证）",
+    )
+    parser.add_argument(
+        "--train-days",
+        type=int,
+        default=120,
+        help="Walk-forward 训练段天数（默认 120）",
+    )
+    parser.add_argument(
+        "--test-days",
+        type=int,
+        default=30,
+        help="Walk-forward 测试段天数（默认 30，OOS 窗口）",
+    )
+    parser.add_argument(
+        "--n-windows",
+        type=int,
+        default=5,
+        help="Walk-forward 窗口数量（默认 5）",
+    )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
@@ -203,7 +226,40 @@ def main():
             flush=True,
         )
 
-    if args.optimize:
+    if args.walk_forward:
+        from .walk_forward import run_walk_forward, WalkForwardConfig
+
+        print(
+            f"\n🔄 Walk-forward 回测: {args.strategy} "
+            f"(train={args.train_days}d, test={args.test_days}d, "
+            f"windows={args.n_windows}, top={args.top})",
+            flush=True,
+        )
+        config = WalkForwardConfig(
+            strategy_name=args.strategy,
+            codes=codes,
+            train_days=args.train_days,
+            test_days=args.test_days,
+            n_windows=args.n_windows,
+            top_n=args.top,
+        )
+        wf_result = run_walk_forward(config)
+        d = wf_result.to_dict()
+        if args.json:
+            print(json.dumps(d, ensure_ascii=False, indent=2))
+        else:
+            print(f"\n{'指标':<20} {'OOS':>10} {'IS(参考)':>10}")
+            print("-" * 42)
+            print(f"{'总收益%':<20} {d['oos_total_return_pct']:>10.2f} {d['is_total_return_pct']:>10.2f}")
+            print(f"{'夏普比率':<20} {d['oos_sharpe']:>10.2f} {d['is_sharpe']:>10.2f}")
+            print(f"{'胜率%':<20} {d['oos_win_rate_pct']:>10.1f} {'-':>10}")
+            print(f"{'最大回撤%':<20} {d['oos_max_drawdown_pct']:>10.2f} {'-':>10}")
+            print(f"\n有效窗口: {d['n_valid_windows']}/{args.n_windows}")
+            if d.get("errors"):
+                print(f"错误窗口: {len(d['errors'])}")
+            print("\n💡 OOS = Out-of-Sample（策略未见过的数据），比全样本回测更可信")
+
+    elif args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
         result = optimize_weights(codes, args.strategy, args.top, args.days)
         if args.json:

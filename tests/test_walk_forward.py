@@ -220,3 +220,24 @@ class TestRunWalkForward:
         import json
 
         json.dumps(d)  # 不抛异常即可
+
+
+class TestWalkForwardCLI:
+    """walk-forward CLI 参数解析测试。"""
+
+    def test_walk_forward_flags_in_help(self):
+        """--walk-forward 及相关参数应出现在 --help 输出中。"""
+        import subprocess
+
+        result = subprocess.run(
+            [sys.executable, str(PROJECT_ROOT / "scripts" / "backtest.py"), "--help"],
+            capture_output=True,
+            timeout=15,
+            cwd=str(PROJECT_ROOT),
+        )
+        stdout = result.stdout.decode()
+        assert "--walk-forward" in stdout
+        assert "--train-days" in stdout
+        assert "--test-days" in stdout
+        assert "--n-windows" in stdout
+
