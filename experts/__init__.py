@@ -11,7 +11,6 @@
 - list_long_term_experts() -> List[ExpertProfile]
 - list_short_term_experts() -> List[ExpertProfile]
 - direction_from_score(score) -> str
-- apply_veto(profile, stock_data, veto_results=None) -> List[str]
 
 每位专家的人设、案例、引用仍以 experts/<name>.md 为权威来源，
 本模块只承载结构化字段（权重 + 否决条件 + 标签）。
@@ -20,27 +19,6 @@
 from typing import Dict, List, Optional
 
 from experts.types import ExpertProfile, DIRECTION_THRESHOLDS, direction_from_score
-
-
-def apply_veto(
-    profile: ExpertProfile,
-    stock_data: dict,
-    veto_results: Optional[Dict[str, bool]] = None,
-) -> List[str]:
-    """根据股票数据检查专家的一票否决条件。
-
-    Args:
-        profile: 专家人设档案
-        stock_data: 股票数据（quote + finance 字段）
-        veto_results: 预判的否决条件结果 dict（key 是条件描述，value 是
-            bool，True 表示"已触发"）。为 None 时返回空列表（无否决数据）。
-
-    Returns:
-        已触发的否决条件描述列表。
-    """
-    if veto_results is None:
-        return []
-    return [cond for cond, triggered in veto_results.items() if triggered]
 
 
 # 导入注册表（放在模块底部以利用 dataclass 定义）
@@ -126,6 +104,5 @@ __all__ = [
     "list_active_experts",
     "list_legacy_experts",
     "direction_from_score",
-    "apply_veto",
     "DIRECTION_THRESHOLDS",
 ]

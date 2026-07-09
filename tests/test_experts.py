@@ -21,7 +21,6 @@ from experts import (
     list_long_term_experts,
     list_short_term_experts,
     direction_from_score,
-    apply_veto,
     DIRECTION_THRESHOLDS,
 )
 from experts.scoring import (
@@ -262,35 +261,7 @@ class TestDirectionFromScore:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 5. apply_veto
-# ═══════════════════════════════════════════════════════════════
-class TestVeto:
-    def test_apply_veto_no_results_returns_empty(self):
-        """veto_results=None 时返回空列表（无否决数据不等于全部触发）。"""
-        profile = get_expert("buffett")
-        result = apply_veto(profile, {}, None)
-        assert result == []
-
-    def test_apply_veto_with_results(self):
-        profile = get_expert("buffett")
-        veto_results = {
-            "ROE < 10% 或负债率 > 70%（金融业除外）": True,
-            "FCF 连续 2 年为负": False,
-            "公司涉财务造假或管理层失信": False,
-        }
-        triggered = apply_veto(profile, {}, veto_results)
-        assert len(triggered) == 1
-        assert "ROE" in triggered[0]
-
-    def test_apply_veto_none_triggered(self):
-        profile = get_expert("buffett")
-        veto_results = {c: False for c in profile.veto_conditions}
-        triggered = apply_veto(profile, {}, veto_results)
-        assert triggered == []
-
-
-# ═══════════════════════════════════════════════════════════════
-# 6. score_from_dimensions（按权重加总）
+# 5. score_from_dimensions（按权重加总）
 # ═══════════════════════════════════════════════════════════════
 class TestScoreFromDimensions:
     def test_all_neutral_50_returns_50(self):
