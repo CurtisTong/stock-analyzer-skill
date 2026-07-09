@@ -168,6 +168,18 @@ class TestMomentumTraderScore:
             40 <= result["技术面"] <= 90
         ), f"突破 60 日高技术面应在 40-90，实际 {result['技术面']}"
 
+    def test_st_stock_vetoed_p2_04(self):
+        """P2-04: ST 股票应被硬 veto（全维度低分）。"""
+        result = momentum_trader.score(
+            {
+                "quote": {"name": "ST测试", "pe": 30, "amount": 1e9},
+                "finance": {"ROEJQ": 15},
+                "kline_data": _build_kline([10 + i * 0.1 for i in range(120)]),
+            }
+        )
+        # ST 股票全维度 ≤ 20
+        assert all(v <= 20 for v in result.values()), f"ST 股票应被 veto，实际 {result}"
+
 
 class TestMomentumTraderProfile:
     """注册表与 yaml 一致性测试。"""

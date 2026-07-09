@@ -211,3 +211,21 @@ class TestPublicImports:
         assert callable(lynch_score)
         assert callable(soros_score)
         assert callable(zhao_score)
+
+    def test_buffett_sub_score_fallback_below_threshold_p2_03(self, caplog):
+        """P2-03: buffett_sub_score 缺失时回退 35（≤39，确保 buffett 警示生效）。"""
+        from unittest.mock import patch
+        from experts.scoring import value_institution
+
+        # value_anchor / institution 在 score() 内部 from . import 导入
+        # mock value_anchor.score 返回不含 buffett_sub_score
+        with patch("experts.scoring.value_anchor") as mock_va:
+            mock_va.score.return_value = {"基本面": 60, "估值": 50}
+            with patch("experts.scoring.institution") as mock_inst:
+                mock_inst.score.return_value = {"基本面": 60, "估值": 50}
+                result = value_institution.score({"quote": {}, "finance": {}})
+
+        # 回退值应 ≤ 39（buffett 警示触发阈值）
+        assert result["buffett_sub_score"] <= 39, (
+            f"缺失 buffett_sub_score 应回退 ≤39，实际 {result['buffett_sub_score']}"
+        )

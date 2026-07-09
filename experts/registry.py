@@ -5,7 +5,13 @@
 每条记录的 weights 字段对应原 markdown 表格中的 5 维度权重百分比，
 veto_conditions 字段对应原 markdown 中的"一票否决"列表。
 
-如果人设文档更新，只需修改本文件；experts/*.md 是叙事/案例来源。
+# P2-01: 三源同步机制（TODO v2.0: 合一为 YAML 单源）
+# 当前维护三套数据源，由 test_yaml_consistency.py 守护一致性：
+# 1. 本文件（registry.py）-- 硬编码 ExpertProfile 快照（_HARDCODED_PROFILES）
+# 2. experts/yaml/*.yaml -- YAML 配置，加载时覆盖硬编码值
+# 3. experts/*.md -- 叙事/案例文档（人类可读，非机器读取）
+# 加载顺序：hardcoded -> yaml override -> 运行时 EXPERT_REGISTRY
+# v2.0 目标：YAML 单源，registry.py 改为自动生成，md 仅保留叙事。
 """
 
 import logging
@@ -21,24 +27,8 @@ EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
 # yaml 与硬编码源不漂移。在 _ensure_loaded() 中首次填充。
 _HARDCODED_PROFILES: Dict[str, ExpertProfile] = {}
 
-# 合规隔离层：内部 ID → 显示名映射。
-# 如果未来需要"虚构化"专家名称，只需改这张表 + display_name，
-# 评分函数（_score_xu_xiang 等）和 decide.py 的 _EXPERT_PROFILES 不受影响。
-LEGACY_ALIAS: Dict[str, str] = {
-    "buffett": "巴菲特",
-    "lynch": "彼得·林奇",
-    "soros": "索罗斯",
-    "duan_yongping": "段永平",
-    "xu_xiang": "徐翔",
-    "zhao_laoge": "赵老哥",
-    "chaogu_yangjia": "炒股养家",
-    "zuoshou_xinyi": "作手新一",
-}
-
-
-def get_display_name(expert_id: str) -> str:
-    """获取专家的显示名称（走 LEGACY_ALIAS 隔离层）。"""
-    return LEGACY_ALIAS.get(expert_id, expert_id)
+# P2-02: LEGACY_ALIAS / get_display_name 已删除（零运行时调用方，
+# 运行时显示名统一从 ExpertProfile.display_name 读取）。
 
 
 def _register(profile: ExpertProfile) -> None:

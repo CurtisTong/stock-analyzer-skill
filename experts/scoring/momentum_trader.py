@@ -42,6 +42,19 @@ def score(stock_data: dict) -> Dict[str, float]:
     market = stock_data.get("market_features") or {}
     kline_data = stock_data.get("kline_data") or {}
 
+    # P2-04: ST 股票硬 veto -- 动量派不追 ST/退市风险股
+    stock_name = quote.get("name", "") or ""
+    from data.pool import is_st
+
+    if is_st(stock_name):
+        return {
+            "基本面": 10,
+            "估值": 10,
+            "技术面": 20,
+            "情绪/资金": 10,
+            "风险": 10,
+        }
+
     closes = kline_data.get("closes") or []
     volumes = kline_data.get("volumes") or []
     highs = kline_data.get("highs") or []

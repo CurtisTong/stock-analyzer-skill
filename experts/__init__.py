@@ -24,8 +24,6 @@ from experts.types import ExpertProfile, DIRECTION_THRESHOLDS, direction_from_sc
 # 导入注册表（放在模块底部以利用 dataclass 定义）
 from .registry import (
     EXPERT_REGISTRY,
-    LEGACY_ALIAS,
-    get_display_name,
     _ensure_loaded,
 )  # noqa: E402
 
@@ -94,8 +92,6 @@ def list_legacy_experts(group: Optional[str] = None) -> List[ExpertProfile]:
 __all__ = [
     "ExpertProfile",
     "EXPERT_REGISTRY",
-    "LEGACY_ALIAS",
-    "get_display_name",
     "get_expert",
     "list_experts",
     "list_long_term_experts",
