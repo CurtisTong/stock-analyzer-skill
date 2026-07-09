@@ -86,4 +86,5 @@ class TestExpertSwitchAPI:
         profile = next(p for p in active if p.name == "momentum_trader")
         assert profile.style == "动量/趋势跟踪"
         assert profile.weights["技术面"] == 40.0
-        assert profile.weights["情绪/资金"] == 25.0
+        # P0-06: 维度名归一化后"情绪/资金"->"情绪"
+        assert profile.weights["情绪"] == 25.0
