@@ -108,7 +108,7 @@ class TestSimulateStrategy:
         import screener
         from datetime import datetime, timedelta
 
-        quote_obj = _make_quote_obj()
+        _make_quote_obj()
         finance_obj = _make_finance_obj()
 
         monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
@@ -172,7 +172,7 @@ class TestSimulateStrategy:
         import screener
 
         finance_obj = _make_finance_obj()
-        quote_obj = _make_quote_obj()
+        _make_quote_obj()
         from datetime import datetime, timedelta
 
         monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
@@ -209,7 +209,7 @@ class TestSimulateStrategy:
         """验证回测时实际拉取财务数据。"""
         import backtest
 
-        quote_obj = _make_quote_obj()
+        _make_quote_obj()
         finance_obj = _make_finance_obj()
         finance_called = {"count": 0}
 

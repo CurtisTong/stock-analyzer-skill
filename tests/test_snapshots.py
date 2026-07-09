@@ -113,7 +113,7 @@ class TestListSnapshots:
 
     def test_list_returns_sorted_by_mtime(self, temp_snapshots_dir):
         rows = [_make_row("sh600519", "贵州茅台", 80.0)]
-        p1 = save_snapshot("balanced", rows, ["sh600519"])
+        save_snapshot("balanced", rows, ["sh600519"])
         rows2 = [_make_row("sh600989", "宝钢股份", 70.0)]
         p2 = save_snapshot("balanced", rows2, ["sh600989"])
         files = list_snapshots()

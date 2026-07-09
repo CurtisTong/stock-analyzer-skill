@@ -6,9 +6,9 @@ import pytest
 from kline import aggregate_klines
 
 
-def _daily_bar(date, o, h, l, c, vol=10000):
+def _daily_bar(date, o, h, low, c, vol=10000):
     """快速生成日 K 线 dict。"""
-    return {"day": date, "open": o, "high": h, "low": l, "close": c, "volume": vol}
+    return {"day": date, "open": o, "high": h, "low": low, "close": c, "volume": vol}
 
 
 def _make_daily_bars(n, start_date_str="2025-01-06"):
@@ -25,9 +25,9 @@ def _make_daily_bars(n, start_date_str="2025-01-06"):
         day_str = dt.strftime("%Y-%m-%d")
         o = price
         h = price + 0.5
-        l = price - 0.3
+        low = price - 0.3
         c = price + 0.2
-        bars.append(_daily_bar(day_str, o, h, l, c, vol=10000 + i * 100))
+        bars.append(_daily_bar(day_str, o, h, low, c, vol=10000 + i * 100))
         price += 0.1
         dt += timedelta(days=1)
     return bars

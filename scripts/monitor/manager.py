@@ -149,8 +149,6 @@ class NotificationManager:
         """加载通知配置。"""
         return ConfigLoader.load("notification.yaml")
 
-        return config
-
     def _setup_channels(self) -> None:
         """根据配置注册通道。"""
         channels_cfg = self._config.get("channels", {})

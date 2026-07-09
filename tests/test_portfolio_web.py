@@ -1305,7 +1305,7 @@ class TestAuth:
         """扫多个数据源时 code 应去重保序。"""
         from pathlib import Path
 
-        scripts_data = Path(portfolio_web._SCRIPTS_DIR) / "data"
+        Path(portfolio_web._SCRIPTS_DIR) / "data"
         pairs = portfolio_web._collect_code_name_map()
         codes = [c for c, _ in pairs]
         # 去重

@@ -66,7 +66,7 @@ def test_return_connection_pool_size_limit():
         key = f"host{i}:443"
         _connection_pool[key] = [MagicMock()]
 
-    new_conn = MagicMock()
+    MagicMock()
     with _pool_lock:
         current_size = len(_connection_pool)
     assert current_size == MAX_POOL_SIZE

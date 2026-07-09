@@ -331,7 +331,7 @@ class TestAtomicWriteJson:
     def test_cleans_up_tempfile_on_failure(self, tmp_path):
         """写入失败时临时文件被清理。"""
         path = tmp_path / "data.json"
-        before = set(tmp_path.iterdir())
+        set(tmp_path.iterdir())
 
         with patch("common.utils.os.replace", side_effect=OSError("fail")):
             with pytest.raises(OSError):

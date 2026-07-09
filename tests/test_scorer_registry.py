@@ -112,7 +112,7 @@ class TestScorerIndependence:
     @pytest.mark.parametrize("expert_name", list(_EXPERT_SCORING_FUNCTIONS.keys()))
     def test_scorer_returns_valid_dimensions(self, expert_name):
         """每位专家的评分函数应返回正确数量的维度。"""
-        profile = get_expert(expert_name)
+        get_expert(expert_name)
         fn = _EXPERT_SCORING_FUNCTIONS[expert_name]
         result = fn(self.GOOD_STOCK)
         # 结果应包含至少一个维度

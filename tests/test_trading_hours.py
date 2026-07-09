@@ -162,7 +162,7 @@ class TestCalibrationThreshold:
 
         # 准备临时 calibration 文件
         with tempfile.TemporaryDirectory() as tmp:
-            cal_file = Path(tmp) / "expert_calibration.json"
+            Path(tmp) / "expert_calibration.json"
             # 直接 _save 到临时路径需要 hack，但我们可以测函数本身
             pass  # 集成测试见 test_calibration.py
 

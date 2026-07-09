@@ -114,7 +114,6 @@ class TestMainCLI:
         test_path = tmp_path / "empty.json"
         test_path.write_text('{"records": []}', encoding="utf-8")
         # 用 monkeypatch 替换 compare 函数以返回已知数据
-        original_compare = sp.compare
 
         def mock_compare(metric="sharpe_ratio"):
             return {

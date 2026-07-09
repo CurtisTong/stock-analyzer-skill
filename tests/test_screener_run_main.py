@@ -145,7 +145,7 @@ class TestRunMainSingleStage:
         """--two-stage 启用两阶段管线。"""
         screener._run_main(_make_args(two_stage=True))
         # 应输出 Phase 1/Phase 2 KPI
-        captured = capsys.readouterr()
+        capsys.readouterr()
         # 验证不抛异常
         # 实际 KPI 在 anaylze_code_phase1 mock 后可能不显示（因为 mock）
         # 但至少不报错

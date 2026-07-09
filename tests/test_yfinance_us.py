@@ -192,7 +192,7 @@ class TestYfinanceQuoteFetcher:
         """'us:' 无符号部分应返回 None（失败，非 NOT_HANDLED）。"""
         from fetchers.quote.yfinance_quote import YfinanceQuoteFetcher
 
-        fetcher = YfinanceQuoteFetcher()
+        YfinanceQuoteFetcher()
         # yf is None in test env，所以返回 NOT_HANDLED
         # 但如果 yf 存在，空符号应返回 None
 

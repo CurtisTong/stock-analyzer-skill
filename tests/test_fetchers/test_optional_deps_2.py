@@ -284,7 +284,7 @@ class TestBaostockKlineFetcher:
 
     @requires_baostock
     def test_fetch_normal(self):
-        f = self._make_fetcher()
+        self._make_fetcher()
         mock_rs = MagicMock()
         mock_rs.error_code = "0"
         mock_rs.next.side_effect = [True, True, False]

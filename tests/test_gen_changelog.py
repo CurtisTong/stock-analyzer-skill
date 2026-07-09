@@ -21,11 +21,10 @@ class TestNoiseFilter:
     def test_auto_update_changelog_filtered(self):
         """auto-update CHANGELOG.md 自引用应被过滤。"""
         assert (
-            not any(
+            any(
                 p.search("docs: auto-update CHANGELOG.md [skip ci]")
                 for p in NOISE_PATTERNS
-            )
-            is False
+            ) is not False
         )
         assert any(
             p.search("docs: auto-update CHANGELOG.md [skip ci]") for p in NOISE_PATTERNS

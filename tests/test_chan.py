@@ -20,9 +20,9 @@ from chan import (
 # ═══════════════════════════════════════════════════════════════
 
 
-def _bar(day, o, h, l, c):
+def _bar(day, o, h, low, c):
     """快速生成 K 线字典。"""
-    return {"day": day, "open": o, "high": h, "low": l, "close": c, "volume": 1000}
+    return {"day": day, "open": o, "high": h, "low": low, "close": c, "volume": 1000}
 
 
 def _merged_bar(date, high, low, idx=0):
@@ -86,13 +86,13 @@ def _zigzag_bars(n, base=10.0, amp=2.0):
         offset = (i % 3) * amp / 2
         if cycle == 0:
             h = base + offset + amp
-            l = base + offset
+            low = base + offset
         else:
             h = base + amp * 2 - offset
-            l = base + amp - offset
-        o = l + 0.1
+            low = base + amp - offset
+        o = low + 0.1
         c = h - 0.1
-        bars.append(_bar(f"2025-01-{i+1:02d}", o, h, l, c))
+        bars.append(_bar(f"2025-01-{i+1:02d}", o, h, low, c))
     return bars
 
 
