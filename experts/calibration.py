@@ -35,6 +35,19 @@ except ImportError:
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _CALIBRATION_FILE = _PROJECT_ROOT / "data" / "expert_calibration.json"
 
+# legacy 专家名 -> 合并后的 active 专家名。
+# 校准数据历史上按 legacy 名记录（buffett/duan_yongping 等），但这些专家
+# 已合并进 active 专家（value_institution/emotion_tech/topic_leader）。
+# 迁移时将 legacy 记录的 events/correct 合并到对应的 active 记录。
+_CALIBRATION_LEGACY_TO_MERGED = {
+    "buffett": "value_institution",
+    "duan_yongping": "value_institution",
+    "chaogu_yangjia": "emotion_tech",
+    "zuoshou_xinyi": "emotion_tech",
+    "xu_xiang": "topic_leader",
+    "zhao_laoge": "topic_leader",
+}
+
 
 def _get_all_expert_names() -> list:
     """从注册表动态获取全部专家名。"""
@@ -69,12 +82,51 @@ def _empty_data() -> dict:
     }
 
 
+def _migrate_legacy_experts(data: dict) -> dict:
+    """将 legacy 专家名记录合并到对应的 active 专家名（幂等）。
+
+    校准数据历史上按 legacy 名（buffett/duan_yongping/chaogu_yangjia/
+    zuoshou_xinyi/xu_xiang/zhao_laoge）记录，但这些专家已合并进 active 专家
+    （value_institution/emotion_tech/topic_leader）。record_prediction 现在写
+    active 名，verify_predictions 用 `expert_name in data["experts"]` 过滤，
+    若不迁移则新预测的专家校准数据永远不更新（静默数据丢失）。
+
+    合并规则：events/correct 相加，last_updated 取较新者。迁移后删除 legacy 键，
+    并写入 ``_migrated`` 标志避免重复迁移。
+    """
+    if data.get("_migrated"):
+        return data
+
+    experts = data.get("experts", {})
+    for legacy_name, active_name in _CALIBRATION_LEGACY_TO_MERGED.items():
+        legacy = experts.get(legacy_name)
+        if legacy is None:
+            continue
+        active = experts.get(active_name)
+        if active is None:
+            # active 记录不存在：直接改名
+            experts[active_name] = dict(legacy)
+        else:
+            # 合并 events/correct，取较新的 last_updated
+            active["events"] = active.get("events", 0) + legacy.get("events", 0)
+            active["correct"] = active.get("correct", 0) + legacy.get("correct", 0)
+            lu_active = active.get("last_updated") or ""
+            lu_legacy = legacy.get("last_updated") or ""
+            active["last_updated"] = max(lu_active, lu_legacy)
+        del experts[legacy_name]
+
+    data["experts"] = experts
+    data["_migrated"] = True
+    return data
+
+
 def _load() -> dict:
     if _CALIBRATION_FILE.exists():
         try:
-            return json.loads(_CALIBRATION_FILE.read_text(encoding="utf-8"))
+            data = json.loads(_CALIBRATION_FILE.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return _empty_data()
+        return _migrate_legacy_experts(data)
     return _empty_data()
 
 
@@ -100,6 +152,24 @@ def _save(data: dict) -> None:
         if lock_fd is not None:
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
             lock_fd.close()
+
+
+def _normalize_expert_scores(expert_scores: Dict[str, float]) -> Dict[str, float]:
+    """将 expert_scores 的键从 legacy 名归一化为 active 名。
+
+    输入可能含 legacy 名（buffett/duan_yongping 等，来自 CLI 或旧版 debate），
+    归一化后统一为 active 名，确保 verify_predictions 的 ``in`` 检查能匹配
+    data["experts"]（后者经 _migrate_legacy_experts 也为 active 名）。
+    同一 active 名多次映射时取较高分（反映较乐观的专家观点）。
+    """
+    normalized: Dict[str, float] = {}
+    for name, score in expert_scores.items():
+        active_name = _CALIBRATION_LEGACY_TO_MERGED.get(name, name)
+        if active_name in normalized:
+            normalized[active_name] = max(normalized[active_name], score)
+        else:
+            normalized[active_name] = score
+    return normalized
 
 
 def record_prediction(
@@ -132,6 +202,9 @@ def record_prediction(
     ).strftime("%Y-%m-%d")
 
     pred_id = f"pred_{date.replace('-', '')}_{stock_code}"
+
+    # 归一化 expert_scores 键为 active 名（legacy 名 -> merged active 名）
+    expert_scores = _normalize_expert_scores(expert_scores)
 
     data = _load()
 
@@ -230,6 +303,9 @@ def verify_predictions(
                 pred_correct = False
 
         for expert_name, score in pred.get("expert_scores", {}).items():
+            # expert_name 为 active 名（record_prediction 写入），
+            # data["experts"] 键经 _migrate_legacy_experts 也为 active 名，
+            # 此 in 检查才能匹配（修复前 legacy 键导致新预测永远不更新）。
             if expert_name in data["experts"]:
                 if actual_direction is not None:
                     expert_direction = direction_from_score(score)

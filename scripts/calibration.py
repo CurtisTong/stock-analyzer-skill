@@ -3,10 +3,10 @@
 专家校准数据管理 CLI。
 
 用法:
-  # 记录 debate 预测
+  # 记录 debate 预测（使用 active 专家名，legacy 名会自动归一化）
   python3 scripts/calibration.py record --stock sh600989 --direction 看多 \
-    --scores '{"buffett":72,"lynch":65,"soros":55,"duan_yongping":68,
-               "xu_xiang":45,"zhao_laoge":50,"chaogu_yangjia":40,"zuoshou_xinyi":55}'
+    --scores '{"value_institution":72,"lynch":65,"soros":55,"sector_specialist":68,
+               "topic_leader":45,"risk_manager":50,"emotion_tech":40,"momentum_trader":55}'
 
   # 验证到期预测（默认30天窗口）
   python3 scripts/calibration.py verify --days 30

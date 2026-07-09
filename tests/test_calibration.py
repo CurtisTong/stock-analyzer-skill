@@ -52,7 +52,8 @@ class TestRecordPrediction:
             direction="看多",
         )
         cal = get_calibration()
-        assert "buffett" in cal
+        # buffett 是 legacy 名，归一化为 active 名 value_institution
+        assert "value_institution" in cal
 
     def test_dedup_same_stock_same_day(self):
         record_prediction("sh600989", {"buffett": 70}, "看多")
@@ -63,7 +64,8 @@ class TestRecordPrediction:
         data = _load()
         sh_records = [p for p in data["predictions"] if p["stock"] == "sh600989"]
         assert len(sh_records) == 1
-        assert sh_records[0]["expert_scores"]["buffett"] == 80
+        # expert_scores 键归一化为 active 名
+        assert sh_records[0]["expert_scores"]["value_institution"] == 80
 
     def test_different_stocks_separate(self):
         record_prediction("sh600989", {"buffett": 70}, "看多")
@@ -103,7 +105,7 @@ class TestVerifyPredictions:
                 "date": past_date,
                 "direction": direction,
                 "composite_score": 65.0,
-                "expert_scores": {"buffett": 72, "lynch": 65},
+                "expert_scores": {"value_institution": 72, "lynch": 65},
                 "verified": False,
                 "verify_after": verify_after,
                 "actual_return": None,
@@ -223,6 +225,113 @@ class TestCalibrationFactor:
         _save(data)
         factor = compute_calibration_factor()
         assert -1.0 <= factor <= 1.0
+
+
+# ═══════════════════════════════════════════════════════════════
+# 3.5. legacy -> merged 数据迁移
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestLegacyMigration:
+    """legacy 专家名数据迁移到 active 名测试。"""
+
+    def test_legacy_migrated_to_active_on_load(self):
+        """_load 将 legacy 名记录合并到 active 名。"""
+        from experts.calibration import _load, _save
+
+        # 构造含 legacy 名 + active 名的原始数据
+        raw = {
+            "predictions": [],
+            "experts": {
+                "buffett": {"events": 5, "correct": 4, "last_updated": "2026-06-16"},
+                "duan_yongping": {"events": 5, "correct": 4, "last_updated": "2026-06-15"},
+                "value_institution": {"events": 2, "correct": 1, "last_updated": "2026-06-10"},
+                "lynch": {"events": 5, "correct": 2, "last_updated": "2026-06-16"},
+            },
+        }
+        _save(raw)
+        data = _load()
+
+        # buffett + duan_yongping 合并到 value_institution
+        assert "buffett" not in data["experts"]
+        assert "duan_yongping" not in data["experts"]
+        vi = data["experts"]["value_institution"]
+        assert vi["events"] == 5 + 5 + 2  # 12
+        assert vi["correct"] == 4 + 4 + 1  # 9
+        # last_updated 取较新者
+        assert vi["last_updated"] == "2026-06-16"
+        # lynch（active）保留不变
+        assert data["experts"]["lynch"]["events"] == 5
+        # 迁移标志
+        assert data["_migrated"] is True
+
+    def test_migration_idempotent(self):
+        """已迁移的数据再次 _load 不重复合并。"""
+        from experts.calibration import _load, _save
+
+        raw = {
+            "predictions": [],
+            "experts": {
+                "buffett": {"events": 5, "correct": 4, "last_updated": "2026-06-16"},
+            },
+        }
+        _save(raw)
+        data1 = _load()
+        _save(data1)
+        data2 = _load()
+        # 第二次加载不应再次合并（value_institution events 应保持 5，非 10）
+        assert data2["experts"]["value_institution"]["events"] == 5
+
+    def test_record_prediction_normalizes_legacy_names(self):
+        """record_prediction 将 legacy 名归一化为 active 名存储。"""
+        record_prediction(
+            "sh600989",
+            {"buffett": 72, "duan_yongping": 68, "lynch": 65},
+            "看多",
+        )
+        from experts.calibration import _load
+
+        data = _load()
+        scores = data["predictions"][0]["expert_scores"]
+        # legacy 名归一化为 active 名
+        assert "buffett" not in scores
+        assert "duan_yongping" not in scores
+        assert "value_institution" in scores
+        assert "lynch" in scores
+        # 同一 active 名多次映射取较高分
+        assert scores["value_institution"] == 72
+
+    def test_verify_updates_merged_expert(self):
+        """verify_predictions 正确更新 active 名专家（迁移后 in 检查通过）。"""
+        from experts.calibration import _load, _save
+
+        past_date = (datetime.now() - timedelta(days=35)).strftime("%Y-%m-%d")
+        verify_after = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        data = _load()
+        data["predictions"].append(
+            {
+                "id": f"pred_{past_date.replace('-', '')}_sh600989",
+                "stock": "sh600989",
+                "date": past_date,
+                "direction": "看多",
+                "composite_score": 65.0,
+                "expert_scores": {"value_institution": 72},
+                "verified": False,
+                "verify_after": verify_after,
+                "actual_return": None,
+                "actual_direction": None,
+            }
+        )
+        _save(data)
+
+        def mock_price_fn(stock, start, end):
+            return 10.0  # 上涨 10%
+
+        verify_predictions(get_price_fn=mock_price_fn)
+
+        data2 = _load()
+        # value_institution 专家校准数据应被更新（events +1）
+        assert data2["experts"]["value_institution"]["events"] >= 1
 
 
 # ═══════════════════════════════════════════════════════════════
