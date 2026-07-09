@@ -1,15 +1,13 @@
 """
-YAML 与硬编码 EXPERT_REGISTRY 一致性测试（B3 / P1-6）。
+YAML 专家配置完整性测试（B3 / P1-6 / P2-01）。
 
-锁死漂移：每个 experts/yaml/<name>.yaml 加载后必须与 registry.py 中同名
-硬编码 profile 一致。任一方改动（weights/veto_conditions/active/group 等）
-必须同步，否则本测试失败。
+P2-01 (v2.0): 三源合一后，YAML 是唯一数据源。本测试守护：
+1. 每个 experts/yaml/<name>.yaml 都能正确加载为 ExpertProfile
+2. YAML 文件数 = 16，active = 8，legacy = 8
+3. load_all_experts() 与运行时 EXPERT_REGISTRY 一致
+4. schema 校验：坏数据应抛 ValueError
 
-已知的两类"表示层差异"（非真实漂移）按以下方式归一化后再比较：
-1. 引号字符：PyYAML safe_dump 把含单引号的字符串转成双引号，veto_conditions
-   对比时统一把双引号归一为单引号。
-2. 维度名别名：yaml 用人设特色维度名（如"情绪/反身性"/"情绪/题材"），
-   硬编码用基础名（"情绪"）；按 normalize_dim 归一后比较（C1 别名机制）。
+experts/*.md §九评分矩阵与 YAML weights 的一致性由 test_experts.py::TestWeightSync 守护。
 """
 
 import sys
@@ -20,78 +18,61 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from experts.registry import _HARDCODED_PROFILES  # noqa: E402
-from experts.types import normalize_dim  # noqa: E402
 from experts.yaml_loader import YAML_DIR, load_all_experts, load_expert_from_yaml  # noqa: E402
 
-
-def _norm_quotes(s: str) -> str:
-    """把双引号归一为单引号（PyYAML safe_dump 的表示层差异）。"""
-    return s.replace('"', "'")
-
-
-def _normalize_weights(weights: dict) -> dict:
-    """维度名按 normalize_dim 归一，使别名维度与标准维度可比。"""
-    return {normalize_dim(k): v for k, v in weights.items()}
-
-
-def _normalize_veto(veto: list) -> list:
-    """veto_conditions 引号归一化。"""
-    return [_norm_quotes(v) for v in veto]
+# P2-01: 期望的专家列表（YAML 单源后，这是唯一权威定义）
+_EXPECTED_EXPERT_NAMES = {
+    "buffett", "chaogu_yangjia", "duan_yongping", "emotion_tech",
+    "institution", "lynch", "momentum_trader", "risk_manager",
+    "sector_specialist", "soros", "topic_leader", "value_anchor",
+    "value_institution", "xu_xiang", "zhao_laoge", "zuoshou_xinyi",
+}
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1. 文件级完整性：每个硬编码 profile 都有对应 yaml
+# 1. YAML 文件完整性（P2-01: 替代原硬编码对等校验）
 # ═══════════════════════════════════════════════════════════════
 
 
-class TestYamlHardcodedParity:
-    """yaml 文件与硬编码 profile 逐字段一致性（归一化后）。"""
+class TestYamlCompleteness:
+    """YAML 文件完整性：每个 yaml 都能加载，数量和 active 数符合预期。"""
 
-    @pytest.mark.parametrize("name", sorted(_HARDCODED_PROFILES))
-    def test_yaml_matches_hardcoded(self, name):
-        """单个 expert：yaml 加载结果与硬编码 profile 一致（归一化后）。"""
+    @pytest.mark.parametrize("name", sorted(_EXPECTED_EXPERT_NAMES))
+    def test_yaml_loads_cleanly(self, name):
+        """每个期望专家的 YAML 文件存在且能正确加载。"""
         yaml_path = YAML_DIR / f"{name}.yaml"
-        if not yaml_path.exists():
-            pytest.fail(f"硬编码 profile {name} 缺少对应 yaml: {yaml_path}")
+        assert yaml_path.exists(), f"缺少 yaml: {yaml_path}"
+        profile = load_expert_from_yaml(yaml_path)
+        assert profile.name == name, f"{name}: name 字段不匹配"
+        assert profile.display_name, f"{name}: display_name 为空"
+        assert profile.group in ("long_term", "short_term"), f"{name}: group={profile.group}"
+        assert profile.weights, f"{name}: weights 为空"
+        assert profile.md_path, f"{name}: md_path 为空"
 
-        hardcoded = _HARDCODED_PROFILES[name]
-        loaded = load_expert_from_yaml(yaml_path)
-
-        # 标量字段必须完全一致
-        assert loaded.name == hardcoded.name, f"{name}: name"
-        assert loaded.display_name == hardcoded.display_name, f"{name}: display_name"
-        assert loaded.group == hardcoded.group, f"{name}: group"
-        assert loaded.style == hardcoded.style, f"{name}: style"
-        assert loaded.horizon == hardcoded.horizon, f"{name}: horizon"
-        assert loaded.core_signal == hardcoded.core_signal, f"{name}: core_signal"
-        assert loaded.active == hardcoded.active, f"{name}: active"
-        assert loaded.md_path == hardcoded.md_path, f"{name}: md_path"
-
-        # weights：维度名归一化后比较
-        hw = _normalize_weights(hardcoded.weights)
-        yw = _normalize_weights(loaded.weights)
-        assert hw == yw, f"{name}: weights 归一化后不一致\n  硬编码: {hw}\n  yaml:    {yw}"
-
-        # veto_conditions：引号归一化后比较
-        hv = _normalize_veto(hardcoded.veto_conditions)
-        yv = _normalize_veto(loaded.veto_conditions)
-        assert hv == yv, f"{name}: veto_conditions 归一化后不一致\n  硬编码: {hv}\n  yaml:    {yv}"
-
-    def test_yaml_file_count_matches_hardcoded(self):
-        """yaml 文件数 = 硬编码 profile 数（16）。"""
+    def test_yaml_file_count(self):
+        """yaml 文件数 = 16。"""
         yaml_files = list(YAML_DIR.glob("*.yaml"))
-        assert len(yaml_files) == len(_HARDCODED_PROFILES), (
-            f"yaml 文件数 {len(yaml_files)} != 硬编码 profile 数 "
-            f"{len(_HARDCODED_PROFILES)}"
-        )
+        assert len(yaml_files) == 16, f"yaml 文件数 {len(yaml_files)} != 16"
 
     def test_no_orphan_yaml_files(self):
-        """没有孤儿 yaml（yaml 名都在硬编码 profile 中）。"""
-        hardcoded_names = set(_HARDCODED_PROFILES)
+        """没有孤儿 yaml（yaml 名都在期望列表中）。"""
         yaml_names = {p.stem for p in YAML_DIR.glob("*.yaml")}
-        orphans = yaml_names - hardcoded_names
-        assert not orphans, f"yaml 文件无对应硬编码 profile: {orphans}"
+        orphans = yaml_names - _EXPECTED_EXPERT_NAMES
+        assert not orphans, f"yaml 文件无对应专家: {orphans}"
+
+    def test_no_missing_yaml_files(self):
+        """期望列表中的每个专家都有 yaml。"""
+        yaml_names = {p.stem for p in YAML_DIR.glob("*.yaml")}
+        missing = _EXPECTED_EXPERT_NAMES - yaml_names
+        assert not missing, f"缺少 yaml: {missing}"
+
+    def test_active_legacy_counts(self):
+        """active=8, legacy=8。"""
+        loaded = load_all_experts()
+        active = [p for p in loaded.values() if p.active]
+        legacy = [p for p in loaded.values() if not p.active]
+        assert len(active) == 8, f"active 专家数 {len(active)} != 8: {[p.name for p in active]}"
+        assert len(legacy) == 8, f"legacy 专家数 {len(legacy)} != 8: {[p.name for p in legacy]}"
 
 
 # ═══════════════════════════════════════════════════════════════
