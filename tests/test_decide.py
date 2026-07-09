@@ -84,6 +84,31 @@ def _bearish_short_experts():
     ]
 
 
+def _active_long_experts(score: float = 70):
+    """5 位真实 active 长线专家（按 list_active_experts 动态生成）。
+
+    用于 TestActiveSetSemantics，避免硬编码专家名漂移。
+    """
+    from experts import list_active_experts
+
+    return [
+        _make_expert(p.name, score, "long_term")
+        for p in list_active_experts()
+        if p.group == "long_term"
+    ]
+
+
+def _active_short_experts(score: float = 70):
+    """3 位真实 active 短线专家（按 list_active_experts 动态生成）。"""
+    from experts import list_active_experts
+
+    return [
+        _make_expert(p.name, score, "short_term")
+        for p in list_active_experts()
+        if p.group == "short_term"
+    ]
+
+
 # ═══════════════════════════════════════════════════════════════
 # 1. detect_market_state
 # ═══════════════════════════════════════════════════════════════
@@ -431,6 +456,109 @@ class TestAggregateVotes:
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert len(agg["risk_notes"]) >= 1
+
+
+class TestActiveSetSemantics:
+    """真实 active 集（5 长 + 3 短）端到端语义测试。
+
+    锁定 v2.4.2 语义：长线 5 人投票计数（ceil(5*2/3)=4 多数）+ 短线 3 人
+    均分驱动（short_avg≥60 看多 / ≤39 看空 / 40-59 分歧）。专家名来自
+    list_active_experts()，避免与注册表漂移。
+    """
+
+    LONG_NAMES = [
+        p.name for p in __import__("experts").list_active_experts()
+        if p.group == "long_term"
+    ]
+    SHORT_NAMES = [
+        p.name for p in __import__("experts").list_active_experts()
+        if p.group == "short_term"
+    ]
+
+    def test_all_bullish_strong_bull(self):
+        """全 active 看多 -> 强烈看多。"""
+        results = _active_long_experts(72) + _active_short_experts(68)
+        agg = aggregate_votes(results, market_state=None, horizon="medium")
+        assert agg["direction"] == "强烈看多"
+
+    def test_all_bearish_strong_bear(self):
+        """全 active 看空 -> 强烈看空。"""
+        results = _active_long_experts(25) + _active_short_experts(28)
+        agg = aggregate_votes(results, market_state=None, horizon="medium")
+        assert agg["direction"] == "强烈看空"
+
+    def test_polarization_neutral(self):
+        """长线 5 全看多 + 短线 3 全看空 -> 两极分化 -> 中性。"""
+        long_exp = [_make_expert(n, 72, "long_term") for n in self.LONG_NAMES]
+        short_exp = [_make_expert(n, 25, "short_term") for n in self.SHORT_NAMES]
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        assert agg["direction"] == "中性"
+        assert any("两极" in note or "分化" in note for note in agg["notes"])
+
+    def test_long_4_bull_1_bear_is_bull_majority(self):
+        """长线 4 看多 1 看空 = ≥4/5 多数看多（ceil(5*2/3)=4）。"""
+        # 4 长 ≥60，1 长 ≤39
+        long_exp = [_make_expert(self.LONG_NAMES[i], 65, "long_term") for i in range(4)]
+        long_exp.append(_make_expert(self.LONG_NAMES[4], 30, "long_term"))
+        # 短线均分分歧（40-59）-> 不影响长线主导
+        short_exp = [
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("emotion_tech", 30, "short_term"),
+            _make_expert("momentum_trader", 50, "short_term"),
+        ]
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        # short_avg = 50 -> 分歧；长线 4/5 看多 -> 长线主导多 -> 看多
+        assert agg["long_votes"]["bull"] == 4
+        assert agg["direction"] == "看多"
+
+    def test_long_3_bull_2_bear_is_divergent(self):
+        """长线 3 看多 2 看空 = <4 多数 -> 长线分歧。"""
+        long_exp = [_make_expert(self.LONG_NAMES[i], 65, "long_term") for i in range(3)]
+        long_exp += [_make_expert(self.LONG_NAMES[i], 30, "long_term") for i in (3, 4)]
+        # 短线均分看多（均分≥60）-> 短线主导多 -> 谨慎看多
+        short_exp = _active_short_experts(68)
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        assert agg["long_votes"]["bull"] == 3
+        assert agg["long_votes"]["bear"] == 2
+        # 长线分歧 + 短线均分看多 -> 谨慎看多
+        assert agg["direction"] == "谨慎看多"
+
+    def test_short_2_bull_1_bear_avg_above_60_is_bull(self):
+        """B4 核心：短线 2 看多 1 看空但均分≥60 -> 短线看多（不再判分歧）。
+
+        v2.4.2 前：2 看多 < 多数阈值(3) -> 投票分歧。v2.4.2 后：均分驱动，
+        (70+70+40)/3=60 >=60 -> 短线看多。
+        """
+        long_exp = [
+            _make_expert(n, 50, "long_term") for n in self.LONG_NAMES
+        ]  # 长线全中性(50) -> 长线分歧
+        short_exp = [
+            _make_expert("topic_leader", 70, "short_term"),
+            _make_expert("emotion_tech", 70, "short_term"),
+            _make_expert("momentum_trader", 40, "short_term"),  # 40 = 中性区间
+        ]
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        # short_avg = (70+70+40)/3 = 60 >= 60 -> 短线看多
+        # 长线分歧 + 短线看多 -> 谨慎看多
+        assert agg["short_avg"] >= 60
+        assert agg["direction"] == "谨慎看多"
+
+    def test_short_1_bull_2_bear_avg_below_39_is_bear(self):
+        """B4 核心：短线 1 看多 2 看空且均分≤39 -> 短线看空。
+
+        (30+30+55)/3 = 38.3 <= 39 -> 短线看空（即使 1 人 55 分中性）。
+        """
+        long_exp = [_make_expert(n, 50, "long_term") for n in self.LONG_NAMES]
+        short_exp = [
+            _make_expert("topic_leader", 30, "short_term"),
+            _make_expert("emotion_tech", 30, "short_term"),
+            _make_expert("momentum_trader", 55, "short_term"),  # 中性
+        ]
+        agg = aggregate_votes(long_exp + short_exp, market_state=None, horizon="medium")
+        # short_avg = (30+30+55)/3 = 38.33 <= 39 -> 短线看空
+        # 长线分歧 + 短线看空 -> 谨慎看空
+        assert agg["short_avg"] <= 39
+        assert agg["direction"] == "谨慎看空"
 
 
 # ═══════════════════════════════════════════════════════════════
