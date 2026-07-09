@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data.chip import get_margin, get_holders, get_top_holders
+from common import normalize_quote_code
 
 
 def format_number(n, unit=""):
@@ -159,6 +160,7 @@ def main():
     parser.add_argument("--days", type=int, default=20, help="融资融券天数（默认 20）")
 
     args = parser.parse_args()
+    args.code = normalize_quote_code(args.code)
 
     # 判断是否显示全部
     show_all = not (args.margin or args.holders or args.top_holders or args.chip)

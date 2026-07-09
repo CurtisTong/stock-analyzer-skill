@@ -276,7 +276,7 @@ class PortfolioManager:
             positions = data.setdefault("positions", [])
             existing = None
             for p in positions:
-                if p["code"] == code:
+                if p["code"].lower() == code:
                     existing = p
                     break
             if existing:
@@ -329,7 +329,7 @@ class PortfolioManager:
         def _apply(data: dict) -> dict:
             positions = data.get("positions", [])
             for i, p in enumerate(positions):
-                if p["code"] == code:
+                if p["code"].lower() == code:
                     # 超量减仓 → 全部清仓
                     actual_qty = min(quantity, p["quantity"])
                     p["quantity"] -= actual_qty
@@ -384,7 +384,7 @@ class PortfolioManager:
         def _apply(data: dict) -> dict:
             positions = data.get("positions", [])
             for i, p in enumerate(positions):
-                if p["code"] == code:
+                if p["code"].lower() == code:
                     holder["found"] = True
                     holder["pos"] = p
                     positions.pop(i)
@@ -441,7 +441,7 @@ class PortfolioManager:
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
-                if p["code"] == code:
+                if p["code"].lower() == code:
                     for key in ("cost", "quantity", "name", "buy_date", "tags"):
                         if key in kwargs:
                             p[key] = kwargs[key]
@@ -464,7 +464,7 @@ class PortfolioManager:
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
-                if p["code"] == code:
+                if p["code"].lower() == code:
                     existing = set(p.get("tags", []))
                     existing.update(tags)
                     p["tags"] = sorted(existing)
@@ -487,7 +487,7 @@ class PortfolioManager:
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
-                if p["code"] == code:
+                if p["code"].lower() == code:
                     existing = set(p.get("tags", []))
                     existing -= set(tags)
                     p["tags"] = sorted(existing)
@@ -520,7 +520,7 @@ class PortfolioManager:
             watchlist = data.setdefault("watchlist", [])
             existing = None
             for w in watchlist:
-                if w["code"] == code:
+                if w["code"].lower() == code:
                     existing = w
                     break
             if existing:
@@ -558,7 +558,7 @@ class PortfolioManager:
         def _apply(data: dict) -> dict:
             watchlist = data.get("watchlist", [])
             for i, w in enumerate(watchlist):
-                if w["code"] == code:
+                if w["code"].lower() == code:
                     watchlist.pop(i)
                     holder["found"] = True
                     return data

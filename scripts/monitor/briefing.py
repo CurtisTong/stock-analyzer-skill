@@ -171,7 +171,8 @@ def compute_briefing() -> dict:
         "total_pnl_pct": round(total_pnl_pct, 2),
     }
     result["pos_lines"] = pos_lines
-    result["positions_count"] = len(positions)
+    # 有效持仓数（pos_lines 已过滤掉 code/cost/qty 无效的仓位）
+    result["positions_count"] = len(pos_lines)
 
     # 3. 关键价位（仅持仓）
     alert_lines = []

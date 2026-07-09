@@ -100,10 +100,10 @@ def _check_alerts(
                 }
             )
 
-    # 压力位触及
+    # 压力位触及（与支撑位对称：加上界，避免价格远超压力位后持续误报）
     for r in levels.get("resistances", []):
         lv = r.get("level", 0)
-        if lv > 0 and price >= lv * 0.99:
+        if lv > 0 and lv * 0.99 <= price <= lv * 1.01:
             alerts.append(
                 {
                     "type": "resistance_touch",

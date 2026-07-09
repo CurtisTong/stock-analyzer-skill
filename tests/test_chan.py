@@ -199,15 +199,41 @@ class TestChanMergeInclusions:
         """方向在非包含K线出现时更新。"""
         bars = [
             _bar("2025-01-01", 10, 12, 9, 11),  # 基准
-            _bar("2025-01-02", 11, 14, 10, 13),  # 高点更高 → up
-            _bar("2025-01-03", 10, 13, 8, 9),  # 低点更低 → down
+            _bar("2025-01-02", 11, 14, 10, 13),  # 高点更高 -> up
+            _bar("2025-01-03", 10, 13, 8, 9),  # 低点更低 -> down
             _bar("2025-01-04", 9, 12, 8.5, 10),  # 包含在第三根内（12<=13, 8.5>=8）
         ]
         result = chan_merge_inclusions(bars)
-        # 第三根后方向=down，第四根包含 → 跌势合并
+        # 第三根后方向=down，第四根包含 -> 跌势合并
         assert len(result) == 3
         assert result[2]["high"] == 12  # min(13, 12) = 12
         assert result[2]["low"] == 8  # min(8, 8.5) = 8
+
+    def test_first_bar_yin_direction_down(self):
+        """首根K线为阴线（close<open）时方向初始化为 down，首对包含按跌势取低低。"""
+        bars = [
+            _bar("2025-01-01", 12, 13, 9, 10),  # 阴线：open=12 > close=10 -> direction=down
+            _bar("2025-01-02", 10, 12, 9.5, 10.5),  # 包含在前一根内（12<=13, 9.5>=9）
+            _bar("2025-01-03", 11, 14, 10, 13),  # 非包含
+        ]
+        result = chan_merge_inclusions(bars)
+        assert len(result) == 2
+        # 跌势合并：取 min(high), min(low)
+        assert result[0]["high"] == 12  # min(13, 12)
+        assert result[0]["low"] == 9  # min(9, 9.5)
+
+    def test_first_bar_yang_direction_up(self):
+        """首根K线为阳线（close>=open）时方向初始化为 up，首对包含按涨势取高高。"""
+        bars = [
+            _bar("2025-01-01", 10, 12, 9, 11),  # 阳线：close=11 >= open=10 -> direction=up
+            _bar("2025-01-02", 10, 11, 9.5, 10.5),  # 包含在前一根内
+            _bar("2025-01-03", 11, 13, 10, 12.5),  # 非包含
+        ]
+        result = chan_merge_inclusions(bars)
+        assert len(result) == 2
+        # 涨势合并：取 max(high), max(low)
+        assert result[0]["high"] == 12
+        assert result[0]["low"] == 9.5
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -764,6 +790,46 @@ class TestChanMaidian:
         result = chan_maidian([], [], [_make_zs(12, 8)], closes)
         assert isinstance(result["summary"], str)
         assert len(result["summary"]) > 0
+
+    def test_three_buy_above_zg(self):
+        """三买：突破中枢后回踩不入（recent_low > ZG）。"""
+        # 中枢 ZG=12, ZD=10；价格突破至 13 后回踩至 12.1（高于 ZG）
+        closes = [11.0] * 20 + [13.0, 12.1] + [12.5] * 8
+        zs = _make_zs(12, 10)
+        bi_list = [_make_bi("up", 0, 25, 13, 10)]
+        result = chan_maidian([], bi_list, [zs], closes)
+        has_three_buy = any(bp["type"] == "三买" for bp in result["buy_points"])
+        assert has_three_buy
+
+    def test_three_buy_rejects_low_in_zs(self):
+        """三买：回踩低点落入中枢（recent_low <= ZG）不触发。"""
+        # 中枢 ZG=12, ZD=10；价格突破至 13 后回踩至 11.5（低于 ZG=12，落入中枢）
+        closes = [11.0] * 20 + [13.0, 11.5] + [12.5] * 8
+        zs = _make_zs(12, 10)
+        bi_list = [_make_bi("up", 0, 25, 13, 10)]
+        result = chan_maidian([], bi_list, [zs], closes)
+        has_three_buy = any(bp["type"] == "三买" for bp in result["buy_points"])
+        assert not has_three_buy
+
+    def test_three_sell_below_zd(self):
+        """三卖：跌破中枢后反弹不入（recent_high < ZD）。"""
+        # 中枢 ZG=12, ZD=10；价格跌破至 8 后反弹至 9.8（低于 ZD=10）
+        closes = [11.0] * 20 + [8.0, 9.8] + [8.5] * 8
+        zs = _make_zs(12, 10)
+        bi_list = [_make_bi("down", 0, 25, 12, 8)]
+        result = chan_maidian([], bi_list, [zs], closes)
+        has_three_sell = any(sp["type"] == "三卖" for sp in result["sell_points"])
+        assert has_three_sell
+
+    def test_three_sell_rejects_high_in_zs(self):
+        """三卖：反弹高点落入中枢（recent_high >= ZD）不触发。"""
+        # 中枢 ZG=12, ZD=10；价格跌破至 8 后反弹至 10.5（高于 ZD=10，落入中枢）
+        closes = [11.0] * 20 + [8.0, 10.5] + [8.5] * 8
+        zs = _make_zs(12, 10)
+        bi_list = [_make_bi("down", 0, 25, 12, 8)]
+        result = chan_maidian([], bi_list, [zs], closes)
+        has_three_sell = any(sp["type"] == "三卖" for sp in result["sell_points"])
+        assert not has_three_sell
 
 
 # ═══════════════════════════════════════════════════════════════

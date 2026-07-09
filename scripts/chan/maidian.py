@@ -81,7 +81,8 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
     # ── 三买：突破中枢后回踩不入 ──
     above_zs = closes[-1] > last_zs["zg"]
     recent_low = min(closes[-5:]) if len(closes) >= 5 else closes[-1]
-    if above_zs and recent_low > last_zs["zd"]:
+    # 缠论标准：三买要求回踩低点不落入中枢，即高于 ZG（中枢上沿）
+    if above_zs and recent_low > last_zs["zg"]:
         # 判断是否有回踩动作：近期价格曾接近 ZG（回踩痕迹）
         # 回踩定义为：价格距 ZG 在容差范围内（可略高或略低）
         pullback_tolerance = last_zs["zg"] * pullback_pct
@@ -140,7 +141,8 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
     # ── 三卖：跌破中枢后反弹不入 ──
     below_zs = closes[-1] < last_zs["zd"]
     recent_high = max(closes[-5:]) if len(closes) >= 5 else closes[-1]
-    if below_zs and recent_high < last_zs["zg"]:
+    # 缠论标准：三卖要求反弹高点不落入中枢，即低于 ZD（中枢下沿）
+    if below_zs and recent_high < last_zs["zd"]:
         # 判断是否有反弹动作：近期价格曾接近 ZD（反弹痕迹）
         pullback_tolerance = last_zs["zd"] * pullback_pct
         near_zs = any(

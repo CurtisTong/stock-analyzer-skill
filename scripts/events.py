@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data.event import get_events
+from common import normalize_quote_code
 
 
 def format_events_text(events: dict) -> str:
@@ -88,6 +89,7 @@ def main():
     parser.add_argument("--days", type=int, default=30, help="查询天数（默认 30）")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
+    args.code = normalize_quote_code(args.code)
 
     events = get_events(args.code, args.days)
 

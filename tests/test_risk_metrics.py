@@ -37,6 +37,18 @@ class TestVaR:
         # CVaR 应大于等于 VaR（因为是平均尾部损失）
         assert cvar >= var - 1e-6
 
+    def test_historical_var_all_positive_returns(self):
+        """全正收益时 VaR 应为 0（abs 会把正收益误报为风险值）。"""
+        returns = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+        var = historical_var(returns, confidence=0.95)
+        assert var == 0.0
+
+    def test_conditional_var_all_positive_returns(self):
+        """全正收益时 CVaR 应为 0。"""
+        returns = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10]
+        cvar = conditional_var(returns, confidence=0.95)
+        assert cvar == 0.0
+
 
 class TestDrawdown:
     def test_max_drawdown_basic(self):

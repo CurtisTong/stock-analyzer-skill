@@ -29,7 +29,10 @@ def chan_merge_inclusions(records, max_merge=3):
         )
 
     merged = [dict(bars[0])]
-    direction = "up"  # 默认向上
+    # 根据首根 K 线形态初始化方向：阳线（close>=open）取涨势，阴线取跌势。
+    # 避免首对包含且实际下跌时按"涨势取高高"合并。
+    first = bars[0]
+    direction = "up" if first.get("close", 0) >= first.get("open", 0) else "down"
     consecutive_merges = 0
 
     for i in range(1, len(bars)):

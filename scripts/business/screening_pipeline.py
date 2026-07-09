@@ -243,11 +243,11 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         ]
         if not args.no_normalize and len(rows_p1) >= 3:
             _apply_factor_normalization(rows_p1, args.strategy, regime=regime)
-        rows_p1.sort(key=lambda r: r.get("score", 0), reverse=True)
+        # 先配对再排序，避免 sort 后 zip 将 quote 与错误 row 配对
+        pairs = list(zip(quotes, rows_p1))
+        pairs.sort(key=lambda qr: qr[1].get("score", 0), reverse=True)
         top_n_phase2 = max(args.top * 3, 10)
-        top_quotes = [q for q, r in zip(quotes, rows_p1) if r.get("score", 0) > 0][
-            :top_n_phase2
-        ]
+        top_quotes = [q for q, r in pairs if r.get("score", 0) > 0][:top_n_phase2]
         t_p1 = _time.perf_counter() - t_p1
         _cb(
             "phase1",

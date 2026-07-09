@@ -179,6 +179,31 @@ class TestPositionCRUD:
         assert mgr.get_position("sh600989") is not None
         assert mgr.get_position("SH600989") is not None
 
+    def test_update_position_case_insensitive(self, tmp_path):
+        """_apply 闭包应大小写不敏感：以不同大小写代码更新持仓。"""
+        mgr = _make_portfolio(tmp_path)
+        mgr.add_position("SH600989", "宝丰", 20.0, 100)
+        # 用不同大小写代码更新
+        result = mgr.update_position("sh600989", cost=25.0)
+        assert result is not None
+        assert result["cost"] == 25.0
+
+    def test_reduce_position_case_insensitive(self, tmp_path):
+        """_apply 闭包应大小写不敏感：以不同大小写代码减仓。"""
+        mgr = _make_portfolio(tmp_path)
+        mgr.add_position("SH600989", "宝丰", 20.0, 100)
+        result = mgr.reduce_position("sh600989", 30)
+        assert result is not None
+        assert result["quantity"] == 70
+
+    def test_tag_position_case_insensitive(self, tmp_path):
+        """_apply 闭包应大小写不敏感：以不同大小写代码打标签。"""
+        mgr = _make_portfolio(tmp_path)
+        mgr.add_position("SH600989", "宝丰", 20.0, 100)
+        result = mgr.tag_position("sh600989", "长线")
+        assert result is not None
+        assert "长线" in result["tags"]
+
 
 # ═══════════════════════════════════════════════════════════════
 # 3. 标签管理

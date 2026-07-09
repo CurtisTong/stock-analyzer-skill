@@ -68,7 +68,9 @@ def detect_ma_volume_signal(
 
     for i in range(1, len(ma_long_series)):
         idx_long = i + offset_long
-        idx_short = i + offset_short - offset_long + offset_long
+        # 对齐到同一天：ma_short_series[k] 对应 closes[k + offset_short]，
+        # ma_long_series[i] 对应 closes[i + offset_long]，需 k + offset_short == i + offset_long
+        idx_short = i + offset_long - offset_short
 
         if (
             idx_short < 0

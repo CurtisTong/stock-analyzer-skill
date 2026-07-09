@@ -34,7 +34,8 @@ def historical_var(returns: List[float], confidence: float = 0.95) -> float:
     sorted_r = sorted(returns)
     idx = int((1 - confidence) * len(sorted_r))
     idx = max(0, min(idx, len(sorted_r) - 1))
-    return abs(sorted_r[idx])
+    # 仅将亏损转为正数风险值；全正收益时 VaR 应为 0（abs 会把正收益误报为风险）
+    return max(0.0, -sorted_r[idx])
 
 
 def conditional_var(returns: List[float], confidence: float = 0.95) -> float:
@@ -48,7 +49,8 @@ def conditional_var(returns: List[float], confidence: float = 0.95) -> float:
     cutoff = int((1 - confidence) * len(sorted_r))
     cutoff = max(1, cutoff)
     tail = sorted_r[:cutoff]
-    return abs(sum(tail) / len(tail))
+    # 仅将亏损转为正数；尾部全正收益时 CVaR 应为 0
+    return max(0.0, -sum(tail) / len(tail))
 
 
 def max_drawdown(prices: List[float]) -> Dict[str, float]:

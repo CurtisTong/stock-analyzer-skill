@@ -139,7 +139,7 @@ class LongTermEvaluator:
         reasoning = []
 
         # 毛利率（反映定价权）
-        gross_margin = to_float(finance.get("gross_margin") or finance.get("MLLB") or 0)
+        gross_margin = to_float(finance.get("gross_margin") or 0)
         if gross_margin > 50:
             score += 20
             reasoning.append(f"✅ 毛利率 {gross_margin:.1f}% > 50%，定价权强")
@@ -151,7 +151,7 @@ class LongTermEvaluator:
             reasoning.append(f"❌ 毛利率 {gross_margin:.1f}% < 30%，定价权弱")
 
         # 净利率（反映盈利能力）
-        net_margin = to_float(finance.get("net_margin") or finance.get("JLL") or 0)
+        net_margin = to_float(finance.get("net_margin") or 0)
         if net_margin > 20:
             score += 15
             reasoning.append(f"✅ 净利率 {net_margin:.1f}% > 20%，盈利能力强")
@@ -162,7 +162,7 @@ class LongTermEvaluator:
             reasoning.append(f"❌ 净利率 {net_margin:.1f}% < 10%，盈利能力弱")
 
         # ROE（反映资本效率）
-        roe = to_float(finance.get("ROEJQ") or finance.get("roe") or 0)
+        roe = to_float(finance.get("roe") or 0)
         if roe > 20:
             score += 15
             reasoning.append(f"✅ ROE {roe:.1f}% > 20%，资本效率高")
@@ -180,10 +180,8 @@ class LongTermEvaluator:
         score = 50
         reasoning = []
 
-        # 营收增长率
-        revenue_growth = to_float(
-            finance.get("revenue_growth") or finance.get("YYZSRTBZZ") or 0
-        )
+        # 营收增长率（FinanceRecord 字段名为 revenue_yoy）
+        revenue_growth = to_float(finance.get("revenue_yoy") or 0)
         if revenue_growth > 20:
             score += 20
             reasoning.append(f"✅ 营收增长 {revenue_growth:.1f}% > 20%，高成长")
@@ -196,10 +194,8 @@ class LongTermEvaluator:
             score -= 15
             reasoning.append(f"❌ 营收增长 {revenue_growth:.1f}%，负增长")
 
-        # 净利润增长率
-        profit_growth = to_float(
-            finance.get("profit_growth") or finance.get("JLRTBZZ") or 0
-        )
+        # 净利润增长率（FinanceRecord 字段名为 net_profit_yoy）
+        profit_growth = to_float(finance.get("net_profit_yoy") or 0)
         if profit_growth > 20:
             score += 20
             reasoning.append(f"✅ 利润增长 {profit_growth:.1f}% > 20%，高成长")
@@ -213,7 +209,7 @@ class LongTermEvaluator:
             reasoning.append(f"❌ 利润增长 {profit_growth:.1f}%，负增长")
 
         # ROE 趋势（简化：当前 ROE）
-        roe = to_float(finance.get("ROEJQ") or finance.get("roe") or 0)
+        roe = to_float(finance.get("roe") or 0)
         if roe > 15:
             score += 10
             reasoning.append(f"✅ ROE {roe:.1f}% > 15%，盈利能力优秀")
@@ -232,7 +228,7 @@ class LongTermEvaluator:
         reasoning = []
 
         # 负债率
-        debt_ratio = to_float(finance.get("ZCFZL") or finance.get("debt_ratio") or 0)
+        debt_ratio = to_float(finance.get("debt_ratio") or 0)
         if debt_ratio < 30:
             score += 20
             reasoning.append(f"✅ 负债率 {debt_ratio:.1f}% < 30%，财务稳健")
@@ -246,8 +242,8 @@ class LongTermEvaluator:
             reasoning.append(f"❌ 负债率 {debt_ratio:.1f}% > 70%，财务风险高")
 
         # 现金流（每股经营现金流）
-        ocf = to_float(finance.get("MGJYXJJE") or finance.get("ocf_per_share") or 0)
-        eps = to_float(finance.get("EPSJB") or finance.get("eps") or 0)
+        ocf = to_float(finance.get("ocf_per_share") or 0)
+        eps = to_float(finance.get("eps") or 0)
         if eps > 0 and ocf > 0:
             fcf_ratio = ocf / eps
             if fcf_ratio > 0.8:
@@ -271,7 +267,7 @@ class LongTermEvaluator:
             reasoning.append("⚠️ 现金流数据缺失")
 
         # 分红率（简化：有分红即可）
-        dividend = to_float(finance.get("dividend_yield") or finance.get("GXL") or 0)
+        dividend = to_float(finance.get("dividend_yield") or 0)
         if dividend > 3:
             score += 15
             reasoning.append(f"✅ 股息率 {dividend:.1f}% > 3%，分红慷慨")

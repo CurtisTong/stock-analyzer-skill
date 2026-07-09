@@ -112,8 +112,8 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
                 exit_bi = bi
                 break
 
-        if entry_bi and exit_bi:
-            # P2-C3: 通过 date 映射坐标系
+        if entry_bi and exit_bi and entry_bi["direction"] == exit_bi["direction"]:
+            # 盘整背驰要求进入段与离开段同向，否则面积比较无意义
             e_start = _mapped_idx(entry_bi, "start_idx") - _dea_offset
             e_end = _mapped_idx(entry_bi, "end_idx") - _dea_offset
             x_start = _mapped_idx(exit_bi, "start_idx") - _dea_offset
