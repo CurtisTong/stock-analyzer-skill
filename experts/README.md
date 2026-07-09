@@ -1,11 +1,11 @@
-# 15 份专家人设 · 投资哲学档案库
+# 16 份专家人设 · 投资哲学档案库
 
-> 版本：v2.2.0（2026-06-18）
-> 新增动量派（momentum_trader）：基于利弗莫尔关键转折点 + 理查德·丹尼斯海龟法则，补齐纯趋势跟踪视角
+> 版本：v2.4.1（2026-07-08）
+> v2.4.0 合并 value_anchor+institution 为 value_institution；active 集校正为 8 人（5 长线 + 3 短线）
 > 数据接口更新：所有调用方式已适配 `scripts/data/` 和 `scripts/common/` 模块
 
 本目录是 [methodology.md §三 专家讨论模式](../methodology.md#三专家讨论模式15-份专家人设9-active--6-legacy) 的扩展档案库。
-共 **15 份专家人设**（6 legacy active=False + 9 active=True；含合并型 value_anchor/topic_leader/emotion_tech），每位专家单独成文，深度档（1200-1500 中文字），覆盖：
+共 **16 份专家人设**（8 legacy active=False + 8 active=True；含合并型 value_institution/topic_leader/emotion_tech），每位专家单独成文，深度档（1200-1500 中文字），覆盖：
 
 - 核心哲学
 - 选股标准（可量化）

@@ -12,7 +12,14 @@ from experts.scoring import _consistency_from_scores
 
 _BULL_THRESHOLD = 60  # 评分>=60 计为看多
 _BEAR_THRESHOLD = 39  # 评分<=39 计为看空
-_BULL_MAJORITY = 4  # 长线组看多多数阈值（6人中>=4）
+
+
+def _majority(n: int) -> int:
+    """67% 多数阈值：ceil(n * 2/3)。
+
+    5 人 -> 4，6 人 -> 4，3 人 -> 2。与 aggregate_group_votes 的动态阈值统一。
+    """
+    return max(1, -(-n * 2 // 3))  # ceil(n * 2/3)
 
 
 def _count_votes(scores: List[float]) -> Dict[str, int]:
@@ -31,11 +38,16 @@ def _resolve_conflict(
     yangjia_score: float,
     is_yangjia_ice: bool,
     horizon: str,
+    long_n: int,
+    short_n: int,
 ) -> dict:
     """冲突解决规则（decide.md §三）。
 
-    v2.2.0 适配：长线组 6 人、短线组 3 人。
-    统一 67% 多数阈值：长线 ≥4/6，短线 ≥2/3。
+    v2.4.1：双组阈值动态化，适配 active 集 5 长 + 3 短（或任意规模）。
+    - 长线多数阈值 = ceil(long_n * 2/3)（5 人 -> 4）
+    - 短线多数阈值 = ceil(short_n * 2/3)（3 人 -> 2）
+    - 极端检测：长线 bull >= long_n-1 且 bear==0（5 人时即 4/5，6 人时 5/6）；
+      短线 bull == short_n 且 bear==0（全员一致）。
 
     Returns:
         {"direction": str, "position_factor": float, "notes": list}
@@ -44,19 +56,26 @@ def _resolve_conflict(
     direction = "中性"
     position_factor = 1.0
 
+    long_majority = _majority(long_n)
+    short_majority = _majority(short_n)
+
     # 分歧检测（组内无多数方向）
-    long_divergent = long_votes["bull"] < _BULL_MAJORITY and long_votes["bear"] < _BULL_MAJORITY
+    long_divergent = (
+        long_votes["bull"] < long_majority and long_votes["bear"] < long_majority
+    )
     # I14: 短线组仅 3 人，1 人翻转即变分歧。投票分歧时用评分均值辅助--
     # 若 short_avg 明确偏向一方（>=60 看多阈值 或 <=40 看空阈值），不算分歧而是弱信号
-    short_vote_divergent = short_votes["bull"] < 2 and short_votes["bear"] < 2
+    short_vote_divergent = (
+        short_votes["bull"] < short_majority and short_votes["bear"] < short_majority
+    )
     if short_vote_divergent:
         if short_avg >= _BULL_THRESHOLD:
             short_divergent = False
-            short_votes = {"bull": 2, "bear": 1, "total": 3}
+            short_votes = {"bull": short_majority, "bear": short_n - short_majority, "total": short_n}
             notes.append(f"短线组投票分歧但均值 {short_avg:.0f} 达看多阈值，按弱看多处理")
         elif short_avg <= _BEAR_THRESHOLD:
             short_divergent = False
-            short_votes = {"bull": 1, "bear": 2, "total": 3}
+            short_votes = {"bull": short_n - short_majority, "bear": short_majority, "total": short_n}
             notes.append(f"短线组投票分歧但均值 {short_avg:.0f} 达看空阈值，按弱看空处理")
         else:
             short_divergent = True
@@ -65,10 +84,10 @@ def _resolve_conflict(
 
     # 极端两极分化检测（优先于其他分支）
     # 一组压倒性看多 + 另一组压倒性看空 = 最危险的分歧场景
-    long_extreme_bull = long_votes["bull"] >= 5 and long_votes["bear"] == 0
-    long_extreme_bear = long_votes["bear"] >= 5 and long_votes["bull"] == 0
-    short_extreme_bull = short_votes["bull"] == 3 and short_votes["bear"] == 0
-    short_extreme_bear = short_votes["bear"] == 3 and short_votes["bull"] == 0
+    long_extreme_bull = long_votes["bull"] >= long_n - 1 and long_votes["bear"] == 0
+    long_extreme_bear = long_votes["bear"] >= long_n - 1 and long_votes["bull"] == 0
+    short_extreme_bull = short_votes["bull"] == short_n and short_votes["bear"] == 0
+    short_extreme_bear = short_votes["bear"] == short_n and short_votes["bull"] == 0
     polarized = (
         (long_extreme_bull and short_extreme_bear)
         or (long_extreme_bear and short_extreme_bull)
@@ -80,28 +99,28 @@ def _resolve_conflict(
         total_bull = long_votes["bull"] + short_votes["bull"]
         total_bear = long_votes["bear"] + short_votes["bear"]
         notes.append(f"两极分化（{total_bull} 看多 + {total_bear} 看空），建议观望")
-    # 双一致看多：长线 ≥4/6 看多 + 短线 ≥2/3 看多
-    elif long_votes["bull"] >= 4 and short_votes["bull"] >= 2:
+    # 双一致看多：长线 ≥多数 看多 + 短线 ≥多数 看多
+    elif long_votes["bull"] >= long_majority and short_votes["bull"] >= short_majority:
         direction = "强烈看多"
         position_factor = 1.0
-    # 双一致看空：长线 ≥4/6 看空 + 短线 ≥2/3 看空
-    elif long_votes["bear"] >= 4 and short_votes["bear"] >= 2:
+    # 双一致看空：长线 ≥多数 看空 + 短线 ≥多数 看空
+    elif long_votes["bear"] >= long_majority and short_votes["bear"] >= short_majority:
         direction = "强烈看空"
         position_factor = 0.0
-    # 长线主导多：长线 ≥4/6 看多 + 短线分歧
-    elif long_votes["bull"] >= 4 and short_divergent:
+    # 长线主导多：长线 ≥多数 看多 + 短线分歧
+    elif long_votes["bull"] >= long_majority and short_divergent:
         direction = "看多"
         position_factor = 0.8
-    # 长线主导空：长线 ≥4/6 看空 + 短线分歧
-    elif long_votes["bear"] >= 4 and short_divergent:
+    # 长线主导空：长线 ≥多数 看空 + 短线分歧
+    elif long_votes["bear"] >= long_majority and short_divergent:
         direction = "看空"
         position_factor = 0.0
-    # 短线主导多：长线分歧 + 短线 ≥2/3 看多
-    elif long_divergent and short_votes["bull"] >= 2:
+    # 短线主导多：长线分歧 + 短线 ≥多数 看多
+    elif long_divergent and short_votes["bull"] >= short_majority:
         direction = "谨慎看多"
         position_factor = 0.5
-    # 短线主导空：长线分歧 + 短线 ≥2/3 看空
-    elif long_divergent and short_votes["bear"] >= 2:
+    # 短线主导空：长线分歧 + 短线 ≥多数 看空
+    elif long_divergent and short_votes["bear"] >= short_majority:
         direction = "谨慎看空"
         position_factor = 0.3
     # 全面分歧：两组均无多数方向
@@ -122,7 +141,7 @@ def _resolve_conflict(
 
     # 巴菲特警示 / 强势确认（中长期模式）
     # v2.4.0 改进：原"否决权"改为"否决警示"——保留信号但不强制推翻投票共识。
-    # 触发时降低信心指数（confidence -15）而非强制改变方向，方向仍由 9 人投票统计决定。
+    # 触发时降低信心指数（confidence -15）而非强制改变方向，方向仍由 8 人投票统计决定。
     # 短期模式保持不变：仅长线组降权×0.8。
     if buffett_score <= 39:
         if horizon in ("medium", "long"):
@@ -197,7 +216,7 @@ def _find_expert(expert_by_name: Dict[str, dict], legacy_name: str) -> Optional[
     """按 legacy 名查找专家结果，找不到则回退到其合并型专家名。
 
     保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新 9 人
-    （6 长线 + 3 短线 active 合并型名）输入，降权规则在两种输入下都触发。
+    （5 长线 + 3 短线 active 合并型名）输入，降权规则在两种输入下都触发。
 
     查找顺序：
     1. 直接按 legacy_name 查找
@@ -362,7 +381,7 @@ def aggregate_votes(
     prefer_horizon: bool = False,
     veto_results: Optional[Dict[str, Dict[str, bool]]] = None,
 ) -> dict:
-    """整合 9 位 active 专家投票（6 长线 + 3 短线），输出最终决策（decide.md 完整规则）。
+    """整合 8 位 active 专家投票（5 长线 + 3 短线），输出最终决策（decide.md 完整规则）。
 
     Args:
         expert_results: 专家评分结果列表，每项包含：
@@ -420,26 +439,37 @@ def aggregate_votes(
                     f"（{'; '.join(triggered)}），评分 {original_score:.0f}→20"
                 )
 
-    # 分组
+    # 分组：优先用专家结果自带的 group 字段；缺失时从注册表按 name 补全。
+    # P0-1（v2.4.1）：原实现按规模硬编码切分（n==8->4+4，n==9->6+3），对真实
+    # 8 人 active 集（5 长 + 3 短）会错切成 4+4，导致分组均值/投票统计全部错误。
+    # 改为按 EXPERT_REGISTRY 的 group 字段补全，注册表查不到的条目才回退到
+    # active 集真实分布（5 长 + 3 短）切分。
+    if expert_results and not any(r.get("group") for r in expert_results):
+        try:
+            from experts.registry import EXPERT_REGISTRY
+
+            for r in expert_results:
+                profile = EXPERT_REGISTRY.get(r.get("name", ""))
+                if profile is not None and not r.get("group"):
+                    r["group"] = profile.group
+        except ImportError:
+            pass
+
     long_experts = [r for r in expert_results if r.get("group") == "long_term"]
     short_experts = [r for r in expert_results if r.get("group") == "short_term"]
 
-    # 如果没有 group 信息，按规模切分（避免 9 人输入被静默丢弃退化为 50/50）
-    # P1-18: 原 fallback 仅处理 8 人，9 人 active 输入无 group 时 long/short 均空，
-    # 导致所有评分被丢弃、composite_score 恒为 50。扩展为 8 人(4+4)和 9 人(6+3)。
-    if not long_experts and not short_experts and expert_results:
+    # 注册表也补全不了的条目（未知专家名）：按 active 集真实分布 5 长 + 3 短 切分，
+    # 而非旧的 4+4。仅当仍有未分组条目时触发。
+    ungrouped = [
+        r for r in expert_results
+        if r.get("group") not in ("long_term", "short_term")
+    ]
+    if ungrouped and (not long_experts or not short_experts):
         n = len(expert_results)
-        if n == 8:
-            long_experts = expert_results[:4]
-            short_experts = expert_results[4:]
-        elif n == 9:
-            long_experts = expert_results[:6]
-            short_experts = expert_results[6:]
-        else:
-            # 其他规模：前 2/3 长线，后 1/3 短线
-            split = max(1, n * 2 // 3)
-            long_experts = expert_results[:split]
-            short_experts = expert_results[split:]
+        # active 集真实分布：长线占 ceil(n*5/8)，短线占其余。
+        long_count = -(-n * 5 // 8)  # ceil(n * 5/8)
+        long_experts = expert_results[:long_count]
+        short_experts = expert_results[long_count:]
 
     long_scores = [r["score"] for r in long_experts]
     short_scores = [r["score"] for r in short_experts]
@@ -534,6 +564,8 @@ def aggregate_votes(
         yangjia_score,
         is_yangjia_ice,
         horizon,
+        len(long_experts),
+        len(short_experts),
     )
     direction = conflict["direction"]
     position_factor = conflict["position_factor"]
@@ -612,8 +644,8 @@ def aggregate_group_votes(
 ) -> dict:
     """单组模式投票整合（decide.md §七）。
 
-    v2.3.0 适配：长线组 6 人、短线组 3 人，投票阈值动态计算。
-    多数阈值 = ceil(n * 2/3)，即 6 人需 4 票、3 人需 2 票。
+    v2.4.1 适配：长线组 5 人、短线组 3 人，投票阈值动态计算。
+    多数阈值 = ceil(n * 2/3)，即 5 人需 4 票、3 人需 2 票。
 
     Args:
         expert_results: 该组专家的评分结果

@@ -369,12 +369,31 @@ class TestAggregateVotes:
         assert agg["composite_score"] == 50.0
         assert agg["confidence"] >= 0.0
 
-    def test_no_group_field_falls_back_to_4_4_split(self):
-        """无 group 字段时按前 4 后 4 切分。"""
-        results = [_make_expert(f"e{i}", 70) for i in range(8)]
+    def test_no_group_field_backfills_from_registry(self):
+        """无 group 字段时从注册表按 name 补全 group（真实 active 集 5 长 + 3 短）。
+
+        P0-1 回归：原实现按规模硬编码切分（n==8->4+4），对真实 8 人 active 集
+        会错切成 4 长 + 4 短。改为注册表补全后应为 5 长 + 3 短。
+        """
+        from experts import list_active_experts
+
+        active = list_active_experts()
+        results = [
+            _make_expert(p.name, 70, group=None) for p in active
+        ]
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert agg["long_avg"] > 50
         assert agg["short_avg"] > 50
+        # 真实 active 集分布：5 长 + 3 短
+        assert agg["long_votes"]["total"] == 5
+        assert agg["short_votes"]["total"] == 3
+
+    def test_no_group_field_anonymous_falls_back_to_active_split(self):
+        """未知专家名（不在注册表）时回退到 active 集真实分布 5+3，而非旧的 4+4。"""
+        results = [_make_expert(f"e{i}", 70) for i in range(8)]
+        agg = aggregate_votes(results, market_state=None, horizon="medium")
+        assert agg["long_votes"]["total"] == 5
+        assert agg["short_votes"]["total"] == 3
 
     def test_output_structure_complete(self):
         """输出结构完整。"""

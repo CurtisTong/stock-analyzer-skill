@@ -12,7 +12,7 @@
 - 涨跌判定阈值默认 5.0%（A 股经验值）——超过 5% 视为预测"命中"，
   阈值可在 `scoring.yaml` 的 `calibration.calibration_threshold_pct` 字段覆盖。
 - 校准因子范围 [-1, 1]：正值 = 专家实际胜率 > 自身评估，负值 = 反之。
-- 无校准数据时 9 位 active 专家 rates=[0.5]*9（legacy 6 人不参与校准），均值 0.5，CV=0，factor=0（保持中性）。
+- 无校准数据时 8 位 active 专家 rates=[0.5]*8（legacy 8 人不参与校准），均值 0.5，CV=0，factor=0（保持中性）。
 """
 
 import json
@@ -292,8 +292,8 @@ def compute_calibration_factor() -> float:
     校准因子 = 校准均值 × (1 - min(校准CV, 0.5))，归一化到 [-1, 1]。
     无历史数据时返回 0.0。
 
-    v2.3.0 修正：仅使用 active 专家（9 人）的校准数据，
-    legacy 专家（6 人）不参与 debate 也不应稀释校准因子。
+    v2.4.1 修正：仅使用 active 专家（8 人）的校准数据，
+    legacy 专家（8 人）不参与 debate 也不应稀释校准因子。
     """
     from experts.registry import EXPERT_REGISTRY
 

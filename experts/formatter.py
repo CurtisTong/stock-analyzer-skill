@@ -198,7 +198,7 @@ def _find_dissent(expert_results: list) -> str:
 def format_debate_brief(result: dict) -> str:
     """格式化 debate 简要输出——仅方向+信心+仓位+核心分歧，适合快速决策。
 
-    v2.4.0 新增：解决 debate 模式信息过载问题（9 人逐一评分 >2000 字），
+    v2.4.0 新增：解决 debate 模式信息过载问题（8 人逐一评分 >2000 字），
     brief 模式仅输出约 200 字核心结论。
     """
     lines = []

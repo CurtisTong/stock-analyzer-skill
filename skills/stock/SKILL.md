@@ -1,6 +1,6 @@
 ---
 name: stock
-description: 单股分析。触发词：帮我看看XX、分析一下XX、XX怎么样、XX能买吗、看看XX的技术面、技术分析XX、XX估值如何、XX基本面、专家讨论XX。用于个股快速/完整五层分析、技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/战法）、估值判断、9人专家圆桌多空辩论（15份人设中 9 active = 6长线+3短线）。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
+description: 单股分析。触发词：帮我看看XX、分析一下XX、XX怎么样、XX能买吗、看看XX的技术面、技术分析XX、XX估值如何、XX基本面、专家讨论XX。用于个股快速/完整五层分析、技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/战法）、估值判断、8人专家圆桌多空辩论（16份人设中 8 active = 5长线+3短线）。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
 version: 1.15.0
 model: opus
 allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
@@ -18,8 +18,8 @@ allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.m
 
 - `quick`（默认）：基本面+估值+技术面，3分钟出结论
 - `full`：五层完整分析+风险收益比+仓位建议
-- `debate`：五层分析 + 9人专家圆桌（6长线+3短线：林奇/索罗斯/价值双锚/行业专家/机构派/风控 + 题材龙头/情绪技术/动量派）
-- `debate 长线`：仅6位长线（lynch/soros/value_anchor/sector_specialist/institution/risk_manager）
+- `debate`：五层分析 + 8人专家圆桌（5长线+3短线：林奇/索罗斯/价值机构锚/行业专家/风控 + 题材龙头/情绪技术/动量派）
+- `debate 长线`：仅5位长线（lynch/soros/value_institution/sector_specialist/risk_manager）
 - `debate 短线`：仅3位短线（topic_leader/emotion_tech/momentum_trader）
 - `technical`：纯技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/本土战法），不做基本面
 - `--brief`：精简模式，一句话结论 + 关键数据 + 操作建议（<500字），可与上述模式组合
@@ -135,15 +135,15 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 **debate模式（全模式/默认）：**
 
 - 五层分析
-- 9人专家圆桌（6长线+3短线；另有6份legacy档案保留研究）
-- 多空投票 + 跨组加权（≥4/6 长线 + ≥2/3 短线多数阈值）
+- 8人专家圆桌（5长线+3短线；另有8份legacy档案保留研究）
+- 多空投票 + 跨组加权（≥4/5 长线 + ≥2/3 短线多数阈值）
 - 最终折中方案
 
 **debate 长线模式：**
 
 - 五层分析
-- 仅6位长线专家（lynch/soros/value_anchor/sector_specialist/institution/risk_manager）
-- 组内投票，≥4/6 看多/看空算组内多数
+- 仅5位长线专家（lynch/soros/value_institution/sector_specialist/risk_manager）
+- 组内投票，≥4/5 看多/看空算组内多数
 - 适合中长期价值判断
 
 **debate 短线模式：**
@@ -165,14 +165,14 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 | 模式           | 参数          | 参与专家                       | 决策机制               |
 | -------------- | ------------- | ------------------------------ | ---------------------- |
-| 全模式（默认） | `debate`      | 9人（长线6 + 短线3）           | 跨组加权，市场环境调权 |
-| 长线模式       | `debate 长线` | 长线6人                        | 组内投票，≥4/6 阈值    |
+| 全模式（默认） | `debate`      | 8人（长线5 + 短线3）           | 跨组加权，市场环境调权 |
+| 长线模式       | `debate 长线` | 长线5人                        | 组内投票，≥4/5 阈值    |
 | 短线模式       | `debate 短线` | 短线3人                        | 组内投票，≥2/3 阈值    |
 
 > 短线 3 人：题材龙头（topic_leader）、情绪技术复合（emotion_tech）、动量交易（momentum_trader）。
-> 另有 6 份 legacy 档案（巴菲特/段永平/徐翔/赵老哥/养家/作手新一）保留为研究档案，不参与新框架投票。
+> 另有 8 份 legacy 档案（巴菲特/段永平/徐翔/赵老哥/养家/作手新一/value_anchor/institution）保留为研究档案，不参与新框架投票。
 
-长线团（6）：彼得林奇（成长）、索罗斯（趋势）、价值双锚（merged 巴菲特+段永平）、行业专家、机构派、风控官
+长线团（5）：彼得林奇（成长）、索罗斯（趋势）、价值机构锚（merged 价值双锚+机构派）、行业专家、风控官
 短线团（3）：题材龙头（merged 徐翔+赵老哥）、情绪技术复合（merged 养家+新一）、动量交易（v2.2.0）
 
 **全模式标准流程**（参考 experts/decide.md 决策引擎）：
@@ -183,14 +183,13 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
    python3 scripts/quote.py sh000001,sh510300 -j
    ```
 
-2. **每位专家独立打分**：对照 `experts/<name>.md` 中 §九 评分矩阵，用步骤1和步骤3获取的数据在各维度打分，输出 0-100 总分。9 位 active 专家关键维度：
+2. **每位专家独立打分**：对照 `experts/<name>.md` 中 §九 评分矩阵，用步骤1和步骤3获取的数据在各维度打分，输出 0-100 总分。8 位 active 专家关键维度：
    - 林奇（lynch）：重 PEG/增速/内部人交易
    - 索罗斯（soros）：重趋势/反身性/市场情绪一致性
-   - 价值双锚（value_anchor）：重 ROE/PE/负债率/安全边际（merged 巴菲特+段永平）
+   - 价值机构锚（value_institution）：重 ROE/PE/负债率/安全边际/行业空间（merged 价值双锚+机构派；价值双锚=巴菲特+段永平）
    - 题材龙头（topic_leader）：重涨停基因/板块效应/封单强度+均线排列（merged 徐翔+赵老哥）
    - 情绪技术（emotion_tech）：重情绪周期/涨停跌停家数/K线反转（merged 养家+作手新一）
    - 行业专家（sector_specialist）：按5大行业类差异化阈值
-   - 机构派（institution）：高瓴/红杉框架 + 5-10 年产业投资
    - 风控官（risk_manager）：Howard Marks 二阶思维 + 风险预算
    - 动量派（momentum_trader）：利弗莫尔关键转折 + 海龟交易法则（v2.2.0）
 
@@ -225,8 +224,8 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 **长线/短线单组模式流程**（参考 experts/decide.md §七）：
 
 1. **获取数据**：同全模式步骤1（行情+财务+K线），无需获取大盘数据。
-2. **仅调用对应组专家打分**：长线模式只跑 lynch/soros/value_anchor/sector_specialist/institution/risk_manager（6人），短线模式只跑 topic_leader/emotion_tech/momentum_trader（3人）。
-3. **组内投票**：按 decide.md §七 规则——长线组 ≥4/6 看多=看多，≥4/6 看空=看空，3:3=中性；短线组 ≥2/3 看多=看多，≥2/3 看空=看空。
+2. **仅调用对应组专家打分**：长线模式只跑 lynch/soros/value_institution/sector_specialist/risk_manager（5人），短线模式只跑 topic_leader/emotion_tech/momentum_trader（3人）。
+3. **组内投票**：按 decide.md §七 规则——长线组 ≥4/5 看多=看多，≥4/5 看空=看空，2:3=中性；短线组 ≥2/3 看多=看多，≥2/3 看空=看空。
 4. **输出**：评分表（仅该组专家）+ 组内方向 + 风险 + 仓位。信心指数基于组内标准差计算。
 
 ### Step 5: 技术分析（technical 模式）

@@ -1,5 +1,5 @@
 """
-9 人专家圆桌（6 长线 + 3 短线）· 可调用 API。
+8 人专家圆桌（5 长线 + 3 短线）· 可调用 API。
 
 本模块把 experts/*.md 的人设和评分矩阵沉淀为 Python 数据结构，
 使 `stock` skill 的 debate 模式可在代码层查询专家维度权重和一票否决条件。
@@ -100,11 +100,12 @@ def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
 
 
 def list_legacy_experts(group: Optional[str] = None) -> List[ExpertProfile]:
-    """列出 active=False 的 legacy 专家（6 人）。
+    """列出 active=False 的 legacy 专家（8 人）。
 
     legacy = 已被合并型视角取代、新框架不再调用的旧专家（buffett/
-    duan_yongping/xu_xiang/zhao_laoge/chaogu_yangjia/zuoshou_xinyi）。
-    通过 `--use-legacy-experts` flag 让用户显式切回旧圆桌做 A/B 对比。
+    duan_yongping/xu_xiang/zhao_laoge/chaogu_yangjia/zuoshou_xinyi/
+    value_anchor/institution）。通过 `--use-legacy-experts` flag 让用户
+    显式切回旧圆桌做 A/B 对比。
     """
     all_experts = [p for p in EXPERT_REGISTRY.values() if not p.active]
     if group is None:
