@@ -312,7 +312,12 @@ def _render_risk_section(features, meta):
 
 
 def render_report(features, score, signals, meta):
-    """完整技术分析报告。"""
+    """完整技术分析报告。
+
+    P2-12: 段落顺序改为列表驱动（RenderSection 抽象），便于未来配置化。
+    渲染函数签名统一为 (features, score, signals, meta) -> list[str]，
+    或仅 (features, score, signals, meta, **kwargs) 兼容其他签名。
+    """
     lines = []
 
     # 提取子结构
@@ -331,21 +336,25 @@ def render_report(features, score, signals, meta):
     # 综合评分
     lines.extend(_render_score_section(features, score))
 
-    # 各技术指标段落
-    lines.extend(_render_ma_section(ma))
-    lines.extend(_render_macd_section(macd))
-    lines.extend(_render_kdj_section(kdj))
-    lines.extend(_render_boll_section(boll))
-    lines.extend(_render_volume_section(vol))
-    lines.extend(_render_rsi_section(rsi_data))
-    lines.extend(_render_candlestick_section(patterns))
-    lines.extend(_render_classification_section(features))
-    lines.extend(_render_chan_section(features))
-    lines.extend(_render_local_patterns_section(features))
-    lines.extend(_render_market_env_section(features))
-    lines.extend(_render_support_resistance_section(sr))
-    lines.extend(_render_trend_section(features))
-    lines.extend(_render_limit_section(features))
+    # 各技术指标段落（P2-12: 列表驱动，便于调整顺序）
+    sections = [
+        lambda: _render_ma_section(ma),
+        lambda: _render_macd_section(macd),
+        lambda: _render_kdj_section(kdj),
+        lambda: _render_boll_section(boll),
+        lambda: _render_volume_section(vol),
+        lambda: _render_rsi_section(rsi_data),
+        lambda: _render_candlestick_section(patterns),
+        lambda: _render_classification_section(features),
+        lambda: _render_chan_section(features),
+        lambda: _render_local_patterns_section(features),
+        lambda: _render_market_env_section(features),
+        lambda: _render_support_resistance_section(sr),
+        lambda: _render_trend_section(features),
+        lambda: _render_limit_section(features),
+    ]
+    for section_fn in sections:
+        lines.extend(section_fn())
 
     # 风险提示
     lines.extend(_render_risk_section(features, meta))

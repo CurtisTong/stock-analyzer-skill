@@ -1,17 +1,19 @@
 """顶底分型识别。"""
 
 
-def chan_fenxing(merged_bars):
+def chan_fenxing(merged_bars, equal_eps: float = 0.0):
     """
     从合并后的 K 线序列识别顶分型和底分型。
 
     缠论原文定义（放宽版）：
-    - 顶分型：中间K线高点最高（b1.high > b0.high 且 b1.high > b2.high）
+    - 顶分型：中间K线高点最高（b1.high >= b0.high 且 b1.high >= b2.high，差值 ≥ eps）
       低点条件放宽为 b1.low >= min(b0.low, b2.low)，允许中间K线低点不低于两侧最低
-    - 底分型：中间K线低点最低（b1.low < b0.low 且 b1.low < b2.low）
+    - 底分型：中间K线低点最低（b1.low <= b0.low 且 b1.low <= b2.low，差值 ≥ eps）
       高点条件放宽为 b1.high <= max(b0.high, b2.high)，允许中间K线高点不高于两侧最高
 
     v2.4.0 放宽：原实现要求高低点"同时"满足，比缠论原文更严格，导致漏识分型。
+    P2-14: 主条件改为 >=/<= 以处理合并后等高点/等低点边界（merge.py 已用 <=/>=）。
+    equal_eps: 容忍相等时的相对差异阈值（默认 0 = 严格相等也算）。
     """
     if len(merged_bars) < 3:
         return []
@@ -20,18 +22,20 @@ def chan_fenxing(merged_bars):
     for i in range(1, len(merged_bars) - 1):
         b0, b1, b2 = merged_bars[i - 1], merged_bars[i], merged_bars[i + 1]
 
-        # 顶分型：中间K线高点最高，低点不低于两侧最低
+        # 顶分型：中间K线高点最高（含等高），低点不低于两侧最低
         if (
-            b1["high"] > b0["high"]
-            and b1["high"] > b2["high"]
+            b1["high"] >= b0["high"] - equal_eps
+            and b1["high"] >= b2["high"] - equal_eps
+            and (b1["high"] > b0["high"] or b1["high"] > b2["high"])
             and b1["low"] >= min(b0["low"], b2["low"])
         ):
             fenxing_list.append({"type": "顶", "bar": b1, "idx": i})
 
-        # 底分型：中间K线低点最低，高点不高于两侧最高
+        # 底分型：中间K线低点最低（含等低），高点不高于两侧最高
         elif (
-            b1["low"] < b0["low"]
-            and b1["low"] < b2["low"]
+            b1["low"] <= b0["low"] + equal_eps
+            and b1["low"] <= b2["low"] + equal_eps
+            and (b1["low"] < b0["low"] or b1["low"] < b2["low"])
             and b1["high"] <= max(b0["high"], b2["high"])
         ):
             fenxing_list.append({"type": "底", "bar": b1, "idx": i})

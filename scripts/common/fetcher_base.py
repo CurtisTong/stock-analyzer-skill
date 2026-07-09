@@ -6,6 +6,7 @@ NOT_HANDLED 哨兵（标记不处理的代码）。
 
 import logging
 import re
+import threading
 from abc import ABC, abstractmethod
 
 from common.circuit_breaker import get_circuit_breaker
@@ -53,6 +54,8 @@ class BaseFetcher(ABC):
 
     def __init__(self, name: str, priority: int = 0, provider: str | None = None):
         self.name = name
+        # P2-19: TODO(v2.0) 强制要求子类显式传 provider
+        # 当前保留隐式推断作为兼容层，避免大量子类重构。
         # 显式 provider 优先；否则从 name 推断（取最后一个 _ 前的段落，
         # 这样 "northbound_flow_eastmoney" -> "eastmoney"，"tencent_quote" -> "tencent"）
         if provider is not None:
@@ -66,7 +69,13 @@ class BaseFetcher(ABC):
                 "tencent", "eastmoney", "sina", "xueqiu", "ths", "efinance",
                 "akshare", "tushare", "pytdx", "baostock", "yfinance",
             }
-            self.provider = parts[-1] if parts[-1] in _KNOWN_PROVIDERS else parts[0]
+            inferred = parts[-1] if parts[-1] in _KNOWN_PROVIDERS else parts[0]
+            logger.debug(
+                "Fetcher %s 隐式推断 provider=%s（建议子类显式传 provider=...）",
+                name,
+                inferred,
+            )
+            self.provider = inferred
         else:
             self.provider = name
         self.priority = priority
@@ -177,12 +186,20 @@ class DataFetcherManager:
         if source_config:
             self._apply_source_config(fetchers, source_config)
         self.fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
+        # P2-18: _last_error 用 threading.Lock 保护读写，单例共享场景下避免跨线程竞争
         self._last_error: Exception | None = None
+        self._last_error_lock = threading.Lock()
 
     @property
     def last_error(self) -> Exception | None:
         """最后一次 fetch 失败的异常。"""
-        return self._last_error
+        with self._last_error_lock:
+            return self._last_error
+
+    def _set_last_error(self, err: Exception | None) -> None:
+        """线程安全地设置 _last_error。"""
+        with self._last_error_lock:
+            self._last_error = err
 
     @staticmethod
     def _apply_source_config(
@@ -210,7 +227,7 @@ class DataFetcherManager:
         """
         if not code or not _SAFE_CODE_PATTERN.match(str(code)):
             return None
-        self._last_error = None
+        self._set_last_error(None)
         for fetcher in self.fetchers:
             if not fetcher.is_available():
                 continue
@@ -226,16 +243,16 @@ class DataFetcherManager:
                 # P0-04: 429 限速不计入熔断失败--限速通常是针对特定 API key
                 # 的限制，其他源未必受限。误熔断会导致可用数据源被跳过。
                 # 仅记录 last_error 并尝试下一个源。
-                self._last_error = e
+                self._set_last_error(e)
                 continue
             except HTTPStatusError as e:
                 # P2-H2(common): 4xx 业务错误（如 404 数据不存在）不计入熔断，
                 # 直接换下一个源尝试，避免误熔断数据源
-                self._last_error = e
+                self._set_last_error(e)
                 continue
             except Exception as e:
                 fetcher.on_failure()
-                self._last_error = e
+                self._set_last_error(e)
                 continue
         return None
 

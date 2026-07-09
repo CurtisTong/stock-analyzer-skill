@@ -40,15 +40,27 @@ class AkshareQuoteFetcher(BaseFetcher):
                     df = ak.stock_zh_a_spot_em()
                     if df is None or df.empty:
                         return None
+                    # P2-15: 以"代码"为索引，避免每次 fetch O(n) 线性扫描
+                    if "代码" in df.columns:
+                        df = df.set_index("代码")
                     _ak_cache["df"] = df
                     _ak_cache["ts"] = now
                 else:
                     df = _ak_cache["df"]
 
-            row = df[df["代码"] == plain]
-            if row.empty:
-                return None
-            r = row.iloc[0]
+            # O(1) 索引查找（若未索引化则回退线性扫描）
+            if df.index.name == "代码":
+                try:
+                    r = df.loc[plain]
+                    if r is None or (hasattr(r, "empty") and r.empty):
+                        return None
+                except KeyError:
+                    return None
+            else:
+                row_df = df[df["代码"] == plain]
+                if row_df.empty:
+                    return None
+                r = row_df.iloc[0]
             return {
                 "code": str(r.get("代码", "")),
                 "name": str(r.get("名称", "")),

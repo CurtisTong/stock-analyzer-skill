@@ -120,7 +120,10 @@ class StockAnalysisService:
             result["name"] = quote.name
             result["price"] = quote.price
             result["change_pct"] = quote.change_pct
-            result["profile"] = profile_stock(quote.to_dict())
+            result["profile"] = profile_stock(
+                quote.to_dict(),
+                fetcher_industry=getattr(quote, "industry", "") or "",
+            )
 
         # 3. K线分析
         if not kline or len(kline) < 10:

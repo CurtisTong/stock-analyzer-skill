@@ -378,13 +378,19 @@ def infer_industry(name: str, code: str = "", fetcher_industry: str = "") -> str
 # ── 统一画像入口 ──
 
 
-def profile_stock(quote: dict, fin: dict = None, kline_records: list = None) -> dict:
+def profile_stock(
+    quote: dict,
+    fin: dict = None,
+    kline_records: list = None,
+    fetcher_industry: str = "",
+) -> dict:
     """统一个股画像：行业 + 类型 + 指标建议。
 
     Args:
         quote: 行情 dict（含 code, name 等）
         fin: 财务数据 dict（可选）
         kline_records: K 线数据列表（可选）
+        fetcher_industry: P2-13 数据源返回的行业（如东财 industry 字段），优先级高于 keyword
 
     Returns:
         {
@@ -399,7 +405,8 @@ def profile_stock(quote: dict, fin: dict = None, kline_records: list = None) -> 
     name = quote.get("name", "")
     code = quote.get("code", "")
 
-    industry = infer_industry(name, code)
+    # P2-13: 优先用 fetcher_industry（数据源直接给出），keyword 仅作 fallback
+    industry = infer_industry(name, code, fetcher_industry=fetcher_industry)
     classification = classify_stock(fin, quote, kline_records)
 
     return {

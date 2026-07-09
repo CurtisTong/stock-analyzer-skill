@@ -246,13 +246,18 @@ def _http_get_requests(
     headers: dict[str, str] | None = None,
     timeout: int = 10,
 ) -> bytes:
-    """requests 版本的 GET 请求（连接池复用 + 自动编码）。"""
+    """requests 版本的 GET 请求（连接池复用 + 自动编码）。
+
+    P2-16: 跟随重定向（最多 5 次，与 http.client 路径保持一致）。
+    """
     session = _get_session()
     req_headers = {}
     if headers:
         req_headers.update(headers)
 
-    resp = session.get(url, headers=req_headers, timeout=timeout, allow_redirects=False)
+    resp = session.get(
+        url, headers=req_headers, timeout=timeout, allow_redirects=True
+    )
 
     if resp.status_code == 429:
         retry_after = resp.headers.get("Retry-After")
@@ -326,11 +331,20 @@ def http_get_with_headers(
 
 
 def decode_gbk(data: bytes) -> str:
-    """自动检测编码解码：先尝试 UTF-8，失败回退 GBK。"""
+    """自动检测编码解码：先尝试 UTF-8，失败回退 GBK。
+
+    P2-17: GBK decode 失败替换为 U+FFFD 时记录 warning，便于定位乱码源。
+    """
     try:
         return data.decode("utf-8")
     except UnicodeDecodeError:
-        return data.decode("gbk", errors="replace")
+        decoded = data.decode("gbk", errors="replace")
+        if "\ufffd" in decoded:
+            logger.warning(
+                "GBK decode 含替换字符（U+FFFD），data len=%d，可能存在编码错误",
+                len(data),
+            )
+        return decoded
 
 
 __all__ = [

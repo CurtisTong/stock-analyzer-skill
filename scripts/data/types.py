@@ -29,6 +29,8 @@ class Quote:
     is_suspended: bool = False  # 是否停牌
     limit_up: float = 0.0  # 涨停价（0 表示未知）
     limit_down: float = 0.0  # 跌停价（0 表示未知）
+    # P2-13: 数据源返回的行业（fetcher 可选填充，默认空走 keyword 推断）
+    industry: str = ""
 
     def has_basic_data(self) -> bool:
         return self.price > 0

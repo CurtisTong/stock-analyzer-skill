@@ -8,8 +8,15 @@ import statistics
 from .core import _find_swing_points
 
 
-def volume_analysis(closes, volumes):
-    """量价分析：量比、天量/地量、量价配合、OBV。"""
+def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: int = 3):
+    """量价分析：量比、天量/地量、量价配合、OBV。
+
+    Args:
+        closes: 收盘价序列
+        volumes: 成交量序列
+        shrink_window: P2-11: 连续缩量检测的最大回溯窗口（默认 5）
+        shrink_min_days: P2-11: 触发 shrink_signal 的最小连续天数（默认 3）
+    """
     if len(closes) < 6 or len(volumes) < 6:
         return None
 
@@ -77,18 +84,18 @@ def volume_analysis(closes, volumes):
     # 连续缩量检测（signals.py 引用 shrink_signal / shrink_desc）
     shrink_signal = 0
     shrink_desc = ""
-    if len(volumes) >= 5:
+    if len(volumes) >= shrink_window:
         shrink_days = 0
         # P1-29: 用绝对索引避免负索引越界（原 range(-1, -min(6,len), -1)
         # 在 i-1 == -len 时仍访问 volumes[-len-1] 越界）。
-        # 从最后一根向前回溯，最多 5 根，比较 volumes[k] vs volumes[k-1]。
+        # 从最后一根向前回溯，最多 shrink_window 根，比较 volumes[k] vs volumes[k-1]。
         n = len(volumes)
-        for k in range(n - 1, max(0, n - 6) - 1, -1):
+        for k in range(n - 1, max(0, n - shrink_window - 1) - 1, -1):
             if k - 1 >= 0 and volumes[k] < volumes[k - 1]:
                 shrink_days += 1
             else:
                 break
-        if shrink_days >= 3:
+        if shrink_days >= shrink_min_days:
             shrink_signal = 1
             shrink_desc = f"连续{shrink_days}日缩量(抛压枯竭，底部信号)"
 
