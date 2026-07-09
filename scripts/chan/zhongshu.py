@@ -34,6 +34,10 @@ def chan_zhongshu(xd_list):
                     "width": round(zg - zd, 3),
                     "xd_start": i,
                     "xd_end": i + 2,
+                    # bi_list 索引范围：供 beichi.py 直接定位进入/离开笔，
+                    # 避免将 xd_list 索引误当作 merged-bar 索引比较
+                    "bi_start": xd_list[i]["start_bi"],
+                    "bi_end": xd_list[i + 2]["end_bi"],
                 }
             )
 
@@ -58,6 +62,8 @@ def chan_zhongshu(xd_list):
                 "width": round(new_zg - new_zd, 3),
                 "xd_start": last["xd_start"],
                 "xd_end": zs["xd_end"],
+                "bi_start": last["bi_start"],
+                "bi_end": zs["bi_end"],
             }
         else:
             merged_zs.append(zs)

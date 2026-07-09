@@ -120,9 +120,8 @@ def main():
                 print(f"  {k}: {v}")
 
     if args.command == "save":
-        from common import DATA_DIR
+        from common import DATA_DIR, atomic_write_json
         from common.version import __version__
-        import json
         from datetime import datetime
 
         out_path = Path(DATA_DIR) / "perf_benchmarks.json"
@@ -134,10 +133,7 @@ def main():
             "rounds": args.rounds,
             "results": dict(results),
         }
-        out_path.write_text(
-            json.dumps(record, ensure_ascii=False, indent=2),
-            encoding="utf-8",
-        )
+        atomic_write_json(out_path, record)
         print(f"\n✅ 基准已保存到 {out_path}")
 
 

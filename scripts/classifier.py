@@ -366,11 +366,11 @@ def infer_industry(name: str, code: str = "", fetcher_industry: str = "") -> str
         ]
     ):
         return "制造"
-    # 军工
-    if any(kw in name for kw in ["军工", "航天", "航空", "兵器", "船舶", "电科"]):
+    # 军工（"航空"移至交运，军工航空用"航天"/"航发"/"中航"等区分）
+    if any(kw in name for kw in ["军工", "航天", "航发", "中航", "兵器", "船舶", "电科"]):
         return "军工"
     # 交运
-    if any(kw in name for kw in ["航空", "航运", "港口", "铁路", "高速", "物流"]):
+    if any(kw in name for kw in ["航空", "国航", "航运", "港口", "铁路", "高速", "物流"]):
         return "交运"
     return "默认"
 

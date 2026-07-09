@@ -19,7 +19,7 @@ from typing import List, Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
-from common import DATA_DIR  # noqa: E402
+from common import DATA_DIR, atomic_write_json  # noqa: E402
 
 SNAPSHOT_VERSION = "1.14.1"
 
@@ -112,9 +112,7 @@ def save_snapshot(
 
     path = _snapshot_path(strategy, date_str, hash_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    atomic_write_json(path, snapshot)
     return path
 
 

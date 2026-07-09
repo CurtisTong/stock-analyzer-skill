@@ -44,22 +44,16 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
     # 仅比较"中枢前最后一段"和"中枢后第一段"的 MACD 面积
     if zs_list:
         last_zs = zs_list[-1]
-        xd_start = last_zs.get("xd_start", 0)
-        xd_end = last_zs.get("xd_end", 0)
+        # 使用 bi_list 索引（bi_start/bi_end）定位进入/离开笔，
+        # 而非 xd_list 索引（xd_start/xd_end）--后者与 bi 的 merged-bar 索引不同坐标系
+        bi_start = last_zs.get("bi_start", 0)
+        bi_end = last_zs.get("bi_end", len(bi_list) - 1)
 
-        # 中枢前最后一笔（进入段）
-        entry_bi = None
-        for bi in reversed(bi_list):
-            if bi["end_idx"] <= xd_start:
-                entry_bi = bi
-                break
+        # 中枢前最后一笔（进入段）：紧邻中枢第一笔之前的笔
+        entry_bi = bi_list[bi_start - 1] if bi_start > 0 else None
 
-        # 中枢后第一笔（离开段）
-        exit_bi = None
-        for bi in bi_list:
-            if bi["start_idx"] >= xd_end:
-                exit_bi = bi
-                break
+        # 中枢后第一笔（离开段）：紧邻中枢最后一笔之后的笔
+        exit_bi = bi_list[bi_end + 1] if bi_end + 1 < len(bi_list) else None
 
         if entry_bi and exit_bi and entry_bi["direction"] == exit_bi["direction"]:
             # P2-C3: bi idx 是 merged 坐标系，通过 date 映射到 closes 坐标系，
@@ -93,24 +87,16 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
     # ── 盘整背驰：检查每个中枢的进入段 vs 离开段 ──
     for zs_idx, zs in enumerate(zs_list):
         # 盘整背驰：中枢前后各有一段同向走势，比较 MACD 面积
-        # 进入段 = 中枢前最后一段走势（在中枢 xd_start 之前的笔）
-        # 离开段 = 中枢后第一段走势（在中枢 xd_end 之后的笔）
-        xd_start = zs.get("xd_start", 0)
-        xd_end = zs.get("xd_end", 0)
+        # 进入段 = 中枢前最后一笔（在中枢 bi_start 之前）
+        # 离开段 = 中枢后第一笔（在中枢 bi_end 之后）
+        bi_start = zs.get("bi_start", 0)
+        bi_end = zs.get("bi_end", len(bi_list) - 1)
 
-        # 找进入段：xd_start 之前的最后一笔
-        entry_bi = None
-        for bi in reversed(bi_list):
-            if bi["end_idx"] <= xd_start:
-                entry_bi = bi
-                break
+        # 中枢前最后一笔（进入段）
+        entry_bi = bi_list[bi_start - 1] if bi_start > 0 else None
 
-        # 找离开段：xd_end 之后的第一笔
-        exit_bi = None
-        for bi in bi_list:
-            if bi["start_idx"] >= xd_end:
-                exit_bi = bi
-                break
+        # 中枢后第一笔（离开段）
+        exit_bi = bi_list[bi_end + 1] if bi_end + 1 < len(bi_list) else None
 
         if entry_bi and exit_bi and entry_bi["direction"] == exit_bi["direction"]:
             # 盘整背驰要求进入段与离开段同向，否则面积比较无意义

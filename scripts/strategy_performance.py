@@ -23,7 +23,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from common import DATA_DIR  # noqa: E402
+from common import DATA_DIR, atomic_write_json  # noqa: E402
 from strategies import get_strategy, list_strategies  # noqa: E402
 from backtest import run_backtest, load_test_universe  # noqa: E402
 
@@ -38,11 +38,9 @@ def _load() -> Dict:
 
 
 def _save(data: Dict) -> None:
-    """保存到磁盘。"""
+    """保存到磁盘（原子写，防崩溃损坏）。"""
     PERFORMANCE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    PERFORMANCE_FILE.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    atomic_write_json(PERFORMANCE_FILE, data)
 
 
 def record_all(days: int = 60, top: int = 5, codes: List[str] = None) -> Dict:

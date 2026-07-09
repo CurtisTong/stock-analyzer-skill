@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from common import DATA_DIR, parallel_map
+from common import DATA_DIR, parallel_map, atomic_write_json
 from data import get_quote, get_kline
 from snapshots import list_snapshots, load_snapshot
 
@@ -247,7 +247,8 @@ def _save_snapshot(rows: list, mode: str, days: int) -> str:
         "generated_at": now.isoformat(timespec="seconds"),
         "rows": out_rows,
     }
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_json(path, payload)
     return str(path)
 
 

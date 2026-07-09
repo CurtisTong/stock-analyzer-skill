@@ -75,13 +75,16 @@ class MetricsCollector:
             return summary
 
     def dump(self, path: Path | None = None) -> None:
-        """将指标写入 JSON 文件。"""
+        """将指标写入 JSON 文件（原子写，防崩溃损坏）。"""
         if path is None:
             from common import cache
 
             path = cache.CACHE_DIR / "metrics.json"
         path.parent.mkdir(exist_ok=True)
-        path.write_text(json.dumps(self.get_summary(), ensure_ascii=False, indent=2))
+        # 直接从 utils 导入避免 common 包内循环引用
+        from common.utils import atomic_write_json
+
+        atomic_write_json(path, self.get_summary())
 
 
 # 全局实例

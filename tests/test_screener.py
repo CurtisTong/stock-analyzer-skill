@@ -904,6 +904,17 @@ class TestInferIndustry:
     def test_manufacturing_industry(self):
         assert infer_industry("比亚迪汽车制造") == "制造"
 
+    def test_airline_classified_as_transport(self):
+        """航空公司应归入交运，而非军工（"航空"关键词碰撞修复）。"""
+        assert infer_industry("南方航空") == "交运"
+        assert infer_industry("中国国航") == "交运"
+        assert infer_industry("东方航空") == "交运"
+
+    def test_defense_aerospace_still_military(self):
+        """军工航天/航发企业仍归入军工（不与交运"航空"碰撞）。"""
+        assert infer_industry("中国航天" + "工业") == "军工"
+        assert infer_industry("中航沈飞") == "军工"
+
     def test_unknown_defaults(self):
         assert infer_industry("某某未知公司") == "默认"
 

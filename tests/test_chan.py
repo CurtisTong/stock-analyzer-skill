@@ -63,7 +63,7 @@ def _make_xd(direction, bi_count, high, low):
     }
 
 
-def _make_zs(zg, zd, xd_start=0, xd_end=2):
+def _make_zs(zg, zd, xd_start=0, xd_end=2, bi_start=0, bi_end=2):
     """快速生成中枢数据。"""
     return {
         "zg": zg,
@@ -72,6 +72,8 @@ def _make_zs(zg, zd, xd_start=0, xd_end=2):
         "width": round(zg - zd, 3),
         "xd_start": xd_start,
         "xd_end": xd_end,
+        "bi_start": bi_start,
+        "bi_end": bi_end,
     }
 
 
@@ -713,6 +715,88 @@ class TestChanBeichi:
         ]
         result = chan_beichi(bi_list, [], closes)
         assert result["trend_beichi"] in (None, "底背驰(看涨)", "顶背驰(看跌)")
+
+
+class TestChanBeichiWithZhongshu:
+    """背驰检测测试（非空 zs_list，验证 bi_start/bi_end 坐标系修复）。"""
+
+    def test_entry_exit_bi_selected_by_bi_index(self):
+        """中枢的进入/离开笔应通过 bi_list 索引选取，而非 merged-bar 索引。"""
+        # 构造足够长的 closes（>=34），使 MACD 计算可执行
+        closes = [20.0 - i * 0.1 for i in range(40)]  # 下跌趋势
+
+        # 6 笔：bi[0]=进入段，bi[1..4]=中枢内，bi[5]=离开段
+        bi_list = [
+            _make_bi("down", 0, 5, 20, 16),    # 进入段
+            _make_bi("up", 5, 8, 18, 14),      # 中枢内
+            _make_bi("down", 8, 11, 17, 13),   # 中枢内
+            _make_bi("up", 11, 14, 16, 13),    # 中枢内
+            _make_bi("down", 14, 17, 15, 12),  # 中枢内
+            _make_bi("up", 17, 22, 14, 10),    # 离开段
+        ]
+        # 中枢 bi_start=1, bi_end=4（bi_list 索引）
+        zs = _make_zs(18, 13, xd_start=0, xd_end=2, bi_start=1, bi_end=4)
+        result = chan_beichi(bi_list, [zs], closes)
+        # 趋势背驰块应执行（不再因坐标系错位而跳过）
+        assert "trend_beichi" in result
+
+    def test_no_exit_bi_when_zs_at_end(self):
+        """中枢在 bi_list 末尾时无离开段，趋势背驰为 None。"""
+        closes = [10.0 + i * 0.1 for i in range(40)]
+        bi_list = [
+            _make_bi("up", 0, 5, 12, 8),       # 进入段
+            _make_bi("down", 5, 8, 11, 9),     # 中枢内
+            _make_bi("up", 8, 11, 13, 9),      # 中枢内
+            _make_bi("down", 11, 14, 12, 10),  # 中枢内（末尾）
+        ]
+        zs = _make_zs(13, 9, xd_start=0, xd_end=2, bi_start=1, bi_end=3)
+        result = chan_beichi(bi_list, [zs], closes)
+        # bi_end=3 是最后一笔，无离开段 -> exit_bi=None -> trend_beichi=None
+        assert result["trend_beichi"] is None
+
+    def test_no_entry_bi_when_zs_at_start(self):
+        """中枢在 bi_list 开头时无进入段，趋势背驰为 None。"""
+        closes = [10.0 + i * 0.1 for i in range(40)]
+        bi_list = [
+            _make_bi("up", 0, 5, 12, 8),       # 中枢内（开头）
+            _make_bi("down", 5, 8, 11, 9),     # 中枢内
+            _make_bi("up", 8, 11, 13, 9),      # 中枢内
+            _make_bi("down", 11, 14, 12, 10),  # 离开段
+        ]
+        zs = _make_zs(13, 9, xd_start=0, xd_end=2, bi_start=0, bi_end=2)
+        result = chan_beichi(bi_list, [zs], closes)
+        # bi_start=0 -> entry_bi=None -> trend_beichi=None
+        assert result["trend_beichi"] is None
+
+    def test_range_beichi_with_nonempty_zs(self):
+        """盘整背驰循环应正确执行（非空 zs_list）。"""
+        closes = [20.0 - i * 0.1 for i in range(40)]
+        bi_list = [
+            _make_bi("down", 0, 5, 20, 16),
+            _make_bi("up", 5, 8, 18, 14),
+            _make_bi("down", 8, 11, 17, 13),
+            _make_bi("up", 11, 14, 16, 13),
+            _make_bi("down", 14, 17, 15, 12),
+            _make_bi("up", 17, 22, 14, 10),
+        ]
+        zs = _make_zs(18, 13, xd_start=0, xd_end=2, bi_start=1, bi_end=4)
+        result = chan_beichi(bi_list, [zs], closes)
+        assert isinstance(result["range_beichi"], list)
+
+    def test_direction_guard_skips_opposite_bis(self):
+        """进入段与离开段方向相反时不构成趋势背驰。"""
+        closes = [10.0 + i * 0.2 for i in range(40)]
+        bi_list = [
+            _make_bi("down", 0, 5, 12, 8),      # 进入段（向下）
+            _make_bi("up", 5, 8, 11, 9),        # 中枢内
+            _make_bi("down", 8, 11, 13, 9),     # 中枢内
+            _make_bi("up", 11, 14, 14, 10),     # 中枢内
+            _make_bi("up", 14, 20, 16, 11),     # 离开段（向上）--与进入段反向
+        ]
+        zs = _make_zs(14, 9, xd_start=0, xd_end=2, bi_start=1, bi_end=3)
+        result = chan_beichi(bi_list, [zs], closes)
+        # entry=down, exit=up -> 方向不一致 -> trend_beichi=None
+        assert result["trend_beichi"] is None
 
 
 # ═══════════════════════════════════════════════════════════════

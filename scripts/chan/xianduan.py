@@ -1,11 +1,13 @@
 """线段构建。
 
 v2.4.0 增强：加入特征序列分析（feature sequence）。
-缠论原文定义：线段破坏分为两种情况——
+缠论原文定义：线段破坏分为两种情况--
 1. 上升段：从高点开始的下跌笔跌破特征序列分型最低点
 2. 下降段：从低点开始的上涨笔突破特征序列分型最高点
 
-特征序列 = 线段内除起点笔外的所有笔的高点或低点序列。
+特征序列 = 线段内除起点笔外的**反向笔**的极值序列：
+- 上升段：取下跌笔的低点（low）
+- 下降段：取上涨笔的高点（high）
 """
 
 
@@ -23,14 +25,20 @@ def _feature_sequence_break(seg_bis: list, direction: str, new_bi: dict) -> bool
     if len(seg_bis) < 3:
         return False
 
+    # 特征序列 = 除起点笔外的反向笔（缠论标准）
+    # 上升段的特征序列 = 下跌笔的低点；下降段 = 上涨笔的高点
+    rest_bis = seg_bis[1:]  # 排除起点笔
     if direction == "up":
-        # 上升段：后续下跌笔的 low 跌破特征序列中所有下跌笔 low 的最低点
-        # 特征序列高点取每笔 high，低点取每笔 low；破坏标准 = new_bi.low < 特征序列最低 low
-        feature_lows = [b["low"] for b in seg_bis[:-1]]  # 排除终点笔
+        feature_lows = [b["low"] for b in rest_bis if b["direction"] == "down"]
+        if not feature_lows:
+            return False
+        # 上升段被破坏：新笔的 low 跌破特征序列最低点
         return new_bi.get("low", float("inf")) < min(feature_lows)
     else:
-        # 下降段：后续上涨笔的 high 突破特征序列中所有上涨笔 high 的最高点
-        feature_highs = [b["high"] for b in seg_bis[:-1]]
+        feature_highs = [b["high"] for b in rest_bis if b["direction"] == "up"]
+        if not feature_highs:
+            return False
+        # 下降段被破坏：新笔的 high 突破特征序列最高点
         return new_bi.get("high", float("-inf")) > max(feature_highs)
 
 
