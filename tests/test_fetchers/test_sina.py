@@ -42,8 +42,10 @@ class TestSinaQuoteFetcher:
         assert result["open"] == "1795.00"
         assert result["high"] == "1810.00"
         assert result["low"] == "1790.00"
-        assert result["volume"] == 1234500  # 股（新浪原值已是股）
-        assert result["amount"] == 2234567000.00  # 元
+        # volume/amount 保留数据源原始字符串（新浪原值已是股/元），
+        # 归一化在 data 层 _dict_to_quote 统一进行（to_int/to_float 转换）
+        assert result["volume"] == "1234500"
+        assert result["amount"] == "2234567000.00"
 
     def test_fetch_change_pct_calculated(self):
         """涨跌幅由 (当前价/昨收 - 1) * 100 计算。"""

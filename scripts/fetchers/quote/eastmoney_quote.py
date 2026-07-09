@@ -3,7 +3,7 @@
 import json
 import logging
 
-from common import BaseFetcher, http_get, to_secid, normalize_volume, normalize_amount
+from common import BaseFetcher, http_get, to_secid
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ class EastmoneyQuoteFetcher(BaseFetcher):
             "change_amt": _div100(d.get("f169", 0)),
             "high": _div100(d.get("f44", 0)),
             "low": _div100(d.get("f45", 0)),
-            "volume": normalize_volume(d.get("f47", 0), "eastmoney"),
-            "amount": normalize_amount(d.get("f48", 0), "eastmoney"),
+            "volume": d.get("f47", 0),
+            "amount": d.get("f48", 0),
             "turnover": _div100(d.get("f168", 0)),
             "pe": _div100(d.get("f162", 0)),
             "pb": _div100(d.get("f167", 0)),

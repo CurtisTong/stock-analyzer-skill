@@ -7,8 +7,6 @@ from common import (
     parse_sina_quote_line,
     http_get_with_headers,
     decode_gbk,
-    normalize_volume,
-    normalize_amount,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,8 +33,7 @@ class SinaQuoteFetcher(BaseFetcher):
             rec = parse_sina_quote_line(line)
             if rec:
                 rec["source"] = "sina"
-                rec["volume"] = normalize_volume(rec["volume"], "sina")
-                rec["amount"] = normalize_amount(rec["amount"], "sina")
+                # volume/amount 归一化在 data 层 _dict_to_quote 统一进行。
                 return rec
         logger.debug("新浪行情无数据: %s", code)
         return None

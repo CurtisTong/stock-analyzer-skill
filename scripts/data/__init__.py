@@ -215,6 +215,11 @@ def get_finance(code: str, use_cache: bool = True) -> list:
 
 
 def _dict_to_quote(d: dict) -> Quote:
+    """将 fetcher 返回的原始 dict 转为 Quote。
+
+    volume/amount 归一化在此统一进行（单一真相源）：各 quote fetcher 保留
+    数据源原始单位（手/万元/元等），不自行归一化，避免与此处重复相乘。
+    """
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
     return Quote(

@@ -65,10 +65,9 @@ class TestTencentQuoteFetcher:
         assert result["code"] == "600519"
         assert result["name"] == "贵州茅台"
         assert result["source"] == "tencent"
-        # volume 归一化为股（手 * 100）
-        assert result["volume"] == 12345 * 100
-        # amount 归一化为元（万 * 10000）
-        assert result["amount"] == 2234567.00 * 10000
+        # volume/amount 保留数据源原始字符串（手/万元），归一化在 data 层 _dict_to_quote 统一进行
+        assert result["volume"] == "12345"
+        assert result["amount"] == "2234567"
 
     def test_fetch_empty_response(self):
         """空响应：返回 None。"""

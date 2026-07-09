@@ -7,8 +7,6 @@ from common import (
     http_get,
     decode_gbk,
     parse_tencent_line,
-    normalize_volume,
-    normalize_amount,
 )
 
 logger = logging.getLogger(__name__)
@@ -33,8 +31,8 @@ class TencentQuoteFetcher(BaseFetcher):
             rec = parse_tencent_line(line)
             if rec:
                 rec["source"] = "tencent"
-                rec["volume"] = normalize_volume(rec["volume"], "tencent")
-                rec["amount"] = normalize_amount(rec["amount"], "tencent")
+                # volume/amount 归一化在 data 层 _dict_to_quote 统一进行，
+                # 此处保留原始单位（手/万元），避免双重归一化。
                 return rec
         logger.debug("腾讯行情无数据: %s", code)
         return None
