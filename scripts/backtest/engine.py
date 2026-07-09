@@ -60,6 +60,32 @@ def _build_hist_quote(bars, i, fin, code):
     }
 
 
+# P0-10: A 股财报披露延迟（天）。季报/年报在报告截止日后的法定披露窗口：
+#   一季报 4/30、半年报 8/31、三季报 10/31、年报 4/30。
+#   取 90 天作为保守上限，确保回测中仅使用已公开披露的财务数据。
+_FINANCE_DISCLOSURE_LAG_DAYS = 90
+
+
+def _visible_fin(fin: dict, trade_day: str) -> dict:
+    """P0-10: 返回交易日 trade_day 时已公开披露的财务数据。
+
+    若 fin.report_date + 披露延迟 > trade_day，说明该财报在交易日
+    尚未公开，返回空 dict 消除前瞻偏差。否则返回完整 fin。
+    """
+    report_date = fin.get("report_date", "") if isinstance(fin, dict) else ""
+    if not report_date or not trade_day:
+        # 无 report_date 或 trade_day 信息，保守返回 fin（维持原行为）
+        return fin if isinstance(fin, dict) else {}
+    try:
+        rd = datetime.strptime(report_date[:10], "%Y-%m-%d")
+        td = datetime.strptime(trade_day[:10], "%Y-%m-%d")
+        if rd + timedelta(days=_FINANCE_DISCLOSURE_LAG_DAYS) > td:
+            return {}  # 财报尚未披露，消除前瞻
+    except (ValueError, TypeError):
+        pass  # 日期解析失败，保守返回 fin
+    return fin if isinstance(fin, dict) else {}
+
+
 @dataclass
 class SimContext:
     """simulate_strategy 的参数封装。"""
@@ -90,6 +116,11 @@ def simulate_strategy(ctx: SimContext):
     注意：财务数据使用回测开始前的最新快照（API 不支持历史快照），
     quality 因子存在轻微前瞻偏差。valuation 和 liquidity 因子
     基于历史 K 线价格计算，严格无前瞻。
+
+    P0-10 修复：quality 因子现按 report_date + A 股披露延迟（90 天）
+    过滤，仅使用交易日 T 时已公开披露的财务数据，消除前瞻偏差。
+    若财务数据尚未披露（report_date + 90 天 > T），quality 因子置 0，
+    等效于该因子在回测早期不参与选股。
 
     Args:
         ctx: 回测上下文（strategy_name, codes, top_n, holding_days,
@@ -163,7 +194,7 @@ def simulate_strategy(ctx: SimContext):
         if len(bars) < min_history + holding_days:
             continue
 
-        fin = fin_cache.get(code, {})
+        fin_raw = fin_cache.get(code, {})
         industry = industry_cache.get(code, "manufacturing")
 
         i = min_history
@@ -179,6 +210,8 @@ def simulate_strategy(ctx: SimContext):
 
             hist = bars[:i]
             momentum = _compute_momentum_from_bars(hist)
+            # P0-10: 仅使用交易日已披露的财务数据，消除前瞻偏差
+            fin = _visible_fin(fin_raw, bars[i].day)
             hist_quote = _build_hist_quote(bars, i, fin, code)
 
             parts = {

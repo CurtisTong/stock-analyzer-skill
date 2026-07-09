@@ -99,6 +99,61 @@ class TestFetchHistoricalReturns:
         assert result[0] == pytest.approx(0.1)
 
 
+class TestVisibleFin:
+    """P0-10: 前瞻偏差过滤--仅使用交易日已披露的财务数据。"""
+
+    def test_fin_disclosed_before_trade_returns_full(self):
+        """report_date + 90 天 < trade_day -> 返回完整 fin。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-03-31", "eps": 2.5, "roe": 18.0}
+        # 2025-06-30 在 2025-03-31 + 90 天（2025-06-29）之后
+        result = _visible_fin(fin, "2025-06-30")
+        assert result == fin
+
+    def test_fin_not_yet_disclosed_returns_empty(self):
+        """report_date + 90 天 > trade_day -> 返回空 dict（消除前瞻）。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-06-30", "eps": 2.5, "roe": 18.0}
+        # 2025-07-01 在 2025-06-30 + 90 天（2025-09-28）之前
+        result = _visible_fin(fin, "2025-07-01")
+        assert result == {}
+
+    def test_fin_boundary_exactly_90_days(self):
+        """report_date + 90 天 == trade_day -> 返回完整 fin（恰好披露）。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-04-01", "eps": 2.5}
+        # 2025-04-01 + 90 天 = 2025-06-30
+        result = _visible_fin(fin, "2025-06-30")
+        assert result == fin
+
+    def test_no_report_date_returns_fin(self):
+        """无 report_date 时保守返回 fin（维持原行为）。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"eps": 2.5, "roe": 18.0}
+        result = _visible_fin(fin, "2025-06-30")
+        assert result == fin
+
+    def test_no_trade_day_returns_fin(self):
+        """无 trade_day 时保守返回 fin。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-06-30", "eps": 2.5}
+        result = _visible_fin(fin, "")
+        assert result == fin
+
+    def test_invalid_date_returns_fin(self):
+        """日期解析失败时保守返回 fin。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "not-a-date", "eps": 2.5}
+        result = _visible_fin(fin, "2025-06-30")
+        assert result == fin
+
+
 class TestSimulateStrategy:
     """策略模拟测试。"""
 
