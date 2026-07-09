@@ -80,7 +80,7 @@ class ThsQuoteFetcher(BaseFetcher):
         market, stock_code = _to_ths_params(canonical)
         url = THS_URL.format(market=market, code=stock_code)
         try:
-            raw = http_get(url, timeout=10)
+            raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
             text = raw.decode("utf-8", errors="ignore")
             result = _parse_quote(text, canonical)
             if result:

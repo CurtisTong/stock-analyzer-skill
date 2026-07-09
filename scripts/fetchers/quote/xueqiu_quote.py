@@ -65,7 +65,7 @@ class XueqiuQuoteFetcher(BaseFetcher):
             "Origin": "https://xueqiu.com",
         }
         try:
-            raw = http_get_with_headers(url, headers=headers, timeout=10)
+            raw = http_get_with_headers(url, headers=headers, timeout=self.timeout)
             import json
 
             data = json.loads(raw)

@@ -55,7 +55,7 @@ class MarginFetcher(BaseFetcher):
         url = MARGIN_URL.format(code=pure_code, start=start_date, days=days)
 
         # NetworkError / RateLimitError 不在此捕获，由 DataFetcherManager 统一处理故障转移
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
@@ -132,7 +132,7 @@ class HolderFetcher(BaseFetcher):
 
         url = F10_SHAREHOLDER_URL.format(secid=secid)
 
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
@@ -216,7 +216,7 @@ class TopHolderFetcher(BaseFetcher):
 
         url = F10_SHAREHOLDER_URL.format(secid=secid)
 
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:

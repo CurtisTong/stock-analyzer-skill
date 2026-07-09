@@ -19,7 +19,7 @@ class TencentKlineFetcher(BaseFetcher):
         datalen = kwargs.get("datalen", 30)
         period = SCALE_MAP.get(scale, "day")
         url = TENCENT_URL.format(stockCode=code, period=period, count=datalen)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             resp = json.loads(raw)
         except json.JSONDecodeError:

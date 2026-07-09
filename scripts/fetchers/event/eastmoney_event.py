@@ -34,7 +34,7 @@ class EarningsCalendarFetcher(BaseFetcher):
         start_date = datetime.now().strftime("%Y-%m-%d")
 
         url = EARNINGS_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -76,7 +76,7 @@ class LockupCalendarFetcher(BaseFetcher):
         start_date = datetime.now().strftime("%Y-%m-%d")
 
         url = LOCKUP_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -119,7 +119,7 @@ class DividendCalendarFetcher(BaseFetcher):
         start_date = datetime.now().strftime("%Y-%m-%d")
 
         url = DIVIDEND_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -161,7 +161,7 @@ class ShareholderChangeFetcher(BaseFetcher):
             return None
         clean_code = strip_prefix(code)
         url = SHAREHOLDER_URL.format(code=clean_code)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -206,7 +206,7 @@ class ViolationFetcher(BaseFetcher):
             return None
         clean_code = strip_prefix(code)
         url = VIOLATION_URL.format(code=clean_code)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

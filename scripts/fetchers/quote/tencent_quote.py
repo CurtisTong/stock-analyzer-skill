@@ -22,7 +22,7 @@ class TencentQuoteFetcher(BaseFetcher):
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         url = TENCENT_URL.format(codes=code)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         text = decode_gbk(raw)
         for line in text.strip().split(";"):
             line = line.strip()

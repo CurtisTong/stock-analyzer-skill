@@ -29,7 +29,7 @@ class EastmoneyKlineFetcher(BaseFetcher):
         if not _UT:
             logger.debug("东方财富 K 线: EASTMONEY_UT_TOKEN 未配置，使用空 token 尝试")
         url = EASTMONEY_KLINE_URL.format(secid=secid, klt=klt, lmt=datalen)
-        raw = http_get(url, timeout=10)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

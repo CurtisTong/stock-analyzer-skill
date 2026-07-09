@@ -33,7 +33,7 @@ class EastmoneyQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         secid = to_secid(code)
         url = EASTMONEY_QUOTE_URL.format(secid=secid)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

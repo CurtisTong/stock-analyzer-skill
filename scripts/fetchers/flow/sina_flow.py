@@ -24,7 +24,7 @@ class SinaNorthboundFlowFetcher(BaseFetcher):
         days = kwargs.get("days", 10)
         url = SINA_NORTHBOUND_URL.format(days=days)
         try:
-            raw = http_get(url)
+            raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         except Exception:
             return None
         try:

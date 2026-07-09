@@ -21,7 +21,7 @@ class NorthboundFlowFetcher(BaseFetcher):
         """获取北向资金近期数据。code 参数忽略，返回市场整体数据。"""
         days = kwargs.get("days", 10)
         url = NORTHBOUND_URL.format(days=days)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -80,7 +80,7 @@ class StockFlowFetcher(BaseFetcher):
         days = kwargs.get("days", 10)
         secid = to_secid(code)
         url = STOCK_FLOW_URL.format(secid=secid, days=days)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

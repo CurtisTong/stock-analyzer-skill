@@ -16,9 +16,11 @@ class SinaKlineFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> list | None:
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
-        timeout = kwargs.get("timeout", 15)
+        timeout = kwargs.get("timeout", self.timeout)
         raw = http_get(
-            SINA_URL.format(symbol=code, scale=scale, datalen=datalen), timeout=timeout
+            SINA_URL.format(symbol=code, scale=scale, datalen=datalen),
+            timeout=timeout,
+            max_retries=self.retry,
         )
         try:
             records = json.loads(raw)

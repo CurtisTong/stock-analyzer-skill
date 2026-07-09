@@ -28,7 +28,7 @@ class LhbDetailFetcher(BaseFetcher):
         start_date = (now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         url = LHB_DETAIL_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url)
+        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -81,7 +81,7 @@ class LhbSeatFetcher(BaseFetcher):
 
         # 获取买入席位
         buy_url = LHB_SEAT_URL.format(date=date, code=plain)
-        raw = http_get(buy_url)
+        raw = http_get(buy_url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
@@ -113,7 +113,7 @@ class LhbSeatFetcher(BaseFetcher):
             f"&reportName=RPT_BILLBOARD_DAILYDETAILSSELL&columns=ALL"
             f"&filter=(TRADE_DATE='{date}')(SECURITY_CODE='{plain}')"
         )
-        raw = http_get(sell_url)
+        raw = http_get(sell_url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

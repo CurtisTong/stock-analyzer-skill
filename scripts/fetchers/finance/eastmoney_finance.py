@@ -17,7 +17,7 @@ class EastmoneyFinanceFetcher(BaseFetcher):
         super().__init__("eastmoney_finance", priority=10)
 
     def fetch(self, code: str, **kwargs) -> list | None:
-        raw = http_get(URL.format(code=code))
+        raw = http_get(URL.format(code=code), timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

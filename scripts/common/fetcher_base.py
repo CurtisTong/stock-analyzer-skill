@@ -54,12 +54,12 @@ class BaseFetcher(ABC):
     def __init__(self, name: str, priority: int = 0, provider: str | None = None):
         self.name = name
         # 显式 provider 优先；否则从 name 推断（取最后一个 _ 前的段落，
-        # 这样 "northbound_flow_eastmoney" → "eastmoney"，"tencent_quote" → "tencent"）
+        # 这样 "northbound_flow_eastmoney" -> "eastmoney"，"tencent_quote" -> "tencent"）
         if provider is not None:
             self.provider = provider
         elif "_" in name:
-            # 尝试取最后一段作为 provider（如 xxx_eastmoney → eastmoney），
-            # 兼容旧格式 xxx_tencent → tencent
+            # 尝试取最后一段作为 provider（如 xxx_eastmoney -> eastmoney），
+            # 兼容旧格式 xxx_tencent -> tencent
             parts = name.split("_")
             # 如果最后一段是已知 provider，用它；否则用第一段
             _KNOWN_PROVIDERS = {
@@ -71,6 +71,10 @@ class BaseFetcher(ABC):
             self.provider = name
         self.priority = priority
         self.enabled = True  # 可通过 data_source.yaml 的 enabled 字段覆盖
+        # P0-03: timeout/retry 从 data_source.yaml 读取（_apply_source_config 覆盖），
+        # 默认值与 http_get 内置默认一致，保证未配置时行为不变。
+        self.timeout: int = 10
+        self.retry: int = 3
         self.circuit_breaker = get_circuit_breaker(name, **self._load_cb_config())
 
     @classmethod
@@ -184,6 +188,11 @@ class DataFetcherManager:
                 fetcher.priority = cfg.get("priority", fetcher.priority)
                 if "enabled" in cfg:
                     fetcher.enabled = bool(cfg["enabled"])
+                # P0-03: 读取 timeout/retry，使 data_source.yaml 配置生效
+                if "timeout" in cfg:
+                    fetcher.timeout = int(cfg["timeout"])
+                if "retry" in cfg:
+                    fetcher.retry = int(cfg["retry"])
 
     def fetch(
         self, code: str, **kwargs: object

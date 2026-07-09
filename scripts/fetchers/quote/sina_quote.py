@@ -23,7 +23,7 @@ class SinaQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         url = SINA_URL.format(codes=code)
         raw = http_get_with_headers(
-            url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=8
+            url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=self.timeout
         )
         text = decode_gbk(raw)
         for line in text.strip().split("\n"):
