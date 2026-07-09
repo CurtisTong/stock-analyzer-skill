@@ -825,3 +825,23 @@ print(result)
 | Phase 5 | 2 | 1h | 第 2 天（与 Phase 4 并行） |
 | Phase 6 | 3 | 6h | 第 3-4 天 |
 | **总计** | **11** | **12h** | **4 天** |
+
+---
+
+## 2026-07-08 其余模块审查：未处理项（写入 roadmap）
+
+本轮审查处理了 6 个 P0 + 3 个高影响 P1（已提交）。以下 P2/低影响项留待后续：
+
+### 文件 IO 原子性（B2 未覆盖的低风险点）
+- `scripts/strategy_performance.py:40` - strategy_performance.json 非原子写
+- `scripts/snapshots.py:113` / `scripts/hot_rank.py:250` - 快照文件非原子写
+- `scripts/common/metrics.py:77` - metrics.json 非原子写（小文件，可重建）
+- `scripts/perf_bench.py:128` - perf_benchmarks.json 非原子写（低频 CLI）
+- 建议：上述均可改用已新增的 `common.atomic_write_json`，但风险较低，按需处理。
+
+### 缠论其他模块
+- 笔/线段/背驰的深入审查未覆盖（本轮仅修 P0 中枢合并）。
+- chan_beichi（背驰检测）的 MACD 区间判定可能有边界问题，待专项审查。
+
+### 策略层低影响项
+- 策略模式识别模块（patterns/）的其他形态检测可能有类似的死代码/参数未用问题。
