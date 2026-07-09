@@ -173,7 +173,7 @@ def simulate_strategy(ctx: SimContext):
                 continue
 
             # 跳过涨跌停和停牌日
-            if _is_limit_or_suspended(bars, i):
+            if _is_limit_or_suspended(bars, i, code):
                 i += 1
                 continue
 
@@ -423,7 +423,7 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
     return 100 - 100 / (1 + rs)
 
 
-def _is_limit_or_suspended(bars, idx):
+def _is_limit_or_suspended(bars, idx, code=""):
     """检查指定日期是否涨跌停或停牌。
 
     涨跌停判断：当日涨跌幅接近 ±10%（普通股）或 ±20%（创业板/科创板）。
@@ -432,6 +432,8 @@ def _is_limit_or_suspended(bars, idx):
     Args:
         bars: K 线数据
         idx: 当前索引
+        code: 股票代码（如 sz300001/sh688001），用于判断 20cm 涨跌幅板。
+            KlineBar 无 code 字段，须由调用方传入。
 
     Returns:
         True 表示应跳过该日
@@ -453,9 +455,6 @@ def _is_limit_or_suspended(bars, idx):
     if prev_close > 0 and bar_close > 0:
         change_pct = (bar_close - prev_close) / prev_close
         # 创业板/科创板 20% 涨跌幅
-        code = getattr(bar, "code", "") or (
-            bar.get("code", "") if isinstance(bar, dict) else ""
-        )
         limit = 0.195 if code.startswith(("sz300", "sz301", "sh688")) else 0.095
         if abs(change_pct) >= limit:
             return True

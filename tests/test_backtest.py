@@ -561,9 +561,83 @@ class TestComputeMomentum:
         assert score > 45, f"Expected > 45 for uptrend, got {score:.1f}"
 
     def test_downtrend_low_momentum(self):
-        """下降趋势 → 动量分 < 50。"""
+        """下降趋势 -> 动量分 < 50。"""
         import backtest
 
         bars = _make_kline_bars([50.0 - i * 0.5 for i in range(70)])
         score = backtest._compute_momentum_from_bars(bars)
         assert score < 50, f"Expected < 50 for downtrend, got {score:.1f}"
+
+
+class TestIsLimitOrSuspended:
+    """涨跌停/停牌检测测试。"""
+
+    def _is_limit(self, bars, idx, code=""):
+        from backtest.engine import _is_limit_or_suspended
+        return _is_limit_or_suspended(bars, idx, code)
+
+    def test_normal_10pct_limit_up_detected(self):
+        """普通股 9.5%+ 涨幅判为涨停（limit=0.095）。"""
+
+        bars = [
+            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
+            KlineBar(day="2025-01-02", close=11.0, open=10.5, high=11.0, low=10.5, volume=1000),
+        ]
+        # 涨幅 10% > 9.5% 阈值
+        assert self._is_limit(bars, 1, "sh600001") is True
+
+    def test_20cm_chuangye_board_detected(self):
+        """创业板 sz300 涨幅 20% 应判涨停（20cm 板 limit=0.195）。"""
+        import backtest
+
+        bars = [
+            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
+            KlineBar(day="2025-01-02", close=12.0, open=10.5, high=12.0, low=10.5, volume=1000),
+        ]
+        # 涨幅 20% > 0.195 阈值
+        assert self._is_limit(bars, 1, "sz300001") is True
+
+    def test_20cm_chuangye_below_threshold_not_detected(self):
+        """创业板涨幅 12%：20cm 板未达涨停(0.195)，但传普通股代码会误判。"""
+        import backtest
+
+        bars = [
+            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
+            KlineBar(day="2025-01-02", close=11.2, open=10.5, high=11.2, low=10.5, volume=1000),
+        ]
+        # 涨幅 12%：20cm 板未达 0.195 -> 不涨停
+        assert self._is_limit(bars, 1, "sz300001") is False
+        # 但 10cm 板 12% > 9.5% -> 涨停（验证 code 区分板别生效）
+        assert self._is_limit(bars, 1, "sh600001") is True
+
+    def test_20cm_kechuang_sh688_detected(self):
+        """科创板 sh688 涨幅 20% 应判涨停（20cm 板）。"""
+        import backtest
+
+        bars = [
+            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
+            KlineBar(day="2025-01-02", close=12.0, open=10.5, high=12.0, low=10.5, volume=1000),
+        ]
+        # 涨幅 20% > 0.195
+        assert self._is_limit(bars, 1, "sh688001") is True
+
+    def test_no_code_defaults_to_10pct(self):
+        """不传 code 时默认按 10cm 板判定。"""
+        import backtest
+
+        bars = [
+            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
+            KlineBar(day="2025-01-02", close=11.2, open=10.5, high=11.2, low=10.5, volume=1000),
+        ]
+        # 12% > 9.5% -> 涨停（默认 10cm）
+        assert self._is_limit(bars, 1) is True
+
+    def test_suspended_zero_volume(self):
+        """成交量为 0 且价格不变判为停牌。"""
+        import backtest
+
+        bars = [
+            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
+            KlineBar(day="2025-01-02", close=10.0, open=10.0, high=10.0, low=10.0, volume=0),
+        ]
+        assert self._is_limit(bars, 1, "sh600001") is True
