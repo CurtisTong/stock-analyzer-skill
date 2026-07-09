@@ -59,6 +59,11 @@ def score_expert(
 
     所有专家共用同一套简单规则，不区分专家风格。
     精确评分请使用 score_expert_precise()。
+
+    .. deprecated:: v2.4.2
+        P2-11 起 score_expert_precise 对未注册 profile 改回退到
+        score_expert_precise_proxy（显式全 50 + warning），不再调用本函数。
+        本函数保留供显式调用通用启发式，但不应作为 precise 的隐式回退。
     """
     quote = stock_data.get("quote") or {}
     fin = stock_data.get("finance") or {}
@@ -214,10 +219,28 @@ def score_expert_precise(
     """
     scoring_fn = _EXPERT_SCORING_FUNCTIONS.get(profile.name)
     if scoring_fn is None:
-        # 回退到通用启发式
-        result = score_expert(profile, stock_data)
-        result["method"] = "fallback"
-        return result
+        # P2-11: profile 未注册精确评分函数时，回退到 proxy（返回全 50 + warning），
+        # 而非 score_expert 通用启发式。原因：通用启发式不区分专家风格，会产出
+        # 误导性的"看似精确"评分；proxy 显式标注 fallback，让调用方知晓无精确逻辑。
+        # 全 16 位 active/legacy 专家均已注册，此分支仅防御未知 profile。
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "score_expert_precise: %s 未注册精确评分函数，回退到 proxy（全 50 均分）",
+            profile.name,
+        )
+        dim_scores = score_expert_precise_proxy(stock_data)
+        # 补齐 profile.weights 中 proxy 未覆盖的维度（如"安全边际"）为 50
+        for dim in profile.weights:
+            dim_scores.setdefault(dim, 50.0)
+        total = score_from_dimensions(profile, dim_scores)
+        return {
+            "score": round(total, 1),
+            "direction": direction_from_score(total),
+            "breakdown": dimension_breakdown(profile, dim_scores),
+            "dim_scores": dim_scores,
+            "method": "proxy_fallback",
+        }
 
     dim_scores = scoring_fn(stock_data)
 

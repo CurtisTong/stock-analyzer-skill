@@ -126,7 +126,10 @@ def _resolve_conflict(
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
     else:
-        # 按综合分判断（覆盖长线看多+短线看空等非极端分歧场景）
+        # 弱信号兜底（P2-12）：覆盖长线看多+短线看空等非极端分歧场景--
+        # 双组方向不一致但未达两极分化，按综合均分给方向，仓位打折反映不确定性。
+        # position 阈值与 direction_from_score 对齐：avg≥60=看多(0.8)，avg≥40=中性(0.5)，
+        # 否则=看空(0.0，不建仓)。0.8/0.5 而非 1.0 体现"弱信号"打折语义。
         avg = (long_avg + short_avg) / 2
         direction = direction_from_score(avg)
         if avg >= 60:

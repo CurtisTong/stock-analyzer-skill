@@ -123,6 +123,30 @@ class TestScorePreciseStructure:
         result = score_expert_precise(profile, GOOD_STOCK)
         assert result["method"] == "precise"
 
+    def test_unregistered_profile_falls_back_to_proxy(self):
+        """P2-11：未注册精确评分函数的 profile 回退到 proxy（全 50 + warning），
+        而非 score_expert 通用启发式。"""
+        from experts.types import ExpertProfile
+
+        unknown = ExpertProfile(
+            name="unknown_expert",
+            display_name="未知专家",
+            group="long_term",
+            style="测试",
+            horizon="月",
+            core_signal="测试",
+            weights={"基本面": 40.0, "估值": 30.0, "技术面": 10.0, "情绪": 10.0, "风险": 10.0},
+        )
+        result = score_expert_precise(unknown, GOOD_STOCK)
+        # method 标记为 proxy_fallback（而非 precise/fallback）
+        assert result["method"] == "proxy_fallback"
+        # 全维度均分 50 -> 总分 50
+        assert result["score"] == 50.0
+        assert result["direction"] == "中性"
+        # 所有权重维度都有评分
+        for dim in unknown.weights:
+            assert dim in result["dim_scores"]
+
 
 # ═══════════════════════════════════════════════════════════════
 # 2. 好股票高分 / 差股票低分
