@@ -370,7 +370,7 @@ class TestHardFilter:
 
     def test_normal_stock_passes(self, sample_quote, sample_finance):
         args = _make_args()
-        reasons = hard_filter(sample_quote, sample_finance, args)
+        reasons, _ = hard_filter(sample_quote, sample_finance, args)
         assert reasons == []
 
     def test_st_stock_filtered(self, sample_finance):
@@ -382,7 +382,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "1.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert any("ST" in r for r in reasons)
 
     def test_star_st_filtered(self, sample_finance):
@@ -394,7 +394,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "1.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert any("ST" in r for r in reasons)
 
     def test_low_amount_filtered(self, sample_finance):
@@ -406,7 +406,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "1.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert any("成交额" in r for r in reasons)
 
     def test_low_cap_filtered(self, sample_finance):
@@ -418,7 +418,7 @@ class TestHardFilter:
             "total_cap": "5",
             "change_pct": "1.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert any("市值" in r for r in reasons)
 
     def test_limit_up_filtered(self, sample_finance):
@@ -431,7 +431,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "10.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert any("涨跌停" in r for r in reasons)
 
     def test_gem_limit_threshold(self, sample_finance):
@@ -445,7 +445,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "15.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert not any("涨跌停" in r for r in reasons)
 
         quote_limit = {
@@ -455,7 +455,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "20.0",
         }
-        reasons2 = hard_filter(quote_limit, sample_finance, args)
+        reasons2, _ = hard_filter(quote_limit, sample_finance, args)
         assert any("涨跌停" in r for r in reasons2)
 
     def test_exclude_loss_filters_negative_eps(self):
@@ -468,7 +468,7 @@ class TestHardFilter:
             "change_pct": "1.0",
         }
         fin = {"EPSJB": "-0.5"}
-        reasons = hard_filter(quote, fin, args)
+        reasons, _ = hard_filter(quote, fin, args)
         assert any("EPS" in r for r in reasons)
 
     def test_exclude_loss_passes_positive_eps(self, sample_finance):
@@ -480,7 +480,7 @@ class TestHardFilter:
             "total_cap": "100",
             "change_pct": "1.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert not any("EPS" in r for r in reasons)
 
 
@@ -996,7 +996,7 @@ class TestHardFilterExtended:
             "total_cap": "2",
             "change_pct": "1.0",
         }
-        reasons = hard_filter(quote, sample_finance, args)
+        reasons, _ = hard_filter(quote, sample_finance, args)
         assert any("退市风险" in r for r in reasons)
 
     def test_negative_eps_filtered(self):
@@ -1009,7 +1009,7 @@ class TestHardFilterExtended:
             "change_pct": "1.0",
         }
         fin = {"EPSJB": "-0.5"}
-        reasons = hard_filter(quote, fin, args)
+        reasons, _ = hard_filter(quote, fin, args)
         assert any("EPS<0" in r for r in reasons)
 
     def test_goodwill_ratio_filtered(self):
@@ -1022,7 +1022,7 @@ class TestHardFilterExtended:
             "change_pct": "1.0",
         }
         fin = {"EPSJB": "1.0", "GOODWILL_RATIO": "40"}
-        reasons = hard_filter(quote, fin, args)
+        reasons, _ = hard_filter(quote, fin, args)
         assert any("商誉" in r for r in reasons)
 
     def test_pledge_ratio_filtered(self):
@@ -1035,5 +1035,5 @@ class TestHardFilterExtended:
             "change_pct": "1.0",
         }
         fin = {"EPSJB": "1.0", "PLEDGE_RATIO": "80"}
-        reasons = hard_filter(quote, fin, args)
+        reasons, _ = hard_filter(quote, fin, args)
         assert any("质押" in r for r in reasons)

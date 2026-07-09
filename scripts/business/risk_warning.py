@@ -1,37 +1,9 @@
+"""筹码因子 emoji 标识。
+
+P1-20: 删除 macro_risk_line / adjust_position_limit 死代码（零调用）。
+原始设计为"与 macro gate 配合在 /stock 和 /screener 输出中动态调整风险提示"，
+但该集成从未实现。chip_emoji 被 screener.py 使用，保留。
 """
-动态风险提示：根据宏观状态生成风险提示。
-
-与 macro gate 配合，在 /stock 和 /screener 输出中动态调整风险提示。
-"""
-
-
-def macro_risk_line(state: str) -> str:
-    """根据宏观状态生成一行风险提示。
-
-    Args:
-        state: 宏观状态 ("GREEN" / "YELLOW" / "RED")
-
-    Returns:
-        风险提示文本，GREEN 返回空字符串
-    """
-    lines = {
-        "GREEN": "",
-        "YELLOW": "⚠️ 宏观避险情绪升温，建议仓位不超过 50%，优先防御策略",
-        "RED": "🔴 系统性风险信号，建议暂停新开仓，已有持仓设好止损",
-    }
-    return lines.get(state, "")
-
-
-def adjust_position_limit(state: str) -> float:
-    """根据宏观状态调整仓位上限系数。
-
-    Args:
-        state: 宏观状态 ("GREEN" / "YELLOW" / "RED")
-
-    Returns:
-        仓位系数（1.0 = 不限制，0.5 = 半仓，0.0 = 空仓）
-    """
-    return {"GREEN": 1.0, "YELLOW": 0.5, "RED": 0.0}.get(state, 1.0)
 
 
 def chip_emoji(score: float) -> str:

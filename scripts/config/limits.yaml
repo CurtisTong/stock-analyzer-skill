@@ -28,12 +28,7 @@ min_survival_cap:
   科创板: 3
   北交所: 2
 
-# ST 风险检测 (名称前缀)
-st_prefixes:
-  - "ST"
-  - "*ST"
-  - "S*ST"
-  - "SST"
+# P1-22: st_prefixes 已删除，ST 检测统一使用 data.pool.is_st（子串匹配）
 
 # 商誉减值风险阈值 (%)
 goodwill_ratio_warning: 30

@@ -65,7 +65,7 @@ class StockAnalysisService:
         f_index = ex.submit(get_quote, "sh000001")
 
         try:
-            quote = f_quote.result(timeout=30)
+            quote = f_quote.result(timeout=15)
         except Exception as e:
             logger.warning("获取行情失败 %s: %s", code, e)
             result["data_warnings"].append(
@@ -89,7 +89,7 @@ class StockAnalysisService:
             if kline:
                 result["data_sources"].append("K线")
         try:
-            finance = f_finance.result(timeout=30) if f_finance else None
+            finance = f_finance.result(timeout=45) if f_finance else None
         except Exception as e:
             logger.warning("获取财务数据失败 %s: %s", code, e)
             result["data_warnings"].append(
@@ -103,7 +103,7 @@ class StockAnalysisService:
         # 大盘指数行情（P1-17: 不再用个股 quote 当指数 quote）
         index_quote = None
         try:
-            index_quote = f_index.result(timeout=30)
+            index_quote = f_index.result(timeout=15)
         except Exception as e:
             logger.debug("获取大盘指数行情失败: %s", e)
 

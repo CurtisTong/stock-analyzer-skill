@@ -18,7 +18,6 @@ from business.screening_service import (
     _min_survival_cap,
     _goodwill_threshold,
     _pledge_threshold,
-    _st_prefixes,
 )  # noqa: E402
 
 
@@ -56,10 +55,7 @@ class TestThresholdHelpers:
     def test_pledge_threshold_default(self):
         assert _pledge_threshold() == 70
 
-    def test_st_prefixes_default(self):
-        prefixes = _st_prefixes()
-        assert "ST" in prefixes
-        assert "*ST" in prefixes
+    # P1-22: _st_prefixes 已删除，ST 检测统一使用 data.pool.is_st
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -89,7 +85,7 @@ class TestScreeningServiceHardFilter:
         """ST 股票应被拒。"""
         quote = {"code": "sh600519", "name": "ST测试", "total_cap": 100, "amount": 1e8}
         fin = {"eps": 1, "roe": 10, "debt_ratio": 30}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert "ST风险" in reasons
 
     def test_normal_stock_passes(self):
@@ -102,7 +98,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 1.0,
         }
         fin = {"eps": 10, "roe": 20, "debt_ratio": 30}
-        assert self.svc._hard_filter(quote, fin, self.filters) == []
+        assert self.svc._hard_filter(quote, fin, self.filters) == ([], [])
 
     def test_low_cap_rejected(self):
         quote = {
@@ -113,7 +109,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": 1, "roe": 10}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert any("市值" in r for r in reasons)
 
     def test_loss_excluded_with_flag(self):
@@ -126,7 +122,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": -1, "roe": -5}
-        reasons = self.svc._hard_filter(
+        reasons, _ = self.svc._hard_filter(
             quote, fin, {**self.filters, "exclude_loss": True}
         )
         assert "EPS<=0" in reasons
@@ -141,7 +137,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": -1, "roe": -5}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         # 仍然会因 EPS<0(亏损) 被标记，但不会被 exclude_loss 二次标记
         assert "EPS<=0" not in reasons
 
@@ -155,7 +151,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": 1, "roe": 10, "goodwill_ratio": 50}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert any("商誉" in r for r in reasons)
 
     def test_pledge_warning(self):
@@ -168,7 +164,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": 1, "roe": 10, "pledge_ratio": 80}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert any("质押率" in r for r in reasons)
 
     def test_limit_up_rejected(self):
@@ -181,7 +177,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 10,
         }
         fin = {"eps": 1, "roe": 10}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert "涨跌停限制" in reasons
 
     def test_limit_down_rejected(self):
@@ -194,7 +190,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": -10,
         }
         fin = {"eps": 1, "roe": 10}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert "涨跌停限制" in reasons
 
     def test_donghu_prefix_rejected(self):
@@ -206,7 +202,7 @@ class TestScreeningServiceHardFilter:
             "amount": 1e8,
         }
         fin = {"eps": 1, "roe": 10}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert "ST风险" in reasons
 
     def test_amount_too_low_rejected(self):
@@ -219,7 +215,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": 1, "roe": 10}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert any("成交额" in r for r in reasons)
 
     def test_fin_field_aliases(self):
@@ -232,7 +228,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"EPSJB": -1, "ROEJQ": 20, "ZCFZL": 30}
-        reasons = self.svc._hard_filter(quote, fin, self.filters)
+        reasons, _ = self.svc._hard_filter(quote, fin, self.filters)
         assert any("EPS" in r for r in reasons)
 
     def test_filters_dict_missing_keys(self):
@@ -245,8 +241,10 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": 1, "roe": 10}
-        # 空 filters dict
-        assert isinstance(self.svc._hard_filter(quote, fin, {}), list)
+        # 空 filters dict -- P1-19: 返回 (reasons, warnings) 元组
+        result = self.svc._hard_filter(quote, fin, {})
+        assert isinstance(result, tuple)
+        assert isinstance(result[0], list)
 
 
 # ═══════════════════════════════════════════════════════════════

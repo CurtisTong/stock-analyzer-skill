@@ -14,6 +14,14 @@ import math
 import statistics
 from typing import Dict, List, Optional
 
+# P1-21: 标准正态分布 PDF，用于参数法 CVaR 计算
+_NORMAL_PDF_CONST = 1.0 / math.sqrt(2.0 * math.pi)
+
+
+def _normal_pdf(z: float) -> float:
+    """标准正态分布概率密度函数 φ(z)。"""
+    return _NORMAL_PDF_CONST * math.exp(-0.5 * z * z)
+
 
 def historical_var(returns: List[float], confidence: float = 0.95) -> float:
     """历史模拟法 VaR。
@@ -164,7 +172,10 @@ def position_var_summary(
         z_score = 1.65 if confidence == 0.95 else 2.33  # 95% / 99%
         daily_vol = vol / math.sqrt(252)
         var_1d = z_score * daily_vol
-        cvar_1d = var_1d * 1.2  # CVaR 约为 VaR 的 1.2 倍（经验值）
+        # P1-21: 正态分布 CVaR = VaR × φ(z) / (z × (1 - confidence))
+        # 其中 φ(z) 为标准正态 PDF。95% 时 ≈1.24，99% 时 ≈1.13（比固定 1.2 更准确）
+        cvar_ratio = _normal_pdf(z_score) / (z_score * (1 - confidence))
+        cvar_1d = var_1d * cvar_ratio
         total_var += weight * var_1d
         total_cvar += weight * cvar_1d
         if weight > 0.05:

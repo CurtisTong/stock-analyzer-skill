@@ -154,7 +154,10 @@ def pre_screen_quotes(quotes, args):
     for q in quotes:
         name = q.get("name", "")
         code = q.get("code", "")
-        if "ST" in name.upper():
+        # P1-22: 统一调用 data.pool.is_st，避免与 screening_service 双轨实现
+        from data.pool import is_st
+
+        if is_st(name):
             continue
         # v2.4.0：用户自定义 blacklist
         if code and code.lower() in {c.lower() for c in user_blacklist}:

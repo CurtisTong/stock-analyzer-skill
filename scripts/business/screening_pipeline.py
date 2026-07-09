@@ -115,7 +115,8 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
         "exclude_loss": args.exclude_loss,
     }
     svc = _get_screening_service()
-    rejected = svc._hard_filter(quote, fin, filters)
+    # P1-19: _hard_filter 返回 (reasons, warnings)；phase1 路径不消费 warnings
+    rejected, _filter_warnings = svc._hard_filter(quote, fin, filters)
     industry = infer_industry(
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
     )

@@ -82,10 +82,7 @@ def _pledge_threshold() -> float:
     return _limit("pledge_ratio_warning", 70)
 
 
-def _st_prefixes() -> list:
-    # Deprecated: ST 检测已统一使用 data.pool.is_st（子串匹配）。
-    # 保留此函数供 limits.yaml 配置兼容与现有测试，不再用于实际检测。
-    return _limit("st_prefixes", ["ST", "*ST"])
+# P1-22: _st_prefixes() 已删除，ST 检测统一使用 data.pool.is_st
 
 
 @dataclass
@@ -275,13 +272,14 @@ class ScreeningService:
         )
 
         # 硬过滤
-        rejected = self._hard_filter(quote_dict, fin, ctx.filters)
+        rejected, filter_warnings = self._hard_filter(quote_dict, fin, ctx.filters)
         if rejected:
             return {
                 "code": ctx.code,
                 "name": quote_dict.get("name", ""),
                 "score": 0,
                 "rejected": rejected,
+                "warnings": filter_warnings,
             }
 
         # 计算因子得分（P0-12: 传入策略权重，跳过权重为 0 的因子）
@@ -335,7 +333,7 @@ class ScreeningService:
         """计算技术指标特征（委托给模块级 compute_features）。"""
         return compute_features(code, bars=bars)
 
-    def _hard_filter(self, quote: dict, fin: dict, filters: dict) -> List[str]:
+    def _hard_filter(self, quote: dict, fin: dict, filters: dict) -> tuple:
         """硬过滤。
 
         Args:
@@ -347,6 +345,10 @@ class ScreeningService:
                 - filter_loss (bool): 是否过滤亏损股（默认 True）
                 - exclude_loss (bool): 附加排除 EPS<=0（需显式设置）
                 - pledge_warning (bool): 质押率过高仅预警（默认 False）
+
+        Returns:
+            (reasons, warnings) 元组：reasons 非空表示硬拒绝，
+            warnings 为软警告（不应导致拒绝）。P1-19: 分离避免 warning 误拒。
         """
         reasons = []
         warnings = []
@@ -440,10 +442,8 @@ class ScreeningService:
         if filters.get("exclude_loss") and eps <= 0:
             reasons.append("EPS<=0")
 
-        # 附加警告信息（不影响筛选结果）
-        if warnings:
-            reasons.append(";".join(warnings[:2]))
-        return reasons
+        # P1-19: 返回 (reasons, warnings) 元组，warnings 不导致拒绝
+        return reasons, warnings
 
 
 def compute_factor_parts(fin, quote_dict, features, industry, weights=None):
