@@ -161,9 +161,14 @@ class TestCache:
     """缓存读写和清理。"""
 
     def _patch_cache_dir(self, tmp_path, monkeypatch):
-        """同时 patch common 和 data.cache 的 CACHE_DIR。"""
+        """同时 patch common 和 common.cache 的 CACHE_DIR。
+
+        P2-24: data.cache 不再用 sys.modules 替换为 common.cache，
+        需 patch common.cache.CACHE_DIR（缓存函数实际读取的变量）。
+        common.CACHE_DIR 经由 __getattr__ 代理，patch 它不影响 common.cache。
+        """
+        monkeypatch.setattr("common.cache.CACHE_DIR", tmp_path)
         monkeypatch.setattr("common.CACHE_DIR", tmp_path)
-        monkeypatch.setattr("data.cache.CACHE_DIR", tmp_path)
 
     def test_cache_set_get(self, tmp_path, monkeypatch):
         self._patch_cache_dir(tmp_path, monkeypatch)

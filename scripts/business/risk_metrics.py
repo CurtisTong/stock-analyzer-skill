@@ -69,6 +69,11 @@ def max_drawdown(prices: List[float]) -> Dict[str, float]:
 
     Returns:
         {"max_dd_pct": -0.15, "peak_idx": 100, "trough_idx": 150, "recovery_idx": 180}
+
+    P2-22: recovery_idx 语义--
+        - 非空 int: 回撤后价格首次回升至峰值的位置索引（已恢复）
+        - None: 在观测区间内未恢复至峰值（仍在回撤中或数据结束）
+        recovery_idx == trough_idx 时也视为未恢复（返回 None）。
     """
     if len(prices) < 2:
         return {"max_dd_pct": 0.0, "peak_idx": 0, "trough_idx": 0, "recovery_idx": 0}

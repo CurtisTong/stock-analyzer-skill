@@ -28,6 +28,10 @@ class ConfigLoader:
     """配置加载器，支持 YAML 配置文件（带 mtime 感知缓存 + TTL）。
 
     v2.4.0：增加线程锁，避免多线程首次调用时竞态（mtime 检查+读取+写入不是原子操作）。
+
+    P2-23 TODO(v2.0): 当前 TTL + 双重检查锁实现复杂，可简化为「锁内完整 stat+read+write」
+    单一路径。当前实现正确但可读性差，保留并发测试（test_config_loader_concurrent.py）
+    作为行为基线。
     """
 
     _cache: dict[str, tuple[float, dict]] = {}

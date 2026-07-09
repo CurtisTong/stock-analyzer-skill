@@ -6,10 +6,11 @@ Business 层 - 业务逻辑聚合。
 - screening_service: 选股服务
 """
 
-from .stock_analysis import StockAnalysisService
+from .stock_analysis import StockAnalysisService, analyze
 from .screening_service import ScreeningService
 
 __all__ = [
     "StockAnalysisService",
+    "analyze",
     "ScreeningService",
 ]

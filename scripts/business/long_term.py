@@ -16,6 +16,7 @@ import json
 import logging
 
 from common import to_float
+from config.loader import get_scoring_config
 from data.helpers import fetch_quote_dict_or_none, fetch_finance_first
 
 logger = logging.getLogger(__name__)
@@ -24,17 +25,40 @@ logger = logging.getLogger(__name__)
 # 长期持有评估
 # ═══════════════════════════════════════════════════════════════
 
+# P2-20: 默认权重（与 scoring.yaml 的 long_term_weights 保持一致）。
+# 权重从 scoring.yaml 读取，缺失或非法时回退到以下硬编码默认值。
+_DEFAULT_WEIGHTS = {
+    "moat": 0.30,  # 护城河
+    "growth": 0.25,  # 成长性
+    "stability": 0.25,  # 稳定性
+    "valuation": 0.20,  # 估值
+}
+
+
+def _load_long_term_weights() -> dict[str, float]:
+    """从 scoring.yaml 加载长期评估维度权重，校验失败回退默认值。"""
+    cfg = get_scoring_config("long_term_weights", default=None) or {}
+    weights = {}
+    for key, default_val in _DEFAULT_WEIGHTS.items():
+        try:
+            weights[key] = float(cfg.get(key, default_val))
+        except (TypeError, ValueError):
+            logger.warning("long_term_weights.%s 非法，回退默认值 %s", key, default_val)
+            weights[key] = default_val
+    return weights
+
 
 class LongTermEvaluator:
     """长期持有评估器。"""
 
-    # 维度权重
-    WEIGHTS = {
-        "moat": 0.30,  # 护城河
-        "growth": 0.25,  # 成长性
-        "stability": 0.25,  # 稳定性
-        "valuation": 0.20,  # 估值
-    }
+    def __init__(self):
+        # P2-20: 权重从 scoring.yaml 加载（支持运行时调参），回退默认值
+        self.weights = _load_long_term_weights()
+
+    @property
+    def WEIGHTS(self) -> dict[str, float]:
+        """向后兼容：暴露权重（从 YAML 加载）。"""
+        return self.weights
 
     def evaluate(self, code: str) -> dict:
         """评估股票是否适合长期持有。

@@ -376,8 +376,8 @@ class TestAnalyzeDataMetadata:
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
             patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
-            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
-            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
 
@@ -405,8 +405,8 @@ class TestAnalyzeDataMetadata:
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
             patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
-            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
-            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
 
@@ -433,8 +433,8 @@ class TestAnalyzeDataMetadata:
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
             patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
-            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
-            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
 
@@ -461,9 +461,9 @@ class TestAnalyzeDataMetadata:
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
             patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
-            patch.object(StockAnalysisService, "_analyze_technical", return_value={"ma": "多头"}),
-            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
-            patch.object(StockAnalysisService, "_calculate_composite_score") as mock_score,
+            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch("business.stock_analysis._analyze_chan", return_value={}),
+            patch("business.stock_analysis._calculate_composite_score") as mock_score,
         ):
             mock_score.return_value = {"total": 75}
             svc.analyze("sh600519")
@@ -489,8 +489,8 @@ class TestAnalyzeDataMetadata:
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
             patch("business.stock_analysis.profile_stock", return_value={"type": "未知"}),
-            patch.object(StockAnalysisService, "_analyze_technical", return_value={}),
-            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+            patch("business.stock_analysis._analyze_technical", return_value={}),
+            patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
 

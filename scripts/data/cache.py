@@ -1,14 +1,30 @@
 """缓存模块兼容层。
 
 v1.3.1 起，缓存实现已迁移到 common.cache（避免 common ↔ data 循环依赖）。
-此模块保留作为 shim，确保 `from data import cache` 旧调用方式继续可用。
+此模块保留作为兼容入口，确保 `from data import cache` 或
+`from data.cache import cache_get` 等旧调用方式继续可用。
+
+P2-24: 移除了 `sys.modules[__name__] = _cache` 的模块身份替换 hack，
+改为正常的 re-export。注意 `data.cache` 与 `common.cache` 不再是同一模块对象，
+直接 patch `data.cache.CACHE_DIR` 不会影响 `common.cache.CACHE_DIR`--
+应 patch `common.cache.CACHE_DIR`（缓存函数实际读取的变量）。
 """
 
-# 让 data.cache 实际指向 common.cache 模块本身，避免 "common.cache is not data.cache"
-# 注意：必须放在文件最前面，且后续不能定义同名符号，否则会破坏 is 关系。
-import common.cache as _cache
-
-# 重新绑定当前模块的"身份"为 common.cache
-import sys
-
-sys.modules[__name__] = _cache
+from common.cache import *  # noqa: F401, F403  -- 兼容性 re-export
+from common.cache import (
+    CACHE_DIR,
+    cache_get,
+    cache_key,
+    cache_key_for_stock,
+    cache_cleanup,
+    cache_set,
+    cleanup,
+    cleanup_by_size,
+    cleanup_tmp_files,
+    get,
+    get_cache_stats,
+    get_json,
+    put,
+    set,
+    set_json,
+)

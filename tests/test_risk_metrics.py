@@ -70,6 +70,28 @@ class TestDrawdown:
         result = max_drawdown([])
         assert result["max_dd_pct"] == 0.0
 
+    def test_max_drawdown_recovery_idx_recovered(self):
+        """P2-22: 回撤后价格恢复至峰值时 recovery_idx 为有效索引。"""
+        # peak=110 @ idx1, trough=95 @ idx3, 恢复到 110 @ idx5
+        prices = [100, 110, 105, 95, 98, 110]
+        result = max_drawdown(prices)
+        assert result["recovery_idx"] is not None
+        assert result["recovery_idx"] > result["trough_idx"]
+        assert result["recovery_idx"] == 5
+
+    def test_max_drawdown_recovery_idx_none_when_not_recovered(self):
+        """P2-22: 回撤后未恢复至峰值时 recovery_idx 为 None。"""
+        # peak=110 @ idx1, trough=95 @ idx3, 之后最高仅 108 < 110
+        prices = [100, 110, 105, 95, 98, 108, 106]
+        result = max_drawdown(prices)
+        assert result["recovery_idx"] is None
+
+    def test_max_drawdown_recovery_idx_none_at_end(self):
+        """P2-22: trough 在序列末尾时 recovery_idx 为 None（无后续恢复点）。"""
+        prices = [100, 110, 105, 95]
+        result = max_drawdown(prices)
+        assert result["recovery_idx"] is None
+
 
 class TestVolatilitySharpe:
     def test_volatility_positive(self):
