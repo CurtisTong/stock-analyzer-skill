@@ -1,5 +1,9 @@
 """common/utils.py 工具函数补充测试（覆盖缺失场景）。"""
 
+import json
+import os
+from unittest.mock import patch
+
 import pytest
 from common.utils import (
     plain_code,
@@ -18,6 +22,7 @@ from common.utils import (
     normalize_volume,
     normalize_amount,
     board_limit_pct,
+    atomic_write_json,
 )
 
 
@@ -290,3 +295,49 @@ class TestBoardLimitPct:
 
     def test_default(self):
         assert board_limit_pct("其他") == 9.5
+
+
+class TestAtomicWriteJson:
+    """atomic_write_json 原子写入测试。"""
+
+    def test_writes_correct_content(self, tmp_path):
+        """写入的文件内容正确。"""
+        path = tmp_path / "data.json"
+        obj = {"key": "值", "num": 42, "nested": {"a": 1}}
+        atomic_write_json(path, obj)
+        written = json.loads(path.read_text(encoding="utf-8"))
+        assert written == obj
+
+    def test_creates_parent_dir(self, tmp_path):
+        """目标目录不存在时自动创建。"""
+        path = tmp_path / "sub" / "dir" / "data.json"
+        atomic_write_json(path, {"x": 1})
+        assert path.exists()
+        assert json.loads(path.read_text(encoding="utf-8")) == {"x": 1}
+
+    def test_preserves_existing_file_on_failure(self, tmp_path):
+        """os.replace 失败时原文件不被损坏。"""
+        path = tmp_path / "data.json"
+        path.write_text(json.dumps({"original": True}), encoding="utf-8")
+
+        with patch("common.utils.os.replace", side_effect=OSError("disk full")):
+            with pytest.raises(OSError):
+                atomic_write_json(path, {"new": True})
+
+        # 原文件内容完好
+        written = json.loads(path.read_text(encoding="utf-8"))
+        assert written == {"original": True}
+
+    def test_cleans_up_tempfile_on_failure(self, tmp_path):
+        """写入失败时临时文件被清理。"""
+        path = tmp_path / "data.json"
+        before = set(tmp_path.iterdir())
+
+        with patch("common.utils.os.replace", side_effect=OSError("fail")):
+            with pytest.raises(OSError):
+                atomic_write_json(path, {"new": True})
+
+        after = set(tmp_path.iterdir())
+        # 不应残留 .tmp 临时文件（原文件不存在，故 after == before）
+        tmpfiles = [f for f in after if f.suffix == ".tmp"]
+        assert len(tmpfiles) == 0

@@ -196,6 +196,74 @@ class TestSyncOperations:
             "未找到" in captured.out or "不存在" in captured.out or "无" in captured.out
         )
 
+    def test_pull_rejects_empty_remote_data(self, tmp_path, capsys):
+        """pull 远程数据为空（无 predictions 且无 experts）时拒绝覆盖本地。"""
+        fake_file = tmp_path / "expert_calibration.json"
+        # 本地已有有效数据
+        fake_file.write_text(
+            json.dumps({"predictions": [], "experts": {"lynch": {"events": 1}}}),
+            encoding="utf-8",
+        )
+        empty_remote = {"predictions": [], "experts": {}}
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(
+                calibration_sync, "_get_gist_content", return_value=empty_remote
+            ),
+        ):
+            result = calibration_sync.pull()
+        assert result is False
+        captured = capsys.readouterr()
+        assert "拒绝" in captured.out or "空" in captured.out
+        # 本地数据未被覆盖
+        local = json.loads(fake_file.read_text(encoding="utf-8"))
+        assert local["experts"]["lynch"]["events"] == 1
+
+    def test_pull_writes_valid_remote_data_atomically(self, tmp_path, capsys):
+        """pull 有效远程数据时原子写入本地文件。"""
+        fake_file = tmp_path / "expert_calibration.json"
+        valid_remote = {
+            "predictions": [
+                {"stock": "sh600989", "direction": "看多", "expert_scores": {"lynch": 72}}
+            ],
+            "experts": {"lynch": {"events": 1, "correct": 1, "last_updated": "2026-07-08"}},
+        }
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(
+                calibration_sync, "_get_gist_content", return_value=valid_remote
+            ),
+        ):
+            result = calibration_sync.pull()
+        assert result is True
+        # 文件写入正确
+        written = json.loads(fake_file.read_text(encoding="utf-8"))
+        assert written["experts"]["lynch"]["events"] == 1
+        assert len(written["predictions"]) == 1
+
+    def test_pull_rejects_invalid_prediction_schema(self, tmp_path, capsys):
+        """pull 远程 predictions 缺少 stock/expert_scores 键时拒绝写入。"""
+        fake_file = tmp_path / "expert_calibration.json"
+        fake_file.write_text(
+            json.dumps({"predictions": [], "experts": {"lynch": {"events": 1}}}),
+            encoding="utf-8",
+        )
+        bad_remote = {
+            "predictions": [{"direction": "看多"}],  # 缺 stock/expert_scores
+            "experts": {"lynch": {"events": 1}},
+        }
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=bad_remote),
+        ):
+            result = calibration_sync.pull()
+        assert result is False
+        captured = capsys.readouterr()
+        assert "拒绝" in captured.out
+
     def test_push_no_local_file(self, capsys, tmp_path):
         """push 时无本地数据文件。"""
         # mock _CALIBRATION_FILE 路径为不存在的临时路径

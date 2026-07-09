@@ -299,8 +299,9 @@ def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
         },
     }
     output.update(stocks_by_board)
-    with open(ALL_STOCKS_FILE, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
+    from common import atomic_write_json
+
+    atomic_write_json(ALL_STOCKS_FILE, output)
     logger.info("已写入 %s (%d 只)", ALL_STOCKS_FILE, total)
     for board, codes in stocks_by_board.items():
         logger.info("  %s: %d 只", board, len(codes))
@@ -533,8 +534,9 @@ def refresh_pool(
             }
         }
         output.update(new_pool)
-        with open(POOL_FILE, "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2)
+        from common import atomic_write_json
+
+        atomic_write_json(POOL_FILE, output)
         logger.info("已写入 %s (%d 只)", POOL_FILE, output["_meta"]["total_stocks"])
     elif dry_run:
         logger.info("dry-run 模式，未写入")
@@ -569,8 +571,9 @@ def init_from_default(top_n: int = 20, dry_run: bool = False) -> dict:
             }
         }
         output.update(new_pool)
-        with open(POOL_FILE, "w", encoding="utf-8") as f:
-            json.dump(output, f, ensure_ascii=False, indent=2)
+        from common import atomic_write_json
+
+        atomic_write_json(POOL_FILE, output)
         logger.info("已写入 %s (%d 只)", POOL_FILE, output["_meta"]["total_stocks"])
     elif dry_run:
         logger.info("dry-run 模式，未写入")

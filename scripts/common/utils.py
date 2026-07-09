@@ -2,10 +2,12 @@
 
 import atexit
 import concurrent.futures
+import json
 import os
 import re
 import statistics
 import sys
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Callable
@@ -200,8 +202,8 @@ def normalize_volume(raw: int | str | None, source: str) -> int:
 
 def normalize_amount(raw: object, source: str) -> float:
     """将不同数据源的成交额归一化为元。
-    腾讯: 万元 → 元 (×10000)
-    tushare: 千元 → 元 (×1000)
+    腾讯: 万元 -> 元 (×10000)
+    tushare: 千元 -> 元 (×1000)
     东财/efinance/akshare/新浪/ths/xueqiu/baostock/yfinance: 元 (原值)
     """
     v = to_float(raw)
@@ -210,6 +212,29 @@ def normalize_amount(raw: object, source: str) -> float:
     if source == "tushare":
         return v * 1000
     return v
+
+
+# ---------- 原子文件写入 ----------
+
+
+def atomic_write_json(path: str | Path, obj: Any, indent: int = 2) -> None:
+    """原子写入 JSON 文件（tempfile + os.replace），避免崩溃时文件损坏。
+
+    写入流程：先写临时文件，确保完整后用 os.replace 原子替换目标文件。
+    os.replace 在同一文件系统内是原子的，崩溃时要么是旧文件、要么是新文件，
+    不会出现截断的中间状态。
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False, indent=indent)
+        os.replace(tmp, path)
+    except (OSError, TypeError, ValueError):
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+        raise
 
 
 # ---------- 错误处理 ----------

@@ -163,7 +163,7 @@ def pull() -> bool:
         print("❌ 远程数据结构无效（缺少 predictions 字段），拒绝写入。")
         return False
 
-    # 深度 schema 校验：predictions 必须是 list，每个元素是 dict 且含 expert 和 calibration 键
+    # 深度 schema 校验：predictions 必须是 list，每个元素是 dict
     predictions = remote_data.get("predictions")
     if not isinstance(predictions, list):
         print("❌ 远程数据结构无效（predictions 不是 list），拒绝写入。")
@@ -172,11 +172,18 @@ def pull() -> bool:
         if not isinstance(pred, dict):
             print(f"❌ 远程数据结构无效（predictions[{i}] 不是 dict），拒绝写入。")
             return False
-        if "expert" not in pred or "calibration" not in pred:
+        # 预测记录应含 stock/direction/expert_scores 等键（record_prediction 产出）
+        if "stock" not in pred or "expert_scores" not in pred:
             print(
-                f"❌ 远程数据结构无效（predictions[{i}] 缺少 expert/calibration 键），拒绝写入。"
+                f"❌ 远程数据结构无效（predictions[{i}] 缺少 stock/expert_scores 键），拒绝写入。"
             )
             return False
+
+    # 空数据防护：远程 predictions 和 experts 均为空时拒绝覆盖本地
+    experts = remote_data.get("experts", {})
+    if not predictions and not experts:
+        print("❌ 远程数据为空（无 predictions 且无 experts），拒绝覆盖本地数据。")
+        return False
 
     # 备份本地数据
     if _CALIBRATION_FILE.exists():
@@ -186,12 +193,10 @@ def pull() -> bool:
         )
         print(f"📦 本地数据已备份到 {backup.name}")
 
-    # 写入远程数据（远程优先，本地独有数据保留在 .bak 中）
-    _CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _CALIBRATION_FILE.write_text(
-        json.dumps(remote_data, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    # 原子写入远程数据（tempfile + os.replace，避免崩溃时文件损坏）
+    from common import atomic_write_json
+
+    atomic_write_json(_CALIBRATION_FILE, remote_data)
 
     pred_count = len(remote_data.get("predictions", []))
     expert_count = sum(
