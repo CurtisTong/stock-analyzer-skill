@@ -201,16 +201,17 @@ def test_expert_veto_conditions_non_empty():
 # detect_market_state 属性
 # ═══════════════════════════════════════════════════════════════
 
-VALID_STATES = {"牛市", "熊市", "震荡", "冰点", "亢奋"}
+# 防御型为 v2.4.3 fail-safe 默认（无数据时保守降级，非 5 基础状态）
+VALID_STATES = {"牛市", "熊市", "震荡", "冰点", "亢奋", "防御型"}
 
 
 def test_detect_market_state_default():
-    """无输入时应返回震荡。"""
+    """无输入时应返回防御型（v2.4.3 fail-safe：宁可保守降级）。"""
     from experts.decide import detect_market_state
 
     result = detect_market_state()
     assert result["state"] in VALID_STATES
-    assert result["state"] == "震荡"
+    assert result["state"] == "防御型"
 
 
 @given(
