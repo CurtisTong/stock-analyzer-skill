@@ -106,6 +106,28 @@ class TestTencentQuoteFetcher:
         assert result is not None
         assert result["code"] == "600519"
 
+    def test_fetch_code_mismatch_skipped(self):
+        """P1-01: code 不匹配的行应被跳过，不返回错误记录。"""
+        # 构造一个 code=600999（非请求的 600519）的有效行
+        raw = _make_tencent_raw()
+        # 替换 payload 内部的 code 字段（~600519~ -> ~600999~），保留 v_sh 前缀
+        raw_wrong = raw.replace(b"~600519~", b"~600999~", 1)
+        with patch("fetchers.quote.tencent_quote.http_get", return_value=raw_wrong):
+            result = self.fetcher.fetch("sh600519")
+        assert result is None
+
+    def test_fetch_code_mismatch_then_match(self):
+        """P1-01: 多行响应中先有错误 code 再有正确 code，应返回正确记录。"""
+        wrong = _make_tencent_raw()
+        wrong = wrong.replace(b"~600519~", b"~600999~", 1)
+        correct = _make_tencent_raw()
+        # 用分号拼接两行
+        multi = wrong.rstrip(b';\n') + b";" + correct
+        with patch("fetchers.quote.tencent_quote.http_get", return_value=multi):
+            result = self.fetcher.fetch("sh600519")
+        assert result is not None
+        assert result["code"] == "600519"
+
 
 class TestTencentKlineFetcher:
     """TencentKlineFetcher 测试。"""

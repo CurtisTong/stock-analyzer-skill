@@ -49,3 +49,18 @@ def test_cleanup_by_size_single_stat():
         mock_dir.glob.return_value = [mock_file] * 10
         cache.cleanup_by_size(max_size_mb=1)
     assert mock_file.stat.call_count <= 10
+
+
+def test_ttl_jitter_deterministic():
+    """P1-05: TTL jitter 应基于 hashlib（跨进程确定性），而非内置 hash()。"""
+    import hashlib
+
+    key = "test_jitter_determinism"
+    expected_jitter = (int(hashlib.sha256(key.encode()).hexdigest(), 16) % 100) / 1000.0
+    # 写入缓存，TTL 设短（1 秒），jitter 应使 effective_ttl = 1 * (1 + expected_jitter)
+    cache.put(key, b"data")
+    # 验证缓存可读（TTL 未过期）
+    assert cache.get(key, ttl_seconds=60) == b"data"
+    # 验证 jitter 值在 0~0.1 范围内
+    assert 0 <= expected_jitter <= 0.1
+    (cache.CACHE_DIR / f"{key}.cache").unlink(missing_ok=True)

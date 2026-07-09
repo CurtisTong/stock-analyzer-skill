@@ -291,8 +291,10 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
                         url, status, e.response.text[:200] if hasattr(e.response, "text") else ""
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
+    # P1-04: fallback 到 stdlib 时 max_retries=1（单次尝试），避免与 requests 路径
+    # 的 urllib3 Retry（total=3）叠加形成超时风暴（最坏 4*timeout + 3*timeout + 退避）
     return _http_get_internal(
-        url, headers=None, timeout=timeout, max_retries=max_retries
+        url, headers=None, timeout=timeout, max_retries=1
     )
 
 
@@ -317,8 +319,9 @@ def http_get_with_headers(
                         url, status, e.response.text[:200] if hasattr(e.response, "text") else ""
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
+    # P1-04: 同 http_get，fallback max_retries=1 避免超时叠加
     return _http_get_internal(
-        url, headers=headers, timeout=timeout, max_retries=max_retries
+        url, headers=headers, timeout=timeout, max_retries=1
     )
 
 

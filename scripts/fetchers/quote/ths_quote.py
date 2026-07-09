@@ -45,16 +45,34 @@ def _parse_quote(text: str, code: str) -> dict | None:
         if len(last_item) < 5:
             return None
         # 格式：日期,开,高,低,收,量
+        # P1-02: 补齐缺失字段（K 线端点不返回 PE/PB/市值/换手率，用 0 占位保证 Quote 完整）
+        # 若有多根 K 线，用前一根 close 作为 prev_close 计算 change_pct
+        prev_close = 0.0
+        if len(items) >= 2:
+            prev_parts = items[-2].split(",")
+            if len(prev_parts) > 4:
+                prev_close = to_float(prev_parts[4])
+        price = to_float(last_item[4]) if len(last_item) > 4 else 0.0
+        change_pct = (
+            round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0.0
+        )
         return {
             "code": code,
             "name": "",
-            "price": to_float(last_item[4]) if len(last_item) > 4 else 0,
+            "price": price,
             "open": to_float(last_item[1]) if len(last_item) > 1 else 0,
             "high": to_float(last_item[2]) if len(last_item) > 2 else 0,
             "low": to_float(last_item[3]) if len(last_item) > 3 else 0,
-            "prev_close": 0,
+            "prev_close": prev_close,
+            "change_pct": change_pct,
+            "change_amt": round(price - prev_close, 2) if prev_close > 0 else 0.0,
             "volume": to_float(last_item[5]) if len(last_item) > 5 else 0,
             "amount": 0,
+            "turnover": 0,
+            "pe": 0,
+            "pb": 0,
+            "total_cap": 0,
+            "circulating_cap": 0,
             "source": "ths",
         }
     except Exception as e:

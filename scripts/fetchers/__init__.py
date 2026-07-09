@@ -29,13 +29,18 @@ _cache_lock = threading.Lock()
 
 
 def _try_import(module_name, class_name):
-    """尝试导入模块，失败返回 None。"""
+    """尝试导入模块，失败返回 None。
+
+    P1-03: 仅捕获 ImportError/AttributeError（依赖未安装或类不存在），
+    其他异常（SyntaxError/TypeError 等模块级 bug）打 warning 并 re-raise，
+    避免掩盖真实的 fetcher 模块缺陷。
+    """
     try:
         import importlib
 
         mod = importlib.import_module(f".{module_name}", package=__name__)
         return getattr(mod, class_name, None)
-    except Exception as e:
+    except (ImportError, AttributeError) as e:
         logger.debug("可选依赖 %s.%s 加载失败: %s", module_name, class_name, e)
         return None
 

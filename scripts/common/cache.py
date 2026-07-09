@@ -48,8 +48,10 @@ def get(key: str, ttl_seconds: int) -> Optional[bytes]:
     f = CACHE_DIR / f"{key}.cache"
     if not f.exists():
         return None
-    # TTL 抖动：基于 key 哈值的确定性偏移（0~10%），避免雪崩
-    jitter = (hash(key) % 100) / 1000.0  # 0~0.1 的确定性抖动
+    # TTL 抖动：基于 key 的确定性偏移（0~10%），避免雪崩
+    # P1-05: 用 hashlib.sha256 替代内置 hash()，后者受 PYTHONHASHSEED 随机化影响，
+    # 跨进程/重启抖动值不一致，与"确定性偏移"目标矛盾
+    jitter = (int(hashlib.sha256(key.encode()).hexdigest(), 16) % 100) / 1000.0
     effective_ttl = ttl_seconds * (1 + jitter)
     if time.time() - f.stat().st_mtime > effective_ttl:
         f.unlink(missing_ok=True)
