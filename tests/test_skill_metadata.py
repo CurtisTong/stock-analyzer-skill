@@ -14,7 +14,9 @@ SKILL.md 元数据校验：12 个 skill 的 frontmatter 与结构一致性。
 
 import re
 from pathlib import Path
+
 import pytest
+import yaml
 
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -52,39 +54,23 @@ ALLOWED_MODELS = {"haiku", "sonnet", "opus"}
 
 
 def parse_frontmatter(text: str) -> dict:
-    """简易 YAML frontmatter 解析。"""
+    """解析 YAML frontmatter（--- 包裹段）。
+
+    P2-25: 改用 yaml.safe_load 替代手写解析，支持完整的 YAML 语法
+    （引号、嵌套、多行等）。手写解析无法正确处理引号包裹的标量值。
+    """
     if not text.startswith("---"):
         return {}
     end = text.find("---", 3)
     if end == -1:
         return {}
     fm = text[3:end].strip()
-    result = {}
-    current_key = None
-    for line in fm.splitlines():
-        if not line.strip():
-            continue
-        if line.startswith(" ") and current_key:
-            # 续行（allowed-tools 可能有空格缩进）
-            if isinstance(result.get(current_key), list):
-                result[current_key].append(line.strip())
-            else:
-                result[current_key] = line.strip()
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            value = value.strip()
-            if value == "":
-                result[key] = []
-                current_key = key
-            elif value.startswith("[") and value.endswith("]"):
-                result[key] = [v.strip() for v in value[1:-1].split(",")]
-                current_key = None
-            else:
-                result[key] = value
-                current_key = None
-    return result
+    try:
+        result = yaml.safe_load(fm)
+    except yaml.YAMLError:
+        # 非标准 frontmatter 降级为空 dict，避免崩溃
+        return {}
+    return result if isinstance(result, dict) else {}
 
 
 def get_skill_files():

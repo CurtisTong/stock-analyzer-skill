@@ -5,6 +5,11 @@
 自动更新：SKILL.md、plugin.json、marketplace.json、README.md、测试文件、
   methodology.md、pyproject.toml、docs/product-architecture.md
 
+P2-30: 重构为声明式结构--update 和 check 共享同一 VERSION_TARGETS 列表，
+  每个条目定义 (label, file_spec, patterns)。
+  file_spec 为单文件路径或 glob 模式（"skills/**/SKILL.md"）。
+  patterns 为 [(regex, replacement_group_indices)] 列表，支持单文件多模式（如 README badge+footer）。
+
 用法：
   python3 scripts/dev/sync_version.py              # 同步到 package.json 版本
   python3 scripts/dev/sync_version.py --version 1.10.0  # 同步到指定版本
@@ -28,260 +33,180 @@ def get_package_version() -> str:
         return json.load(f)["version"]
 
 
-def update_json_version(file_path: Path, version: str) -> bool:
-    """更新 JSON 文件中的 version 字段。"""
-    if not file_path.exists():
-        return False
+# ═══════════════════════════════════════════════════════════════
+# P2-30: 声明式版本同步目标
+# 每个条目: (label, file_spec, patterns)
+#   - label: 显示名
+#   - file_spec: 相对路径（单文件）或 glob 模式（多文件）
+#   - patterns: [(regex, replacement)] 列表，replacement 用 {version} 占位符
+# ═══════════════════════════════════════════════════════════════
 
-    with open(file_path, encoding="utf-8") as f:
-        content = f.read()
+# 版本号正则片段（复用）
+_VER = r"\d+\.\d+\.\d+"
 
-    # 使用正则替换，保持格式
-    # 锚定到顶层键（行首只允许空格）：避免未来嵌套对象里出现 "version" 字段时被一并替换
-    new_content = re.sub(
-        r'(^\s*"version"\s*:\s*")[^"]+(")',
-        rf"\g<1>{version}\2",
-        content,
-        flags=re.MULTILINE,
-    )
+VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
+    # JSON 文件（plugin.json + marketplace.json）
+    (
+        "plugin.json",
+        ".claude-plugin/plugin.json",
+        [(r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")', r"{prefix}{version}{suffix}")],
+    ),
+    (
+        "marketplace.json",
+        ".claude-plugin/marketplace.json",
+        [(r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")', r"{prefix}{version}{suffix}")],
+    ),
+    # SKILL.md frontmatter（glob 多文件）
+    (
+        "skills/*/SKILL.md",
+        "skills/**/SKILL.md",
+        [(r'(?m)^(?P<prefix>version:\s*)' + _VER, r"{prefix}{version}")],
+    ),
+    # methodology.md frontmatter
+    (
+        "methodology.md",
+        "methodology.md",
+        [(r'(?m)^(?P<prefix>version:\s*)' + _VER, r"{prefix}{version}")],
+    ),
+    # pyproject.toml
+    (
+        "pyproject.toml",
+        "pyproject.toml",
+        [(r'(?m)^(?P<prefix>version\s*=\s*")[^"]+(?P<suffix>")', r"{prefix}{version}{suffix}")],
+    ),
+    # docs/product-architecture.md header
+    (
+        "docs/product-architecture.md",
+        "docs/product-architecture.md",
+        [
+            (
+                r"(?P<prefix>版本：v)" + _VER + r"(?P<suffix>\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
+                r"{prefix}{version}{suffix}",
+            )
+        ],
+    ),
+    # README.md（badge + footer 双模式）
+    (
+        "README.md",
+        "README.md",
+        [
+            (r"(?P<prefix>version-)" + _VER + r"(?P<suffix>-)", r"{prefix}{version}{suffix}"),
+            (r"(?P<prefix>\*\*v)" + _VER + r"(?P<suffix>\*\*)", r"{prefix}{version}{suffix}"),
+        ],
+    ),
+    # 测试文件
+    (
+        "tests/test_skill_metadata.py",
+        "tests/test_skill_metadata.py",
+        [
+            (
+                r'(?P<prefix>DEFAULT_VERSION\s*=\s*")[^"]+(?P<suffix>")',
+                r"{prefix}{version}{suffix}",
+            )
+        ],
+    ),
+]
 
-    if new_content != content:
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(new_content)
-        return True
-    return False
+
+def _resolve_files(file_spec: str) -> list[Path]:
+    """解析 file_spec 为文件列表（支持 glob）。"""
+    path = PKG_ROOT / file_spec
+    if "**" in file_spec or "*" in file_spec:
+        return sorted(PKG_ROOT.glob(file_spec))
+    return [path] if path.exists() else []
 
 
-def update_skill_versions(version: str) -> list[Path]:
-    """更新所有 SKILL.md 的 version 字段。"""
+def _apply_patterns(content: str, patterns: list[tuple[str, str]], version: str) -> tuple[str, list[str]]:
+    """对内容应用所有 patterns，返回 (新内容, 匹配到的版本列表)。"""
+    found_versions = []
+    for regex, replacement in patterns:
+        # 先提取当前版本（用于 check）
+        for m in re.finditer(regex, content):
+            # 从 match 中提取版本号（取第一个非 named-group 的数字段）
+            matched_text = m.group(0)
+            ver_match = re.search(_VER, matched_text)
+            if ver_match:
+                found_versions.append(ver_match.group(0))
+        # 替换
+        repl = replacement.replace("{version}", version)
+        content = re.sub(regex, repl, content)
+    return content, found_versions
+
+
+def update_version(label: str, file_spec: str, patterns: list[tuple[str, str]], version: str) -> list[Path]:
+    """更新单个目标的版本号，返回被修改的文件列表。"""
     updated = []
-    skills_dir = PKG_ROOT / "skills"
-
-    for skill_md in skills_dir.rglob("SKILL.md"):
-        content = skill_md.read_text(encoding="utf-8")
-        # 匹配 YAML frontmatter 中的 version: x.x.x
-        new_content = re.sub(
-            r"^(version:\s*)\d+\.\d+\.\d+",
-            rf"\g<1>{version}",
-            content,
-            flags=re.MULTILINE,
-        )
+    for path in _resolve_files(file_spec):
+        content = path.read_text(encoding="utf-8")
+        new_content, _ = _apply_patterns(content, patterns, version)
         if new_content != content:
-            skill_md.write_text(new_content, encoding="utf-8")
-            updated.append(skill_md)
+            path.write_text(new_content, encoding="utf-8")
+            updated.append(path)
     return updated
 
 
-def update_methodology_version(version: str) -> bool:
-    """更新 methodology.md frontmatter 中的 version 字段。"""
-    path = PKG_ROOT / "methodology.md"
-    if not path.exists():
-        return False
-    content = path.read_text(encoding="utf-8")
-    new_content = re.sub(
-        r"^(version:\s*)\d+\.\d+\.\d+",
-        rf"\g<1>{version}",
-        content,
-        flags=re.MULTILINE,
-    )
-    if new_content != content:
-        path.write_text(new_content, encoding="utf-8")
-        return True
-    return False
+def check_version(label: str, file_spec: str, patterns: list[tuple[str, str]], version: str) -> tuple[list[str], list[str], list[str]]:
+    """检查单个目标的版本一致性，返回 (match, mismatch, missing) 列表。"""
+    match, mismatch, missing = [], [], []
+    files = _resolve_files(file_spec)
+    if not files:
+        missing.append(label)
+        return match, mismatch, missing
+    for path in files:
+        content = path.read_text(encoding="utf-8")
+        rel = str(path.relative_to(PKG_ROOT))
+        _, found_versions = _apply_patterns(content, patterns, version)
+        if not found_versions:
+            missing.append(rel)
+        else:
+            for v in found_versions:
+                if v == version:
+                    match.append(rel if len(files) > 1 else label)
+                else:
+                    mismatch.append(f"{rel}: {v}" if len(files) > 1 else f"{label}: {v}")
+    return match, mismatch, missing
 
 
-def update_pyproject_version(version: str) -> bool:
-    """更新 pyproject.toml [project] 段中的 version 字段。"""
-    path = PKG_ROOT / "pyproject.toml"
-    if not path.exists():
-        return False
-    content = path.read_text(encoding="utf-8")
-    new_content = re.sub(
-        r'^(version\s*=\s*")[^"]+(")',
-        rf"\g<1>{version}\2",
-        content,
-        flags=re.MULTILINE,
-    )
-    if new_content != content:
-        path.write_text(new_content, encoding="utf-8")
-        return True
-    return False
-
-
-def update_doc_header_version(version: str) -> bool:
-    """更新 docs/product-architecture.md 顶部的版本声明行。"""
-    path = PKG_ROOT / "docs" / "product-architecture.md"
-    if not path.exists():
-        return False
-    content = path.read_text(encoding="utf-8")
-    new_content = re.sub(
-        r"(版本：v)\d+\.\d+\.\d+(\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
-        rf"\g<1>{version}\2",
-        content,
-    )
-    if new_content != content:
-        path.write_text(new_content, encoding="utf-8")
-        return True
-    return False
-
-
-def update_readme_version(version: str) -> bool:
-    """更新 README.md 中的版本号。"""
-    readme_path = PKG_ROOT / "README.md"
-    if not readme_path.exists():
-        return False
-
-    content = readme_path.read_text(encoding="utf-8")
-    original = content
-
-    # 更新 badge: version-X.Y.Z
-    content = re.sub(
-        r"(version-)\d+\.\d+\.\d+(-)",
-        rf"\g<1>{version}\2",
-        content,
-    )
-
-    # 更新 footer: **vX.Y.Z**
-    content = re.sub(
-        r"(\*\*v)\d+\.\d+\.\d+(\*\*)",
-        rf"\g<1>{version}\2",
-        content,
-    )
-
-    if content != original:
-        readme_path.write_text(content, encoding="utf-8")
-        return True
-    return False
-
-
-def update_test_version(version: str) -> bool:
-    """更新测试文件中的版本号。"""
-    test_path = PKG_ROOT / "tests" / "test_skill_metadata.py"
-    if not test_path.exists():
-        return False
-
-    content = test_path.read_text(encoding="utf-8")
-    # 匹配 DEFAULT_VERSION = "x.x.x"
-    new_content = re.sub(
-        r'(DEFAULT_VERSION\s*=\s*")[^"]+(")',
-        rf"\g<1>{version}\2",
-        content,
-    )
-
-    if new_content != content:
-        test_path.write_text(new_content, encoding="utf-8")
-        return True
-    return False
+def update_all(version: str, dry_run: bool = False) -> list[str]:
+    """更新所有目标版本，返回变更摘要列表。"""
+    summaries = []
+    for label, file_spec, patterns in VERSION_TARGETS:
+        if dry_run:
+            # dry-run 模式：检查是否需要更新
+            match, mismatch, missing = check_version(label, file_spec, patterns, version)
+            if mismatch:
+                summaries.append(f"   📝 {label} (需更新)")
+            elif missing:
+                summaries.append(f"   ⚠️  {label} (版本字段缺失)")
+            else:
+                summaries.append(f"   ⏭️  {label} (已是最新)")
+        else:
+            updated = update_version(label, file_spec, patterns, version)
+            if updated:
+                for p in updated:
+                    summaries.append(f"   ✅ {p.relative_to(PKG_ROOT)}")
+            else:
+                summaries.append(f"   ⏭️  {label} (已是最新)")
+    return summaries
 
 
 def check_versions(target_version: str) -> dict[str, list[str]]:
     """检查所有文件的版本一致性。"""
-    result = {"match": [], "mismatch": [], "missing": []}
+    result: dict[str, list[str]] = {"match": [], "mismatch": [], "missing": []}
 
-    # 检查 package.json
+    # 检查 package.json（源）
     pkg_version = get_package_version()
     if pkg_version == target_version:
         result["match"].append("package.json")
     else:
         result["mismatch"].append(f"package.json: {pkg_version}")
 
-    # 检查 JSON 文件
-    for json_file in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]:
-        path = PKG_ROOT / json_file
-        if path.exists():
-            content = path.read_text(encoding="utf-8")
-            versions = re.findall(r'"version"\s*:\s*"([^"]+)"', content)
-            for v in versions:
-                if v == target_version:
-                    result["match"].append(f"{json_file}")
-                else:
-                    result["mismatch"].append(f"{json_file}: {v}")
-
-    # 检查 SKILL.md
-    skills_dir = PKG_ROOT / "skills"
-    for skill_md in sorted(skills_dir.rglob("SKILL.md")):
-        rel_path = skill_md.relative_to(PKG_ROOT)
-        content = skill_md.read_text(encoding="utf-8")
-        match = re.search(r"^version:\s*(\d+\.\d+\.\d+)", content, re.MULTILINE)
-        if match:
-            v = match.group(1)
-            if v == target_version:
-                result["match"].append(str(rel_path))
-            else:
-                result["mismatch"].append(f"{rel_path}: {v}")
-        else:
-            result["missing"].append(str(rel_path))
-
-    # 检查 README.md
-    readme_path = PKG_ROOT / "README.md"
-    if readme_path.exists():
-        content = readme_path.read_text(encoding="utf-8")
-        badge_match = re.search(r"version-(\d+\.\d+\.\d+)", content)
-        footer_match = re.search(r"\*\*v(\d+\.\d+\.\d+)\*\*", content)
-        for match, label in [(badge_match, "badge"), (footer_match, "footer")]:
-            if match:
-                v = match.group(1)
-                if v == target_version:
-                    result["match"].append(f"README.md ({label})")
-                else:
-                    result["mismatch"].append(f"README.md ({label}): {v}")
-
-    # 检查测试文件
-    test_path = PKG_ROOT / "tests" / "test_skill_metadata.py"
-    if test_path.exists():
-        content = test_path.read_text(encoding="utf-8")
-        match = re.search(r'DEFAULT_VERSION\s*=\s*"([^"]+)"', content)
-        if match:
-            v = match.group(1)
-            if v == target_version:
-                result["match"].append("tests/test_skill_metadata.py")
-            else:
-                result["mismatch"].append(f"tests/test_skill_metadata.py: {v}")
-
-    # 检查 methodology.md
-    methodology_path = PKG_ROOT / "methodology.md"
-    if methodology_path.exists():
-        content = methodology_path.read_text(encoding="utf-8")
-        match = re.search(r"^version:\s*(\d+\.\d+\.\d+)", content, re.MULTILINE)
-        if match:
-            v = match.group(1)
-            label = "methodology.md"
-            if v == target_version:
-                result["match"].append(label)
-            else:
-                result["mismatch"].append(f"{label}: {v}")
-        else:
-            result["missing"].append("methodology.md")
-
-    # 检查 pyproject.toml
-    pyproject_path = PKG_ROOT / "pyproject.toml"
-    if pyproject_path.exists():
-        content = pyproject_path.read_text(encoding="utf-8")
-        match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
-        if match:
-            v = match.group(1)
-            label = "pyproject.toml"
-            if v == target_version:
-                result["match"].append(label)
-            else:
-                result["mismatch"].append(f"{label}: {v}")
-        else:
-            result["missing"].append("pyproject.toml")
-
-    # 检查 docs/product-architecture.md
-    doc_path = PKG_ROOT / "docs" / "product-architecture.md"
-    if doc_path.exists():
-        content = doc_path.read_text(encoding="utf-8")
-        match = re.search(r"版本：v(\d+\.\d+\.\d+)", content)
-        if match:
-            v = match.group(1)
-            label = "docs/product-architecture.md"
-            if v == target_version:
-                result["match"].append(label)
-            else:
-                result["mismatch"].append(f"{label}: {v}")
-        else:
-            result["missing"].append(label)
+    # 检查所有声明式目标
+    for label, file_spec, patterns in VERSION_TARGETS:
+        match, mismatch, missing = check_version(label, file_spec, patterns, target_version)
+        result["match"].extend(match)
+        result["mismatch"].extend(mismatch)
+        result["missing"].extend(missing)
 
     return result
 
@@ -322,51 +247,9 @@ def main() -> None:
     else:
         print("\n🔄 同步版本:")
 
-    # 更新 JSON 文件
-    for json_file in [".claude-plugin/plugin.json", ".claude-plugin/marketplace.json"]:
-        path = PKG_ROOT / json_file
-        if update_json_version(path, target_version):
-            print(f"   ✅ {json_file}")
-        else:
-            print(f"   ⏭️  {json_file} (已是最新)")
-
-    # 更新 SKILL.md
-    updated_skills = update_skill_versions(target_version)
-    if updated_skills:
-        for skill in updated_skills:
-            print(f"   ✅ {skill.relative_to(PKG_ROOT)}")
-    else:
-        print("   ⏭️  skills/*/SKILL.md (已是最新)")
-
-    # 更新 README.md
-    if update_readme_version(target_version):
-        print("   ✅ README.md")
-    else:
-        print("   ⏭️  README.md (已是最新)")
-
-    # 更新测试文件
-    if update_test_version(target_version):
-        print("   ✅ tests/test_skill_metadata.py")
-    else:
-        print("   ⏭️  tests/test_skill_metadata.py (已是最新)")
-
-    # 更新 methodology.md
-    if update_methodology_version(target_version):
-        print("   ✅ methodology.md")
-    else:
-        print("   ⏭️  methodology.md (已是最新)")
-
-    # 更新 pyproject.toml
-    if update_pyproject_version(target_version):
-        print("   ✅ pyproject.toml")
-    else:
-        print("   ⏭️  pyproject.toml (已是最新)")
-
-    # 更新 docs/product-architecture.md
-    if update_doc_header_version(target_version):
-        print("   ✅ docs/product-architecture.md")
-    else:
-        print("   ⏭️  docs/product-architecture.md (已是最新)")
+    summaries = update_all(target_version, dry_run=args.dry_run)
+    for s in summaries:
+        print(s)
 
     print(f"\n✅ 版本同步完成: {target_version}")
 

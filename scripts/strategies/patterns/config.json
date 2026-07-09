@@ -5,6 +5,7 @@
       "version": "1.14.1",
       "description": "基于 5 只股票回测优化的 MA10/MA21 金叉 + 放量突破组合策略",
       "author": "stock-analyzer-skill",
+      "oos_validated": false,
       "parameters": {
         "ma_short": {
           "value": 10,
@@ -51,6 +52,7 @@
       "name": "三阴一阳战法",
       "version": "1.14.1",
       "description": "基于量比、跌幅、反弹比例三维评分的优化版",
+      "oos_validated": false,
       "parameters": {
         "vol_ratio_min": {
           "value": 1.2,

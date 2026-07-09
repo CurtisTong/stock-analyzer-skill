@@ -10,7 +10,9 @@ SKILL.md ↔ scripts/ 交叉引用一致性 + description 关键词扫描。
 
 import re
 from pathlib import Path
+
 import pytest
+import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
@@ -31,19 +33,22 @@ RUNTIME_DATA_FILES = {
 
 # description 关键词白名单：skill 核心能力词
 # 校验 description 中必须包含至少 1 个核心词（防止 description 写成空话）
+# P2-26: 清理废弃 key（stock-init/financial-analyst/investment-researcher/help/technical），
+# 对齐实际 skill 目录名（research/stock-help/stock-technical/portfolio-natural/portfolio-web/learn）
 DESCRIPTION_KEYWORDS = {
     "stock": ["五层", "个股", "估值", "技术", "专家", "判断"],
     "market": ["大盘", "复盘", "指数", "板块", "风格"],
     "sector": ["板块", "行业", "标的", "轮动", "配置"],
     "portfolio": ["持仓", "组合", "盈亏", "风险", "调仓"],
     "screener": ["选股", "策略", "因子", "候选", "筛选"],
-    "technical": ["技术", "均线", "MACD", "KDJ", "BOLL", "缠论"],
+    "stock-technical": ["技术", "均线", "MACD", "KDJ", "BOLL", "缠论"],
     "monitor": ["监控", "持仓", "预警", "推送", "异动"],
-    "stock-init": ["股票池", "初始化", "板块", "拉取"],
     "backtest": ["回测", "策略", "胜率", "收益", "夏普"],
-    "financial-analyst": ["财务", "建模", "预测", "场景", "估值"],
-    "investment-researcher": ["研究", "尽调", "估值", "决策", "报告"],
-    "help": ["skill", "帮助", "功能", "使用"],
+    "research": ["研究", "财务", "估值", "报告", "分析"],
+    "stock-help": ["skill", "帮助", "功能", "使用"],
+    "learn": ["学习", "投资", "基础", "概念", "入门"],
+    "portfolio-natural": ["持仓", "自然语言", "触发", "映射"],
+    "portfolio-web": ["持仓", "Web", "录入", "查询"],
 }
 
 
@@ -53,38 +58,23 @@ DESCRIPTION_KEYWORDS = {
 
 
 def parse_frontmatter(text: str) -> dict:
-    """复用 test_skill_metadata.py 的 frontmatter 解析逻辑。"""
+    """解析 YAML frontmatter（--- 包裹段）。
+
+    P2-25: 改用 yaml.safe_load 替代手写解析，支持完整的 YAML 语法
+    （引号、嵌套、多行等）。手写解析无法正确处理引号包裹的标量值。
+    """
     if not text.startswith("---"):
         return {}
     end = text.find("---", 3)
     if end == -1:
         return {}
     fm = text[3:end].strip()
-    result = {}
-    current_key = None
-    for line in fm.splitlines():
-        if not line.strip():
-            continue
-        if line.startswith(" ") and current_key:
-            if isinstance(result.get(current_key), list):
-                result[current_key].append(line.strip())
-            else:
-                result[current_key] = line.strip()
-            continue
-        if ":" in line:
-            key, _, value = line.partition(":")
-            key = key.strip()
-            value = value.strip()
-            if value == "":
-                result[key] = []
-                current_key = key
-            elif value.startswith("[") and value.endswith("]"):
-                result[key] = [v.strip() for v in value[1:-1].split(",")]
-                current_key = None
-            else:
-                result[key] = value
-                current_key = None
-    return result
+    try:
+        result = yaml.safe_load(fm)
+    except yaml.YAMLError:
+        # 非标准 frontmatter 降级为空 dict，避免崩溃
+        return {}
+    return result if isinstance(result, dict) else {}
 
 
 def get_skill_files():
