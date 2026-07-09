@@ -16,6 +16,37 @@ def _scoring_config(key: str = None, default=None):
     return safe_get("scoring.yaml", key, default)
 
 
+# P1-15: 各子评分函数的理论上限（用于归一化到 [0,100]）。
+# 提取为模块级常量，便于发现和维护。可通过 scoring.yaml 的 score_max 覆盖。
+# 这些值必须与 _score_* 函数的实际满分（clamp 上限）保持同步。
+_SCORE_MAX_DEFAULT = {
+    "ma": 30,  # _score_ma: ma_base(20) × type_w(1.3 蓝筹) × adj(1.4 牛市) ≈ 36 → clamp 30
+    "macd": 20,  # _score_macd: clamp(macd_score, 0, 20)
+    "kdj": 15,  # _score_kdj: clamp(kdj_score, 0, 15)
+    "boll": 15,  # _score_boll: clamp 0-15
+    "rsi": 15,  # _score_rsi: clamp 0-15
+    "volume": 20,  # _score_volume: clamp 0-20
+    "pattern": 25,  # _score_patterns: 累加多种形态，上限 ~25
+    "chan": 15,  # _score_chan: clamp 0-15
+    "local": 10,  # _score_local: clamp 0-10
+    "chip": 10,  # chip 允许负分（下限 -5），归一化时特殊处理
+    "valuation": 100,  # 估值因子（PE/PB/PEG/PS），满分 100
+}
+
+
+def _get_score_max() -> dict:
+    """获取子评分上限配置（scoring.yaml 可覆盖，默认 _SCORE_MAX_DEFAULT）。"""
+    cfg = _scoring_config("score_max") or {}
+    merged = dict(_SCORE_MAX_DEFAULT)
+    for k, v in cfg.items():
+        if k in merged:
+            try:
+                merged[k] = float(v)
+            except (TypeError, ValueError):
+                pass
+    return merged
+
+
 # 个股类型 × 指标权重矩阵（YAML 默认值，行为与历史硬编码版本完全一致）
 _STOCK_TYPE_WEIGHTS_DEFAULT = {
     "题材股": {
@@ -415,22 +446,10 @@ def composite_score(
     vol_signal = vol.get("volume_price_signal", 0)
 
     # 各子评分的理论上限（用于归一化）
-    # P1-15: 这些魔数必须与对应 _score_* 函数的实际满分保持同步。
-    # 若 _score_* 的评分逻辑变更（如新增 pattern 扣分项），需同步更新此处上限，
-    # 否则归一化会饱和或欠饱和。TODO(v2.0): 改为 rank-based 归一化消除魔数依赖。
-    _SCORE_MAX = {
-        "ma": 30,
-        "macd": 20,
-        "kdj": 15,
-        "boll": 15,
-        "rsi": 15,
-        "volume": 20,
-        "pattern": 25,
-        "chan": 15,
-        "local": 10,
-        "chip": 10,  # chip 允许负分（下限 -5），归一化时特殊处理
-        "valuation": 100,  # 估值因子（PE/PB/PEG/PS），满分 100
-    }
+    # P1-15: 提取为模块级 _SCORE_MAX_DEFAULT，可通过 scoring.yaml 的 score_max 覆盖。
+    # 若 _score_* 的评分逻辑变更（如新增 pattern 扣分项），需同步更新 _SCORE_MAX_DEFAULT
+    # 或在 scoring.yaml 的 score_max 中覆盖，否则归一化会饱和或欠饱和。
+    _SCORE_MAX = _get_score_max()
 
     # 计算各子评分原始值
     raw = {

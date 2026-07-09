@@ -182,6 +182,22 @@ long_term_weights:
   stability: 0.25  # 稳定性
   valuation: 0.20   # 估值
 
+# 子评分归一化上限（P1-15: 从 scoring.py 硬编码移入 YAML，支持运行时调参）
+# 这些值必须与 _score_* 函数的实际满分保持同步。
+# 留空或省略某个 key 时使用 scoring.py 中的 _SCORE_MAX_DEFAULT 默认值。
+# score_max:
+#   ma: 30
+#   macd: 20
+#   kdj: 15
+#   boll: 15
+#   rsi: 15
+#   volume: 20
+#   pattern: 25
+#   chan: 15
+#   local: 10
+#   chip: 10
+#   valuation: 100
+
 # 校准阈值（v1.7.1 起可配置，experts/calibration.py:_get_calibration_threshold 读取）
 calibration:
   calibration_threshold_pct: 5  # 涨跌判定阈值（%），>5%=上涨，<-5%=下跌，其余横盘
