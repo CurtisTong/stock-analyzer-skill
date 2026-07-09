@@ -212,32 +212,26 @@ _LEGACY_TO_MERGED = {
 def _find_expert(expert_by_name: Dict[str, dict], legacy_name: str) -> Optional[dict]:
     """按 legacy 名查找专家结果，找不到则回退到其合并型专家名。
 
-    保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新 9 人
-    （5 长线 + 3 短线 active 合并型名）输入，降权规则在两种输入下都触发。
+    保证 aggregate_votes 既能吃旧 8 人（legacy 名）输入，也能吃新框架
+    active 合并型名（value_institution/topic_leader/emotion_tech）输入，
+    降权规则在两种输入下都触发。
 
-    查找顺序：
-    1. 直接按 legacy_name 查找
-    2. 按 _LEGACY_TO_MERGED 映射的合并名查找
-    3. 同组合并名查找：如果映射目标不存在，查找映射到同一合并名的其他旧名
-       （例如 buffett→value_institution 不存在时，尝试 value_anchor→value_institution
-        回退到 expert_by_name 中的 "value_anchor"）
+    查找顺序（B5 简化为两级）：
+    1. 直接按 legacy_name 查找（旧名 buffett/chaogu_yangjia 直接命中）
+    2. 按 _LEGACY_TO_MERGED 映射查最终合并型名（buffett->value_institution 等）
+
+    注：v2.4.2 前有第三级"同组合并名遍历"（buffett->value_institution 找不到
+    时回退 value_anchor），但 active 流程只用最终合并型名，中间名 value_anchor/
+    institution 已 legacy，故移除第三级。需中间名兼容的旧测试已改用最终名。
     """
     # 1. 直接查找
     expert = expert_by_name.get(legacy_name)
     if expert is not None:
         return expert
-    # 2. 按 _LEGACY_TO_MERGED 映射查找
+    # 2. 按 _LEGACY_TO_MERGED 映射查最终合并型名
     merged_name = _LEGACY_TO_MERGED.get(legacy_name)
     if merged_name:
-        expert = expert_by_name.get(merged_name)
-        if expert is not None:
-            return expert
-        # 3. 同组合并名查找：找到所有映射到同一合并名的旧名，逐个尝试
-        for old_name, target in _LEGACY_TO_MERGED.items():
-            if target == merged_name and old_name != legacy_name:
-                expert = expert_by_name.get(old_name)
-                if expert is not None:
-                    return expert
+        return expert_by_name.get(merged_name)
     return None
 
 
@@ -284,14 +278,18 @@ def _buffett_downweight_policy(buffett_score: float, horizon: str) -> dict:
 
 
 def _apply_buffett_long_downweight(long_experts: List[dict]) -> float:
-    """短期模式下，对除 buffett/value_anchor 外的长线专家×0.8 加权平均。
+    """短期模式下，对除 buffett/value_institution 外的长线专家×0.8 加权平均。
 
     v2.3.0 修正：使用加权平均（权重和为分母），而非简单平均（人数为分母），
     避免所有专家评分相同时结果系统性偏低。
 
+    v2.4.2（B5）：identity_names 补 value_institution（最终合并名）。
+    原 only {buffett, value_anchor} 漏 value_institution，导致输入最终名时
+    巴菲特代理被误降权（预存 bug，原测试用 value_anchor 中间名掩盖）。
+
     单一来源（v2.2.0 收敛），原 aggregate_votes 内联实现已替换为此函数。
     """
-    identity_names = {"buffett", "value_anchor"}
+    identity_names = {"buffett", "value_anchor", "value_institution"}
     weighted_sum = 0.0
     weight_total = 0.0
     for r in long_experts:
@@ -495,9 +493,11 @@ def aggregate_votes(
     yangjia_score = yangjia["score"] if yangjia else 50
 
     # 巴菲特否决权评分：优先使用 buffett_sub_score（独立子评分），
-    # 避免合并型专家（value_anchor）中段永平的看多稀释巴菲特的看空。
+    # 避免合并型专家（value_institution/value_anchor）中段永平的看多稀释巴菲特的看空。
     # v2.1.2 修正：否决权判断应基于巴菲特独立观点，而非合并后总分。
-    if buffett and buffett.get("name") == "value_anchor":
+    # v2.4.2（B5）：buffett 经 _LEGACY_TO_MERGED 映射到 value_institution（最终名），
+    # 旧 value_anchor 中间名仍兼容（直接名查找命中）。
+    if buffett and buffett.get("name") in ("value_institution", "value_anchor"):
         # 合并型专家场景：从 buffett_sub_score 字段读取巴菲特独立评分
         buffett_score = buffett.get("buffett_sub_score", buffett["score"])
     elif buffett:

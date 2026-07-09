@@ -759,9 +759,14 @@ class TestMergedExpertFallback:
     """
 
     def _active_long_with_value_anchor(self, anchor_score: float):
-        """新框架长线组：用合并型名 value_anchor 替代 buffett。"""
+        """新框架长线组：用最终合并型名 value_institution 替代 buffett。
+
+        v2.4.2（B5）：_find_expert 简化为两级查找后，buffett 经
+        _LEGACY_TO_MERGED 直接映射到 value_institution（最终名），不再
+        回退到中间名 value_anchor。故测试输入改用 value_institution。
+        """
         return [
-            _make_expert("value_anchor", anchor_score, "long_term"),
+            _make_expert("value_institution", anchor_score, "long_term"),
             _make_expert("lynch", 70, "long_term"),
             _make_expert("soros", 70, "long_term"),
             _make_expert("institution", 70, "long_term"),
@@ -784,10 +789,10 @@ class TestMergedExpertFallback:
         ], base
 
     def test_buffett_downgrade_triggers_on_merged_name(self):
-        """buffett 短期看空降权：输入 value_anchor(<=39) 时长线组应被 ×0.8 降权。"""
+        """buffett 短期看空降权：输入 value_institution(<=39) 时长线组应被 ×0.8 降权。"""
         from statistics import mean
 
-        # value_anchor 看空(20)，其余长线 70 → 触发短期巴菲特降权
+        # value_institution 看空(20)，其余长线 70 → 触发短期巴菲特降权
         experts = self._active_long_with_value_anchor(20)
         experts += [_make_expert(f"s{i}", 70, "short_term") for i in range(4)]
         agg = aggregate_votes(experts, horizon="short")
@@ -795,7 +800,7 @@ class TestMergedExpertFallback:
         # 降权后 long_avg 应低于原始均值（70,70,70,20 → 降权后更低）
         raw_long_mean = mean([70, 70, 70, 20])  # =57.5 未降权
         # v2.3.0 修正：使用加权平均（权重和为分母），而非简单平均
-        # buffett/value_anchor 自身不降(×1.0)，其余三个 70 ×0.8=56
+        # buffett/value_institution 自身不降(×1.0)，其余三个 70 ×0.8=56
         # weighted_sum = 20 + 56 + 56 + 56 = 188, weight_total = 1.0 + 0.8×3 = 3.4
         expected_after = 188 / 3.4  # ≈55.3
         assert abs(agg["long_avg"] - round(expected_after, 1)) < 0.2
@@ -822,7 +827,7 @@ class TestMergedExpertFallback:
         assert agg["short_avg"] < raw_short_mean
 
     def test_no_downgrade_when_score_neutral(self):
-        """value_anchor 中性分(50) 时不应触发降权，long_avg 等于原始均值。"""
+        """value_institution 中性分(50) 时不应触发降权，long_avg 等于原始均值。"""
         from statistics import mean
 
         experts = self._active_long_with_value_anchor(50)
