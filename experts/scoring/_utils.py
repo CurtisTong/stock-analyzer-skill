@@ -7,7 +7,7 @@
 import threading
 from typing import Dict, Optional
 
-from .. import ExpertProfile
+from ..types import ExpertProfile, DIMENSION_ALIASES as _DIM_ALIASES, normalize_dim
 
 # ═══════════════════════════════════════════════════════════════
 # 延迟导入辅助
@@ -59,24 +59,15 @@ def _get_scoring_config():
 
 
 # ═══════════════════════════════════════════════════════════════
-# 维度名别名映射（I19）
-# 不同专家可能用不同的维度名（如 momentum_trader 用"情绪/资金"而非标准"情绪"）
+# 维度名别名归一化（C1 / P1-7）
+# 规范定义在 experts/types.py 的 DIMENSION_ALIASES / normalize_dim，
+# 本模块导入复用，避免双数据源。不同专家可能用非标准维度名（如
+# momentum_trader 用"情绪/资金"、soros 用"情绪/反身性"、topic_leader 用
+# "情绪/题材"），score_from_dimensions / weighted_merge 入口归一到标准 5 维度。
 # ═══════════════════════════════════════════════════════════════
 
-_DIM_ALIASES: Dict[str, str] = {
-    "情绪/资金": "情绪",
-    "资金/情绪": "情绪",
-    "资金面": "资金",
-    "估值/质量": "估值",
-    "质量/估值": "质量",
-    "技术/趋势": "技术",
-    "趋势/技术": "技术",
-}
-
-
-def _normalize_dim_name(name: str) -> str:
-    """将维度名别名映射到标准名称。"""
-    return _DIM_ALIASES.get(name, name)
+# 向后兼容别名：_normalize_dim_name -> normalize_dim（规范名）
+_normalize_dim_name = normalize_dim
 
 
 # ═══════════════════════════════════════════════════════════════

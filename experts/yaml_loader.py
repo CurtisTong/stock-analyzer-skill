@@ -29,15 +29,50 @@ YAML_DIR = Path(__file__).resolve().parent / "yaml"
 def load_expert_from_yaml(path: Path) -> ExpertProfile:
     """从单个 YAML 文件加载 ExpertProfile。
 
+    v2.4.2：加 schema 校验--必填字段缺失/类型错误/权重加和偏差>0.5 时抛
+    ValueError（而非静默加载坏数据），避免 yaml 漂移污染 EXPERT_REGISTRY。
+
     Args:
         path: yaml 文件路径
 
     Returns:
         ExpertProfile 实例
+
+    Raises:
+        ValueError: 必填字段缺失、类型错误、或权重加和偏离 100 超过 ±0.5。
+        KeyError: yaml 顶层不是 dict 时。
     """
     if not HAS_YAML:
         raise ImportError("需要 PyYAML：pip install pyyaml")
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: yaml 顶层应为 dict，实际 {type(data).__name__}")
+
+    # 必填字段校验
+    required = ["name", "display_name", "group", "style", "horizon", "core_signal", "weights"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        raise ValueError(f"{path}: 缺少必填字段 {missing}")
+
+    # 类型校验
+    if not isinstance(data["name"], str) or not data["name"]:
+        raise ValueError(f"{path}: name 应为非空 str")
+    if data["group"] not in ("long_term", "short_term"):
+        raise ValueError(f"{path}: group 应为 'long_term' 或 'short_term'，实际 {data['group']!r}")
+    weights = data["weights"]
+    if not isinstance(weights, dict) or not weights:
+        raise ValueError(f"{path}: weights 应为非空 dict")
+    bad_weights = {k: v for k, v in weights.items() if not isinstance(v, (int, float))}
+    if bad_weights:
+        raise ValueError(f"{path}: weights 含非数值项 {bad_weights}")
+
+    # 权重加和校验（±0.5 容差，与 ExpertProfile.__post_init__ 一致）
+    total = sum(weights.values())
+    if abs(total - 100.0) > 0.5:
+        raise ValueError(
+            f"{path}: weights 加和 = {total:.1f}（期望 100±0.5），维度: {list(weights.keys())}"
+        )
+
     return ExpertProfile(
         name=data["name"],
         display_name=data["display_name"],
@@ -45,7 +80,7 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
         style=data["style"],
         horizon=data["horizon"],
         core_signal=data["core_signal"],
-        weights=dict(data["weights"]),
+        weights=dict(weights),
         veto_conditions=list(data.get("veto_conditions", [])),
         md_path=data.get("md_path", ""),
         active=data.get("active", True),

@@ -27,6 +27,7 @@ from experts.scoring import (
     zuoshou_xinyi,
 )
 from experts.scoring._merge import weighted_merge
+from experts.types import normalize_dim
 
 # ═══════════════════════════════════════════════════════════════
 # weighted_merge helper 测试
@@ -100,6 +101,38 @@ class TestWeightedMerge:
         for v in result.values():
             assert 0 <= v <= 100
 
+    def test_dimension_aliases_merged(self):
+        """C1：别名维度（如"情绪/反身性"/"情绪/题材"/"情绪/资金"）归一到标准"情绪"合并。
+
+        子专家 A 用"情绪"，子专家 B 用"情绪/反身性"--合并后应作为同一维度
+        "情绪"聚合，而非各自孤立成两个维度。
+        """
+        result = weighted_merge(
+            [
+                {"情绪": 80, "估值": 60},
+                {"情绪/反身性": 40, "估值": 70},
+            ],
+            weights=[0.5, 0.5],
+        )
+        # "情绪" 与 "情绪/反身性" 合并 -> (80+40)/2 = 60
+        assert "情绪" in result
+        assert "情绪/反身性" not in result  # 别名不应单独出现
+        assert result["情绪"] == 60.0
+        assert result["估值"] == 65.0
+
+    def test_dimension_alias_topic_leader_pattern(self):
+        """C1：topic_leader 的"情绪/题材"别名归一到"情绪"。"""
+        result = weighted_merge(
+            [
+                {"情绪/题材": 30, "技术面": 50},
+                {"情绪": 70, "技术面": 50},
+            ],
+            weights=[0.5, 0.5],
+        )
+        assert "情绪" in result
+        assert "情绪/题材" not in result
+        assert result["情绪"] == 50.0
+
 
 # ═══════════════════════════════════════════════════════════════
 # value_anchor (buffett + duan_yongping)
@@ -130,15 +163,20 @@ class TestValueAnchor:
             assert 0 <= v <= 100, f"{dim}={v} out of range"
 
     def test_matches_weighted_average(self, sample_data):
-        """合并结果 = buffett × 0.55 + duan_yongping × 0.45。"""
+        """合并结果 = buffett × 0.55 + duan_yongping × 0.45。
+
+        C1：维度名经 normalize_dim 归一化后比较（子专家可能用别名维度）。
+        """
         buffett_score = buffett.score(sample_data)
         dyh_score = duan_yongping.score(sample_data)
         va_score = value_anchor.score(sample_data)
 
         for dim in buffett_score:
-            if dim in dyh_score:
-                expected = round(buffett_score[dim] * 0.55 + dyh_score[dim] * 0.45, 1)
-                actual = va_score.get(dim, 50.0)
+            ndim = normalize_dim(dim)
+            dyh_v = dyh_score.get(dim) or dyh_score.get(ndim)
+            if dyh_v is not None:
+                expected = round(buffett_score[dim] * 0.55 + dyh_v * 0.45, 1)
+                actual = va_score.get(ndim, va_score.get(dim, 50.0))
                 assert abs(actual - expected) < 0.1, f"{dim}: {actual} != {expected}"
 
     def test_handles_empty_stock_data(self):
@@ -184,22 +222,27 @@ class TestTopicLeader:
             assert 0 <= v <= 100
 
     def test_matches_weighted_average_or_veto(self, sample_data):
-        """合并评分 = 加权平均，或否决逻辑（任一子专家 < 10 分时取最低分）。"""
+        """合并评分 = 加权平均，或否决逻辑（任一子专家 < 10 分时取最低分）。
+
+        C1：维度名经 normalize_dim 归一化后比较（xu_xiang/zhao_laoge 用
+        "情绪/题材"别名，合并后归一为"情绪"）。
+        """
         xx_score = xu_xiang.score(sample_data)
         zl_score = zhao_laoge.score(sample_data)
         tl_score = topic_leader.score(sample_data)
 
         for dim in xx_score:
-            if dim in zl_score:
+            ndim = normalize_dim(dim)
+            zl_v = zl_score.get(dim) or zl_score.get(ndim)
+            if zl_v is not None:
                 xx_v = xx_score[dim]
-                zl_v = zl_score[dim]
                 min_v = min(xx_v, zl_v)
                 if min_v < 10:
                     # 否决逻辑：取最低分
                     expected = round(max(0.0, min_v), 1)
                 else:
                     expected = round(xx_v * 0.5 + zl_v * 0.5, 1)
-                actual = tl_score.get(dim, 50.0)
+                actual = tl_score.get(ndim, tl_score.get(dim, 50.0))
                 assert abs(actual - expected) < 0.1, f"{dim}: {actual} != {expected}"
 
 
@@ -240,20 +283,24 @@ class TestEmotionTech:
             assert 0 <= v <= 100
 
     def test_matches_weighted_average_or_veto(self, sample_data):
-        """合并评分 = 加权平均，或否决逻辑（任一子专家 < 10 分时取最低分）。"""
+        """合并评分 = 加权平均，或否决逻辑（任一子专家 < 10 分时取最低分）。
+
+        C1：维度名经 normalize_dim 归一化后比较。
+        """
         cyj_score = chaogu_yangjia.score(sample_data)
         zsxy_score = zuoshou_xinyi.score(sample_data)
         et_score = emotion_tech.score(sample_data)
 
         for dim in cyj_score:
-            if dim in zsxy_score:
+            ndim = normalize_dim(dim)
+            zsxy_v = zsxy_score.get(dim) or zsxy_score.get(ndim)
+            if zsxy_v is not None:
                 cyj_v = cyj_score[dim]
-                zsxy_v = zsxy_score[dim]
                 min_v = min(cyj_v, zsxy_v)
                 if min_v < 10:
                     # 否决逻辑：取最低分
                     expected = round(max(0.0, min_v), 1)
                 else:
                     expected = round(cyj_v * 0.5 + zsxy_v * 0.5, 1)
-                actual = et_score.get(dim, 50.0)
+                actual = et_score.get(ndim, et_score.get(dim, 50.0))
                 assert abs(actual - expected) < 0.1, f"{dim}: {actual} != {expected}"

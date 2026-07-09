@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
 
+# 硬编码 profile 快照（yaml 覆盖前捕获），供 test_yaml_consistency.py 验证
+# yaml 与硬编码源不漂移。在 _ensure_loaded() 中首次填充。
+_HARDCODED_PROFILES: Dict[str, ExpertProfile] = {}
+
 # 合规隔离层：内部 ID → 显示名映射。
 # 如果未来需要"虚构化"专家名称，只需改这张表 + display_name，
 # 评分函数（_score_xu_xiang 等）和 decide.py 的 _EXPERT_PROFILES 不受影响。
@@ -274,7 +278,14 @@ def _ensure_loaded() -> None:
 
     Sprint 17 / D6 改造：模块加载时尝试从 experts/yaml/ 加载配置，
     yaml 优先（同名 expert 覆盖硬编码），无 yaml 时回退到硬编码。
+
+    v2.4.2：在 yaml 覆盖前快照硬编码 profile 到 _HARDCODED_PROFILES，
+    供 test_yaml_consistency.py 验证 yaml 与硬编码源不漂移。
     """
+    # 快照硬编码 profile（yaml 覆盖前），供一致性测试对比。
+    global _HARDCODED_PROFILES
+    if not _HARDCODED_PROFILES:
+        _HARDCODED_PROFILES = dict(EXPERT_REGISTRY)
     # D6: yaml 优先（如果可用）
     try:
         from experts.yaml_loader import load_all_experts

@@ -4,11 +4,17 @@ v2.1.0 起：value_anchor/topic_leader/emotion_tech 三个合并 profile
 通过调用对应 legacy 函数的加权平均实现，确保新视角继承原专家的
 所有阈值逻辑（而不是简化版骨架）。
 
-v2.3.0：增加 veto 逻辑——如果任一子专家某维度触发否决（score < 20），
+v2.3.0：增加 veto 逻辑--如果任一子专家某维度触发否决（score < 20），
 合并后该维度取最低分而非加权平均，避免否决条件被稀释。
+
+v2.4.2（C1）：合并前对维度名做 normalize_dim 归一化，使别名维度
+（如"情绪/反身性"、"情绪/题材"、"情绪/资金"）按同一标准维度合并，
+避免别名被当成独立维度导致权重查找失败。
 """
 
 from typing import Dict, List
+
+from experts.types import normalize_dim
 
 # 否决阈值：子专家某维度低于此分数时，视为触发否决
 _VETO_THRESHOLD = 10.0
@@ -25,12 +31,16 @@ def weighted_merge(
     合并后该维度取最低分，而非加权平均。这保留了原专家的
     否决条件（如 Buffett 的 ROE<10% 否决、FCF 连续为负否决）。
 
+    维度归一化（C1）：合并前对每个子专家的维度名做 normalize_dim，
+    使"情绪/反身性"等别名归一到标准"情绪"，避免别名维度被孤立。
+
     Args:
         expert_results: 每个 expert 的 {dim: 0-100 score}
         weights: 对应每个 expert 的权重，默认等权
+        enable_veto: 是否启用否决逻辑
 
     Returns:
-        {dim: 0-100} 加权平均后的维度分（否决维度取最低分）
+        {dim: 0-100} 加权平均后的维度分（否决维度取最低分），维度名已归一化
 
     Example:
         >>> weighted_merge(
@@ -50,16 +60,22 @@ def weighted_merge(
     total_w = sum(weights)
     weights = [w / total_w for w in weights]  # 归一化
 
-    # 收集所有维度
+    # C1: 先对每个子专家的维度名归一化，使别名维度合并到标准名
+    normalized_results = [
+        {normalize_dim(dim): score for dim, score in r.items()}
+        for r in expert_results
+    ]
+
+    # 收集所有（归一化后的）维度
     all_dims = set()
-    for r in expert_results:
+    for r in normalized_results:
         all_dims.update(r.keys())
 
     merged = {}
     for dim in all_dims:
-        scores = [r.get(dim, 50.0) for r in expert_results]
+        scores = [r.get(dim, 50.0) for r in normalized_results]
         min_score = min(scores)
-        # 否决检查：任一子专家该维度 < 阈值 → 取最低分
+        # 否决检查：任一子专家该维度 < 阈值 -> 取最低分
         if enable_veto and min_score < _VETO_THRESHOLD:
             merged[dim] = round(max(0.0, min_score), 1)
         else:
