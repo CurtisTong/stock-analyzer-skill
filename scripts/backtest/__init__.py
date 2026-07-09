@@ -18,6 +18,7 @@ from .engine import (
 )
 from .metrics import run_backtest, _fetch_benchmark_returns, _calc_win_by_position
 from .cli import compare_strategies, optimize_weights, load_test_universe, main
+from .walk_forward import run_walk_forward, WalkForwardConfig, WalkForwardResult
 
 __all__ = [
     "fetch_historical_returns",
@@ -28,6 +29,9 @@ __all__ = [
     "optimize_weights",
     "load_test_universe",
     "main",
+    "run_walk_forward",
+    "WalkForwardConfig",
+    "WalkForwardResult",
     # 内部函数（测试需要）
     "_calc_rsi",
     "_calc_daily_returns",
