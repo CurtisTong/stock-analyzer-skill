@@ -132,6 +132,25 @@ class TestDictToFinanceEdgeCases:
         # EPSJB 排在最前面，应优先使用
         assert rec.eps == 1.00
 
+    def test_goodwill_pledge_mapping(self):
+        """商誉/质押比例字段应正确映射（之前遗漏导致恒为 0）。"""
+        data = {
+            "GOODWILL": "500000000",
+            "PLEDGE_RATIO": "35.5",
+            "GOODWILL_RATIO": "12.3",
+        }
+        rec = _dict_to_finance(data)
+        assert rec.goodwill == 500000000.0
+        assert rec.pledge_ratio == 35.5
+        assert rec.goodwill_ratio == 12.3
+
+    def test_goodwill_chinese_name_mapping(self):
+        """商誉中文字段名也应映射。"""
+        data = {"商誉": "300000000", "质押比例": "20.0"}
+        rec = _dict_to_finance(data)
+        assert rec.goodwill == 300000000.0
+        assert rec.pledge_ratio == 20.0
+
 
 class TestFinanceCompletenessCheck:
     """完整性校验测试（get_finance 中的 eps/roe 全零检查）。"""

@@ -188,3 +188,54 @@ class TestPEGCagr:
         quote = {"pe": 15, "pb": 2}
         score = valuation_score(quote, fin, "默认")
         assert 0 <= score <= 100
+
+
+class TestNorthboundFlowScoring:
+    """北向资金评分测试：验证使用最近 N 日而非最旧 N 日。"""
+
+    def test_uses_recent_days_not_oldest(self):
+        """北向资金评分应取最近 5 日（flow[-5:]），而非最旧 5 日（flow[:5]）。"""
+        from strategies.factors.chip import _score_northbound_flow
+        from unittest.mock import patch
+
+        # 构造 20 天数据：前 15 天全部净买入（旧），后 5 天全部净卖出（新）
+        # 若取 flow[:5]（旧），会误判为连续净买入（加分）
+        # 若取 flow[-5:]（新），正确判断为连续净卖出（扣分）
+        flow_data = [
+            {"date": f"2025-06-{i:02d}", "net_buy": 1000}
+            for i in range(1, 16)  # 前 15 天：净买入
+        ] + [
+            {"date": f"2025-06-{i:02d}", "net_buy": -500}
+            for i in range(16, 21)  # 后 5 天：净卖出
+        ]
+
+        with patch("strategies.factors.chip.get_northbound_flow", return_value=flow_data, create=True):
+            # 由于 get_northbound_flow 是函数内 import，需要 patch data.flow
+            import data.flow
+            original = data.flow.get_northbound_flow
+            data.flow.get_northbound_flow = lambda code, days=20: flow_data
+            try:
+                score = _score_northbound_flow("sh600989")
+            finally:
+                data.flow.get_northbound_flow = original
+
+        # 最近 5 日全部净卖出 -> pos_5d=0 -> 扣分 -> score < 0
+        assert score < 0, f"应检测到近期净卖出(score<0)，实际 score={score}"
+
+    def test_all_inflow_scores_positive(self):
+        """全部净买入时评分应为正。"""
+        from strategies.factors.chip import _score_northbound_flow
+        import data.flow
+
+        flow_data = [
+            {"date": f"2025-06-{i:02d}", "net_buy": 800}
+            for i in range(1, 21)  # 20 天全部净买入
+        ]
+        original = data.flow.get_northbound_flow
+        data.flow.get_northbound_flow = lambda code, days=20: flow_data
+        try:
+            score = _score_northbound_flow("sh600989")
+        finally:
+            data.flow.get_northbound_flow = original
+
+        assert score > 0, f"全部净买入应得分>0，实际 score={score}"

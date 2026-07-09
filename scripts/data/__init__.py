@@ -332,6 +332,9 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         debt_ratio=to_float(_find(FIELD_MAP["debt_ratio"])),
         bps=to_float(_find(FIELD_MAP["bps"])),
         ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
+        goodwill=to_float(_find(FIELD_MAP["goodwill"])),
+        pledge_ratio=to_float(_find(FIELD_MAP["pledge_ratio"])),
+        goodwill_ratio=to_float(_find(FIELD_MAP["goodwill_ratio"])),
         dividend_yield=to_float(_find(FIELD_MAP["dividend_yield"])),
         consecutive_dividend_years=to_int(
             _find(FIELD_MAP["consecutive_dividend_years"])

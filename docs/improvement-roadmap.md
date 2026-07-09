@@ -830,18 +830,30 @@ print(result)
 
 ## 2026-07-08 其余模块审查：未处理项（写入 roadmap）
 
-本轮审查处理了 6 个 P0 + 3 个高影响 P1（已提交）。以下 P2/低影响项留待后续：
+### 文件 IO 原子性（B2 未覆盖的低风险点）— ✅ 已修复（第四轮）
+- ~~`scripts/strategy_performance.py:40`~~ - 已改用 `atomic_write_json`
+- ~~`scripts/snapshots.py:113` / `scripts/hot_rank.py:250`~~ - 已改用 `atomic_write_json`
+- ~~`scripts/common/metrics.py:77`~~ - 已改用 `atomic_write_json`
+- ~~`scripts/perf_bench.py:128`~~ - 已改用 `atomic_write_json`
 
-### 文件 IO 原子性（B2 未覆盖的低风险点）
-- `scripts/strategy_performance.py:40` - strategy_performance.json 非原子写
-- `scripts/snapshots.py:113` / `scripts/hot_rank.py:250` - 快照文件非原子写
-- `scripts/common/metrics.py:77` - metrics.json 非原子写（小文件，可重建）
-- `scripts/perf_bench.py:128` - perf_benchmarks.json 非原子写（低频 CLI）
-- 建议：上述均可改用已新增的 `common.atomic_write_json`，但风险较低，按需处理。
-
-### 缠论其他模块
-- 笔/线段/背驰的深入审查未覆盖（本轮仅修 P0 中枢合并）。
-- chan_beichi（背驰检测）的 MACD 区间判定可能有边界问题，待专项审查。
+### 缠论其他模块 — ✅ 已修复（第三/四轮）
+- ~~chan_beichi（背驰检测）坐标系错位~~ - 已修复：zhongshu 新增 bi_start/bi_end，
+  beichi 改用 bi_list 索引定位进入/离开笔（第四轮 P1-A）
+- ~~chan_xianduan 特征序列实现与缠论标准矛盾~~ - 已修复：按方向过滤反向笔 +
+  排除起点笔（第四轮 P1-B）
+- ~~chan/merge.py 首对K线方向默认值~~ - 已修复（第三轮 A1）
+- ~~chan/maidian.py 三买/三卖条件~~ - 已修复（第三轮 A3）
+- ~~chan/beichi.py 盘整背驰方向一致性守卫~~ - 已修复（第三轮 B2）
+- 笔/线段的深入审查仍可继续，但核心 P1 问题已解决。
 
 ### 策略层低影响项
 - 策略模式识别模块（patterns/）的其他形态检测可能有类似的死代码/参数未用问题。
+
+### Phase 3-6 架构改进 — ✅ 全部已实现
+经核实，improvement-roadmap.md 中 Phase 3-6 描述的所有改进均已落地：
+- Phase 3（数据源容错）：quote 故障切换已通过 DataFetcherManager 实现（10 个行情源），
+  announcements/finance 缓存已使用语义化缓存键
+- Phase 4（熔断器）：CircuitBreaker 三态熔断器 + RateLimitError/ParseError 异常分类 +
+  http_get 429 检测 + UA 轮换均已实现
+- Phase 5（并发优化）：parallel_map 已定义并用于 finance/quote 批量查询
+- Phase 6（策略模式重构）：BaseFetcher + DataFetcherManager + 全部 7 个数据域适配器迁移已完成

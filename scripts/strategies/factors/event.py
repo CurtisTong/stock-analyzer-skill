@@ -135,10 +135,12 @@ def event_score(code: str) -> float:
 
 
 def _days_between(date1_str: str, date2_str: str) -> int:
-    """计算两个日期字符串之间的天数。"""
+    """计算两个日期字符串之间的天数（date2 - date1）。"""
     try:
         d1 = datetime.strptime(date1_str[:10], "%Y-%m-%d")
         d2 = datetime.strptime(date2_str[:10], "%Y-%m-%d")
         return (d2 - d1).days
     except (ValueError, TypeError):
-        return 999  # 无法解析时返回大数
+        # 无法解析时返回大负数，使 _days_between(today, bad_date) >= -N 判定为
+        # 不满足（-999 < -N），从而排除日期无效的事件而非误判为"近期"
+        return -999
