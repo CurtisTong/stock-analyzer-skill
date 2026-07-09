@@ -18,7 +18,7 @@
 
 **五层分析框架** · **16 份专家人设（8 active）** · **26 个数据源故障转移** · **零依赖开箱即用**
 
-[![Version](https://img.shields.io/badge/version-1.14.3-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.15.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
@@ -749,7 +749,7 @@ MIT License © curtis
 
 ---
 
-**v1.14.3** · 2026-06-24 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.15.0** · 2026-07-09 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

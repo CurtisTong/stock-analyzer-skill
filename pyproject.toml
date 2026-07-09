@@ -1,6 +1,6 @@
 [project]
 name = "stock-analyzer-skill"
-version = "1.14.3"
+version = "1.15.0"
 description = "A-share stock analyzer Claude Code plugin"
 requires-python = ">=3.11"
 
