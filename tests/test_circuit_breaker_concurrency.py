@@ -15,7 +15,7 @@ class TestHalfOpenConcurrency:
     def test_half_open_limits_concurrent_attempts(self):
         """100 个线程同时在 OPEN→HALF_OPEN 边界，最多 half_open_max 个能通过。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=3
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=3
         )
         # 触发熔断
         cb.record_failure()
@@ -44,7 +44,7 @@ class TestHalfOpenConcurrency:
     def test_single_attempt_mode(self):
         """half_open_max=1 时只允许单次试探。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=1
         )
         cb.record_failure()
         cb.record_failure()
@@ -69,7 +69,7 @@ class TestHalfOpenConcurrency:
     def test_success_restores_closed(self):
         """半开期达到 half_open_max 次成功后恢复 CLOSED。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=1
         )
         cb.record_failure()
         cb.record_failure()
@@ -99,7 +99,7 @@ class TestHalfOpenConcurrency:
     def test_counter_blocks_after_max(self):
         """半开期试探次数达到 half_open_max 后，后续请求被拒绝。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=2
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=2
         )
         cb.record_failure()
         cb.record_failure()
@@ -114,7 +114,7 @@ class TestHalfOpenConcurrency:
     def test_concurrent_success_failure(self):
         """并发场景：half_open_max 个线程能通过试探，全部成功后电路恢复正常。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=1
         )
         cb.record_failure()
         cb.record_failure()
@@ -143,7 +143,7 @@ class TestHalfOpenConcurrency:
     def test_reset_clears_attempts(self):
         """reset() 清除试探计数器。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=1
         )
         cb.record_failure()
         cb.record_failure()
@@ -160,7 +160,7 @@ class TestHalfOpenSuccessThreshold:
     def test_threshold_default_1_compatible(self):
         """默认 threshold=1：1 次成功即恢复 CLOSED（兼容 v1.14.2 行为）。"""
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=1
         )
         cb.record_failure()
         cb.record_failure()
@@ -174,7 +174,7 @@ class TestHalfOpenSuccessThreshold:
         cb = CircuitBreaker(
             "test",
             failure_threshold=2,
-            recovery_timeout=0,
+            recovery_timeout=0.01,
             half_open_max=3,
             half_open_success_threshold=3,
         )
@@ -199,7 +199,7 @@ class TestHalfOpenSuccessThreshold:
         cb = CircuitBreaker(
             "test",
             failure_threshold=2,
-            recovery_timeout=0,
+            recovery_timeout=0.01,
             half_open_max=3,
             half_open_success_threshold=3,
         )

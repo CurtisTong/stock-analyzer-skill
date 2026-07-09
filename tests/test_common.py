@@ -52,21 +52,21 @@ class TestCircuitBreaker:
         assert cb.can_execute() is False
 
     def test_half_open_after_timeout(self):
-        cb = CircuitBreaker("test", failure_threshold=2, recovery_timeout=0)
+        cb = CircuitBreaker("test", failure_threshold=2, recovery_timeout=0.01)
         cb.record_failure()
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
-        time.sleep(0.01)
+        time.sleep(0.02)
         assert cb.can_execute() is True
         assert cb.state == CircuitState.HALF_OPEN
 
     def test_closes_after_success_in_half_open(self):
         cb = CircuitBreaker(
-            "test", failure_threshold=2, recovery_timeout=0, half_open_max=1
+            "test", failure_threshold=2, recovery_timeout=0.01, half_open_max=1
         )
         cb.record_failure()
         cb.record_failure()
-        time.sleep(0.01)
+        time.sleep(0.02)
         cb.can_execute()  # transition to HALF_OPEN
         cb.record_success()
         assert cb.state == CircuitState.CLOSED
@@ -79,9 +79,16 @@ class TestCircuitBreaker:
         assert cb.state == CircuitState.CLOSED
         assert cb.failure_count == 0
 
+    def test_recovery_timeout_minimum_1(self):
+        """P0-05: recovery_timeout=0 被钳制为 1，防止 OPEN/HALF_OPEN 高频抖动。"""
+        cb = CircuitBreaker("test", failure_threshold=2, recovery_timeout=0)
+        assert cb.recovery_timeout == 1
+        cb2 = CircuitBreaker("test2", failure_threshold=2, recovery_timeout=-5)
+        assert cb2.recovery_timeout == 1
+
     def test_thread_safety(self):
         """并发调用 1000 次无状态异常。"""
-        cb = CircuitBreaker("test", failure_threshold=10, recovery_timeout=0)
+        cb = CircuitBreaker("test", failure_threshold=10, recovery_timeout=0.01)
         errors = []
 
         def worker():

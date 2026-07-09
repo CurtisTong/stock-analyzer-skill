@@ -33,7 +33,10 @@ class CircuitBreaker:
     ):
         self.name = name
         self.failure_threshold = failure_threshold
-        self.recovery_timeout = recovery_timeout
+        # P0-05: recovery_timeout <= 0 时钳制为 1 秒，防止配置为 0 时
+        # OPEN/HALF_OPEN 高频抖动（半开期试探耗尽后无退避立即重试）。
+        # 仅钳制非正值，不影响测试中使用的小数正值（如 0.01）。
+        self.recovery_timeout = recovery_timeout if recovery_timeout > 0 else 1
         self.half_open_max = half_open_max
         self.half_open_success_threshold = half_open_success_threshold
 
