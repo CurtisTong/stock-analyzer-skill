@@ -26,12 +26,17 @@ def chan_zhongshu(xd_list):
         zd = max(x0["low"], x1["low"], x2["low"])
 
         if zd < zg:
+            # P1-12: 补充 GG/DD 边界（中枢内最高高点和最低低点）
+            gg = max(x0["high"], x1["high"], x2["high"])
+            dd = min(x0["low"], x1["low"], x2["low"])
             zs_list.append(
                 {
                     "zg": round(zg, 3),
                     "zd": round(zd, 3),
                     "mid": round((zg + zd) / 2, 3),
                     "width": round(zg - zd, 3),
+                    "gg": round(gg, 3),
+                    "dd": round(dd, 3),
                     "xd_start": i,
                     "xd_end": i + 2,
                     # bi_list 索引范围：供 beichi.py 直接定位进入/离开笔，
@@ -55,11 +60,16 @@ def chan_zhongshu(xd_list):
             # 缠论中枢合并应保持交集而非并集（并集会扩大中枢范围，违反定义）
             new_zg = min(last["zg"], zs["zg"])
             new_zd = max(last["zd"], zs["zd"])
+            # P1-12: 合并时 GG/DD 取并集（最高高点/最低低点）
+            new_gg = max(last.get("gg", last["zg"]), zs.get("gg", zs["zg"]))
+            new_dd = min(last.get("dd", last["zd"]), zs.get("dd", zs["zd"]))
             merged_zs[-1] = {
                 "zg": round(new_zg, 3),
                 "zd": round(new_zd, 3),
                 "mid": round((new_zg + new_zd) / 2, 3),
                 "width": round(new_zg - new_zd, 3),
+                "gg": round(new_gg, 3),
+                "dd": round(new_dd, 3),
                 "xd_start": last["xd_start"],
                 "xd_end": zs["xd_end"],
                 "bi_start": last["bi_start"],

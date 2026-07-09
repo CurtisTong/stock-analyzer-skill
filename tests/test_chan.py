@@ -579,6 +579,21 @@ class TestChanZhongshu:
         assert result[0]["mid"] == 10.0
         assert result[0]["width"] > 0
 
+    def test_zhongshu_has_gg_dd(self):
+        """P1-12: 中枢应包含 GG（最高高点）和 DD（最低低点）边界。"""
+        xd_list = [
+            _make_xd("up", 3, 12, 8),
+            _make_xd("down", 3, 11, 7),
+            _make_xd("up", 3, 13, 9),
+        ]
+        result = chan_zhongshu(xd_list)
+        assert result
+        assert "gg" in result[0]
+        assert "dd" in result[0]
+        # gg = max(12, 11, 13) = 13, dd = min(8, 7, 9) = 7
+        assert result[0]["gg"] == 13.0
+        assert result[0]["dd"] == 7.0
+
     def test_merge_overlapping_zhongshu(self):
         """相邻中枢有重叠时合并为扩展中枢。"""
         xd_list = [
