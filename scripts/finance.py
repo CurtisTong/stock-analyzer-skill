@@ -3,10 +3,11 @@
 财务数据查询（多数据源自动切换）。
 数据源: 东方财富 → efinance → akshare
 用法:
-  finance.py SH600989                  # 单只，最近 4 季
-  finance.py -c SH600989,SZ000807      # 批量
-  finance.py -j SH600989               # JSON 输出
-  finance.py --sources                 # 显示可用数据源
+  finance.py SH600989                       # 单只，默认最近 4 季
+  finance.py SH600989 --periods 8           # 取最近 8 期（full/debate 推荐）
+  finance.py -c SH600989,SZ000807           # 批量
+  finance.py -j SH600989                    # JSON 输出
+  finance.py --sources                      # 显示可用数据源
 """
 
 import json
@@ -16,9 +17,15 @@ from common.cli_base import handle_errors
 from data import get_finance
 
 
-def fetch(code: str, use_cache: bool = True) -> list:
-    """返回最近 4 季的财务数据（dict 列表，兼容旧接口）。"""
-    records = get_finance(code, use_cache=use_cache)
+def fetch(code: str, use_cache: bool = True, periods: int = 4) -> list:
+    """返回最近 N 期财务数据（dict 列表，兼容旧接口）。
+
+    Args:
+        code: 股票代码
+        use_cache: 是否使用磁盘缓存
+        periods: 返回期数（默认 4；full/debate 模式调用方传 8）
+    """
+    records = get_finance(code, use_cache=use_cache, periods=periods)
     return [r.to_dict() for r in records]
 
 
@@ -57,6 +64,12 @@ def main():
     parser.add_argument("-c", "--codes", help="批量代码（逗号分隔）")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--sources", action="store_true", help="显示可用数据源")
+    parser.add_argument(
+        "--periods",
+        type=int,
+        default=4,
+        help="返回期数（默认 4 季；full/debate 模式建议 8 季）",
+    )
     args = parser.parse_args()
 
     if args.sources:
@@ -73,15 +86,19 @@ def main():
     elif args.code:
         codes = [args.code]
     else:
-        err("用法: finance.py <代码> [-c codes] [-j|--json] [--sources]")
+        err("用法: finance.py <代码> [-c codes] [-j|--json] [--sources] [--periods N]")
 
     normalized_codes = [normalize_finance_code(c) for c in codes]
 
     if len(normalized_codes) > 1:
-        results = parallel_map(fetch, normalized_codes, timeout=30)
+        results = parallel_map(
+            lambda c: fetch(c, periods=args.periods), normalized_codes, timeout=30
+        )
         all_results = {k: v for k, v in results.items() if v}
     else:
-        all_results = {normalized_codes[0]: fetch(normalized_codes[0])}
+        all_results = {
+            normalized_codes[0]: fetch(normalized_codes[0], periods=args.periods)
+        }
 
     if args.json:
         print(json.dumps(all_results, ensure_ascii=False, indent=2))

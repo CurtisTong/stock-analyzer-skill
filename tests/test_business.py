@@ -307,11 +307,13 @@ class _FakeExecutor:
         self._handlers = handlers
         self.calls = []
 
-    def submit(self, fn, *args):
-        self.calls.append((fn, args))
-        key = (fn, args)
-        if key in self._handlers:
-            return self._handlers[key]
+    def submit(self, fn, *args, **kwargs):
+        # 把 kwargs 排序后追加到 args，确保调用方传 periods= 时 key 仍可匹配
+        self.calls.append((fn, args, tuple(sorted(kwargs.items()))))
+        # key 同时尝试带 kwargs 与不带 kwargs，兼容旧测试用例
+        for k in ((fn, args), (fn, args, tuple(sorted(kwargs.items())))):
+            if k in self._handlers:
+                return self._handlers[k]
         # 默认返回 None
         return _FakeFuture(value=None)
 
@@ -498,6 +500,39 @@ class TestAnalyzeDataMetadata:
         assert "K线" in result["data_failed"]
         assert "财务" in result["data_failed"]
         assert result["data_sources"] == []
+
+    def test_finance_periods_passed_to_get_finance(self):
+        """finance_periods 参数应透传至 get_finance 调用。"""
+        from business.stock_analysis import StockAnalysisService
+
+        quote = _make_quote()
+        kline = _make_kline()
+        finance = _make_finance()
+
+        svc = StockAnalysisService()
+        fake_ex = _FakeExecutor({
+            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+            # get_finance 带 periods=8 kwargs
+            (get_finance_fn, ("sh600519",), (("periods", 8),)): _FakeFuture(value=finance),
+            (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
+        })
+
+        with (
+            patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
+            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch("business.stock_analysis._analyze_chan", return_value={}),
+        ):
+            svc.analyze("sh600519", finance_periods=8)
+
+        # 确认 get_finance 被调用时带了 periods=8
+        finance_calls = [
+            call for call in fake_ex.calls if call[0] is get_finance_fn
+        ]
+        assert len(finance_calls) == 1
+        # _FakeExecutor.submit 记录 (fn, args, sorted_kwargs)
+        assert finance_calls[0][2] == (("periods", 8),)
 
 
 # 模块级引用，供 _FakeExecutor key 匹配

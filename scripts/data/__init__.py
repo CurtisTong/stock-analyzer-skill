@@ -166,14 +166,22 @@ def get_kline(
     return bars
 
 
-def get_finance(code: str, use_cache: bool = True) -> list:
-    """获取财务数据。"""
+def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
+    """获取财务数据。
+
+    Args:
+        code: 股票代码（如 SH600989）
+        use_cache: 是否使用磁盘缓存
+        periods: 返回期数（默认 4 季；full/debate 模式可传 8 季）
+    """
     _load_fetchers()
     cfg = get_config()
     from common import normalize_finance_code
 
     code = normalize_finance_code(code)  # 归一化缓存键（东财大写前缀）
-    key = cache.cache_key_for_stock("finance", code)
+    periods = max(1, int(periods))  # 防御非法输入
+    # 缓存键按 periods 区分（不同期数互不污染，cache_key_for_stock 自动 hash params）
+    key = cache.cache_key_for_stock("finance", code, periods=periods)
     zero_key = f"{key}_zero"
 
     if use_cache:
@@ -189,7 +197,7 @@ def get_finance(code: str, use_cache: bool = True) -> list:
             if zero_cached:
                 return [_dict_to_finance(r) for r in zero_cached]
 
-    result = _finance_manager.fetch(code)
+    result = _finance_manager.fetch(code, periods=periods)
     if not result:
         # P0-4: fetch 返回空也写 zero_key，避免对无数据股票的缓存穿透
         if use_cache:

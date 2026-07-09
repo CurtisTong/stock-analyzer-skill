@@ -40,13 +40,20 @@ class StockAnalysisService:
         include_technical: bool = True,
         include_finance: bool = True,
         include_chan: bool = True,
+        finance_periods: int = 4,
     ) -> Dict[str, Any]:
-        """完整分析一只股票（委托模块级 _analyze）。"""
+        """完整分析一只股票（委托模块级 _analyze）。
+
+        Args:
+            finance_periods: 财务数据期数（默认 4；full/debate 模式传 8 以覆盖累计同比 vs
+                单季度同比的口径差异，详见 2026-07-09 宝丰能源复盘）。
+        """
         return _analyze(
             code,
             include_technical=include_technical,
             include_finance=include_finance,
             include_chan=include_chan,
+            finance_periods=finance_periods,
         )
 
 
@@ -62,6 +69,7 @@ def _analyze(
     include_technical: bool = True,
     include_finance: bool = True,
     include_chan: bool = True,
+    finance_periods: int = 4,
 ) -> Dict[str, Any]:
     """完整分析一只股票。
 
@@ -70,6 +78,7 @@ def _analyze(
         include_technical: 是否包含技术分析
         include_finance: 是否包含财务分析
         include_chan: 是否包含缠论分析
+        finance_periods: 财务期数（4 = 最近四季；8 = full/debate 推荐）
 
     Returns:
         分析结果字典
@@ -93,7 +102,7 @@ def _analyze(
     ex = get_shared_executor()
     f_quote = ex.submit(get_quote, code)
     f_kline = ex.submit(get_kline, code, 240, 240)
-    f_finance = ex.submit(get_finance, code) if include_finance else None
+    f_finance = ex.submit(get_finance, code, periods=finance_periods) if include_finance else None
     # P1-17: 并行拉取上证指数行情，用于 detect_market_environment
     f_index = ex.submit(get_quote, "sh000001")
 
@@ -321,13 +330,19 @@ def analyze(
     include_technical: bool = True,
     include_finance: bool = True,
     include_chan: bool = True,
+    finance_periods: int = 4,
 ) -> Dict[str, Any]:
-    """完整分析一只股票（模块级快捷入口，等价于 StockAnalysisService().analyze()）。"""
+    """完整分析一只股票（模块级快捷入口，等价于 StockAnalysisService().analyze()）。
+
+    Args:
+        finance_periods: 财务数据期数（默认 4；full/debate 模式传 8）
+    """
     return _analyze(
         code,
         include_technical=include_technical,
         include_finance=include_finance,
         include_chan=include_chan,
+        finance_periods=finance_periods,
     )
 
 

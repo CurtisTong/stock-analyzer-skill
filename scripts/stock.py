@@ -212,6 +212,12 @@ def main():
         action="store_true",
         help="简要模式：一句话结论 + 关键数据 + 操作建议",
     )
+    parser.add_argument(
+        "--finance-periods",
+        type=int,
+        default=8,
+        help="财务数据期数（默认 8 季，full/debate 模式推荐；最少 1 季）",
+    )
     args = parser.parse_args()
 
     svc = StockAnalysisService()
@@ -220,6 +226,7 @@ def main():
         include_technical=not args.no_technical,
         include_finance=not args.no_finance,
         include_chan=not args.no_chan,
+        finance_periods=args.finance_periods,
     )
 
     # 附加回测胜率（直接函数调用，避免 subprocess 开销）

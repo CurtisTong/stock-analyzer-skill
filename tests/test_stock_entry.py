@@ -212,6 +212,7 @@ class TestStockMainE2E:
             include_technical=False,
             include_finance=False,
             include_chan=False,
+            finance_periods=8,
         )
 
     @patch("scripts.stock.StockAnalysisService")
