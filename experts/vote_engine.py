@@ -752,6 +752,11 @@ def aggregate_group_votes(
         # 多数看多 + 存在否决票
         direction = "看多"
         position_factor = 0.7
+    elif all(s <= 30 for s in scores):
+        # 全票强烈看空（decide.md §七.1：全部≤30 -> 强烈看空，清仓）
+        # 必须先于「多数看空且无看多票」分支，否则会被该分支吞掉
+        direction = "强烈看空"
+        position_factor = 0.0
     elif votes["bear"] >= majority and votes["bull"] == 0:
         # 多数看空且无看多票
         direction = "看空"
@@ -769,9 +774,6 @@ def aggregate_group_votes(
     ):
         # 接近均势分歧（如 2:1 或 3:3），且任一方均未达多数
         direction = "中性"
-        position_factor = 0.0
-    elif all(s <= 30 for s in scores):
-        direction = "强烈看空"
         position_factor = 0.0
 
     # 信心指数（单组模式 §七.3）

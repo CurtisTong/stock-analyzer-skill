@@ -636,12 +636,16 @@ class TestAggregateGroupVotes:
         agg = aggregate_group_votes(experts, group="short_term")
         assert agg["direction"] == "看空"
         assert agg["position_factor"] == 0.0
-        """全 ≤30：看空/强烈看空，factor=0.0。"""
+
+    def test_all_below_30_strong_bear(self):
+        """P0-09 回归：全 ≤30 应判"强烈看空"（decide.md §七.1：全票强烈看空）。
+
+        修复前：``all(s <= 30)`` 分支位于看空多数分支之后，为不可达死代码，
+        全 ≤30 被看空分支吞掉，方向只能得到"看空"而非"强烈看空"。
+        """
         experts = [_make_expert(f"e{i}", 25) for i in range(4)]
         agg = aggregate_group_votes(experts, group="short_term")
-        # 当前实现：votes["bear"] >= 3 分支先匹配，方向为"看空"
-        # 无论方向如何，仓位因子为 0.0
-        assert "空" in agg["direction"]
+        assert agg["direction"] == "强烈看空"
         assert agg["position_factor"] == 0.0
 
     def test_empty_experts_safe(self):
