@@ -33,10 +33,16 @@
 | `python3 scripts/events.py`               | 财报/分红/解禁事件日历   | `<code> --days 30`                  |
 | `python3 scripts/stock.py`                | 五层分析业务入口（JSON） | `<code> --with-backtest`            |
 | `python3 scripts/calibration.py`          | 专家校准数据管理         | `record/verify/report/pending`      |
+| `python3 scripts/calibration_backfill.py` | 校准数据回填与管理       | `status/verify/import`              |
+| `python3 scripts/calibration_sync.py`     | 校准数据 Gist 双向同步   | `--pull/--push/--auto/--status`     |
 | `python3 scripts/sector.py`               | 板块分析业务入口         | `<sector>`                          |
 | `python3 scripts/hot_rank.py`             | 热点榜（涨停/炸板/异动） | `top N`                             |
 | `python3 scripts/snapshots.py`            | 选股快照保存/加载        | `save/load/list`                    |
 | `python3 scripts/strategy_performance.py` | 策略表现跟踪             | `<strategy>`                        |
+| `python3 scripts/market_breadth.py`       | 市场宽度分析             | `--json`                            |
+| `python3 scripts/multi_stock_backtest.py` | 外样本多股票回测+基准对比 | `--codes/--top/--strategies`       |
+| `python3 scripts/perf_bench.py`           | 性能压测                 | `all/screener/backtest/save`        |
+| `python3 scripts/portfolio_web.py`        | 持仓录入 Web 服务（本机） | `--host/--port/--no-open`           |
 
 ## JSON 输出
 

@@ -20,6 +20,16 @@ repos:
 
   - repo: local
     hooks:
+      - id: pytest-quick
+        name: 快速核心测试（pre-commit，<5s）
+        # P1-29: pre-commit 阶段跑核心业务测试，失败即阻止提交
+        # 完整测试见 pytest-sprint-tests（manual 阶段）
+        entry: python3 -m pytest tests/test_business.py tests/test_screener.py tests/test_finance_normalize.py tests/test_market_regime.py -x -q -m "not network"
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+
       - id: pytest-sprint-tests
         name: 跑 Sprint 1-6 核心测试
         entry: python3 -m pytest tests/test_backtest.py tests/test_business.py tests/test_screener.py tests/test_turning_point.py tests/test_finance_normalize.py tests/test_market_regime.py tests/test_portfolio_constraints.py tests/test_factor_refinements.py tests/test_sprint4_optimizations.py tests/test_snapshots.py tests/test_sprint6_calibration.py -x -q

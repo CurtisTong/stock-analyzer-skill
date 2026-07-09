@@ -18,6 +18,8 @@ allowed-tools: Bash(python3 scripts/*) Bash(python3 scripts/monitor/*) Read(./sc
 
 本 skill 包含两组命令，分别对应不同脚本：
 
+> **职责边界（P1-25 去重）**：`monitor` 负责持仓面（盈亏/关键价位/风控/推送），`market` 负责市场面（指数/资金/板块/风格）。`briefing` 命令由 `alert_engine.py` 统一组装两市数据，但 `monitor` skill 本身只展开持仓面段落，市场面段落见 `../market/SKILL.md`。
+
 **健康检查**（`scripts/monitor.py`）— 数据源与缓存监控：
 
 | 操作        | 说明           | 示例                 |

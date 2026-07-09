@@ -19,7 +19,9 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - `quick`（默认）：3分钟快评，涨跌+最强最弱板块+一句话结论
 - `full`：完整复盘，指数+板块+风格+持仓影响+明日预判
 - `intraday`：分时复盘，大盘+关键标的5分钟走势分析
-- `briefing`：盘前简报，一键输出 A 股指数+隔夜美股+北向资金+持仓盈亏+关键预警（调用 `alert_engine.py briefing`）
+- `briefing`：盘前简报（市场面部分），一键输出 A 股指数+隔夜美股+北向资金，并调用 `alert_engine.py briefing` 拼接持仓盈亏+关键预警
+
+> **职责边界（P1-25 去重）**：`market` 负责市场面（指数/资金/板块/风格），`monitor` 负责持仓面（盈亏/关键价位/风控）。`briefing` 命令由 `alert_engine.py` 统一组装两市数据，但 `market` skill 本身只展开市场面段落，持仓面段落见 `../monitor/SKILL.md`。
 
 ## 共享约定
 

@@ -474,6 +474,31 @@ class TestAnalyzeDataMetadata:
         assert passed_index is not None
         assert passed_index.code == "sh000001"
 
+    def test_all_data_failure(self):
+        """P1-26: quote/kline/finance 全失败 -> data_failed 含三项，data_sources 为空。"""
+        from business.stock_analysis import StockAnalysisService
+
+        svc = StockAnalysisService()
+        fake_ex = _FakeExecutor({
+            (get_quote_fn, ("sh600519",)): _FakeFuture(exc=ConnectionError("timeout")),
+            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(exc=ConnectionError("timeout")),
+            (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
+            (get_quote_fn, ("sh000001",)): _FakeFuture(exc=ConnectionError("timeout")),
+        })
+
+        with (
+            patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "未知"}),
+            patch.object(StockAnalysisService, "_analyze_technical", return_value={}),
+            patch.object(StockAnalysisService, "_analyze_chan", return_value={}),
+        ):
+            result = svc.analyze("sh600519")
+
+        assert "行情" in result["data_failed"]
+        assert "K线" in result["data_failed"]
+        assert "财务" in result["data_failed"]
+        assert result["data_sources"] == []
+
 
 # 模块级引用，供 _FakeExecutor key 匹配
 from data import get_quote as get_quote_fn, get_kline as get_kline_fn, get_finance as get_finance_fn  # noqa: E402

@@ -152,21 +152,6 @@ stock_type_weights:
     chan: 1.0
     chip: 1.0
 
-# 默认行业阈值（DEPRECATED: v1.14.2）
-# ⚠️ 代码实际从 data/industry_thresholds.json 加载（strategies.thresholds.get_industry_threshold），
-# 此处配置未被读取，仅作为历史快照保留。修改此处不会生效，请改 data/industry_thresholds.json
-industry_defaults:
-  pe_undervalued: 15
-  pe_reasonable: 25
-  pe_expensive: 40
-  peg_undervalued: 0.8
-  peg_reasonable: 1.5
-  roe_excellent: 20
-  gross_margin_min: 20
-  debt_ratio_max: 60
-  profit_growth_excellent: 40
-  revenue_growth_excellent: 30
-
 # 专家评分参数
 experts:
   soros:

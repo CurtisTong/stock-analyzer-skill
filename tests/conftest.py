@@ -21,7 +21,8 @@ def _reload_config_loader():
         from config.loader import ConfigLoader
 
         ConfigLoader.reload()
-    except Exception:
+    except ImportError:
+        # P1-28: 仅跳过模块缺失，其他异常（AttributeError 等）应暴露
         pass
     yield
 
