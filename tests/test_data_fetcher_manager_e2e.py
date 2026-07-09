@@ -6,7 +6,7 @@ DataFetcherManager 故障转移 E2E 测试。
 2. 全部失败 → 缓存降级
 3. primary 熔断后不再被选择
 4. NOT_HANDLED 跳过不计失败
-5. RateLimitError 直接抛出
+5. RateLimitError 不计入熔断失败，换源继续尝试 (P0-04)
 """
 
 import json
@@ -285,7 +285,7 @@ class TestRateLimitError:
     """限流错误测试。"""
 
     def test_rate_limit_error_falls_through(self):
-        """RateLimitError 不再直接抛出，而是记录失败并继续尝试下一个 fetcher。"""
+        """RateLimitError 不再直接抛出，而是尝试下一个 fetcher（P0-04: 不计入熔断失败）。"""
         f1 = MockFetcher("f1", priority=10, rate_limit=True)
         f2 = MockFetcher("f2", priority=5, fail=False)
 
@@ -296,13 +296,13 @@ class TestRateLimitError:
         assert result is not None
         assert result.get("source") == "f2"
 
-        # f1 记录失败
-        assert f1.circuit_breaker.failure_count == 1
+        # P0-04: f1 限速不计入熔断失败
+        assert f1.circuit_breaker.failure_count == 0
         # f2 应被调用
         assert f2.call_count == 1
 
     def test_rate_limit_all_sources_exhausted(self):
-        """所有源都限速时返回 None。"""
+        """所有源都限速时返回 None（P0-04: 不计入熔断失败）。"""
         f1 = MockFetcher("f1", priority=10, rate_limit=True)
         f2 = MockFetcher("f2", priority=5, rate_limit=True)
 
@@ -310,8 +310,9 @@ class TestRateLimitError:
 
         result = mgr.fetch("sh600989")
         assert result is None
-        assert f1.circuit_breaker.failure_count == 1
-        assert f2.circuit_breaker.failure_count == 1
+        # P0-04: 限速不计入熔断失败
+        assert f1.circuit_breaker.failure_count == 0
+        assert f2.circuit_breaker.failure_count == 0
 
 
 class TestSourceConfig:

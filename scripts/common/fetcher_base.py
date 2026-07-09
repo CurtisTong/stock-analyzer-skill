@@ -149,6 +149,12 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         return None
     try:
         result = fetcher.fetch(*args, **kwargs)
+    except RateLimitError as e:
+        # P0-04: 429 限速不计入熔断失败（同 DataFetcher.fetch 逻辑）
+        logger.debug(
+            "fetch_with_breaker %s 限速(429): %s", fetcher.__class__.__name__, e
+        )
+        return None
     except Exception as e:
         logger.debug(
             "fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e
@@ -217,9 +223,9 @@ class DataFetcherManager:
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
             except RateLimitError as e:
-                # 429 限速：记录失败并尝试下一个源，而非直接 raise。
-                # 限速通常是针对特定 API key 的限制，其他源未必受限。
-                fetcher.on_failure()
+                # P0-04: 429 限速不计入熔断失败--限速通常是针对特定 API key
+                # 的限制，其他源未必受限。误熔断会导致可用数据源被跳过。
+                # 仅记录 last_error 并尝试下一个源。
                 self._last_error = e
                 continue
             except HTTPStatusError as e:

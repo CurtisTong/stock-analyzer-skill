@@ -98,9 +98,9 @@ class TestFetchWithBreakerGenericException:
 
 
 class TestFetchWithBreakerRateLimitError:
-    """TC-6: fetch 抛 RateLimitError 时不向上抛，返回 None 并调用 on_failure。
+    """TC-6: fetch 抛 RateLimitError 时返回 None，但不调用 on_failure（P0-04）。
 
-    RateLimitError 是 Exception 子类，被 except Exception 捕获。
+    429 限速不应计入熔断失败，避免临时限速误熔断可用数据源。
     """
 
     def test_rate_limit_error_swallowed_returns_none(self):
@@ -110,7 +110,8 @@ class TestFetchWithBreakerRateLimitError:
         result = fetch_with_breaker(f, "sh600519")
 
         assert result is None
-        f.on_failure.assert_called_once()
+        # P0-04: 限速不计入熔断失败
+        f.on_failure.assert_not_called()
         f.on_success.assert_not_called()
 
 
