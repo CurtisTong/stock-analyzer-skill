@@ -147,7 +147,7 @@
 6. ✅ **补 StockAnalysisService 单测**（P1-26）-- Round 8
 7. ✅ **补 13 skill E2E 工作流测试**（P1-27）-- Round 10: frontmatter 校验+mock 工作流
 
-### Milestone v2.0.0：架构治理（7 项）- 部分完成
+### Milestone v2.0.0：架构治理（7 项）- ✅ 全部完成
 
 1. ✅ **experts 三源合一为 YAML 单源**（P2-01）-- Round 11: registry.py 删除 490 行硬编码，YAML 单源加载
 2. ✅ **策略因子共线性分析与去相关**（P2-05）-- Round 11: VIF 诊断 + decorrelate_factors 残差化变换
