@@ -83,6 +83,8 @@ def _pledge_threshold() -> float:
 
 
 def _st_prefixes() -> list:
+    # Deprecated: ST 检测已统一使用 data.pool.is_st（子串匹配）。
+    # 保留此函数供 limits.yaml 配置兼容与现有测试，不再用于实际检测。
     return _limit("st_prefixes", ["ST", "*ST"])
 
 
@@ -357,8 +359,11 @@ class ScreeningService:
             reasons.append(f"市值<{min_survival_cap}亿(退市风险)")
 
         # ST 检测 + 财务类退市风险预警
-        upper_name = name.upper()
-        is_st = any(upper_name.startswith(p) for p in _st_prefixes())
+        # 统一使用 data.pool.is_st（子串匹配，与 pool 层一致），
+        # 避免 startswith(["ST","*ST"]) 漏判 S*ST 等变体。
+        from data.pool import is_st
+
+        is_st = is_st(name)
         if is_st:
             reasons.append("ST风险")
         else:

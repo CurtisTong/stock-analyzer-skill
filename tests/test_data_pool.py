@@ -34,6 +34,10 @@ class TestIsSt:
     def test_star_st(self):
         assert is_st("*ST 康美") is True
 
+    def test_s_star_st(self):
+        """S*ST 变体应被识别（startswith(['ST','*ST']) 会漏判，子串匹配不会）。"""
+        assert is_st("S*ST 智胜") is True
+
     def test_st_in_middle(self):
         assert is_st("某ST股") is True
 
