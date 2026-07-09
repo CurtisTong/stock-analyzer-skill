@@ -10,7 +10,8 @@
 > **2026-07-09 修复进度**：
 > - **Round 7（P0 全量）**：15 项 P0 已全部修复（10 项代码修复 + 5 项验证降级/文档对齐），2618 tests passed。
 > - **Round 8（P1 全量）**：30 项 P1 已全部修复，分 5 阶段提交（A: fetcher 加固, B: experts 投票校准, C: technical/chan, D: business, E: skills/tests/CI/config），2639 tests passed。
-> - 高风险项（P1-14/15/19）采用保守方案：标注而非改算法，避免回归风险。
+> - **Round 9（P2 全量）**：28 项真实/部分真实 P2 已全部修复，分 5 阶段提交（A: experts 清理, B: strategies 治理, C: technical/fetcher, D: business/config, E: tests/docs/release），2663 tests passed。高风险架构项（P2-01/05/10/23）采用保守标注方案，留待 v2.0.0。
+> - 高风险项（P1-14/15/19、P2-01/05/10/23）采用保守方案：标注而非改算法，避免回归风险。
 
 ---
 
@@ -81,40 +82,42 @@
 
 ---
 
-## P2：后续优化与架构债（30 项）
+## P2：后续优化与架构债（30 项）— ✅ Round 9 全量修复完成
 
-| ID | 模块 | 问题 | 建议 |
-|---|---|---|---|
-| **P2-01** | experts | registry.py + yaml + md 三源维护成本高 | 长期改为 YAML 单源，md 只保留叙事文档 |
-| **P2-02** | experts | `LEGACY_ALIAS` 与 `display_name` 双轨 | 统一从 `ExpertProfile.display_name` 读取 |
-| **P2-03** | experts | `value_institution.score` 对 `buffett_sub_score` 缺失静默回退 50 | 改为显式错误，避免巴菲特警示失效 |
-| **P2-04** | experts | `momentum_trader` 未硬排 ST / 监管处罚股 | 增加 ST / 监管风险 veto |
-| **P2-05** | strategies | 因子间共线性未治理 | 增加 VIF 矩阵、factor decorrelation 或 PCA |
-| **P2-06** | strategies | `industry_thresholds.json` 行业覆盖不足 | 扩展到 31 个申万一级行业 |
-| **P2-07** | strategies | regime overlay 会改变策略语义但报告不提示 | 报告显示"已应用市场状态 overlay"，增加 `--no-overlay` |
-| **P2-08** | strategies | chip 因子生产/回测路径不一致 | 文档披露差异或统一回测动态/静态逻辑 |
-| **P2-09** | strategies | `_STRATEGIES_LOCK` 存在但多处仍直读 `STRATEGIES` | 改 `_STRATEGIES` 私有，强制走 `get_strategy()` |
-| **P2-10** | technical | `kdj_full` 冷启动与通达信/同花顺可能有偏差 | 增加 warmup 选项或文档说明 |
-| **P2-11** | technical | `volume_analysis` 只检测最近 5 日连续缩量 | 增加 `shrink_window` 参数 |
-| **P2-12** | technical | `report.py` 渲染段落顺序硬编码 | 抽象 `RenderSection`，支持配置段落 |
-| **P2-13** | technical | `classifier.infer_industry` 关键词推断容易误判 | 增加 fetcher_industry 缺失统计与更强行业映射 |
-| **P2-14** | technical | `chan_fenxing` 等高点/等低点边界未处理 | 增加等高/等低中性分型规则 |
-| **P2-15** | fetcher | `AkshareQuoteFetcher` DataFrame 线性扫描 | `set_index("代码")` 或构建 code→row 缓存 |
-| **P2-16** | fetcher | requests/http.client 重定向行为不一致 | 统一重定向策略，最多跟随 5 次 |
-| **P2-17** | fetcher | `decode_gbk(errors="replace")` 静默替换乱码 | 替换发生时记录 warning |
-| **P2-18** | fetcher | `DataFetcherManager._last_error` 多线程不安全 | 改 thread-local 或记录 per-request error |
-| **P2-19** | fetcher | `BaseFetcher.provider` 推断依赖硬编码 provider set | provider 常量模块化，或要求子类显式传 provider |
-| **P2-20** | business | `LongTermEvaluator` 权重硬编码 | 移入 YAML 配置 |
-| **P2-21** | business | `StockAnalysisService` 基本无状态但实例化 | 可改 module-level function 或 dataclass config |
-| **P2-22** | business | `max_drawdown` recovery_idx 无法区分未恢复 | 返回 `recovered: bool` 或 `recovery_idx=None` |
-| **P2-23** | config | `ConfigLoader` mtime 缓存并发边界复杂 | 简化为锁内完整读写，或加更严格测试 |
-| **P2-24** | data | `data/cache.py` 用 `sys.modules` 替换模块对象 | 删除 shim，统一 `from common import cache` |
-| **P2-25** | tests | frontmatter parser 手写简化版 | 改 `yaml.safe_load` |
-| **P2-26** | tests | `DESCRIPTION_KEYWORDS` 含废弃 skill | 删除废弃 key，改为 description 长度/结构校验 |
-| **P2-27** | docs | 缺 ADR | 增加 `docs/adr/`：零依赖、熔断器、专家系统、回测偏差 |
-| **P2-28** | docs | 本土战法样本内拟合提示不够机器可读 | `patterns/config.json` 增加 `oos_validated:false` |
-| **P2-29** | docs | 脚本目录和实际 scripts 漂移 | 自动生成并加入 CI |
-| **P2-30** | release | `sync_version.py` 多文件正则维护成本高 | 增加版本字面量扫描与允许位置白名单 |
+> 28 项真实/部分真实项已在 Round 9 全部修复（5 阶段提交）。2 项已由 Round 7/8 提前修复（P2-08、P2-22）。
+
+| ID | 模块 | 问题 | 建议 | 状态 |
+|---|---|---|---|---|
+| **P2-01** | experts | registry.py + yaml + md 三源维护成本高 | 长期改为 YAML 单源，md 只保留叙事文档 | ✅ 标注 v2.0 TODO + 测试增强 |
+| **P2-02** | experts | `LEGACY_ALIAS` 与 `display_name` 双轨 | 统一从 `ExpertProfile.display_name` 读取 | ✅ 删除死代码 |
+| **P2-03** | experts | `value_institution.score` 对 `buffett_sub_score` 缺失静默回退 50 | 改为显式错误，避免巴菲特警示失效 | ✅ warning + 回退 35 |
+| **P2-04** | experts | `momentum_trader` 未硬排 ST / 监管处罚股 | 增加 ST / 监管风险 veto | ✅ ST 硬 veto |
+| **P2-05** | strategies | 因子间共线性未治理 | 增加 VIF 矩阵、factor decorrelation 或 PCA | ✅ 标注 v2.0 + 诊断工具 |
+| **P2-06** | strategies | `industry_thresholds.json` 行业覆盖不足 | 扩展到 31 个申万一级行业 | ✅ 扩展到 39 条目 |
+| **P2-07** | strategies | regime overlay 会改变策略语义但报告不提示 | 报告显示"已应用市场状态 overlay"，增加 `--no-overlay` | ✅ 报告标注 |
+| **P2-08** | strategies | chip 因子生产/回测路径不一致 | 文档披露差异或统一回测动态/静态逻辑 | ✅ Round 8 修复 + 注册对齐 |
+| **P2-09** | strategies | `_STRATEGIES_LOCK` 存在但多处仍直读 `STRATEGIES` | 改 `_STRATEGIES` 私有，强制走 `get_strategy()` | ✅ 迁移到 API + strategy_exists |
+| **P2-10** | technical | `kdj_full` 冷启动与通达信/同花顺可能有偏差 | 增加 warmup 选项或文档说明 | ✅ 标注 v2.0 docstring |
+| **P2-11** | technical | `volume_analysis` 只检测最近 5 日连续缩量 | 增加 `shrink_window` 参数 | ✅ 参数化 |
+| **P2-12** | technical | `report.py` 渲染段落顺序硬编码 | 抽象 `RenderSection`，支持配置段落 | ✅ 列表驱动 |
+| **P2-13** | technical | `classifier.infer_industry` 关键词推断容易误判 | 增加 fetcher_industry 缺失统计与更强行业映射 | ✅ fetcher_industry 接线 |
+| **P2-14** | technical | `chan_fenxing` 等高点/等低点边界未处理 | 增加等高/等低中性分型规则 | ✅ >=/<= + equal_eps |
+| **P2-15** | fetcher | `AkshareQuoteFetcher` DataFrame 线性扫描 | `set_index("代码")` 或构建 code->row 缓存 | ✅ set_index + loc |
+| **P2-16** | fetcher | requests/http.client 重定向行为不一致 | 统一重定向策略，最多跟随 5 次 | ✅ allow_redirects=True |
+| **P2-17** | fetcher | `decode_gbk(errors="replace")` 静默替换乱码 | 替换发生时记录 warning | ✅ U+FFFD warning |
+| **P2-18** | fetcher | `DataFetcherManager._last_error` 多线程不安全 | 改 thread-local 或记录 per-request error | ✅ threading.Lock |
+| **P2-19** | fetcher | `BaseFetcher.provider` 推断依赖硬编码 provider set | provider 常量模块化，或要求子类显式传 provider | ✅ debug 日志 + TODO |
+| **P2-20** | business | `LongTermEvaluator` 权重硬编码 | 移入 YAML 配置 | ✅ scoring.yaml 加载 |
+| **P2-21** | business | `StockAnalysisService` 基本无状态但实例化 | 可改 module-level function 或 dataclass config | ✅ 模块级 analyze() |
+| **P2-22** | business | `max_drawdown` recovery_idx 无法区分未恢复 | 返回 `recovered: bool` 或 `recovery_idx=None` | ✅ None 语义 + 测试 |
+| **P2-23** | config | `ConfigLoader` mtime 缓存并发边界复杂 | 简化为锁内完整读写，或加更严格测试 | ✅ 并发测试 + TODO |
+| **P2-24** | data | `data/cache.py` 用 `sys.modules` 替换模块对象 | 删除 shim，统一 `from common import cache` | ✅ re-export 替换 |
+| **P2-25** | tests | frontmatter parser 手写简化版 | 改 `yaml.safe_load` | ✅ yaml.safe_load |
+| **P2-26** | tests | `DESCRIPTION_KEYWORDS` 含废弃 skill | 删除废弃 key，改为 description 长度/结构校验 | ✅ 清理 + 补充 |
+| **P2-27** | docs | 缺 ADR | 增加 `docs/adr/`：零依赖、熔断器、专家系统、回测偏差 | ✅ 4 ADR + README |
+| **P2-28** | docs | 本土战法样本内拟合提示不够机器可读 | `patterns/config.json` 增加 `oos_validated:false` | ✅ oos_validated 字段 |
+| **P2-29** | docs | 脚本目录和实际 scripts 漂移 | 自动生成并加入 CI | ✅ gen_script_catalog + CI |
+| **P2-30** | release | `sync_version.py` 多文件正则维护成本高 | 增加版本字面量扫描与允许位置白名单 | ✅ 声明式 VERSION_TARGETS |
 
 ---
 
