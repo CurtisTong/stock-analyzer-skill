@@ -14,7 +14,7 @@ stock-analyzer-skill/
 ├── install.sh                      # 一键注册到 ~/.claude/skills/
 ├── package.json                    # npm 发布配置
 ├── pyproject.toml                  # Python 项目配置
-├── experts/                        # 15 份专家档案（9 active + 6 legacy）
+├── experts/                        # 16 份专家档案（8 active + 8 legacy）
 │   ├── buffett.md / lynch.md / soros.md / duan_yongping.md  # legacy
 │   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md  # legacy
 │   ├── value_anchor.md / topic_leader.md / emotion_tech.md  # 合并型 active

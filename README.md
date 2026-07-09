@@ -37,7 +37,7 @@
 - [🚀 30 秒上手](#-30-秒上手)
 - [❓ 4 个常见问题 → 4 条命令](#-4-个常见问题--4-条命令)
 - [🎬 效果一览](#-效果一览)
-- [👥 15 份专家人设（招牌功能）](#-15-份专家人设招牌功能)
+- [👥 16 份专家人设（招牌功能）](#-16-份专家人设招牌功能)
 - [🗺️ 5 个典型场景](#-5-个典型场景)
 - [📋 13 个 Skill 速查](#-13-个-skill-速查)
 - [📦 安装方式](#-安装方式)
@@ -111,17 +111,18 @@
 </td>
 <td width="33%" align="center" valign="top">
 
-### 👥 15 份专家人设
+### 👥 16 份专家人设
 
-**长线 4 人（legacy）**<br>
-巴菲特 · 林奇 · 索罗斯 · 段永平
+**长线 5 人（active）**<br>
+林奇 · 索罗斯 · 价值机构锚<br>
+行业专家 · 风控
 
-**短线 4 人（legacy）**<br>
+**短线 3 人（active）**<br>
+题材龙头 · 情绪技术复合 · 动量派
+
+**8 人（legacy，已合并入 active）**<br>
+巴菲特 · 段永平 · 价值锚 · 机构派<br>
 徐翔 · 赵老哥 · 养家 · 作手新一
-
-**扩展 7 人（active）**<br>
-价值双锚 · 题材龙头 · 情绪技术复合<br>
-行业专家 · 机构派 · 风控 · 动量派
 
 </td>
 <td width="33%" align="center" valign="top">
@@ -270,12 +271,12 @@ python3 scripts/portfolio_web.py
 </details>
 
 <details>
-<summary><b>👥 15 份专家人设圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
+<summary><b>👥 16 份专家人设圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
 
-![15 份专家人设圆桌 demo](docs/assets/stock-debate.gif)
+![16 份专家人设圆桌 demo](docs/assets/stock-debate.gif)
 
 ```text
-🎤 15 份专家人设圆桌 · 贵州茅台 (sh600519)
+🎤 16 份专家人设圆桌 · 贵州茅台 (sh600519)
 ═══════════════════════════════════════
 
 【长线阵营】
@@ -322,9 +323,9 @@ python3 scripts/portfolio_web.py
 
 ---
 
-## 👥 15 份专家人设（招牌功能）
+## 👥 16 份专家人设（招牌功能）
 
-> 🌟 **本包最独特的卖点**。15 份投资专家人设（9 active + 6 legacy）从各自框架独立打分，由 [`decide.md`](experts/decide.md) 汇总投票。legacy 6 人已合并入 active 专家，扩展 7 人补盲区。
+> 🌟 **本包最独特的卖点**。16 份投资专家人设（8 active + 8 legacy）从各自框架独立打分，由 [`decide.md`](experts/decide.md) 汇总投票。8 位 legacy 专家已合并入 active 专家视角（value_institution/topic_leader/emotion_tech），active 8 人 = 5 长 + 3 短。
 
 <table>
 <tr>
@@ -482,7 +483,7 @@ flowchart LR
 
 | 类别        | Skill                                                  | 命令                                             | 一句话价值                                   |
 | :---------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------- |
-| 🎯 **决策** | [stock](skills/stock/SKILL.md)                         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 15 份专家圆桌辩论 · 纯技术面  |
+| 🎯 **决策** | [stock](skills/stock/SKILL.md)                         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 16 份专家圆桌辩论 · 纯技术面  |
 | 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md)     | `/stock-technical <代码>`                        | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） |
 | 🌐 **环境** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
 | 🌐 **环境** | [sector](skills/sector/SKILL.md)                       | `/sector <板块> [overview\|compare\|stock]`      | 板块全景 / 标的对比 / 板块内筛选             |
@@ -607,7 +608,7 @@ scripts/
 <tr>
 <td>📈 <b>投资者</b></td>
 <td><a href="methodology.md">投资方法论</a></td>
-<td><a href="experts/README.md">15 份专家档案库（9 active + 6 legacy）</a></td>
+<td><a href="experts/README.md">16 份专家档案库（8 active + 8 legacy）</a></td>
 </tr>
 <tr>
 <td>🛠️ <b>二次开发者</b></td>
@@ -672,7 +673,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 </details>
 
 <details>
-<summary><b>Q：15 份专家投票冲突时怎么办？</b></summary>
+<summary><b>Q：16 份专家投票冲突时怎么办？</b></summary>
 
 由 [`experts/decide.md`](experts/decide.md) 定义的整合规则裁决——加权投票 + 长短线分仓建议。例如长线偏多、短线偏空，结论会是「核心仓持有、卫星仓减仓」。
 

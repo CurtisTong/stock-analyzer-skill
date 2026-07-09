@@ -110,7 +110,7 @@ python3 scripts/monitor.py --sources
 /stock sh600519 full
 ```
 
-### 9 人活跃专家圆桌辩论（15 份人设）
+### 8 人活跃专家圆桌辩论（15 份人设）
 
 ```bash
 /stock sh600519 debate

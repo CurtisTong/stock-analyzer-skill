@@ -303,7 +303,7 @@ def compute_confidence_index(
     """计算信心指数（decide.md §六.3）。
 
     Args:
-        expert_scores: 9 位 active 专家的评分列表
+        expert_scores: 8 位 active 专家的评分列表
         composite_score: 调整后综合分
         calibration_factor: 校准因子，范围 [-1, 1]，默认 0（无校准数据）
 

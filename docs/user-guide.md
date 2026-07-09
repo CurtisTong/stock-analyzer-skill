@@ -11,7 +11,7 @@
 | 🔍 找几只值得买的股票    | `/screener`                           | 6 策略 × 9 因子维度 → 候选池 + 跟踪清单  |
 | 📊 看今天大盘涨跌        | `/market quick`                       | 三大指数 + 板块 Top3 + 一句话策略        |
 | 💼 看看我的持仓          | `/portfolio`                          | 涨跌 + 板块集中度 + 风险预警 + 调仓建议  |
-| 🎯 分析一只股票          | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 15 份专家圆桌 / 纯技术面 |
+| 🎯 分析一只股票          | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 16 份专家圆桌 / 纯技术面 |
 | 🌐 某个板块怎么样        | `/sector <板块>`                      | 板块全景 + 标的对比 + 板块内筛选         |
 | 🔬 深度研究一只股票      | `/research <任务>`                    | 财务建模 + 排雷 + DCF + 投资建议         |
 | 🧪 验证选股策略          | `/backtest`                           | 胜率 + 收益 + 夏普 + 回撤 + 基准对比     |
@@ -40,7 +40,7 @@ portfolio → stock → technical
 ```
 
 1. `/portfolio health` — 持仓健康度（涨跌 + 板块集中度 + 风险）
-2. `/stock <持仓股> debate` — 听 15 份专家辩论
+2. `/stock <持仓股> debate` — 听 16 份专家辩论
 3. `/stock <持仓股> technical` — 确认技术面是否破位
 
 ### 场景 C：挖掘板块机会
@@ -59,7 +59,7 @@ market → sector → screener
 stock debate → research financial → research report
 ```
 
-1. `/stock <代码> debate` — 15 份专家圆桌 + 最终方向
+1. `/stock <代码> debate` — 16 份专家圆桌 + 最终方向
 2. `/research financial <任务>` — 财务建模 / 杜邦 / DCF
 3. `/research report <任务>` — 全维度投资研究报告
 
@@ -80,7 +80,7 @@ stock debate → research financial → research report
 
 | Skill     | 命令                                                   | 用途         | 模式                              |
 | --------- | ------------------------------------------------------ | ------------ | --------------------------------- |
-| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 15份专家圆桌²         |
+| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 16份专家圆桌²         |
 | market    | `/market [full\|quick\|intraday]`                      | 大盘复盘     | 指数+板块+风格+资金               |
 | sector    | `/sector <板块> [overview\|compare\|stock]`            | 板块分析     | 标的对比+多空博弈                 |
 | portfolio | `/portfolio [health\|rebalance\|compare]`              | 持仓健康检查 | 涨跌+支撑+风险预警                |
@@ -93,7 +93,7 @@ stock debate → research financial → research report
 > **术语说明**：
 >
 > - ¹ **五层框架**：基本面/估值/技术面/板块/风险收益比，详见 [methodology.md](methodology.md)
-> - ² **15份专家圆桌**：9 active 专家（价值双锚/题材龙头/情绪技术/行业专家/机构派/风控/动量派 + 林奇/索罗斯）+ 6 legacy（巴菲特/段永平/徐翔/赵老哥/养家/作手新一）
+> - ² **16份专家圆桌**：8 active 专家（价值机构锚/题材龙头/情绪技术/行业专家/风控/动量派 + 林奇/索罗斯）+ 8 legacy（巴菲特/段永平/徐翔/赵老哥/养家/作手新一/价值锚/机构派）
 > - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板≥3500万）、低市值（主板≥40亿、创业板≥24亿）标的
 > - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
 > - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
@@ -166,7 +166,7 @@ stock debate → research financial → research report
 ### debate 模式（专家辩论）
 
 ```text
-/stock sh600989 debate         # 全模式：15份专家圆桌（9 active + 6 legacy）
+/stock sh600989 debate         # 全模式：16份专家圆桌（8 active + 8 legacy）
 /stock sh600989 debate 长线    # 仅长线组（巴菲特/林奇/索罗斯/段永平）
 /stock sh600989 debate 短线    # 仅短线组（徐翔/赵老哥/炒股养家/作手新一）
 ```

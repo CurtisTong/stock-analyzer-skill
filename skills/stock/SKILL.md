@@ -218,7 +218,7 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
    输出中附带当前校准因子（如有历史数据）：
 
    ```
-   校准因子: +0.15 (9位 active 专家平均校准率 62%；6份 legacy 档案不参与校准)
+   校准因子: +0.15 (8位 active 专家平均校准率 62%；8份 legacy 档案不参与校准)
    ```
 
 **长线/短线单组模式流程**（参考 experts/decide.md §七）：
