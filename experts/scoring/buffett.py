@@ -50,11 +50,19 @@ def score(stock_data: dict) -> Dict[str, float]:
     trend = kline.get("trend", 0)
     tech = 60 if trend > 0 else (40 if trend == 0 else 20)
 
-    # 情绪：简单情绪
+    # 情绪：逆向--"别人恐惧我贪婪"
+    # buffett.md:78 极度恐慌->100，正常->50，亢奋->0
     market = stock_data.get("market_features") or {}
     adv = market.get("advance_ratio")
     if adv is not None:
-        sent = 70 if adv > 0.5 else (50 if adv > 0.3 else 20)
+        if adv < 0.3:
+            sent = 100  # 恐慌：别人恐惧，机会
+        elif adv < 0.5:
+            sent = 60
+        elif adv > 0.7:
+            sent = 20  # 亢奋：别人贪婪，谨慎
+        else:
+            sent = 50
     else:
         sent = 50
 
@@ -155,15 +163,17 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
         "reason": tech_reason,
     }
 
-    # ── 情绪：市场情绪 ──
+    # ── 情绪：市场情绪（逆向：别人恐惧我贪婪）──
     adv = market.get("advance_ratio")
     if adv is not None:
-        if adv > 0.5:
-            sent_reason = f"✅ 市场情绪偏多：上涨家数比例 {adv:.1%}"
-        elif adv > 0.3:
-            sent_reason = f"⚠️ 市场情绪中性：上涨家数比例 {adv:.1%}"
+        if adv < 0.3:
+            sent_reason = f"✅ 市场恐慌：上涨家数比 {adv:.1%}（别人恐惧我贪婪，机会）"
+        elif adv < 0.5:
+            sent_reason = f"⚠️ 市场偏弱：上涨家数比 {adv:.1%}"
+        elif adv > 0.7:
+            sent_reason = f"❌ 市场亢奋：上涨家数比 {adv:.1%}（别人贪婪我谨慎）"
         else:
-            sent_reason = f"❌ 市场情绪偏空：上涨家数比例 {adv:.1%}"
+            sent_reason = f"⚠️ 市场情绪中性：上涨家数比 {adv:.1%}"
     else:
         sent_reason = "⚠️ 市场情绪数据缺失，取中性值"
     reasoning.append(sent_reason)

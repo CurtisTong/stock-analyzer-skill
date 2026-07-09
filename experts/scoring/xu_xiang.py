@@ -38,10 +38,15 @@ def score(stock_data: dict) -> Dict[str, float]:
         # 从 K 线数据估算
         closes = kline_data.get("closes") or []
         if len(closes) >= 2:
+            # 涨停阈值按板块区分（xu_xiang.md §决策逻辑）：
+            # 主板 ±10%（用 0.095 容差），创业板/科创板 ±20%（用 0.195 容差）
+            code = str(quote.get("code") or stock_data.get("code") or "")
+            plain = code.lstrip("shSZ").lstrip("shsz")
+            limit_threshold = 0.195 if plain.startswith(("300", "301", "688")) else 0.095
             limit_up_30d = sum(
                 1
                 for i in range(1, len(closes))
-                if closes[i - 1] > 0 and (closes[i] / closes[i - 1] - 1) >= 0.085
+                if closes[i - 1] > 0 and (closes[i] / closes[i - 1] - 1) >= limit_threshold
             )
     if limit_up_30d >= 2:
         tech = 100

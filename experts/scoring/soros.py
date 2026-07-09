@@ -3,14 +3,18 @@
 
 维度：基本面(15%) + 估值(10%) + 技术面(25%) + 情绪/反身性(30%) + 风险(20%)
 精确复现 experts/soros.md §九 评分矩阵中的阈值规则。
+
+# 已知近似：估值维度 persona 定义为"PE 历史分位"（<中位数->80，>80%分位->0），
+# 代码用绝对 PE（<25->80，>60->0）近似，因 pe_percentile 字段在多数行情源不可得。
+# 25-60 区间映射中性 50，分辨率较低。
 """
 
 from typing import Dict
 
 from ._utils import _safe_float, _get_scoring_config
 
-# 索罗斯流动性阈值默认值（向后兼容）
-_SOROS_LIQUIDITY_FLOOR_DEFAULT = 5000
+# 索罗斯流动性阈值默认值（向后兼容；对齐 soros.md §九 的 7000 亿）
+_SOROS_LIQUIDITY_FLOOR_DEFAULT = 7000
 
 
 def score(stock_data: dict) -> Dict[str, float]:

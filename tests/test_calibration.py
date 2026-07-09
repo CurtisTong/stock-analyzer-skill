@@ -114,18 +114,31 @@ class TestVerifyPredictions:
         )
         _save(data)
 
-    def test_verifies_expired_predictions(self):
+    def test_skips_expired_without_price_fn(self):
+        """v2.4.3：无 get_price_fn 时跳过而非标记 verified（防重验证锁死）。"""
         self._create_expired_prediction()
         result = verify_predictions()
-        assert result["verified"] == 1
+        assert result["verified"] == 0
+        assert result["skipped"] == 1
 
-    def test_marks_as_verified(self):
-        self._create_expired_prediction()
-        verify_predictions()
+    def test_marks_as_verified_with_price_fn(self):
+        """有 get_price_fn 时正常标记 verified。"""
+        self._create_expired_prediction("看多")
+
+        def mock_price_fn(stock, start, end):
+            return 8.0  # 上涨
+
+        verify_predictions(get_price_fn=mock_price_fn)
         from experts.calibration import _load
 
         data = _load()
         assert data["predictions"][0]["verified"] is True
+
+    def test_mark_only_marks_verified(self):
+        """mark_only=True 时标记 verified（无网络环境，不更新校准数据）。"""
+        self._create_expired_prediction()
+        result = verify_predictions(mark_only=True)
+        assert result["verified"] == 1
 
     def test_does_not_verify_future(self):
         record_prediction("sh600989", {"buffett": 70}, "看多", verify_days=30)

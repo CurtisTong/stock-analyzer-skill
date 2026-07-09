@@ -188,15 +188,22 @@ class TestInstitution:
         )
         assert result["安全边际"] >= 80
 
-    def test_tech_sentiment_neutral(self):
-        """机构不在乎短期波动，技术/情绪维度始终中性。"""
-        for stock_data in [
-            {"quote": {"pe": 50}, "finance": {"ROEJQ": 20}},  # 强势
-            {"quote": {"pe": 5}, "finance": {"ROEJQ": 5}},  # 弱势
-        ]:
-            result = institution.score(stock_data)
-            assert result["技术面"] == 50
-            assert result["情绪"] == 50
+    def test_tech_sentiment_data_driven(self):
+        """技术面随趋势、情绪随机构持仓环比变化（不再恒中性）。"""
+        # 缺数据：回退中性
+        result = institution.score({"quote": {"pe": 50}, "finance": {"ROEJQ": 20}})
+        assert result["技术面"] == 30  # 横盘
+        assert result["情绪"] == 50  # 缺机构持仓环比
+        # 上升趋势 -> 技术面 60
+        result = institution.score(
+            {"quote": {"pe": 50}, "finance": {"ROEJQ": 20}, "kline_features": {"trend": 1}}
+        )
+        assert result["技术面"] == 60
+        # 机构加仓 -> 情绪 100
+        result = institution.score(
+            {"quote": {"pe": 50, "inst_holding_change": 6}, "finance": {"ROEJQ": 20}}
+        )
+        assert result["情绪"] == 100
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -275,8 +282,8 @@ class TestRiskManager:
         )
         assert result["情绪"] <= 40
 
-    def test_extreme_fear_warning(self):
-        """情绪 <20 = 极端恐慌警示。"""
+    def test_extreme_fear_opportunity(self):
+        """情绪 <20 = 极端恐慌 = 逆向机会（高分，非警示）。"""
         result = risk_manager.score(
             {
                 "quote": {},
@@ -289,7 +296,7 @@ class TestRiskManager:
                 },
             }
         )
-        assert result["情绪"] <= 40
+        assert result["情绪"] >= 90  # 恐慌=机会（Howard Marks 逆向）
 
     def test_neutral_market(self):
         """中性市场情绪 = 中等分。"""

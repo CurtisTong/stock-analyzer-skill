@@ -250,19 +250,19 @@ def _score_sentiment(market_features: dict) -> float:
             score += 15
         elif advance_ratio > 0.4:
             score += 5
+        elif advance_ratio < 0.2:  # 更严格阈值须先判，否则被 <0.3 吞没
+            score -= 25
         elif advance_ratio < 0.3:
             score -= 15
-        elif advance_ratio < 0.2:
-            score -= 25
 
     nh_nl_ratio = market_features.get("nh_nl_ratio", None)
     if nh_nl_ratio is not None:
         if nh_nl_ratio > 1.5:
             score += 10
+        elif nh_nl_ratio < 0.2:  # 更严格阈值须先判
+            score -= 20
         elif nh_nl_ratio < 0.5:
             score -= 10
-        elif nh_nl_ratio < 0.2:
-            score -= 20
 
     limit_up_count = market_features.get("limit_up_count", 0)
     if limit_up_count > 80:

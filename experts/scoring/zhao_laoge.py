@@ -3,6 +3,10 @@
 
 维度：基本面(10%) + 估值(12%) + 技术面(31%) + 情绪/题材(35%) + 风险(12%)
 精确复现 experts/zhao_laoge.md §九 评分矩阵中的阈值规则。
+
+# 已知近似：风险维度 persona 定义为"龙头地位"（稳固->100，被替代->0，跌破20日线->否决），
+# 代码用"回撤至 MA20 深度"近似（>=0->80，>=-8->30，else 10），因龙头地位需板块横截面
+# 排名数据（同题材涨幅排名），当前数据源不提供。回撤深度与龙头强度弱相关。
 """
 
 import statistics
@@ -16,9 +20,24 @@ def score(stock_data: dict) -> Dict[str, float]:
     quote = stock_data.get("quote") or {}
     kline = stock_data.get("kline_features") or {}
     kline_data = stock_data.get("kline_data") or {}
+    market = stock_data.get("market_features") or {}
 
-    # 基本面：题材容量（简化）
-    base = 50
+    # 基本面：题材容量/政策支持度（zhao_laoge.md §九：国家战略级->100，产业级->60，无题材->0）
+    # 优先读 market_features.topic_tier（0=无/1=产业级/2=国家战略级）；
+    # 次选涨停基因（近30日涨停次数）作题材强度代理；缺数据回退中性 50。
+    topic_tier = market.get("topic_tier")
+    limit_up_30d = _safe_float(market.get("limit_up_30d") or quote.get("limit_up_30d"))
+    if topic_tier is not None:
+        if topic_tier >= 2:
+            base = 100
+        elif topic_tier >= 1:
+            base = 60
+        else:
+            base = 0
+    elif limit_up_30d > 0:
+        base = 60  # 有涨停基因，视为有题材
+    else:
+        base = 50  # 缺题材数据，回退中性
 
     # 估值：流通市值
     circ_cap = _safe_float(quote.get("circulating_cap"))

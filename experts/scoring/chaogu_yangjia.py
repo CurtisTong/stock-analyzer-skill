@@ -15,8 +15,18 @@ def score(stock_data: dict) -> Dict[str, float]:
     quote = stock_data.get("quote") or {}
     market = stock_data.get("market_features") or {}
 
-    # 基本面：仅题材
-    base = 50
+    # 基本面：题材新鲜度（chaogu_yangjia.md §九：新题材+政策亮点->60，老题材重炒->30，无题材->0）
+    # 读 market_features.topic_freshness（0=无/1=老题材/2=新题材+政策）；缺数据回退中性 50。
+    topic_freshness = market.get("topic_freshness")
+    if topic_freshness is not None:
+        if topic_freshness >= 2:
+            base = 60
+        elif topic_freshness >= 1:
+            base = 30
+        else:
+            base = 0
+    else:
+        base = 50  # 缺题材数据，回退中性
 
     # 估值：流通市值
     circ_cap = _safe_float(quote.get("circulating_cap"))

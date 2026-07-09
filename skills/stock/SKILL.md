@@ -208,17 +208,36 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 4. **输出**：按 decide.md §四 格式——评分表 + 方向 + 风险 + 仓位。记得计算信心指数。
 
-5. **记录校准数据**：debate 完成后，记录本次预测供后续验证（**需要 1.6.0+**，`scripts/calibration.py` 由 1.6.0 引入；旧版本可跳过此步，不影响主流程）：
+5. **记录校准数据**：debate 完成后，记录本次预测供后续验证（**需要 1.6.0+**，`scripts/calibration.py` 由 1.6.0 引入；旧版本可跳过此步，不影响主流程）。
+
+   v2.4.3 起推荐使用 `run_debate` 编排器（自动回灌校准因子 + 落库预测）：
+
+   ```python
+   from experts.decide import run_debate
+   result = run_debate(stock_code, expert_results, market_state, horizon)
+   # result["_pred_id"] 为预测记录 ID，result["_calibration_factor"] 为使用的校准因子
+   ```
+
+   或手动记录（使用 active 专家名，legacy 名会自动归一化）：
 
    ```bash
    python3 scripts/calibration.py record --stock <代码> --direction <方向> \
-     --scores '{"buffett":72,"lynch":65,...}'
+     --composite <综合分> \
+     --scores '{"value_institution":72,"lynch":65,"soros":55,"sector_specialist":68,"risk_manager":60,"topic_leader":45,"emotion_tech":40,"momentum_trader":55}'
    ```
 
    输出中附带当前校准因子（如有历史数据）：
 
    ```
    校准因子: +0.15 (8位 active 专家平均校准率 62%；8份 legacy 档案不参与校准)
+   ```
+
+   定期验证到期预测以累积真实准确率（v2.4.3 起默认使用真实价格回调）：
+
+   ```bash
+   python3 scripts/calibration.py verify --days 30      # 验证并获取实际收益率
+   python3 scripts/calibration.py factor                # 查看全局+分组校准因子
+   python3 scripts/calibration_backfill.py status       # 查看预测状态与专家准确率
    ```
 
 **长线/短线单组模式流程**（参考 experts/decide.md §七）：

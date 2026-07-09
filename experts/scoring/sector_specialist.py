@@ -111,7 +111,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     sector_tech = _score_technical(kline_features)
 
     # ── 情绪：行业情绪 ──
-    sector_sentiment = min(100, max(0, _score_sentiment(market_features) * 0.6))
+    sector_sentiment = max(0.0, min(100.0, _score_sentiment(market_features)))
 
     # ── 风险：竞争格局（金融行业不惩罚高负债）──
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"), 50)

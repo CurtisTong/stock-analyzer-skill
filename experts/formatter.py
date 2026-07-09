@@ -86,7 +86,11 @@ def format_debate_output(result: dict) -> str:
 
     # 校准胜率卡片
     try:
-        from experts.calibration import get_calibration
+        from experts.calibration import (
+            get_calibration,
+            compute_calibration_factor,
+            compute_group_calibration,
+        )
 
         calibration = get_calibration()
         has_data = any(v.get("events", 0) > 0 for v in calibration.values())
@@ -101,6 +105,20 @@ def format_debate_output(result: dict) -> str:
                 correct = rec.get("correct", 0)
                 rate = f"{correct/events:.0%}" if events > 0 else "样本不足"
                 lines.append(f"| {name} | {events} | {correct} | {rate} |")
+
+            # v2.4.3：校准因子（全局 + 分组）
+            global_factor = compute_calibration_factor()
+            long_cal = compute_group_calibration("long_term")
+            short_cal = compute_group_calibration("short_term")
+            lines.append("")
+            lines.append(
+                f"**校准因子**: 全局 {global_factor:+.3f} | "
+                f"长线 {long_cal:+.3f} | 短线 {short_cal:+.3f}"
+            )
+            if short_cal < 0:
+                lines.append(
+                    f"  ⚠ 短线组校准为负（历史准确率低），信心扣 {short_cal * 10:+.1f} 分"
+                )
     except Exception as e:
         logger.debug("校准数据不可用，跳过胜率卡片: %s", e)
 

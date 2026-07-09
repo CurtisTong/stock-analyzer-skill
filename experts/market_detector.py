@@ -68,7 +68,10 @@ def detect_market_state(
             "reason": str,
         }
     """
-    state = "震荡"
+    # 第六轮审查（v2.4.3）：缺数据时默认"防御型"而非"震荡"。
+    # fail-safe 原则：宁可防御市误判压短线，不可防御市放任短线。短线专家在防御市
+    # 历史准确率仅 20%，无数据时按最保守假设处理。
+    state = "防御型"
 
     if index_quote and kline_data:
         price = index_quote.get("price", 0)

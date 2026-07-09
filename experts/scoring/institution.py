@@ -71,9 +71,30 @@ def score(stock_data: dict) -> Dict[str, float]:
         # 亏损股机构一般不投
         institution_valuation = 25
 
-    # ── 技术/情绪：机构不在乎短期波动，给予中性 ──
-    institution_tech = 50  # 中性
-    institution_sentiment = 50  # 中性
+    # ── 技术面：趋势方向（institution.md §九：上升->60，下降->0）──
+    kline_features = stock_data.get("kline_features") or {}
+    trend = kline_features.get("trend", 0)
+    if trend > 0:
+        institution_tech = 60
+    elif trend < 0:
+        institution_tech = 0
+    else:
+        institution_tech = 30  # 横盘
+
+    # ── 情绪：机构持仓环比（institution.md §九：+5%->100，-5%->0）──
+    # 读 quote.inst_holding_change（机构持仓环比%）；缺数据回退中性 50。
+    inst_chg = _safe_float(quote.get("inst_holding_change"))
+    if inst_chg != 0.0 and quote.get("inst_holding_change") is not None:
+        if inst_chg >= 5:
+            institution_sentiment = 100
+        elif inst_chg >= 0:
+            institution_sentiment = 70
+        elif inst_chg <= -5:
+            institution_sentiment = 0
+        else:
+            institution_sentiment = 30
+    else:
+        institution_sentiment = 50  # 缺数据，回退中性
 
     # ── 安全边际：FCF/股 + 低负债 ──
     fcf_per_share = _safe_float(fin.get("MGJYXJJE") or fin.get("ocf_per_share"))

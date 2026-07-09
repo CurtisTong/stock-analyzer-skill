@@ -13,6 +13,45 @@ from experts.scoring import _consistency_from_scores
 _BULL_THRESHOLD = 60  # 评分>=60 计为看多
 _BEAR_THRESHOLD = 39  # 评分<=39 计为看空
 
+# 第六轮审查（v2.4.3）：防御市/熊市短线降权配置
+# 短线专家在防御市历史准确率仅 20%，需定向压分（绕过权重钳制 [0.3,0.7]）
+_DEFENSIVE_STATES = {"防御型", "熊市"}
+_DEFENSIVE_SCORE_FACTOR_DEFAULT = 0.7
+
+
+def _get_short_defensive_factor(
+    market_state: Optional[dict], is_ice: bool
+) -> float:
+    """防御市/熊市短线组分数乘子。
+
+    Args:
+        market_state: detect_market_state 返回的 dict（含 state）
+        is_ice: 是否冰点期（冰点豁免降权）
+
+    Returns:
+        乘子（1.0 = 不降权，0.7 = 默认防御市降权）
+    """
+    if not market_state or is_ice:
+        return 1.0
+    state = market_state.get("state", "")
+    try:
+        from config import get_scoring_config
+
+        bearish_states = get_scoring_config(
+            "experts.short_term.bearish_states", list(_DEFENSIVE_STATES)
+        )
+        if state not in set(bearish_states):
+            return 1.0
+        factor = get_scoring_config(
+            "experts.short_term.defensive_score_factor",
+            _DEFENSIVE_SCORE_FACTOR_DEFAULT,
+        )
+        return float(factor)
+    except Exception:
+        if state not in _DEFENSIVE_STATES:
+            return 1.0
+        return _DEFENSIVE_SCORE_FACTOR_DEFAULT
+
 
 def _majority(n: int) -> int:
     """67% 多数阈值：ceil(n * 2/3)。
@@ -511,12 +550,15 @@ def aggregate_votes(
 
     # 提取养家情绪得分，判断是否冰点期
     emotion_score = _get_yangjia_emotion_score(yangjia)
-    # 冰点判定语义：
-    #   emotion_score >= 80 对应养家评分矩阵中"冰点转折+题材发酵→100分"或"主升初期→80分"，
-    #   即养家看到了情绪层面的机会（chaogu_yangjia.md §九）；
+    # 冰点判定语义（v2.4.3 第六轮审查修正）：
+    #   原 >=80 混淆了"冰点转折->100"与"主升初期->80"两种相反状态（chaogu_yangjia.md §九）。
+    #   主升初期是亢奋行情，不应豁免降权。现改为 >=100，精确匹配养家冰点桶。
     #   yangjia_score < 30 表示综合分被基本面/估值/风险维度拖累到强烈看空；
     #   两者并存 = "情绪看到冰点机会但其他维度不支持"，需保留机会但不降权（冰点=机会）。
-    is_yangjia_ice = emotion_score >= 80 and yangjia_score < 30
+    is_yangjia_ice = emotion_score >= 100 and yangjia_score < 30
+
+    # 预备注列表：聚合前的降权说明（在 _resolve_conflict 之前产生）
+    pre_notes = []
 
     # 养家情绪退潮降权（非冰点时）：降权规则自身不降，其余短线 ×0.7
     # identity_name 认旧名（chaogu_yangjia）与新合并型名（emotion_tech）
@@ -539,6 +581,20 @@ def aggregate_votes(
     buffett_policy = _buffett_downweight_policy(buffett_score, horizon)
     if buffett_policy["triggered"] and buffett_policy["mode"] == "weight":
         long_avg = _apply_buffett_long_downweight(long_experts)
+
+    # 第六轮审查（v2.4.3）：防御市/熊市短线组分数乘子。
+    # 短线专家在防御市历史准确率仅 20%，权重钳制 [0.3,0.7] 不足以压制。
+    # 此处对短线组分数施加配置驱动乘子（默认 0.7），定向惩罚短线组，绕过权重钳制。
+    # 冰点期不施加（冰点是机会起爆点，短线可能有效）。
+    short_defensive_factor = _get_short_defensive_factor(market_state, is_yangjia_ice)
+    if short_defensive_factor < 1.0 and short_scores:
+        short_scores = [s * short_defensive_factor for s in short_scores]
+        short_avg = statistics.mean(short_scores)
+        short_votes = _count_votes(short_scores)
+        pre_notes.append(
+            f"防御市短线降权：短线组分数 ×{short_defensive_factor:.1f}"
+            f"（{mkt} 市场短线历史准确率低）"
+        )
 
     # 综合分
     # I16: 综合分用校准率加权--校准率越高（历史预测越准）的组权重越大
@@ -569,7 +625,7 @@ def aggregate_votes(
     )
     direction = conflict["direction"]
     position_factor = conflict["position_factor"]
-    notes = veto_notes + list(conflict["notes"])
+    notes = pre_notes + veto_notes + list(conflict["notes"])
 
     # 估值硬约束（反追涨杀跌）：长线组估值维度评分过低 → 高估警示，短期也降权
     long_valuation_scores = []
@@ -596,6 +652,25 @@ def aggregate_votes(
     # 信心指数
     all_scores = long_scores + short_scores
     confidence = compute_confidence_index(all_scores, composite, calibration_factor)
+
+    # 第六轮审查（v2.4.3）：分组校准定向惩罚。
+    # 短线组历史准确率低（如 20%）时，其校准因子为强负值，直接压低信心指数。
+    # 这是对全局 calibration_factor 的补充--全局因子被长线高准确率稀释，
+    # 分组因子能定向反映"这一组专家不可信"。
+    try:
+        from experts.calibration import compute_group_calibration
+
+        short_cal = compute_group_calibration("short_term")
+        if short_cal < 0:
+            # 短线组校准为负 -> 信心扣分（最多 -10 分，对应 short_cal ∈ [-1, 0)）
+            penalty = short_cal * 10  # short_cal=-1 -> -10
+            confidence = max(0, confidence + penalty)
+            if penalty < -2:
+                notes.append(
+                    f"短线组校准惩罚：信心 {penalty:+.0f}（短线组历史准确率低）"
+                )
+    except Exception:
+        pass  # 校准模块不可用时静默跳过，不影响主流程
 
     # 巴菲特否决警示效果：降低信心指数而非改变方向
     # v2.4.0：原否决权改为警示，保留信号但不推翻投票共识

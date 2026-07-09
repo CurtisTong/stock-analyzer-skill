@@ -570,3 +570,187 @@ class TestConfidenceIndex:
         """空评分列表应返回中性信心。"""
         ci = compute_confidence_index([], 50.0, 0.0)
         assert 40 <= ci <= 60
+
+
+# ═══════════════════════════════════════════════════════════════
+# 第六轮审查修复：情绪反转 / 死分支 / 伪多样性 / 情绪封顶
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestBuffettSentimentInversion:
+    """巴菲特情绪维度应是逆向的（别人恐惧我贪婪）。"""
+
+    def test_panic_scores_high(self):
+        """市场恐慌（advance_ratio<0.3）应得高分 100，而非低分。"""
+        from experts.scoring.buffett import score
+
+        result = score({"market_features": {"advance_ratio": 0.15}})
+        assert result["情绪"] == 100
+
+    def test_euphoria_scores_low(self):
+        """市场亢奋（advance_ratio>0.7）应得低分 20。"""
+        from experts.scoring.buffett import score
+
+        result = score({"market_features": {"advance_ratio": 0.85}})
+        assert result["情绪"] == 20
+
+    def test_neutral_scores_mid(self):
+        """正常市场（advance_ratio 0.5-0.7）应得中性分 50。"""
+        from experts.scoring.buffett import score
+
+        result = score({"market_features": {"advance_ratio": 0.55}})
+        assert result["情绪"] == 50
+
+    def test_missing_data_neutral(self):
+        """缺数据回退中性 50。"""
+        from experts.scoring.buffett import score
+
+        result = score({})
+        assert result["情绪"] == 50
+
+
+class TestRiskManagerSentimentInversion:
+    """风险管理情绪维度应是逆向的（恐慌=机会，亢奋=风险）。"""
+
+    def test_extreme_panic_opportunity(self):
+        """极度恐慌应得 100（Howard Marks 逆向机会）。"""
+        from experts.scoring.risk_manager import score
+
+        result = score(
+            {
+                "market_features": {
+                    "limit_up_count": 5,
+                    "limit_down_count": 80,
+                    "advance_ratio": 0.15,
+                    "nh_nl_ratio": 0.1,
+                }
+            }
+        )
+        assert result["情绪"] == 100
+
+    def test_extreme_greed_risk(self):
+        """极度亢奋应得 0（最大风险）。"""
+        from experts.scoring.risk_manager import score
+
+        result = score(
+            {
+                "market_features": {
+                    "limit_up_count": 100,
+                    "limit_down_count": 5,
+                    "advance_ratio": 0.85,
+                    "nh_nl_ratio": 2.0,
+                }
+            }
+        )
+        assert result["情绪"] == 0
+
+    def test_neutral_mid(self):
+        """正常市场应得 50。"""
+        from experts.scoring.risk_manager import score
+
+        result = score(
+            {
+                "market_features": {
+                    "limit_up_count": 40,
+                    "limit_down_count": 30,
+                    "advance_ratio": 0.5,
+                    "nh_nl_ratio": 1.0,
+                }
+            }
+        )
+        assert result["情绪"] == 50
+
+
+class TestSentimentDeadBranch:
+    """_score_sentiment 的 <0.2 死分支修复后应触发更重扣分。"""
+
+    def test_advance_ratio_below_02_more_penalty(self):
+        """advance_ratio<0.2 应扣 25（比 <0.3 的 -15 更重）。"""
+        from experts.scoring._utils import _score_sentiment
+
+        # <0.2 触发 -25；<0.3 触发 -15。两者应不同。
+        score_extreme = _score_sentiment({"advance_ratio": 0.15})
+        score_mild = _score_sentiment({"advance_ratio": 0.25})
+        assert score_extreme < score_mild
+
+    def test_nhnl_below_02_more_penalty(self):
+        """nh_nl_ratio<0.2 应扣 20（比 <0.5 的 -10 更重）。"""
+        from experts.scoring._utils import _score_sentiment
+
+        score_extreme = _score_sentiment({"nh_nl_ratio": 0.1})
+        score_mild = _score_sentiment({"nh_nl_ratio": 0.4})
+        assert score_extreme < score_mild
+
+
+class TestSectorSpecialistSentimentCeiling:
+    """行业专家情绪维度不应被 0.6 系数封顶在 60。"""
+
+    def test_sentiment_can_reach_100(self):
+        """极端乐观市场情绪应能接近 100，而非被压到 60。"""
+        from experts.scoring.sector_specialist import score
+
+        result = score(
+            {
+                "quote": {"pe": 20, "code": "sh600989"},
+                "finance": {"ROEJQ": 20},
+                "market_features": {
+                    "limit_up_count": 100,
+                    "limit_down_count": 5,
+                    "advance_ratio": 0.85,
+                    "nh_nl_ratio": 2.0,
+                },
+            }
+        )
+        assert result["情绪"] > 60  # 修复前最高 60
+
+
+class TestLynchInsiderSelling:
+    """林奇情绪：内部人净卖出应判看空（30），非中性。"""
+
+    def test_insider_net_selling_bearish(self):
+        from experts.scoring.lynch import score
+
+        result = score({"market_features": {"insider_net_buy": -50000000}})
+        assert result["情绪"] == 30
+
+    def test_insider_net_buying_bullish(self):
+        from experts.scoring.lynch import score
+
+        result = score({"market_features": {"insider_net_buy": 200000000}})
+        assert result["情绪"] == 100
+
+
+class TestXuXiangLimitUpBoardThreshold:
+    """徐翔涨停阈值应按板块区分（主板 9.5%，创业板/科创板 19.5%）。"""
+
+    def test_main_board_threshold(self):
+        """主板 9.5% 涨幅应计入涨停基因（旧阈值 8.5% 会多计）。"""
+        from experts.scoring.xu_xiang import score
+
+        # 9.0% 涨幅：旧阈值 8.5% 计为涨停，新阈值 9.5% 不计
+        closes = [10.0, 10.90]  # +9.0%
+        result = score(
+            {"quote": {"code": "sh600989"}, "kline_data": {"closes": closes}}
+        )
+        # 9.0% < 9.5% 主板阈值，不计涨停 -> limit_up_30d=0 -> tech=0
+        assert result["技术面"] == 0
+
+    def test_chinext_20pct_threshold(self):
+        """创业板 18% 涨幅不应计入涨停基因（20% 板块阈值 19.5%）。"""
+        from experts.scoring.xu_xiang import score
+
+        closes = [10.0, 11.80]  # +18.0%
+        result = score(
+            {"quote": {"code": "sz300476"}, "kline_data": {"closes": closes}}
+        )
+        assert result["技术面"] == 0  # 18% < 19.5%，不计
+
+    def test_chinext_real_limit_up(self):
+        """创业板 19.6% 涨幅应计入涨停基因。"""
+        from experts.scoring.xu_xiang import score
+
+        closes = [10.0, 11.96]  # +19.6%（规避浮点边界）
+        result = score(
+            {"quote": {"code": "sz300476"}, "kline_data": {"closes": closes}}
+        )
+        assert result["技术面"] == 50  # 1 次涨停 -> tech=50

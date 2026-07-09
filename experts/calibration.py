@@ -172,6 +172,69 @@ def _normalize_expert_scores(expert_scores: Dict[str, float]) -> Dict[str, float
     return normalized
 
 
+def get_kline_return(stock_code: str, start_date: str, end_date: str) -> float:
+    """获取股票在 [start_date, end_date] 区间的收益率%（第六轮审查 v2.4.3 新增）。
+
+    作为 verify_predictions 的 get_price_fn 回调实现。基于日线 K 线数据，
+    按日期匹配起止日的收盘价计算收益率。匹配不到精确日时取最近的交易日。
+
+    Args:
+        stock_code: 股票代码（sh600989 / sz000807）
+        start_date: 起始日期（YYYY-MM-DD）
+        end_date: 结束日期（YYYY-MM-DD）
+
+    Returns:
+        收益率百分比（如 12.5 表示 +12.5%）。数据不可得时抛 ValueError。
+
+    Raises:
+        ValueError: K 线数据获取失败或起止日均无匹配
+    """
+    try:
+        from data import get_kline
+    except ImportError as e:
+        raise ValueError(f"无法导入 data.get_kline: {e}") from e
+
+    # 取足够长的日线覆盖 start_date 到 end_date（最多 120 个交易日）
+    bars = get_kline(stock_code, scale=240, datalen=120)
+    if not bars:
+        raise ValueError(f"获取 {stock_code} K 线数据为空")
+
+    # 按日期索引收盘价
+    by_day = {}
+    for bar in bars:
+        day = getattr(bar, "day", None) or bar.get("day")
+        close = getattr(bar, "close", None)
+        if close is None:
+            close = bar.get("close")
+        if day and close is not None:
+            by_day[day] = float(close)
+
+    if not by_day:
+        raise ValueError(f"{stock_code} K 线数据无有效 day/close 字段")
+
+    sorted_days = sorted(by_day.keys())
+
+    # 匹配起始日：取 >= start_date 的第一个交易日
+    start_close = None
+    for d in sorted_days:
+        if d >= start_date:
+            start_close = by_day[d]
+            break
+    # 匹配结束日：取 <= end_date 的最后一个交易日
+    end_close = None
+    for d in reversed(sorted_days):
+        if d <= end_date:
+            end_close = by_day[d]
+            break
+
+    if start_close is None or end_close is None or start_close <= 0:
+        raise ValueError(
+            f"{stock_code} 在 [{start_date}, {end_date}] 区间无有效价格"
+        )
+
+    return (end_close / start_close - 1) * 100
+
+
 def record_prediction(
     stock_code: str,
     expert_scores: Dict[str, float],
@@ -238,6 +301,7 @@ def record_prediction(
 def verify_predictions(
     days: int = 30,
     get_price_fn=None,
+    mark_only: bool = False,
 ) -> Dict[str, Any]:
     """验证到期的历史预测。
 
@@ -245,14 +309,18 @@ def verify_predictions(
         days: 验证窗口天数（与 record_prediction 的 verify_days 对应）
         get_price_fn: 可选的获取股票收益率函数。
             签名: get_price_fn(stock_code, start_date, end_date) -> float (收益率%)
-            为 None 时跳过实际收益率计算，仅标记到期。
+            为 None 时跳过实际收益率计算。
+        mark_only: 仅标记到期但不获取价格（无网络环境用）。
+            注意：mark_only=True 会将预测标记为 verified 但不更新专家校准数据，
+            且无法回滚--后续带 get_price_fn 的验证会跳过已标记记录。
 
     Returns:
-        {"verified": int, "updated_experts": int, "details": [...]}
+        {"verified": int, "updated_experts": int, "skipped": int, "details": [...]}
     """
     data = _load()
     today = datetime.now().strftime("%Y-%m-%d")
     verified_count = 0
+    skipped_count = 0
     details = []
 
     for pred in data["predictions"]:
@@ -279,6 +347,27 @@ def verify_predictions(
                 logging.getLogger(__name__).debug(
                     "获取 %s 实际收益率失败: %s", pred["stock"], e
                 )
+
+        # 第六轮审查（v2.4.3）修正重验证 bug：
+        # 原 get_price_fn=None 时仍置 verified=True，导致预测被永久锁死（无结果）。
+        # 现仅在以下情况标记 verified：
+        #   1. mark_only=True（显式仅标记，无网络环境）
+        #   2. actual_direction is not None（成功获取价格）
+        # 否则跳过该预测（skipped），等待后续带 get_price_fn 的验证。
+        if not mark_only and actual_direction is None:
+            skipped_count += 1
+            details.append(
+                {
+                    "id": pred["id"],
+                    "stock": pred["stock"],
+                    "direction": pred.get("direction", ""),
+                    "actual_return": None,
+                    "actual_direction": None,
+                    "correct": None,
+                    "skipped": True,
+                }
+            )
+            continue
 
         pred["verified"] = True
         pred["actual_return"] = actual_return
@@ -342,7 +431,12 @@ def verify_predictions(
 
     _save(data)
     updated = sum(1 for d in details if d.get("correct") is not None)
-    return {"verified": verified_count, "updated_experts": updated, "details": details}
+    return {
+        "verified": verified_count,
+        "updated_experts": updated,
+        "skipped": skipped_count,
+        "details": details,
+    }
 
 
 def get_calibration() -> Dict[str, dict]:
@@ -430,11 +524,53 @@ def get_calibration_report() -> str:
     return "\n".join(lines)
 
 
+def compute_group_calibration(group: str) -> float:
+    """计算指定组的校准因子（第六轮审查 v2.4.3 新增）。
+
+    与 compute_calibration_factor 相同的公式，但仅用该组 active 专家的校准数据。
+    用于定向惩罚低准确率组（如短线组 20%）而非全局平均稀释。
+
+    Args:
+        group: "long_term" 或 "short_term"
+
+    Returns:
+        校准因子 ∈ [-1, 1]，无数据返回 0.0
+    """
+    from experts.registry import EXPERT_REGISTRY
+
+    experts = get_calibration()
+    rates = []
+    for name, profile in EXPERT_REGISTRY.items():
+        if not profile.active or profile.group != group:
+            continue
+        rec = experts.get(name, {})
+        events = rec.get("events", 0)
+        correct = rec.get("correct", 0)
+        if events > 0:
+            rates.append(correct / events)
+        else:
+            rates.append(0.5)
+
+    if not rates:
+        return 0.0
+
+    mean_rate = statistics.mean(rates)
+    if mean_rate > 0:
+        cv = statistics.stdev(rates) / mean_rate if len(rates) > 1 else 0
+    else:
+        cv = 1.0
+
+    factor = mean_rate * (1 - min(cv, 0.5))
+    return max(-1.0, min(1.0, (factor - 0.5) * 2))
+
+
 __all__ = [
     "record_prediction",
     "verify_predictions",
     "get_calibration",
     "get_pending_predictions",
     "compute_calibration_factor",
+    "compute_group_calibration",
+    "get_kline_return",
     "get_calibration_report",
 ]

@@ -9,7 +9,7 @@ v2.1.2：实现"周期位置 + 风险预算 + 二阶思维"完整版
 核心逻辑：
 - 风险维度权重最高（30%）：高杠杆 + 高估值 = 高风险
 - 周期位置：pe_percentile >80% 视为周期顶部
-- 二阶思维：情绪极端（>80 或 <20）= 警示信号
+- 二阶思维：逆向情绪--极度恐慌=机会(高分)，极度亢奋=风险(低分)
 - 估值/情绪权重低（风险管理专注"风险"而非"机会"）
 """
 
@@ -53,19 +53,19 @@ def score(stock_data: dict) -> Dict[str, float]:
     # ── 技术：作为"风险预警"——跌破均线 = 技术风险 ──
     risk_tech = _score_technical(kline_features)
 
-    # ── 情绪：极端情绪 = 警示信号（二阶思维）──
+    # ── 情绪：逆向二阶思维（Howard Marks）──
+    # 极度恐慌=机会（100），极度亢奋=风险（0），正常=50
     sentiment_raw = _score_sentiment(market_features)
-    # 情绪温度 80+ 或 20- = 反向（过热/过冷都是警示）
     if sentiment_raw >= 80:
-        risk_sentiment = 30  # 极端贪婪 = 警示
+        risk_sentiment = 0  # 极端贪婪 = 最大风险
     elif sentiment_raw >= 65:
-        risk_sentiment = 50
+        risk_sentiment = 30
     elif sentiment_raw >= 35:
-        risk_sentiment = 60
+        risk_sentiment = 50  # 正常
     elif sentiment_raw >= 20:
-        risk_sentiment = 45  # 恐慌也是机会但短期风险高
+        risk_sentiment = 75  # 恐慌，机会临近
     else:
-        risk_sentiment = 30  # 极端恐慌
+        risk_sentiment = 100  # 极端恐慌 = 最佳机会
 
     # ── 风险（核心维度）：负债 + 估值 + 杠杆 ──
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"), 50)

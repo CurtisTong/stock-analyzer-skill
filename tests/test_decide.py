@@ -115,10 +115,10 @@ def _active_short_experts(score: float = 70):
 
 
 class TestDetectMarketState:
-    def test_default_neutral_when_no_input(self):
-        """无输入时默认震荡。"""
+    def test_default_defensive_when_no_input(self):
+        """无输入时默认防御型（v2.4.3 fail-safe：宁可防御市误判压短线）。"""
         result = detect_market_state()
-        assert result["state"] == "震荡"
+        assert result["state"] == "防御型"
         assert "long_weight" in result
         assert "short_weight" in result
 
@@ -347,11 +347,11 @@ class TestAggregateVotes:
         """养家冰点期不降权。"""
         long_exp = _bullish_long_experts()
         short_exp = _bullish_short_experts()
-        # 设置养家为冰点期
+        # 设置养家为冰点期（emotion_score >= 100 才算真冰点，v2.4.3 修正）
         yangjia = next(e for e in short_exp if e["name"] == "emotion_tech")
         yangjia["score"] = 20
-        yangjia["breakdown"] = {"情绪": 90.0}
-        yangjia["dim_scores"] = {"情绪": 90, "情绪周期": 90}
+        yangjia["breakdown"] = {"情绪": 100.0}
+        yangjia["dim_scores"] = {"情绪": 100, "情绪周期": 100}
         results = long_exp + short_exp
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert any("冰点" in n for n in agg["notes"])

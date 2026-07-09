@@ -167,11 +167,16 @@ industry_defaults:
   profit_growth_excellent: 40
   revenue_growth_excellent: 30
 
-# 专家评分参数（DEPRECATED: v1.14.2）
-# ⚠️ soros.market_liquidity_floor_yi 当前未被代码读取，仅作为历史快照保留。修改此处不会生效
+# 专家评分参数
 experts:
   soros:
-    market_liquidity_floor_yi: 7000  # 两市日均成交额（亿元），低于此值视为流动性枯竭
+    market_liquidity_floor_yi: 7000  # 两市日均成交额（亿元），低于此值视为流动性枯竭（soros.py 读取）
+  short_term:
+    # 第六轮审查（v2.4.3）：防御市/熊市短线组分数乘子
+    # 短线专家在防御市历史准确率仅 20%，定向压分绕过权重钳制
+    defensive_score_factor: 0.7  # 防御型/熊市时短线组分数 ×0.7（1.0=不降权）
+    bearish_states: ["防御型", "熊市"]  # 触发降权的市场状态
+    ice_states: ["冰点"]  # 豁免降权的市场状态（冰点=机会起爆点）
 
 # 情绪温度计阈值（v1.15.0 起可配置）
 # 两融余额绝对阈值（亿元），随市场扩容需定期更新
@@ -184,7 +189,6 @@ sentiment:
     - [15000, 45]
     - [0, 35]      # ≤15000亿 → 35分
 
-# 校准阈值（v1.7.1 起可配置，注意：calibration_threshold_pct 当前未被 experts/calibration.py 读取）
-# 注意：calibration_threshold_pct 当前未被代码读取，校准系统使用 data/expert_calibration.json
+# 校准阈值（v1.7.1 起可配置，experts/calibration.py:_get_calibration_threshold 读取）
 calibration:
-  calibration_threshold_pct: 5  # 涨跌判定阈值（%），原硬编码值
+  calibration_threshold_pct: 5  # 涨跌判定阈值（%），>5%=上涨，<-5%=下跌，其余横盘

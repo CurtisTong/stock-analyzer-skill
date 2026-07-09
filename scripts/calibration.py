@@ -32,6 +32,8 @@ from experts.calibration import (
     get_calibration_report,
     get_pending_predictions,
     compute_calibration_factor,
+    compute_group_calibration,
+    get_kline_return,
 )
 
 
@@ -57,13 +59,23 @@ def cmd_record(args):
 
 def cmd_verify(args):
     """验证到期的历史预测。"""
-    result = verify_predictions(days=args.days)
+    # v2.4.3：默认使用真实价格回调获取实际收益率；
+    # --no-price 仅标记到期（无网络环境），不更新专家校准数据
+    price_fn = None if args.no_price else get_kline_return
+    result = verify_predictions(
+        days=args.days, get_price_fn=price_fn, mark_only=args.no_price
+    )
     print(f"验证完成: {result['verified']} 条记录")
     print(f"更新专家校准: {result['updated_experts']} 位")
+    if result.get("skipped"):
+        print(f"跳过（无价格数据）: {result['skipped']} 条")
 
     if result["details"]:
         print("\n详情:")
         for d in result["details"]:
+            if d.get("skipped"):
+                print(f"  ⏭ {d['stock']} ({d['direction']}) -> 跳过（无价格）")
+                continue
             status = (
                 "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
             )
@@ -72,7 +84,34 @@ def cmd_verify(args):
                 if d["actual_return"] is not None
                 else "N/A"
             )
-            print(f"  {status} {d['stock']} ({d['direction']}) → {ret}")
+            print(f"  {status} {d['stock']} ({d['direction']}) -> {ret}")
+
+
+def cmd_factor(args):
+    """查看当前校准因子（全局 + 分组）。"""
+    global_factor = compute_calibration_factor()
+    long_cal = compute_group_calibration("long_term")
+    short_cal = compute_group_calibration("short_term")
+    if args.json:
+        import json as _json
+
+        print(
+            _json.dumps(
+                {
+                    "global": round(global_factor, 4),
+                    "long_term": round(long_cal, 4),
+                    "short_term": round(short_cal, 4),
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return
+    print(f"全局校准因子: {global_factor:+.4f} (范围 [-1, 1])")
+    print(f"长线组校准因子: {long_cal:+.4f}")
+    print(f"短线组校准因子: {short_cal:+.4f}")
+    if short_cal < 0:
+        print(f"  ⚠ 短线组校准为负，debate 信心将扣 {short_cal * 10:+.1f} 分")
 
 
 def cmd_report(args):
@@ -147,10 +186,19 @@ def main():
     # verify
     p_verify = sub.add_parser("verify", help="验证到期预测")
     p_verify.add_argument("--days", type=int, default=30, help="验证窗口天数 (默认30)")
+    p_verify.add_argument(
+        "--no-price",
+        action="store_true",
+        help="仅标记到期不获取价格（无网络环境），不更新专家校准数据",
+    )
 
     # report
     p_report = sub.add_parser("report", help="查看校准报告")
     p_report.add_argument("-j", "--json", action="store_true", help="输出 JSON")
+
+    # factor
+    p_factor = sub.add_parser("factor", help="查看校准因子（全局 + 分组）")
+    p_factor.add_argument("-j", "--json", action="store_true", help="输出 JSON")
 
     # pending
     p_pending = sub.add_parser("pending", help="查看待验证预测")
@@ -165,6 +213,7 @@ def main():
         "record": cmd_record,
         "verify": cmd_verify,
         "report": cmd_report,
+        "factor": cmd_factor,
         "pending": cmd_pending,
     }
     cmds[args.command](args)

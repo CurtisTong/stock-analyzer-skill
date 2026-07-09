@@ -1,8 +1,12 @@
 """
-彼得·林奇专属评分函数。
+林奇专属评分函数。
 
 维度：基本面(35%) + 估值(28%) + 技术面(15%) + 情绪(10%) + 风险(12%)
 精确复现 experts/lynch.md §九 评分矩阵中的阈值规则。
+
+# 已知近似：风险维度 persona 定义为"负债/权益比"（debt/equity <0.6/<1.0/>1.5），
+# 代码用资产负债率 ZCFZL（debt/assets，<60/<100/else）近似，因东财 API 仅提供 ZCFZL
+# 而无 debt/equity 字段。两者方向一致但绝对门槛不同。
 """
 
 from typing import Dict
@@ -70,6 +74,9 @@ def score(stock_data: dict) -> Dict[str, float]:
             sent = 70
         else:
             sent = 60
+    elif insider is not None and insider <= 0:
+        # 内部人净卖出 = 看空信号（林奇框架：管理层都不看好）
+        sent = 30
     elif inst_holding is not None:
         # 机构持仓比例梯度评分
         if inst_holding < 0.3:
