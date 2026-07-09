@@ -43,11 +43,12 @@ def _resolve_conflict(
 ) -> dict:
     """冲突解决规则（decide.md §三）。
 
-    v2.4.1：双组阈值动态化，适配 active 集 5 长 + 3 短（或任意规模）。
-    - 长线多数阈值 = ceil(long_n * 2/3)（5 人 -> 4）
-    - 短线多数阈值 = ceil(short_n * 2/3)（3 人 -> 2）
-    - 极端检测：长线 bull >= long_n-1 且 bear==0（5 人时即 4/5，6 人时 5/6）；
-      短线 bull == short_n 且 bear==0（全员一致）。
+    v2.4.2：短线组方向改为均分驱动（P2-10）。
+    - 长线多数阈值 = ceil(long_n * 2/3)（5 人 -> 4），长线方向仍用投票计数。
+    - 短线方向由 short_avg 区间驱动：>=60 看多、<=39 看空、40-59 分歧（不再依赖
+      3 人投票的 ≥2/3 计数，因 1 人翻转即翻多数，统计噪声过大）。
+    - 极端两极分化检测：长线 bull >= long_n-1 且 bear==0（5 人时即 4/5）；
+      短线 bull/bear == short_n 且反向 ==0（全员反向，基于原始投票计数）。
 
     Returns:
         {"direction": str, "position_factor": float, "notes": list}
@@ -57,33 +58,29 @@ def _resolve_conflict(
     position_factor = 1.0
 
     long_majority = _majority(long_n)
-    short_majority = _majority(short_n)
 
     # 分歧检测（组内无多数方向）
+    # 长线组（5 人）仍用投票计数：bull/bear 均 < ceil(5*2/3)=4 时为分歧。
     long_divergent = (
         long_votes["bull"] < long_majority and long_votes["bear"] < long_majority
     )
-    # I14: 短线组仅 3 人，1 人翻转即变分歧。投票分歧时用评分均值辅助--
-    # 若 short_avg 明确偏向一方（>=60 看多阈值 或 <=40 看空阈值），不算分歧而是弱信号
-    short_vote_divergent = (
-        short_votes["bull"] < short_majority and short_votes["bear"] < short_majority
-    )
-    if short_vote_divergent:
-        if short_avg >= _BULL_THRESHOLD:
-            short_divergent = False
-            short_votes = {"bull": short_majority, "bear": short_n - short_majority, "total": short_n}
-            notes.append(f"短线组投票分歧但均值 {short_avg:.0f} 达看多阈值，按弱看多处理")
-        elif short_avg <= _BEAR_THRESHOLD:
-            short_divergent = False
-            short_votes = {"bull": short_n - short_majority, "bear": short_majority, "total": short_n}
-            notes.append(f"短线组投票分歧但均值 {short_avg:.0f} 达看空阈值，按弱看空处理")
-        else:
-            short_divergent = True
+    # B4（P2-10）：短线组方向改为均分驱动，不再依赖 3 人投票的 ≥2/3 计数。
+    # 短线仅 3 人，1 人翻转即翻转投票多数，统计噪声过大；改用加权均分映射方向：
+    #   short_avg >= 60 -> 短线看多；<= 39 -> 短线看空；40-59 -> 短线分歧。
+    # short_signal 驱动所有短线方向判定；short_votes（原始计数）仅用于两极分化检测。
+    if short_avg >= _BULL_THRESHOLD:
+        short_divergent = False
+        short_signal = "bull"
+    elif short_avg <= _BEAR_THRESHOLD:
+        short_divergent = False
+        short_signal = "bear"
     else:
-        short_divergent = short_vote_divergent
+        short_divergent = True
+        short_signal = "divergent"
 
     # 极端两极分化检测（优先于其他分支）
     # 一组压倒性看多 + 另一组压倒性看空 = 最危险的分歧场景
+    # 长线"压倒性"= bull>=n-1 且 bear==0；短线"全员反向"= 全员落在反向底线（原始计数）。
     long_extreme_bull = long_votes["bull"] >= long_n - 1 and long_votes["bear"] == 0
     long_extreme_bear = long_votes["bear"] >= long_n - 1 and long_votes["bull"] == 0
     short_extreme_bull = short_votes["bull"] == short_n and short_votes["bear"] == 0
@@ -99,12 +96,12 @@ def _resolve_conflict(
         total_bull = long_votes["bull"] + short_votes["bull"]
         total_bear = long_votes["bear"] + short_votes["bear"]
         notes.append(f"两极分化（{total_bull} 看多 + {total_bear} 看空），建议观望")
-    # 双一致看多：长线 ≥多数 看多 + 短线 ≥多数 看多
-    elif long_votes["bull"] >= long_majority and short_votes["bull"] >= short_majority:
+    # 双一致看多：长线 ≥多数 看多 + 短线均分看多
+    elif long_votes["bull"] >= long_majority and short_signal == "bull":
         direction = "强烈看多"
         position_factor = 1.0
-    # 双一致看空：长线 ≥多数 看空 + 短线 ≥多数 看空
-    elif long_votes["bear"] >= long_majority and short_votes["bear"] >= short_majority:
+    # 双一致看空：长线 ≥多数 看空 + 短线均分看空
+    elif long_votes["bear"] >= long_majority and short_signal == "bear":
         direction = "强烈看空"
         position_factor = 0.0
     # 长线主导多：长线 ≥多数 看多 + 短线分歧
@@ -115,12 +112,12 @@ def _resolve_conflict(
     elif long_votes["bear"] >= long_majority and short_divergent:
         direction = "看空"
         position_factor = 0.0
-    # 短线主导多：长线分歧 + 短线 ≥多数 看多
-    elif long_divergent and short_votes["bull"] >= short_majority:
+    # 短线主导多：长线分歧 + 短线均分看多
+    elif long_divergent and short_signal == "bull":
         direction = "谨慎看多"
         position_factor = 0.5
-    # 短线主导空：长线分歧 + 短线 ≥多数 看空
-    elif long_divergent and short_votes["bear"] >= short_majority:
+    # 短线主导空：长线分歧 + 短线均分看空
+    elif long_divergent and short_signal == "bear":
         direction = "谨慎看空"
         position_factor = 0.3
     # 全面分歧：两组均无多数方向
