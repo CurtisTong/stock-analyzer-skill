@@ -21,7 +21,7 @@ from data.helpers import (
     prefetch_kline_all,
 )
 from classifier import infer_industry
-from strategies import STRATEGIES
+from strategies import STRATEGIES, get_strategy
 from strategies.factors.registry import get_factor_keys
 
 from business.screening_service import (
@@ -119,7 +119,7 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
     industry = infer_industry(
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
     )
-    parts = compute_phase1_parts(fin, quote, industry)
+    parts = compute_phase1_parts(fin, quote, industry, weights=get_strategy(args.strategy))
     if getattr(args, "no_chip", False):
         parts["chip"] = 50
     total = compute_weighted_score(parts, args.strategy, regime=regime)

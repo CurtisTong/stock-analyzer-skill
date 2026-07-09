@@ -284,9 +284,11 @@ class ScreeningService:
                 "rejected": rejected,
             }
 
-        # 计算因子得分
+        # 计算因子得分（P0-12: 传入策略权重，跳过权重为 0 的因子）
         features = self._compute_features(ctx.code, ctx.kline_bars)
-        parts = compute_factor_parts(fin, quote_dict, features, industry)
+        parts = compute_factor_parts(
+            fin, quote_dict, features, industry, weights=get_strategy(ctx.strategy)
+        )
         if ctx.no_chip:
             parts["chip"] = 50
 
@@ -444,10 +446,15 @@ class ScreeningService:
         return reasons
 
 
-def compute_factor_parts(fin, quote_dict, features, industry):
-    """计算所有因子得分（自动发现已注册因子）。"""
+def compute_factor_parts(fin, quote_dict, features, industry, weights=None):
+    """计算所有因子得分（自动发现已注册因子）。
+
+    Args:
+        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算（P0-12），
+                 None 时全量计算（向后兼容）。
+    """
     code = quote_dict.get("code", "")
-    return compute_all_factors(fin, quote_dict, features, industry, code)
+    return compute_all_factors(fin, quote_dict, features, industry, code, weights)
 
 
 # Sprint 9 两阶段管线（Sprint 末节架构建议）：
@@ -459,14 +466,17 @@ PHASE1_FACTORS = ("quality", "valuation", "liquidity", "chip")
 PHASE2_FACTORS = ("momentum", "volatility", "dividend")
 
 
-def compute_phase1_parts(fin, quote_dict, industry: str) -> dict:
+def compute_phase1_parts(fin, quote_dict, industry: str, weights=None) -> dict:
     """Sprint 9 Phase 1：算 quality/valuation/liquidity/chip（不依赖 K 线）。
 
     适用于全市场 5000 只初筛，3-5 秒内完成。
     chip 使用静态评分（仅股东户数变化率，零网络开销）。
+
+    Args:
+        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算（P0-12）。
     """
     code = quote_dict.get("code", "")
-    parts = compute_phase_factors(1, fin, quote_dict, {}, industry, code)
+    parts = compute_phase_factors(1, fin, quote_dict, {}, industry, code, weights=weights)
     # Phase 1 chip 使用静态评分
     parts["chip"] = chip_score_static(code)
     return parts

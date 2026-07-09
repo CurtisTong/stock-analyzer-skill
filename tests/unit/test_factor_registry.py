@@ -95,6 +95,53 @@ class TestComputeAllFactors:
         result = compute_all_factors({}, {}, {}, "", "")
         assert all(isinstance(v, (int, float)) for v in result.values())
 
+    def test_zero_weight_factors_skipped(self):
+        """P0-12：权重为 0 的因子跳过计算（不包含在结果中）。"""
+        fin = {"eps": 1.0, "roe": 15.0, "net_profit_yoy": 20.0}
+        quote = {
+            "pe": 20,
+            "pb": 3,
+            "total_cap": 100,
+            "amount": 50000,
+            "code": "sh600519",
+        }
+        features = {"closes": [10.0 + i * 0.1 for i in range(60)]}
+        # event/analyst 权重为 0，应被跳过
+        weights = {
+            "quality": 0.30,
+            "valuation": 0.20,
+            "momentum": 0.15,
+            "liquidity": 0.05,
+            "volatility": 0.15,
+            "dividend": 0.05,
+            "chip": 0.10,
+            "event": 0.0,
+            "analyst": 0.0,
+        }
+        result = compute_all_factors(
+            fin, quote, features, "默认", "sh600519", weights=weights
+        )
+        assert "event" not in result
+        assert "analyst" not in result
+        # 权重非 0 的因子仍应计算
+        assert "quality" in result
+        assert "valuation" in result
+
+    def test_no_weights_computes_all(self):
+        """不传 weights 时全量计算（向后兼容）。"""
+        fin = {"eps": 1.0, "roe": 15.0, "net_profit_yoy": 20.0}
+        quote = {
+            "pe": 20,
+            "pb": 3,
+            "total_cap": 100,
+            "amount": 50000,
+            "code": "sh600519",
+        }
+        features = {"closes": [10.0 + i * 0.1 for i in range(60)]}
+        result = compute_all_factors(fin, quote, features, "默认", "sh600519")
+        assert "event" in result
+        assert "analyst" in result
+
 
 class TestComputePhaseFactors:
     def test_phase1_excludes_kline_factors(self):
@@ -116,3 +163,15 @@ class TestComputePhaseFactors:
         assert "momentum" in result
         assert "volatility" in result
         assert "quality" not in result
+
+    def test_phase1_skips_zero_weight_factors(self):
+        """P0-12：Phase 1 中权重为 0 的因子（event/analyst）跳过计算。"""
+        fin = {"eps": 1.0, "roe": 15.0}
+        quote = {"pe": 20, "pb": 3, "code": "sh600519"}
+        weights = {"event": 0.0, "analyst": 0.0, "quality": 0.3}
+        result = compute_phase_factors(
+            1, fin, quote, {}, "默认", "sh600519", weights=weights
+        )
+        assert "event" not in result
+        assert "analyst" not in result
+        assert "quality" in result

@@ -179,16 +179,25 @@ def _build_kwargs(
     return {}
 
 
-def compute_all_factors(fin, quote, features, industry, code) -> dict:
+def compute_all_factors(
+    fin, quote, features, industry, code, weights=None
+) -> dict:
     """自动调用所有已注册因子，返回 {name: score} dict。
 
     替代原 compute_factor_parts() 中的硬编码映射。
+
+    Args:
+        weights: 策略权重 dict（如 ``{"quality": 0.3, ...}``）。传入时权重为 0 的
+                 因子跳过计算（如 event/analyst 含网络请求但无贡献），None 时全量计算。
     """
     result = {}
     degraded = []
     with _FACTORS_LOCK:
         factors_snapshot = list(_FACTORS.items())
     for name, desc in factors_snapshot:
+        # P0-12: 权重为 0 的因子跳过计算（event/analyst 含网络请求但贡献为 0）
+        if weights is not None and weights.get(name, 0) == 0:
+            continue
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:
             result[name] = desc.compute_fn(**kwargs)
@@ -202,7 +211,7 @@ def compute_all_factors(fin, quote, features, industry, code) -> dict:
 
 
 def compute_phase_factors(
-    phase, fin, quote, features, industry, code, exclude=None
+    phase, fin, quote, features, industry, code, exclude=None, weights=None
 ) -> dict:
     """自动调用指定阶段的因子，返回 {name: score} dict。
 
@@ -210,6 +219,7 @@ def compute_phase_factors(
 
     Args:
         exclude: 需跳过的因子名集合（如 Phase 2 跳过 chip 避免无意义的网络请求）。
+        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算，None 时全量计算。
     """
     result = {}
     degraded = []
@@ -221,6 +231,9 @@ def compute_phase_factors(
         if desc.phase != target:
             continue
         if name in skip:
+            continue
+        # P0-12: 权重为 0 的因子跳过计算
+        if weights is not None and weights.get(name, 0) == 0:
             continue
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
         try:
