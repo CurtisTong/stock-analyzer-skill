@@ -9,9 +9,92 @@
 注意：A 股 FCF 数据不完整，本模型使用以下近似：
 - FCF = 经营现金流 - 资本支出（如有）
 - 回退到 净利润 × 0.7（保守估计）
+
+v2.7.1: 支持 beta 驱动 WACC（CAPM）。传入 stock_code 时用真实 beta + 宏观利率
+计算动态折现率，替代 v2.4.0 的硬编码 7 行业字典。
 """
 
 from common import to_float
+
+
+# v2.7.1: CAPM WACC 计算的合理区间约束
+_WACC_MIN = 0.06  # 6% 下限（极低 beta + 低利率也不应低于此）
+_WACC_MAX = 0.20  # 20% 上限（极高 beta 也不应超过此，避免 DCF 失真）
+_RISK_FREE_FALLBACK = 0.025   # 10Y 国债 fallback（2.5%）
+_ERP_FALLBACK = 0.055         # 沪深 300 ERP fallback（5.5%）
+
+
+def _compute_capm_wacc(stock_code: str) -> tuple[float, str] | None:
+    """用 CAPM 计算动态 WACC（v2.7.1 新增）。
+
+    WACC = risk_free_rate + beta × equity_risk_premium
+
+    数据来源：
+    - beta: industry_beta.compute_beta()（60 日 OLS，动态选基准）
+    - risk_free_rate: macro_snapshot.json 的 treasury_10y_pct
+    - ERP: macro_snapshot.json 的 erp_sh300_pct
+
+    Args:
+        stock_code: 个股代码（如 sh600519）
+
+    Returns:
+        (wacc, source_label) 元组，失败返回 None。
+        wacc 已约束在 [_WACC_MIN, _WACC_MAX] 区间。
+    """
+    try:
+        import sys
+        from pathlib import Path
+
+        # 确保 scripts/ 在 import 路径
+        scripts_dir = Path(__file__).resolve().parent.parent.parent
+        if str(scripts_dir) not in sys.path:
+            sys.path.insert(0, str(scripts_dir))
+
+        from industry_beta import compute_beta
+        from macro_indicators import fetch_treasury_10y, fetch_erp_sh300
+
+        # 1. 拉真实 beta（60 日 OLS + 动态选基准）
+        beta_result = compute_beta(stock_code)
+        if not beta_result or beta_result.get("beta") is None:
+            return None
+        beta = beta_result["beta"]
+
+        # 2. 拉无风险利率（10Y 国债）
+        treasury = fetch_treasury_10y()
+        risk_free = (treasury["value"] / 100) if treasury else _RISK_FREE_FALLBACK
+
+        # 3. 拉 ERP（沪深 300 风险溢价）
+        erp_data = fetch_erp_sh300()
+        erp = (erp_data["value"] / 100) if erp_data else _ERP_FALLBACK
+
+        # 4. CAPM
+        wacc = risk_free + beta * erp
+
+        # 5. 合理区间约束
+        wacc = max(_WACC_MIN, min(_WACC_MAX, wacc))
+
+        return (round(wacc, 4), f"CAPM(beta={beta:.2f}, rf={risk_free:.3f}, erp={erp:.3f})")
+    except Exception:
+        return None
+
+
+def _fallback_industry_discount(industry: str) -> tuple[float, str]:
+    """v2.4.0 硬编码行业字典 fallback（CAPM 不可用时使用）。
+
+    Returns:
+        (discount_rate, source_label)
+    """
+    _DISCOUNT_RATES = {
+        "科技": 0.12,
+        "周期": 0.11,
+        "医药": 0.10,
+        "重资产": 0.10,
+        "默认": 0.10,
+        "金融": 0.09,
+        "消费": 0.09,
+    }
+    rate = _DISCOUNT_RATES.get(industry, _DISCOUNT_RATES["默认"])
+    return (rate, f"行业字典({industry}={rate:.0%})")
 
 
 def dcf_valuation(
@@ -23,6 +106,7 @@ def dcf_valuation(
     years_high: int = 5,
     years_transition: int = 5,
     industry: str = "默认",
+    stock_code: str = None,
 ) -> dict:
     """两阶段 DCF 估值。
 
@@ -35,6 +119,8 @@ def dcf_valuation(
         terminal_growth: 永续增长率（默认 3%）
         years_high: 高增长期年数（默认 5）
         years_transition: 过渡期年数（默认 5）
+        stock_code: v2.7.1 新增。传入时用 CAPM 动态计算 WACC（真实 beta + 宏观利率），
+            替代硬编码行业字典。失败时回退到行业字典。
 
     Returns:
         {
@@ -43,6 +129,8 @@ def dcf_valuation(
             "margin_of_safety": 安全边际（正数=低估）,
             "fcf_per_share": 每股自由现金流,
             "growth_rate": 使用的增长率,
+            "discount_rate": 使用的折现率,
+            "wacc_source": "CAPM" | "行业字典" | "用户传入",
             "method": "dcf",
         }
     """
@@ -60,20 +148,24 @@ def dcf_valuation(
     }
     capex_ratio = _CAPEX_RATIO.get(industry, _CAPEX_RATIO["默认"])
 
-    # v2.4.0: 行业差异化折现率（WACC 近似）
-    # 高 beta 行业（科技/周期）折现率更高，低 beta 行业（消费/公用）折现率更低
-    _DISCOUNT_RATES = {
-        "科技": 0.12,    # 高成长高波动，需更高风险补偿
-        "周期": 0.11,    # 盈利波动大，折现率略高
-        "医药": 0.10,    # 中等风险
-        "重资产": 0.10,  # 中等风险
-        "默认": 0.10,    # 10% 基准
-        "金融": 0.09,    # 低 beta，杠杆业务但监管兜底
-        "消费": 0.09,    # 低 beta，现金流稳定
-    }
+    # v2.7.1: 折现率三级优先级
+    # 1. 用户显式传入（discount_rate != 0.10）-> "用户传入"
+    # 2. stock_code 传入 -> CAPM 动态 WACC -> "CAPM"
+    # 3. 回退 -> 行业字典 -> "行业字典"
+    wacc_source = "用户传入"
     if discount_rate == 0.10:
-        # 仅在默认值时自动选择行业折现率，显式传入时尊重用户选择
-        discount_rate = _DISCOUNT_RATES.get(industry, _DISCOUNT_RATES["默认"])
+        # 默认值，尝试 CAPM
+        if stock_code:
+            capm_result = _compute_capm_wacc(stock_code)
+            if capm_result is not None:
+                discount_rate = capm_result[0]
+                wacc_source = capm_result[1]
+            else:
+                # CAPM 失败，回退行业字典
+                discount_rate, wacc_source = _fallback_industry_discount(industry)
+        else:
+            # 未传 stock_code，直接用行业字典
+            discount_rate, wacc_source = _fallback_industry_discount(industry)
 
     # 1. 估算每股自由现金流（FCF）
     ocf = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE", 0)))
@@ -149,6 +241,7 @@ def dcf_valuation(
         "fcf_per_share": round(fcf_per_share, 2),
         "growth_rate": round(growth_rate * 100, 1),
         "discount_rate": round(discount_rate * 100, 1),
+        "wacc_source": wacc_source,
         "terminal_growth": round(terminal_growth * 100, 1),
         "method": "dcf",
     }

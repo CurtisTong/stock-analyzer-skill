@@ -35,6 +35,14 @@
 - **market-anchor v2.5.x**: 叠加 5 个新维度 — 多时间框架（MA20/60/250 + 5/20 日动量 + ATR14）/ 宏观-估值桥（10Y 国债 + 美元 + VIX + 大宗）/ 杠杆-反身性（两融 + IF/IC/IH 期货基差）/ 估值桥（沪深 300 ERP）/ 流动性+波动率（个股流动性比率 + 大盘年化波动率）/ 情绪周期阶段（主升/退潮/震荡/冰点）
 - **market-anchor v2.6.0**: 新增 P1 两维度 - 行业 beta（动态选基准 + 60 日手写 OLS，不引入 numpy/pandas）/ 组合相关性（与 /portfolio skill 联动，输出持仓矩阵 + 个股 vs 持仓 + 高相关对告警），兑现 plan 文件 P1 "下期"承诺
 - **market-anchor v2.7.0**: 新增 P2 两维度 - 题材轮动强度（5 日板块排名位次变化，即时计算无持久化）/ 北向资金边际定价者（20 日累计 + 近 5 日斜率），完成 P0-P2 全部 10 大维度覆盖
+- **dcf.py v2.7.1**: DCF 折现率从 v2.4.0 硬编码 7 行业字典升级为 CAPM 动态 WACC
+  * 新增 `_compute_capm_wacc(stock_code)`：WACC = risk_free_rate + beta × ERP
+  * beta 来自 `industry_beta.compute_beta()`（60 日 OLS + 动态选基准）
+  * risk_free / ERP 来自 `macro_indicators.fetch_treasury_10y()` / `fetch_erp_sh300()`
+  * 三级优先级：用户显式传入 > CAPM（传 stock_code）> 行业字典 fallback
+  * WACC 约束在 [6%, 20%] 区间，避免极端 beta 导致 DCF 失真
+  * `dcf_valuation()` 新增 `stock_code` 可选参数，完全向后兼容
+  * 返回值新增 `wacc_source` 字段（CAPM/行业字典/用户传入）
 - **sector_etf_strength.compute_rotation_strength()**: 即时计算 13 个 ETF 当日 vs 5 日涨跌幅排名位次差，输出轮动强度 + 上升/下降 top 3（parallel_map 并行拉 K 线）
 - **market_anchor._fetch_northbound_pricer()**: 复用 data.get_northbound_flow + briefing.py 算法，20 日累计净流入 + 沪/深股通分项 + 近 5 日斜率方向
 - **scripts/industry_beta.py**: 新建独立模块，按流通市值动态选基准（>500亿->沪深300 / >100亿->中证500 / 否则中证1000），手写 OLS 公式（与 `registry.py:445-455` 风格一致）
