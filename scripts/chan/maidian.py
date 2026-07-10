@@ -1,7 +1,8 @@
 """三类买卖点识别。"""
 
 
-def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pct=0.02):
+def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pct=0.02,
+                 highs=None, lows=None):
     """
     识别缠论三类买卖点。
     一买：离开最后一个中枢后的底背驰结束点
@@ -9,7 +10,12 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
     三买：突破中枢后，回踩不落入中枢的点
 
     Args:
-        pullback_pct: 回踩容忍度（默认 2%，基于 ATR 或百分比判断回踩是否接近中枢边界）
+        pullback_pct: 回踩容忍度百分比（默认 2%）
+        highs: K 线最高价序列（可选，提供时启用 ATR 动态容差）
+        lows: K 线最低价序列（可选，同上）
+
+    I9: 回踩容忍度优先基于 ATR 动态计算（半个 ATR），
+    未提供 highs/lows 时回退到 pullback_pct 百分比。
 
     Args:
         beichi: chan_beichi 的返回结果。P2-C4 修复：一买/一卖必须依赖背驰结果，
@@ -83,18 +89,22 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
     recent_low = min(closes[-5:]) if len(closes) >= 5 else closes[-1]
     # 缠论标准：三买要求回踩低点不落入中枢，即高于 ZG（中枢上沿）
     if above_zs and recent_low > last_zs["zg"]:
-        # 判断是否有回踩动作：近期价格曾接近 ZG（回踩痕迹）
-        # 回踩定义为：价格距 ZG 在容差范围内（可略高或略低）
-        pullback_tolerance = last_zs["zg"] * pullback_pct
+        # I9: 回踩容差优先用 ATR 动态计算（需提供 highs/lows），否则回退百分比
+        if highs and lows:
+            from technical.volatility import compute_atr
+            atr = compute_atr(highs, lows, closes)
+            tolerance = atr * 0.5 if atr > 0 else last_zs["zg"] * pullback_pct
+        else:
+            tolerance = last_zs["zg"] * pullback_pct
         near_zs = any(
-            abs(c - last_zs["zg"]) <= pullback_tolerance for c in closes[-10:]
+            abs(c - last_zs["zg"]) <= tolerance for c in closes[-10:]
         )
         if near_zs:
             buy_points.append(
                 {
                     "type": "三买",
                     "desc": f"突破中枢上沿(ZG={last_zs['zg']})后回踩不落入",
-                    "confidence": "高" if last_close > last_zs["zg"] * 1.02 else "中",
+                    "confidence": "高" if last_close > last_zs["zg"] + tolerance else "中",
                 }
             )
 
@@ -144,16 +154,21 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
     # 缠论标准：三卖要求反弹高点不落入中枢，即低于 ZD（中枢下沿）
     if below_zs and recent_high < last_zs["zd"]:
         # 判断是否有反弹动作：近期价格曾接近 ZD（反弹痕迹）
-        pullback_tolerance = last_zs["zd"] * pullback_pct
+        if highs and lows:
+            from technical.volatility import compute_atr
+            atr = compute_atr(highs, lows, closes)
+            tolerance = atr * 0.5 if atr > 0 else last_zs["zd"] * pullback_pct
+        else:
+            tolerance = last_zs["zd"] * pullback_pct
         near_zs = any(
-            abs(c - last_zs["zd"]) <= pullback_tolerance for c in closes[-10:]
+            abs(c - last_zs["zd"]) <= tolerance for c in closes[-10:]
         )
         if near_zs:
             sell_points.append(
                 {
                     "type": "三卖",
                     "desc": f"跌破中枢下沿(ZD={last_zs['zd']})后反弹不入",
-                    "confidence": "高" if last_close < last_zs["zd"] * 0.98 else "中",
+                    "confidence": "高" if last_close < last_zs["zd"] - tolerance else "中",
                 }
             )
 

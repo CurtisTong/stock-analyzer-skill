@@ -175,6 +175,52 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
     return result
 
 
+def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
+    """带多源故障转移的 fetch（T22）。
+
+    按 fetcher 优先级降序遍历，每个 fetcher 走 fetch_with_breaker 逻辑：
+    - NOT_HANDLED / None -> 换下一个源
+    - RateLimitError / 异常 -> 记录失败，换下一个源
+    - 成功 -> 立即返回结果
+
+    用于 chip/event/flow/lhb 等不走 DataFetcherManager 的数据域。
+    当仅传 1 个 fetcher 时等价于 fetch_with_breaker。
+
+    Returns:
+        第一个成功的 fetcher 结果，全部失败返回 None
+    """
+    if not fetchers:
+        return None
+    if len(fetchers) == 1:
+        return fetch_with_breaker(fetchers[0], *args, **kwargs)
+
+    # code 白名单防御
+    if args and not _SAFE_CODE_PATTERN.match(str(args[0])):
+        return None
+
+    sorted_fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
+    for fetcher in sorted_fetchers:
+        if not fetcher.is_available():
+            continue
+        try:
+            result = fetcher.fetch(*args, **kwargs)
+        except RateLimitError as e:
+            logger.debug(
+                "fetch_with_fallback %s 限速(429): %s", fetcher.__class__.__name__, e
+            )
+            continue
+        except Exception as e:
+            logger.debug(
+                "fetch_with_fallback %s 异常: %s", fetcher.__class__.__name__, e
+            )
+            fetcher.on_failure()
+            continue
+        if result is not None and result is not NOT_HANDLED:
+            fetcher.on_success()
+            return result
+    return None
+
+
 class DataFetcherManager:
     """数据源策略管理器：按优先级尝试，自动故障切换。"""
 

@@ -143,6 +143,43 @@ finance_sources:
     timeout: 30
     retry: 1
 
+# 资金流向数据源配置（T6: 从硬编码改为 yaml 驱动）
+flow_sources:
+  eastmoney:
+    priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+  sina:
+    priority: 3
+    enabled: true
+    timeout: 10
+    retry: 1
+
+# 龙虎榜数据源配置
+lhb_sources:
+  eastmoney:
+    priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+
+# 筹码分布数据源配置
+chip_sources:
+  eastmoney:
+    priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+
+# 事件日历数据源配置
+event_sources:
+  eastmoney:
+    priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+
 # 熔断器配置
 circuit_breaker:
   failure_threshold: 5

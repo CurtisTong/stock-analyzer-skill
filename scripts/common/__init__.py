@@ -11,7 +11,7 @@ from common.circuit_breaker import (
     CircuitBreaker,
     get_circuit_breaker,
 )
-from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager, fetch_with_breaker
+from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager, fetch_with_breaker, fetch_with_fallback
 from common.lazy_registry import LazyFetcherRegistry
 
 # ---------- 异常类（零副作用，顶层导入） ----------
@@ -151,30 +151,16 @@ def http_get_cached_keyed(
 
 __all__ = [
     # 基础设施
-    "PACKAGE_ROOT",
     "DATA_DIR",
-    "USER_AGENTS",
     "http_get",
     "http_get_with_headers",
     "http_get_cached",
-    "http_get_cached_keyed",
-    "decode_gbk",
     # 缓存
-    "CACHE_DIR",
-    "cache_get",
-    "cache_set",
     "cache_put",
     "cache_cleanup",
-    "cache_key",
     "cache_key_for_stock",
     "strip_prefix",
     "cache",
-    # 字段映射
-    "TENCENT_FIELDS",
-    "parse_tencent_line",
-    "SINA_QUOTE_URL",
-    "parse_sina_quote_line",
-    "EAST_MONEY_FIELDS",
     # 工具函数
     "split_codes",
     "plain_code",
@@ -183,49 +169,26 @@ __all__ = [
     "normalize_finance_code",
     "to_secid",
     "board_type",
-    "board_limit_pct",
-    "board_exact_limit_pct",
     "is_etf",
-    "batchify",
     "to_float",
     "to_int",
     "clamp",
     "normalize_volume",
     "normalize_amount",
     "atomic_write_json",
-    "compute_volume_ratio",
-    "compute_optimal_workers",
-    "err",
     "parallel_map",
     "parallel_fetch_dict",
     "get_shared_executor",
-    # 异常类
-    "StockAnalyzerError",
+    # 异常类（常用）
     "DataError",
-    "NetworkError",
-    "RateLimitError",
-    "ParseError",
-    "HTTPStatusError",
-    "DataUnavailableError",
-    "BusinessError",
     "ValidationError",
-    "StrategyError",
-    "InsufficientDataError",
-    "ConfigurationError",
-    "format_error",
     "is_retryable_error",
-    # 向后兼容别名
-    "DataSourceUnavailableError",
-    "DataParseError",
-    # 熔断器
-    "CircuitState",
-    "CircuitBreaker",
-    "get_circuit_breaker",
     # 数据源抽象
     "NOT_HANDLED",
     "BaseFetcher",
     "DataFetcherManager",
     "fetch_with_breaker",
+    "fetch_with_fallback",
     "LazyFetcherRegistry",
     # 输入验证器
     "validate_code",
@@ -233,6 +196,16 @@ __all__ = [
     "validate_codes",
     "validate_date",
     "validate_date_range",
-    "validate_positive",
-    "validate_in_range",
 ]
+# T3: 以下符号已从 __all__ 移除（零外部引用或仅内部使用），
+# 但 _LAZY_IMPORTS + __getattr__ 仍保证 `from common import X` 向后兼容：
+# PACKAGE_ROOT, USER_AGENTS, http_get_cached_keyed, decode_gbk, CACHE_DIR,
+# cache_get, cache_set, cache_key, TENCENT_FIELDS, parse_tencent_line,
+# SINA_QUOTE_URL, parse_sina_quote_line, EAST_MONEY_FIELDS, batchify,
+# board_limit_pct, board_exact_limit_pct, compute_volume_ratio,
+# compute_optimal_workers, err, StockAnalyzerError, NetworkError,
+# RateLimitError, ParseError, HTTPStatusError, DataUnavailableError,
+# BusinessError, StrategyError, InsufficientDataError, ConfigurationError,
+# format_error, DataSourceUnavailableError, DataParseError,
+# CircuitState, CircuitBreaker, get_circuit_breaker,
+# validate_positive, validate_in_range

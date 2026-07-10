@@ -115,7 +115,7 @@ def _get_connection(
             if now - ts > _CONN_IDLE_TIMEOUT:
                 try:
                     conn.close()
-                except Exception as e:
+                except OSError as e:
                     logger.debug("关闭连接失败: %s", e)
                 continue
             if hasattr(conn, "sock") and conn.sock is not None:
@@ -135,7 +135,7 @@ def _return_connection(key: str, conn: http.client.HTTPConnection) -> None:
         else:
             try:
                 conn.close()
-            except Exception as e:
+            except OSError as e:
                 logger.debug("关闭溢出连接失败: %s", e)
 
 
@@ -155,7 +155,7 @@ def _do_request(
         retry_after_header = resp.getheader("Retry-After")
         try:
             resp.read()
-        except Exception as e:
+        except OSError as e:
             logger.debug("读取 429 响应体失败: %s", e)
         raise RateLimitError(
             url,
@@ -165,7 +165,7 @@ def _do_request(
     if status >= 400:
         try:
             body = resp.read()
-        except Exception as e:
+        except OSError as e:
             logger.debug("读取 HTTP %d 响应体失败: %s", status, e)
             body = b""
         # P2-H2(common): 4xx 业务错误抛 HTTPStatusError（DataError 子类），
@@ -194,7 +194,7 @@ def _invalidate_connection(url: str, conn: http.client.HTTPConnection) -> None:
     """关闭失效连接。"""
     try:
         conn.close()
-    except Exception as e:
+    except OSError as e:
         logger.debug("关闭失效连接失败: %s", e)
 
 
@@ -286,7 +286,7 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
             return _http_get_requests(url, timeout=timeout)
         except RateLimitError:
             raise
-        except Exception as e:
+        except _requests.RequestException as e:
             # P2-H2(common): 4xx 业务错误转 HTTPStatusError，与 http.client 路径统一，
             # 让 manager 能区分业务错误（不熔断）与网络故障（熔断）
             if hasattr(e, "response") and hasattr(e.response, "status_code"):
@@ -315,7 +315,7 @@ def http_get_with_headers(
             return _http_get_requests(url, headers=headers, timeout=timeout)
         except RateLimitError:
             raise
-        except Exception as e:
+        except _requests.RequestException as e:
             # 4xx 业务错误转 HTTPStatusError（同 http_get）
             if hasattr(e, "response") and hasattr(e.response, "status_code"):
                 status = e.response.status_code

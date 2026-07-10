@@ -352,16 +352,16 @@ def get_finance_manager() -> DataFetcherManager:
 
 
 def get_flow_manager() -> DataFetcherManager:
-    return _get_or_create("flow", get_flow_fetchers)
+    return _get_or_create("flow", get_flow_fetchers, "flow_sources")
 
 
 def get_lhb_manager() -> DataFetcherManager:
-    return _get_or_create("lhb", get_lhb_fetchers)
+    return _get_or_create("lhb", get_lhb_fetchers, "lhb_sources")
 
 
 def get_event_manager() -> DataFetcherManager:
-    return _get_or_create("event", get_event_fetchers)
+    return _get_or_create("event", get_event_fetchers, "event_sources")
 
 
 def get_chip_manager() -> DataFetcherManager:
-    return _get_or_create("chip", get_chip_fetchers)
+    return _get_or_create("chip", get_chip_fetchers, "chip_sources")

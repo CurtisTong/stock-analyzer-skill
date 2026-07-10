@@ -1,8 +1,9 @@
-"""筹码因子 emoji 标识。
+"""筹码显示工具（T7: 职责澄清）。
 
-P1-20: 删除 macro_risk_line / adjust_position_limit 死代码（零调用）。
-原始设计为"与 macro gate 配合在 /stock 和 /screener 输出中动态调整风险提示"，
-但该集成从未实现。chip_emoji 被 screener.py 使用，保留。
+本模块仅提供筹码因子的 emoji 标识函数，不含宏观风险提示逻辑。
+宏观系统性风险检测由 strategies/macro/gate.py 的 MacroSafetyGate 负责，
+量化风控指标（VaR/CVaR/最大回撤）由 business/risk_metrics.py 负责。
+三者职责互不重叠。
 """
 
 
