@@ -355,3 +355,41 @@ screening_service.py (1100+ 行)
 Phase 1 + Phase 2 + Phase 3 全部完成，共 24 个改进项均已落地。下一阶段可关注：
 - 🟢 Phase 4：北向资金 fetcher、Brinson 归因、缠论线段增强
 - 🟢 体验打磨：盘前简报场景、跨市场支持（港股/美股）
+
+---
+
+## 九、Round 11 收官（2026-07-10 更新）
+
+> 紧随 v2.0.0 里程碑与 P0-10~P0-14 收尾深化之后，单独一轮"架构审查最后 9 项 T/I"清扫，
+> 对应 [review-issues.md §架构审查 T/I 跟踪表](review-issues.md) 的 T3/T6/T7/T19/T22/I8/I9 + 测试 T24/T25。
+> Commit：`ec4c2900` 测试 2725 passed / 25 skipped / ruff 0 errors。
+
+### 9.1 修复明细
+
+| 编号 | 主题 | 位置 | 修复要点 |
+| :--- | :--- | :--- | :--- |
+| **T3** | common 顶层导出瘦身 | `scripts/common/__init__.py` | `__all__` 从 76 精简到 41 个零外部引用符号；`_LAZY_IMPORTS` + `__getattr__` 保留向后兼容，被移除符号继续可 `from common import X` |
+| **T6** | 四域优先级 yaml 化 | `scripts/config/data_source.yaml` + `scripts/fetchers/__init__.py` | `flow_sources` / `lhb_sources` / `chip_sources` / `event_sources` 四节配 YAML，`DataFetcherManager` 统一传 `source_section` 参数 |
+| **T7** | risk_warning 职责澄清 | `scripts/business/risk_warning.py` | docstring 明确：本模块仅筹码 emoji，宏观风控 `strategies/macro/gate.py`，量化风控 `business/risk_metrics.py`，三模块互不重叠 |
+| **T19** | http.py 异常类型具体化 | `scripts/common/http.py` | `requests` 路径 → `RequestException`；资源清理 → `OSError`；`stock_analysis.py` 保留 `except Exception` 作为隔离边界（测试验证必要） |
+| **T22** | 多源故障转移函数 | `scripts/common/fetcher_base.py` + `scripts/data/flow.py` | 新增 `fetch_with_fallback(fetchers, *args, **kwargs)`，按优先级遍历走 `fetch_with_breaker` 逻辑；`get_northbound_flow` 改用统一函数 |
+| **I8** | 缠论 K 线包含初始方向 | `scripts/chan/merge.py` | 第二根 K 线创新高 → up，创新低 → down；包含时退回阴阳判断（缠论原文标准） |
+| **I9** | 买卖点回踩 ATR 动态化 | `scripts/chan/maidian.py` + `scripts/technical/volatility.py`（新增） | 三买/三卖回踩容差优先用 `ATR*0.5`（需提供 highs/lows），无 ATR 回退 `pullback_pct` 百分比；新增 `compute_atr` / `atr_tolerance` |
+| **T24** | chip/flow/lhb 域测试补齐 | `tests/test_data_flow.py` + `tests/test_data_lhb.py` | 9 个测试覆盖 4 域聚合逻辑 |
+| **T25** | monitor 测试加固 | `tests/test_monitor_extra.py` | 8 个测试：briefing / render_briefing / ATR 工具函数 |
+
+### 9.2 影响面
+
+- **API 兼容性**：100% 向后兼容——`from common import X` 即便 X 已被移出 `__all__` 仍可用（PEP 562）。
+- **配置扩展点**：`data_source.yaml` 新增 4 个域（flow / lhb / chip / event），用户可零代码调整优先级。
+- **可观测性**：risk_warning / macro / risk_metrics 三模块边界文档化，定位职责冲突时不再"踢皮球"。
+- **测试网密度**：从 2698 增至 2725（+27：T24 9 + T25 8 + I8/I9 周边 10）。
+- **代码可读性**：`common/__init__.py` 顶部 76→41 符号，IDE 自动补全更聚焦；`merge.py` 初始方向不再"魔法"。
+
+### 9.3 后续关注（已非阻塞）
+
+- 🟢 **DIF/DEA 偏移量统一**（I4）：已实现 `aligned_macd()` 但仍未在所有 beichi 调用点切换
+- 🟢 **RateLimitError 限速隔离**（T9 续）：当前换源策略 OK，但 429 频率统计尚未纳入监控
+- 🟢 **走完 `T16 CircuitBreaker TOCTOU`**：当前依赖文档标注"乐观并发"，未来可考虑合并 can_execute + record_* 为原子操作
+
+> 至此，架构审查（[architecture-review-2026-07-07.md](architecture-review-2026-07-07.md)）T1-T25 + I1-I21 共 46 项全部清零。

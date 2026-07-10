@@ -42,8 +42,10 @@ stock-analyzer-skill/
 │   │   ├── stock_analysis.py
 │   │   └── screening_service.py
 │   ├── common/                     # 基础设施层
-│   │   ├── __init__.py            # BaseFetcher, CircuitBreaker, DataFetcherManager
-│   │   ├── http.py                # HTTP 请求封装
+│   │   ├── __init__.py            # BaseFetcher, CircuitBreaker, DataFetcherManager, fetch_with_fallback
+│   │   │                            # __all__ 精简到 41 符号（v2.0.0 Round 11 T3），PEP 562 懒加载
+│   │   ├── fetcher_base.py        # fetch_with_breaker / fetch_with_fallback
+│   │   ├── http.py                # HTTP 请求封装（except Exception 改具体异常，Round 11 T19）
 │   │   ├── cache.py               # 磁盘缓存（v1.3.2 从 data/cache.py 迁入）
 │   │   ├── validators.py          # 输入验证器
 │   │   ├── utils.py               # 工具函数
@@ -97,6 +99,7 @@ stock-analyzer-skill/
 │   │   ├── moving_average.py      # 均线系统
 │   │   ├── volume.py              # 量价分析
 │   │   ├── trend.py               # 趋势判断
+│   │   ├── volatility.py          # ATR / 容差计算（v2.0.0 新增）
 │   │   ├── candlestick.py         # K 线形态
 │   │   ├── astock.py              # A 股特色指标
 │   │   ├── signals.py             # 信号生成
@@ -270,6 +273,29 @@ class DataFetcherManager:
                 return result
         return None  # 所有源失败
 ```
+
+### fetch_with_breaker / fetch_with_fallback - 单源/多源故障转移
+
+> v2.0.0 Round 11 新增（`scripts/common/fetcher_base.py`）：
+
+```python
+# scripts/common/fetcher_base.py
+def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
+    """单 fetcher + 熔断器封装：处理 NOT_HANDLED / RateLimitError / 异常三种边界。"""
+
+def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
+    """多源故障转移（T22）：按优先级遍历，每个走 fetch_with_breaker。
+    - NOT_HANDLED / None → 换下一个源
+    - RateLimitError / 异常 → 记录失败，换下一个源
+    - 成功 → 立即返回
+    用于 chip/event/flow/lhb 等不走 DataFetcherManager 的数据域。
+    仅 1 个 fetcher 时等价于 fetch_with_breaker。"""
+```
+
+**使用场景**：
+
+- `fetch_with_breaker`：单源调用 + 熔断器管理（data 层多数接口走这条）
+- `fetch_with_fallback`：多源调用（`data/flow.py` 的 `get_northbound_flow` 等场景）
 
 ## 数据源架构
 

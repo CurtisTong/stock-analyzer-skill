@@ -58,7 +58,7 @@ scripts/
 ### 2.2 核心组件
 
 | 组件 | 职责 |
-|------|------|
+| --- | --- |
 | `BaseFetcher` | 抽象基类，定义统一接口 |
 | `DataFetcherManager` | 策略管理器，实现数据源切换、优先级管理 |
 | `CacheManager` | 双层缓存管理（内存 + 文件） |
@@ -326,7 +326,7 @@ class DataFetcherManager:
 #### 3.3.2 缓存键设计
 
 | 数据类型 | 缓存键格式 | TTL |
-|----------|------------|-----|
+| --- |
 | 实时行情 | `realtime:{code}` | 10分钟 |
 | K线数据 | `kline:{code}:{scale}:{datalen}` | 6小时 |
 | 财务数据 | `finance:{code}` | 6小时 |
@@ -394,7 +394,7 @@ class CacheManager:
 #### 3.4.3 默认配置
 
 | 参数 | 默认值 | 说明 |
-|------|--------|------|
+| --- |
 | failure_threshold | 5 | 连续失败 5 次后熔断 |
 | recovery_timeout | 60 | 熔断后冷却 60 秒 |
 | success_threshold | 2 | 半开状态成功 2 次后恢复 |
@@ -490,7 +490,7 @@ __all__ = [
 #### 3.5.1 数据源依赖
 
 | 数据源 | 依赖库 | 安装方式 |
-|--------|--------|----------|
+| --- |
 | efinance | `efinance` | `pip install efinance` |
 | akshare | `akshare` | `pip install akshare` |
 | tushare | `tushare` | `pip install tushare` |
@@ -514,7 +514,7 @@ def try_import(module_name: str, package_name: str = None):
 #### 3.6.3 数据源能力矩阵
 
 | 数据源 | 实时行情 | K线数据 | 财务数据 | 指数行情 | 市场统计 |
-|--------|----------|---------|----------|----------|----------|
+| --- | --- | --- | --- |
 | efinance | ✅ | ✅ | ✅ | ✅ | ✅ |
 | akshare | ✅ | ✅ | ✅ | ✅ | ✅ |
 | tushare | ✅ | ✅ | ✅ | ❌ | ❌ |
@@ -809,7 +809,7 @@ def main():
 ## 5. 风险与缓解
 
 | 风险 | 影响 | 缓解措施 |
-|------|------|----------|
+| --- |
 | 依赖安装失败 | 数据源不可用 | 按需导入，优雅降级 |
 | API 封禁 | 数据获取失败 | 防封禁策略 + 熔断器 |
 | 数据格式不一致 | 解析错误 | 统一数据类型 + 标准化 |

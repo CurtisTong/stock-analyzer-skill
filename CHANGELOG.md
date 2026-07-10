@@ -61,7 +61,16 @@
 - 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
 
 ### Fixed
-- 架构审查最后 9 项技术债+投资逻辑全部清零
+- **arch**: 架构审查最后 9 项技术债+投资逻辑全部清零（Round 11）
+  - **T3** `common/__init__.py` `__all__` 从 76 精简到 41 个零外部引用符号，`_LAZY_IMPORTS` + `__getattr__` 保证向后兼容
+  - **T6** chip/flow/lhb/event 四域优先级从 yaml 驱动（`data_source.yaml` 新增 `flow_sources/lhb_sources/chip_sources/event_sources`）
+  - **T7** `risk_warning.py` docstring 明确仅筹码 emoji；宏观风险在 `macro/gate.py`，量化风控在 `risk_metrics.py`，三模块职责互不重叠
+  - **T19** `common/http.py` `except Exception` 改具体异常类型（`RequestException` / `OSError`）；`stock_analysis.py` 保留 `except Exception` 作为隔离边界
+  - **T22** 新增 `fetch_with_fallback(fetchers, *args, **kwargs)` 多源故障转移；`data/flow.py` `get_northbound_flow` 改用统一函数
+  - **I8** `chan/merge.py` K 线包含初始方向改前两根高低判断（缠论标准），包含时退回阴阳
+  - **I9** `chan/maidian.py` 三买/三卖回踩容忍度基于 ATR 动态调整（`ATR*0.5`），无 ATR 回退 `pullback_pct` 百分比；新增 `technical/volatility.py` `compute_atr`/`atr_tolerance`
+  - **T24** 新增 `test_data_flow.py` + `test_data_lhb.py`（9 个测试）
+  - **T25** 新增 `test_monitor_extra.py`（8 个测试：briefing/render_briefing/ATR）
 - **backtest**: P0-10 回测财务前瞻偏差修复 (report_date + 90天披露延迟过滤)
 - **technical/fetcher**: P2-10~19 volume/fenxing/akshare/decode/provider/kdj/report/industry/redirect/thread-safe
 - **strategies**: P2-05~09 STRATEGIES API + 行业覆盖 + overlay 提示 + 共线性标注 + chip 注册

@@ -4,7 +4,7 @@
 > Claude Code 运行时工作目录即为项目根目录。
 
 | 脚本 | 用途 | 常用参数 |
-|------|------|----------|
+| --- |
 | `python3 scripts/announcements.py` | 东方财富公告 + 研报 | -j |
 | `python3 scripts/backtest.py` | 多因子选股策略回测（thin wrapper） | — |
 | `python3 scripts/calibration.py` | 专家校准数据管理 CLI | -j |
