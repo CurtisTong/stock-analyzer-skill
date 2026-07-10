@@ -28,6 +28,158 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-07-10
+
+### Added
+- **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
+- **backtest**: --walk-forward CLI 集成 + baseline 更新
+- **finance**: --finance-periods 参数贯通 stock->finance->fetcher
+- **backtest**: P0-11 walk-forward 回测框架 (OOS 验证)
+- **experts**: 校准待验证提示 + veto 文档统一 + 数据缺失标注 (P1-06/09/10/11)
+- 第六轮审查三条工作线全量落地
+- **experts**: C1 维度名别名归一化 + B3 yaml schema 校验基础
+- **phase4**: 港股跨市场支持 + 盘前简报增强 + 北向资金 Guardrail 修正
+- **scripts**: add markdown_table and numbered_table formatters
+- **portfolio**: add attribution_report() with Brinson integration
+- **portfolio**: add risk_summary() with VaR/CVaR integration
+- **screener**: apply user black list in pre_screen_quotes
+- **monitor**: implement 6 notification rules from yaml config
+- **phase4**: Brinson attribution + chan feature sequence + NB multi-source
+- **profile,skills,install**: user profile + lhb skill doc + 3-step quick start
+- **risk,quality**: VaR/CVaR metrics + A-share red flag indicators
+- **dcf,cache,screener**: sector discount rates, TTL jitter, one-click analysis
+- **portfolio**: add oplog + undo for all CRUD operations
+- **validators**: expand NAME_TO_CODE to 50+ stocks across 5 sectors
+- **experts,chan**: position floor, analyze_code delegation, dead code removal
+- **screener,market**: brief as default, --full for detail; market default quick
+- **experts**: merge value_anchor+institution → value_institution, buffett veto → warning
+- *****: 优化
+- **docs**: 新增用户专家与视觉专家审查视角档案
+- **backtest**: 50+ 只外样本回测 + 沪深 300/中证 500 基准
+- **scripts**: CB 加 half_open_success_threshold 可选守卫
+- **portfolio-web**: Origin 白名单 + IP 限流（127.0.0.1 防 CSRF）
+- 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
+
+### Fixed
+- 架构审查最后 9 项技术债+投资逻辑全部清零
+- **backtest**: P0-10 回测财务前瞻偏差修复 (report_date + 90天披露延迟过滤)
+- **technical/fetcher**: P2-10~19 volume/fenxing/akshare/decode/provider/kdj/report/industry/redirect/thread-safe
+- **strategies**: P2-05~09 STRATEGIES API + 行业覆盖 + overlay 提示 + 共线性标注 + chip 注册
+- **business**: P1-18~22 超时/过滤/风控/ST 统一
+- **technical**: 前瞻标注 + score 归一化注释 + 信号结构化 (P1-14/15/16)
+- **chan**: 中枢 GG/DD 边界 + 注释更新 (P1-12, P1-13)
+- **fetcher**: P1-01~05 fetcher 加固
+- **ci**: release 标准对齐 + changelog 并发控制 + 修复市场状态回归 (P0-13, P0-14)
+- **business**: 填充数据来源元信息 + 修复指数行情传递 (P0-02, P1-17)
+- **experts**: 修复 aggregate_group_votes 全空死代码 (P0-09)
+- **experts**: YAML 维度名归一化 (P0-06)
+- **circuit-breaker**: recovery_timeout <= 0 钳制为 1 (P0-05)
+- **fetcher**: 429 限速不计入熔断失败 (P0-04)
+- **fetcher**: timeout/retry 配置生效 (P0-03)
+- 第五轮审查 P1×1 + P2×2 修复
+- 第四轮审查 P1×3 + P2×1 修复
+- 第三轮审查 P0×8 + P1×5 修复
+- 文件 IO 原子性加固 + calibration_sync 空数据防护 (P1)
+- 统一 ST 检测逻辑为子串匹配 (P1)
+- 修复中枢合并用并集(扩大范围) + 双针探底死代码 (P0-5, P0-6)
+- 修复回测 20cm 涨跌停检测 (P0-4)
+- 校准数据 legacy->active 名迁移，修复静默数据丢失 (P0-3)
+- 修复 tushare K线 北交所代码映射 + 日期格式 (P0-2)
+- 修复 quote 行情 volume/amount 双重归一化 (P0-1)
+- **experts**: C2 P2-11 未注册 profile 回退 proxy + P2-12 else 分支注释
+- **experts**: B5 简化 _find_expert 为两级查找 + 修 value_institution 降权 bug
+- **experts**: B4 短线组方向改均分驱动（P2-10）
+- **experts**: P0 一致性修复--fallback 切分+投票阈值动态化+文档校正
+- 修复架构审查剩余 9 项技术债+投资逻辑问题
+- 修复第五轮剩余4个P1问题
+- 修复第五轮回归审查发现的9个P0问题
+- 修复第四轮审查4个剩余P1问题
+- 修复第三轮深度审查发现的7个P0+5个P1问题
+- 修复第三轮审查发现的P0+P1问题
+- 修复第二轮审查发现的安全+准确性问题
+- 修复全模块审查24项阻塞+重要问题
+- **scripts**: factor normalization, rate-limit failover, chan params, sample warning
+- **experts**: dimension key mismatch — align score() return keys with registry weights
+- **experts**: linter fixes — amount unit, dead expr, buffett threshold
+- **experts**: deep audit — 3 bugs + 8 logic fixes + 6 quality improvements
+- **technical**: 审查优化技术分析模块 — 修死代码/除零/重复定义/冗余导入
+- **monitor**: correct target_sell alert direction — price <= ts means stop-loss triggered
+- **release**: 补全 .npmignore + package.json ! 反白名单排除敏感数据
+- **scripts**: alert_engine.py 直接运行报 ModuleNotFoundError + 清理 patterns_local 残留引用
+- **data**: sector fetch_sector_finance 解包 None 崩溃
+- **p3**: 技术债修复（SSRF/scheme 白名单/CSV 路径注入/version 动态读取）
+- **p1**: 修复 20 项高价值问题（字段契约/并发/指标/安全）
+- **p0**: 修复 12 项数据正确性 hotfix 阻塞实盘使用
+- **experts**: 产品/用户专家审查后修复 11 项 Critical/High 问题
+- **experts**: 修复投票引擎5项严重/中等问题 + 估值纳入综合评分
+- 深度审查后修复 7 个 Critical + 10 个 High 级别问题
+- **ci**: CHANGELOG 过滤 auto-update 自引用与持仓流水
+- **fetchers**: 删除 K 线伪装财务的 efinance_finance.py
+- **scripts**: registry 加 RLock + sync_version 顶层锚定 + CB 文档一致
+- **data**: 71.4 胜率 CLAIM 加样本内披露（5 处文档同步）
+- *****: 优化设置
+- **audit**: P0 健康度修复（数字漂移 / 并发数据竞争 / 文档同步）
+
+### Changed
+- **experts**: P2-01 三源合一为 YAML 单源 (删除硬编码 profile)
+- **technical**: P1-15 composite_score 去魔数化 (_SCORE_MAX 提取为模块级常量)
+- **business/config**: P2-20~24 长期权重/YAML/服务化/max_drawdown/ConfigLoader/cache shim
+- **experts**: P2-01~04 别名清理 + buffett 警示 + momentum ST veto + 三源标注
+- **experts**: 删除 apply_veto 死代码 (P1-07)
+- **strategies**: 跳过权重为 0 的因子计算 (P0-12)
+- **technical**: fix review findings -- dedup API call, config-externalize thresholds, restructure modules
+- 全面深度优化--安全修复+消除重复+文档同步
+- **chan**: unified aligned_macd() interface for DIF/DEA offset
+- **arch**: 第5轮修复——参数对象化+测试补齐+异常收窄+CHANGELOG合并
+- **arch**: LazyFetcherRegistry抽取 + 高复杂度拆分 + PEP562修正 + 4域工厂缓存
+- **arch**: 深度审查后修复 90+ 项技术债
+- **arch**: fetchers 子目录化 + 测试修复 + 兼容性记录
+- **arch**: 胖入口下沉 + 补齐数据域 data 层
+
+### Documentation
+- v2.0.0 里程碑 7/7 全部完成（P2-01 + P2-05 收尾）
+- 同步 review-issues.md + ADR-004 标记 Round 10 完成
+- **changelog,arch,index**: rewrite + dual-expert beautification
+- 更新 review-issues.md 标记 P2 全量修复完成（Round 9）
+- **tests/release**: P2-25~30 frontmatter/keywords/ADR/catalog 自动生成/sync_version 重构
+- **skills/test/ci**: P1-23~30 catalog 补全 + 去重 + 测试补全 + CI 加固 + 死配置清理
+- **experts**: 对齐 decide.md 巴菲特警示表格与代码 (P0-07)
+- 同步至 v1.15.0 并清理 CHANGELOG 重复段
+- 更新第四轮审查计划文件
+- 更新第三轮审查计划文件（标记完成）
+- 记录本轮审查未处理项到 improvement-roadmap [skip ci]
+- **experts**: A3 扩展--全仓库校正 9人/6长线/15份 残留引用
+- **portfolio**: document risk_summary() and attribution_report() methods
+- mark all 24 improvement items complete in architecture review
+- update architecture review with execution status tracker
+- **changelog**: 合并 2026-07-03 双 Unreleased 段并更新日期
+- **docs**: 文档双视角审查后批量修正事实性错误
+- 同步 6 种策略 9 因子（漏列 ma_volume_momentum）
+- **experts**: 同步 9 人活跃圆桌替换过时 8 人表述
+
+### Testing
+- **e2e**: P1-27 扩展 13 skill E2E 工作流测试 (frontmatter + mock 工作流)
+- **experts**: P1-08 4:1 边界测试矩阵
+- **experts**: B3 新增 test_yaml_consistency 锁死 yaml/硬编码漂移
+- **experts**: B2 新增 TestActiveSetSemantics 锁定 active 集语义
+- **chan**: add 3 tests for aligned_macd unified interface
+- add unit tests for v2.4.0 new modules
+- adapt assertions for v2.4.0 expert merge + sector thresholds + screener brief
+
+### Maintenance
+- 全部 skill 模型切换到火山 glm-5.2
+- **lint**: 清理全部 20 个遗留 ruff 错误 (F841/E741/E714/F821)
+- **claude**: 收紧 settings.json 权限白名单 (P0-01)
+- **release**: 同步至 v1.14.3
+- black 折行（backtest cli/metrics 无逻辑变化）
+- **settings**: 合并 IDE 自动学习的权限 allowlist
+
+### Other
+- Merge remote-tracking branch 'origin/main'
+- Merge remote-tracking branch 'origin/main'
+- Merge remote-tracking branch 'origin/main'
+- Merge remote-tracking branch 'origin/main'
+
 ## [Unreleased] - 2026-07-09
 
 ### Added
