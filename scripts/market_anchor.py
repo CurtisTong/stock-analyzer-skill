@@ -28,6 +28,8 @@ from datetime import datetime
 # 确保 scripts/ 在 import 路径
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from typing import Any  # mypy: Any 用于 run-time 动态 dict
+
 from data import get_quotes, get_kline, get_northbound_flow  # noqa: E402 多源数据层
 
 # 复用：直接 import，不重写
@@ -242,7 +244,7 @@ def _fetch_liquidity_volatility(
         dict: {sh300_atr_14, sh300_annualized_vol_pct,
                stock_avg_amount_20d_yi, stock_liquidity_ratio_pct, data_quality}
     """
-    out = {
+    out: dict[str, Any] = {
         "sh300_atr_14": None,
         "sh300_annualized_vol_pct": None,
         "stock_avg_amount_20d_yi": None,
