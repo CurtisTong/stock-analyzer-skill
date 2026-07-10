@@ -174,6 +174,55 @@
       "enum": ["主升", "退潮", "震荡", "冰点", "unknown", null],
       "description": "v2.5.x 新增：情绪周期阶段（来自 market_breadth.get_market_state）"
     },
+    "industry_beta": {
+      "type": ["object", "null"],
+      "description": "v2.6.0 新增：个股 beta 系数（动态基准指数 + 60 日窗口手写 OLS）",
+      "properties": {
+        "stock_code": {"type": "string"},
+        "index_code": {"type": "string", "description": "sh000300 / sh000905 / sh000852（按市值动态选）"},
+        "index_selection": {"type": "string"},
+        "beta": {"type": ["number", "null"], "description": "1.0=与市场同向，>1 高弹性，<1 防御"},
+        "alpha": {"type": ["number", "null"], "description": "日度超额收益"},
+        "alpha_annual": {"type": ["number", "null"], "description": "年化 alpha（× 252）"},
+        "r_squared": {"type": ["number", "null"], "description": "拟合优度 [0,1]"},
+        "volatility_pct": {"type": ["number", "null"], "description": "个股 60 日年化波动率 (%)"},
+        "window": {"type": "integer"},
+        "n_observations": {"type": "integer"},
+        "interpretation": {"type": ["string", "null"]},
+        "data_quality": {"type": "object"}
+      }
+    },
+    "portfolio_correlation": {
+      "type": ["object", "null"],
+      "description": "v2.6.0 新增：组合相关性矩阵 + 个股 vs 持仓组合（与 /portfolio skill 联动）",
+      "properties": {
+        "portfolio_empty": {"type": "boolean", "description": "true=无持仓，matrix/vs_portfolio 为 null"},
+        "portfolio_codes": {"type": ["array", "null"], "items": {"type": "string"}},
+        "matrix": {
+          "type": ["object", "null"],
+          "description": "{code: {code: corr}} 嵌套 dict；缺失 K 线的代码 corr=null",
+          "additionalProperties": {"type": "object"}
+        },
+        "avg_pairwise_corr": {"type": ["number", "null"], "description": "持仓两两相关性均值；>0.7 高风险"},
+        "high_corr_pairs": {
+          "type": "array",
+          "items": {"type": "array"},
+          "description": "[[code_a, code_b, corr], ...] 高相关对（>=0.7）"
+        },
+        "vs_portfolio": {
+          "type": ["object", "null"],
+          "properties": {
+            "stock_code": {"type": "string"},
+            "vs_portfolio_avg_corr": {"type": ["number", "null"]},
+            "diversification_benefit": {"enum": ["高", "中", "低", "unknown", null]},
+            "n_portfolio_codes": {"type": "integer"},
+            "window": {"type": "integer"}
+          }
+        },
+        "interpretation": {"type": ["string", "null"]},
+        "data_quality": {"type": "object"}
+      }
+    },
     "fundamental": {
       "type": "object",
       "required": ["rating"],

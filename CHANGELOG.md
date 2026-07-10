@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定 v2.5.0 前置改造 + v2.5.x 5 维度扩展（macro_indicators / 多时间框架 / 宏观 / 杠杆 / 流动性 / 情绪周期）。
+> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定 v2.5.0/v2.5.x/v2.6.0 三轮扩展（前置锚定 + 5 维度 + P1 行业 beta + P1 组合相关性）。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -33,6 +33,9 @@
 ### Added
 - **market-anchor**: full / debate / technical 三模式统一前置"市场环境锚定"小节（大盘状态 + 板块强度 + 个股 vs 板块 vs 大盘三段式 RPS）
 - **market-anchor v2.5.x**: 叠加 5 个新维度 — 多时间框架（MA20/60/250 + 5/20 日动量 + ATR14）/ 宏观-估值桥（10Y 国债 + 美元 + VIX + 大宗）/ 杠杆-反身性（两融 + IF/IC/IH 期货基差）/ 估值桥（沪深 300 ERP）/ 流动性+波动率（个股流动性比率 + 大盘年化波动率）/ 情绪周期阶段（主升/退潮/震荡/冰点）
+- **market-anchor v2.6.0**: 新增 P1 两维度 - 行业 beta（动态选基准 + 60 日手写 OLS，不引入 numpy/pandas）/ 组合相关性（与 /portfolio skill 联动，输出持仓矩阵 + 个股 vs 持仓 + 高相关对告警），兑现 plan 文件 P1 "下期"承诺
+- **scripts/industry_beta.py**: 新建独立模块，按流通市值动态选基准（>500亿->沪深300 / >100亿->中证500 / 否则中证1000），手写 OLS 公式（与 `registry.py:445-455` 风格一致）
+- **scripts/portfolio_correlation.py**: 新建独立模块，皮尔逊相关系数矩阵 + 平均两两相关性 + 高相关对识别 + 个股 vs 持仓分散化收益判定
 - **scripts/macro_indicators.py**: 新建独立模块，yfinance 优先 + `scripts/data/macro_snapshot.json` fixture fallback（TTL 1 小时回写），范本来自 `strategies/macro/gate.py:86-106`
 - **scripts/data/macro_snapshot.json**: 新建 fixture，含 14 个字段（treasury_10y / usd_index / vix / 黄金/原油/碳酸锂 / margin_total / 期货基差 / ERP）
 - **schema**: `stock.schema.json` 在 market_anchor 下新增 6 个顶层字段（multi_timeframe / macro / leverage / valuation_bridge / liquidity_volatility / emotion_phase）

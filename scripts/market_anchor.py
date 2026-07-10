@@ -37,6 +37,9 @@ import sector_etf_strength  # noqa: E402  analyze()
 from technical.moving_average import ma_system  # noqa: E402  MA5/10/20/60/120/250
 from technical.volatility import compute_atr  # noqa: E402  ATR
 from macro_indicators import fetch_all as fetch_macro_all  # noqa: E402  宏观+杠杆+估值桥
+# v2.6.0 新增：行业 beta + 组合相关性
+from industry_beta import compute_beta, select_index_by_size  # noqa: E402
+from portfolio_correlation import compute_full_portfolio_correlation  # noqa: E402
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -345,6 +348,48 @@ def _fetch_emotion_phase(breadth: dict | None) -> str | None:
 
 
 # ═══════════════════════════════════════════════════════════════
+# v2.6.0 新增：行业 beta + 组合相关性
+# ═══════════════════════════════════════════════════════════════
+
+def _fetch_industry_beta(stock_code: str | None) -> dict | None:
+    """透出 industry_beta.compute_beta + 动态选基准指数。
+
+    动态基准（按流通市值）：
+    - > 500 亿   -> sh000300 (沪深 300)
+    - > 100 亿   -> sh000905 (中证 500)
+    - 否则       -> sh000852 (中证 1000)
+    """
+    if not stock_code:
+        return None
+    try:
+        index_code = select_index_by_size(stock_code)
+        result = compute_beta(stock_code, index_code=index_code, window=60)
+        if result is None:
+            return {"data_quality": {"degraded_fields": ["industry_beta"]}}
+        return {
+            **result,
+            "index_selection": "dynamic(市值驱动)",
+        }
+    except Exception as e:
+        print(f"[market_anchor] beta 计算失败: {e}", file=sys.stderr)
+        return {"data_quality": {"degraded_fields": ["industry_beta"]}}
+
+
+def _fetch_portfolio_correlation(stock_code: str | None) -> dict | None:
+    """透出组合相关性矩阵 + 个股 vs 持仓组合。
+
+    与 /portfolio skill 联动：
+    - 持仓为空 -> portfolio_empty=true（不算降级）
+    - 持仓非空 -> 输出矩阵 + 高相关对 + 个股 vs 组合
+    """
+    try:
+        return compute_full_portfolio_correlation(stock_code=stock_code, window=60)
+    except Exception as e:
+        print(f"[market_anchor] 组合相关性失败: {e}", file=sys.stderr)
+        return {"data_quality": {"degraded_fields": ["portfolio_correlation"]}}
+
+
+# ═══════════════════════════════════════════════════════════════
 # 顶层编排
 # ═══════════════════════════════════════════════════════════════
 
@@ -352,12 +397,14 @@ def analyze(
     stock_code: str | None = None,
     fetch_sector: bool = True,
     index_code: str = "sh000300",
+    fetch_portfolio: bool = True,
 ) -> dict:
     """一次性返回"市场环境锚定"完整数据。
 
     Args:
-        stock_code: 可选。提供时输出 stock_sector_compare。
+        stock_code: 可选。提供时输出 stock_sector_compare + industry_beta + vs_portfolio。
         fetch_sector: 是否拉板块 ETF（technical 模式可关）。
+        fetch_portfolio: 是否拉组合相关性（v2.6.0；/portfolio skill 关闭时可关）。
         index_code: 大盘指数代码，默认 sh000300 沪深300。
 
     Returns:
@@ -447,7 +494,21 @@ def analyze(
     if not emotion_phase:
         degraded.append("emotion_phase")
 
-    # 9. 组装输出
+    # 9. v2.6.0 新增：行业 beta（动态选基准）
+    industry_beta_payload = None
+    if stock_code:
+        industry_beta_payload = _fetch_industry_beta(stock_code)
+        if industry_beta_payload and industry_beta_payload.get("data_quality", {}).get("degraded_fields"):
+            degraded.extend(industry_beta_payload["data_quality"]["degraded_fields"])
+
+    # 10. v2.6.0 新增：组合相关性（与 /portfolio skill 联动）
+    portfolio_corr_payload = None
+    if fetch_portfolio:
+        portfolio_corr_payload = _fetch_portfolio_correlation(stock_code)
+        if portfolio_corr_payload and portfolio_corr_payload.get("data_quality", {}).get("degraded_fields"):
+            degraded.extend(portfolio_corr_payload["data_quality"]["degraded_fields"])
+
+    # 11. 组装输出
     return {
         "as_of": as_of,
         "regime": regime_enum,
@@ -477,6 +538,9 @@ def analyze(
         "valuation_bridge": macro_payload.get("valuation_bridge") if macro_payload else None,
         "liquidity_volatility": liq_vol,
         "emotion_phase": emotion_phase,
+        # v2.6.0 新增 2 个字段
+        "industry_beta": industry_beta_payload,
+        "portfolio_correlation": portfolio_corr_payload,
         "data_quality": {
             "index_ok": index_quote is not None,
             "index_kline_ok": index_kline is not None,
@@ -486,6 +550,8 @@ def analyze(
             "macro_ok": macro_payload is not None and not macro_payload.get("data_quality", {}).get("degraded_fields"),
             "liquidity_ok": liq_vol is not None and not liq_vol.get("data_quality", {}).get("degraded_fields"),
             "emotion_phase_ok": emotion_phase is not None,
+            "industry_beta_ok": industry_beta_payload is not None and not industry_beta_payload.get("data_quality", {}).get("degraded_fields"),
+            "portfolio_correlation_ok": portfolio_corr_payload is not None and not portfolio_corr_payload.get("data_quality", {}).get("degraded_fields"),
             "degraded_fields": degraded,
         },
     }
@@ -668,6 +734,44 @@ def to_markdown(payload: dict) -> str:
         phase_emoji = {"主升": "🔥", "退潮": "💀", "震荡": "🟡", "冰点": "⚠️", "unknown": "❓"}.get(ep, "❓")
         lines.append(f"### {phase_emoji} 情绪周期阶段: **{ep}**")
 
+    # v2.6.0 新增：行业 beta
+    ib = payload.get("industry_beta")
+    if ib and ib.get("beta") is not None:
+        lines.append("")
+        lines.append(f"### 📈 行业 beta ({ib.get('stock_code', '')} vs {ib.get('index_code', '')})")
+        lines.append(f"- beta: {ib['beta']}（{ib.get('interpretation', '')}）")
+        if ib.get("alpha_annual") is not None:
+            lines.append(f"- 年化 alpha: {ib['alpha_annual'] * 100:.2f}%")
+        if ib.get("r_squared") is not None:
+            lines.append(f"- R²: {ib['r_squared']}（拟合优度）")
+        if ib.get("volatility_pct") is not None:
+            lines.append(f"- 个股年化波动率: {ib['volatility_pct']}%")
+        lines.append(f"- 窗口: {ib.get('window', 60)} 日（{ib.get('n_observations', 0)} 个观测值）")
+        lines.append(f"- 基准选择: {ib.get('index_selection', 'dynamic')}")
+
+    # v2.6.0 新增：组合相关性
+    pc = payload.get("portfolio_correlation")
+    if pc:
+        lines.append("")
+        lines.append("### 🎯 组合相关性（与 /portfolio 联动）")
+        if pc.get("portfolio_empty"):
+            lines.append(f"- {pc.get('interpretation', '无持仓')}")
+        else:
+            codes = pc.get("portfolio_codes", [])
+            lines.append(f"- 持仓数: {len(codes)} 只 ({', '.join(codes[:3])}{'...' if len(codes) > 3 else ''})")
+            avg = pc.get("avg_pairwise_corr")
+            if avg is not None:
+                lines.append(f"- 平均两两相关性: {avg}")
+            hp = pc.get("high_corr_pairs", [])
+            if hp:
+                lines.append(f"- 高相关对 (>=0.7): {len(hp)} 对")
+                for pair in hp[:3]:
+                    lines.append(f"  - {pair[0]} <-> {pair[1]}: {pair[2]}")
+            lines.append(f"- 解读: {pc.get('interpretation', '')}")
+            vp = pc.get("vs_portfolio")
+            if vp and vp.get("vs_portfolio_avg_corr") is not None:
+                lines.append(f"- 个股 vs 组合: {vp['vs_portfolio_avg_corr']}（{vp.get('diversification_benefit', '')}）")
+
     dq = payload["data_quality"]
     if dq["degraded_fields"]:
         lines.append("")
@@ -686,12 +790,14 @@ def main():
     parser.add_argument("stock_code", nargs="?", help="股票代码（如 sh600519），可选")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--no-sector", action="store_true", help="跳过板块拉取（technical 模式用）")
+    parser.add_argument("--no-portfolio", action="store_true", help="跳过组合相关性（v2.6.0）")
     parser.add_argument("--index", default="sh000300", help="大盘指数代码（默认 sh000300）")
     args = parser.parse_args()
 
     payload = analyze(
         stock_code=args.stock_code,
         fetch_sector=not args.no_sector,
+        fetch_portfolio=not args.no_portfolio,
         index_code=args.index,
     )
 

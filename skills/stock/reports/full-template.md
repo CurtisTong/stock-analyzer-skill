@@ -156,6 +156,46 @@
 
 ---
 
+### 行业 beta（v2.6.0 新增）
+
+> 数据来源：`industry_beta.compute_beta`（手写 OLS，60 日窗口，动态基准指数）。
+> 与 `dcf.py:_DISCOUNT_RATES` 字典呼应：高 beta 行业（科技/周期）应配高折现率。
+
+| 指标 | 数值 | 解读 |
+| --- | --- | --- |
+| 基准指数 | [index_code: sh000300/sh000905/sh000852]（按市值动态选） | [index_selection] |
+| **Beta** | **[beta: x.xx]** | [interpretation，例：高弹性/防御型/同步型] |
+| 年化 Alpha | [alpha_annual * 100: x.xx]% | 超额收益（>0 跑赢基准） |
+| R² 拟合优度 | [r_squared: x.xx] | [>0.5 高拟合 / <0.3 低拟合（个股独立行情）] |
+| 个股年化波动率 | [volatility_pct: xx.x]% | 与大盘 ATR 对比 |
+| 观测值 | [n_observations] / [window] 日 | 数据完整性 |
+
+> 💡 **专家视角**：
+> - **林奇**：beta > 1.5 的成长股需要业绩高增速匹配，否则是泡沫
+> - **价值机构锚**：beta < 0.8 的低 beta 股适合防守，但要看估值是否便宜
+> - **风控官**：组合加仓高 beta 股 -> 组合整体 beta 上升，需平衡配置
+
+---
+
+### 组合相关性（v2.6.0 新增）
+
+> 数据来源：`portfolio_correlation.compute_full_portfolio_correlation`（与 /portfolio skill 联动）。
+> **持仓为空时本节跳过**。
+
+| 指标 | 数值 | 解读 |
+| --- | --- | --- |
+| 持仓数 | [len(portfolio_codes)] 只 | [portfolio_codes 列表] |
+| **平均两两相关性** | **[avg_pairwise_corr: x.xx]** | >0.7 高风险（伪分散）/ 0.4-0.7 中度 / <0.4 高度分散 |
+| 高相关对 (>=0.7) | [len(high_corr_pairs)] 对 | [high_corr_pairs 前 3 对] |
+| 个股 vs 组合 | [vs_portfolio_avg_corr: x.xx] | [diversification_benefit: 高/中/低] |
+
+> 💡 **专家视角**：
+> - **风控官**：avg_pairwise > 0.7 = 持仓伪分散，单板块暴跌时组合回撤放大
+> - **题材龙头**：高相关对（>0.8）可考虑减一加一，提升组合 Sharpe
+> - **价值机构锚**：vs_portfolio < 0.4 的个股加入组合有显著分散价值（独立行情）
+
+---
+
 ## 一、五层分析
 
 ### 第1层：基本面 评级 [A+/A/B/C]
