@@ -3,10 +3,107 @@
   "title": "StockFiveLayer",
   "description": "/stock full 五层分析的完整输出契约",
   "type": "object",
-  "required": ["code", "name", "fundamental", "valuation", "technical", "sentiment", "position_plan"],
+  "required": ["code", "name", "fundamental", "valuation", "technical", "sentiment", "position_plan", "market_anchor"],
   "properties": {
     "code": {"type": "string", "pattern": "^(sh|sz|SH|SZ)\\d{6}$"},
     "name": {"type": "string", "minLength": 1},
+    "market_anchor": {
+      "type": "object",
+      "description": "市场环境锚定（v2.5.0 新增；scripts/market_anchor.py 输出）",
+      "required": ["regime", "as_of"],
+      "properties": {
+        "as_of": {"type": "string", "description": "ISO8601 数据时间戳"},
+        "regime": {
+          "enum": ["bull", "bear", "sideways", "panic", "euphoria", "defensive", "unknown"],
+          "description": "市场环境判定（来自 experts/market_detector.py，与 decide.md §二 权重表一致）"
+        },
+        "regime_label_zh": {"type": "string", "description": "中文 label: 牛市/熊市/震荡/冰点/亢奋/防御型"},
+        "regime_confidence": {"enum": ["high", "medium", "low"], "description": "判定置信度；缺数据时降为 low"},
+        "regime_reason": {"type": "string"},
+        "long_weight": {"type": "number", "minimum": 0, "maximum": 1, "description": "长线权重（debate 调权用）"},
+        "short_weight": {"type": "number", "minimum": 0, "maximum": 1, "description": "短线权重（debate 调权用）"},
+        "index_code": {"type": "string", "description": "大盘指数代码，默认 sh000300 沪深300"},
+        "index_change_pct": {"type": "number", "description": "大盘当日涨跌幅"},
+        "breadth": {
+          "type": "object",
+          "properties": {
+            "up_count": {"type": "integer"},
+            "down_count": {"type": "integer"},
+            "limit_up_count": {"type": "integer"},
+            "limit_down_count": {"type": "integer"},
+            "up_ratio": {"type": "number"},
+            "advance_ratio": {"type": "number", "description": "上涨家数/总家数（detect_market_state 入参）"},
+            "new_high_low_ratio": {"type": "number"},
+            "margin_ratio": {"type": "number"}
+          }
+        },
+        "sector_strength": {
+          "type": ["object", "null"],
+          "description": "板块 ETF 横向对比（technical 模式为 null）",
+          "properties": {
+            "etfs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {"type": "string"},
+                  "name": {"type": "string"},
+                  "category": {"enum": ["宽基", "行业", "跨境", "商品"]},
+                  "change_pct": {"type": ["number", "null"]},
+                  "turnover": {"type": ["number", "null"]},
+                  "strength_rank": {"type": ["integer", "null"]},
+                  "quadrant": {"enum": ["强势", "中性", "弱势", "数据缺失"]},
+                  "data_ok": {"type": "boolean"}
+                }
+              }
+            },
+            "top": {"type": "array", "items": {"type": "string"}, "description": "强势 top3 板块 ETF code"},
+            "bottom": {"type": "array", "items": {"type": "string"}, "description": "弱势 bottom3"},
+            "data_quality": {"type": ["object", "null"]}
+          }
+        },
+        "stock_sector_compare": {
+          "type": ["object", "null"],
+          "description": "个股 vs 板块 vs 大盘 三段式对比",
+          "properties": {
+            "stock_code": {"type": "string"},
+            "stock_sectors": {"type": ["array", "null"], "items": {"type": "string"}, "description": "个股所属板块列表（粗粒度，来自 sector_stocks.json）"},
+            "matched_etf": {"type": ["string", "null"], "description": "代理 ETF code"},
+            "matched_etf_name": {"type": ["string", "null"]},
+            "stock_change_pct": {"type": ["number", "null"]},
+            "sector_change_pct": {"type": ["number", "null"]},
+            "index_change_pct": {"type": ["number", "null"]},
+            "rps_vs_sector": {"type": ["number", "null"], "description": "个股-板块涨幅差（pp）；正=跑赢，负=跑输"},
+            "rps_vs_index": {"type": ["number", "null"], "description": "个股-大盘涨幅差（pp）"},
+            "verdict": {"type": "string"},
+            "data_quality": {
+              "type": "object",
+              "properties": {
+                "stock_ok": {"type": "boolean"},
+                "sector_ok": {"type": "boolean"},
+                "index_ok": {"type": "boolean"},
+                "degraded_fields": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        },
+        "data_quality": {
+          "type": "object",
+          "required": ["degraded_fields"],
+          "properties": {
+            "index_ok": {"type": "boolean"},
+            "index_kline_ok": {"type": "boolean"},
+            "breadth_ok": {"type": "boolean"},
+            "sector_ok": {"type": "boolean"},
+            "degraded_fields": {
+              "type": "array",
+              "items": {"enum": ["index", "index_kline", "breadth", "sector", "regime", "etf_csv", "stock"]},
+              "description": "失败的字段名；空数组表示全成功"
+            }
+          }
+        }
+      }
+    },
     "fundamental": {
       "type": "object",
       "required": ["rating"],

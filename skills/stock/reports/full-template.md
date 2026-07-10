@@ -31,6 +31,49 @@
 
 ---
 
+## 📊 市场环境锚定
+
+> **前置原则**：个股的"破位/突破/强势/弱势"必须放在市场环境中判断。
+> 一只票在牛市跌破20日均线是"洗盘"，在熊市是"破位"——剥离大盘谈个股，技术信号会反向。
+> 数据来源：`scripts/market_anchor.py <股票代码> -j`
+
+### 大盘状态
+
+| 维度 | 数据 | 判断 |
+| --- | --- | --- |
+| 市场状态 | [regime_zh: 牛市/熊市/震荡/冰点/亢奋/防御型] | [regime_confidence: high/medium/low] |
+| 触发原因 | [regime_reason] | — |
+| 大盘指数 | [index_code] 当日 [index_change_pct:+x.xx]% | [支撑/压力位说明] |
+| 市场宽度 | 上涨 [up_count] / 下跌 [down_count] 家 | [赚钱效应描述] |
+| 涨跌停 | 涨停 [limit_up_count] / 跌停 [limit_down_count] 家 | [情绪定性] |
+
+### 板块相对强度（横向对比，13 个核心 ETF）
+
+| 排名 | 代码 | 名称 | 类别 | 涨跌% | 换手% | 强度 |
+| --- | --- | --- | --- | --- | --- | --- |
+| [rank] | [code] | [name] | [category] | [change_pct:+x.xx]% | [turnover]% | [强势/中性/弱势] |
+
+**强势板块 (top 3)**：[top1_name] [chg:+x.xx]% | [top2_name] [chg:+x.xx]% | [top3_name] [chg:+x.xx]%
+**弱势板块 (bottom 3)**：[bot1_name] [chg:x.xx]% | [bot2_name] [chg:x.xx]% | [bot3_name] [chg:x.xx]%
+
+### 个股 vs 板块 vs 大盘 三段式对比
+
+| 维度 | 数值 |
+| --- | --- |
+| 所属板块 | [stock_sectors: 消费/医药/科技/...] |
+| 代理 ETF | [matched_etf_name]（板块[matched_via] 代理）|
+| 个股涨跌 | [stock_change_pct:+x.xx]% |
+| 板块涨跌 | [sector_change_pct:+x.xx]% |
+| 大盘涨跌 | [index_change_pct:+x.xx]% |
+| **RPS vs 板块** | **[rps_vs_sector:+x.xx] pp**（正=跑赢，负=跑输）|
+| **RPS vs 大盘** | **[rps_vs_index:+x.xx] pp** |
+
+**结论（verdict）**：[verdict 文本，例："在弱势板块中相对抗跌，跑输大盘"]
+
+> ⚠️ 数据降级提示：如果 `degraded_fields` 非空，在此列出（如 `⚠️ 板块数据缺失，个股 vs 板块对比不可用`）。
+
+---
+
 ## 一、五层分析
 
 ### 第1层：基本面 评级 [A+/A/B/C]
@@ -56,7 +99,9 @@
 ---
 
 ## 三、8人专家圆桌辩论
-[市场环境判定 + 8位 active 专家（5长线+3短线）评分表 + 分组汇总 + 信心指数 + 最终方向]
+> **regime 来源**：本节使用的 `regime / long_weight / short_weight` 取自上方"📊 市场环境锚定"小节，不再二次判定。
+
+[8位 active 专家（5长线+3短线）评分表 + 分组汇总 + 信心指数 + 最终方向]
 
 ---
 

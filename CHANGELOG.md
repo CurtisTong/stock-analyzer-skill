@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段当前为空。
+> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定前置改造（market_anchor.py / sector_etf_strength.py / schema / 模板）。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -31,6 +31,12 @@
 ## [Unreleased] - 2026-07-10
 
 ### Added
+- **market-anchor**: full / debate / technical 三模式统一前置"市场环境锚定"小节（大盘状态 + 板块强度 + 个股 vs 板块 vs 大盘三段式 RPS）
+- **scripts/market_anchor.py**: 新建编排器，聚合 `quote.py` / `market_breadth.py` / `sector_etf_strength.py` / `experts.market_detector`，Markdown + JSON 双输出，缺数据优雅降级
+- **scripts/sector_etf_strength.py**: 新建脚本，读取 `data/sector_etf.csv` 13 个 ETF，输出强弱板块排序 + 个股 vs 板块 RPS，含显式板块→ETF 代理映射表（解决"sector_stocks.json 消费"vs"sector_etf.csv 白酒ETF"名字不匹配问题）
+- **schema**: `stock.schema.json` 新增 `market_anchor` 顶层字段（regime / breadth / sector_strength / stock_sector_compare / data_quality）
+- **template**: `full-template.md` 把"市场环境判定"从"专家圆桌"括号抽出，独立成前置小节
+- **SKILL.md**: 插入 Step 0 市场环境锚定章节 + Step 3 输出模板前置段 + debate/technical 模式说明同步
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
 - **backtest**: --walk-forward CLI 集成 + baseline 更新
 - **finance**: --finance-periods 参数贯通 stock->finance->fetcher
