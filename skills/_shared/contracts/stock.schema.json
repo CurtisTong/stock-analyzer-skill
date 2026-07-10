@@ -223,6 +223,44 @@
         "data_quality": {"type": "object"}
       }
     },
+    "sector_rotation": {
+      "type": ["object", "null"],
+      "description": "v2.7.0 新增：5 日板块轮动强度（即时计算，无持久化）",
+      "properties": {
+        "window": {"type": "integer"},
+        "rotation_strength": {"type": ["number", "null"], "description": "平均|位次差|（0=无轮动, >3=剧烈）"},
+        "rotation_std": {"type": ["number", "null"], "description": "位次差标准差"},
+        "biggest_risers": {
+          "type": "array",
+          "items": {"type": "array"},
+          "description": "[[code, name, delta], ...] 位次上升 top 3（delta 负值=上升）"
+        },
+        "biggest_fallers": {
+          "type": "array",
+          "items": {"type": "array"},
+          "description": "[[code, name, delta], ...] 位次下降 top 3（delta 正值=下降）"
+        },
+        "interpretation": {"type": ["string", "null"]},
+        "data_quality": {"type": "object"}
+      }
+    },
+    "northbound_pricer": {
+      "type": ["object", "null"],
+      "description": "v2.7.0 新增：北向资金边际定价者（20 日累计 + 近 5 日斜率）",
+      "properties": {
+        "days": {"type": "integer"},
+        "actual_days": {"type": "integer"},
+        "total_net_yi": {"type": ["number", "null"], "description": "N 日累计净流入（亿元）"},
+        "total_net_sh_yi": {"type": ["number", "null"], "description": "沪股通累计（亿元）"},
+        "total_net_sz_yi": {"type": ["number", "null"], "description": "深股通累计（亿元）"},
+        "latest_day_net_yi": {"type": ["number", "null"]},
+        "recent_5d_net_yi": {"type": ["number", "null"]},
+        "recent_5d_slope": {"enum": ["流入", "流出", "持平", "unknown", null]},
+        "direction": {"enum": ["持续流入", "持续流出", "震荡", "unknown", null]},
+        "interpretation": {"type": ["string", "null"]},
+        "data_quality": {"type": "object"}
+      }
+    },
     "fundamental": {
       "type": "object",
       "required": ["rating"],

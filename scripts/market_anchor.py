@@ -28,7 +28,7 @@ from datetime import datetime
 # 确保 scripts/ 在 import 路径
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from data import get_quotes, get_kline  # noqa: E402 多源数据层
+from data import get_quotes, get_kline, get_northbound_flow  # noqa: E402 多源数据层
 
 # 复用：直接 import，不重写
 from experts.market_detector import detect_market_state  # noqa: E402
@@ -390,6 +390,134 @@ def _fetch_portfolio_correlation(stock_code: str | None) -> dict | None:
 
 
 # ═══════════════════════════════════════════════════════════════
+# v2.7.0 新增：北向资金边际定价者 + 题材轮动强度
+# ═══════════════════════════════════════════════════════════════
+
+def _fetch_northbound_pricer(days: int = 20) -> dict | None:
+    """北向资金边际定价者（N 日累计净流入 + 近 5 日斜率方向）。
+
+    复用 data.get_northbound_flow("", days=N) + briefing.py 算法。
+    原始单位万元，统一 /1e4 转亿元。
+
+    Returns:
+        dict:
+          {
+            "days": 20,
+            "total_net_yi": 125.3,      # N 日累计净流入（亿元）
+            "total_net_sh_yi": 80.5,    # 沪股通
+            "total_net_sz_yi": 44.8,    # 深股通
+            "latest_day_net_yi": 15.2,  # 最近一日
+            "recent_5d_net_yi": 45.6,   # 近 5 日累计
+            "recent_5d_slope": "流入",  # 流入/流出/持平
+            "direction": "持续流入",    # 综合方向
+            "interpretation": "...",
+            "data_quality": {"degraded_fields": [...]}
+          }
+    """
+    degraded = []
+    try:
+        flow_data = get_northbound_flow("", days=days)
+        if not flow_data:
+            degraded.append("northbound.flow_data")
+            return {
+                "days": days,
+                "total_net_yi": None,
+                "total_net_sh_yi": None,
+                "total_net_sz_yi": None,
+                "latest_day_net_yi": None,
+                "recent_5d_net_yi": None,
+                "recent_5d_slope": "unknown",
+                "direction": "unknown",
+                "interpretation": "北向资金数据缺失",
+                "data_quality": {"degraded_fields": degraded},
+            }
+
+        # 累计净流入（万元 -> 亿元）
+        total_net_wan = sum(d.get("net_buy", 0) for d in flow_data)
+        total_sh_wan = sum(d.get("sh_net", 0) for d in flow_data)
+        total_sz_wan = sum(d.get("sz_net", 0) for d in flow_data)
+        total_net_yi = round(total_net_wan / 1e4, 2)
+        total_sh_yi = round(total_sh_wan / 1e4, 2)
+        total_sz_yi = round(total_sz_wan / 1e4, 2)
+
+        # 最近一日
+        latest = flow_data[-1]
+        latest_net_yi = round(latest.get("net_buy", 0) / 1e4, 2)
+
+        # 近 5 日累计 + 斜率方向
+        recent_5d = flow_data[-5:] if len(flow_data) >= 5 else flow_data
+        recent_5d_net_wan = sum(d.get("net_buy", 0) for d in recent_5d)
+        recent_5d_net_yi = round(recent_5d_net_wan / 1e4, 2)
+
+        if recent_5d_net_yi > 10:
+            recent_5d_slope = "流入"
+        elif recent_5d_net_yi < -10:
+            recent_5d_slope = "流出"
+        else:
+            recent_5d_slope = "持平"
+
+        # 综合方向：20 日累计 + 5 日斜率
+        if total_net_yi > 0 and recent_5d_slope == "流入":
+            direction = "持续流入"
+        elif total_net_yi < 0 and recent_5d_slope == "流出":
+            direction = "持续流出"
+        elif recent_5d_slope in ("流入", "流出"):
+            direction = "震荡"  # 长期与短期不一致
+        else:
+            direction = "震荡"
+
+        interpretation = _interpret_northbound(total_net_yi, recent_5d_slope, direction)
+
+        if len(flow_data) < days:
+            degraded.append(f"northbound.insufficient_days({len(flow_data)}/{days})")
+
+        return {
+            "days": days,
+            "actual_days": len(flow_data),
+            "total_net_yi": total_net_yi,
+            "total_net_sh_yi": total_sh_yi,
+            "total_net_sz_yi": total_sz_yi,
+            "latest_day_net_yi": latest_net_yi,
+            "recent_5d_net_yi": recent_5d_net_yi,
+            "recent_5d_slope": recent_5d_slope,
+            "direction": direction,
+            "interpretation": interpretation,
+            "data_quality": {"degraded_fields": degraded},
+        }
+    except Exception as e:
+        print(f"[market_anchor] 北向资金拉取失败: {e}", file=sys.stderr)
+        return {
+            "days": days,
+            "total_net_yi": None,
+            "direction": "unknown",
+            "interpretation": f"异常: {type(e).__name__}",
+            "data_quality": {"degraded_fields": ["northbound_pricer"]},
+        }
+
+
+def _interpret_northbound(total_yi: float, slope: str, direction: str) -> str:
+    """北向资金解读。"""
+    if direction == "持续流入":
+        return f"北向持续流入（{total_yi:.1f} 亿元），边际定价者看多"
+    if direction == "持续流出":
+        return f"北向持续流出（{total_yi:.1f} 亿元），边际定价者看空"
+    if slope == "流入":
+        return f"北向短期回流（{total_yi:.1f} 亿元），关注持续性"
+    if slope == "流出":
+        return f"北向短期流出（{total_yi:.1f} 亿元），警惕外资减仓"
+    return f"北向资金震荡（{total_yi:.1f} 亿元），方向不明"
+
+
+def _fetch_sector_rotation(window: int = 5) -> dict | None:
+    """题材轮动强度（透出 sector_etf_strength.compute_rotation_strength）。"""
+    try:
+        return sector_etf_strength.compute_rotation_strength(window=window)
+    except Exception as e:
+        print(f"[market_anchor] 题材轮动计算失败: {e}", file=sys.stderr)
+        return {"data_quality": {"degraded_fields": ["sector_rotation"]}}
+
+
+# ═══════════════════════════════════════════════════════════════
 # 顶层编排
 # ═══════════════════════════════════════════════════════════════
 
@@ -398,6 +526,8 @@ def analyze(
     fetch_sector: bool = True,
     index_code: str = "sh000300",
     fetch_portfolio: bool = True,
+    fetch_rotation: bool = True,
+    fetch_northbound: bool = True,
 ) -> dict:
     """一次性返回"市场环境锚定"完整数据。
 
@@ -405,6 +535,8 @@ def analyze(
         stock_code: 可选。提供时输出 stock_sector_compare + industry_beta + vs_portfolio。
         fetch_sector: 是否拉板块 ETF（technical 模式可关）。
         fetch_portfolio: 是否拉组合相关性（v2.6.0；/portfolio skill 关闭时可关）。
+        fetch_rotation: 是否拉题材轮动（v2.7.0）。
+        fetch_northbound: 是否拉北向资金（v2.7.0）。
         index_code: 大盘指数代码，默认 sh000300 沪深300。
 
     Returns:
@@ -508,7 +640,21 @@ def analyze(
         if portfolio_corr_payload and portfolio_corr_payload.get("data_quality", {}).get("degraded_fields"):
             degraded.extend(portfolio_corr_payload["data_quality"]["degraded_fields"])
 
-    # 11. 组装输出
+    # 11. v2.7.0 新增：题材轮动强度
+    rotation_payload = None
+    if fetch_rotation:
+        rotation_payload = _fetch_sector_rotation(window=5)
+        if rotation_payload and rotation_payload.get("data_quality", {}).get("degraded_fields"):
+            degraded.extend(rotation_payload["data_quality"]["degraded_fields"])
+
+    # 12. v2.7.0 新增：北向资金边际定价者
+    northbound_payload = None
+    if fetch_northbound:
+        northbound_payload = _fetch_northbound_pricer(days=20)
+        if northbound_payload and northbound_payload.get("data_quality", {}).get("degraded_fields"):
+            degraded.extend(northbound_payload["data_quality"]["degraded_fields"])
+
+    # 13. 组装输出
     return {
         "as_of": as_of,
         "regime": regime_enum,
@@ -541,6 +687,9 @@ def analyze(
         # v2.6.0 新增 2 个字段
         "industry_beta": industry_beta_payload,
         "portfolio_correlation": portfolio_corr_payload,
+        # v2.7.0 新增 2 个字段
+        "sector_rotation": rotation_payload,
+        "northbound_pricer": northbound_payload,
         "data_quality": {
             "index_ok": index_quote is not None,
             "index_kline_ok": index_kline is not None,
@@ -552,6 +701,8 @@ def analyze(
             "emotion_phase_ok": emotion_phase is not None,
             "industry_beta_ok": industry_beta_payload is not None and not industry_beta_payload.get("data_quality", {}).get("degraded_fields"),
             "portfolio_correlation_ok": portfolio_corr_payload is not None and not portfolio_corr_payload.get("data_quality", {}).get("degraded_fields"),
+            "sector_rotation_ok": rotation_payload is not None and not rotation_payload.get("data_quality", {}).get("degraded_fields"),
+            "northbound_ok": northbound_payload is not None and not northbound_payload.get("data_quality", {}).get("degraded_fields"),
             "degraded_fields": degraded,
         },
     }
@@ -772,6 +923,41 @@ def to_markdown(payload: dict) -> str:
             if vp and vp.get("vs_portfolio_avg_corr") is not None:
                 lines.append(f"- 个股 vs 组合: {vp['vs_portfolio_avg_corr']}（{vp.get('diversification_benefit', '')}）")
 
+    # v2.7.0 新增：题材轮动强度
+    sr = payload.get("sector_rotation")
+    if sr:
+        lines.append("")
+        lines.append(f"### 🔄 题材轮动强度（{sr.get('window', 5)} 日）")
+        strength = sr.get("rotation_strength")
+        if strength is not None:
+            lines.append(f"- 轮动强度: {strength}（平均位次差，>3=剧烈）")
+        if sr.get("rotation_std") is not None:
+            lines.append(f"- 位次差标准差: {sr['rotation_std']}")
+        risers = sr.get("biggest_risers", [])
+        if risers:
+            riser_str = ", ".join(f"{r[1]} +{-r[2]}" for r in risers[:3])
+            lines.append(f"- 位次上升: {riser_str}")
+        fallers = sr.get("biggest_fallers", [])
+        if fallers:
+            faller_str = ", ".join(f"{f[1]} -{f[2]}" for f in fallers[:3])
+            lines.append(f"- 位次下降: {faller_str}")
+        lines.append(f"- 解读: {sr.get('interpretation', '')}")
+
+    # v2.7.0 新增：北向资金边际定价者
+    nb = payload.get("northbound_pricer")
+    if nb:
+        lines.append("")
+        lines.append(f"### 🌏 北向资金边际定价者（{nb.get('days', 20)} 日）")
+        total = nb.get("total_net_yi")
+        if total is not None:
+            lines.append(f"- 累计净流入: {total} 亿元（沪 {nb.get('total_net_sh_yi')} / 深 {nb.get('total_net_sz_yi')}）")
+        if nb.get("latest_day_net_yi") is not None:
+            lines.append(f"- 最近一日: {nb['latest_day_net_yi']} 亿元")
+        if nb.get("recent_5d_net_yi") is not None:
+            lines.append(f"- 近 5 日累计: {nb['recent_5d_net_yi']} 亿元（{nb.get('recent_5d_slope', '')}）")
+        lines.append(f"- 方向: {nb.get('direction', 'unknown')}")
+        lines.append(f"- 解读: {nb.get('interpretation', '')}")
+
     dq = payload["data_quality"]
     if dq["degraded_fields"]:
         lines.append("")
@@ -791,6 +977,8 @@ def main():
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--no-sector", action="store_true", help="跳过板块拉取（technical 模式用）")
     parser.add_argument("--no-portfolio", action="store_true", help="跳过组合相关性（v2.6.0）")
+    parser.add_argument("--no-rotation", action="store_true", help="跳过题材轮动（v2.7.0）")
+    parser.add_argument("--no-northbound", action="store_true", help="跳过北向资金（v2.7.0）")
     parser.add_argument("--index", default="sh000300", help="大盘指数代码（默认 sh000300）")
     args = parser.parse_args()
 
@@ -798,6 +986,8 @@ def main():
         stock_code=args.stock_code,
         fetch_sector=not args.no_sector,
         fetch_portfolio=not args.no_portfolio,
+        fetch_rotation=not args.no_rotation,
+        fetch_northbound=not args.no_northbound,
         index_code=args.index,
     )
 

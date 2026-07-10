@@ -21,13 +21,15 @@
 import json
 import sys
 import argparse
+import statistics
 from pathlib import Path
 from datetime import datetime
 
 # 确保 scripts/ 在 import 路径
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from data import get_quotes
+from data import get_quotes, get_kline  # noqa: E402 多源数据层
+from common import parallel_map  # noqa: E402 并行拉取
 from sector import _load_sector_stocks, find_sector_by_code  # noqa: E402 复用现有函数
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
@@ -323,6 +325,137 @@ def build_stock_sector_compare(
         "verdict": "; ".join(verdict_parts) if verdict_parts else "数据缺失",
         "data_quality": data_quality,
     }
+
+
+# ═══════════════════════════════════════════════════════════════
+# v2.7.0 新增：题材轮动强度（即时计算，无持久化）
+# ═══════════════════════════════════════════════════════════════
+
+def compute_rotation_strength(window: int = 5) -> dict | None:
+    """N 日板块轮动强度（即时计算，无持久化层）。
+
+    算法：
+    1. 拉 13 个 ETF 各 datalen=window+1 的日 K 线（parallel_map 并行）
+    2. 算每个 ETF "当日涨跌幅" = close[-1]/close[-2] - 1
+    3. 算每个 ETF "N 日累计涨跌幅" = close[-1]/close[-(N+1)] - 1
+    4. 分别排名（降序），计算位次差 rank_1d - rank_Nd（正=位次上升）
+    5. 轮动强度 = 平均|位次差| + 位次差标准差
+
+    Args:
+        window: 累计涨跌幅窗口（默认 5 日）
+
+    Returns:
+        dict:
+          {
+            "window": 5,
+            "etfs": [{code, name, change_1d_pct, change_Nd_pct,
+                      rank_1d, rank_Nd, rank_delta}],
+            "rotation_strength": 2.3,   # 平均|位次差|（0=无轮动, >3=剧烈）
+            "rotation_std": 1.8,
+            "biggest_risers": [[code, name, delta], ...],  # 位次上升 top 3
+            "biggest_fallers": [[code, name, delta], ...],
+            "interpretation": "...",
+            "data_quality": {"degraded_fields": [...]}
+          }
+        全部失败 -> 返回 None。
+    """
+    etfs_meta = _load_sector_etfs()
+    if not etfs_meta:
+        return None
+
+    # 并行拉 13 个 ETF 的 K 线（datalen=window+1，需 window+1 根算 N 日涨幅）
+    etf_codes = [e["code"] for e in etfs_meta]
+    kline_results = parallel_map(
+        lambda c: get_kline(c, scale=240, datalen=window + 1),
+        etf_codes,
+        timeout=30,
+    )
+
+    # 算每个 ETF 的当日 + N 日涨跌幅
+    rows = []
+    degraded = []
+    for meta in etfs_meta:
+        code = meta["code"]
+        klines = kline_results.get(code)
+        if not klines or len(klines) < 2:
+            degraded.append(f"rotation.{code}")
+            continue
+        closes = [k.close for k in klines if k.close > 0]
+        if len(closes) < 2:
+            degraded.append(f"rotation.{code}")
+            continue
+
+        # 当日涨跌幅（%）
+        change_1d = (closes[-1] / closes[-2] - 1) * 100 if closes[-2] > 0 else None
+        # N 日累计涨跌幅（%）：需要 window+1 根
+        if len(closes) >= window + 1 and closes[-(window + 1)] > 0:
+            change_nd = (closes[-1] / closes[-(window + 1)] - 1) * 100
+        else:
+            change_nd = None
+
+        if change_1d is None or change_nd is None:
+            degraded.append(f"rotation.{code}")
+            continue
+
+        rows.append({
+            "code": code,
+            "name": meta["name"],
+            "category": meta["category"],
+            "change_1d_pct": round(change_1d, 2),
+            "change_nd_pct": round(change_nd, 2),
+        })
+
+    if not rows:
+        return None
+
+    # 排名（降序，1=最强）
+    sorted_1d = sorted(rows, key=lambda r: r["change_1d_pct"], reverse=True)
+    sorted_nd = sorted(rows, key=lambda r: r["change_nd_pct"], reverse=True)
+    rank_1d_map = {r["code"]: i + 1 for i, r in enumerate(sorted_1d)}
+    rank_nd_map = {r["code"]: i + 1 for i, r in enumerate(sorted_nd)}
+
+    for r in rows:
+        r["rank_1d"] = rank_1d_map[r["code"]]
+        r["rank_nd"] = rank_nd_map[r["code"]]
+        # rank_delta 正=位次上升（当日比 N 日强），负=位次下降
+        r["rank_delta"] = r["rank_nd"] - r["rank_1d"]
+
+    # 轮动强度 = 平均|位次差|
+    abs_deltas = [abs(r["rank_delta"]) for r in rows]
+    rotation_strength = round(statistics.mean(abs_deltas), 2) if abs_deltas else 0
+    rotation_std = round(statistics.stdev(abs_deltas), 2) if len(abs_deltas) >= 2 else 0
+
+    # 位次上升 / 下降 top 3
+    risers = sorted(rows, key=lambda r: r["rank_delta"])[:3]  # rank_delta 最小（负最多）= 上升最多
+    fallers = sorted(rows, key=lambda r: r["rank_delta"], reverse=True)[:3]
+    biggest_risers = [
+        [r["code"], r["name"], r["rank_delta"]] for r in risers if r["rank_delta"] < 0
+    ]
+    biggest_fallers = [
+        [r["code"], r["name"], r["rank_delta"]] for r in fallers if r["rank_delta"] > 0
+    ]
+
+    interpretation = _interpret_rotation(rotation_strength, biggest_risers, biggest_fallers)
+
+    return {
+        "window": window,
+        "etfs": rows,
+        "rotation_strength": rotation_strength,
+        "rotation_std": rotation_std,
+        "biggest_risers": biggest_risers,
+        "biggest_fallers": biggest_fallers,
+        "interpretation": interpretation,
+        "data_quality": {"degraded_fields": degraded},
+    }
+
+
+def _interpret_rotation(strength: float, risers: list, fallers: list) -> str:
+    """轮动强度解读。"""
+    if strength < 1.0:
+        return "低轮动（板块排名稳定，趋势延续）"
+    if strength < 2.5:
+        return "中度轮动（板块间有切换，但主线未变）"
+    return "剧烈轮动（板块排名大幅变化，主线切换中）"
 
 
 # ═══════════════════════════════════════════════════════════════
