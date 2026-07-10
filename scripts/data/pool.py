@@ -29,6 +29,7 @@ def _get_filter():
 
     return FILTER
 
+
 logger = logging.getLogger(__name__)
 
 # ---------- 常量 ----------

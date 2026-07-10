@@ -100,14 +100,18 @@ def generate_catalog() -> str:
     lines.append("")
     lines.append("## JSON 输出")
     lines.append("")
-    lines.append("所有数据获取脚本支持 `-j` 输出 JSON，便于二次计算（排序、过滤、聚合）。")
+    lines.append(
+        "所有数据获取脚本支持 `-j` 输出 JSON，便于二次计算（排序、过滤、聚合）。"
+    )
     lines.append("")
     return "\n".join(lines)
 
 
 def main():
     parser = argparse.ArgumentParser(description="生成脚本目录 markdown")
-    parser.add_argument("--check", action="store_true", help="校验 catalog 是否最新（CI 用）")
+    parser.add_argument(
+        "--check", action="store_true", help="校验 catalog 是否最新（CI 用）"
+    )
     parser.add_argument("--stdout", action="store_true", help="输出到 stdout 而非文件")
     args = parser.parse_args()
 
@@ -118,7 +122,9 @@ def main():
         return
 
     if args.check:
-        existing = CATALOG_PATH.read_text(encoding="utf-8") if CATALOG_PATH.exists() else ""
+        existing = (
+            CATALOG_PATH.read_text(encoding="utf-8") if CATALOG_PATH.exists() else ""
+        )
         if existing.strip() != content.strip():
             print("❌ script-catalog.md 不是最新，请运行:")
             print("   python3 scripts/dev/gen_script_catalog.py")
@@ -139,7 +145,9 @@ def main():
 
     CATALOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     CATALOG_PATH.write_text(content, encoding="utf-8")
-    print(f"✅ 生成 {len(list_scripts())} 个脚本目录 -> {CATALOG_PATH.relative_to(PKG_ROOT)}")
+    print(
+        f"✅ 生成 {len(list_scripts())} 个脚本目录 -> {CATALOG_PATH.relative_to(PKG_ROOT)}"
+    )
 
 
 if __name__ == "__main__":

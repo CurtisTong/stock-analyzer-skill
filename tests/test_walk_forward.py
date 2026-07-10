@@ -109,7 +109,9 @@ class TestRunWalkForward:
         mock_kline.side_effect = lambda code, scale=240, datalen=100: _make_mock_kline(
             max(datalen, 80)
         )
-        mock_fin.return_value = [FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")]
+        mock_fin.return_value = [
+            FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")
+        ]
 
         config = WalkForwardConfig(
             strategy_name="balanced",
@@ -140,7 +142,9 @@ class TestRunWalkForward:
         mock_kline.side_effect = lambda code, scale=240, datalen=100: _make_mock_kline(
             max(datalen, 80)
         )
-        mock_fin.return_value = [FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")]
+        mock_fin.return_value = [
+            FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")
+        ]
 
         config = WalkForwardConfig(
             strategy_name="balanced",
@@ -168,7 +172,9 @@ class TestRunWalkForward:
         mock_kline.side_effect = lambda code, scale=240, datalen=100: _make_mock_kline(
             max(datalen, 80)
         )
-        mock_fin.return_value = [FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")]
+        mock_fin.return_value = [
+            FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")
+        ]
 
         config = WalkForwardConfig(
             strategy_name="balanced",
@@ -190,7 +196,9 @@ class TestRunWalkForward:
         from data.types import FinanceRecord
 
         mock_kline.return_value = []  # 无数据
-        mock_fin.return_value = [FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")]
+        mock_fin.return_value = [
+            FinanceRecord(eps=2.5, roe=18.0, report_date="2024-01-01")
+        ]
 
         config = WalkForwardConfig(
             strategy_name="balanced",
@@ -240,4 +248,3 @@ class TestWalkForwardCLI:
         assert "--train-days" in stdout
         assert "--test-days" in stdout
         assert "--n-windows" in stdout
-

@@ -11,7 +11,11 @@ logger = logging.getLogger(__name__)
 # ut token 从环境变量读取，未配置时为空（API 调用需自行保证 token 有效）
 _UT = os.environ.get("EASTMONEY_UT_TOKEN", "")
 
-EASTMONEY_KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid={secid}&ut=" + _UT + "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt={klt}&fqt=1&end=20500101&lmt={lmt}"
+EASTMONEY_KLINE_URL = (
+    "https://push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid={secid}&ut="
+    + _UT
+    + "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt={klt}&fqt=1&end=20500101&lmt={lmt}"
+)
 KLT_MAP = {5: 5, 15: 15, 30: 30, 60: 60, 240: 101}
 
 

@@ -65,9 +65,9 @@ def test_skill_count_matches():
     """确认 skill 目录数量 = 13（不含 _shared）。"""
     skills_dir = PROJECT_ROOT / "skills"
     skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and d.name != "_shared"]
-    assert len(skill_dirs) == 13, (
-        f"期望 13 个 skill，实际 {len(skill_dirs)}: {[d.name for d in skill_dirs]}"
-    )
+    assert (
+        len(skill_dirs) == 13
+    ), f"期望 13 个 skill，实际 {len(skill_dirs)}: {[d.name for d in skill_dirs]}"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -107,12 +107,12 @@ def test_skill_md_frontmatter_valid(skill_dir):
     assert isinstance(fm, dict), f"{skill_dir.name}: frontmatter 不是 dict"
     assert "name" in fm, f"{skill_dir.name}: frontmatter 缺 name 字段"
     assert "description" in fm, f"{skill_dir.name}: frontmatter 缺 description 字段"
-    assert fm["name"] == skill_dir.name, (
-        f"{skill_dir.name}: frontmatter name={fm['name']} != 目录名"
-    )
-    assert len(fm["description"]) > 10, (
-        f"{skill_dir.name}: description 过短（{len(fm['description'])} 字符）"
-    )
+    assert (
+        fm["name"] == skill_dir.name
+    ), f"{skill_dir.name}: frontmatter name={fm['name']} != 目录名"
+    assert (
+        len(fm["description"]) > 10
+    ), f"{skill_dir.name}: description 过短（{len(fm['description'])} 字符）"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -180,7 +180,10 @@ class TestScreenerWorkflow:
         from data.types import Quote, KlineBar
 
         def _mock_get_quotes(codes):
-            return {c: Quote(code=c, name="测试股", price=10.0, change_pct=1.0) for c in codes}
+            return {
+                c: Quote(code=c, name="测试股", price=10.0, change_pct=1.0)
+                for c in codes
+            }
 
         def _mock_get_kline(code, scale=240, datalen=100):
             return [

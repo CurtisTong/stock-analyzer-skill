@@ -94,8 +94,10 @@ def file_lock(path: Path, timeout: float = 10.0):
                 return
             # 三种 stale 情形：进程已死 / 内容超时 / 文件过老
             pid_dead = not _is_pid_alive(old_pid)
-            too_old = (created_ts > 0
-                       and datetime.now().timestamp() - created_ts > _LOCK_STALE_SECONDS)
+            too_old = (
+                created_ts > 0
+                and datetime.now().timestamp() - created_ts > _LOCK_STALE_SECONDS
+            )
             if pid_dead or too_old:
                 lp.unlink(missing_ok=True)
         except (ValueError, OSError):

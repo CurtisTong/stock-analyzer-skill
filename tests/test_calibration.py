@@ -257,8 +257,16 @@ class TestLegacyMigration:
             "predictions": [],
             "experts": {
                 "buffett": {"events": 5, "correct": 4, "last_updated": "2026-06-16"},
-                "duan_yongping": {"events": 5, "correct": 4, "last_updated": "2026-06-15"},
-                "value_institution": {"events": 2, "correct": 1, "last_updated": "2026-06-10"},
+                "duan_yongping": {
+                    "events": 5,
+                    "correct": 4,
+                    "last_updated": "2026-06-15",
+                },
+                "value_institution": {
+                    "events": 2,
+                    "correct": 1,
+                    "last_updated": "2026-06-10",
+                },
                 "lynch": {"events": 5, "correct": 2, "last_updated": "2026-06-16"},
             },
         }

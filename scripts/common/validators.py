@@ -139,7 +139,9 @@ def resolve_code(name_or_code: str) -> str:
         prefix, _, symbol = s.partition(":")
         symbol = symbol.strip()
         if not symbol:
-            raise ValidationError("name_or_code", name_or_code, "跨市场代码符号不能为空")
+            raise ValidationError(
+                "name_or_code", name_or_code, "跨市场代码符号不能为空"
+            )
         return f"{prefix.lower()}:{symbol}"
 
     # 优先按代码处理（含纯 6 位数字 / 带前缀）

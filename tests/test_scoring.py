@@ -135,7 +135,13 @@ class TestScorePreciseStructure:
             style="测试",
             horizon="月",
             core_signal="测试",
-            weights={"基本面": 40.0, "估值": 30.0, "技术面": 10.0, "情绪": 10.0, "风险": 10.0},
+            weights={
+                "基本面": 40.0,
+                "估值": 30.0,
+                "技术面": 10.0,
+                "情绪": 10.0,
+                "风险": 10.0,
+            },
         )
         result = score_expert_precise(unknown, GOOD_STOCK)
         # method 标记为 proxy_fallback（而非 precise/fallback）

@@ -11,7 +11,13 @@ from common.circuit_breaker import (
     CircuitBreaker,
     get_circuit_breaker,
 )
-from common.fetcher_base import NOT_HANDLED, BaseFetcher, DataFetcherManager, fetch_with_breaker, fetch_with_fallback
+from common.fetcher_base import (
+    NOT_HANDLED,
+    BaseFetcher,
+    DataFetcherManager,
+    fetch_with_breaker,
+    fetch_with_fallback,
+)
 from common.lazy_registry import LazyFetcherRegistry
 
 # ---------- 异常类（零副作用，顶层导入） ----------

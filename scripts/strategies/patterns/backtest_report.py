@@ -338,7 +338,9 @@ def generate_comparison_report(stocks_data, ma_short=10, ma_long=21, vol_thresho
     avg_win_rate = sum(s["win_rate"] for s in all_stats) / len(all_stats)
     avg_return = sum(s["avg_return"] for s in all_stats) / len(all_stats)
     avg_total = sum(s["total_return"] for s in all_stats) / len(all_stats)
-    finite_pfs = [s["profit_factor"] for s in all_stats if s["profit_factor"] != float("inf")]
+    finite_pfs = [
+        s["profit_factor"] for s in all_stats if s["profit_factor"] != float("inf")
+    ]
     avg_pf = sum(finite_pfs) / len(finite_pfs) if finite_pfs else float("inf")
     avg_sharpe = sum(s["sharpe_ratio"] for s in all_stats) / len(all_stats)
 

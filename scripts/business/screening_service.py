@@ -477,7 +477,9 @@ def compute_phase1_parts(fin, quote_dict, industry: str, weights=None) -> dict:
         weights: 策略权重 dict。传入时权重为 0 的因子跳过计算（P0-12）。
     """
     code = quote_dict.get("code", "")
-    parts = compute_phase_factors(1, fin, quote_dict, {}, industry, code, weights=weights)
+    parts = compute_phase_factors(
+        1, fin, quote_dict, {}, industry, code, weights=weights
+    )
     # Phase 1 chip 使用静态评分
     parts["chip"] = chip_score_static(code)
     return parts
@@ -528,17 +530,23 @@ def compute_weighted_score(parts, strategy, regime=None):
     missing_parts = weight_keys - part_keys
     if missing_weights or missing_parts:
         import logging
+
         logger = logging.getLogger(__name__)
         if missing_weights:
-            logger.debug("compute_weighted_score: 因子 %s 有分数但无权重（策略 %s），按零贡献处理", missing_weights, strategy)
+            logger.debug(
+                "compute_weighted_score: 因子 %s 有分数但无权重（策略 %s），按零贡献处理",
+                missing_weights,
+                strategy,
+            )
         if missing_parts:
-            logger.debug("compute_weighted_score: 因子 %s 有权重但无分数（策略 %s），按中性50处理", missing_parts, strategy)
+            logger.debug(
+                "compute_weighted_score: 因子 %s 有权重但无分数（策略 %s），按中性50处理",
+                missing_parts,
+                strategy,
+            )
 
     # 缺失因子使用 50（中性值）而非 0，避免因数据缺失严重拉低综合评分
-    return sum(
-        parts.get(k, 50) * weights.get(k, 0)
-        for k in all_keys
-    )
+    return sum(parts.get(k, 50) * weights.get(k, 0) for k in all_keys)
 
 
 def normalize_factors_batch(

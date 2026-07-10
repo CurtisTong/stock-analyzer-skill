@@ -169,7 +169,8 @@ class TestSinaKlineFetcher:
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.kline.sina_kline.http_get", side_effect=NetworkError("url", "err", 3)
+            "fetchers.kline.sina_kline.http_get",
+            side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("sh600519")

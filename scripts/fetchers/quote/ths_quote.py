@@ -53,9 +53,7 @@ def _parse_quote(text: str, code: str) -> dict | None:
             if len(prev_parts) > 4:
                 prev_close = to_float(prev_parts[4])
         price = to_float(last_item[4]) if len(last_item) > 4 else 0.0
-        change_pct = (
-            round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0.0
-        )
+        change_pct = round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0.0
         return {
             "code": code,
             "name": "",
@@ -94,6 +92,7 @@ class ThsQuoteFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> dict | None:
         # P0-12: 透传前先标准化为规范 sh/sz/bj+6位 格式
         from common import normalize_quote_code
+
         canonical = normalize_quote_code(code)
         market, stock_code = _to_ths_params(canonical)
         url = THS_URL.format(market=market, code=stock_code)

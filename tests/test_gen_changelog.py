@@ -24,7 +24,8 @@ class TestNoiseFilter:
             any(
                 p.search("docs: auto-update CHANGELOG.md [skip ci]")
                 for p in NOISE_PATTERNS
-            ) is not False
+            )
+            is not False
         )
         assert any(
             p.search("docs: auto-update CHANGELOG.md [skip ci]") for p in NOISE_PATTERNS

@@ -195,7 +195,16 @@ def normalize_volume(raw: int | str | None, source: str) -> int:
     新浪/baostock/yfinance: 股 (原值)
     """
     v = to_int(raw)
-    if source in ("tencent", "eastmoney", "efinance", "akshare", "tushare", "pytdx", "ths", "xueqiu"):
+    if source in (
+        "tencent",
+        "eastmoney",
+        "efinance",
+        "akshare",
+        "tushare",
+        "pytdx",
+        "ths",
+        "xueqiu",
+    ):
         return v * 100
     return v
 
@@ -377,7 +386,7 @@ def board_limit_pct(board: str) -> float:
     适合预警场景。如需精确涨跌停价，请使用 board_exact_limit_pct()。
     """
     _DEFAULTS = {
-        "主板": 9.5,    # 实际 10%，减 0.5% 作为预警宽松阈值
+        "主板": 9.5,  # 实际 10%，减 0.5% 作为预警宽松阈值
         "创业板": 19.5,  # 实际 20%，减 0.5%
         "科创板": 19.5,  # 实际 20%，减 0.5%
         "北交所": 29.5,  # 实际 30%，减 0.5%
@@ -398,7 +407,7 @@ def board_exact_limit_pct(board: str) -> float:
 
 def strip_prefix(code: str) -> str:
     """去除 sh/sz/bj 前缀（大小写无关），支持多前缀（如 shsh600519）。"""
-    return re.sub(r'^(?:sh|sz|bj|SH|SZ|BJ)+', '', code)
+    return re.sub(r"^(?:sh|sz|bj|SH|SZ|BJ)+", "", code)
 
 
 __all__ = [

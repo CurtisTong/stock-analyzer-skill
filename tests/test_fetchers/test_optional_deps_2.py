@@ -198,7 +198,16 @@ class TestTushareKlineFetcher:
         def fake_daily(**kwargs):
             captured["ts_code"] = kwargs.get("ts_code")
             return pd.DataFrame(
-                [{"trade_date": "20250610", "open": 1, "close": 1, "high": 1, "low": 1, "vol": 1}]
+                [
+                    {
+                        "trade_date": "20250610",
+                        "open": 1,
+                        "close": 1,
+                        "high": 1,
+                        "low": 1,
+                        "vol": 1,
+                    }
+                ]
             )
 
         mock_ts = MagicMock()
@@ -219,7 +228,16 @@ class TestTushareKlineFetcher:
         def fake_daily(**kwargs):
             captured["ts_code"] = kwargs.get("ts_code")
             return pd.DataFrame(
-                [{"trade_date": "20250610", "open": 1, "close": 1, "high": 1, "low": 1, "vol": 1}]
+                [
+                    {
+                        "trade_date": "20250610",
+                        "open": 1,
+                        "close": 1,
+                        "high": 1,
+                        "low": 1,
+                        "vol": 1,
+                    }
+                ]
             )
 
         mock_ts = MagicMock()
@@ -240,7 +258,16 @@ class TestTushareKlineFetcher:
         def fake_daily(**kwargs):
             captured["ts_code"] = kwargs.get("ts_code")
             return pd.DataFrame(
-                [{"trade_date": "20250610", "open": 1, "close": 1, "high": 1, "low": 1, "vol": 1}]
+                [
+                    {
+                        "trade_date": "20250610",
+                        "open": 1,
+                        "close": 1,
+                        "high": 1,
+                        "low": 1,
+                        "vol": 1,
+                    }
+                ]
             )
 
         mock_ts = MagicMock()
@@ -374,7 +401,9 @@ class TestPytdxQuoteFetcher:
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
         with (
             patch("fetchers.quote.pytdx_quote.HAS_PYTDX", True),
-            patch("fetchers.quote.pytdx_quote.get_default_pool", return_value=mock_pool),
+            patch(
+                "fetchers.quote.pytdx_quote.get_default_pool", return_value=mock_pool
+            ),
         ):
             result = f.fetch("sh600519")
         assert result is not None
@@ -389,7 +418,9 @@ class TestPytdxQuoteFetcher:
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
         with (
             patch("fetchers.quote.pytdx_quote.HAS_PYTDX", True),
-            patch("fetchers.quote.pytdx_quote.get_default_pool", return_value=mock_pool),
+            patch(
+                "fetchers.quote.pytdx_quote.get_default_pool", return_value=mock_pool
+            ),
         ):
             result = f.fetch("sh600519")
         assert result is None
@@ -402,7 +433,9 @@ class TestPytdxQuoteFetcher:
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
         with (
             patch("fetchers.quote.pytdx_quote.HAS_PYTDX", True),
-            patch("fetchers.quote.pytdx_quote.get_default_pool", return_value=mock_pool),
+            patch(
+                "fetchers.quote.pytdx_quote.get_default_pool", return_value=mock_pool
+            ),
         ):
             result = f.fetch("sh600519")
         assert result is None
@@ -454,7 +487,9 @@ class TestPytdxKlineFetcher:
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
         with (
             patch("fetchers.kline.pytdx_kline.HAS_PYTDX", True),
-            patch("fetchers.kline.pytdx_kline.get_default_pool", return_value=mock_pool),
+            patch(
+                "fetchers.kline.pytdx_kline.get_default_pool", return_value=mock_pool
+            ),
         ):
             result = f.fetch("sh600519")
         assert result is not None
@@ -469,7 +504,9 @@ class TestPytdxKlineFetcher:
         mock_pool.get.return_value = (mock_api, "127.0.0.1", 7709)
         with (
             patch("fetchers.kline.pytdx_kline.HAS_PYTDX", True),
-            patch("fetchers.kline.pytdx_kline.get_default_pool", return_value=mock_pool),
+            patch(
+                "fetchers.kline.pytdx_kline.get_default_pool", return_value=mock_pool
+            ),
         ):
             result = f.fetch("sh600519")
         assert result is None

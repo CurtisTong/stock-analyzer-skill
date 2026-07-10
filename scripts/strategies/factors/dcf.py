@@ -16,12 +16,11 @@ v2.7.1: 支持 beta 驱动 WACC（CAPM）。传入 stock_code 时用真实 beta 
 
 from common import to_float
 
-
 # v2.7.1: CAPM WACC 计算的合理区间约束
 _WACC_MIN = 0.06  # 6% 下限（极低 beta + 低利率也不应低于此）
 _WACC_MAX = 0.20  # 20% 上限（极高 beta 也不应超过此，避免 DCF 失真）
-_RISK_FREE_FALLBACK = 0.025   # 10Y 国债 fallback（2.5%）
-_ERP_FALLBACK = 0.055         # 沪深 300 ERP fallback（5.5%）
+_RISK_FREE_FALLBACK = 0.025  # 10Y 国债 fallback（2.5%）
+_ERP_FALLBACK = 0.055  # 沪深 300 ERP fallback（5.5%）
 
 
 def _compute_capm_wacc(stock_code: str) -> tuple[float, str] | None:
@@ -73,7 +72,10 @@ def _compute_capm_wacc(stock_code: str) -> tuple[float, str] | None:
         # 5. 合理区间约束
         wacc = max(_WACC_MIN, min(_WACC_MAX, wacc))
 
-        return (round(wacc, 4), f"CAPM(beta={beta:.2f}, rf={risk_free:.3f}, erp={erp:.3f})")
+        return (
+            round(wacc, 4),
+            f"CAPM(beta={beta:.2f}, rf={risk_free:.3f}, erp={erp:.3f})",
+        )
     except Exception:
         return None
 

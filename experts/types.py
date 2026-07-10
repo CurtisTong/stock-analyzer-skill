@@ -28,7 +28,9 @@ class ExpertProfile:
         if abs(total - 100.0) > 0.5:
             logger.warning(
                 "专家 %s 权重加和 = %.1f（期望 100），维度: %s",
-                self.name, total, list(self.weights.keys()),
+                self.name,
+                total,
+                list(self.weights.keys()),
             )
 
 

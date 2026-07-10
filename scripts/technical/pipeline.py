@@ -47,7 +47,9 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         ma20 = ma_info.get("ma20")
         if ma10 is not None and ma20 is not None:
             result["trend"] = (
-                1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
+                1
+                if closes[-1] > ma10 > ma20
+                else (-1 if closes[-1] < ma10 < ma20 else 0)
             )
         else:
             # 数据不足时回退到简单计算
@@ -58,7 +60,9 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
                 else statistics.mean(closes)
             )
             result["trend"] = (
-                1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
+                1
+                if closes[-1] > ma10 > ma20
+                else (-1 if closes[-1] < ma10 < ma20 else 0)
             )
         result["ma10"] = ma10
         result["ma20"] = ma20

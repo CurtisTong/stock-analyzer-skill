@@ -77,14 +77,17 @@ class TestTencentQuoteFetcher:
 
     def test_fetch_malformed_response(self):
         """格式错误的响应：返回 None。"""
-        with patch("fetchers.quote.tencent_quote.http_get", return_value=b"not_valid_data"):
+        with patch(
+            "fetchers.quote.tencent_quote.http_get", return_value=b"not_valid_data"
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.quote.tencent_quote.http_get", side_effect=NetworkError("url", "err", 3)
+            "fetchers.quote.tencent_quote.http_get",
+            side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("sh600519")
@@ -122,7 +125,7 @@ class TestTencentQuoteFetcher:
         wrong = wrong.replace(b"~600519~", b"~600999~", 1)
         correct = _make_tencent_raw()
         # 用分号拼接两行
-        multi = wrong.rstrip(b';\n') + b";" + correct
+        multi = wrong.rstrip(b";\n") + b";" + correct
         with patch("fetchers.quote.tencent_quote.http_get", return_value=multi):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -167,7 +170,8 @@ class TestTencentKlineFetcher:
             },
         }
         with patch(
-            "fetchers.kline.tencent_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.tencent_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -200,7 +204,8 @@ class TestTencentKlineFetcher:
             },
         }
         with patch(
-            "fetchers.kline.tencent_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.tencent_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519", scale=240, datalen=1)
         assert result is not None
@@ -222,7 +227,8 @@ class TestTencentKlineFetcher:
         """code != 0：返回 None。"""
         data = {"code": -1, "data": {}}
         with patch(
-            "fetchers.kline.tencent_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.tencent_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -231,7 +237,8 @@ class TestTencentKlineFetcher:
         """缺少 data 字段：返回 None。"""
         data = {"code": 0}
         with patch(
-            "fetchers.kline.tencent_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.tencent_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -240,7 +247,8 @@ class TestTencentKlineFetcher:
         """K 线数组为空：返回 None。"""
         data = {"code": 0, "data": {"sh600519": {"qfqday": []}}}
         with patch(
-            "fetchers.kline.tencent_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.tencent_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -266,7 +274,8 @@ class TestTencentKlineFetcher:
             },
         }
         with patch(
-            "fetchers.kline.tencent_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.tencent_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -275,7 +284,8 @@ class TestTencentKlineFetcher:
     def test_fetch_http_error(self):
         """HTTP 错误：异常传播。"""
         with patch(
-            "fetchers.kline.tencent_kline.http_get", side_effect=NetworkError("url", "err", 3)
+            "fetchers.kline.tencent_kline.http_get",
+            side_effect=NetworkError("url", "err", 3),
         ):
             with pytest.raises(NetworkError):
                 self.fetcher.fetch("sh600519")

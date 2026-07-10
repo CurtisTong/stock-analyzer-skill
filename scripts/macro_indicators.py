@@ -51,6 +51,7 @@ SNAPSHOT_TTL_SECONDS = 3600
 # Fixture 读写
 # ═══════════════════════════════════════════════════════════════
 
+
 def _load_snapshot() -> dict:
     """读取 macro_snapshot.json fixture。失败返回空 dict。"""
     try:
@@ -87,6 +88,7 @@ def _snapshot_is_fresh(snapshot: dict) -> bool:
 # yfinance 通用拉取
 # ═══════════════════════════════════════════════════════════════
 
+
 def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
     """通过 yfinance 拉取单个 symbol 的 last_price / previous_close。
 
@@ -101,6 +103,7 @@ def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
     """
     try:
         import yfinance as yf
+
         ticker = yf.Ticker(symbol)
         info = ticker.fast_info
         val = getattr(info, value_attr, None)
@@ -115,6 +118,7 @@ def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
 # ═══════════════════════════════════════════════════════════════
 # 宏观-估值桥（5 个 fetch_*）
 # ═══════════════════════════════════════════════════════════════
+
 
 def fetch_treasury_10y() -> dict | None:
     """10 年期美债收益率（%）。yfinance ^TNX → 直接 = 百分比值。
@@ -134,11 +138,21 @@ def fetch_treasury_10y() -> dict | None:
     if val is not None:
         snapshot["treasury_10y_pct"] = round(val, 2)
         _save_snapshot(snapshot)
-        return {"value": round(val, 2), "as_of": datetime.now().isoformat(), "source": "yfinance", "symbol": "^TNX"}
+        return {
+            "value": round(val, 2),
+            "as_of": datetime.now().isoformat(),
+            "source": "yfinance",
+            "symbol": "^TNX",
+        }
 
     # fixture fallback（即使过期也用）
     if "treasury_10y_pct" in snapshot:
-        return {"value": snapshot["treasury_10y_pct"], "as_of": snapshot["updated"], "source": "fixture(stale)", "symbol": "^TNX"}
+        return {
+            "value": snapshot["treasury_10y_pct"],
+            "as_of": snapshot["updated"],
+            "source": "fixture(stale)",
+            "symbol": "^TNX",
+        }
     return None
 
 
@@ -146,16 +160,31 @@ def fetch_usd_index() -> dict | None:
     """美元指数。yfinance DX-Y.NYB。"""
     snapshot = _load_snapshot()
     if _snapshot_is_fresh(snapshot) and "usd_index" in snapshot:
-        return {"value": snapshot["usd_index"], "as_of": snapshot["updated"], "source": "fixture", "symbol": "DX-Y.NYB"}
+        return {
+            "value": snapshot["usd_index"],
+            "as_of": snapshot["updated"],
+            "source": "fixture",
+            "symbol": "DX-Y.NYB",
+        }
 
     val = _yfinance_get("DX-Y.NYB")
     if val is not None:
         snapshot["usd_index"] = round(val, 2)
         _save_snapshot(snapshot)
-        return {"value": round(val, 2), "as_of": datetime.now().isoformat(), "source": "yfinance", "symbol": "DX-Y.NYB"}
+        return {
+            "value": round(val, 2),
+            "as_of": datetime.now().isoformat(),
+            "source": "yfinance",
+            "symbol": "DX-Y.NYB",
+        }
 
     if "usd_index" in snapshot:
-        return {"value": snapshot["usd_index"], "as_of": snapshot["updated"], "source": "fixture(stale)", "symbol": "DX-Y.NYB"}
+        return {
+            "value": snapshot["usd_index"],
+            "as_of": snapshot["updated"],
+            "source": "fixture(stale)",
+            "symbol": "DX-Y.NYB",
+        }
     return None
 
 
@@ -163,16 +192,31 @@ def fetch_usd_cny() -> dict | None:
     """美元兑离岸人民币汇率。yfinance CNY=X。"""
     snapshot = _load_snapshot()
     if _snapshot_is_fresh(snapshot) and "usd_cny" in snapshot:
-        return {"value": snapshot["usd_cny"], "as_of": snapshot["updated"], "source": "fixture", "symbol": "CNY=X"}
+        return {
+            "value": snapshot["usd_cny"],
+            "as_of": snapshot["updated"],
+            "source": "fixture",
+            "symbol": "CNY=X",
+        }
 
     val = _yfinance_get("CNY=X")
     if val is not None:
         snapshot["usd_cny"] = round(val, 4)
         _save_snapshot(snapshot)
-        return {"value": round(val, 4), "as_of": datetime.now().isoformat(), "source": "yfinance", "symbol": "CNY=X"}
+        return {
+            "value": round(val, 4),
+            "as_of": datetime.now().isoformat(),
+            "source": "yfinance",
+            "symbol": "CNY=X",
+        }
 
     if "usd_cny" in snapshot:
-        return {"value": snapshot["usd_cny"], "as_of": snapshot["updated"], "source": "fixture(stale)", "symbol": "CNY=X"}
+        return {
+            "value": snapshot["usd_cny"],
+            "as_of": snapshot["updated"],
+            "source": "fixture(stale)",
+            "symbol": "CNY=X",
+        }
     return None
 
 
@@ -180,16 +224,31 @@ def fetch_vix() -> dict | None:
     """恐慌指数。yfinance ^VIX。"""
     snapshot = _load_snapshot()
     if _snapshot_is_fresh(snapshot) and "vix" in snapshot:
-        return {"value": snapshot["vix"], "as_of": snapshot["updated"], "source": "fixture", "symbol": "^VIX"}
+        return {
+            "value": snapshot["vix"],
+            "as_of": snapshot["updated"],
+            "source": "fixture",
+            "symbol": "^VIX",
+        }
 
     val = _yfinance_get("^VIX")
     if val is not None:
         snapshot["vix"] = round(val, 2)
         _save_snapshot(snapshot)
-        return {"value": round(val, 2), "as_of": datetime.now().isoformat(), "source": "yfinance", "symbol": "^VIX"}
+        return {
+            "value": round(val, 2),
+            "as_of": datetime.now().isoformat(),
+            "source": "yfinance",
+            "symbol": "^VIX",
+        }
 
     if "vix" in snapshot:
-        return {"value": snapshot["vix"], "as_of": snapshot["updated"], "source": "fixture(stale)", "symbol": "^VIX"}
+        return {
+            "value": snapshot["vix"],
+            "as_of": snapshot["updated"],
+            "source": "fixture(stale)",
+            "symbol": "^VIX",
+        }
     return None
 
 
@@ -202,16 +261,31 @@ def fetch_commodity(symbol: str, fixture_key: str) -> dict | None:
     """
     snapshot = _load_snapshot()
     if _snapshot_is_fresh(snapshot) and fixture_key in snapshot:
-        return {"value": snapshot[fixture_key], "as_of": snapshot["updated"], "source": "fixture", "symbol": symbol}
+        return {
+            "value": snapshot[fixture_key],
+            "as_of": snapshot["updated"],
+            "source": "fixture",
+            "symbol": symbol,
+        }
 
     val = _yfinance_get(symbol)
     if val is not None:
         snapshot[fixture_key] = round(val, 2)
         _save_snapshot(snapshot)
-        return {"value": round(val, 2), "as_of": datetime.now().isoformat(), "source": "yfinance", "symbol": symbol}
+        return {
+            "value": round(val, 2),
+            "as_of": datetime.now().isoformat(),
+            "source": "yfinance",
+            "symbol": symbol,
+        }
 
     if fixture_key in snapshot:
-        return {"value": snapshot[fixture_key], "as_of": snapshot["updated"], "source": "fixture(stale)", "symbol": symbol}
+        return {
+            "value": snapshot[fixture_key],
+            "as_of": snapshot["updated"],
+            "source": "fixture(stale)",
+            "symbol": symbol,
+        }
     return None
 
 
@@ -243,6 +317,7 @@ def fetch_lithium() -> dict | None:
 # ═══════════════════════════════════════════════════════════════
 # 杠杆-反身性
 # ═══════════════════════════════════════════════════════════════
+
 
 def fetch_margin_total() -> dict | None:
     """沪深两市汇总融资融券余额（亿元）。
@@ -303,6 +378,7 @@ def fetch_ih_basis() -> dict | None:
 # ERP（股权风险溢价）= 1/PE - 10Y 国债收益率
 # ═══════════════════════════════════════════════════════════════
 
+
 def fetch_erp_sh300() -> dict | None:
     """沪深 300 ERP = 1/PE - 10Y 国债收益率（%）。
 
@@ -322,6 +398,7 @@ def fetch_erp_sh300() -> dict | None:
 # ═══════════════════════════════════════════════════════════════
 # 统一入口：fetch_all
 # ═══════════════════════════════════════════════════════════════
+
 
 def fetch_all() -> dict:
     """一次性获取所有宏观 / 杠杆 / 估值桥指标。
@@ -376,29 +453,69 @@ def fetch_all() -> dict:
         for v in section.values():
             if isinstance(v, dict) and "as_of" in v:
                 timestamps.append(v["as_of"])
-    as_of = max(timestamps) if timestamps else datetime.now().isoformat(timespec="seconds")
+    as_of = (
+        max(timestamps) if timestamps else datetime.now().isoformat(timespec="seconds")
+    )
 
     return {
         "as_of": as_of,
         "macro": {
-            "treasury_10y_pct": macro["treasury_10y_pct"]["value"] if macro["treasury_10y_pct"] else None,
+            "treasury_10y_pct": (
+                macro["treasury_10y_pct"]["value"]
+                if macro["treasury_10y_pct"]
+                else None
+            ),
             "usd_index": macro["usd_index"]["value"] if macro["usd_index"] else None,
             "usd_cny": macro["usd_cny"]["value"] if macro["usd_cny"] else None,
             "vix": macro["vix"]["value"] if macro["vix"] else None,
-            "gold_usd_oz": macro["gold_usd_oz"]["value"] if macro["gold_usd_oz"] else None,
-            "brent_oil_usd": macro["brent_oil_usd"]["value"] if macro["brent_oil_usd"] else None,
-            "wti_oil_usd": macro["wti_oil_usd"]["value"] if macro["wti_oil_usd"] else None,
-            "lithium_carbonate_cny_t": macro["lithium_carbonate_cny_t"]["value"] if macro["lithium_carbonate_cny_t"] else None,
+            "gold_usd_oz": (
+                macro["gold_usd_oz"]["value"] if macro["gold_usd_oz"] else None
+            ),
+            "brent_oil_usd": (
+                macro["brent_oil_usd"]["value"] if macro["brent_oil_usd"] else None
+            ),
+            "wti_oil_usd": (
+                macro["wti_oil_usd"]["value"] if macro["wti_oil_usd"] else None
+            ),
+            "lithium_carbonate_cny_t": (
+                macro["lithium_carbonate_cny_t"]["value"]
+                if macro["lithium_carbonate_cny_t"]
+                else None
+            ),
         },
         "leverage": {
-            "margin_balance_total_yi": leverage["margin_balance_total"]["value"] if leverage["margin_balance_total"] else None,
-            "margin_change_5d_pct": leverage["margin_balance_total"]["change_5d_pct"] if leverage["margin_balance_total"] else None,
-            "if_main_basis_pts": leverage["if_main_basis"]["value"] if leverage["if_main_basis"] else None,
-            "ic_main_basis_pts": leverage["ic_main_basis"]["value"] if leverage["ic_main_basis"] else None,
-            "ih_main_basis_pts": leverage["ih_main_basis"]["value"] if leverage["ih_main_basis"] else None,
+            "margin_balance_total_yi": (
+                leverage["margin_balance_total"]["value"]
+                if leverage["margin_balance_total"]
+                else None
+            ),
+            "margin_change_5d_pct": (
+                leverage["margin_balance_total"]["change_5d_pct"]
+                if leverage["margin_balance_total"]
+                else None
+            ),
+            "if_main_basis_pts": (
+                leverage["if_main_basis"]["value"]
+                if leverage["if_main_basis"]
+                else None
+            ),
+            "ic_main_basis_pts": (
+                leverage["ic_main_basis"]["value"]
+                if leverage["ic_main_basis"]
+                else None
+            ),
+            "ih_main_basis_pts": (
+                leverage["ih_main_basis"]["value"]
+                if leverage["ih_main_basis"]
+                else None
+            ),
         },
         "valuation_bridge": {
-            "erp_sh300_pct": valuation_bridge["erp_sh300"]["value"] if valuation_bridge["erp_sh300"] else None,
+            "erp_sh300_pct": (
+                valuation_bridge["erp_sh300"]["value"]
+                if valuation_bridge["erp_sh300"]
+                else None
+            ),
         },
         "_raw": {
             "macro": macro,
@@ -415,9 +532,13 @@ def fetch_all() -> dict:
 # CLI
 # ═══════════════════════════════════════════════════════════════
 
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="宏观指标获取（yfinance + fixture fallback）")
+
+    parser = argparse.ArgumentParser(
+        description="宏观指标获取（yfinance + fixture fallback）"
+    )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
@@ -442,7 +563,9 @@ def main():
 
         print("\n💪 杠杆:")
         l = data["leverage"]
-        print(f"  两市两融余额 : {l['margin_balance_total_yi']} 亿元（5 日 {l['margin_change_5d_pct']}%）")
+        print(
+            f"  两市两融余额 : {l['margin_balance_total_yi']} 亿元（5 日 {l['margin_change_5d_pct']}%）"
+        )
         print(f"  IF 主基差   : {l['if_main_basis_pts']} 点")
         print(f"  IC 主基差   : {l['ic_main_basis_pts']} 点")
         print(f"  IH 主基差   : {l['ih_main_basis_pts']} 点")

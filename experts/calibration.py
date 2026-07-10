@@ -228,9 +228,7 @@ def get_kline_return(stock_code: str, start_date: str, end_date: str) -> float:
             break
 
     if start_close is None or end_close is None or start_close <= 0:
-        raise ValueError(
-            f"{stock_code} 在 [{start_date}, {end_date}] 区间无有效价格"
-        )
+        raise ValueError(f"{stock_code} 在 [{start_date}, {end_date}] 区间无有效价格")
 
     return (end_close / start_close - 1) * 100
 

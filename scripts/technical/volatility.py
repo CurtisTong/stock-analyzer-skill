@@ -46,8 +46,13 @@ def compute_atr(highs: list, lows: list, closes: list, period: int = 14) -> floa
     return sum(window) / len(window) if window else 0.0
 
 
-def atr_tolerance(closes: list, highs: list | None = None, lows: list | None = None,
-                  period: int = 14, k: float = 0.5) -> float:
+def atr_tolerance(
+    closes: list,
+    highs: list | None = None,
+    lows: list | None = None,
+    period: int = 14,
+    k: float = 0.5,
+) -> float:
     """基于 ATR 计算回踩容忍度。
 
     Args:

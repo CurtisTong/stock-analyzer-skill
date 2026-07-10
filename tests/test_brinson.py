@@ -38,8 +38,20 @@ class TestBrinsonAttribution:
     def test_brinson_from_holdings(self):
         """从持仓快速构造 Brinson。"""
         positions = [
-            {"code": "sh600519", "name": "茅台", "cost": 1800, "quantity": 100, "tags": ["消费"]},
-            {"code": "sh601318", "name": "平安", "cost": 50, "quantity": 1000, "tags": ["金融"]},
+            {
+                "code": "sh600519",
+                "name": "茅台",
+                "cost": 1800,
+                "quantity": 100,
+                "tags": ["消费"],
+            },
+            {
+                "code": "sh601318",
+                "name": "平安",
+                "cost": 50,
+                "quantity": 1000,
+                "tags": ["金融"],
+            },
         ]
         quotes = {"sh600519": 1900, "sh601318": 48}
         result = brinson_from_holdings(positions, quotes)
@@ -49,7 +61,13 @@ class TestBrinsonAttribution:
     def test_format_brinson_report(self):
         """格式化报告应包含关键术语。"""
         positions = [
-            {"code": "sh600519", "name": "茅台", "cost": 1800, "quantity": 100, "tags": ["消费"]},
+            {
+                "code": "sh600519",
+                "name": "茅台",
+                "cost": 1800,
+                "quantity": 100,
+                "tags": ["消费"],
+            },
         ]
         quotes = {"sh600519": 1900}
         result = brinson_from_holdings(positions, quotes)

@@ -40,6 +40,7 @@ SECTOR_ETF_CSV = DATA_DIR / "sector_etf.csv"
 # 数据加载
 # ═══════════════════════════════════════════════════════════════
 
+
 def _load_sector_etfs() -> list:
     """读取 sector_etf.csv，返回 [{code, name, category, bk_code}, ...]。
 
@@ -61,7 +62,9 @@ def _load_sector_etfs() -> list:
                 continue
             code, name, category = parts[0], parts[1], parts[2]
             bk_code = parts[3] if len(parts) >= 4 and parts[3] else None
-            rows.append({"code": code, "name": name, "category": category, "bk_code": bk_code})
+            rows.append(
+                {"code": code, "name": name, "category": category, "bk_code": bk_code}
+            )
     return rows
 
 
@@ -112,6 +115,7 @@ def _fetch_one_quote(code: str) -> dict | None:
 # 计算：板块强度 + RPS
 # ═══════════════════════════════════════════════════════════════
 
+
 def compute_etf_strength(etfs_meta: list, etf_quotes: dict) -> list:
     """根据 ETF 实时涨跌幅排序，标记强度排名 + 强势/弱势分类。
 
@@ -129,28 +133,38 @@ def compute_etf_strength(etfs_meta: list, etf_quotes: dict) -> list:
         q = etf_quotes.get(code)
         if not q:
             # 该 ETF 数据缺失，标记降级
-            rows.append({
+            rows.append(
+                {
+                    "code": code,
+                    "name": meta["name"],
+                    "category": meta["category"],
+                    "change_pct": None,
+                    "turnover": None,
+                    "strength_rank": None,
+                    "quadrant": "数据缺失",
+                    "data_ok": False,
+                }
+            )
+            continue
+        rows.append(
+            {
                 "code": code,
                 "name": meta["name"],
                 "category": meta["category"],
-                "change_pct": None,
-                "turnover": None,
-                "strength_rank": None,
-                "quadrant": "数据缺失",
-                "data_ok": False,
-            })
-            continue
-        rows.append({
-            "code": code,
-            "name": meta["name"],
-            "category": meta["category"],
-            "change_pct": round(q["change_pct"], 2) if q.get("change_pct") is not None else None,
-            "turnover": round(q["turnover"], 2) if q.get("turnover") is not None else None,
-            "price": q.get("price"),
-            "data_ok": True,
-            "strength_rank": None,  # 排序后填
-            "quadrant": None,
-        })
+                "change_pct": (
+                    round(q["change_pct"], 2)
+                    if q.get("change_pct") is not None
+                    else None
+                ),
+                "turnover": (
+                    round(q["turnover"], 2) if q.get("turnover") is not None else None
+                ),
+                "price": q.get("price"),
+                "data_ok": True,
+                "strength_rank": None,  # 排序后填
+                "quadrant": None,
+            }
+        )
 
     # 仅对 data_ok 的部分排序
     ok_rows = [r for r in rows if r["data_ok"]]
@@ -215,21 +229,21 @@ def build_stock_sector_compare(
     # 把 sector_stocks.json 粗粒度板块名映射到 sector_etf.csv 细粒度 ETF
     # 显式映射：粗粒度板块由哪个 ETF 代理（解决 "消费" vs "白酒ETF" 不匹配）
     _SECTOR_TO_ETF_PROXY = {
-        "消费": "sh512690",    # 白酒 ETF（消费核心代理）
-        "医药": "sh512010",    # 医药 ETF
+        "消费": "sh512690",  # 白酒 ETF（消费核心代理）
+        "医药": "sh512010",  # 医药 ETF
         "半导体": "sh512480",  # 半导体 ETF
         "新能源": "sh515030",  # 新能源车 ETF
-        "光伏": "sh515790",    # 光伏 ETF
-        "军工": "sh512660",    # 军工 ETF
-        "科技": "sh512480",    # 科技 → 半导体 ETF（最热细分）
-        "机器人": None,        # 无对应 ETF（覆盖盲区）
-        "PCB/AI算力": None,    # 无对应 ETF（覆盖盲区）
-        "金融": "sh512800",    # 银行 ETF（金融最大子板块）
-        "资源": "sh518880",    # 黄金 ETF（资源避险代理）
-        "电力": None,          # 无对应 ETF（覆盖盲区）
-        "石化": None,          # 无对应 ETF（覆盖盲区）
+        "光伏": "sh515790",  # 光伏 ETF
+        "军工": "sh512660",  # 军工 ETF
+        "科技": "sh512480",  # 科技 → 半导体 ETF（最热细分）
+        "机器人": None,  # 无对应 ETF（覆盖盲区）
+        "PCB/AI算力": None,  # 无对应 ETF（覆盖盲区）
+        "金融": "sh512800",  # 银行 ETF（金融最大子板块）
+        "资源": "sh518880",  # 黄金 ETF（资源避险代理）
+        "电力": None,  # 无对应 ETF（覆盖盲区）
+        "石化": None,  # 无对应 ETF（覆盖盲区）
         "高股息": "sh510050",  # 上证50 ETF（高股息密集）
-        "家电": None,          # 无对应 ETF（覆盖盲区）
+        "家电": None,  # 无对应 ETF（覆盖盲区）
     }
 
     matched_etf = None
@@ -281,7 +295,9 @@ def build_stock_sector_compare(
     else:
         # 板块在 ETF 覆盖盲区（机器人/电力/家电等）
         if sectors:
-            verdict_parts.append(f"板块 {','.join(sectors)} 无对应 ETF 代理（覆盖盲区）")
+            verdict_parts.append(
+                f"板块 {','.join(sectors)} 无对应 ETF 代理（覆盖盲区）"
+            )
         else:
             verdict_parts.append("板块归属未知")
 
@@ -304,11 +320,13 @@ def build_stock_sector_compare(
         "sector_ok": matched_etf is not None,
         "index_ok": index_quote is not None,
         "degraded_fields": [
-            f for f, ok in [
+            f
+            for f, ok in [
                 ("stock", stock_quote is not None),
                 ("sector", matched_etf is not None),
                 ("index", index_quote is not None),
-            ] if not ok
+            ]
+            if not ok
         ],
     }
 
@@ -317,9 +335,15 @@ def build_stock_sector_compare(
         "stock_sectors": sectors or None,
         "matched_etf": matched_etf["code"] if matched_etf else None,
         "matched_etf_name": matched_etf["name"] if matched_etf else None,
-        "stock_change_pct": round(stock_change, 2) if stock_change is not None else None,
-        "sector_change_pct": round(sector_change, 2) if sector_change is not None else None,
-        "index_change_pct": round(index_change, 2) if index_change is not None else None,
+        "stock_change_pct": (
+            round(stock_change, 2) if stock_change is not None else None
+        ),
+        "sector_change_pct": (
+            round(sector_change, 2) if sector_change is not None else None
+        ),
+        "index_change_pct": (
+            round(index_change, 2) if index_change is not None else None
+        ),
         "rps_vs_sector": rps_vs_sector,
         "rps_vs_index": rps_vs_index,
         "verdict": "; ".join(verdict_parts) if verdict_parts else "数据缺失",
@@ -330,6 +354,7 @@ def build_stock_sector_compare(
 # ═══════════════════════════════════════════════════════════════
 # v2.7.0 新增：题材轮动强度（即时计算，无持久化）
 # ═══════════════════════════════════════════════════════════════
+
 
 def compute_rotation_strength(window: int = 5) -> dict | None:
     """N 日板块轮动强度（即时计算，无持久化层）。
@@ -397,13 +422,15 @@ def compute_rotation_strength(window: int = 5) -> dict | None:
             degraded.append(f"rotation.{code}")
             continue
 
-        rows.append({
-            "code": code,
-            "name": meta["name"],
-            "category": meta["category"],
-            "change_1d_pct": round(change_1d, 2),
-            "change_nd_pct": round(change_nd, 2),
-        })
+        rows.append(
+            {
+                "code": code,
+                "name": meta["name"],
+                "category": meta["category"],
+                "change_1d_pct": round(change_1d, 2),
+                "change_nd_pct": round(change_nd, 2),
+            }
+        )
 
     if not rows:
         return None
@@ -426,7 +453,9 @@ def compute_rotation_strength(window: int = 5) -> dict | None:
     rotation_std = round(statistics.stdev(abs_deltas), 2) if len(abs_deltas) >= 2 else 0
 
     # 位次上升 / 下降 top 3
-    risers = sorted(rows, key=lambda r: r["rank_delta"])[:3]  # rank_delta 最小（负最多）= 上升最多
+    risers = sorted(rows, key=lambda r: r["rank_delta"])[
+        :3
+    ]  # rank_delta 最小（负最多）= 上升最多
     fallers = sorted(rows, key=lambda r: r["rank_delta"], reverse=True)[:3]
     biggest_risers = [
         [r["code"], r["name"], r["rank_delta"]] for r in risers if r["rank_delta"] < 0
@@ -435,7 +464,9 @@ def compute_rotation_strength(window: int = 5) -> dict | None:
         [r["code"], r["name"], r["rank_delta"]] for r in fallers if r["rank_delta"] > 0
     ]
 
-    interpretation = _interpret_rotation(rotation_strength, biggest_risers, biggest_fallers)
+    interpretation = _interpret_rotation(
+        rotation_strength, biggest_risers, biggest_fallers
+    )
 
     return {
         "window": window,
@@ -461,6 +492,7 @@ def _interpret_rotation(strength: float, risers: list, fallers: list) -> str:
 # ═══════════════════════════════════════════════════════════════
 # 顶层编排
 # ═══════════════════════════════════════════════════════════════
+
 
 def analyze(stock_code: str | None = None, fetch_index: bool = True) -> dict:
     """一次性返回所有数据，供 SKILL 直接消费。
@@ -553,6 +585,7 @@ def analyze(stock_code: str | None = None, fetch_index: bool = True) -> dict:
 # CLI 输出
 # ═══════════════════════════════════════════════════════════════
 
+
 def _print_table(payload: dict) -> None:
     """人类可读的表格输出。"""
     as_of = payload["as_of"]
@@ -563,7 +596,9 @@ def _print_table(payload: dict) -> None:
 
     print(f"📊 板块 ETF 横向强度对比  (as_of {as_of})")
     print("=" * 78)
-    print(f"{'排名':<4} {'代码':<10} {'名称':<14} {'类别':<6} {'涨跌%':>7} {'换手%':>6}  强度")
+    print(
+        f"{'排名':<4} {'代码':<10} {'名称':<14} {'类别':<6} {'涨跌%':>7} {'换手%':>6}  强度"
+    )
     print("-" * 78)
     for r in etfs:
         rank = r["strength_rank"] if r["strength_rank"] else "-"
@@ -584,13 +619,24 @@ def _print_table(payload: dict) -> None:
         print(f"🎯 个股 vs 板块 vs 大盘 ({compare['stock_code']})")
         print(f"  所属板块    : {compare['stock_sectors'] or '未知'}")
         if compare["matched_etf"]:
-            print(f"  匹配 ETF    : {compare['matched_etf']} {compare['matched_etf_name']}")
-        print(f"  个股涨跌    : {compare['stock_change_pct']:+.2f}%"
-              if compare["stock_change_pct"] is not None else "  个股涨跌    : N/A")
-        print(f"  所在板块涨跌: {compare['sector_change_pct']:+.2f}%"
-              if compare["sector_change_pct"] is not None else "  所在板块涨跌: N/A")
-        print(f"  沪深300涨跌 : {compare['index_change_pct']:+.2f}%"
-              if compare["index_change_pct"] is not None else "  沪深300涨跌 : N/A")
+            print(
+                f"  匹配 ETF    : {compare['matched_etf']} {compare['matched_etf_name']}"
+            )
+        print(
+            f"  个股涨跌    : {compare['stock_change_pct']:+.2f}%"
+            if compare["stock_change_pct"] is not None
+            else "  个股涨跌    : N/A"
+        )
+        print(
+            f"  所在板块涨跌: {compare['sector_change_pct']:+.2f}%"
+            if compare["sector_change_pct"] is not None
+            else "  所在板块涨跌: N/A"
+        )
+        print(
+            f"  沪深300涨跌 : {compare['index_change_pct']:+.2f}%"
+            if compare["index_change_pct"] is not None
+            else "  沪深300涨跌 : N/A"
+        )
         if compare["rps_vs_sector"] is not None:
             print(f"  RPS vs 板块 : {compare['rps_vs_sector']:+.2f}pp")
         if compare["rps_vs_index"] is not None:
@@ -604,7 +650,9 @@ def _print_table(payload: dict) -> None:
     dq = payload["data_quality"]
     if dq["degraded_fields"]:
         print(f"\n⚠️  数据降级: {', '.join(dq['degraded_fields'])}")
-    print(f"📊 数据源: sector_etf.csv ({dq['etf_ok_count']}/{dq['etf_total_count']} 个 ETF 成功)")
+    print(
+        f"📊 数据源: sector_etf.csv ({dq['etf_ok_count']}/{dq['etf_total_count']} 个 ETF 成功)"
+    )
 
 
 def main():

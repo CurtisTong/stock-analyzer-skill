@@ -171,7 +171,9 @@ def _do_request(
         # P2-H2(common): 4xx 业务错误抛 HTTPStatusError（DataError 子类），
         # 让 DataFetcherManager 能区分业务错误（不熔断）与网络故障（熔断），
         # 避免 404 被当作数据源故障误触发熔断。
-        raise HTTPStatusError(url, status, body.decode("utf-8", "replace") if body else "")
+        raise HTTPStatusError(
+            url, status, body.decode("utf-8", "replace") if body else ""
+        )
 
     # 分块读取响应体，限制最大大小防止 OOM
     chunks = []
@@ -255,9 +257,7 @@ def _http_get_requests(
     if headers:
         req_headers.update(headers)
 
-    resp = session.get(
-        url, headers=req_headers, timeout=timeout, allow_redirects=True
-    )
+    resp = session.get(url, headers=req_headers, timeout=timeout, allow_redirects=True)
 
     if resp.status_code == 429:
         retry_after = resp.headers.get("Retry-After")
@@ -293,14 +293,14 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
                 status = e.response.status_code
                 if 400 <= status < 500:
                     raise HTTPStatusError(
-                        url, status, e.response.text[:200] if hasattr(e.response, "text") else ""
+                        url,
+                        status,
+                        e.response.text[:200] if hasattr(e.response, "text") else "",
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     # P1-04: fallback 到 stdlib 时 max_retries=1（单次尝试），避免与 requests 路径
     # 的 urllib3 Retry（total=3）叠加形成超时风暴（最坏 4*timeout + 3*timeout + 退避）
-    return _http_get_internal(
-        url, headers=None, timeout=timeout, max_retries=1
-    )
+    return _http_get_internal(url, headers=None, timeout=timeout, max_retries=1)
 
 
 def http_get_with_headers(
@@ -321,13 +321,13 @@ def http_get_with_headers(
                 status = e.response.status_code
                 if 400 <= status < 500:
                     raise HTTPStatusError(
-                        url, status, e.response.text[:200] if hasattr(e.response, "text") else ""
+                        url,
+                        status,
+                        e.response.text[:200] if hasattr(e.response, "text") else "",
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     # P1-04: 同 http_get，fallback max_retries=1 避免超时叠加
-    return _http_get_internal(
-        url, headers=headers, timeout=timeout, max_retries=1
-    )
+    return _http_get_internal(url, headers=headers, timeout=timeout, max_retries=1)
 
 
 def decode_gbk(data: bytes) -> str:

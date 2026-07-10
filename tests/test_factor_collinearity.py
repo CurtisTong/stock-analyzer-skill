@@ -20,27 +20,21 @@ from strategies.factors.registry import (
 
 def test_diagonal_is_one():
     """对角线相关系数应为 1.0。"""
-    matrix = compute_factor_correlation_matrix(
-        {"a": [1, 2, 3, 4], "b": [5, 6, 7, 8]}
-    )
+    matrix = compute_factor_correlation_matrix({"a": [1, 2, 3, 4], "b": [5, 6, 7, 8]})
     assert matrix["a"]["a"] == 1.0
     assert matrix["b"]["b"] == 1.0
 
 
 def test_perfect_positive_correlation():
     """完全正相关（线性倍数）应得 1.0。"""
-    matrix = compute_factor_correlation_matrix(
-        {"a": [1, 2, 3, 4], "b": [2, 4, 6, 8]}
-    )
+    matrix = compute_factor_correlation_matrix({"a": [1, 2, 3, 4], "b": [2, 4, 6, 8]})
     assert matrix["a"]["b"] == 1.0
     assert matrix["b"]["a"] == 1.0
 
 
 def test_perfect_negative_correlation():
     """完全负相关应得 -1.0。"""
-    matrix = compute_factor_correlation_matrix(
-        {"a": [1, 2, 3, 4], "b": [8, 6, 4, 2]}
-    )
+    matrix = compute_factor_correlation_matrix({"a": [1, 2, 3, 4], "b": [8, 6, 4, 2]})
     assert matrix["a"]["b"] == -1.0
 
 
@@ -56,17 +50,13 @@ def test_symmetric():
 
 def test_missing_data_pair_returns_none():
     """数据长度不一致的因子对相关系数为 None。"""
-    matrix = compute_factor_correlation_matrix(
-        {"a": [1, 2, 3, 4], "b": [5, 6]}
-    )
+    matrix = compute_factor_correlation_matrix({"a": [1, 2, 3, 4], "b": [5, 6]})
     assert matrix["a"]["b"] is None
 
 
 def test_constant_factor():
     """常量因子（方差=0）相关系数为 None，避免除零。"""
-    matrix = compute_factor_correlation_matrix(
-        {"a": [1, 2, 3, 4], "b": [5, 5, 5, 5]}
-    )
+    matrix = compute_factor_correlation_matrix({"a": [1, 2, 3, 4], "b": [5, 5, 5, 5]})
     assert matrix["a"]["b"] is None
 
 
@@ -80,24 +70,30 @@ class TestVIF:
 
     def test_independent_factors_low_vif(self):
         """不相关因子 VIF 应接近 1.0。"""
-        vif = compute_vif({
-            "a": [1, 3, 2, 5, 4, 6, 8, 7],
-            "b": [5, 2, 8, 3, 6, 1, 4, 7],
-        })
+        vif = compute_vif(
+            {
+                "a": [1, 3, 2, 5, 4, 6, 8, 7],
+                "b": [5, 2, 8, 3, 6, 1, 4, 7],
+            }
+        )
         assert vif["a"] is not None
         assert vif["a"] < 10.0, f"独立因子 VIF={vif['a']} 应 < 10"
 
     def test_collinear_factors_high_vif(self):
         """高度共线因子 VIF 应 > 5。"""
         # b = 2*a, c = 3*a -> b 和 c 完全共线
-        vif = compute_vif({
-            "a": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            "b": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
-            "c": [3, 6, 9, 12, 15, 18, 21, 24, 27, 30],
-        })
+        vif = compute_vif(
+            {
+                "a": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                "b": [2, 4, 6, 8, 10, 12, 14, 16, 18, 20],
+                "c": [3, 6, 9, 12, 15, 18, 21, 24, 27, 30],
+            }
+        )
         # b 和 c 完全线性相关 -> VIF 应很大或 inf
         assert vif["b"] is not None
-        assert vif["b"] > 5.0 or vif["b"] == float("inf"), f"共线因子 VIF={vif['b']} 应 > 5"
+        assert vif["b"] > 5.0 or vif["b"] == float(
+            "inf"
+        ), f"共线因子 VIF={vif['b']} 应 > 5"
 
     def test_insufficient_data_returns_none(self):
         """数据不足（<3）返回 None。"""

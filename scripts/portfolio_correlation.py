@@ -45,10 +45,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from data import get_kline  # noqa: E402 多源数据层
 from industry_beta import _daily_returns  # noqa: E402 复用收益率计算
 
-
 # ═══════════════════════════════════════════════════════════════
 # 相关系数计算
 # ═══════════════════════════════════════════════════════════════
+
 
 def _pearson_corr(x: list, y: list) -> float | None:
     """皮尔逊相关系数 = Cov(x,y) / (σ_x * σ_y)。
@@ -97,6 +97,7 @@ def _load_returns(code: str, window: int = 60) -> list | None:
 # ═══════════════════════════════════════════════════════════════
 # 矩阵构建
 # ═══════════════════════════════════════════════════════════════
+
 
 def compute_correlation_matrix(
     codes: list[str],
@@ -161,7 +162,7 @@ def compute_correlation_matrix(
     # 平均两两相关性（仅上三角，避免重复）
     pair_corrs = []
     for i, ca in enumerate(valid_codes):
-        for cb in valid_codes[i + 1:]:
+        for cb in valid_codes[i + 1 :]:
             v = matrix.get(ca, {}).get(cb)
             if v is not None:
                 pair_corrs.append(v)
@@ -171,7 +172,7 @@ def compute_correlation_matrix(
     # 高相关对
     high_pairs = []
     for i, ca in enumerate(valid_codes):
-        for cb in valid_codes[i + 1:]:
+        for cb in valid_codes[i + 1 :]:
             v = matrix.get(ca, {}).get(cb)
             if v is not None and abs(v) >= high_corr_threshold:
                 high_pairs.append([ca, cb, v])
@@ -212,6 +213,7 @@ def _interpret_matrix(avg: float | None, high_pairs: list, n_codes: int) -> str:
 # ═══════════════════════════════════════════════════════════════
 # 个股 vs 组合相关性
 # ═══════════════════════════════════════════════════════════════
+
 
 def compute_stock_vs_portfolio(
     stock_code: str,
@@ -321,10 +323,12 @@ def _interpret_diversification(avg_corr: float) -> str:
 # Portfolio 集成（业务封装层）
 # ═══════════════════════════════════════════════════════════════
 
+
 def get_portfolio_codes() -> list[str]:
     """从 PortfolioManager 拉持仓代码列表。失败返回空 list。"""
     try:
         from portfolio.manager import PortfolioManager
+
         pm = PortfolioManager()
         positions = pm.get_positions()
         return [p["code"] for p in positions if p.get("code")]
@@ -392,11 +396,21 @@ def compute_full_portfolio_correlation(
         "portfolio_empty": False,
         "portfolio_codes": portfolio_codes,
         "matrix": matrix_payload.get("matrix") if matrix_payload else None,
-        "avg_pairwise_corr": matrix_payload.get("avg_pairwise_corr") if matrix_payload else None,
-        "high_corr_pairs": matrix_payload.get("high_corr_pairs") if matrix_payload else [],
+        "avg_pairwise_corr": (
+            matrix_payload.get("avg_pairwise_corr") if matrix_payload else None
+        ),
+        "high_corr_pairs": (
+            matrix_payload.get("high_corr_pairs") if matrix_payload else []
+        ),
         "vs_portfolio": vs_portfolio,
-        "interpretation": matrix_payload.get("interpretation") if matrix_payload else "无数据",
-        "data_quality": matrix_payload.get("data_quality") if matrix_payload else {"degraded_fields": ["portfolio_correlation"]},
+        "interpretation": (
+            matrix_payload.get("interpretation") if matrix_payload else "无数据"
+        ),
+        "data_quality": (
+            matrix_payload.get("data_quality")
+            if matrix_payload
+            else {"degraded_fields": ["portfolio_correlation"]}
+        ),
     }
 
 
@@ -404,8 +418,10 @@ def compute_full_portfolio_correlation(
 # CLI
 # ═══════════════════════════════════════════════════════════════
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="组合相关性矩阵")
     parser.add_argument("--stock", default=None, help="候选个股（计算 vs_portfolio）")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
@@ -418,9 +434,12 @@ def main():
         print(f"持仓代码 ({len(codes)}): {codes}")
         return
 
-    result = compute_full_portfolio_correlation(stock_code=args.stock, window=args.window)
+    result = compute_full_portfolio_correlation(
+        stock_code=args.stock, window=args.window
+    )
     if args.json:
         import json
+
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         print(f"📊 组合相关性分析 (window={args.window})")

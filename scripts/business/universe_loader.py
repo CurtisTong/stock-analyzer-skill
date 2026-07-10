@@ -15,7 +15,9 @@ from common import (
     normalize_quote_code,
     to_float,
 )
-from common.utils import DATA_DIR as _DATA_DIR  # noqa: E402 — 延迟引用，支持 monkeypatch
+from common.utils import (
+    DATA_DIR as _DATA_DIR,
+)  # noqa: E402 — 延迟引用，支持 monkeypatch
 
 
 def _get_data_dir():
@@ -146,6 +148,7 @@ def pre_screen_quotes(quotes, args):
     user_blacklist: set = set()
     try:
         from common.user_profile import get_user_preference
+
         user_blacklist = set(get_user_preference("blacklist") or [])
     except Exception:
         user_blacklist = set()

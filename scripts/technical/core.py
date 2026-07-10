@@ -70,7 +70,7 @@ def aligned_macd(closes, fast=12, slow=26, signal=9):
 
     # 将 dif_series 对齐到 dea_series 的时间范围
     if len(dea_series) < len(dif_series):
-        dif_series = dif_series[-len(dea_series):]
+        dif_series = dif_series[-len(dea_series) :]
 
     return {
         "dif_series": dif_series,

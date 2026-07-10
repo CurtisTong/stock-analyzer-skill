@@ -49,16 +49,21 @@ class TestYamlLoad:
         from experts.yaml_loader import load_expert_from_yaml, YAML_DIR
 
         # momentum_trader.yaml 用"情绪/资金"，topic_leader/xu_xiang/zhao_laoge 用"情绪/题材"
-        for fname in ("momentum_trader.yaml", "xu_xiang.yaml", "zhao_laoge.yaml", "soros.yaml"):
+        for fname in (
+            "momentum_trader.yaml",
+            "xu_xiang.yaml",
+            "zhao_laoge.yaml",
+            "soros.yaml",
+        ):
             path = YAML_DIR / fname
             if not path.exists():
                 continue
             profile = load_expert_from_yaml(path)
             # 不应有"情绪/xxx"别名键，应统一为"情绪"
             for dim in profile.weights:
-                assert "/" not in dim, (
-                    f"{fname}: 维度名 '{dim}' 未归一化，应映射到标准名"
-                )
+                assert (
+                    "/" not in dim
+                ), f"{fname}: 维度名 '{dim}' 未归一化，应映射到标准名"
 
 
 class TestYamlAll:

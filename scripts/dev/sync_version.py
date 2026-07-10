@@ -49,30 +49,45 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
     (
         "plugin.json",
         ".claude-plugin/plugin.json",
-        [(r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")', r"{prefix}{version}{suffix}")],
+        [
+            (
+                r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")',
+                r"{prefix}{version}{suffix}",
+            )
+        ],
     ),
     (
         "marketplace.json",
         ".claude-plugin/marketplace.json",
-        [(r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")', r"{prefix}{version}{suffix}")],
+        [
+            (
+                r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")',
+                r"{prefix}{version}{suffix}",
+            )
+        ],
     ),
     # SKILL.md frontmatter（glob 多文件）
     (
         "skills/*/SKILL.md",
         "skills/**/SKILL.md",
-        [(r'(?m)^(?P<prefix>version:\s*)' + _VER, r"{prefix}{version}")],
+        [(r"(?m)^(?P<prefix>version:\s*)" + _VER, r"{prefix}{version}")],
     ),
     # methodology.md frontmatter
     (
         "methodology.md",
         "methodology.md",
-        [(r'(?m)^(?P<prefix>version:\s*)' + _VER, r"{prefix}{version}")],
+        [(r"(?m)^(?P<prefix>version:\s*)" + _VER, r"{prefix}{version}")],
     ),
     # pyproject.toml
     (
         "pyproject.toml",
         "pyproject.toml",
-        [(r'(?m)^(?P<prefix>version\s*=\s*")[^"]+(?P<suffix>")', r"{prefix}{version}{suffix}")],
+        [
+            (
+                r'(?m)^(?P<prefix>version\s*=\s*")[^"]+(?P<suffix>")',
+                r"{prefix}{version}{suffix}",
+            )
+        ],
     ),
     # docs/product-architecture.md header
     (
@@ -80,7 +95,9 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         "docs/product-architecture.md",
         [
             (
-                r"(?P<prefix>版本：v)" + _VER + r"(?P<suffix>\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
+                r"(?P<prefix>版本：v)"
+                + _VER
+                + r"(?P<suffix>\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
                 r"{prefix}{version}{suffix}",
             )
         ],
@@ -90,8 +107,14 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         "README.md",
         "README.md",
         [
-            (r"(?P<prefix>version-)" + _VER + r"(?P<suffix>-)", r"{prefix}{version}{suffix}"),
-            (r"(?P<prefix>\*\*v)" + _VER + r"(?P<suffix>\*\*)", r"{prefix}{version}{suffix}"),
+            (
+                r"(?P<prefix>version-)" + _VER + r"(?P<suffix>-)",
+                r"{prefix}{version}{suffix}",
+            ),
+            (
+                r"(?P<prefix>\*\*v)" + _VER + r"(?P<suffix>\*\*)",
+                r"{prefix}{version}{suffix}",
+            ),
         ],
     ),
     # 测试文件
@@ -116,7 +139,9 @@ def _resolve_files(file_spec: str) -> list[Path]:
     return [path] if path.exists() else []
 
 
-def _apply_patterns(content: str, patterns: list[tuple[str, str]], version: str) -> tuple[str, list[str]]:
+def _apply_patterns(
+    content: str, patterns: list[tuple[str, str]], version: str
+) -> tuple[str, list[str]]:
     """对内容应用所有 patterns，返回 (新内容, 匹配到的版本列表)。"""
     found_versions = []
     for regex, replacement in patterns:
@@ -133,7 +158,9 @@ def _apply_patterns(content: str, patterns: list[tuple[str, str]], version: str)
     return content, found_versions
 
 
-def update_version(label: str, file_spec: str, patterns: list[tuple[str, str]], version: str) -> list[Path]:
+def update_version(
+    label: str, file_spec: str, patterns: list[tuple[str, str]], version: str
+) -> list[Path]:
     """更新单个目标的版本号，返回被修改的文件列表。"""
     updated = []
     for path in _resolve_files(file_spec):
@@ -145,7 +172,9 @@ def update_version(label: str, file_spec: str, patterns: list[tuple[str, str]], 
     return updated
 
 
-def check_version(label: str, file_spec: str, patterns: list[tuple[str, str]], version: str) -> tuple[list[str], list[str], list[str]]:
+def check_version(
+    label: str, file_spec: str, patterns: list[tuple[str, str]], version: str
+) -> tuple[list[str], list[str], list[str]]:
     """检查单个目标的版本一致性，返回 (match, mismatch, missing) 列表。"""
     match, mismatch, missing = [], [], []
     files = _resolve_files(file_spec)
@@ -163,7 +192,9 @@ def check_version(label: str, file_spec: str, patterns: list[tuple[str, str]], v
                 if v == version:
                     match.append(rel if len(files) > 1 else label)
                 else:
-                    mismatch.append(f"{rel}: {v}" if len(files) > 1 else f"{label}: {v}")
+                    mismatch.append(
+                        f"{rel}: {v}" if len(files) > 1 else f"{label}: {v}"
+                    )
     return match, mismatch, missing
 
 
@@ -173,7 +204,9 @@ def update_all(version: str, dry_run: bool = False) -> list[str]:
     for label, file_spec, patterns in VERSION_TARGETS:
         if dry_run:
             # dry-run 模式：检查是否需要更新
-            match, mismatch, missing = check_version(label, file_spec, patterns, version)
+            match, mismatch, missing = check_version(
+                label, file_spec, patterns, version
+            )
             if mismatch:
                 summaries.append(f"   📝 {label} (需更新)")
             elif missing:
@@ -203,7 +236,9 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
 
     # 检查所有声明式目标
     for label, file_spec, patterns in VERSION_TARGETS:
-        match, mismatch, missing = check_version(label, file_spec, patterns, target_version)
+        match, mismatch, missing = check_version(
+            label, file_spec, patterns, target_version
+        )
         result["match"].extend(match)
         result["mismatch"].extend(mismatch)
         result["missing"].extend(missing)

@@ -77,6 +77,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     # 新增 institution 独立子评分，供 veto 判断
     # 用 institution 的权重计算加权总分
     from experts.registry import EXPERT_REGISTRY
+
     inst_profile = EXPERT_REGISTRY.get("institution")
     if inst_profile is not None:
         inst_weights = {dim: w / 100.0 for dim, w in inst_profile.weights.items()}

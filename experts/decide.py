@@ -82,7 +82,8 @@ def run_debate(
         # 兼容双组/单组返回结构
         composite = result.get("composite_score") or result.get("avg_score", 0.0)
         expert_scores = {
-            r.get("name"): r.get("score", 50.0) for r in result.get("expert_results", [])
+            r.get("name"): r.get("score", 50.0)
+            for r in result.get("expert_results", [])
         }
         pred_id = record_prediction(
             stock_code=stock_code,

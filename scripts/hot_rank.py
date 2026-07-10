@@ -199,11 +199,7 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
         low = float(bar.get("low", 0) or 0)
         close = float(bar.get("close", 0) or 0)
         volume = float(bar.get("volume", 0) or 0)
-        avg_price = (
-            (high + low) / 2
-            if (high and low)
-            else (close or q.price)
-        )
+        avg_price = (high + low) / 2 if (high and low) else (close or q.price)
         amount_est = volume * avg_price
         # turnover = 成交额 / 流通市值
         turnover = (

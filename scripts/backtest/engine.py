@@ -340,6 +340,7 @@ def _calc_daily_returns(bars, start, holding_days):
             returns.append((bars[j].close - bars[j - 1].close) / bars[j - 1].close)
     return returns
 
+
 def _calc_return_with_stop_loss(
     bars, start, holding_days, stop_loss=-0.08, take_profit=0.20
 ):

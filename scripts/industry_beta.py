@@ -45,8 +45,8 @@ from data import get_kline, get_quotes  # noqa: E402 多源数据层
 # 动态基准指数选择（按流通市值）
 # ═══════════════════════════════════════════════════════════════
 
-SIZE_THRESHOLD_LARGE = 500.0   # > 500 亿 → 沪深 300
-SIZE_THRESHOLD_MID = 100.0     # > 100 亿 → 中证 500；否则中证 1000
+SIZE_THRESHOLD_LARGE = 500.0  # > 500 亿 → 沪深 300
+SIZE_THRESHOLD_MID = 100.0  # > 100 亿 → 中证 500；否则中证 1000
 
 
 def select_index_by_size(stock_code: str) -> str:
@@ -87,6 +87,7 @@ def select_index_by_size(stock_code: str) -> str:
 # 收益率序列计算
 # ═══════════════════════════════════════════════════════════════
 
+
 def _daily_returns(closes: list) -> list:
     """日收益率序列：r_t = (close_t / close_{t-1}) - 1。
 
@@ -104,6 +105,7 @@ def _daily_returns(closes: list) -> list:
 # ═══════════════════════════════════════════════════════════════
 # OLS beta 计算（手写）
 # ═══════════════════════════════════════════════════════════════
+
 
 def _ols_beta(r_stock: list, r_index: list) -> dict | None:
     """手写 OLS beta 系数计算。
@@ -143,7 +145,7 @@ def _ols_beta(r_stock: list, r_index: list) -> dict | None:
     # 个股年化波动率（daily_std * sqrt(252) * 100）
     if n >= 2:
         daily_std = statistics.stdev(r_s)
-        volatility_pct = daily_std * (252 ** 0.5) * 100
+        volatility_pct = daily_std * (252**0.5) * 100
     else:
         volatility_pct = None
 
@@ -177,6 +179,7 @@ def _interpret_beta(beta: float | None) -> str:
 # ═══════════════════════════════════════════════════════════════
 # 顶层入口
 # ═══════════════════════════════════════════════════════════════
+
 
 def compute_beta(
     stock_code: str,
@@ -288,8 +291,10 @@ def compute_beta(
 # CLI
 # ═══════════════════════════════════════════════════════════════
 
+
 def main():
     import argparse
+
     parser = argparse.ArgumentParser(description="个股 beta 系数（手写 OLS）")
     parser.add_argument("stock_code", help="个股代码（如 sh600519）")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
@@ -304,12 +309,15 @@ def main():
 
     if args.json:
         import json
+
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:
         idx = result["index_code"]
         print(f"📊 {result['stock_code']} vs {idx} ({result['window']}日 OLS)")
         print(f"  Beta: {result['beta']}")
-        print(f"  Alpha: {result['alpha']} (年化 {result['alpha_annual'] * 100 if result['alpha_annual'] else 'N/A'}%)")
+        print(
+            f"  Alpha: {result['alpha']} (年化 {result['alpha_annual'] * 100 if result['alpha_annual'] else 'N/A'}%)"
+        )
         print(f"  R²: {result['r_squared']}")
         print(f"  年化波动率: {result['volatility_pct']}%")
         print(f"  观测值: {result['n_observations']}")

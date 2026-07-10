@@ -44,7 +44,8 @@ def _should_notify_signal(code: str, alert_type: str) -> bool:
         # 容量 + TTL 过期清理
         if len(_notified_signals) > _NOTIFIED_MAX_SIZE // 2:
             expired = [
-                k for k, v in _notified_signals.items()
+                k
+                for k, v in _notified_signals.items()
                 if isinstance(v, tuple) and now - v[1] > _NOTIFIED_TTL_SECONDS
             ]
             for k in expired:
@@ -59,6 +60,7 @@ def _should_notify_signal(code: str, alert_type: str) -> bool:
                 return False
         _notified_signals[key] = (today, now)
     return True
+
 
 # 模块级缓存（惰性初始化）
 _nm = None

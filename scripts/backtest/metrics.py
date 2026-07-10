@@ -150,9 +150,7 @@ def run_backtest(
             te = statistics.stdev(excess)
             periods_per_year = 252 / holding_days if holding_days > 0 else 0
             information_ratio = (
-                round(mean_excess / te * (periods_per_year**0.5), 2)
-                if te > 0
-                else 0
+                round(mean_excess / te * (periods_per_year**0.5), 2) if te > 0 else 0
             )
 
     # 换手率估算

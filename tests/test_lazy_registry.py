@@ -128,6 +128,7 @@ class TestConcurrentGetAll:
                 call_count += 1
             # 模拟慢加载，增加竞态窗口
             import time
+
             time.sleep(0.05)
             return fetchers
 
@@ -169,9 +170,7 @@ class TestImportFuncException:
 
     def test_exception_then_success(self):
         fetchers = [_make_fetcher("margin_east")]
-        import_func = MagicMock(
-            side_effect=[RuntimeError("transient"), fetchers]
-        )
+        import_func = MagicMock(side_effect=[RuntimeError("transient"), fetchers])
         reg = LazyFetcherRegistry(import_func)
 
         with pytest.raises(RuntimeError):

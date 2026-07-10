@@ -141,9 +141,7 @@ def _render_classification_section(features):
     if classification.get("reasons"):
         lines.append(f"  依据: {'; '.join(classification['reasons'])}")
     if classification.get("priority_indicators"):
-        lines.append(
-            f"  推荐指标: {', '.join(classification['priority_indicators'])}"
-        )
+        lines.append(f"  推荐指标: {', '.join(classification['priority_indicators'])}")
     return lines
 
 

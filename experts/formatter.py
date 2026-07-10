@@ -226,8 +226,13 @@ def format_debate_brief(result: dict) -> str:
     composite = result.get("composite_score", 50)
 
     dir_emoji = {
-        "强烈看多": "🟢", "看多": "🟢", "谨慎看多": "🟡", "中性": "🟡",
-        "谨慎看空": "🔴", "看空": "🔴", "强烈看空": "🔴",
+        "强烈看多": "🟢",
+        "看多": "🟢",
+        "谨慎看多": "🟡",
+        "中性": "🟡",
+        "谨慎看空": "🔴",
+        "看空": "🔴",
+        "强烈看空": "🔴",
     }.get(direction, "🟡")
 
     lines.append(f"## {dir_emoji} 圆桌结论：{direction}")
@@ -236,7 +241,9 @@ def format_debate_brief(result: dict) -> str:
 
     pos = result.get("position", {})
     if pos.get("position_pct", 0) > 0:
-        lines.append(f"📌 建议仓位 {pos['position_pct']}% | 止损 {pos.get('stop_loss', '-')}")
+        lines.append(
+            f"📌 建议仓位 {pos['position_pct']}% | 止损 {pos.get('stop_loss', '-')}"
+        )
     else:
         lines.append("📌 建议观望，暂不开仓")
 

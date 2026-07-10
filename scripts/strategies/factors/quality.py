@@ -217,9 +217,7 @@ def _a_stock_red_flag_score(fin: dict) -> float:
     # 2. 存贷双高（-4~0）
     # 货币资金充裕但短期借款高 → 财务造假信号（如康美药业、康得新）
     cash = to_float(fin.get("cash_and_equivalents", fin.get("CASH_AND_EQUIVALENTS", 0)))
-    short_borrow = to_float(
-        fin.get("short_term_borrowing", fin.get("SHORT_BORROW", 0))
-    )
+    short_borrow = to_float(fin.get("short_term_borrowing", fin.get("SHORT_BORROW", 0)))
     if cash > 0 and short_borrow > 0:
         cash_borrow_ratio = cash / short_borrow
         # 货币资金 > 短期借款 2 倍且都有余额 → 存贷双高
@@ -232,9 +230,7 @@ def _a_stock_red_flag_score(fin: dict) -> float:
     related_rev = to_float(
         fin.get("related_party_revenue", fin.get("RELATED_REVENUE", 0))
     )
-    total_rev = to_float(
-        fin.get("total_revenue", fin.get("TOTALOPERATEREVETZ", 0))
-    )
+    total_rev = to_float(fin.get("total_revenue", fin.get("TOTALOPERATEREVETZ", 0)))
     if total_rev > 0 and related_rev > 0:
         related_pct = related_rev / total_rev * 100
         if related_pct > 50:

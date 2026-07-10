@@ -218,8 +218,10 @@ class NotificationManager:
 
             # P0-19: 惰性清理过期 throttle 条目（每小时一次），
             # 防止 throttle_key 含动态数据时无限增长
-            if (not self._last_throttle_gc
-                    or time.time() - self._last_throttle_gc > 3600):
+            if (
+                not self._last_throttle_gc
+                or time.time() - self._last_throttle_gc > 3600
+            ):
                 self._gc_throttle_log(dedup_window)
                 self._last_throttle_gc = time.time()
 

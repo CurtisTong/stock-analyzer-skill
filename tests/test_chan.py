@@ -214,7 +214,9 @@ class TestChanMergeInclusions:
     def test_first_bar_yin_direction_down(self):
         """首根K线为阴线（close<open）时方向初始化为 down，首对包含按跌势取低低。"""
         bars = [
-            _bar("2025-01-01", 12, 13, 9, 10),  # 阴线：open=12 > close=10 -> direction=down
+            _bar(
+                "2025-01-01", 12, 13, 9, 10
+            ),  # 阴线：open=12 > close=10 -> direction=down
             _bar("2025-01-02", 10, 12, 9.5, 10.5),  # 包含在前一根内（12<=13, 9.5>=9）
             _bar("2025-01-03", 11, 14, 10, 13),  # 非包含
         ]
@@ -227,7 +229,9 @@ class TestChanMergeInclusions:
     def test_first_bar_yang_direction_up(self):
         """首根K线为阳线（close>=open）时方向初始化为 up，首对包含按涨势取高高。"""
         bars = [
-            _bar("2025-01-01", 10, 12, 9, 11),  # 阳线：close=11 >= open=10 -> direction=up
+            _bar(
+                "2025-01-01", 10, 12, 9, 11
+            ),  # 阳线：close=11 >= open=10 -> direction=up
             _bar("2025-01-02", 10, 11, 9.5, 10.5),  # 包含在前一根内
             _bar("2025-01-03", 11, 13, 10, 12.5),  # 非包含
         ]
@@ -742,12 +746,12 @@ class TestChanBeichiWithZhongshu:
 
         # 6 笔：bi[0]=进入段，bi[1..4]=中枢内，bi[5]=离开段
         bi_list = [
-            _make_bi("down", 0, 5, 20, 16),    # 进入段
-            _make_bi("up", 5, 8, 18, 14),      # 中枢内
-            _make_bi("down", 8, 11, 17, 13),   # 中枢内
-            _make_bi("up", 11, 14, 16, 13),    # 中枢内
+            _make_bi("down", 0, 5, 20, 16),  # 进入段
+            _make_bi("up", 5, 8, 18, 14),  # 中枢内
+            _make_bi("down", 8, 11, 17, 13),  # 中枢内
+            _make_bi("up", 11, 14, 16, 13),  # 中枢内
             _make_bi("down", 14, 17, 15, 12),  # 中枢内
-            _make_bi("up", 17, 22, 14, 10),    # 离开段
+            _make_bi("up", 17, 22, 14, 10),  # 离开段
         ]
         # 中枢 bi_start=1, bi_end=4（bi_list 索引）
         zs = _make_zs(18, 13, xd_start=0, xd_end=2, bi_start=1, bi_end=4)
@@ -759,9 +763,9 @@ class TestChanBeichiWithZhongshu:
         """中枢在 bi_list 末尾时无离开段，趋势背驰为 None。"""
         closes = [10.0 + i * 0.1 for i in range(40)]
         bi_list = [
-            _make_bi("up", 0, 5, 12, 8),       # 进入段
-            _make_bi("down", 5, 8, 11, 9),     # 中枢内
-            _make_bi("up", 8, 11, 13, 9),      # 中枢内
+            _make_bi("up", 0, 5, 12, 8),  # 进入段
+            _make_bi("down", 5, 8, 11, 9),  # 中枢内
+            _make_bi("up", 8, 11, 13, 9),  # 中枢内
             _make_bi("down", 11, 14, 12, 10),  # 中枢内（末尾）
         ]
         zs = _make_zs(13, 9, xd_start=0, xd_end=2, bi_start=1, bi_end=3)
@@ -773,9 +777,9 @@ class TestChanBeichiWithZhongshu:
         """中枢在 bi_list 开头时无进入段，趋势背驰为 None。"""
         closes = [10.0 + i * 0.1 for i in range(40)]
         bi_list = [
-            _make_bi("up", 0, 5, 12, 8),       # 中枢内（开头）
-            _make_bi("down", 5, 8, 11, 9),     # 中枢内
-            _make_bi("up", 8, 11, 13, 9),      # 中枢内
+            _make_bi("up", 0, 5, 12, 8),  # 中枢内（开头）
+            _make_bi("down", 5, 8, 11, 9),  # 中枢内
+            _make_bi("up", 8, 11, 13, 9),  # 中枢内
             _make_bi("down", 11, 14, 12, 10),  # 离开段
         ]
         zs = _make_zs(13, 9, xd_start=0, xd_end=2, bi_start=0, bi_end=2)
@@ -802,11 +806,11 @@ class TestChanBeichiWithZhongshu:
         """进入段与离开段方向相反时不构成趋势背驰。"""
         closes = [10.0 + i * 0.2 for i in range(40)]
         bi_list = [
-            _make_bi("down", 0, 5, 12, 8),      # 进入段（向下）
-            _make_bi("up", 5, 8, 11, 9),        # 中枢内
-            _make_bi("down", 8, 11, 13, 9),     # 中枢内
-            _make_bi("up", 11, 14, 14, 10),     # 中枢内
-            _make_bi("up", 14, 20, 16, 11),     # 离开段（向上）--与进入段反向
+            _make_bi("down", 0, 5, 12, 8),  # 进入段（向下）
+            _make_bi("up", 5, 8, 11, 9),  # 中枢内
+            _make_bi("down", 8, 11, 13, 9),  # 中枢内
+            _make_bi("up", 11, 14, 14, 10),  # 中枢内
+            _make_bi("up", 14, 20, 16, 11),  # 离开段（向上）--与进入段反向
         ]
         zs = _make_zs(14, 9, xd_start=0, xd_end=2, bi_start=1, bi_end=3)
         result = chan_beichi(bi_list, [zs], closes)
@@ -1184,6 +1188,7 @@ class TestAlignedMacd:
 
     def test_aligned_macd_basic(self):
         from technical.core import aligned_macd
+
         closes = [10.0 + i * 0.1 for i in range(40)]  # 40 个递增收盘价
         result = aligned_macd(closes, fast=12, slow=26, signal=9)
         assert "dif_series" in result
@@ -1196,6 +1201,7 @@ class TestAlignedMacd:
 
     def test_aligned_macd_short_input(self):
         from technical.core import aligned_macd
+
         # 不足 slow 周期时返回空
         closes = [10.0, 11.0, 12.0]
         result = aligned_macd(closes)
@@ -1204,6 +1210,7 @@ class TestAlignedMacd:
 
     def test_aligned_macd_custom_periods(self):
         from technical.core import aligned_macd
+
         closes = [10.0 + i * 0.1 for i in range(50)]
         # 自定义参数
         result = aligned_macd(closes, fast=5, slow=15, signal=4)

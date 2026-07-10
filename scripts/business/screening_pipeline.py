@@ -120,7 +120,9 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
     industry = infer_industry(
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
     )
-    parts = compute_phase1_parts(fin, quote, industry, weights=get_strategy(args.strategy))
+    parts = compute_phase1_parts(
+        fin, quote, industry, weights=get_strategy(args.strategy)
+    )
     if getattr(args, "no_chip", False):
         parts["chip"] = 50
     total = compute_weighted_score(parts, args.strategy, regime=regime)
