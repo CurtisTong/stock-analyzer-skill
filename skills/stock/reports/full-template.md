@@ -74,6 +74,88 @@
 
 ---
 
+### 多时间框架动量（v2.5.x 新增）
+
+> 数据来源：`market_anchor.multi_timeframe`；复用 `technical.moving_average.ma_system` + `technical.volatility.compute_atr`。
+
+| 维度 | 数值 | 判断 |
+| --- | --- | --- |
+| MA20 / MA60 / MA250 | [ma20] / [ma60] / [ma250] | [vs_ma20_pct:+x.xx]% / [vs_ma60_pct:+x.xx]% / [vs_ma250_pct:+x.xx]% 偏离度 |
+| 排列状态 | [ma_alignment: 多头排列/空头排列/交叉震荡] | [趋势定性] |
+| 5 日动量 | [ret_5d_pct:+x.xx]% | [短期动能] |
+| 20 日动量 | [ret_20d_pct:+x.xx]% | [中期动能] |
+| ATR14 | [atr_14:xx.xx] | [波动幅度] |
+
+> 💡 **专家视角**：林奇看 5 日（短期催化）/ 索罗斯看 20 日（趋势）/ 价值机构锚看 vs MA250（年线偏离度，长期估值锚）
+
+---
+
+### 宏观-估值桥（v2.5.x 新增）
+
+> 数据来源：`market_anchor.macro`（yfinance 优先 + fixture fallback）。
+
+| 指标 | 数值 | 影响 |
+| --- | --- | --- |
+| 10Y 美债收益率 | [treasury_10y_pct:x.xx]% | 估值锚：美债↑ → 全球股票↓ |
+| 美元指数 | [usd_index:xx.xx] | 人民币贬值压力 |
+| USDCNH | [usd_cny:x.xxxx] | 北向资金成本 |
+| VIX 恐慌指数 | [vix:xx.x] | <20 平静 / 20-30 警戒 / >30 恐慌 |
+| 黄金 (oz) | $[gold_usd_oz] | 避险情绪 |
+| 布伦特原油 | $[brent_oil_usd] | 通胀预期 |
+| WTI 原油 | $[wti_oil_usd] | 国内成品油成本 |
+| 碳酸锂 (吨) | ¥[lithium_carbonate_cny_t] | 新能源链成本锚 |
+
+> 💡 **专家视角**：价值机构锚的"估值第一性原理"——`ERP = 1/PE - 10Y`，若 ERP < 5% 则股票相对债券吸引力低；林奇的"增速视角"会对比公司增速与宏观利率。
+
+---
+
+### 杠杆-反身性（v2.5.x 新增）
+
+> 数据来源：`market_anchor.leverage`（yfinance 期货连续合约 + fixture 主力合约）。
+
+| 指标 | 数值 | 信号 |
+| --- | --- | --- |
+| 两市两融余额 | [margin_balance_total_yi:xxxxx] 亿元（5 日 [margin_change_5d_pct:+x.x]%）| 余额↑ = 加杠杆 / 余额↓ = 去杠杆 |
+| IF 主力基差 | [if_main_basis_pts:-xx.x] 点 | 升水 = 多头信心 / 贴水 = 空头压力 |
+| IC 主力基差 | [ic_main_basis_pts:-xx.x] 点 | 中小盘对冲压力 |
+| IH 主力基差 | [ih_main_basis_pts:-xx.x] 点 | 蓝筹对冲压力 |
+
+> 💡 **专家视角**：索罗斯反身性的核心是"杠杆资金"。两融余额 5 日变化 > 3% 是强信号；期货持续大幅贴水（<-20 点）预示指数下行压力。
+
+> ⚠️ yfinance 的 IF=F 是**连续合约**，与精确主力基差有偏差，仅作趋势参考。
+
+---
+
+### 流动性 + 波动率（v2.5.x 新增）
+
+> 数据来源：`market_anchor.liquidity_volatility`。
+
+| 维度 | 数值 | 判断 |
+| --- | --- | --- |
+| 沪深 300 ATR14 | [sh300_atr_14:xx.xx] | 大盘日均波动幅度 |
+| 沪深 300 年化波动率 | [sh300_annualized_vol_pct:xx.xx]% | <15% 低波 / 15-25% 正常 / >25% 高波 |
+| 个股 20 日均成交额 | [stock_avg_amount_20d_yi:xxxx] 亿元 | [来源：amount/volume*close(估算)] |
+| 个股流动性比率 | [stock_liquidity_ratio_pct:x.xxxx]% | 日均成交/流通市值，>1% 高流动性 |
+
+> 💡 **专家视角**：风控官看波动率（ATR + 年化）作为仓位 / 止损位动态调整依据；题材龙头看流动性比率筛选可重仓标的。
+
+---
+
+### 情绪周期阶段（v2.5.x 新增）
+
+> 数据来源：`market_breadth.get_market_state`（涨停家数 + 跌停家数 + 连板高度 + 涨跌比）。
+
+当前阶段：**[emotion_phase: 主升/退潮/震荡/冰点]**
+
+| 阶段 | 特征 | 短线策略 |
+| --- | --- | --- |
+| 主升 | 涨停>80 家，连板>=5 板 | 重仓出击，但警惕高潮即反转 |
+| 震荡 | 涨停 20-80 家，连板 3-4 板 | 控制仓位，精选个股 |
+| 退潮 | 涨停<30 家，炸板率高 | 减仓观望，等待右侧 |
+| 冰点 | 跌停>50 家 | 空仓观望，等待情绪修复 |
+
+---
+
 ## 一、五层分析
 
 ### 第1层：基本面 评级 [A+/A/B/C]

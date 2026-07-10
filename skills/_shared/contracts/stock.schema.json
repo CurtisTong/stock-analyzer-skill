@@ -95,14 +95,84 @@
             "index_kline_ok": {"type": "boolean"},
             "breadth_ok": {"type": "boolean"},
             "sector_ok": {"type": "boolean"},
+            "multi_timeframe_ok": {"type": "boolean"},
+            "macro_ok": {"type": "boolean"},
+            "liquidity_ok": {"type": "boolean"},
+            "emotion_phase_ok": {"type": "boolean"},
             "degraded_fields": {
               "type": "array",
-              "items": {"enum": ["index", "index_kline", "breadth", "sector", "regime", "etf_csv", "stock"]},
-              "description": "失败的字段名；空数组表示全成功"
+              "items": {"type": "string"},
+              "description": "失败的字段名（含 v2.5.0 旧 enum + v2.5.x 新增 multi_timeframe.* / liquidity.*）；空数组表示全成功"
             }
           }
         }
       }
+    },
+    "multi_timeframe": {
+      "type": ["object", "null"],
+      "description": "v2.5.x 新增：大盘多时间框架动量（MA20/60/250 + 5/20 日动量 + ATR14）",
+      "properties": {
+        "ma20": {"type": ["number", "null"]},
+        "ma60": {"type": ["number", "null"]},
+        "ma250": {"type": ["number", "null"]},
+        "ma_alignment": {"enum": ["多头排列", "空头排列", "交叉震荡", "数据不足", "unknown", null]},
+        "ret_5d_pct": {"type": ["number", "null"], "description": "5 日动量 (%)"},
+        "ret_20d_pct": {"type": ["number", "null"], "description": "20 日动量 (%)"},
+        "atr_14": {"type": ["number", "null"]},
+        "vs_ma20_pct": {"type": ["number", "null"]},
+        "vs_ma60_pct": {"type": ["number", "null"]},
+        "vs_ma250_pct": {"type": ["number", "null"], "description": "年线偏离度"},
+        "data_quality": {"type": "object"}
+      }
+    },
+    "macro": {
+      "type": ["object", "null"],
+      "description": "v2.5.x 新增：宏观-估值桥（10Y 国债 / 美元 / 汇率 / VIX / 大宗）",
+      "properties": {
+        "treasury_10y_pct": {"type": ["number", "null"]},
+        "usd_index": {"type": ["number", "null"]},
+        "usd_cny": {"type": ["number", "null"]},
+        "vix": {"type": ["number", "null"]},
+        "gold_usd_oz": {"type": ["number", "null"]},
+        "brent_oil_usd": {"type": ["number", "null"]},
+        "wti_oil_usd": {"type": ["number", "null"]},
+        "lithium_carbonate_cny_t": {"type": ["number", "null"]}
+      }
+    },
+    "leverage": {
+      "type": ["object", "null"],
+      "description": "v2.5.x 新增：杠杆-反身性（两融 + 期货基差）",
+      "properties": {
+        "margin_balance_total_yi": {"type": ["number", "null"], "description": "两市汇总融资融券余额（亿元）"},
+        "margin_change_5d_pct": {"type": ["number", "null"]},
+        "if_main_basis_pts": {"type": ["number", "null"], "description": "IF 主力基差（点）"},
+        "ic_main_basis_pts": {"type": ["number", "null"]},
+        "ih_main_basis_pts": {"type": ["number", "null"]}
+      }
+    },
+    "valuation_bridge": {
+      "type": ["object", "null"],
+      "description": "v2.5.x 新增：估值桥（ERP = 1/PE - 10Y 国债）",
+      "properties": {
+        "erp_sh300_pct": {"type": ["number", "null"]}
+      }
+    },
+    "liquidity_volatility": {
+      "type": ["object", "null"],
+      "description": "v2.5.x 新增：流动性 + 波动率",
+      "properties": {
+        "sh300_atr_14": {"type": ["number", "null"]},
+        "sh300_annualized_vol_pct": {"type": ["number", "null"], "description": "沪深 300 60 日年化波动率 (%)"},
+        "stock_avg_amount_20d_yi": {"type": ["number", "null"], "description": "个股 20 日均成交额（亿元）"},
+        "stock_liquidity_ratio_pct": {"type": ["number", "null"], "description": "日均成交额/流通市值 (%)"},
+        "stock_amount_source": {"type": ["string", "null"], "description": "成交额来源：amount | volume*close(估算)"},
+        "data_quality": {"type": "object"}
+      }
+    },
+    "emotion_phase": {
+      "type": ["string", "null"],
+      "enum": ["主升", "退潮", "震荡", "冰点", "unknown", null],
+      "description": "v2.5.x 新增：情绪周期阶段（来自 market_breadth.get_market_state）"
     },
     "fundamental": {
       "type": "object",

@@ -80,19 +80,41 @@ python3 scripts/market_anchor.py <股票代码> -j      # full / debate：全量
 python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：仅大盘 + 宽度
 ```
 
-**输出包含**：
+**输出包含**（v2.5.x 升级后共 19 个字段）：
 
-- `regime`：`bull | bear | sideways | panic | euphoria | defensive | unknown`（来自 `experts/market_detector.py`，与 `decide.md §二` 权重表一致）
-- `regime_confidence`：`high | medium | low`（缺数据时降为 low）
-- `index_change_pct`：沪深 300 当日涨跌幅
-- `breadth`：上涨家数 / 下跌家数 / 涨停家数 / 跌停家数
-- `sector_strength.top / bottom`：top3 强势 + bottom3 弱势板块 ETF（来自 `data/sector_etf.csv` 的 13 个 ETF）
-- `stock_sector_compare`：个股 vs 所在板块 ETF vs 大盘三段式对比，含 `rps_vs_sector` / `rps_vs_index` 差值 + verdict 结论
-- `data_quality.degraded_fields`：失败字段名（数组，空数组表示全成功）
+| 维度 | 字段 | 说明 |
+|------|------|------|
+| 大盘状态 | `regime` / `regime_label_zh` / `regime_confidence` | bull/bear/sideways/panic/euphoria/defensive（来自 `experts/market_detector.py`，与 `decide.md §二` 权重表一致）|
+| 大盘指数 | `index_change_pct` | 沪深 300 当日涨跌幅 |
+| 市场宽度 | `breadth` | 上涨家数 / 下跌家数 / 涨停家数 / 跌停家数 |
+| 板块强度 | `sector_strength.top/bottom` | top3 强势 + bottom3 弱势板块 ETF（来自 `data/sector_etf.csv` 的 13 个 ETF）|
+| 个股 RPS | `stock_sector_compare.rps_vs_sector/_index` | 个股 vs 所在板块 ETF vs 大盘三段式对比 |
+| **多时间框架**（v2.5.x 新增）| `multi_timeframe.{ma20,ma60,ma250,ma_alignment,ret_5d_pct,ret_20d_pct,atr_14,vs_ma250_pct}` | 大盘 MA20/60/250 + 5/20 日动量 + ATR14 + 年线偏离度 |
+| **宏观-估值桥**（v2.5.x 新增）| `macro.{treasury_10y_pct,usd_index,usd_cny,vix,gold_usd_oz,brent_oil_usd,wti_oil_usd,lithium_carbonate_cny_t}` | 10Y 国债 / 美元 / 汇率 / VIX / 大宗商品；yfinance 失败 → fixture |
+| **杠杆-反身性**（v2.5.x 新增）| `leverage.{margin_balance_total_yi,margin_change_5d_pct,if/ic/ih_main_basis_pts}` | 两融余额 + IF/IC/IH 期货基差 |
+| **估值桥**（v2.5.x 新增）| `valuation_bridge.erp_sh300_pct` | 沪深 300 ERP = 1/PE - 10Y 国债 |
+| **流动性+波动率**（v2.5.x 新增）| `liquidity_volatility.{sh300_atr_14,sh300_annualized_vol_pct,stock_avg_amount_20d_yi,stock_liquidity_ratio_pct}` | 大盘 ATR/年化波 + 个股日均成交额/流动性比率 |
+| **情绪周期**（v2.5.x 新增）| `emotion_phase` | 主升/退潮/震荡/冰点（来自 `market_breadth.get_market_state`）|
+| 数据降级 | `data_quality.degraded_fields` | 失败字段名（数组，空数组表示全成功）|
 
-**优雅降级**：大盘拉取失败 → regime 默认 `defensive`（v2.4.3 fail-safe）；板块拉取失败 → `sector_strength = null`；个股板块反查失败 → `verdict = "板块归属未知/覆盖盲区"`。**任一字段失败均不阻塞主流程**。
+**优雅降级**：
 
-**复用**：`experts/market_detector.py::detect_market_state()` 直接 import（不重写）；`scripts/market_breadth.py::get_market_breadth()` 直接 import；`scripts/quote.py` 批量调用（≤15/批）。
+- 大盘拉取失败 → regime 默认 `defensive`（v2.4.3 fail-safe）
+- 板块拉取失败 → `sector_strength = null`
+- 个股板块反查失败 → `verdict = "板块归属未知/覆盖盲区"`
+- yfinance 拉取宏观失败 → fixture 降级（数据为前次缓存或手工维护值）
+- 个股 amount 字段缺失 → `stock_avg_amount` 用 `volume × close` 估算（标注 `volume*close(估算)`）
+- **任一字段失败均不阻塞主流程**
+
+**复用（不重写）**：
+
+- `experts.market_detector.detect_market_state()` 直接 import
+- `market_breadth.get_market_breadth()` + `get_market_state()` 直接 import
+- `scripts/quote.py` 批量调用（≤15/批）
+- `scripts/data.get_kline()` scale=240 datalen=250（足够 MA250）
+- `technical.moving_average.ma_system()` 直接 import（MA5/10/20/60/120/250）
+- `technical.volatility.compute_atr()` 直接 import（ATR）
+- `strategies/macro/gate.py` 的 yfinance try/except 模式（范本）
 
 ### Step 1: 获取数据
 

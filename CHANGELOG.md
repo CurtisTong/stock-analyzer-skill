@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定前置改造（market_anchor.py / sector_etf_strength.py / schema / 模板）。
+> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定 v2.5.0 前置改造 + v2.5.x 5 维度扩展（macro_indicators / 多时间框架 / 宏观 / 杠杆 / 流动性 / 情绪周期）。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -32,6 +32,12 @@
 
 ### Added
 - **market-anchor**: full / debate / technical 三模式统一前置"市场环境锚定"小节（大盘状态 + 板块强度 + 个股 vs 板块 vs 大盘三段式 RPS）
+- **market-anchor v2.5.x**: 叠加 5 个新维度 — 多时间框架（MA20/60/250 + 5/20 日动量 + ATR14）/ 宏观-估值桥（10Y 国债 + 美元 + VIX + 大宗）/ 杠杆-反身性（两融 + IF/IC/IH 期货基差）/ 估值桥（沪深 300 ERP）/ 流动性+波动率（个股流动性比率 + 大盘年化波动率）/ 情绪周期阶段（主升/退潮/震荡/冰点）
+- **scripts/macro_indicators.py**: 新建独立模块，yfinance 优先 + `scripts/data/macro_snapshot.json` fixture fallback（TTL 1 小时回写），范本来自 `strategies/macro/gate.py:86-106`
+- **scripts/data/macro_snapshot.json**: 新建 fixture，含 14 个字段（treasury_10y / usd_index / vix / 黄金/原油/碳酸锂 / margin_total / 期货基差 / ERP）
+- **schema**: `stock.schema.json` 在 market_anchor 下新增 6 个顶层字段（multi_timeframe / macro / leverage / valuation_bridge / liquidity_volatility / emotion_phase）
+- **template**: `full-template.md` 在"个股 vs 板块 vs 大盘"后插入 5 个新子表，每个附"专家视角"注释（多时间框架 / 宏观-估值桥 / 杠杆-反身性 / 流动性+波动率 / 情绪周期）
+- **SKILL.md**: Step 0 输出字段表扩展到 19 个字段（11 行 × 13 个维度），含 5 个新维度说明 + 复用清单更新
 - **scripts/market_anchor.py**: 新建编排器，聚合 `quote.py` / `market_breadth.py` / `sector_etf_strength.py` / `experts.market_detector`，Markdown + JSON 双输出，缺数据优雅降级
 - **scripts/sector_etf_strength.py**: 新建脚本，读取 `data/sector_etf.csv` 13 个 ETF，输出强弱板块排序 + 个股 vs 板块 RPS，含显式板块→ETF 代理映射表（解决"sector_stocks.json 消费"vs"sector_etf.csv 白酒ETF"名字不匹配问题）
 - **schema**: `stock.schema.json` 新增 `market_anchor` 顶层字段（regime / breadth / sector_strength / stock_sector_compare / data_quality）
