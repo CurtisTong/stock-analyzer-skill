@@ -527,7 +527,9 @@ def composite_score(
     else:
         grade = "强烈看空"
 
-    buy_signals, sell_signals, structured_signals = _generate_signals(features, market_breadth)
+    buy_signals, sell_signals, structured_signals = _generate_signals(
+        features, market_breadth
+    )
 
     return {
         "score": round(score, 1),

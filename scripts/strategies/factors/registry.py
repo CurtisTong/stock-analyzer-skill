@@ -185,9 +185,7 @@ def _build_kwargs(
     return {}
 
 
-def compute_all_factors(
-    fin, quote, features, industry, code, weights=None
-) -> dict:
+def compute_all_factors(fin, quote, features, industry, code, weights=None) -> dict:
     """自动调用所有已注册因子，返回 {name: score} dict。
 
     替代原 compute_factor_parts() 中的硬编码映射。
@@ -355,7 +353,9 @@ def compute_vif(factor_scores: dict) -> dict:
 
         # 计算 R²
         y_mean = sum(y) / n
-        ss_res = sum((y[i] - sum(beta[a] * X[i][a] for a in range(k))) ** 2 for i in range(n))
+        ss_res = sum(
+            (y[i] - sum(beta[a] * X[i][a] for a in range(k))) ** 2 for i in range(n)
+        )
         ss_tot = sum((yi - y_mean) ** 2 for yi in y)
         if ss_tot == 0:
             result[target] = None
@@ -387,9 +387,7 @@ def _solve_linear(A: list, b: list, n: int) -> list | None:
     return [M[i][n] / M[i][i] for i in range(n)]
 
 
-def decorrelate_factors(
-    parts_list: list, threshold: float = 0.7
-) -> list:
+def decorrelate_factors(parts_list: list, threshold: float = 0.7) -> list:
     """P2-05: 对批量因子得分做残差化去相关。
 
     对每对相关系数 > threshold 的因子 (A, B)，从 B 中减去 A 对 B 的线性回归残差，
@@ -414,16 +412,15 @@ def decorrelate_factors(
         all_factors.update(p.keys())
     # 只处理有数值的因子
     factor_names = sorted(
-        f for f in all_factors
+        f
+        for f in all_factors
         if all(isinstance(p.get(f), (int, float)) for p in parts_list)
     )
 
     if len(factor_names) < 2:
         return parts_list
 
-    factor_scores = {
-        f: [p.get(f, 0) for p in parts_list] for f in factor_names
-    }
+    factor_scores = {f: [p.get(f, 0) for p in parts_list] for f in factor_names}
     corr = compute_factor_correlation_matrix(factor_scores)
 
     # 找出高相关因子对
@@ -447,9 +444,7 @@ def decorrelate_factors(
             if den > 0:
                 beta = num / den
                 # 残差 = b - beta * a，加回 b 的均值保持尺度
-                decorrelated[b] = [
-                    vb[k] - beta * (va[k] - ma) for k in range(len(vb))
-                ]
+                decorrelated[b] = [vb[k] - beta * (va[k] - ma) for k in range(len(vb))]
                 processed.add(b)
                 logger.debug(
                     "去相关: %s 被 %s 残差化 (r=%.3f, beta=%.3f)", b, a, r, beta

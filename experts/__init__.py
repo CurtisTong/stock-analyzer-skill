@@ -20,7 +20,6 @@ from typing import Dict, List, Optional
 
 from experts.types import ExpertProfile, DIRECTION_THRESHOLDS, direction_from_score
 
-
 # 导入注册表（放在模块底部以利用 dataclass 定义）
 from .registry import (
     EXPERT_REGISTRY,

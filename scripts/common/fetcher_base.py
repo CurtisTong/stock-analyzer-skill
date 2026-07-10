@@ -66,8 +66,17 @@ class BaseFetcher(ABC):
             parts = name.split("_")
             # 如果最后一段是已知 provider，用它；否则用第一段
             _KNOWN_PROVIDERS = {
-                "tencent", "eastmoney", "sina", "xueqiu", "ths", "efinance",
-                "akshare", "tushare", "pytdx", "baostock", "yfinance",
+                "tencent",
+                "eastmoney",
+                "sina",
+                "xueqiu",
+                "ths",
+                "efinance",
+                "akshare",
+                "tushare",
+                "pytdx",
+                "baostock",
+                "yfinance",
             }
             inferred = parts[-1] if parts[-1] in _KNOWN_PROVIDERS else parts[0]
             logger.debug(
@@ -165,9 +174,7 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         )
         return None
     except Exception as e:
-        logger.debug(
-            "fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e
-        )
+        logger.debug("fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e)
         fetcher.on_failure()
         return None
     if result is not None and result is not NOT_HANDLED:

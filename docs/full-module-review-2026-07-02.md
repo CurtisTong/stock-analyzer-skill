@@ -9,7 +9,7 @@
 ## 一、审查总览
 
 | 模块 | 行数 | Critical | High | Medium | 健康度 | 核心风险 |
-|------|------|----------|------|--------|--------|----------|
+| --- | --- | --- | --- | --- |
 | common（基础设施） | 2725 | 1 | 4 | 8 | 7/10 | SSRF 防御缺失、输入校验宽松、4xx 误熔断 |
 | fetchers（数据源） | 2630 | 2 | 6 | 7 | 6/10 | **6 kline fetcher 缺 source 致 volume 差 100 倍**、北向资金索引对齐 bug |
 | data（类型缓存） | 1100 | 2 | 4 | 5 | 6/10 | **缓存键未归一化**、零值缓存穿透 |
@@ -110,7 +110,7 @@
 > 这些直接影响投资判断或资金安全，未修复不可用于实盘。
 
 | # | 修复项 | 文件 | 改动量 |
-|---|--------|------|--------|
+| --- | --- |
 | 1 | **[fetchers/C2]** 6 kline fetcher 补 `source` 字段 + 单位归一化 | efinance/akshare/baostock/tushare/yfinance/pytdx_kline.py | 小（每文件 1-2 行） |
 | 2 | **[fetchers/C1]** 北向资金改按 date dict 合并 | eastmoney_flow.py:52-57 | 中 |
 | 3 | **[data/C1]** 三个 `get_*` 入口归一化 code | data/__init__.py:64,115,138 | 小 |
@@ -127,7 +127,7 @@
 ### 阶段二：P1 高价值修复（3-5 天，本迭代内）
 
 | # | 修复项 | 文件 |
-|---|--------|------|
+| --- |
 | 13 | **[strategies/H1]** backtest engine chip 调用改 `_chip_score(code)` 或提供适配签名 | backtest/engine.py:17,186 |
 | 14 | **[strategies/C1]** Phase 2 跳过 chip 因子（exclude_keys 或 network 标记） | screening_service.py:441-453 + factors/__init__.py |
 | 15 | **[strategies/C3]** backtest_report 总结段强制插过拟合警示 | patterns/backtest_report.py:283-298 |
@@ -154,7 +154,7 @@
 > 缠论模块 5 个 Critical 是系统性算法问题，需决策：**重构为标准缠论** 还是 **标注为非标准实现**。
 
 | # | 修复项 | 决策 |
-|---|--------|------|
+| --- |
 | 33 | **[chan/C1-C5]** 缠论算法 | 方案 A：实现特征序列线段 + 中枢 GG/DD + 背驰索引统一坐标系 + 一买依赖背驰。方案 B：docstring + SKILL.md 明确标注"非标准缠论，仅供学习"。**建议先 B 后 A** |
 | 34 | **[chan/H1-H9]** snapshots --json、calibration_sync 三向合并、双针探底分母、classifier 死代码、chan.py 异常处理 | 逐项修复 |
 | 35 | **[data/H1-H4]** margin 排序验证、holders 样本要求、cache.clear missing_ok、data/cache.py 去 sys.modules hack | 逐项修复 |
@@ -190,7 +190,7 @@
 ## 六、模块健康度排名
 
 | 排名 | 模块 | 健康度 | 一句话评价 |
-|------|------|--------|------------|
+| --- | --- |
 | 1 | config+dev | 8/10 | YAML 安全、同步幂等，仅正则边界瑕疵 |
 | 2 | common | 7/10 | 基石扎实，安全防御与输入校验需加强 |
 | 3 | technical | 7/10 | 核心公式正确（与通达信一致），背离索引需修 |

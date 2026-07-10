@@ -18,7 +18,6 @@ from data.pool import (
     sort_stocks,
 )
 
-
 # ---------- is_st ----------
 
 
@@ -181,7 +180,12 @@ class TestBuildSectorPool:
     def test_filters_st(self):
         stocks = [
             {"code": "a", "name": "正常", "amount": 100_000_000, "cap": 50_000_000_000},
-            {"code": "b", "name": "ST 股", "amount": 999_000_000, "cap": 999_000_000_000},
+            {
+                "code": "b",
+                "name": "ST 股",
+                "amount": 999_000_000,
+                "cap": 999_000_000_000,
+            },
         ]
         result = build_sector_pool(stocks, top_n=10)
         assert result == ["a"]

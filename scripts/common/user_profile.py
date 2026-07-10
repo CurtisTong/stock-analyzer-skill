@@ -115,6 +115,7 @@ def get_user_preference(key: str, default: Any = None) -> Any:
 def save_user_profile(profile: dict, path: Optional[str] = None) -> None:
     """保存用户偏好到 YAML。"""
     import yaml
+
     p = Path(path) if path else _profile_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(

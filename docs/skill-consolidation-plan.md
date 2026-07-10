@@ -89,7 +89,7 @@ ls scripts/data/sector_stocks.json 2>/dev/null || python3 scripts/init_pool.py
 **理由**：两者都是深度研究功能，合并为统一的研究入口。
 
 | 项目 | 详情 |
-|------|------|
+| --- | --- |
 | 来源 1 | `skills/financial-analyst/SKILL.md` (138 行) |
 | 来源 2 | `skills/investment-researcher/SKILL.md` (156 行) |
 | 目标 | 新建 `skills/research/SKILL.md` |

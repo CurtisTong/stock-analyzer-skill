@@ -18,14 +18,30 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-from experts.yaml_loader import YAML_DIR, load_all_experts, load_expert_from_yaml  # noqa: E402
+from experts.yaml_loader import (
+    YAML_DIR,
+    load_all_experts,
+    load_expert_from_yaml,
+)  # noqa: E402
 
 # P2-01: 期望的专家列表（YAML 单源后，这是唯一权威定义）
 _EXPECTED_EXPERT_NAMES = {
-    "buffett", "chaogu_yangjia", "duan_yongping", "emotion_tech",
-    "institution", "lynch", "momentum_trader", "risk_manager",
-    "sector_specialist", "soros", "topic_leader", "value_anchor",
-    "value_institution", "xu_xiang", "zhao_laoge", "zuoshou_xinyi",
+    "buffett",
+    "chaogu_yangjia",
+    "duan_yongping",
+    "emotion_tech",
+    "institution",
+    "lynch",
+    "momentum_trader",
+    "risk_manager",
+    "sector_specialist",
+    "soros",
+    "topic_leader",
+    "value_anchor",
+    "value_institution",
+    "xu_xiang",
+    "zhao_laoge",
+    "zuoshou_xinyi",
 }
 
 
@@ -45,7 +61,10 @@ class TestYamlCompleteness:
         profile = load_expert_from_yaml(yaml_path)
         assert profile.name == name, f"{name}: name 字段不匹配"
         assert profile.display_name, f"{name}: display_name 为空"
-        assert profile.group in ("long_term", "short_term"), f"{name}: group={profile.group}"
+        assert profile.group in (
+            "long_term",
+            "short_term",
+        ), f"{name}: group={profile.group}"
         assert profile.weights, f"{name}: weights 为空"
         assert profile.md_path, f"{name}: md_path 为空"
 
@@ -71,8 +90,12 @@ class TestYamlCompleteness:
         loaded = load_all_experts()
         active = [p for p in loaded.values() if p.active]
         legacy = [p for p in loaded.values() if not p.active]
-        assert len(active) == 8, f"active 专家数 {len(active)} != 8: {[p.name for p in active]}"
-        assert len(legacy) == 8, f"legacy 专家数 {len(legacy)} != 8: {[p.name for p in legacy]}"
+        assert (
+            len(active) == 8
+        ), f"active 专家数 {len(active)} != 8: {[p.name for p in active]}"
+        assert (
+            len(legacy) == 8
+        ), f"legacy 专家数 {len(legacy)} != 8: {[p.name for p in legacy]}"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -127,8 +150,12 @@ class TestYamlSchemaValidation:
         path = self._write_yaml(
             tmp_path,
             {
-                "name": "x", "display_name": "X", "group": "mid_term",
-                "style": "s", "horizon": "h", "core_signal": "c",
+                "name": "x",
+                "display_name": "X",
+                "group": "mid_term",
+                "style": "s",
+                "horizon": "h",
+                "core_signal": "c",
                 "weights": {"基本面": 100.0},
             },
         )
@@ -142,8 +169,12 @@ class TestYamlSchemaValidation:
         path = self._write_yaml(
             tmp_path,
             {
-                "name": "x", "display_name": "X", "group": "long_term",
-                "style": "s", "horizon": "h", "core_signal": "c",
+                "name": "x",
+                "display_name": "X",
+                "group": "long_term",
+                "style": "s",
+                "horizon": "h",
+                "core_signal": "c",
                 "weights": {"基本面": 50.0, "估值": 30.0},  # sum=80, 偏差 20
             },
         )
@@ -167,9 +198,19 @@ class TestYamlSchemaValidation:
         path = self._write_yaml(
             tmp_path,
             {
-                "name": "test_ok", "display_name": "测试", "group": "long_term",
-                "style": "s", "horizon": "h", "core_signal": "c",
-                "weights": {"基本面": 40.0, "估值": 30.0, "技术面": 10.0, "情绪": 10.0, "风险": 10.0},
+                "name": "test_ok",
+                "display_name": "测试",
+                "group": "long_term",
+                "style": "s",
+                "horizon": "h",
+                "core_signal": "c",
+                "weights": {
+                    "基本面": 40.0,
+                    "估值": 30.0,
+                    "技术面": 10.0,
+                    "情绪": 10.0,
+                    "风险": 10.0,
+                },
                 "veto_conditions": ["条件1"],
                 "md_path": "experts/test.md",
                 "active": True,

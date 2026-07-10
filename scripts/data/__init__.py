@@ -26,7 +26,6 @@ def _now_iso() -> str:
 # v1.3.1: 缓存已迁入 common.cache，此处仅作兼容 shim（见 data.cache）
 from common import cache
 
-
 _helpers_cache = None
 
 
@@ -362,6 +361,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
 # 而是各自在 data/chip.py、data/event.py、data/flow.py、data/lhb.py 中
 # 遍历 fetcher 列表按子类型聚合。这里 re-export 保持与 quote/kline/finance 一致的 API 风格。
 
+
 def get_chip(code: str, days: int = 20) -> dict:
     """获取指定股票的资金面汇总数据（融资融券 + 股东户数 + 十大流通股东）。
 
@@ -373,7 +373,13 @@ def get_chip(code: str, days: int = 20) -> dict:
         {"margin": [...], "holders": [...], "top_holders": [...],
          "margin_summary": dict, "holders_summary": dict}
     """
-    from data.chip import get_margin, get_holders, get_top_holders, get_margin_summary, get_holders_summary
+    from data.chip import (
+        get_margin,
+        get_holders,
+        get_top_holders,
+        get_margin_summary,
+        get_holders_summary,
+    )
 
     return {
         "margin": get_margin(code, days=days),
@@ -401,7 +407,6 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
 # ---------- lhb 域统一入口 re-export ----------
 from data.lhb import get_lhb_detail, get_lhb_seats  # noqa: E402, F401
 
-
 __all__ = [
     "Quote",
     "KlineBar",
@@ -416,4 +421,3 @@ __all__ = [
     "get_lhb_detail",
     "get_lhb_seats",
 ]
-

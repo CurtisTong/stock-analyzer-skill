@@ -209,9 +209,14 @@ class TestNorthboundFlowScoring:
             for i in range(16, 21)  # 后 5 天：净卖出
         ]
 
-        with patch("strategies.factors.chip.get_northbound_flow", return_value=flow_data, create=True):
+        with patch(
+            "strategies.factors.chip.get_northbound_flow",
+            return_value=flow_data,
+            create=True,
+        ):
             # 由于 get_northbound_flow 是函数内 import，需要 patch data.flow
             import data.flow
+
             original = data.flow.get_northbound_flow
             data.flow.get_northbound_flow = lambda code, days=20: flow_data
             try:

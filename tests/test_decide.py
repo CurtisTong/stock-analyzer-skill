@@ -403,9 +403,7 @@ class TestAggregateVotes:
         from experts import list_active_experts
 
         active = list_active_experts()
-        results = [
-            _make_expert(p.name, 70, group=None) for p in active
-        ]
+        results = [_make_expert(p.name, 70, group=None) for p in active]
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert agg["long_avg"] > 50
         assert agg["short_avg"] > 50
@@ -467,11 +465,13 @@ class TestActiveSetSemantics:
     """
 
     LONG_NAMES = [
-        p.name for p in __import__("experts").list_active_experts()
+        p.name
+        for p in __import__("experts").list_active_experts()
         if p.group == "long_term"
     ]
     SHORT_NAMES = [
-        p.name for p in __import__("experts").list_active_experts()
+        p.name
+        for p in __import__("experts").list_active_experts()
         if p.group == "short_term"
     ]
 

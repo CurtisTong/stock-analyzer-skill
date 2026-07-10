@@ -153,8 +153,13 @@ class TestDetectAllLocalPatterns:
 
         result = detect_all_local_patterns(
             PatternInput(
-                records=records, closes=closes, highs=highs, lows=lows,
-                volumes=volumes, mas=mas, code="sh600519",
+                records=records,
+                closes=closes,
+                highs=highs,
+                lows=lows,
+                volumes=volumes,
+                mas=mas,
+                code="sh600519",
             )
         )
         assert "patterns" in result

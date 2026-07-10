@@ -62,8 +62,7 @@ def weighted_merge(
 
     # C1: 先对每个子专家的维度名归一化，使别名维度合并到标准名
     normalized_results = [
-        {normalize_dim(dim): score for dim, score in r.items()}
-        for r in expert_results
+        {normalize_dim(dim): score for dim, score in r.items()} for r in expert_results
     ]
 
     # 收集所有（归一化后的）维度

@@ -222,11 +222,11 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
                     sum(oos_returns) / len(oos_returns) if oos_returns else 0, 2
                 ),
                 "oos_win_rate_pct": round(
-                    sum(1 for r in oos_returns if r > 0)
-                    / len(oos_returns)
-                    * 100
-                    if oos_returns
-                    else 0,
+                    (
+                        sum(1 for r in oos_returns if r > 0) / len(oos_returns) * 100
+                        if oos_returns
+                        else 0
+                    ),
                     1,
                 ),
             }
@@ -241,9 +241,7 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
 
         result.oos_avg_return = sum(result.oos_returns) / len(result.oos_returns)
         result.oos_win_rate = (
-            sum(1 for r in result.oos_returns if r > 0)
-            / len(result.oos_returns)
-            * 100
+            sum(1 for r in result.oos_returns if r > 0) / len(result.oos_returns) * 100
         )
         result.oos_sharpe = _calc_sharpe(result.oos_returns)
         result.oos_max_drawdown = _calc_max_drawdown(result.oos_returns)

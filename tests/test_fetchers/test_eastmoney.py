@@ -48,7 +48,8 @@ class TestEastmoneyQuoteFetcher:
             },
         }
         with patch(
-            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -76,7 +77,8 @@ class TestEastmoneyQuoteFetcher:
         """rc != 0：返回 None。"""
         data = {"rc": -1, "data": {}}
         with patch(
-            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -85,7 +87,8 @@ class TestEastmoneyQuoteFetcher:
         """缺少 data 字段：返回 None。"""
         data = {"rc": 0}
         with patch(
-            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -94,7 +97,8 @@ class TestEastmoneyQuoteFetcher:
         """data 为 None：返回 None。"""
         data = {"rc": 0, "data": None}
         with patch(
-            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -123,7 +127,8 @@ class TestEastmoneyQuoteFetcher:
             },
         }
         with patch(
-            "fetchers.quote.eastmoney_quote.http_get", return_value=json.dumps(data).encode()
+            "fetchers.quote.eastmoney_quote.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sz000858")
         assert result is not None
@@ -161,7 +166,8 @@ class TestEastmoneyKlineFetcher:
             },
         }
         with patch(
-            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None
@@ -187,7 +193,8 @@ class TestEastmoneyKlineFetcher:
             },
         }
         with patch(
-            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519", scale=60, datalen=1)
         assert result is not None
@@ -209,7 +216,8 @@ class TestEastmoneyKlineFetcher:
         """rc != 0：返回 None。"""
         data = {"rc": -1, "data": {}}
         with patch(
-            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -218,7 +226,8 @@ class TestEastmoneyKlineFetcher:
         """klines 为空列表：返回 None。"""
         data = {"rc": 0, "data": {"klines": []}}
         with patch(
-            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
@@ -235,7 +244,8 @@ class TestEastmoneyKlineFetcher:
             },
         }
         with patch(
-            "fetchers.kline.eastmoney_kline.http_get", return_value=json.dumps(data).encode()
+            "fetchers.kline.eastmoney_kline.http_get",
+            return_value=json.dumps(data).encode(),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is not None

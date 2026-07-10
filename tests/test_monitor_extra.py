@@ -17,7 +17,9 @@ class TestBriefingCompute:
     @patch("data.get_northbound_flow")
     @patch("data.get_quote")
     @patch("monitor.briefing.compute_key_levels")
-    def test_briefing_returns_required_keys(self, mock_levels, mock_quote, mock_nb, mock_pm):
+    def test_briefing_returns_required_keys(
+        self, mock_levels, mock_quote, mock_nb, mock_pm
+    ):
         """compute_briefing 返回所有必需字段。"""
         from monitor.briefing import compute_briefing
 
@@ -67,7 +69,12 @@ class TestBriefingCompute:
         mock_quote.return_value = MagicMock(price=3500.0, change_pct=0.5)
         mock_pm.return_value.get_positions.return_value = []
         mock_nb.return_value = [
-            {"date": "2026-07-01", "net_buy": 500000000, "sh_net": 300000000, "sz_net": 200000000},
+            {
+                "date": "2026-07-01",
+                "net_buy": 500000000,
+                "sh_net": 300000000,
+                "sz_net": 200000000,
+            },
         ]
         mock_levels.return_value = {"alerts": []}
 
@@ -124,6 +131,7 @@ class TestVolatilityATR:
 
     def test_atr_basic(self):
         from technical.volatility import compute_atr
+
         highs = [10, 11, 12, 11, 10, 13, 14, 12, 11, 10, 12, 13, 11, 10, 12]
         lows = [8, 9, 10, 9, 8, 11, 12, 10, 9, 8, 10, 11, 9, 8, 10]
         closes = [9, 10, 11, 10, 9, 12, 13, 11, 10, 9, 11, 12, 10, 9, 11]
@@ -132,11 +140,13 @@ class TestVolatilityATR:
 
     def test_atr_insufficient_data(self):
         from technical.volatility import compute_atr
+
         assert compute_atr([10], [8], [9]) == 0
         assert compute_atr([], [], []) == 0
 
     def test_atr_tolerance_fallback(self):
         """无 highs/lows 时回退到收盘价 2%。"""
         from technical.volatility import atr_tolerance
+
         tol = atr_tolerance([10, 11, 12, 13, 14], k=0.5)
         assert tol == 14 * 0.02

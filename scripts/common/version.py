@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 try:
     from pathlib import Path
 
-
     def _read_version() -> str:
         try:
             root = Path(__file__).resolve().parents[2]
@@ -23,7 +22,6 @@ try:
         except Exception as e:
             logger.debug("版本检查失败: %s", e)
         return "0.0.0"
-
 
     __version__ = _read_version()
 except Exception:

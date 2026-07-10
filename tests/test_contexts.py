@@ -12,7 +12,6 @@ from dataclasses import asdict, is_dataclass
 from business.screening_service import AnalyzeContext
 from backtest.engine import SimContext
 
-
 # ---------- AnalyzeContext ----------
 
 

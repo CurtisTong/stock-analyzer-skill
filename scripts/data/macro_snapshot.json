@@ -1,0 +1,20 @@
+{
+  "updated": "2026-07-10T00:00:00",
+  "treasury_10y_pct": 2.45,
+  "usd_index": 104.20,
+  "usd_cny": 7.28,
+  "vix": 18.5,
+  "gold_usd_oz": 2350.0,
+  "brent_oil_usd": 82.5,
+  "wti_oil_usd": 78.2,
+  "lithium_carbonate_cny_t": 95000,
+  "shanghai_pe_ttm": 12.8,
+  "shenzhen_pe_ttm": 23.5,
+  "margin_balance_total_yi": 18500.0,
+  "margin_change_5d_pct": 1.2,
+  "if_main_basis_pts": -8.5,
+  "ic_main_basis_pts": -15.2,
+  "ih_main_basis_pts": -5.1,
+  "erp_sh300_pct": 5.4,
+  "_note": "fallback fixture；yfinance/东方财富 拉取失败时使用。真实数据成功后会回写到本文件（带时间戳）。手工覆盖请保留字段名不变。"
+}

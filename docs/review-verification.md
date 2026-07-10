@@ -11,7 +11,7 @@
 ## 一、总体统计
 
 | 优先级 | 总数 | ✅真实 | ◑部分真实 | ❌不真实/已修复 |
-|--------|------|--------|-----------|-----------------|
+| --- | --- | --- |
 | P0     | 15   | 14     | 1         | 0               |
 | P1     | 30   | 24     | 4         | 2               |
 | P2     | 33   | 30     | 3         | 0*              |
@@ -24,7 +24,7 @@
 ### 验证结论分布
 
 | 结论 | 数量 | 说明 |
-|------|------|------|
+| --- |
 | ✅ 真实 | 65 | 问题确实存在，证据明确 |
 | ◑ 部分真实 | 8 | 核心问题成立，但描述有偏差或已部分修复 |
 | ❌ 不真实/已修复 | 2 | 已被后续修复消除，或描述与代码不符 |
@@ -50,7 +50,7 @@
 ## 三、部分真实项（8 项）
 
 | ID | 描述偏差 | 实际情况 |
-|----|---------|---------|
+| --- |
 | **P0-08** | 称"公式方向有问题" | 代码与文档一致，属设计选择非 bug（见上） |
 | **P1-08** | 称"4:1 规则不清晰" | 代码分支可判定，但 `long_majority=4` 与 `long_extreme_bull=4` 阈值重叠确实无边界测试 |
 | **P1-10** | 称"依赖人工 record" | record 已自动（decide.py:87），仅 verify 需人工触发 |
@@ -65,7 +65,7 @@
 ## 四、P0 全部验证详情（15 项）
 
 | ID | 结论 | 关键证据 |
-|----|------|---------|
+| --- |
 | **P0-01** | ✅真实 | `.claude/settings.json:7` `Bash(python3 scripts/**/*.py *)` 通配；`:18` `Bash(git commit*)`；`:31-32` Edit/Write 无限制 |
 | **P0-02** | ✅真实 | `stock_analysis.py` analyze() 不设 data_sources/data_failed/data_time（grep 零命中）；`stock.py:118-120` 回退到 `now_str()`/硬编码源/空 failed |
 | **P0-03** | ✅真实 | `fetcher_base.py:177-186` `_apply_source_config` 只读 priority/enabled，不读 timeout/retry；`BaseFetcher.__init__` 无 self.timeout/self.retry |
@@ -87,7 +87,7 @@
 ## 五、P1 全部验证详情（30 项）
 
 | ID | 结论 | 关键证据 |
-|----|------|---------|
+| --- |
 | P1-01 | ✅真实 | `tencent_quote.py:27-36` 遇第一个非空 rec 即 return，无 code 校验 |
 | P1-02 | ✅真实 | `ths_quote.py:48-59` 缺 pe/pb/total_cap/turnover 等（注：`is_minimal` 建议无代码依据） |
 | P1-03 | ✅真实 | `fetchers/__init__.py:33` `except Exception` 吞所有异常 |
@@ -124,7 +124,7 @@
 ## 六、P2 全部验证详情（30 项）
 
 | ID | 结论 | 关键证据 |
-|----|------|---------|
+| --- |
 | P2-01 | ✅真实 | registry.py(硬编码) + yaml/(16文件) + md/(19文件) 三源并存 |
 | P2-02 | ✅真实 | registry.py:27 LEGACY_ALIAS 与 ExpertProfile.display_name 双轨 |
 | P2-03 | ✅真实 | value_institution.py:66,97 `get("buffett_sub_score", 50.0)` 静默回退 |

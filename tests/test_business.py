@@ -368,17 +368,24 @@ class TestAnalyzeDataMetadata:
         finance = _make_finance()
 
         svc = StockAnalysisService()
-        fake_ex = _FakeExecutor({
-            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
-            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
-            (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
-            (get_quote_fn, ("sh000001",)): _FakeFuture(value=index),
-        })
+        fake_ex = _FakeExecutor(
+            {
+                (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+                (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(value=index),
+            }
+        )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
-            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch(
+                "business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}
+            ),
+            patch(
+                "business.stock_analysis._analyze_technical",
+                return_value={"ma": "多头"},
+            ),
             patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
@@ -397,17 +404,26 @@ class TestAnalyzeDataMetadata:
         finance = _make_finance()
 
         svc = StockAnalysisService()
-        fake_ex = _FakeExecutor({
-            (get_quote_fn, ("sh600519",)): _FakeFuture(exc=ConnectionError("timeout")),
-            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
-            (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
-            (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
-        })
+        fake_ex = _FakeExecutor(
+            {
+                (get_quote_fn, ("sh600519",)): _FakeFuture(
+                    exc=ConnectionError("timeout")
+                ),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+                (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
+            }
+        )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
-            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch(
+                "business.stock_analysis.profile_stock", return_value={"type": "普通股"}
+            ),
+            patch(
+                "business.stock_analysis._analyze_technical",
+                return_value={"ma": "多头"},
+            ),
             patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
@@ -425,17 +441,24 @@ class TestAnalyzeDataMetadata:
         kline = _make_kline()
 
         svc = StockAnalysisService()
-        fake_ex = _FakeExecutor({
-            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
-            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
-            (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
-            (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
-        })
+        fake_ex = _FakeExecutor(
+            {
+                (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+                (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
+            }
+        )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
-            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch(
+                "business.stock_analysis.profile_stock", return_value={"type": "普通股"}
+            ),
+            patch(
+                "business.stock_analysis._analyze_technical",
+                return_value={"ma": "多头"},
+            ),
             patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             result = svc.analyze("sh600519")
@@ -453,17 +476,24 @@ class TestAnalyzeDataMetadata:
         index = _make_index_quote()
 
         svc = StockAnalysisService()
-        fake_ex = _FakeExecutor({
-            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
-            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
-            (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
-            (get_quote_fn, ("sh000001",)): _FakeFuture(value=index),
-        })
+        fake_ex = _FakeExecutor(
+            {
+                (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+                (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(value=index),
+            }
+        )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
-            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch(
+                "business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}
+            ),
+            patch(
+                "business.stock_analysis._analyze_technical",
+                return_value={"ma": "多头"},
+            ),
             patch("business.stock_analysis._analyze_chan", return_value={}),
             patch("business.stock_analysis._calculate_composite_score") as mock_score,
         ):
@@ -481,16 +511,26 @@ class TestAnalyzeDataMetadata:
         from business.stock_analysis import StockAnalysisService
 
         svc = StockAnalysisService()
-        fake_ex = _FakeExecutor({
-            (get_quote_fn, ("sh600519",)): _FakeFuture(exc=ConnectionError("timeout")),
-            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(exc=ConnectionError("timeout")),
-            (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
-            (get_quote_fn, ("sh000001",)): _FakeFuture(exc=ConnectionError("timeout")),
-        })
+        fake_ex = _FakeExecutor(
+            {
+                (get_quote_fn, ("sh600519",)): _FakeFuture(
+                    exc=ConnectionError("timeout")
+                ),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(
+                    exc=ConnectionError("timeout")
+                ),
+                (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(
+                    exc=ConnectionError("timeout")
+                ),
+            }
+        )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch("business.stock_analysis.profile_stock", return_value={"type": "未知"}),
+            patch(
+                "business.stock_analysis.profile_stock", return_value={"type": "未知"}
+            ),
             patch("business.stock_analysis._analyze_technical", return_value={}),
             patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
@@ -510,30 +550,41 @@ class TestAnalyzeDataMetadata:
         finance = _make_finance()
 
         svc = StockAnalysisService()
-        fake_ex = _FakeExecutor({
-            (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
-            (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
-            # get_finance 带 periods=8 kwargs
-            (get_finance_fn, ("sh600519",), (("periods", 8),)): _FakeFuture(value=finance),
-            (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
-        })
+        fake_ex = _FakeExecutor(
+            {
+                (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
+                # get_finance 带 periods=8 kwargs
+                (get_finance_fn, ("sh600519",), (("periods", 8),)): _FakeFuture(
+                    value=finance
+                ),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
+            }
+        )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
-            patch("business.stock_analysis._analyze_technical", return_value={"ma": "多头"}),
+            patch(
+                "business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}
+            ),
+            patch(
+                "business.stock_analysis._analyze_technical",
+                return_value={"ma": "多头"},
+            ),
             patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
             svc.analyze("sh600519", finance_periods=8)
 
         # 确认 get_finance 被调用时带了 periods=8
-        finance_calls = [
-            call for call in fake_ex.calls if call[0] is get_finance_fn
-        ]
+        finance_calls = [call for call in fake_ex.calls if call[0] is get_finance_fn]
         assert len(finance_calls) == 1
         # _FakeExecutor.submit 记录 (fn, args, sorted_kwargs)
         assert finance_calls[0][2] == (("periods", 8),)
 
 
 # 模块级引用，供 _FakeExecutor key 匹配
-from data import get_quote as get_quote_fn, get_kline as get_kline_fn, get_finance as get_finance_fn  # noqa: E402
+from data import (
+    get_quote as get_quote_fn,
+    get_kline as get_kline_fn,
+    get_finance as get_finance_fn,
+)  # noqa: E402

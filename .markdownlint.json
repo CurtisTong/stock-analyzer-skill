@@ -1,0 +1,12 @@
+{
+  "_comment": "markdownlint 配置。MD050/MD037/MD032 关闭原因：与 Python 文档场景冲突。",
+  "default": true,
+  "MD050": false,
+  "MD037": false,
+  "MD032": false,
+  "_reasons": {
+    "MD050": "strong-style 把代码标识符里的 __ 误判为加粗下划线标记（__init__.py / __all__ / _analyze_stock 等），与 Python 命名约定冲突",
+    "MD037": "no-space-in-emphasis 同样在反引号包裹的代码里误判 _xxx_ 为斜体",
+    "MD032": "blanks-around-lists 把 blockquote 内嵌列表的 '空 blockquote 行' 误判为非空行；当前 review-issues.md §修复进度 是 Markdown 推荐的 blockquote 嵌套列表写法"
+  }
+}

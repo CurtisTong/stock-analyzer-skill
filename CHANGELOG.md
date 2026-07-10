@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段当前为空。
+> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定 v2.5.0/v2.5.x/v2.6.0/v2.7.0 四轮扩展（前置锚定 + 5 维度 + P1 行业 beta + P1 组合相关性 + P2 题材轮动 + P2 北向资金），10 大维度全覆盖。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -31,6 +31,32 @@
 ## [Unreleased] - 2026-07-10
 
 ### Added
+- **market-anchor**: full / debate / technical 三模式统一前置"市场环境锚定"小节（大盘状态 + 板块强度 + 个股 vs 板块 vs 大盘三段式 RPS）
+- **market-anchor v2.5.x**: 叠加 5 个新维度 — 多时间框架（MA20/60/250 + 5/20 日动量 + ATR14）/ 宏观-估值桥（10Y 国债 + 美元 + VIX + 大宗）/ 杠杆-反身性（两融 + IF/IC/IH 期货基差）/ 估值桥（沪深 300 ERP）/ 流动性+波动率（个股流动性比率 + 大盘年化波动率）/ 情绪周期阶段（主升/退潮/震荡/冰点）
+- **market-anchor v2.6.0**: 新增 P1 两维度 - 行业 beta（动态选基准 + 60 日手写 OLS，不引入 numpy/pandas）/ 组合相关性（与 /portfolio skill 联动，输出持仓矩阵 + 个股 vs 持仓 + 高相关对告警），兑现 plan 文件 P1 "下期"承诺
+- **market-anchor v2.7.0**: 新增 P2 两维度 - 题材轮动强度（5 日板块排名位次变化，即时计算无持久化）/ 北向资金边际定价者（20 日累计 + 近 5 日斜率），完成 P0-P2 全部 10 大维度覆盖
+- **dcf.py v2.7.1**: DCF 折现率从 v2.4.0 硬编码 7 行业字典升级为 CAPM 动态 WACC
+  * 新增 `_compute_capm_wacc(stock_code)`：WACC = risk_free_rate + beta × ERP
+  * beta 来自 `industry_beta.compute_beta()`（60 日 OLS + 动态选基准）
+  * risk_free / ERP 来自 `macro_indicators.fetch_treasury_10y()` / `fetch_erp_sh300()`
+  * 三级优先级：用户显式传入 > CAPM（传 stock_code）> 行业字典 fallback
+  * WACC 约束在 [6%, 20%] 区间，避免极端 beta 导致 DCF 失真
+  * `dcf_valuation()` 新增 `stock_code` 可选参数，完全向后兼容
+  * 返回值新增 `wacc_source` 字段（CAPM/行业字典/用户传入）
+- **sector_etf_strength.compute_rotation_strength()**: 即时计算 13 个 ETF 当日 vs 5 日涨跌幅排名位次差，输出轮动强度 + 上升/下降 top 3（parallel_map 并行拉 K 线）
+- **market_anchor._fetch_northbound_pricer()**: 复用 data.get_northbound_flow + briefing.py 算法，20 日累计净流入 + 沪/深股通分项 + 近 5 日斜率方向
+- **scripts/industry_beta.py**: 新建独立模块，按流通市值动态选基准（>500亿->沪深300 / >100亿->中证500 / 否则中证1000），手写 OLS 公式（与 `registry.py:445-455` 风格一致）
+- **scripts/portfolio_correlation.py**: 新建独立模块，皮尔逊相关系数矩阵 + 平均两两相关性 + 高相关对识别 + 个股 vs 持仓分散化收益判定
+- **scripts/macro_indicators.py**: 新建独立模块，yfinance 优先 + `scripts/data/macro_snapshot.json` fixture fallback（TTL 1 小时回写），范本来自 `strategies/macro/gate.py:86-106`
+- **scripts/data/macro_snapshot.json**: 新建 fixture，含 14 个字段（treasury_10y / usd_index / vix / 黄金/原油/碳酸锂 / margin_total / 期货基差 / ERP）
+- **schema**: `stock.schema.json` 在 market_anchor 下新增 6 个顶层字段（multi_timeframe / macro / leverage / valuation_bridge / liquidity_volatility / emotion_phase）
+- **template**: `full-template.md` 在"个股 vs 板块 vs 大盘"后插入 5 个新子表，每个附"专家视角"注释（多时间框架 / 宏观-估值桥 / 杠杆-反身性 / 流动性+波动率 / 情绪周期）
+- **SKILL.md**: Step 0 输出字段表扩展到 19 个字段（11 行 × 13 个维度），含 5 个新维度说明 + 复用清单更新
+- **scripts/market_anchor.py**: 新建编排器，聚合 `quote.py` / `market_breadth.py` / `sector_etf_strength.py` / `experts.market_detector`，Markdown + JSON 双输出，缺数据优雅降级
+- **scripts/sector_etf_strength.py**: 新建脚本，读取 `data/sector_etf.csv` 13 个 ETF，输出强弱板块排序 + 个股 vs 板块 RPS，含显式板块→ETF 代理映射表（解决"sector_stocks.json 消费"vs"sector_etf.csv 白酒ETF"名字不匹配问题）
+- **schema**: `stock.schema.json` 新增 `market_anchor` 顶层字段（regime / breadth / sector_strength / stock_sector_compare / data_quality）
+- **template**: `full-template.md` 把"市场环境判定"从"专家圆桌"括号抽出，独立成前置小节
+- **SKILL.md**: 插入 Step 0 市场环境锚定章节 + Step 3 输出模板前置段 + debate/technical 模式说明同步
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
 - **backtest**: --walk-forward CLI 集成 + baseline 更新
 - **finance**: --finance-periods 参数贯通 stock->finance->fetcher
@@ -61,7 +87,16 @@
 - 用户保护三重防线（AI 免责 + 中文名解析 + 边界声明）
 
 ### Fixed
-- 架构审查最后 9 项技术债+投资逻辑全部清零
+- **arch**: 架构审查最后 9 项技术债+投资逻辑全部清零（Round 11）
+  - **T3** `common/__init__.py` `__all__` 从 76 精简到 41 个零外部引用符号，`_LAZY_IMPORTS` + `__getattr__` 保证向后兼容
+  - **T6** chip/flow/lhb/event 四域优先级从 yaml 驱动（`data_source.yaml` 新增 `flow_sources/lhb_sources/chip_sources/event_sources`）
+  - **T7** `risk_warning.py` docstring 明确仅筹码 emoji；宏观风险在 `macro/gate.py`，量化风控在 `risk_metrics.py`，三模块职责互不重叠
+  - **T19** `common/http.py` `except Exception` 改具体异常类型（`RequestException` / `OSError`）；`stock_analysis.py` 保留 `except Exception` 作为隔离边界
+  - **T22** 新增 `fetch_with_fallback(fetchers, *args, **kwargs)` 多源故障转移；`data/flow.py` `get_northbound_flow` 改用统一函数
+  - **I8** `chan/merge.py` K 线包含初始方向改前两根高低判断（缠论标准），包含时退回阴阳
+  - **I9** `chan/maidian.py` 三买/三卖回踩容忍度基于 ATR 动态调整（`ATR*0.5`），无 ATR 回退 `pullback_pct` 百分比；新增 `technical/volatility.py` `compute_atr`/`atr_tolerance`
+  - **T24** 新增 `test_data_flow.py` + `test_data_lhb.py`（9 个测试）
+  - **T25** 新增 `test_monitor_extra.py`（8 个测试：briefing/render_briefing/ATR）
 - **backtest**: P0-10 回测财务前瞻偏差修复 (report_date + 90天披露延迟过滤)
 - **technical/fetcher**: P2-10~19 volume/fenxing/akshare/decode/provider/kdj/report/industry/redirect/thread-safe
 - **strategies**: P2-05~09 STRATEGIES API + 行业覆盖 + overlay 提示 + 共线性标注 + chip 注册

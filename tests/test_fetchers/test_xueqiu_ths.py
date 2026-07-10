@@ -8,7 +8,11 @@ from unittest.mock import patch, MagicMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from fetchers.quote.xueqiu_quote import XueqiuQuoteFetcher, _to_xueqiu_symbol, _parse_quote
+from fetchers.quote.xueqiu_quote import (
+    XueqiuQuoteFetcher,
+    _to_xueqiu_symbol,
+    _parse_quote,
+)
 from fetchers.quote.ths_quote import (
     ThsQuoteFetcher,
     _to_ths_params,
@@ -106,7 +110,9 @@ class TestXueqiuQuoteFetcher:
         assert result["name"] == "贵州茅台"
 
     def test_fetch_empty_response(self):
-        with patch("fetchers.quote.xueqiu_quote.http_get_with_headers", return_value=b"{}"):
+        with patch(
+            "fetchers.quote.xueqiu_quote.http_get_with_headers", return_value=b"{}"
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -120,7 +126,9 @@ class TestXueqiuQuoteFetcher:
         assert result is None
 
     def test_fetch_invalid_json(self):
-        with patch("fetchers.quote.xueqiu_quote.http_get_with_headers", return_value=b"bad"):
+        with patch(
+            "fetchers.quote.xueqiu_quote.http_get_with_headers", return_value=b"bad"
+        ):
             result = self.fetcher.fetch("sh600519")
         assert result is None
 
@@ -184,7 +192,8 @@ class TestThsQuoteFetcher:
     def test_fetch_http_error(self):
         """HTTP 错误：返回 None（ths 内部 catch）。"""
         with patch(
-            "fetchers.quote.ths_quote.http_get", side_effect=NetworkError("url", "err", 3)
+            "fetchers.quote.ths_quote.http_get",
+            side_effect=NetworkError("url", "err", 3),
         ):
             result = self.fetcher.fetch("sh600519")
         assert result is None

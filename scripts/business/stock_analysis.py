@@ -102,7 +102,11 @@ def _analyze(
     ex = get_shared_executor()
     f_quote = ex.submit(get_quote, code)
     f_kline = ex.submit(get_kline, code, 240, 240)
-    f_finance = ex.submit(get_finance, code, periods=finance_periods) if include_finance else None
+    f_finance = (
+        ex.submit(get_finance, code, periods=finance_periods)
+        if include_finance
+        else None
+    )
     # P1-17: 并行拉取上证指数行情，用于 detect_market_environment
     f_index = ex.submit(get_quote, "sh000001")
 
@@ -254,7 +258,9 @@ def _extract_finance_summary(fin: dict) -> dict:
     }
 
 
-def _calculate_composite_score(result: dict, quote_dict: dict = None, index_quote=None) -> dict:
+def _calculate_composite_score(
+    result: dict, quote_dict: dict = None, index_quote=None
+) -> dict:
     """计算综合评分（注入市场环境状态）。"""
     from technical import composite_score
     from technical.scoring import detect_market_environment
@@ -298,9 +304,7 @@ def _calculate_composite_score(result: dict, quote_dict: dict = None, index_quot
             "peg": round(peg, 2),
         }
         # 估值因子评分纳入综合评分（v2.3.0 修正：估值不再与技术面脱节）
-        features["valuation_score"] = valuation_score(
-            quote_dict, fin, industry
-        )
+        features["valuation_score"] = valuation_score(quote_dict, fin, industry)
 
     # 检测市场环境：复用已获取的大盘行情，避免重复请求
     market_state = "震荡"

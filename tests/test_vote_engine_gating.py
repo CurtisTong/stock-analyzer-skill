@@ -122,7 +122,9 @@ class TestDefensiveMarketShortSuppression:
             "short_weight": 0.45,
         }
         agg_def = aggregate_votes(results, market_state=defensive_ms, horizon="medium")
-        agg_osc = aggregate_votes(results, market_state=oscillation_ms, horizon="medium")
+        agg_osc = aggregate_votes(
+            results, market_state=oscillation_ms, horizon="medium"
+        )
         assert agg_def["short_avg"] < agg_osc["short_avg"]
 
     def test_defensive_market_note_present(self):

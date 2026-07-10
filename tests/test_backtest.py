@@ -629,14 +629,29 @@ class TestIsLimitOrSuspended:
 
     def _is_limit(self, bars, idx, code=""):
         from backtest.engine import _is_limit_or_suspended
+
         return _is_limit_or_suspended(bars, idx, code)
 
     def test_normal_10pct_limit_up_detected(self):
         """普通股 9.5%+ 涨幅判为涨停（limit=0.095）。"""
 
         bars = [
-            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
-            KlineBar(day="2025-01-02", close=11.0, open=10.5, high=11.0, low=10.5, volume=1000),
+            KlineBar(
+                day="2025-01-01",
+                close=10.0,
+                open=10.0,
+                high=10.0,
+                low=10.0,
+                volume=1000,
+            ),
+            KlineBar(
+                day="2025-01-02",
+                close=11.0,
+                open=10.5,
+                high=11.0,
+                low=10.5,
+                volume=1000,
+            ),
         ]
         # 涨幅 10% > 9.5% 阈值
         assert self._is_limit(bars, 1, "sh600001") is True
@@ -646,8 +661,22 @@ class TestIsLimitOrSuspended:
         import backtest
 
         bars = [
-            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
-            KlineBar(day="2025-01-02", close=12.0, open=10.5, high=12.0, low=10.5, volume=1000),
+            KlineBar(
+                day="2025-01-01",
+                close=10.0,
+                open=10.0,
+                high=10.0,
+                low=10.0,
+                volume=1000,
+            ),
+            KlineBar(
+                day="2025-01-02",
+                close=12.0,
+                open=10.5,
+                high=12.0,
+                low=10.5,
+                volume=1000,
+            ),
         ]
         # 涨幅 20% > 0.195 阈值
         assert self._is_limit(bars, 1, "sz300001") is True
@@ -657,8 +686,22 @@ class TestIsLimitOrSuspended:
         import backtest
 
         bars = [
-            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
-            KlineBar(day="2025-01-02", close=11.2, open=10.5, high=11.2, low=10.5, volume=1000),
+            KlineBar(
+                day="2025-01-01",
+                close=10.0,
+                open=10.0,
+                high=10.0,
+                low=10.0,
+                volume=1000,
+            ),
+            KlineBar(
+                day="2025-01-02",
+                close=11.2,
+                open=10.5,
+                high=11.2,
+                low=10.5,
+                volume=1000,
+            ),
         ]
         # 涨幅 12%：20cm 板未达 0.195 -> 不涨停
         assert self._is_limit(bars, 1, "sz300001") is False
@@ -670,8 +713,22 @@ class TestIsLimitOrSuspended:
         import backtest
 
         bars = [
-            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
-            KlineBar(day="2025-01-02", close=12.0, open=10.5, high=12.0, low=10.5, volume=1000),
+            KlineBar(
+                day="2025-01-01",
+                close=10.0,
+                open=10.0,
+                high=10.0,
+                low=10.0,
+                volume=1000,
+            ),
+            KlineBar(
+                day="2025-01-02",
+                close=12.0,
+                open=10.5,
+                high=12.0,
+                low=10.5,
+                volume=1000,
+            ),
         ]
         # 涨幅 20% > 0.195
         assert self._is_limit(bars, 1, "sh688001") is True
@@ -681,8 +738,22 @@ class TestIsLimitOrSuspended:
         import backtest
 
         bars = [
-            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
-            KlineBar(day="2025-01-02", close=11.2, open=10.5, high=11.2, low=10.5, volume=1000),
+            KlineBar(
+                day="2025-01-01",
+                close=10.0,
+                open=10.0,
+                high=10.0,
+                low=10.0,
+                volume=1000,
+            ),
+            KlineBar(
+                day="2025-01-02",
+                close=11.2,
+                open=10.5,
+                high=11.2,
+                low=10.5,
+                volume=1000,
+            ),
         ]
         # 12% > 9.5% -> 涨停（默认 10cm）
         assert self._is_limit(bars, 1) is True
@@ -692,7 +763,16 @@ class TestIsLimitOrSuspended:
         import backtest
 
         bars = [
-            KlineBar(day="2025-01-01", close=10.0, open=10.0, high=10.0, low=10.0, volume=1000),
-            KlineBar(day="2025-01-02", close=10.0, open=10.0, high=10.0, low=10.0, volume=0),
+            KlineBar(
+                day="2025-01-01",
+                close=10.0,
+                open=10.0,
+                high=10.0,
+                low=10.0,
+                volume=1000,
+            ),
+            KlineBar(
+                day="2025-01-02", close=10.0, open=10.0, high=10.0, low=10.0, volume=0
+            ),
         ]
         assert self._is_limit(bars, 1, "sh600001") is True

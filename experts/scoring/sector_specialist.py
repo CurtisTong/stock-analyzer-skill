@@ -20,8 +20,31 @@ from ._utils import _safe_float
 
 # 行业关键词 → 行业分类映射
 _SECTOR_KEYWORDS = {
-    "消费": ["白酒", "食品", "家电", "饮料", "调味品", "乳制品", "服装", "零售", "化妆品", "免税"],
-    "科技": ["半导体", "芯片", "软件", "AI", "计算机", "通信", "电子", "新能源", "光伏", "锂电", "互联网"],
+    "消费": [
+        "白酒",
+        "食品",
+        "家电",
+        "饮料",
+        "调味品",
+        "乳制品",
+        "服装",
+        "零售",
+        "化妆品",
+        "免税",
+    ],
+    "科技": [
+        "半导体",
+        "芯片",
+        "软件",
+        "AI",
+        "计算机",
+        "通信",
+        "电子",
+        "新能源",
+        "光伏",
+        "锂电",
+        "互联网",
+    ],
     "医药": ["生物", "化学药", "器械", "中药", "疫苗", "创新药", "医药"],
     "周期": ["钢铁", "煤炭", "化工", "有色", "建材", "水泥", "造纸", "航运", "石油"],
     "金融": ["银行", "保险", "券商", "信托", "多元金融"],
@@ -29,12 +52,48 @@ _SECTOR_KEYWORDS = {
 
 # 行业差异化阈值配置
 _SECTOR_THRESHOLDS = {
-    "消费": {"roe_min_high": 15, "roe_min_mid": 10, "pe_pct_low": 40, "pe_pct_high": 85, "rev_weight": 0.3},
-    "科技": {"roe_min_high": 10, "roe_min_mid": 5,  "pe_pct_low": 50, "pe_pct_high": 90, "rev_weight": 0.5},
-    "医药": {"roe_min_high": 10, "roe_min_mid": 5,  "pe_pct_low": 30, "pe_pct_high": 85, "rev_weight": 0.3},
-    "周期": {"roe_min_high": 12, "roe_min_mid": 6,  "pe_pct_low": 30, "pe_pct_high": 70, "rev_weight": 0.2},
-    "金融": {"roe_min_high": 10, "roe_min_mid": 5,  "pe_pct_low": 30, "pe_pct_high": 75, "rev_weight": 0.2},
-    "default": {"roe_min_high": 20, "roe_min_mid": 10, "pe_pct_low": 20, "pe_pct_high": 80, "rev_weight": 0.3},
+    "消费": {
+        "roe_min_high": 15,
+        "roe_min_mid": 10,
+        "pe_pct_low": 40,
+        "pe_pct_high": 85,
+        "rev_weight": 0.3,
+    },
+    "科技": {
+        "roe_min_high": 10,
+        "roe_min_mid": 5,
+        "pe_pct_low": 50,
+        "pe_pct_high": 90,
+        "rev_weight": 0.5,
+    },
+    "医药": {
+        "roe_min_high": 10,
+        "roe_min_mid": 5,
+        "pe_pct_low": 30,
+        "pe_pct_high": 85,
+        "rev_weight": 0.3,
+    },
+    "周期": {
+        "roe_min_high": 12,
+        "roe_min_mid": 6,
+        "pe_pct_low": 30,
+        "pe_pct_high": 70,
+        "rev_weight": 0.2,
+    },
+    "金融": {
+        "roe_min_high": 10,
+        "roe_min_mid": 5,
+        "pe_pct_low": 30,
+        "pe_pct_high": 75,
+        "rev_weight": 0.2,
+    },
+    "default": {
+        "roe_min_high": 20,
+        "roe_min_mid": 10,
+        "pe_pct_low": 20,
+        "pe_pct_high": 80,
+        "rev_weight": 0.3,
+    },
 }
 
 

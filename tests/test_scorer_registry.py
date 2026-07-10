@@ -226,6 +226,6 @@ class TestPublicImports:
                 result = value_institution.score({"quote": {}, "finance": {}})
 
         # 回退值应 ≤ 39（buffett 警示触发阈值）
-        assert result["buffett_sub_score"] <= 39, (
-            f"缺失 buffett_sub_score 应回退 ≤39，实际 {result['buffett_sub_score']}"
-        )
+        assert (
+            result["buffett_sub_score"] <= 39
+        ), f"缺失 buffett_sub_score 应回退 ≤39，实际 {result['buffett_sub_score']}"

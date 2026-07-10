@@ -29,6 +29,7 @@ class TushareQuoteFetcher(BaseFetcher):
             # P0-11: 转换为 tushare 格式需根据交易所推断后缀（.SH/.SZ/.BJ），
             # 原硬编码 .SZ 会导致北交所/美股分支错位
             from common import infer_exchange
+
             ex = infer_exchange(code)
             if ex == "sh":
                 ts_code = f"{plain}.SH"

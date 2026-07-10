@@ -81,6 +81,7 @@ class PortfolioManager:
         Args:
             acquire_lock: 是否获取文件锁。调用方已持锁时传 False 避免死锁。
         """
+
         def _do_load() -> dict:
             if not self._path.exists():
                 # 回退到示例文件
@@ -172,6 +173,7 @@ class PortfolioManager:
         """操作前推入快照到 OpLog（异常隔离，不影响主操作）。"""
         try:
             from portfolio.oplog import OpLog
+
             ol = OpLog()
             ol.push(op, code=code, snapshot_before=dict(self._data))
         except Exception as e:
@@ -187,6 +189,7 @@ class PortfolioManager:
         """
         try:
             from portfolio.oplog import OpLog
+
             ol = OpLog()
             snapshot = ol.undo()
             if snapshot is None:
@@ -204,6 +207,7 @@ class PortfolioManager:
         """查看操作历史。"""
         try:
             from portfolio.oplog import OpLog
+
             ol = OpLog()
             return ol.history(limit)
         except Exception:
@@ -249,6 +253,7 @@ class PortfolioManager:
         """按代码查找自选（返回浅副本，防止外部意外修改内部状态）。"""
         w = self._find_watch(code)
         return dict(w) if w else None
+
     def get_all_codes(self) -> list:
         """返回所有持仓 + 自选的代码列表。"""
         codes = [p["code"] for p in self.get_positions()]
@@ -727,8 +732,15 @@ class PortfolioManager:
             {
                 "code": p["code"],
                 "name": p.get("name", ""),
-                "weight": ((quotes.get(p["code"], p.get("cost", 0)) if quotes else p.get("cost", 0))
-                           * p.get("quantity", 0)) / total_value,
+                "weight": (
+                    (
+                        quotes.get(p["code"], p.get("cost", 0))
+                        if quotes
+                        else p.get("cost", 0)
+                    )
+                    * p.get("quantity", 0)
+                )
+                / total_value,
                 "vol": default_vol,
             }
             for p in positions

@@ -480,7 +480,7 @@ curl -s "https://qt.gtimg.cn/q=sh600989,sz000807,sh518880,sh603993" | iconv -f G
 
 **字段解析（按~分隔，从0开始）：**
 | 字段位 | 含义 | 示例 |
-|--------|------|------|
+| --- |
 | 1 | 市场代码 | 1=沪, 51=深 |
 | 2 | 代码 | 600989 |
 | 3 | 名称 | 宝丰能源 |
@@ -528,7 +528,7 @@ curl -s "https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/ZYZB
 
 **关键字段名（必须用这些，不是WEIGHTAVG_ROE等）：**
 | 字段 | 含义 | 示例值 |
-|------|------|--------|
+| --- |
 | EPSJB | 每股收益 | 0.5 |
 | ROEJQ | ROE(加权) | 7.28 |
 | TOTALOPERATEREVETZ | 营收同比增长% | 22.9 |
@@ -569,7 +569,7 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 
 **参数：**
 | 参数 | 含义 | 取值 |
-|------|------|------|
+| --- |
 | symbol | 股票代码 | sh600989 / sz000807 |
 | scale | 周期(分钟) | 5=5分钟, 15=15分钟, 30=30分钟, 240=日K |
 | ma | 均线 | no=不显示 |

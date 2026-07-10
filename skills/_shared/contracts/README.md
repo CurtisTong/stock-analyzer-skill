@@ -6,7 +6,7 @@
 ## 文件清单
 
 | Schema | 用途 | 输出方 | 消费方 |
-|---|---|---|---|
+| --- | --- |
 | `stock.schema.json` | 个股五层分析完整输出 | `/stock full` / `/stock debate` | `/portfolio` / `/research` |
 | `market.schema.json` | 大盘复盘输出 | `/market` | `/portfolio` / `/research` |
 | `sector.schema.json` | 板块分析输出 | `/sector` | `/portfolio` / `/research` |

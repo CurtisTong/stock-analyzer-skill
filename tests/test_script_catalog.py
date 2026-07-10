@@ -39,9 +39,9 @@ def test_catalog_is_up_to_date():
     """CI: catalog 文件应与生成器输出一致。"""
     content = generate_catalog()
     existing = CATALOG_PATH.read_text(encoding="utf-8")
-    assert existing.strip() == content.strip(), (
-        "script-catalog.md 不是最新，请运行: python3 scripts/dev/gen_script_catalog.py"
-    )
+    assert (
+        existing.strip() == content.strip()
+    ), "script-catalog.md 不是最新，请运行: python3 scripts/dev/gen_script_catalog.py"
 
 
 def test_scripts_have_docstrings():

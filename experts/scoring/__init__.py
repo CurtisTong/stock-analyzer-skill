@@ -289,8 +289,10 @@ def score_expert_precise_proxy(stock_data: dict) -> Dict[str, float]:
     import logging
 
     _log = logging.getLogger(__name__)
-    _log.warning("score_expert_precise_proxy: fallback 路径触发，返回默认均分 50，传入数据键: %s",
-                 list(stock_data.keys()) if stock_data else "None")
+    _log.warning(
+        "score_expert_precise_proxy: fallback 路径触发，返回默认均分 50，传入数据键: %s",
+        list(stock_data.keys()) if stock_data else "None",
+    )
     # 标准五维度，兼容所有专家权重键名变体
     return {"基本面": 50.0, "估值": 50.0, "技术面": 50.0, "情绪": 50.0, "风险": 50.0}
 

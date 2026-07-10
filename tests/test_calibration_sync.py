@@ -225,9 +225,15 @@ class TestSyncOperations:
         fake_file = tmp_path / "expert_calibration.json"
         valid_remote = {
             "predictions": [
-                {"stock": "sh600989", "direction": "看多", "expert_scores": {"lynch": 72}}
+                {
+                    "stock": "sh600989",
+                    "direction": "看多",
+                    "expert_scores": {"lynch": 72},
+                }
             ],
-            "experts": {"lynch": {"events": 1, "correct": 1, "last_updated": "2026-07-08"}},
+            "experts": {
+                "lynch": {"events": 1, "correct": 1, "last_updated": "2026-07-08"}
+            },
         }
         with (
             patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
@@ -257,7 +263,9 @@ class TestSyncOperations:
         with (
             patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
             patch.object(calibration_sync, "_find_gist", return_value="gist123"),
-            patch.object(calibration_sync, "_get_gist_content", return_value=bad_remote),
+            patch.object(
+                calibration_sync, "_get_gist_content", return_value=bad_remote
+            ),
         ):
             result = calibration_sync.pull()
         assert result is False

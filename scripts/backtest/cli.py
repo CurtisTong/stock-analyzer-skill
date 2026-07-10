@@ -250,7 +250,9 @@ def main():
         else:
             print(f"\n{'指标':<20} {'OOS':>10} {'IS(参考)':>10}")
             print("-" * 42)
-            print(f"{'总收益%':<20} {d['oos_total_return_pct']:>10.2f} {d['is_total_return_pct']:>10.2f}")
+            print(
+                f"{'总收益%':<20} {d['oos_total_return_pct']:>10.2f} {d['is_total_return_pct']:>10.2f}"
+            )
             print(f"{'夏普比率':<20} {d['oos_sharpe']:>10.2f} {d['is_sharpe']:>10.2f}")
             print(f"{'胜率%':<20} {d['oos_win_rate_pct']:>10.1f} {'-':>10}")
             print(f"{'最大回撤%':<20} {d['oos_max_drawdown_pct']:>10.2f} {'-':>10}")

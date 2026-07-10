@@ -196,7 +196,11 @@ class TestInstitution:
         assert result["情绪"] == 50  # 缺机构持仓环比
         # 上升趋势 -> 技术面 60
         result = institution.score(
-            {"quote": {"pe": 50}, "finance": {"ROEJQ": 20}, "kline_features": {"trend": 1}}
+            {
+                "quote": {"pe": 50},
+                "finance": {"ROEJQ": 20},
+                "kline_features": {"trend": 1},
+            }
         )
         assert result["技术面"] == 60
         # 机构加仓 -> 情绪 100

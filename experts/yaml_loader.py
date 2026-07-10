@@ -49,7 +49,15 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
         raise ValueError(f"{path}: yaml 顶层应为 dict，实际 {type(data).__name__}")
 
     # 必填字段校验
-    required = ["name", "display_name", "group", "style", "horizon", "core_signal", "weights"]
+    required = [
+        "name",
+        "display_name",
+        "group",
+        "style",
+        "horizon",
+        "core_signal",
+        "weights",
+    ]
     missing = [f for f in required if f not in data]
     if missing:
         raise ValueError(f"{path}: 缺少必填字段 {missing}")
@@ -58,7 +66,9 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
     if not isinstance(data["name"], str) or not data["name"]:
         raise ValueError(f"{path}: name 应为非空 str")
     if data["group"] not in ("long_term", "short_term"):
-        raise ValueError(f"{path}: group 应为 'long_term' 或 'short_term'，实际 {data['group']!r}")
+        raise ValueError(
+            f"{path}: group 应为 'long_term' 或 'short_term'，实际 {data['group']!r}"
+        )
     weights = data["weights"]
     if not isinstance(weights, dict) or not weights:
         raise ValueError(f"{path}: weights 应为非空 dict")

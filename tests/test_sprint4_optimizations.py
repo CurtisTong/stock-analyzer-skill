@@ -84,9 +84,7 @@ class TestParallelFetch:
             "fetch_batch_dicts",
             lambda codes: [{"code": "sh600519", "name": "贵州茅台"}],
         )
-        monkeypatch.setattr(
-            ss, "prefetch_finance_all", lambda codes: {"sh600519": []}
-        )
+        monkeypatch.setattr(ss, "prefetch_finance_all", lambda codes: {"sh600519": []})
         monkeypatch.setattr(ss, "prefetch_kline_all", lambda *a, **k: {})
         monkeypatch.setattr(
             ss,
@@ -98,9 +96,7 @@ class TestParallelFetch:
                 "rejected": [],
             },
         )
-        monkeypatch.setattr(
-            ss, "apply_portfolio_constraints", lambda rows, **k: rows
-        )
+        monkeypatch.setattr(ss, "apply_portfolio_constraints", lambda rows, **k: rows)
 
         # 通过 inspect 验证 run_screening 源码包含并行模式
         import inspect

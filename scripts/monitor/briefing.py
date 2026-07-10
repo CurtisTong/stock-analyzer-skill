@@ -96,7 +96,9 @@ def compute_briefing() -> dict:
                     overnight_lines.append(f"{icon} {name}: {price:.2f}")
                 else:
                     icon = "🟢" if change >= 0 else "🔴"
-                    overnight_lines.append(f"{icon} {name}: {price:.2f} ({change:+.2f}%)")
+                    overnight_lines.append(
+                        f"{icon} {name}: {price:.2f} ({change:+.2f}%)"
+                    )
                 result["overnight"][code] = {
                     "name": name,
                     "price": price,
@@ -115,9 +117,7 @@ def compute_briefing() -> dict:
             latest = nb_data[-1]
             net = latest.get("net_buy", 0)
             icon = "🟢" if net >= 0 else "🔴"
-            northbound_lines.append(
-                f"{icon} 最新北向: {net / 1e4:+.1f} 亿"
-            )
+            northbound_lines.append(f"{icon} 最新北向: {net / 1e4:+.1f} 亿")
             # 5 日累计
             total_5d = sum(d.get("net_buy", 0) for d in nb_data) / 1e4
             northbound_lines.append(f"  5日累计: {total_5d:+.1f} 亿")

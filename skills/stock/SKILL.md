@@ -68,6 +68,60 @@ python3 scripts/data/lhb.py sh600519 --days 10    # 最近 10 日
 
 输出必须包含 `fundamental_rating`、`valuation_view`、`sector_context`、`technical_next_step`、`position_plan`。
 
+### Step 0：市场环境锚定（full / debate / technical 必跑）
+
+> **重要**：个股的"破位 / 突破 / 强势 / 弱势"必须放在市场环境中判断。
+> 一只票在牛市跌破20日均线是"洗盘"，在熊市是"破位"——剥离大盘谈个股，技术信号会反向。
+
+调用 `market_anchor.py` 一次性拉取大盘状态 + 板块强度 + 个股相对位置：
+
+```bash
+python3 scripts/market_anchor.py <股票代码> -j      # full / debate：全量
+python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：仅大盘 + 宽度
+```
+
+**输出包含**（v2.5.x 升级后共 19 个字段）：
+
+| 维度 | 字段 | 说明 |
+|------|------|------|
+| 大盘状态 | `regime` / `regime_label_zh` / `regime_confidence` | bull/bear/sideways/panic/euphoria/defensive（来自 `experts/market_detector.py`，与 `decide.md §二` 权重表一致）|
+| 大盘指数 | `index_change_pct` | 沪深 300 当日涨跌幅 |
+| 市场宽度 | `breadth` | 上涨家数 / 下跌家数 / 涨停家数 / 跌停家数 |
+| 板块强度 | `sector_strength.top/bottom` | top3 强势 + bottom3 弱势板块 ETF（来自 `data/sector_etf.csv` 的 13 个 ETF）|
+| 个股 RPS | `stock_sector_compare.rps_vs_sector/_index` | 个股 vs 所在板块 ETF vs 大盘三段式对比 |
+| **多时间框架**（v2.5.x 新增）| `multi_timeframe.{ma20,ma60,ma250,ma_alignment,ret_5d_pct,ret_20d_pct,atr_14,vs_ma250_pct}` | 大盘 MA20/60/250 + 5/20 日动量 + ATR14 + 年线偏离度 |
+| **宏观-估值桥**（v2.5.x 新增）| `macro.{treasury_10y_pct,usd_index,usd_cny,vix,gold_usd_oz,brent_oil_usd,wti_oil_usd,lithium_carbonate_cny_t}` | 10Y 国债 / 美元 / 汇率 / VIX / 大宗商品；yfinance 失败 → fixture |
+| **杠杆-反身性**（v2.5.x 新增）| `leverage.{margin_balance_total_yi,margin_change_5d_pct,if/ic/ih_main_basis_pts}` | 两融余额 + IF/IC/IH 期货基差 |
+| **估值桥**（v2.5.x 新增）| `valuation_bridge.erp_sh300_pct` | 沪深 300 ERP = 1/PE - 10Y 国债 |
+| **流动性+波动率**（v2.5.x 新增）| `liquidity_volatility.{sh300_atr_14,sh300_annualized_vol_pct,stock_avg_amount_20d_yi,stock_liquidity_ratio_pct}` | 大盘 ATR/年化波 + 个股日均成交额/流动性比率 |
+| **情绪周期**（v2.5.x 新增）| `emotion_phase` | 主升/退潮/震荡/冰点（来自 `market_breadth.get_market_state`）|
+| **行业 beta**（v2.6.0 新增）| `industry_beta.{beta,alpha,alpha_annual,r_squared,volatility_pct,interpretation}` | 动态选基准指数（沪深300/中证500/中证1000）+ 60 日窗口手写 OLS，与 `dcf.py` 折现率字典呼应 |
+| **组合相关性**（v2.6.0 新增）| `portfolio_correlation.{matrix,avg_pairwise_corr,high_corr_pairs,vs_portfolio}` | 与 /portfolio skill 联动；持仓矩阵 + 个股 vs 持仓组合（分散化收益判定）|
+| **题材轮动**（v2.7.0 新增）| `sector_rotation.{rotation_strength,biggest_risers,biggest_fallers,interpretation}` | 5 日板块排名位次变化（即时计算，无持久化；>3=剧烈轮动）|
+| **北向资金**（v2.7.0 新增）| `northbound_pricer.{total_net_yi,direction,recent_5d_slope,interpretation}` | 20 日累计净流入 + 近 5 日斜率（边际定价者；沪/深股通分项）|
+| 数据降级 | `data_quality.degraded_fields` | 失败字段名（数组，空数组表示全成功）|
+
+**优雅降级**：
+
+- 大盘拉取失败 → regime 默认 `defensive`（v2.4.3 fail-safe）
+- 板块拉取失败 → `sector_strength = null`
+- 个股板块反查失败 → `verdict = "板块归属未知/覆盖盲区"`
+- yfinance 拉取宏观失败 → fixture 降级（数据为前次缓存或手工维护值）
+- 个股 amount 字段缺失 → `stock_avg_amount` 用 `volume × close` 估算（标注 `volume*close(估算)`）
+- **任一字段失败均不阻塞主流程**
+
+**复用（不重写）**：
+
+- `experts.market_detector.detect_market_state()` 直接 import
+- `market_breadth.get_market_breadth()` + `get_market_state()` 直接 import
+- `scripts/quote.py` 批量调用（≤15/批）
+- `scripts/data.get_kline()` scale=240 datalen=250（足够 MA250）
+- `technical.moving_average.ma_system()` 直接 import（MA5/10/20/60/120/250）
+- `technical.volatility.compute_atr()` 直接 import（ATR）
+- `strategies/macro/gate.py` 的 yfinance try/except 模式（范本）
+- `industry_beta.compute_beta()` v2.6.0 手写 OLS（不引入 numpy/pandas）
+- `portfolio.manager.PortfolioManager.get_positions()` v2.6.0 持仓 API
+
 ### Step 1: 获取数据
 
 按 `../_shared/references/script-catalog.md` 调用 `quote.py` / `finance.py` / `kline.py` / `announcements.py`。`debate` 模式额外取 5 分钟 K 线（48 根）。
@@ -110,8 +164,32 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 ### Step 3: 输出结论
 
+> **统一前置**：所有模式（quick / full / debate / technical）的报告**开头**先输出 Step 0 的"市场环境锚定"小节，再进入各自模式的核心内容。
+> 市场环境是小节标题用 📊 emoji，与个股分析章节视觉分隔，但不破坏 existing 第一行一句话结论的硬约束（来自 `output-template.md`）。
+
+```
+## 📊 市场环境锚定
+🟢 市场状态: 牛市 (high) — 指数在均线上方，量能放大，市场宽度良好
+📈 大盘指数: sh000300 当日 +1.20%
+🌐 市场宽度: 上涨 3200 家 / 下跌 1500 家 | 涨停 45 家 / 跌停 8 家
+🔥 强势板块: 半导体ETF +2.34% | 新能源车ETF +1.85% | 黄金ETF +1.20%
+💀 弱势板块: 银行ETF -0.50% | 白酒ETF -0.30%
+
+### 🎯 个股 vs 板块 vs 大盘 (sh600519)
+- 所属板块: 消费 → ETF sh512690 白酒ETF
+- 个股涨跌: +0.50%
+- 板块涨跌: +0.30%
+- 大盘涨跌: +1.20%
+- RPS vs 板块: +0.20pp（板块内偏强）
+- RPS vs 大盘: -0.70pp
+- 结论: 在弱势板块中相对抗跌 / 跑输大盘
+
+📊 数据时间戳: 2026-07-10 09:30:00 | 数据源: quote.py / market_breadth.py / sector_etf_strength.py
+```
+
 **quick模式：**
 
+- 顶部"市场环境锚定"小节（一行表格简版，不展开个股 RPS）
 - 一句话结论
 - 关键数据表
 - 操作建议（买入/持有/回避）
@@ -119,6 +197,7 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 **full模式：**
 
+- 顶部完整"市场环境锚定"小节（含个股 RPS）
 - 五层分析详细表格
 - 支撑/阻力位图示
 - 情景分析表（牛市/基准/悲观）
@@ -126,8 +205,9 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 **debate模式（全模式/默认）：**
 
+- 顶部完整"市场环境锚定"小节
 - 五层分析
-- 8人专家圆桌（5长线+3短线；另有8份legacy档案保留研究）
+- 8人专家圆桌（regime 权重已由 Step 0 给出，**不再二次判定**）
 - 多空投票 + 跨组加权（长线 ≥4/5 投票多数 + 短线均分区间驱动）
 - 最终折中方案
 
@@ -244,12 +324,22 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 详见 [`/stock-technical`](../stock-technical/SKILL.md) 子模块。本步骤仅做调用入口说明。
 
 ```bash
+# 市场环境锚定（technical 模式不需要板块横向，但保留大盘状态用于"市场风格判断"）
+python3 scripts/market_anchor.py <股票代码> --no-sector -j
+
+# 技术分析
 python3 scripts/technical.py sh600989              # 完整报告
 python3 scripts/technical.py sh600989 --classify   # 含分类+缠论+战法
 python3 scripts/technical.py sh600989 --quick      # 快速摘要
 ```
 
-输出包含：综合评分、均线系统、MACD、KDJ、BOLL、RSI、成交量、K线形态、缠论、A 股本土战法、支撑/阻力位。详见子模块文档。
+输出包含：顶部"市场环境锚定"小节（轻量版，无板块强弱）+ 综合评分、均线系统、MACD、KDJ、BOLL、RSI、成交量、K线形态、缠论、A 股本土战法、支撑/阻力位。详见子模块文档。
+
+**为什么 technical 也需要大盘锚定**：技术信号在不同 regime 下含义不同——
+
+- `bull` 中：放量突破是真信号，缩量回踩是洗盘
+- `bear / panic` 中：放量长上影是出货信号（不是启动）
+- `defensive` 中：低估值高股息抗跌，成长股破位需警惕
 
 ## Guardrails
 

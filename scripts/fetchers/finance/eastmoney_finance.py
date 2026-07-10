@@ -24,7 +24,9 @@ class EastmoneyFinanceFetcher(BaseFetcher):
             periods = 4
         periods = max(1, periods)
 
-        raw = http_get(URL.format(code=code), timeout=self.timeout, max_retries=self.retry)
+        raw = http_get(
+            URL.format(code=code), timeout=self.timeout, max_retries=self.retry
+        )
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:

@@ -1,8 +1,16 @@
 """三类买卖点识别。"""
 
 
-def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pct=0.02,
-                 highs=None, lows=None):
+def chan_maidian(
+    merged_bars,
+    bi_list,
+    zs_list,
+    closes,
+    beichi=None,
+    pullback_pct=0.02,
+    highs=None,
+    lows=None,
+):
     """
     识别缠论三类买卖点。
     一买：离开最后一个中枢后的底背驰结束点
@@ -92,19 +100,20 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
         # I9: 回踩容差优先用 ATR 动态计算（需提供 highs/lows），否则回退百分比
         if highs and lows:
             from technical.volatility import compute_atr
+
             atr = compute_atr(highs, lows, closes)
             tolerance = atr * 0.5 if atr > 0 else last_zs["zg"] * pullback_pct
         else:
             tolerance = last_zs["zg"] * pullback_pct
-        near_zs = any(
-            abs(c - last_zs["zg"]) <= tolerance for c in closes[-10:]
-        )
+        near_zs = any(abs(c - last_zs["zg"]) <= tolerance for c in closes[-10:])
         if near_zs:
             buy_points.append(
                 {
                     "type": "三买",
                     "desc": f"突破中枢上沿(ZG={last_zs['zg']})后回踩不落入",
-                    "confidence": "高" if last_close > last_zs["zg"] + tolerance else "中",
+                    "confidence": (
+                        "高" if last_close > last_zs["zg"] + tolerance else "中"
+                    ),
                 }
             )
 
@@ -156,19 +165,20 @@ def chan_maidian(merged_bars, bi_list, zs_list, closes, beichi=None, pullback_pc
         # 判断是否有反弹动作：近期价格曾接近 ZD（反弹痕迹）
         if highs and lows:
             from technical.volatility import compute_atr
+
             atr = compute_atr(highs, lows, closes)
             tolerance = atr * 0.5 if atr > 0 else last_zs["zd"] * pullback_pct
         else:
             tolerance = last_zs["zd"] * pullback_pct
-        near_zs = any(
-            abs(c - last_zs["zd"]) <= tolerance for c in closes[-10:]
-        )
+        near_zs = any(abs(c - last_zs["zd"]) <= tolerance for c in closes[-10:])
         if near_zs:
             sell_points.append(
                 {
                     "type": "三卖",
                     "desc": f"跌破中枢下沿(ZD={last_zs['zd']})后反弹不入",
-                    "confidence": "高" if last_close < last_zs["zd"] - tolerance else "中",
+                    "confidence": (
+                        "高" if last_close < last_zs["zd"] - tolerance else "中"
+                    ),
                 }
             )
 

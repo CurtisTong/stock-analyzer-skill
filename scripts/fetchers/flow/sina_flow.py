@@ -44,11 +44,13 @@ class SinaNorthboundFlowFetcher(BaseFetcher):
             date = row.get("day", "")
             close_yi = to_float(row.get("close"))  # 当日净流入（亿元）
             close_wan = close_yi * 10000  # → 万元
-            result["days"].append({
-                "date": date,
-                "total_net": close_wan,
-                "sh_net": 0,  # 新浪不区分沪/深
-                "sz_net": 0,
-                "_source_breakdown_unavailable": True,
-            })
+            result["days"].append(
+                {
+                    "date": date,
+                    "total_net": close_wan,
+                    "sh_net": 0,  # 新浪不区分沪/深
+                    "sz_net": 0,
+                    "_source_breakdown_unavailable": True,
+                }
+            )
         return result if result["days"] else None

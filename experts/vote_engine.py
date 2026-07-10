@@ -19,9 +19,7 @@ _DEFENSIVE_STATES = {"防御型", "熊市"}
 _DEFENSIVE_SCORE_FACTOR_DEFAULT = 0.7
 
 
-def _get_short_defensive_factor(
-    market_state: Optional[dict], is_ice: bool
-) -> float:
+def _get_short_defensive_factor(market_state: Optional[dict], is_ice: bool) -> float:
     """防御市/熊市短线组分数乘子。
 
     Args:
@@ -124,9 +122,8 @@ def _resolve_conflict(
     long_extreme_bear = long_votes["bear"] >= long_n - 1 and long_votes["bull"] == 0
     short_extreme_bull = short_votes["bull"] == short_n and short_votes["bear"] == 0
     short_extreme_bear = short_votes["bear"] == short_n and short_votes["bull"] == 0
-    polarized = (
-        (long_extreme_bull and short_extreme_bear)
-        or (long_extreme_bear and short_extreme_bull)
+    polarized = (long_extreme_bull and short_extreme_bear) or (
+        long_extreme_bear and short_extreme_bull
     )
 
     if polarized:
@@ -234,7 +231,9 @@ def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     if not yangjia.get("breakdown"):
         return 50
     dim_scores = yangjia.get("dim_scores", {})
-    return dim_scores.get("情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50)))
+    return dim_scores.get(
+        "情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50))
+    )
 
 
 # legacy 专家名 → 合并型专家名映射（v2.1.0）。
@@ -498,8 +497,7 @@ def aggregate_votes(
     # 注册表也补全不了的条目（未知专家名）：按 active 集真实分布 5 长 + 3 短 切分，
     # 而非旧的 4+4。仅当仍有未分组条目时触发。
     ungrouped = [
-        r for r in expert_results
-        if r.get("group") not in ("long_term", "short_term")
+        r for r in expert_results if r.get("group") not in ("long_term", "short_term")
     ]
     if ungrouped and (not long_experts or not short_experts):
         n = len(expert_results)

@@ -755,11 +755,22 @@ class TestAnalyzeCode:
         # mock kline 和 finance 避免网络请求（下沉后 analyze_code 走 compute_features/fetch_finance_first）
         import business.screening_service as ss
 
-        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
-            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
-            "closes": [],
-        })
+        monkeypatch.setattr(
+            ss,
+            "compute_features",
+            lambda code, bars=None: {
+                "trend": 0,
+                "ret20": 0,
+                "ma10": 0,
+                "ma20": 0,
+                "volume_ratio": 1.0,
+                "rsi": 50,
+                "rsi_signal": 0,
+                "macd_signal": 0,
+                "vol_price_signal": 0,
+                "closes": [],
+            },
+        )
         monkeypatch.setattr(ss, "fetch_finance_first", lambda code: sample_finance)
 
         args = _make_args()
@@ -794,11 +805,22 @@ class TestAnalyzeCode:
     ):
         import business.screening_service as ss
 
-        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
-            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
-            "closes": [],
-        })
+        monkeypatch.setattr(
+            ss,
+            "compute_features",
+            lambda code, bars=None: {
+                "trend": 0,
+                "ret20": 0,
+                "ma10": 0,
+                "ma20": 0,
+                "volume_ratio": 1.0,
+                "rsi": 50,
+                "rsi_signal": 0,
+                "macd_signal": 0,
+                "vol_price_signal": 0,
+                "closes": [],
+            },
+        )
         monkeypatch.setattr(ss, "fetch_finance_first", lambda code: sample_finance)
 
         args = _make_args()
@@ -820,11 +842,22 @@ class TestAnalyzeCode:
     def test_rejected_stock_has_reasons(self, sample_finance, monkeypatch):
         import business.screening_service as ss
 
-        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
-            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
-            "closes": [],
-        })
+        monkeypatch.setattr(
+            ss,
+            "compute_features",
+            lambda code, bars=None: {
+                "trend": 0,
+                "ret20": 0,
+                "ma10": 0,
+                "ma20": 0,
+                "volume_ratio": 1.0,
+                "rsi": 50,
+                "rsi_signal": 0,
+                "macd_signal": 0,
+                "vol_price_signal": 0,
+                "closes": [],
+            },
+        )
         monkeypatch.setattr(ss, "fetch_finance_first", lambda code: sample_finance)
 
         st_quote = {
@@ -852,11 +885,22 @@ class TestAnalyzeCode:
             call_count["n"] += 1
             return {}
 
-        monkeypatch.setattr(ss, "compute_features", lambda code, bars=None: {
-            "trend": 0, "ret20": 0, "ma10": 0, "ma20": 0, "volume_ratio": 1.0,
-            "rsi": 50, "rsi_signal": 0, "macd_signal": 0, "vol_price_signal": 0,
-            "closes": [],
-        })
+        monkeypatch.setattr(
+            ss,
+            "compute_features",
+            lambda code, bars=None: {
+                "trend": 0,
+                "ret20": 0,
+                "ma10": 0,
+                "ma20": 0,
+                "volume_ratio": 1.0,
+                "rsi": 50,
+                "rsi_signal": 0,
+                "macd_signal": 0,
+                "vol_price_signal": 0,
+                "closes": [],
+            },
+        )
         monkeypatch.setattr(ss, "fetch_finance_first", _should_not_be_called)
 
         args = _make_args()

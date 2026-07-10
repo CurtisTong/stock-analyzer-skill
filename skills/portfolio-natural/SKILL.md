@@ -13,7 +13,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/portfolio_w
 ## 口语化触发 → 操作映射
 
 | 自然语言 | 等价命令 |
-|---|---|
+| --- | --- |
 | "我的持仓怎么样" / "看看持仓" | `/portfolio health` |
 | "持仓健康检查" | `/portfolio health` |
 | "帮我看看持仓" | `/portfolio health` |

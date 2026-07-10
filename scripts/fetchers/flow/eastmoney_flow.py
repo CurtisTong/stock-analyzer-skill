@@ -37,7 +37,9 @@ class NorthboundFlowFetcher(BaseFetcher):
 
         # 按 date 合并沪/深股通，避免按索引对齐导致的天数不一致/错位
         # （某日可能只有沪股通开通，或两接口返回天数不同）
-        merged = {}  # {date: {sh_buy, sh_sell, sh_net, sz_buy, sz_sell, sz_net, total_net}}
+        merged = (
+            {}
+        )  # {date: {sh_buy, sh_sell, sh_net, sz_buy, sz_sell, sz_net, total_net}}
 
         # 解析沪股通
         for line in sh_data:
