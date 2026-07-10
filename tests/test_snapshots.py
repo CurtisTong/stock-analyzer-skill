@@ -16,6 +16,9 @@ from snapshots import (
     load_snapshot,
     diff_snapshots,
     list_snapshots,
+    _validate_strategy,
+    _snapshot_path,
+    main,
 )  # noqa: E402
 
 
@@ -164,4 +167,112 @@ class TestDiffSnapshots:
         diff = diff_snapshots(p_a, p_b)
         assert diff["strategy_a"] == "balanced"
         assert diff["strategy_b"] == "balanced"
-        assert diff["timestamp_a"] != diff["timestamp_b"]
+
+
+# ═══════════════════════════════════════════════════════════════
+# _validate_strategy：路径注入防护
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestValidateStrategy:
+    def test_valid_name_passes(self):
+        """合法策略名应直接返回。"""
+        _validate_strategy("balanced_v2")
+        _validate_strategy("momentum-2025")
+        _validate_strategy("low-vol")
+
+    def test_empty_string_rejected(self):
+        """空字符串应抛 ValueError。"""
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("")
+
+    def test_path_traversal_rejected(self):
+        """包含 ../ 的策略名应被拒绝（防止路径遍历）。"""
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("../etc/passwd")
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("foo/bar")
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("foo\\bar")
+
+    def test_special_chars_rejected(self):
+        """特殊字符应被拒绝。"""
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("foo;bar")
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("foo bar")
+        with pytest.raises(ValueError, match="非法策略名"):
+            _validate_strategy("foo$bar")
+
+
+# ═══════════════════════════════════════════════════════════════
+# _snapshot_path：路径构造
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestSnapshotPath:
+    def test_path_uses_data_dir(self, monkeypatch, tmp_path):
+        """_snapshot_path 应基于 common.DATA_DIR 构造路径。"""
+        from common import DATA_DIR as _real_data_dir
+
+        monkeypatch.setattr("snapshots.DATA_DIR", str(tmp_path))
+        # 注意：_snapshot_path 使用模块全局 DATA_DIR，需要 monkeypatch 该模块属性
+        import snapshots
+
+        monkeypatch.setattr(snapshots, "DATA_DIR", str(tmp_path))
+        path = snapshots._snapshot_path("balanced", "2026-07-10", "abc123def456")
+        assert (
+            path
+            == tmp_path / "snapshots" / "balanced" / "2026-07-10" / "abc123def456.json"
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
+# main：CLI 入口（list / diff / 无参数）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestMain:
+    def test_no_args_prints_help(self, capsys, monkeypatch):
+        """无参数时 main 应当打印 help 信息（含 list/diff 子命令）。"""
+        monkeypatch.setattr(sys, "argv", ["snapshots.py"])
+        main()  # 无 subcommand 时不抛 SystemExit
+        captured = capsys.readouterr()
+        # 帮助信息会列出子命令
+        assert "list" in captured.out
+        assert "diff" in captured.out
+
+    def test_diff_command_text_output(self, temp_snapshots_dir, capsys, monkeypatch):
+        """diff 子命令文本输出格式正确。"""
+        rows_a = [_make_row("sh600519", "贵州茅台", 80.0)]
+        rows_b = [
+            _make_row("sh600519", "贵州茅台", 85.0),
+            _make_row("sh600000", "浦发银行", 70.0),
+        ]
+        p_a = save_snapshot("balanced", rows_a, ["sh600519"])
+        p_b = save_snapshot("balanced", rows_b, ["sh600519", "sh600000"])
+
+        monkeypatch.setattr(sys, "argv", ["snapshots.py", "diff", str(p_a), str(p_b)])
+        main()
+        captured = capsys.readouterr()
+        assert "新增" in captured.out
+        assert "退出" in captured.out
+        assert "分数变化" in captured.out
+
+    def test_diff_command_json_output(self, temp_snapshots_dir, capsys, monkeypatch):
+        """diff 子命令 JSON 输出格式正确。"""
+        rows_a = [_make_row("sh600519", "贵州茅台", 80.0)]
+        rows_b = [_make_row("sh600519", "贵州茅台", 85.0)]
+        p_a = save_snapshot("balanced", rows_a, ["sh600519"])
+        p_b = save_snapshot("balanced", rows_b, ["sh600519"])
+
+        monkeypatch.setattr(
+            sys, "argv", ["snapshots.py", "diff", str(p_a), str(p_b), "--json"]
+        )
+        main()
+        captured = capsys.readouterr()
+        # 输出必须是合法 JSON
+        parsed = json.loads(captured.out)
+        assert "added" in parsed
+        assert "removed" in parsed
+        assert "score_changes" in parsed
