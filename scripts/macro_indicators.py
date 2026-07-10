@@ -562,13 +562,13 @@ def main():
         print(f"  碳酸锂    : ¥{m['lithium_carbonate_cny_t']}/吨")
 
         print("\n💪 杠杆:")
-        l = data["leverage"]
+        lev = data["leverage"]
         print(
-            f"  两市两融余额 : {l['margin_balance_total_yi']} 亿元（5 日 {l['margin_change_5d_pct']}%）"
+            f"  两市两融余额 : {lev['margin_balance_total_yi']} 亿元（5 日 {lev['margin_change_5d_pct']}%）"
         )
-        print(f"  IF 主基差   : {l['if_main_basis_pts']} 点")
-        print(f"  IC 主基差   : {l['ic_main_basis_pts']} 点")
-        print(f"  IH 主基差   : {l['ih_main_basis_pts']} 点")
+        print(f"  IF 主基差   : {lev['if_main_basis_pts']} 点")
+        print(f"  IC 主基差   : {lev['ic_main_basis_pts']} 点")
+        print(f"  IH 主基差   : {lev['ih_main_basis_pts']} 点")
 
         print("\n📐 估值桥:")
         print(f"  沪深 300 ERP : {data['valuation_bridge']['erp_sh300_pct']}%")

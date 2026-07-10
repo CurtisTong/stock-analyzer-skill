@@ -34,7 +34,7 @@ from data import get_quotes, get_kline, get_northbound_flow  # noqa: E402 多源
 from experts.market_detector import detect_market_state  # noqa: E402
 import market_breadth  # noqa: E402  get_market_breadth()
 import sector_etf_strength  # noqa: E402  analyze()
-from technical.moving_average import ma_system  # noqa: E402  MA5/10/20/60/120/250
+from technical.moving_average import ma_system  # noqa: E402
 from technical.volatility import compute_atr  # noqa: E402  ATR
 from macro_indicators import (
     fetch_all as fetch_macro_all,
@@ -773,7 +773,7 @@ def to_markdown(payload: dict) -> str:
     conf = payload["regime_confidence"]
     idx_chg = payload["index_change_pct"]
 
-    lines.append(f"## 📊 市场环境锚定")
+    lines.append("## 📊 市场环境锚定")
     lines.append("")
     lines.append(
         f"{emoji} **市场状态**: {regime_zh} ({conf}) — {payload['regime_reason']}"
@@ -781,7 +781,7 @@ def to_markdown(payload: dict) -> str:
     if idx_chg is not None:
         lines.append(f"📈 **大盘指数**: {payload['index_code']} 当日 {idx_chg:+.2f}%")
     else:
-        lines.append(f"📈 **大盘指数**: ⚠️ 数据缺失")
+        lines.append("📈 **大盘指数**: ⚠️ 数据缺失")
 
     b = payload.get("breadth") or {}
     if b:
@@ -792,7 +792,7 @@ def to_markdown(payload: dict) -> str:
             f"        涨停 {b.get('limit_up_count', 0)} 家 / 跌停 {b.get('limit_down_count', 0)} 家"
         )
     else:
-        lines.append(f"🌐 **市场宽度**: ⚠️ 数据缺失")
+        lines.append("🌐 **市场宽度**: ⚠️ 数据缺失")
 
     ss = payload.get("sector_strength")
     if ss and ss.get("etfs"):
