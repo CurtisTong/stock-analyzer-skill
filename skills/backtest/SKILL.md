@@ -1,7 +1,7 @@
 ---
 name: backtest
 description: 策略回测。触发词：回测一下、策略效果怎么样、哪个策略好、验证选股策略、回测收益、对比策略表现、优化策略权重。验证6种策略的历史胜率/累计收益/夏普/最大回撤等11项指标，支持基准对比和权重优化。
-version: 1.50.0
+version: 1.5.0
 model: glm-5.2
 disable-model-invocation: true
 allowed-tools: Bash(python3 scripts/backtest.py *)
