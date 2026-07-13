@@ -118,8 +118,12 @@ class TestRunDebate:
         assert m_rec.call_args.kwargs["composite_score"] == 72
 
     def test_with_veto(self):
-        """veto_results 传递给 aggregate。"""
-        veto = {"vetoed": True, "reason": "test"}
+        """veto_results 传递给 aggregate（向后兼容旧格式）。"""
+        # 修复：原 {"vetoed": True} 结构与 vote_engine 期望的
+        # {expert_name: {cond: bool}} 不符。改为正确结构。
+        veto = {
+            "buffett": {"ROE < 10% 或负债率 > 70%（金融业除外）": True}
+        }
         with patch("experts.calibration.compute_calibration_factor", return_value=0.0), \
              patch.object(_decide_mod, "aggregate_votes",
                    return_value=_make_aggregate_result()) as m_agg, \
@@ -127,3 +131,44 @@ class TestRunDebate:
              patch("experts.calibration.get_pending_predictions", return_value=[]):
             decide.run_debate("sh600519", [_make_expert()], veto_results=veto)
         assert m_agg.call_args.kwargs.get("veto_results") == veto
+        # stock_data 未传时不应生成 risk_coefficients
+        assert m_agg.call_args.kwargs.get("risk_coefficients") is None
+
+    def test_with_risk_coefficients_via_stock_data(self):
+        """stock_data 传入时自动生成 risk_coefficients 并透传给 aggregate。"""
+        # 构造触发弹性风险系数的 stock_data：ROE 8% < 10%
+        stock_data = {
+            "finance": {"ROEJQ": 8.0, "ZCFZL": 45.0, "MGJYXJJE": 1.5},
+            "quote": {"pe": 20},
+        }
+        with patch("experts.calibration.compute_calibration_factor", return_value=0.0), \
+             patch.object(_decide_mod, "aggregate_votes",
+                   return_value=_make_aggregate_result()) as m_agg, \
+             patch("experts.calibration.record_prediction", return_value="pred"), \
+             patch("experts.calibration.get_pending_predictions", return_value=[]):
+            decide.run_debate(
+                "sh600519", [_make_expert()], stock_data=stock_data
+            )
+        rc = m_agg.call_args.kwargs.get("risk_coefficients")
+        # 应生成非 None 的 risk_coefficients，且 buffett 的 coeff < 1.0
+        assert rc is not None
+        assert "buffett" in rc
+        assert rc["buffett"] < 1.0
+
+    def test_risk_coefficients_none_when_no_trigger(self):
+        """stock_data 无触发条件时 risk_coefficients 为 None。"""
+        # ROE 25%、FCF 正、负债率低 -> 无触发
+        stock_data = {
+            "finance": {"ROEJQ": 25.0, "ZCFZL": 30.0, "MGJYXJJE": 3.0},
+            "quote": {"pe": 15},
+        }
+        with patch("experts.calibration.compute_calibration_factor", return_value=0.0), \
+             patch.object(_decide_mod, "aggregate_votes",
+                   return_value=_make_aggregate_result()) as m_agg, \
+             patch("experts.calibration.record_prediction", return_value="pred"), \
+             patch("experts.calibration.get_pending_predictions", return_value=[]):
+            decide.run_debate(
+                "sh600519", [_make_expert()], stock_data=stock_data
+            )
+        # 无触发条件时 risk_coefficients 被过滤为 None
+        assert m_agg.call_args.kwargs.get("risk_coefficients") is None

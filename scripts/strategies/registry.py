@@ -119,7 +119,14 @@ def register_strategy(
         required_keys = {"quality", "valuation", "momentum", "liquidity"}
         if not required_keys.issubset(weights.keys()):
             raise ValueError(f"策略权重必须包含 {required_keys}")
-        for opt_key in ("volatility", "dividend", "chip", "event", "analyst"):
+        for opt_key in (
+            "volatility",
+            "dividend",
+            "chip",
+            "event",
+            "analyst",
+            "cyclical",
+        ):
             if opt_key not in weights:
                 weights[opt_key] = 0.0
         all_keys = required_keys | {
@@ -128,6 +135,7 @@ def register_strategy(
             "chip",
             "event",
             "analyst",
+            "cyclical",
         }
         total = sum(weights.get(k, 0) for k in all_keys)
         if abs(total - 1.0) > 0.01:

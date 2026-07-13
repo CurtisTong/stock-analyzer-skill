@@ -156,7 +156,13 @@
     "ps_reasonable": 4,
     "dividend_yield_excellent": 3,
     "dividend_yield_good": 1.5,
-    "dividend_yield_fair": 0.8
+    "dividend_yield_fair": 0.8,
+    "roe_3y_avg_min": 8,
+    "roe_3y_avg_excellent": 12,
+    "cycle_peak_profit_growth": 50,
+    "pb_undervalued": 1.0,
+    "pb_reasonable": 2.0,
+    "pb_expensive": 3.5
   },
   "医药": {
     "roe_min": 12,

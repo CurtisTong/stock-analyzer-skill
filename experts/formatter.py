@@ -1,6 +1,7 @@
 """决策输出格式化。"""
 
 import logging
+import re
 
 from experts import direction_from_score
 
@@ -12,12 +13,53 @@ RISK_DISCLAIMER = (
     "过往表现不代表未来收益，市场有风险，决策需谨慎。"
 )
 
+# 模型有效边界声明：承认结构性局限，防止低分被误读为"反向指标"
+# （呼应 SKILL.md 发言规则禁用"反向指标"论述）
+_MODEL_LIMITATION_NOTE = (
+    "📌 模型边界：本体系对强周期资产的盈利能力评估存在结构性局限，"
+    '其低分仅代表"不符合本体系投资标准"，不代表对未来价格走势的任何预测。'
+)
+
+# 禁用表述：LLM 推理越界时最常出现的"反向"论述，检测到则标记警告
+# （代码层防御：即使 LLM 忽略 SKILL.md 发言规则，也能在渲染时拦截）
+_FORBIDDEN_PHRASES = (
+    "反向加分",
+    "反向指标",
+    "反向参考",
+    "该分数可作为反向",
+    "作为反向",
+)
+
+# reason 缺数据引用检测：核心理由应引用触发评分矩阵分支的具体数值
+# 匹配任意数字（含百分号、小数），如 "PE 35倍"、"ROE 18%"、"分位 85%"
+_HAS_DATA_TOKEN = re.compile(r"\d+(?:\.\d+)?%?")
+
 
 def _append_disclaimer(lines: list) -> None:
-    """在 lines 末尾注入 RISK_DISCLAIMER。"""
+    """在 lines 末尾注入 RISK_DISCLAIMER + 模型边界声明。"""
     lines.append("")
     lines.append("---")
     lines.append(RISK_DISCLAIMER)
+    lines.append(_MODEL_LIMITATION_NOTE)
+
+
+def _validate_reason(reason: str) -> str:
+    """校验专家核心理由的数据基础性，返回可能带警告标记的 reason。
+
+    发言规则（SKILL.md Step 4）要求 reason 引用触发评分矩阵分支的具体数据值。
+    此函数在渲染层做防御性兜底：
+    - 检测禁用表述（"反向加分"/"反向指标"等），标记警告
+    - 检测缺失数据引用（reason 无任何数字），标记警告
+    不修改 reason 原文内容，仅追加警告标记，保留 LLM 论述的可追溯性。
+    """
+    if not reason or reason == "-":
+        return reason
+    for phrase in _FORBIDDEN_PHRASES:
+        if phrase in reason:
+            return f'{reason} ⚠含禁用表述"{phrase}"'
+    if not _HAS_DATA_TOKEN.search(reason):
+        return f"{reason} ⚠理由缺数据引用"
+    return reason
 
 
 def format_debate_output(result: dict) -> str:
@@ -39,7 +81,7 @@ def format_debate_output(result: dict) -> str:
         name = r.get("display_name", r.get("name", "?"))
         score = r.get("score", 0)
         direction = r.get("direction", direction_from_score(score))
-        reason = r.get("reason", "-")
+        reason = _validate_reason(r.get("reason", "-"))
         lines.append(f"| {name} | {score} | {direction} | {reason} |")
 
     lines.append("")
@@ -273,7 +315,7 @@ def format_group_output(result: dict) -> str:
         name = r.get("display_name", r.get("name", "?"))
         score = r.get("score", 0)
         direction = r.get("direction", direction_from_score(score))
-        reason = r.get("reason", "-")
+        reason = _validate_reason(r.get("reason", "-"))
         lines.append(f"| {name} | {score} | {direction} | {reason} |")
 
     lines.append("")
