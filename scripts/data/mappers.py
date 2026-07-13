@@ -87,4 +87,53 @@ FINANCE_FIELD_MAP = {
         "OPINION_TYPE",
         "audit_opinion",
     ],
+    # 绝对值字段（东财返回"元"，__init__._dict_to_finance 层 /1e8 转亿元）
+    "total_revenue": [
+        "TOTALOPERATEREVE",
+        "营业总收入",
+        "营业收入",
+        "total_revenue",
+    ],
+    "parent_net_profit": [
+        "PARENTNETPROFIT",
+        "归母净利润",
+        "归属母公司净利润",
+        "parent_net_profit",
+    ],
+    "deducted_net_profit": [
+        "KCFJCXSYJLR",
+        "扣非净利润",
+        "扣除非经常性损益净利润",
+        "deducted_net_profit",
+    ],
+    "total_liability": [
+        "LIABILITY",
+        "负债合计",
+        "负债总额",
+        "total_liability",
+    ],
+    "fcf": [
+        "FCFF_FORWARD",
+        "FCFF_BACK",
+        "自由现金流",
+        "fcf",
+    ],
+    # 偿债能力 + 季度环比维度
+    "quick_ratio": ["SD", "速动比率", "quick_ratio"],
+    "current_ratio": ["LD", "流动比率", "current_ratio"],
+    "deducted_np_yoy": [
+        "DJD_DEDUCTDPNP_YOY",
+        "KCFJCXSYJLRTZ",
+        "扣非净利同比",
+        "扣除非经常性损益净利润同比增长率",
+        "deducted_np_yoy",
+    ],
+    "revenue_qoq": ["DJD_TOI_QOQ", "营收环比", "营业收入环比", "revenue_qoq"],
+    "profit_qoq": ["DJD_DPNP_QOQ", "净利环比", "归母净利润环比", "profit_qoq"],
+    "gross_margin_qoq": [
+        "XSMLL_TB",
+        "毛利率环比",
+        "毛利率同比",
+        "gross_margin_qoq",
+    ],
 }

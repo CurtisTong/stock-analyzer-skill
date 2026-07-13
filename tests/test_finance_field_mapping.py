@@ -152,6 +152,119 @@ class TestDictToFinanceEdgeCases:
         assert rec.pledge_ratio == 20.0
 
 
+class TestDictToFinanceAbsoluteValues:
+    """绝对值字段映射 + 单位转换（审查 #1,2,7,8,12,13,15,19,20）。"""
+
+    def test_revenue_absolute_value_yuan_to_yi(self):
+        """营收绝对值：东财返回"元"，应 /1e8 转亿元。"""
+        data = {"TOTALOPERATEREVE": "48037593136.78"}  # 480.38 亿
+        rec = _dict_to_finance(data)
+        assert abs(rec.total_revenue - 480.38) < 0.01
+
+    def test_parent_net_profit_absolute_value(self):
+        """归母净利润绝对值转亿元。"""
+        data = {"PARENTNETPROFIT": "11350295509.65"}  # 113.50 亿
+        rec = _dict_to_finance(data)
+        assert abs(rec.parent_net_profit - 113.50) < 0.01
+
+    def test_deducted_net_profit_absolute_value(self):
+        """扣非净利润绝对值转亿元。"""
+        data = {"KCFJCXSYJLR": "11519983716.43"}  # 115.20 亿
+        rec = _dict_to_finance(data)
+        assert abs(rec.deducted_net_profit - 115.20) < 0.01
+
+    def test_total_liability_absolute_value(self):
+        """负债总额绝对值转亿元。"""
+        data = {"LIABILITY": "41762569552.36"}  # 417.63 亿
+        rec = _dict_to_finance(data)
+        assert abs(rec.total_liability - 417.63) < 0.01
+
+    def test_fcf_absolute_value(self):
+        """自由现金流绝对值转亿元。"""
+        data = {"FCFF_FORWARD": "1304771372.42"}  # 13.05 亿
+        rec = _dict_to_finance(data)
+        assert abs(rec.fcf - 13.05) < 0.01
+
+
+class TestDictToFinanceCalculatedFields:
+    """计算字段：总资产/净资产反推（审查 #7,8）。"""
+
+    def test_total_assets_from_liability_and_debt_ratio(self):
+        """总资产 = 负债 / (负债率/100)。"""
+        data = {
+            "LIABILITY": "41762569552.36",  # 417.63 亿
+            "ZCFZL": "46.33",  # 负债率 46.33%
+        }
+        rec = _dict_to_finance(data)
+        # 417.63 / 0.4633 ≈ 901.5
+        assert abs(rec.total_assets - 901.5) < 2.0
+
+    def test_net_assets_from_assets_minus_liability(self):
+        """净资产 = 总资产 - 负债。"""
+        data = {
+            "LIABILITY": "41762569552.36",
+            "ZCFZL": "46.33",
+        }
+        rec = _dict_to_finance(data)
+        # 901.5 - 417.63 ≈ 483.9
+        assert abs(rec.net_assets - 483.9) < 2.0
+
+    def test_no_liability_no_calculated_assets(self):
+        """无负债数据时，总资产/净资产为 0。"""
+        data = {"EPSJB": "1.0"}
+        rec = _dict_to_finance(data)
+        assert rec.total_assets == 0.0
+        assert rec.net_assets == 0.0
+
+
+class TestDictToFinanceRatiosAndQoQ:
+    """偿债比率 + 季度环比字段（审查 #13,15）。"""
+
+    def test_current_ratio_mapping(self):
+        """流动比率 LD 字段映射。"""
+        data = {"LD": "0.520272753675"}
+        rec = _dict_to_finance(data)
+        assert abs(rec.current_ratio - 0.52) < 0.01
+
+    def test_quick_ratio_mapping(self):
+        """速动比率 SD 字段映射。"""
+        data = {"SD": "0.402057372501"}
+        rec = _dict_to_finance(data)
+        assert abs(rec.quick_ratio - 0.40) < 0.01
+
+    def test_deducted_np_yoy_mapping(self):
+        """扣非净利同比映射。"""
+        data = {"KCFJCXSYJLRTZ": "30.9164239908"}
+        rec = _dict_to_finance(data)
+        assert abs(rec.deducted_np_yoy - 30.92) < 0.01
+
+    def test_revenue_qoq_mapping(self):
+        """营收季度环比映射。"""
+        data = {"DJD_TOI_QOQ": "5.955975799133"}
+        rec = _dict_to_finance(data)
+        assert abs(rec.revenue_qoq - 5.96) < 0.01
+
+    def test_profit_qoq_mapping(self):
+        """净利季度环比映射。"""
+        data = {"DJD_DPNP_QOQ": "52.502154334656"}
+        rec = _dict_to_finance(data)
+        assert abs(rec.profit_qoq - 52.50) < 0.01
+
+    def test_gross_margin_qoq_mapping(self):
+        """毛利率环比变动映射。"""
+        data = {"XSMLL_TB": "5.772626239555"}
+        rec = _dict_to_finance(data)
+        assert abs(rec.gross_margin_qoq - 5.77) < 0.01
+
+    def test_ratios_rounded_to_2_decimals(self):
+        """比率字段保留 2 位小数。"""
+        data = {"LD": "0.520272753675", "SD": "0.402057372501"}
+        rec = _dict_to_finance(data)
+        # round(0.520272..., 2) = 0.52
+        assert rec.current_ratio == 0.52
+        assert rec.quick_ratio == 0.4
+
+
 class TestFinanceCompletenessCheck:
     """完整性校验测试（get_finance 中的 eps/roe 全零检查）。"""
 

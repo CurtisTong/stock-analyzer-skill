@@ -209,11 +209,15 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
     # 使用短 TTL 缓存避免重复网络请求
     if records and all(r.eps == 0 and r.roe == 0 for r in records):
         if use_cache:
-            cache.set_json(zero_key, [r.to_dict() for r in records])
+            # 缓存原始 fetcher 输出（元单位），而非 to_dict()（已转亿元），
+            # 避免 _dict_to_finance 二次转换导致绝对值归零
+            cache.set_json(zero_key, result)
         return records
 
     if use_cache and records:
-        cache.set_json(key, [r.to_dict() for r in records])
+        # 缓存原始 fetcher 输出（元单位），非 to_dict()（亿元），
+        # 否则读取时 _dict_to_finance 会再次 /1e8 导致绝对值归零
+        cache.set_json(key, result)
 
     return records
 
@@ -328,6 +332,28 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
                 return d[k]
         return default
 
+    # 绝对值字段：东财返回"元"，/1e8 转亿元（保留 2 位）
+    _YI = 1e8
+
+    total_revenue = round(to_float(_find(FIELD_MAP["total_revenue"])) / _YI, 2)
+    parent_net_profit = round(
+        to_float(_find(FIELD_MAP["parent_net_profit"])) / _YI, 2
+    )
+    deducted_net_profit = round(
+        to_float(_find(FIELD_MAP["deducted_net_profit"])) / _YI, 2
+    )
+    total_liability = round(to_float(_find(FIELD_MAP["total_liability"])) / _YI, 2)
+    fcf = round(to_float(_find(FIELD_MAP["fcf"])) / _YI, 2)
+    debt_ratio = to_float(_find(FIELD_MAP["debt_ratio"]))
+
+    # 计算字段：会计恒等式 资产=负债+权益，无需总股本
+    # total_assets = 负债 / (负债率/100)；net_assets = 总资产 - 负债
+    total_assets = 0.0
+    net_assets = 0.0
+    if total_liability > 0 and debt_ratio > 0:
+        total_assets = round(total_liability / (debt_ratio / 100.0), 2)
+        net_assets = round(total_assets - total_liability, 2)
+
     return FinanceRecord(
         report_date=str(_find(FIELD_MAP["report_date"]))[:10],
         eps=to_float(_find(FIELD_MAP["eps"])),
@@ -336,7 +362,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         net_profit_yoy=to_float(_find(FIELD_MAP["net_profit_yoy"])),
         gross_margin=to_float(_find(FIELD_MAP["gross_margin"])),
         net_margin=to_float(_find(FIELD_MAP["net_margin"])),
-        debt_ratio=to_float(_find(FIELD_MAP["debt_ratio"])),
+        debt_ratio=debt_ratio,
         bps=to_float(_find(FIELD_MAP["bps"])),
         ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
         goodwill=to_float(_find(FIELD_MAP["goodwill"])),
@@ -353,6 +379,22 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         audit_opinion=str(_find(FIELD_MAP["audit_opinion"])),
         source=d.get("source", ""),
         fetch_time=d.get("fetch_time") or _now_iso(),
+        # 绝对值 + 计算字段
+        total_revenue=total_revenue,
+        parent_net_profit=parent_net_profit,
+        deducted_net_profit=deducted_net_profit,
+        total_liability=total_liability,
+        total_assets=total_assets,
+        net_assets=net_assets,
+        ocf=0.0,  # 经营现金流绝对值需 ocf_per_share×总股本，由调用方（stock_analysis 层）enrich
+        fcf=fcf,
+        # 偿债能力 + 季度环比（保留 2 位小数，与绝对值精度一致）
+        quick_ratio=round(to_float(_find(FIELD_MAP["quick_ratio"])), 2),
+        current_ratio=round(to_float(_find(FIELD_MAP["current_ratio"])), 2),
+        deducted_np_yoy=round(to_float(_find(FIELD_MAP["deducted_np_yoy"])), 2),
+        revenue_qoq=round(to_float(_find(FIELD_MAP["revenue_qoq"])), 2),
+        profit_qoq=round(to_float(_find(FIELD_MAP["profit_qoq"])), 2),
+        gross_margin_qoq=round(to_float(_find(FIELD_MAP["gross_margin_qoq"])), 2),
     )
 
 

@@ -35,13 +35,21 @@ def render_table(records: list) -> str:
     fields = [
         ("eps", "每股收益"),
         ("roe", "ROE%"),
+        ("total_revenue", "营收亿"),
+        ("parent_net_profit", "归母净利亿"),
+        ("deducted_net_profit", "扣非亿"),
         ("revenue_yoy", "营收同比%"),
         ("net_profit_yoy", "净利同比%"),
+        ("deducted_np_yoy", "扣非同比%"),
         ("gross_margin", "毛利率%"),
         ("net_margin", "净利率%"),
         ("debt_ratio", "负债率%"),
         ("bps", "每股净资产"),
         ("ocf_per_share", "每股现金流"),
+        ("current_ratio", "流动比率"),
+        ("quick_ratio", "速动比率"),
+        ("revenue_qoq", "营收环比%"),
+        ("profit_qoq", "净利环比%"),
     ]
     lines = []
     header = " | ".join(["报告期"] + [label for _, label in fields])

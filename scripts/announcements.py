@@ -94,7 +94,103 @@ def render_reports(items: list) -> str:
         date = it.get("publishDate", "")[:10]
         it.get("infoCode", "")  # 简化
         lines.append(f"{date} | {org} | {title}")
+    # 追加机构一致预期小结（解决审查 #17：机构预期完全缺失）
+    consensus = summarize_consensus(items)
+    if consensus:
+        lines.append("")
+        lines.append("=== 机构一致预期 ===")
+        lines.append(f"覆盖机构数: {consensus['institution_count']}")
+        if consensus["target_price_avg"] > 0:
+            lines.append(
+                f"目标价均值: {consensus['target_price_avg']:.2f} 元"
+                f"（{consensus['target_price_count']} 家给出）"
+            )
+        if consensus["rating_distribution"]:
+            rating_str = "、".join(
+                f"{k} {v}家" for k, v in consensus["rating_distribution"]
+            )
+            lines.append(f"评级分布: {rating_str}")
+        if consensus["predict_eps_this_year"] > 0:
+            lines.append(
+                f"预测EPS(当年/次年): {consensus['predict_eps_this_year']:.2f}"
+                f" / {consensus['predict_eps_next_year']:.2f}"
+            )
+        if consensus["predict_pe_this_year"] > 0:
+            lines.append(
+                f"预测PE(当年/次年): {consensus['predict_pe_this_year']:.2f}"
+                f" / {consensus['predict_pe_next_year']:.2f}"
+            )
     return "\n".join(lines)
+
+
+def summarize_consensus(items: list) -> dict:
+    """从研报列表聚合机构一致预期（解决审查 #17）。
+
+    东财 reportapi 已返回目标价/评级/预测EPS/预测PE，但 render_reports 原仅提取
+    标题/机构/日期，本函数补齐结构化聚合。
+
+    Args:
+        items: fetch_reports 返回的原始研报列表（含 indvAimPriceT/emRatingName/...）
+
+    Returns:
+        {
+            "institution_count": int,            # 覆盖机构数
+            "target_price_avg": float,           # 目标价均值（元）
+            "target_price_count": int,           # 给出目标价的机构数
+            "rating_distribution": list[tuple],  # [(评级, 数量), ...] 按数量降序
+            "predict_eps_this_year": float,      # 预测当年EPS
+            "predict_eps_next_year": float,      # 预测次年EPS
+            "predict_pe_this_year": float,       # 预测当年PE
+            "predict_pe_next_year": float,       # 预测次年PE
+        }
+    """
+    if not items:
+        return {}
+
+    # 目标价：indvAimPriceT（目标价-上限）优先，回退 indvAimPriceL
+    target_prices = []
+    for it in items:
+        tp = it.get("indvAimPriceT") or it.get("indvAimPriceL")
+        if tp:
+            try:
+                val = float(tp)
+                if val > 0:
+                    target_prices.append(val)
+            except (TypeError, ValueError):
+                pass
+
+    # 评级分布：emRatingName（买入/增持/中性/减持/卖出）
+    ratings = {}
+    for it in items:
+        rating = it.get("emRatingName") or it.get("sRatingName")
+        if rating:
+            ratings[rating] = ratings.get(rating, 0) + 1
+
+    # 预测EPS/PE：取最新一期研报（items[0] 通常按 publishDate 降序）
+    latest = items[0] if items else {}
+
+    def _safe_float(val):
+        if not val:
+            return 0.0
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return 0.0
+
+    return {
+        "institution_count": len(items),
+        "target_price_avg": (
+            sum(target_prices) / len(target_prices) if target_prices else 0.0
+        ),
+        "target_price_count": len(target_prices),
+        "rating_distribution": sorted(
+            ratings.items(), key=lambda x: -x[1]
+        ),
+        "predict_eps_this_year": _safe_float(latest.get("predictThisYearEps")),
+        "predict_eps_next_year": _safe_float(latest.get("predictNextYearEps")),
+        "predict_pe_this_year": _safe_float(latest.get("predictThisYearPe")),
+        "predict_pe_next_year": _safe_float(latest.get("predictNextYearPe")),
+    }
 
 
 def main():
