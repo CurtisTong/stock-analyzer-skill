@@ -6,7 +6,7 @@ import json
 import pytest
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
@@ -231,3 +231,110 @@ class TestInitPool:
         assert result is False
         captured = capsys.readouterr()
         assert "boom" in captured.err
+
+
+# ═══════════════════════════════════════════════════════════════
+# init_full_market + main
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestInitFullMarket:
+    def test_already_initialized(self, tmp_path, capsys, monkeypatch):
+        """全市场已初始化时跳过。"""
+        import init_pool as ip
+        all_path = tmp_path / "all_stocks.json"
+        all_path.parent.mkdir(parents=True, exist_ok=True)
+        all_path.write_text(json.dumps({"_meta": {"total_stocks": 5000}}))
+        monkeypatch.setattr(ip, "ALL_STOCKS_FILE", all_path)
+        result = ip.init_full_market(force=False)
+        assert result is False
+        captured = capsys.readouterr()
+        assert "已存在" in captured.out or "跳过" in captured.out
+
+    def test_force_refresh(self, tmp_path, capsys, monkeypatch):
+        """force=True 时强制重新拉取。"""
+        import init_pool as ip
+        all_path = tmp_path / "all_stocks.json"
+        monkeypatch.setattr(ip, "ALL_STOCKS_FILE", all_path)
+        with patch("init_pool.fetch_all_market_stocks",
+                   return_value={"主板": ["sh600519"], "创业板": ["sz300750"]}), \
+             patch("init_pool.save_all_market_stocks", return_value=None):
+            result = ip.init_full_market(force=True)
+        assert result is True
+
+    def test_init_failure(self, tmp_path, capsys, monkeypatch):
+        """fetch 失败时 graceful 返回 False。"""
+        import init_pool as ip
+        all_path = tmp_path / "all_stocks.json"
+        monkeypatch.setattr(ip, "ALL_STOCKS_FILE", all_path)
+        with patch("init_pool.fetch_all_market_stocks",
+                   side_effect=Exception("API down")):
+            result = ip.init_full_market(force=True)
+        assert result is False
+
+
+class TestMain:
+    def test_no_args(self, capsys, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["init_pool.py"])
+        with patch("init_pool.init_pool", return_value={"A": ["sh"]}):
+            try:
+                import init_pool as ip
+                ip.main()
+            except SystemExit:
+                pass
+
+    def test_full_market_flag(self, capsys, monkeypatch):
+        """--full-market 时调用 init_full_market。"""
+        with patch("init_pool.init_full_market", return_value=True) as m:
+            monkeypatch.setattr(sys, "argv", ["init_pool.py", "--full-market"])
+            try:
+                import init_pool as ip
+                ip.main()
+            except SystemExit:
+                pass
+        m.assert_called_once()
+
+    def test_force_flag(self, capsys, monkeypatch):
+        """--force 时 force=True 传给 init_pool。"""
+        with patch("init_pool.init_pool", return_value={}) as m:
+            monkeypatch.setattr(sys, "argv", ["init_pool.py", "--force"])
+            try:
+                import init_pool as ip
+                ip.main()
+            except SystemExit:
+                pass
+        assert m.call_args.kwargs.get("force") is True
+
+    def test_top_flag(self, capsys, monkeypatch):
+        """--top 30 时 top_n=30 传入。"""
+        with patch("init_pool.init_pool", return_value={}) as m:
+            monkeypatch.setattr(sys, "argv", ["init_pool.py", "--top", "30"])
+            try:
+                import init_pool as ip
+                ip.main()
+            except SystemExit:
+                pass
+        assert m.call_args.kwargs.get("top_n") == 30
+
+    def test_default_flag(self, capsys, monkeypatch):
+        """--default 时 use_default=True。"""
+        with patch("init_pool.init_pool", return_value={}) as m:
+            monkeypatch.setattr(sys, "argv", ["init_pool.py", "--default"])
+            try:
+                import init_pool as ip
+                ip.main()
+            except SystemExit:
+                pass
+        assert m.call_args.kwargs.get("use_default") is True
+
+    def test_json_flag(self, capsys, monkeypatch):
+        """-j 时输出 JSON。"""
+        with patch("init_pool.init_full_market", return_value=True):
+            monkeypatch.setattr(sys, "argv", ["init_pool.py", "--full-market", "-j"])
+            try:
+                import init_pool as ip
+                ip.main()
+            except SystemExit:
+                pass
+        captured = capsys.readouterr()
+        assert "ok" in captured.out or "status" in captured.out
