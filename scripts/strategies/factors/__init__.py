@@ -12,6 +12,7 @@ from .dividend import dividend_score
 from .chip import chip_score_static, chip_score_dynamic, chip_details
 from .event import event_score
 from .analyst import analyst_expectation_score
+from .cyclical import cyclical_score, get_cycle_position
 from .registry import (
     register_factor,
     get_factor_keys,
@@ -104,4 +105,15 @@ register_factor(
     args_style="quote_fin_industry",
     label="分析师",
     default_weight=0.0,
+)
+
+# v2.5.0 Phase 3：周期因子（多因子周期位置矩阵）
+# 非周期行业返回中性 50，不影响评分；周期行业按价格/供给/成本三维度评估
+register_factor(
+    "cyclical",
+    compute_fn=cyclical_score,
+    phase=1,
+    args_style="fin_quote_features_industry",
+    label="周期",
+    default_weight=0.0,  # 默认 0，策略按需配置权重
 )

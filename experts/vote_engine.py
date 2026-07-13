@@ -416,6 +416,7 @@ def aggregate_votes(
     *,
     prefer_horizon: bool = False,
     veto_results: Optional[Dict[str, Dict[str, bool]]] = None,
+    risk_coefficients: Optional[Dict[str, float]] = None,
 ) -> dict:
     """整合 8 位 active 专家投票（5 长线 + 3 短线），输出最终决策（decide.md 完整规则）。
 
@@ -433,7 +434,14 @@ def aggregate_votes(
                        horizon 权重优先于 market_state；False（默认）保持向后兼容。
         veto_results: 一票否决预评估结果。格式为
             {expert_name: {condition_desc: bool_triggered, ...}, ...}。
-            触发否决的专家评分被强制降至 20（强烈看空）。
+            向后兼容：旧格式 bool 值触发则评分降至 20。
+            新格式（veto_evaluator.py 输出）：dict 含 triggered/risk_coeff/evaluable。
+        risk_coefficients: 风险分级系数（v2.5.0 Phase 2 新增）。格式为
+            {expert_name: float}，取值 0.0-1.0。
+            - 0.0：刚性底线触发，评分直接归零
+            - 0.2-1.0：弹性风险折扣，score = score × coeff
+            - 1.0 或缺失：无折扣
+            优先于 veto_results 的旧降分逻辑（更精细的风险分级）。
 
     Returns:
         {
@@ -459,20 +467,58 @@ def aggregate_votes(
     # 污染调用方持有的原始评分（影响风险提示、A/B 对比、校准记录、二次渲染）。
     expert_results = [dict(r) for r in expert_results]
 
-    # 一票否决机制：当某专家的否决条件被触发时，强制降分至 20（强烈看空）
+    # ── 风险分级机制（v2.5.0 Phase 2）──
+    # 将原"一票否决->降至20"的硬性逻辑改造为两级体系：
+    # - 刚性底线（risk_coeff=0.0）：评分归零（生存底线，如商誉/净资产>50%）
+    # - 弹性风险系数（0.2-1.0）：score × coeff（折扣但非零，如周期高位 coeff=0.4）
+    # risk_coefficients 优先于 veto_results；两者都为空时保持原行为不变。
     veto_notes = []
-    if veto_results:
+    if risk_coefficients:
+        for r in expert_results:
+            name = r.get("name", "")
+            coeff = risk_coefficients.get(name, 1.0)
+            if coeff < 1.0:
+                original_score = r["score"]
+                if coeff <= 0.0:
+                    # 刚性底线：直接归零
+                    r["score"] = 0.0
+                    r["direction"] = "强烈看空"
+                    veto_notes.append(
+                        f"{r.get('display_name', name)} 触发刚性底线"
+                        f"（risk_coeff={coeff:.1f}），评分 {original_score:.0f}->0"
+                    )
+                else:
+                    # 弹性风险系数：折扣
+                    r["score"] = round(original_score * coeff, 1)
+                    r["direction"] = (
+                        "强烈看空" if r["score"] < 30 else r["direction"]
+                    )
+                    veto_notes.append(
+                        f"{r.get('display_name', name)} 风险折扣"
+                        f"（risk_coeff={coeff:.1f}），评分 {original_score:.0f}"
+                        f"->{r['score']:.0f}"
+                    )
+    elif veto_results:
+        # 向后兼容：旧 veto_results 格式（{expert: {cond: bool}}）
+        # 触发则降至 20（保留原逻辑，但 risk_coefficients 存在时不走此分支）
         for r in expert_results:
             name = r.get("name", "")
             expert_veto = veto_results.get(name, {})
-            triggered = [cond for cond, triggered in expert_veto.items() if triggered]
+            # 兼容旧格式（bool）和新格式（dict 含 triggered）
+            triggered = []
+            for cond, val in expert_veto.items():
+                if isinstance(val, dict):
+                    if val.get("triggered"):
+                        triggered.append(cond)
+                elif val:
+                    triggered.append(cond)
             if triggered:
                 original_score = r["score"]
                 r["score"] = 20.0
                 r["direction"] = "强烈看空"
                 veto_notes.append(
                     f"{r.get('display_name', name)} 被一票否决"
-                    f"（{'; '.join(triggered)}），评分 {original_score:.0f}→20"
+                    f"（{'; '.join(triggered)}），评分 {original_score:.0f}->20"
                 )
 
     # 分组：优先用专家结果自带的 group 字段；缺失时从注册表按 name 补全。

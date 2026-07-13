@@ -302,7 +302,7 @@ def fetch_wti_oil() -> dict | None:
 
 
 def fetch_lithium() -> dict | None:
-    """电池级碳酸锂价格（CNY/吨）。yfinance 不覆盖 → 仅 fixture。"""
+    """电池级碳酸锂价格（CNY/吨）。yfinance 不覆盖 -> 仅 fixture。"""
     snapshot = _load_snapshot()
     if "lithium_carbonate_cny_t" in snapshot:
         return {
@@ -312,6 +312,53 @@ def fetch_lithium() -> dict | None:
             "symbol": "lithium_carbonate",
         }
     return None
+
+
+def _fetch_fixture_only(fixture_key: str, symbol_name: str) -> dict | None:
+    """fixture-only 大宗商品拉取（yfinance 不覆盖的品种）。
+
+    v2.5.0 Phase 3：周期原料价格（煤炭/聚乙烯/聚丙烯/螺纹钢/铜/铝）
+    yfinance 无对应合约，走 macro_snapshot.json fixture。
+    """
+    snapshot = _load_snapshot()
+    if fixture_key in snapshot:
+        return {
+            "value": snapshot[fixture_key],
+            "as_of": snapshot["updated"],
+            "source": "fixture",
+            "symbol": symbol_name,
+        }
+    return None
+
+
+def fetch_coal() -> dict | None:
+    """动力煤价格（CNY/吨）。fixture-only。"""
+    return _fetch_fixture_only("coal_thermal_cny_t", "coal_thermal")
+
+
+def fetch_polyethylene() -> dict | None:
+    """聚乙烯价格（CNY/吨）。fixture-only。"""
+    return _fetch_fixture_only("polyethylene_cny_t", "polyethylene")
+
+
+def fetch_polypropylene() -> dict | None:
+    """聚丙烯价格（CNY/吨）。fixture-only。"""
+    return _fetch_fixture_only("polypropylene_cny_t", "polypropylene")
+
+
+def fetch_rebar() -> dict | None:
+    """螺纹钢价格（CNY/吨）。fixture-only。"""
+    return _fetch_fixture_only("rebar_cny_t", "rebar")
+
+
+def fetch_copper() -> dict | None:
+    """铜价格（CNY/吨）。fixture-only。"""
+    return _fetch_fixture_only("copper_cny_t", "copper")
+
+
+def fetch_aluminum() -> dict | None:
+    """铝价格（CNY/吨）。fixture-only。"""
+    return _fetch_fixture_only("aluminum_cny_t", "aluminum")
 
 
 # ═══════════════════════════════════════════════════════════════

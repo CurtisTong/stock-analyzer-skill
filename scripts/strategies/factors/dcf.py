@@ -278,6 +278,138 @@ def dcf_score(price: float, fin: dict, industry: str = "默认") -> float:
 
 
 # ═══════════════════════════════════════════════════════════════
+# DCF 三情景估值（v2.5.0 Phase 3）
+# ═══════════════════════════════════════════════════════════════
+
+# 周期位置 -> 三情景权重（bear/base/bull）
+_CYCLE_SCENARIO_WEIGHTS = {
+    "high": {"bear": 0.80, "base": 0.15, "bull": 0.05},  # 疑似顶部：悲观主导
+    "mid": {"bear": 0.25, "base": 0.50, "bull": 0.25},  # 中性：均衡
+    "low": {"bear": 0.05, "base": 0.15, "bull": 0.80},  # 疑似底部：乐观主导
+    "unknown": {"bear": 0.25, "base": 0.50, "bull": 0.25},  # 未知：同中性
+}
+
+
+def dcf_scenario_valuation(
+    price: float,
+    fin: dict,
+    industry: str = "默认",
+    cycle_position: str = "unknown",
+    stock_code: str = None,
+) -> dict:
+    """三情景 DCF 估值（v2.5.0 Phase 3）。
+
+    基于周期位置评估矩阵，设定悲观/中性/乐观三种情景下的增长率，
+    各跑一次 DCF 后按周期位置赋权合成安全边际。
+
+    替代原"5年平均法无法计算归零"的僵化逻辑：
+    - 不再因无法取得确定数字而归零
+    - 而是用情景加权量化"安全边际很薄但有"
+    - 周期高位时悲观情景权重 80%，如仍有正向安全边际则清晰量化
+
+    Args:
+        price: 当前股价
+        fin: 财务 dict
+        industry: 行业类型
+        cycle_position: 周期位置 "high"/"mid"/"low"/"unknown"
+        stock_code: 传入时用 CAPM 计算 WACC
+
+    Returns:
+        {
+            "intrinsic_value": 加权内在价值,
+            "margin_of_safety": 加权安全边际,
+            "scenarios": {bear/base/bull: {intrinsic_value, margin_of_safety}},
+            "scenario_weights": {bear/base/bull: weight},
+            "cycle_position": cycle_position,
+            "method": "dcf_scenario",
+        }
+    """
+    # 三情景增长率推断
+    profit_yoy = to_float(
+        fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0))
+    )
+    current_growth = min(max(profit_yoy / 100, 0.01), 0.30) if profit_yoy > 0 else 0.05
+
+    # bear: 周期底部利润（增速大幅下滑甚至负增长）
+    bear_growth = max(0.01, current_growth * 0.2)
+    # base: 正常化利润（增速回归均值）
+    base_growth = max(0.03, min(current_growth * 0.5, 0.15))
+    # bull: 当前利润（维持当前增速）
+    bull_growth = current_growth
+
+    scenarios = {}
+    for name, growth in [("bear", bear_growth), ("base", base_growth), ("bull", bull_growth)]:
+        result = dcf_valuation(
+            price, fin, growth_rate=growth, industry=industry, stock_code=stock_code
+        )
+        if result.get("error"):
+            # 单情景无数据时返回中性
+            return {
+                "intrinsic_value": 0,
+                "price": price,
+                "margin_of_safety": -100,
+                "error": result["error"],
+                "method": "dcf_scenario",
+            }
+        scenarios[name] = {
+            "intrinsic_value": result["intrinsic_value"],
+            "margin_of_safety": result["margin_of_safety"],
+            "growth_rate": growth,
+        }
+
+    # 按周期位置赋权
+    weights = _CYCLE_SCENARIO_WEIGHTS.get(cycle_position, _CYCLE_SCENARIO_WEIGHTS["unknown"])
+
+    # 加权合成安全边际
+    weighted_margin = sum(
+        scenarios[s]["margin_of_safety"] * weights[s] for s in ("bear", "base", "bull")
+    )
+    weighted_value = sum(
+        scenarios[s]["intrinsic_value"] * weights[s] for s in ("bear", "base", "bull")
+    )
+
+    return {
+        "intrinsic_value": round(weighted_value, 2),
+        "price": price,
+        "margin_of_safety": round(weighted_margin, 1),
+        "scenarios": scenarios,
+        "scenario_weights": weights,
+        "cycle_position": cycle_position,
+        "method": "dcf_scenario",
+    }
+
+
+def dcf_scenario_score(
+    price: float,
+    fin: dict,
+    industry: str = "默认",
+    cycle_position: str = "unknown",
+) -> float:
+    """三情景 DCF 评分（0-100，50=合理估值）。
+
+    v2.5.0 Phase 3：用三情景加权安全边际替代单点估计。
+    周期股在疑似高位时悲观情景权重 80%，如仍有正向安全边际，
+    就能清晰量化"安全边际很薄但有"，而非粗暴归零。
+    """
+    result = dcf_scenario_valuation(price, fin, industry, cycle_position)
+    margin = result.get("margin_of_safety", -100)
+
+    if result.get("error"):
+        return 50  # 无数据给中性分（非零）
+
+    if margin > 50:
+        return 90
+    elif margin > 20:
+        return 70
+    elif margin > 0:
+        return 55
+    elif margin > -20:
+        return 40
+    else:
+        return 20
+
+
+# ═══════════════════════════════════════════════════════════════
 # EV/EBITDA 估值（企业价值/息税折旧摊销前利润）
 # ═══════════════════════════════════════════════════════════════
 
