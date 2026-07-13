@@ -43,10 +43,39 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline_data = stock_data.get("kline_data") or {}
 
     # P2-04: ST 股票硬 veto -- 动量派不追 ST/退市风险股
-    stock_name = quote.get("name", "") or ""
-    from data.pool import is_st
+    # 延迟导入 data.pool（位于 scripts/data/pool.py），使用 importlib + 路径
+    # 定位而非裸 import，兼容以下三种调用环境：
+    #   1. `python3 scripts/market_anchor.py` （market_anchor.py 自加 sys.path）
+    #   2. `PYTHONPATH=.:scripts python3 ...` （debate 模式手动指定）
+    #   3. `PYTHONPATH=. python3 -c "from experts.scoring..."` （单元测试/外部）
+    def _is_st(name: str) -> bool:
+        import importlib.util
+        import sys
+        from pathlib import Path
 
-    if is_st(stock_name):
+        # 已缓存则直接返回
+        if "data.pool" in sys.modules:
+            return sys.modules["data.pool"].is_st(name)
+
+        # 动态定位 <repo>/scripts/data/pool.py
+        # this_file: experts/scoring/momentum_trader.py
+        # parents[0]=scoring, [1]=experts, [2]=<repo>
+        repo_root = Path(__file__).resolve().parents[2]
+        pool_path = repo_root / "scripts" / "data" / "pool.py"
+        if not pool_path.exists():
+            return False  # 找不到时降级为"非 ST"，不阻塞主流程
+
+        spec = importlib.util.spec_from_file_location(
+            "data.pool", pool_path,
+            submodule_search_locations=[str(pool_path.parent)],
+        )
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["data.pool"] = mod
+        spec.loader.exec_module(mod)  # type: ignore[union-attr]
+        return mod.is_st(name)
+
+    stock_name = quote.get("name", "") or ""
+    if _is_st(stock_name):
         return {
             "基本面": 10,
             "估值": 10,
