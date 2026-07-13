@@ -14,9 +14,10 @@ def incremental_ma(closes: list, period: int) -> list:
     与传统逐窗口重算的 O(N*period) 相比，利用滑动窗口减去旧值加新值，
     整体仅需一次遍历。
 
-    数据不足 period 根时返回 None，而非不准确的均值。
+    数据不足 period 根时返回 float('nan')，而非不准确的均值。
+    NaN 语义天然安全：任何比较返回 False，运算传播 NaN，下游无需逐处写 is None 守卫。
     """
-    result: list[float | None] = []
+    result: list[float] = []
     window_sum = 0.0
     for i, c in enumerate(closes):
         window_sum += c
@@ -26,7 +27,7 @@ def incremental_ma(closes: list, period: int) -> list:
         elif i == period - 1:
             result.append(window_sum / period)
         else:
-            result.append(None)
+            result.append(float("nan"))
     return result
 
 

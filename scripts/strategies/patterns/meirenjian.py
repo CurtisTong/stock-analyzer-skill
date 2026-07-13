@@ -2,6 +2,8 @@
 美人肩形态识别。
 """
 
+import math
+
 
 def detect_meirenjian(records, closes, highs, lows, volumes, mas):
     """
@@ -33,6 +35,8 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
             continue
 
         # 条件1：横盘前为上升趋势（过去5天 MA5斜率 > 0）
+        if i5 >= 10 and (math.isnan(ma5[i5 - 5]) or math.isnan(ma5[i5 - 10])):
+            continue
         pre_slope = ma5[i5 - 5] - ma5[i5 - 10] if i5 >= 10 else 0
         if pre_slope <= 0:
             continue
@@ -55,6 +59,8 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
             continue
 
         # 横盘期间不破 MA10
+        if math.isnan(ma10[i10]):
+            continue
         if price_low < ma10[i10]:
             continue
 

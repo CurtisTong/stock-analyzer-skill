@@ -123,7 +123,7 @@ def _compute_all(inp: TechnicalInput):
         )
         features["local_patterns"] = local_result
     except Exception as e:
-        logger.debug("本土战法计算失败: %s", e)
+        logger.debug("本土战法计算失败", exc_info=True)
         features["local_patterns"] = {
             "patterns": [],
             "summary": "本土战法计算失败",

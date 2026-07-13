@@ -2,6 +2,8 @@
 老鸭头形态识别。
 """
 
+import math
+
 
 def detect_laoyatou(records, closes, volumes, mas):
     """
@@ -55,9 +57,14 @@ def detect_laoyatou(records, closes, volumes, mas):
             j10 = j_ma60 + ma10_offset
             if j5 < 1:
                 continue
+            # 守卫：incremental_ma 在 K 线不足时返回 NaN，跳过未填充点
+            if math.isnan(ma5[j5]) or math.isnan(ma10[j10]) or math.isnan(ma5[j5 - 1]):
+                continue
             if ma5[j5] < ma10[j10] and ma5[j5] < ma5[j5 - 1]:
-                # 确保鸭头时股价在 MA60 上方
+                # 确保鸭头时股价在 MA60 上方（ma60 尚未填充时跳过）
                 j_ci = j_ma60 + cl_offset
+                if math.isnan(ma60[j_ma60]):
+                    continue
                 if closes[j_ci] > ma60[j_ma60] * 0.95:
                     duck_head_j = j_ma60
                     break
@@ -72,6 +79,9 @@ def detect_laoyatou(records, closes, volumes, mas):
             k10 = k_ma60 + ma10_offset
             k20 = k_ma60 + ma20_offset
             if k20 >= 0 and k5 < len(ma5) and k20 < len(ma20):
+                # 跳过未填充的 MA 值
+                if math.isnan(ma5[k5]) or math.isnan(ma10[k10]) or math.isnan(ma20[k20]):
+                    continue
                 if ma5[k5] > ma10[k10] > ma20[k20]:
                     neck_days += 1
 
