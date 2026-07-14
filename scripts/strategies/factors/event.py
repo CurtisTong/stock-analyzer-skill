@@ -5,7 +5,7 @@
 """
 
 import logging
-from common import clamp
+from common import clamp, to_float
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -130,6 +130,36 @@ def event_score(code: str) -> float:
                 elif "警示" in content or "关注" in content:
                     score -= 5  # 轻微警示
                 break  # 只看最近一次
+
+    # 6. (#10) 业绩预告（-20~+15）
+    forecast = events.get("forecast", [])
+    if forecast:
+        # 取最近一期业绩预告
+        latest = forecast[0]
+        forecast_type = latest.get("forecast_type", "")
+        change_max = to_float(latest.get("change_max", 0))
+        change_min = to_float(latest.get("change_min", 0))
+
+        if forecast_type == "increase":  # 预增
+            if change_min > 100:  # 大幅预增
+                score += 15
+            elif change_min > 50:
+                score += 10
+            else:
+                score += 5
+        elif forecast_type == "loss":  # 预亏
+            score -= 20  # 财报雷预警
+        elif forecast_type == "continue_loss":  # 续亏
+            score -= 15
+        elif forecast_type == "decrease":  # 预减
+            if change_max < -50:  # 大幅预减
+                score -= 12
+            else:
+                score -= 5
+        elif forecast_type == "turn_profit":  # 扭亏
+            score += 12  # 扭亏为盈，正面信号
+        elif forecast_type == "continue_profit":  # 续盈
+            score += 3  # 维持盈利，中性偏正
 
     return clamp(score)
 

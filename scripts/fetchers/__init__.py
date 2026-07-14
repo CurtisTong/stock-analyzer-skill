@@ -231,6 +231,7 @@ def get_event_fetchers() -> list:
             ShareholderChangeFetcher,
             ViolationFetcher,
         )
+        from .event.performance_forecast import PerformanceForecastFetcher
 
         fetchers.extend(
             [
@@ -239,6 +240,7 @@ def get_event_fetchers() -> list:
                 DividendCalendarFetcher(),
                 ShareholderChangeFetcher(),
                 ViolationFetcher(),
+                PerformanceForecastFetcher(),
             ]
         )
 

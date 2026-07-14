@@ -6,6 +6,7 @@
 
 import statistics
 
+from common import to_float
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.rsi import rsi_features
@@ -91,4 +92,50 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         vp = volume_analysis(closes, volumes) or {}
         result["vol_price_signal"] = vp.get("volume_price_signal", 0)
 
+    # (#6) Amihud 非流动性指标：mean(|daily_return| / amount) 近 20 日
+    # 高值 = 流动性差（单位成交额引起的价格变动大）
+    if all_indicators or "amihud" in indicators:
+        amounts = [to_float(getattr(b, "amount", 0)) for b in valid_bars]
+        result["amihud_illiq"] = _calc_amihud(closes, amounts)
+
     return result
+
+
+def _calc_amihud(closes: list, amounts: list, window: int = 20) -> float:
+    """(#6) 计算 Amihud 非流动性指标。
+
+    illiq = mean(|r_i| / amount_i) for i in last `window` days
+    其中 r_i = (close_i - close_{i-1}) / close_{i-1}
+
+    Args:
+        closes: 收盘价序列
+        amounts: 成交额序列（元）
+        window: 计算窗口（默认 20 日）
+
+    Returns:
+        Amihud 非流动性指标，数据不足返回 0
+    """
+    if len(closes) < 2 or len(amounts) < 2:
+        return 0.0
+
+    # 取最近 window 日的收益率和成交额
+    n = min(window, len(closes) - 1)
+    illiq_values = []
+    for i in range(len(closes) - n, len(closes)):
+        if i <= 0:
+            continue
+        try:
+            prev_close = float(closes[i - 1])
+            cur_close = float(closes[i])
+            cur_amount = float(amounts[i])
+        except (TypeError, ValueError):
+            continue
+        if prev_close <= 0 or cur_amount <= 0:
+            continue
+        ret = abs((cur_close - prev_close) / prev_close)
+        illiq_values.append(ret / cur_amount)
+
+    if not illiq_values:
+        return 0.0
+
+    return sum(illiq_values) / len(illiq_values)

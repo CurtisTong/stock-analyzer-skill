@@ -70,6 +70,7 @@ class TestStrategies:
             "volatility",
             "dividend",
             "chip",
+            "event",  # (#10) event 权重激活后纳入归一化校验
         ]
         total = sum(cfg.get(k, 0) for k in keys)
         assert abs(total - 1.0) < 1e-9, f"{name} 权重之和 {total} != 1.0"
@@ -617,6 +618,21 @@ class TestLoadUniverse:
 class TestPreScreenQuotes:
     """全市场预筛选测试。"""
 
+    def setup_method(self, method):
+        """(#1) 每个测试前 mock market_snapshot 返回空水位，回退绝对值阈值。"""
+        import data.market_snapshot as ms
+        self._orig_snapshot = ms.get_market_snapshot
+        ms.get_market_snapshot = lambda: {
+            "avg_amount_yuan": 0.0,
+            "median_cap": 0.0,
+            "updated": "",
+            "source": "test_mock",
+        }
+
+    def teardown_method(self, method):
+        import data.market_snapshot as ms
+        ms.get_market_snapshot = self._orig_snapshot
+
     def _make_args(self, **kwargs):
         defaults = dict(board_limit=0)
         defaults.update(kwargs)
@@ -826,7 +842,7 @@ class TestAnalyzeCode:
         args = _make_args()
         result = analyze_code(sample_quote, "balanced", args)
 
-        # 总分应为各维度加权和（含波动率+红利+筹码因子）
+        # 总分应为各维度加权和（含波动率+红利+筹码+事件因子）
         w = STRATEGIES["balanced"]
         expected = (
             result["quality"] * w["quality"]
@@ -836,6 +852,7 @@ class TestAnalyzeCode:
             + result["volatility"] * w.get("volatility", 0)
             + result["dividend"] * w.get("dividend", 0)
             + result["chip"] * w.get("chip", 0)
+            + 50 * w.get("event", 0)  # (#10) event 因子中性值 50
         )
         assert result["score"] == pytest.approx(expected, abs=0.5)
 

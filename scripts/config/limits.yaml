@@ -45,3 +45,16 @@ loss_years_danger: 3
 # 止损止盈阈值 (%)
 stop_loss_pct: -8
 take_profit_pct: 20
+
+# 预筛选自适应流动性阈值 (#1)
+# 成交额/市值门槛跟随全市场水位动态调整，避免缩量时过度瘦身、亢奋时保留过多跟风股
+# 动态阈值 = clamp(market_ref * ratio, absolute_floor, absolute_ceiling)
+# absolute_floor 来自上方 min_amount / min_total_cap（防止缩量时门槛过低）
+pre_screen_adaptive:
+  enabled: true
+  # 成交额：动态门槛 = 全市场日均成交额 × 万分之一
+  amount_ratio: 0.0001        # 万分之一
+  amount_ceiling_multiplier: 3.0   # 上限 = 板块基准阈值 × 3（防亢奋时门槛过高）
+  # 市值：动态门槛 = 全市场中位市值 × 0.5
+  cap_ratio: 0.5
+  cap_ceiling_multiplier: 2.0     # 上限 = 板块基准阈值 × 2

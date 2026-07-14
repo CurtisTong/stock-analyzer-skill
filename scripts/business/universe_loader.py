@@ -141,7 +141,13 @@ def load_universe(args):
 
 
 def pre_screen_quotes(quotes, args):
-    """全市场模式预筛选：排除 ST / 停牌 / 低流动性 / 低市值股票 + 用户 blacklist。"""
+    """全市场模式预筛选：排除 ST / 停牌 / 低流动性 / 低市值股票 + 用户 blacklist。
+
+    v2.x (#1)：引入自适应流动性阈值。成交额/市值门槛跟随全市场水位动态调整，
+    避免缩量时过度瘦身、亢奋时保留过多跟风股。
+    动态阈值 = clamp(全市场水位 × ratio, 板块绝对值下限, 板块绝对值 × 倍数上限)
+    market_ref 缺失时回退板块绝对值阈值（向后兼容）。
+    """
     before = len(quotes)
 
     # v2.4.0：加载用户偏好（blacklist / sector_exclusions）
@@ -152,6 +158,19 @@ def pre_screen_quotes(quotes, args):
         user_blacklist = set(get_user_preference("blacklist") or [])
     except Exception:
         user_blacklist = set()
+
+    # (#1) 获取全市场水位快照（缓存 1 小时，缺失时全 0 -> 回退绝对值）
+    market_ref = {"avg_amount_yuan": 0.0, "median_cap": 0.0}
+    try:
+        from data.market_snapshot import get_market_snapshot
+
+        snap = get_market_snapshot()
+        market_ref["avg_amount_yuan"] = snap.get("avg_amount_yuan", 0.0)
+        market_ref["median_cap"] = snap.get("median_cap", 0.0)
+    except Exception:
+        pass  # 快照不可用时回退绝对值，不阻断预筛选
+
+    from strategies.filters import adaptive_amount_threshold, adaptive_cap_threshold
 
     result = []
     for q in quotes:
@@ -171,11 +190,13 @@ def pre_screen_quotes(quotes, args):
         bt = board_type(q.get("code", ""))
         if bt == "其他":
             continue
-        min_amt = _PRE_SCREEN["min_amount"].get(bt, 5000) * 10000
+        # (#1) 自适应成交额阈值
+        min_amt = adaptive_amount_threshold(bt, market_ref["avg_amount_yuan"])
         if amount_yuan < min_amt:
             continue
         cap = to_float(q.get("total_cap", 0))
-        min_cap = _PRE_SCREEN["min_cap"].get(bt, 40)
+        # (#1) 自适应市值阈值
+        min_cap = adaptive_cap_threshold(bt, market_ref["median_cap"])
         if cap < min_cap:
             continue
         result.append(q)
@@ -193,14 +214,31 @@ def pre_screen_quotes(quotes, args):
             result.extend(stocks[:board_limit])
 
     after = len(result)
-    print(f"全市场预筛选: {before} → {after} 只（排除 ST/停牌/低流动性/低市值）")
+    # (#1) 日志显示动态水位信息，便于调试
+    if market_ref["avg_amount_yuan"] > 0:
+        print(
+            f"全市场预筛选: {before} -> {after} 只"
+            f"（市场水位: 日均成交额 {market_ref['avg_amount_yuan']/1e8:.0f}亿 / 中位市值 {market_ref['median_cap']:.0f}亿）"
+        )
+    else:
+        print(f"全市场预筛选: {before} -> {after} 只（排除 ST/停牌/低流动性/低市值）")
     return result
 
 
 def apply_portfolio_constraints(
-    rows: list, sector_cap: float = 0.30, trend_penalty: float = 0.70
+    rows: list,
+    sector_cap: float = 0.30,
+    trend_penalty: float = 0.70,
+    benchmark_weights: dict = None,
+    use_benchmark_align: bool = False,
+    max_deviation: float = 0.15,
 ) -> list:
     """应用组合层面约束。
+
+    v2.x (#9) 新增行业偏离约束：
+    - 当 use_benchmark_align=True 且提供 benchmark_weights 时，
+      组合中每个行业的权重不允许偏离基准 ±max_deviation（绝对值差）
+    - 候选池 < 20 只时自动关闭偏离约束（避免过度瘦身）
 
     注意：返回新列表，不修改输入 rows（避免副作用）。
     """
@@ -213,18 +251,63 @@ def apply_portfolio_constraints(
     else:
         max_per_sector = len(rows)
 
+    # (#9) 行业偏离约束：候选池 >= 20 且启用时生效
+    benchmark_active = (
+        use_benchmark_align
+        and benchmark_weights
+        and len(rows) >= 20
+    )
+    # 基准行业权重归一化（确保和为 1.0）
+    if benchmark_active:
+        total_bw = sum(benchmark_weights.values())
+        norm_benchmark = (
+            {k: v / total_bw for k, v in benchmark_weights.items()}
+            if total_bw > 0
+            else {}
+        )
+    else:
+        norm_benchmark = {}
+
     sector_count = {}
     result = []
+    total_added = 0
     for stock in rows:
         industry = stock.get("industry", "默认")
         if sector_count.get(industry, 0) >= max_per_sector:
             continue
+
+        # (#9) 行业偏离检查：当前行业占比 - 基准占比 > max_deviation 时跳过
+        if benchmark_active and industry in norm_benchmark:
+            current_pct = sector_count.get(industry, 0) / max(len(rows), 1)
+            benchmark_pct = norm_benchmark[industry]
+            if current_pct - benchmark_pct > max_deviation:
+                continue
+
         # 深拷贝避免修改原始 rows
         entry = dict(stock)
         if entry.get("trend") == "下降":
             entry["score"] = round(entry["score"] * trend_penalty, 1)
         sector_count[industry] = sector_count.get(industry, 0) + 1
+        total_added += 1
         result.append(entry)
 
     result.sort(key=lambda r: r["score"], reverse=True)
     return result
+
+
+def load_benchmark_industry_weights() -> dict:
+    """(#9) 加载 CSI300 基准行业权重。
+
+    Returns:
+        {industry: weight} dict，文件缺失时返回空 dict。
+    """
+    import json
+
+    path = _get_data_dir() / "csi300_industry_weights.json"
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data.get("weights", {})
+    except Exception:
+        return {}

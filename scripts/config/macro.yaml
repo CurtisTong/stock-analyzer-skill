@@ -1,16 +1,24 @@
 # 宏观安全垫配置
 # 阈值设计原则：极端保守，避免误报
-# GREEN:  VIX < 25 且 TLT > 85
-# YELLOW: VIX 25-35 或 TLT 80-85（任一触发）
-# RED:    VIX > 35 或 TLT < 80（任一触发）
+# GREEN:  VIX < 25 且 TLT > 85 且 ashare_vol < 25
+# YELLOW: VIX 25-30 或 TLT 82-85 或 ashare 25-32（任一触发）
+# ORANGE: VIX 30-35 或 TLT 80-82 或 ashare 32-40（任一触发，仓位压缩至60%）
+# RED:    VIX > 35 或 TLT < 80 或 ashare > 40（任一触发，halt）
+# UNKNOWN: 数据全部缺失（保守半仓 50%）
 
 enabled: true
 
 thresholds:
-  vix_yellow: 25      # VIX > 25 → 避险升温
-  vix_red: 35         # VIX > 35 → 系统性风险
-  tlt_yellow: 85      # TLT < 85 → 美债承压
-  tlt_red: 80         # TLT < 80 → 信用危机
+  vix_yellow: 25      # VIX > 25 -> 避险升温
+  vix_orange: 30      # VIX > 30 -> 风险加剧
+  vix_red: 35         # VIX > 35 -> 系统性风险
+  tlt_yellow: 85      # TLT < 85 -> 美债承压
+  tlt_orange: 82     # TLT < 82 -> 风险加剧
+  tlt_red: 80        # TLT < 80 -> 信用危机
+  # A 股沪深300年化波动率（%）
+  ashare_yellow: 25   # > 25 -> 避险升温
+  ashare_orange: 32   # > 32 -> 风险加剧
+  ashare_red: 35      # > 35 -> 系统性风险
 
 # 数据源配置
 data_source: yfinance

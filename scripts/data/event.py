@@ -46,6 +46,7 @@ def get_events(code: str, days: int = 30) -> dict:
         "dividend": [],
         "shareholder": [],
         "violation": [],
+        "forecast": [],  # (#10) 业绩预告
     }
 
     fetchers = _registry.get_all()

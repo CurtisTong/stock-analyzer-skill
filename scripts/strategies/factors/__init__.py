@@ -94,8 +94,8 @@ register_factor(
     phase=1,
     args_style="code",
     label="事件",
-    # P2-H2: 与 6 策略配置对齐（event 权重均为 0.0），default_weight 改 0.0
-    default_weight=0.0,
+    # (#10) 灰度上线 0.05，IC 跟踪 6 个月后决定是否提权
+    default_weight=0.05,
 )
 
 register_factor(

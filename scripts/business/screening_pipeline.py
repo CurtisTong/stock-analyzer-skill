@@ -218,12 +218,14 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
     # 宏观安全垫检查
     macro_state = None
+    macro_position_ratio = 1.0
     if not getattr(args, "no_macro", False):
         try:
             from strategies.macro import MacroSafetyGate
 
             gate = MacroSafetyGate()
             macro_state, macro_msg = gate.check()
+            macro_position_ratio = macro_state.position_ratio
             _cb("init", {"macro_msg": macro_msg, "macro_state": macro_state})
             if macro_state.value == "RED":
                 _cb("init", {"halted": True, "reason": "macro_red"})
@@ -234,6 +236,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
                     "phase_stats": phase_stats,
                     "snapshot_path": None,
                     "halted": True,
+                    "position_ratio": 0.0,
                 }
         except Exception as e:
             print(f"⚠️ 宏观安全垫检查失败: {e}", file=sys.stderr)
@@ -312,6 +315,12 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     if not args.no_constraints:
         rows = apply_portfolio_constraints(rows, sector_cap=args.sector_cap)
 
+    # (#12) 宏观仓位控制：YELLOW/ORANGE 时按 position_ratio 截断输出数量
+    ratio = macro_position_ratio
+    if isinstance(ratio, (int, float)) and ratio < 1.0 and rows:
+        max_rows = max(1, int(args.top * ratio))
+        rows = rows[:max_rows]
+
     snapshot_path = None
     if args.snapshot:
         try:
@@ -334,4 +343,5 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         "phase_stats": phase_stats,
         "snapshot_path": snapshot_path,
         "halted": False,
+        "position_ratio": macro_position_ratio,
     }

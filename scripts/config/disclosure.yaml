@@ -1,0 +1,22 @@
+# A 股财报披露截止日配置 (#2)
+#
+# 用于校验财务数据时效性：若 fin.report_date 已超过应披露的最近报告期截止日，
+# 则将相关硬过滤条件降级为软警告（data_freshness=stale），避免基于过时数据误伤或误保留。
+#
+# 与 backtest/engine.py 的 _FINANCE_DISCLOSURE_LAG_DAYS=90 语义不同：
+# - 本配置：选股管线的"过截止日应已更新"判定（法定披露窗口）
+# - 90天lag：回测的"防前瞻偏差"保守上限（统一延迟）
+
+ashare_disclosure:
+  # 报告期结束日 -> 法定披露截止日（month-day）
+  periods:
+    Q1:        { report_end: "03-31", deadline: "04-30" }
+    half_year: { report_end: "06-30", deadline: "08-31" }
+    Q3:        { report_end: "09-30", deadline: "10-31" }
+    full_year: { report_end: "12-31", deadline: "04-30" }  # 年报次年 4/30
+  # 宽限期（天）：截止日后额外容忍天数，避免因个别公司延迟披露而误报
+  grace_days: 7
+  # stale 判定后的行为：
+  # - "downgrade"：将 EPS/ROE/商誉/质押等硬过滤降级为软警告（默认）
+  # - "reject"：直接硬拒绝（更保守，适用于高风险场景）
+  stale_action: "downgrade"

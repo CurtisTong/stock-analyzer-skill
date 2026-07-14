@@ -169,14 +169,27 @@ class TestChipScoreStatic:
             assert chip_score_static("sh600519") == 50.0
 
     def test_with_concentration_data(self):
+        # (#5) 多期平滑：中位数([-16.7, -10.0]) = -13.35 -> 落在 [-15,-10) -> 70 分
         holders = [
-            MagicMock(holder_num_change=-16.7),
-            MagicMock(holder_num_change=-10.0),
+            MagicMock(holder_num_change=-16.7, avg_amount=0, end_date=""),
+            MagicMock(holder_num_change=-10.0, avg_amount=0, end_date=""),
         ]
         with patch("strategies.factors.chip._get_cached_holders", return_value=holders):
             from strategies.factors.chip import chip_score_static
             score = chip_score_static("sh600519")
-            # 户数减少 16.7% -> 大幅集中 -> 80 分
+            # 平滑后中位数 -13.35 -> [-15,-10) -> 70 分
+            assert score == 70.0
+
+    def test_with_concentration_consistent(self):
+        # (#5) 多期平滑：两期均 < -15 -> 中位数仍 < -15 -> 80 分
+        holders = [
+            MagicMock(holder_num_change=-20.0, avg_amount=0, end_date=""),
+            MagicMock(holder_num_change=-16.0, avg_amount=0, end_date=""),
+        ]
+        with patch("strategies.factors.chip._get_cached_holders", return_value=holders):
+            from strategies.factors.chip import chip_score_static
+            score = chip_score_static("sh600519")
+            # 两期均大幅集中，平滑后仍 < -15 -> 80 分
             assert score == 80.0
 
     def test_insufficient_holders(self):

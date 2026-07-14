@@ -358,6 +358,17 @@ class ScreeningService:
         bd = board_type(code)
         eps = to_float(fin.get("eps", fin.get("EPSJB")))
 
+        # (#2) 财务数据时效性校验：report_date 过期时将财务硬过滤降级为软警告
+        fin_stale = False
+        try:
+            from business.finance_freshness import check_finance_freshness
+
+            fin_stale, stale_msg = check_finance_freshness(fin)
+            if fin_stale:
+                warnings.append(f"{stale_msg}(财务硬过滤降级为警告)")
+        except Exception:
+            pass  # 时效校验失败不阻断过滤
+
         # 退市风险：市值过小（提高阈值，注册制后退市常态化）
         min_survival_cap = _min_survival_cap(bd)
         if 0 < to_float(quote.get("total_cap")) < min_survival_cap:
@@ -384,22 +395,31 @@ class ScreeningService:
                 warnings.append("营收大幅下滑+亏损(退市风险警示)")
 
         # 亏损过滤（改为可配置，默认过滤）
+        # (#2) 财务数据过期时降级为软警告，避免基于过时 EPS 误伤
         filter_loss = filters.get("filter_loss", True)
         if filter_loss and eps < 0:
-            reasons.append("EPS<0(亏损)")
+            if fin_stale:
+                warnings.append("EPS<0(亏损,财务数据过期降级)")
+            else:
+                reasons.append("EPS<0(亏损)")
 
         # 商誉减值风险（无数据时跳过）
+        # (#2) 财务数据过期时降级为软警告
         goodwill_ratio = to_float(
             fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0))
         )
         if goodwill_ratio > _goodwill_threshold():
-            reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
+            if fin_stale:
+                warnings.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险,财务数据过期降级)")
+            else:
+                reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
         # 股权质押率过高（降为预警而非硬过滤，2026更新）
+        # (#2) 财务数据过期时降级为软警告
         pledge_ratio = to_float(fin.get("pledge_ratio", fin.get("PLEDGE_RATIO", 0)))
         pledge_as_warning = filters.get("pledge_warning", False)
         if pledge_ratio > _pledge_threshold():
-            if pledge_as_warning:
+            if pledge_as_warning or fin_stale:
                 warnings.append(f"质押率>{pledge_ratio:.0f}%(偏高)")
             else:
                 reasons.append(f"质押率>{pledge_ratio:.0f}%(爆仓风险)")
@@ -433,15 +453,37 @@ class ScreeningService:
                 label += f"({bd}阈值)"
             reasons.append(label)
 
-        # 涨跌停过滤：T+1 下当日无法交易（涨 ≥ 涨停 或 跌 ≤ -涨停）
+        # (#3) 涨跌停过滤：区分一字板（无量涨停）与换手板（有量涨停）
+        # 一字板 T+1 无法买入 -> 硬过滤；换手板可参与 -> 软警告
+        # 跌停一律硬过滤（T+1 无法卖出但买入无意义）
         change_pct = to_float(quote.get("change_pct", 0))
         board_limit = _board_limit(bd)
-        if change_pct >= board_limit or change_pct <= -board_limit:
+        if change_pct >= board_limit:
+            # 涨停：判定一字板 vs 换手板
+            allow_tradable = filters.get("allow_tradable_limit_up", False)
+            if allow_tradable:
+                try:
+                    from data.zt_pool import is_one_word_limit_up
+
+                    if is_one_word_limit_up(code):
+                        reasons.append("一字涨停(无量,无法买入)")
+                    else:
+                        warnings.append("涨停(有量,可参与)")
+                except Exception:
+                    # zt_pool 不可用时回退硬过滤
+                    reasons.append("涨跌停限制")
+            else:
+                reasons.append("涨跌停限制")
+        elif change_pct <= -board_limit:
             reasons.append("涨跌停限制")
 
         # 排除亏损（来自 filters）
+        # (#2) 财务数据过期时降级为软警告
         if filters.get("exclude_loss") and eps <= 0:
-            reasons.append("EPS<=0")
+            if fin_stale:
+                warnings.append("EPS<=0(财务数据过期降级)")
+            else:
+                reasons.append("EPS<=0")
 
         # P1-19: 返回 (reasons, warnings) 元组，warnings 不导致拒绝
         return reasons, warnings
@@ -552,19 +594,23 @@ def compute_weighted_score(parts, strategy, regime=None):
 def normalize_factors_batch(
     parts_list: List[Dict[str, float]],
 ) -> List[Dict[str, float]]:
-    """对一批股票 6 因子做 cross-sectional z-score 标准化。
+    """对一批股票因子做 cross-sectional 分位数归一化。
 
-    每个因子的均值/方差从该批次计算，z = (x - mean) / std。
-    输出范围约为 [-3, 3]，再线性映射到 [0, 100] 保留原有 [0,100] 评分语义。
+    v2.x (#8) 全量替换为分位数归一化：
+    - 大样本（>=30）：将每个因子的原始值在全截面上排百分位，直接映射到 [0, 100]
+      此方法不依赖分布假设，保证各因子评分在截面上均匀分散，最大化区分度
+    - 小样本（<30）：降级回 MAD（中位数绝对离差）标准化
+      MAD = median(|x - median|)，稳健不受极值影响
+      normed = 50 + (x - median) / (1.4826 * MAD) * 15
 
-    解决问题（review#14）：六因子评分范围差异巨大（quality 30-85, volatility 5-95），
-    不加标准化导致 volatility 因子隐式权重超调。
+    解决问题：Z-score 的均值/标准差受极值影响，在 5000 只股票截面上
+    个别财务异常股会压缩大多数股票的分差，导致区分度不足。
 
     Args:
-        parts_list: 候选股 7 因子 dict 列表
+        parts_list: 候选股因子 dict 列表
 
     Returns:
-        标准化后的 7 因子 dict 列表（顺序与输入对应）
+        归一化后的因子 dict 列表（顺序与输入对应）
     """
     if not parts_list:
         return parts_list
@@ -573,17 +619,65 @@ def normalize_factors_batch(
         return [dict(p) for p in parts_list]
     import statistics
 
-    keys = get_factor_keys()  # 从注册表自动获取，不再硬编码
-    means = {k: statistics.mean(p.get(k, 0) for p in parts_list) for k in keys}
-    stds = {k: (statistics.stdev(p.get(k, 0) for p in parts_list) or 1.0) for k in keys}
-    out = []
-    for p in parts_list:
-        normed = dict(p)
+    keys = get_factor_keys()  # 从注册表自动获取
+    n = len(parts_list)
+    use_quantile = n >= 30  # 大样本用分位数，小样本用 MAD
+
+    # 预计算每个因子的值序列
+    factor_values = {k: [p.get(k, 0) for p in parts_list] for k in keys}
+
+    if use_quantile:
+        # 分位数归一化：rank / (n+1) * 100
+        # 使用平均排名处理 ties
+        factor_ranks = {}
         for k in keys:
-            z = (p.get(k, 0) - means[k]) / stds[k]
-            normed[k] = max(0.0, min(100.0, 50 + z * 15))  # z=0 → 50
-        out.append(normed)
-    return out
+            vals = factor_values[k]
+            # 排序后建立 value -> rank 映射（ties 取平均排名）
+            sorted_vals = sorted(enumerate(vals), key=lambda x: x[1])
+            ranks = [0.0] * n
+            i = 0
+            while i < n:
+                j = i
+                # 找到所有相同值的索引
+                while j + 1 < n and sorted_vals[j + 1][1] == sorted_vals[i][1]:
+                    j += 1
+                # 平均排名（1-based）
+                avg_rank = (i + 1 + j + 1) / 2
+                for idx in range(i, j + 1):
+                    original_idx = sorted_vals[idx][0]
+                    ranks[original_idx] = avg_rank
+                i = j + 1
+            factor_ranks[k] = ranks
+
+        out = []
+        for idx, p in enumerate(parts_list):
+            normed = dict(p)
+            for k in keys:
+                # rank / (n+1) * 100 -> [0, 100] 范围
+                normed[k] = max(0.0, min(100.0, factor_ranks[k][idx] / (n + 1) * 100))
+            out.append(normed)
+        return out
+
+    else:
+        # 小样本降级：MAD 标准化
+        factor_medians = {k: statistics.median(vals) for k, vals in factor_values.items()}
+        factor_mads = {}
+        for k in keys:
+            vals = factor_values[k]
+            med = factor_medians[k]
+            mad = statistics.median([abs(v - med) for v in vals])
+            factor_mads[k] = mad if mad > 0 else 1.0
+
+        out = []
+        for p in parts_list:
+            normed = dict(p)
+            for k in keys:
+                x = p.get(k, 0)
+                # MAD 标准化：50 + (x - median) / (1.4826 * MAD) * 15
+                z = (x - factor_medians[k]) / (1.4826 * factor_mads[k])
+                normed[k] = max(0.0, min(100.0, 50 + z * 15))
+            out.append(normed)
+        return out
 
 
 def compute_weighted_score_with_norm(

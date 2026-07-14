@@ -99,4 +99,15 @@ def momentum_score(features: dict, quote: dict) -> float:
     vol_price_part = 8 if vol_price_signal > 0 else (-10 if vol_price_signal < 0 else 0)
 
     final_score = (base_score - vol_price_part) * decay + vol_price_part
+
+    # (#6) Amihud 非流动性惩罚：高动量低流动性股票打折
+    # 避免推荐"画线股"（高动量但流动性枯竭，追高容易被困）
+    amihud_illiq = features.get("amihud_illiq", 0)
+    if amihud_illiq > 0:
+        # Amihud 指标越高 = 流动性越差
+        # 行业中上水平（> 中位数）时动量评分额外打折 ×0.8
+        # 简化判定：amihud > 1e-7 视为流动性偏低（经验阈值）
+        if amihud_illiq > 1e-7:
+            final_score *= 0.8
+
     return clamp(final_score)

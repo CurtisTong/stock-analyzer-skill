@@ -81,6 +81,70 @@ class TestApplyPortfolioConstraints:
         ul.apply_portfolio_constraints(rows, trend_penalty=0.5)
         assert rows[0]["score"] == original_score  # 原始未被修改
 
+    # ---------- (#9) 行业偏离约束测试 ----------
+
+    def test_benchmark_align_off_by_default(self):
+        """默认不启用基准偏离约束（向后兼容）。"""
+        rows = [
+            {"code": f"sh{i}", "industry": "银行", "score": 100 - i, "trend": "上升"}
+            for i in range(25)
+        ]
+        # 不传 benchmark_weights -> 不启用偏离约束
+        result = ul.apply_portfolio_constraints(rows, sector_cap=0.30)
+        bank_count = sum(1 for r in result if r["industry"] == "银行")
+        # sector_cap=0.30 -> max_per_sector = max(2, int(25*0.30)) = 7
+        assert bank_count == 7
+
+    def test_benchmark_align_rejects_overweight(self):
+        """(#9) 行业占比偏离基准超过 max_deviation 时跳过。"""
+        # 25 只银行股，基准银行权重 12.5%，max_deviation=0.15
+        # 银行允许占比 = 12.5% + 15% = 27.5% -> 25 * 27.5% = 6.875 -> 6 只
+        rows = [
+            {"code": f"sh{i}", "industry": "银行", "score": 100 - i, "trend": "上升"}
+            for i in range(25)
+        ]
+        benchmark = {"银行": 12.5, "科技": 87.5}
+        result = ul.apply_portfolio_constraints(
+            rows, sector_cap=0.50,  # 放宽 sector_cap 让偏离约束起作用
+            benchmark_weights=benchmark,
+            use_benchmark_align=True,
+            max_deviation=0.15,
+        )
+        bank_count = sum(1 for r in result if r["industry"] == "银行")
+        # 银行 12.5% + 15% = 27.5% -> 25 * 27.5% = 6.875 -> 最多 6 只
+        assert bank_count <= 7
+
+    def test_benchmark_align_small_pool_disabled(self):
+        """(#9) 候选池 < 20 时自动关闭偏离约束。"""
+        rows = [
+            {"code": f"sh{i}", "industry": "银行", "score": 100 - i, "trend": "上升"}
+            for i in range(15)
+        ]
+        benchmark = {"银行": 1.0, "科技": 99.0}  # 银行基准仅 1%
+        result = ul.apply_portfolio_constraints(
+            rows, sector_cap=0.50,
+            benchmark_weights=benchmark,
+            use_benchmark_align=True,
+            max_deviation=0.15,
+        )
+        # 候选池 < 20 -> 偏离约束关闭，仅 sector_cap 限制
+        bank_count = sum(1 for r in result if r["industry"] == "银行")
+        assert bank_count > 0  # 不因偏离约束被清空
+
+    def test_benchmark_align_no_weights_disabled(self):
+        """(#9) 无 benchmark_weights 时不启用偏离约束。"""
+        rows = [
+            {"code": f"sh{i}", "industry": "银行", "score": 100 - i, "trend": "上升"}
+            for i in range(25)
+        ]
+        result = ul.apply_portfolio_constraints(
+            rows, sector_cap=0.30,
+            benchmark_weights=None,
+            use_benchmark_align=True,  # 启用但无权重 -> 不生效
+        )
+        bank_count = sum(1 for r in result if r["industry"] == "银行")
+        assert bank_count == 7  # 仅 sector_cap 限制
+
 
 # ═══════════════════════════════════════════════════════════════
 # load_universe
@@ -156,6 +220,21 @@ class TestLoadUniverse:
 
 
 class TestPreScreenQuotes:
+    def setup_method(self, method):
+        """(#1) 每个测试前 mock market_snapshot 返回空水位，回退绝对值阈值。"""
+        import data.market_snapshot as ms
+        self._orig_snapshot = ms.get_market_snapshot
+        ms.get_market_snapshot = lambda: {
+            "avg_amount_yuan": 0.0,
+            "median_cap": 0.0,
+            "updated": "",
+            "source": "test_mock",
+        }
+
+    def teardown_method(self, method):
+        import data.market_snapshot as ms
+        ms.get_market_snapshot = self._orig_snapshot
+
     def test_filters_st_stocks(self, monkeypatch):
         """ST 股票被过滤。"""
         monkeypatch.setattr("data.pool.is_st", lambda name: "ST" in name)

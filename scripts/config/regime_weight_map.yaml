@@ -1,0 +1,66 @@
+# Regime Overlay 权重调节矩阵配置 (#7)
+#
+# 4 状态 × 9 因子的调节系数（multiplier），调节后权重 = 原权重 × multiplier，重新归一化到 1.0。
+# 研究员可基于回测结果调优本文件，无需修改业务代码。
+#
+# 设计原则：
+#   bull:  动量 +30%, 估值 -10%
+#   bear:  质量 +20%, 波动 +20%, 动量 -30%
+#   range: 质量 +10%, 估值 +10%, 动量 -20%
+#   panic: 质量 +30%, 波动 +30%, 动量 -50%, 流动性 +20%
+
+BULL:
+  quality: 1.0
+  valuation: 0.9
+  momentum: 1.3
+  liquidity: 1.0
+  volatility: 1.0
+  dividend: 1.0
+  chip: 0.8        # 牛市筹码降权（趋势驱动，筹码次要）
+  event: 1.0
+  analyst: 1.0
+
+BEAR:
+  quality: 1.2
+  valuation: 1.0
+  momentum: 0.7
+  liquidity: 1.0
+  volatility: 1.2
+  dividend: 1.0
+  chip: 1.4        # 熊市筹码加权（看主力动向更重要）
+  event: 1.0
+  analyst: 1.0
+
+RANGE:
+  quality: 1.1
+  valuation: 1.1
+  momentum: 0.8
+  liquidity: 1.0
+  volatility: 1.0
+  dividend: 1.0
+  chip: 1.0        # 震荡正常权重
+  event: 1.0
+  analyst: 1.0
+
+PANIC:
+  quality: 1.3
+  valuation: 1.0
+  momentum: 0.5
+  liquidity: 1.2
+  volatility: 1.3
+  dividend: 1.1
+  chip: 1.6        # 冰点筹码极度加权（恐慌中看主力动向）
+  event: 1.0
+  analyst: 1.0
+
+# 策略混合规则（#7）：特定 regime 下将当前策略与防御策略按比例混合
+# 例如 BEAR 时 balanced 取 70% + defensive 取 30%（平滑过渡而非全有全无）
+# 仅在配置存在时生效；不配置则仅用 overlay multiplier
+strategy_blend:
+  BEAR:
+    balanced: 0.7
+    defensive: 0.3
+  PANIC:
+    balanced: 0.5
+    defensive: 0.5
+    # 可扩展其他策略的混合规则
