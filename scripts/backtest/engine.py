@@ -20,7 +20,9 @@ from strategies.factors.quality import quality_score
 from strategies.factors.valuation import valuation_score
 from strategies.factors.liquidity import liquidity_score
 from strategies.regime import compute_overlay_weights, RegimeState
-from strategies.regime.classifier import _classify_for_backtest
+from strategies.regime.classifier import _classify_for_backtest, classify_regime
+from strategies.regime.detector import compute_signals_from_bars
+from config.loader import safe_get
 from classifier import infer_industry
 
 logger = logging.getLogger(__name__)
@@ -493,4 +495,89 @@ def _is_limit_or_suspended(bars, idx, code=""):
         if abs(change_pct) >= limit:
             return True
 
+    return False
+
+
+# ════════════════════════════════════════
+# v2.8: 指数级 regime 判定（修复回测用个股 bars 误判的 P0 bug）
+# ════════════════════════════════════════
+
+
+def _fetch_index_bars_for_backtest(kline_data: dict):
+    """为回测获取 sh000300 指数 K 线。
+
+    优先使用调用方已有的 kline_data["sh000300"]（避免重复网络拉取），
+    缺失时调用 get_kline 拉取，失败返回空列表。
+
+    Args:
+        kline_data: 模拟上下文中已有的 K 线字典 {code: [KlineBar]}
+
+    Returns:
+        指数 K 线列表（最近的 bar 在末尾），失败时返回 []
+    """
+    if not isinstance(kline_data, dict):
+        return []
+
+    existing = kline_data.get("sh000300")
+    if existing:
+        return existing
+
+    try:
+        # v2.8: 拉取 80 根 K 线（gate 80 阈值，与 _classify_regime_from_index 对齐）
+        return get_kline("sh000300", scale=240, datalen=80)
+    except Exception as e:
+        logger.debug("backtest 拉取 sh000300 失败: %s", e)
+        return []
+
+
+def _classify_regime_from_index(index_bars, current_day: str):
+    """v2.8: 用沪深 300 指数 bars 判定市场状态（严格无前瞻）。
+
+    与原 _classify_for_backtest 的关键差异：
+      1. 数据源：指数 bars（屏蔽个股异动对 regime 的污染）
+      2. 截断：current_day 之前（含）的 bars 才参与计算，杜绝未来函数
+      3. Gate：< 80 根时降级 RANGE_LOW_VOL（数据不足以判定）
+
+    Args:
+        index_bars: 指数 K 线列表（最近的 bar 在末尾）
+        current_day: 回测当前交易日（YYYY-MM-DD）；只用此日期及之前的 bars
+
+    Returns:
+        (regime, extreme_drop) 二元组：
+          - regime: RegimeState 枚举值
+          - extreme_drop: bool，是否触发极端跌幅降动量
+    """
+    if not index_bars:
+        return RegimeState.RANGE_LOW_VOL, False
+
+    # 无前瞻：只用 current_day 之前的 bars
+    truncated = [b for b in index_bars if getattr(b, "day", "") <= current_day]
+    if len(truncated) < 80:
+        return RegimeState.RANGE_LOW_VOL, False
+
+    # 计算 4 类信号
+    signals = compute_signals_from_bars(truncated)
+    regime = classify_regime(signals)
+
+    # 检测 extreme_drop：近 N 个交易日内是否有任意单日跌幅 < 阈值
+    threshold = safe_get("regime.yaml", "thresholds.extreme_drop_threshold", -0.05)
+    window = safe_get("regime.yaml", "thresholds.extreme_drop_window", 10)
+    extreme_drop = _has_extreme_drop(truncated, window, threshold)
+
+    return regime, extreme_drop
+
+
+def _has_extreme_drop(bars, window: int, threshold: float) -> bool:
+    """检测近 window 个交易日内是否有任意单日跌幅 < threshold。"""
+    if not bars or len(bars) < 2:
+        return False
+
+    recent = list(bars[-window:]) if len(bars) > window else list(bars)
+    for i in range(1, len(recent)):
+        prev_close = to_float(recent[i - 1].close)
+        curr_close = to_float(recent[i].close)
+        if prev_close > 0 and curr_close > 0:
+            change_pct = (curr_close - prev_close) / prev_close
+            if change_pct < threshold:
+                return True
     return False

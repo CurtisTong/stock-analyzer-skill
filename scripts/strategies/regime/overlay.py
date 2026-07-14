@@ -14,10 +14,17 @@ Overlay 权重调节：4 状态 × 9 因子 调节系数矩阵。
 v2.x (#7)：矩阵从硬编码改为读取 config/regime_weight_map.yaml，
 支持研究员基于回测结果调优而无需修改业务代码。
 配置缺失时回退硬编码默认值（向后兼容）。
+
+v2.8 新增 extreme_drop：极端跌幅（单日 <-5%）时 momentum 强制 ×0.3，
+                    防止动量因子在崩盘次日延续错误的趋势信号。
+v2.9 新增 national_team：国家队 ETF 放量（沪深 300/中证 500）时 chip
+                    multiplier 不低于 0.6——国家队行为会扭曲筹码分布信号。
+v3.0 新增 ic_multipliers：因子 IC 动态调整 multiplier，IC<0 因子
+                    线性衰减至 min_mult(0.5)，IC>0 保持基础值。
 """
 
 import logging
-from typing import Dict
+from typing import Dict, Optional
 
 from .classifier import RegimeState
 
@@ -57,6 +64,28 @@ _HARDCODED_MATRIX: Dict[RegimeState, Dict[str, float]] = {
         "volatility": 1.0,
         "dividend": 1.0,
         "chip": 1.0,  # 震荡正常权重
+        "event": 1.0,
+        "analyst": 1.0,
+    },
+    RegimeState.RANGE_LOW_VOL: {
+        "quality": 1.1,
+        "valuation": 1.1,
+        "momentum": 1.0,  # 低波维持动量暴露
+        "liquidity": 1.0,
+        "volatility": 0.9,
+        "dividend": 1.0,
+        "chip": 1.0,
+        "event": 1.0,
+        "analyst": 1.0,
+    },
+    RegimeState.RANGE_CHOPPY: {
+        "quality": 1.2,  # 高波震荡偏防御
+        "valuation": 1.1,
+        "momentum": 0.6,  # 高波震荡动量降权
+        "liquidity": 1.0,
+        "volatility": 1.1,
+        "dividend": 1.0,
+        "chip": 1.0,
         "event": 1.0,
         "analyst": 1.0,
     },
@@ -160,7 +189,11 @@ def get_strategy_blend() -> Dict[RegimeState, Dict[str, float]]:
 
 
 def compute_overlay_weights(
-    original_weights: Dict[str, float], regime: RegimeState
+    original_weights: Dict[str, float],
+    regime: RegimeState,
+    extreme_drop: bool = False,
+    national_team: bool = False,
+    ic_multipliers: Optional[Dict[str, float]] = None,
 ) -> Dict[str, float]:
     """对原策略权重施加市场状态 overlay，返回归一化后的新权重。
 
@@ -169,9 +202,20 @@ def compute_overlay_weights(
     2. 若配置含 strategy_blend 规则，先混合策略权重再施加 overlay
        例如 BEAR 时 balanced:0.7 + defensive:0.3 -> 混合后再乘 multiplier
 
+    v2.8 新增 extreme_drop：极端跌幅时 momentum 强制 ×0.3
+    v2.9 新增 national_team：国家队 ETF 放量时 chip multiplier 至少 0.6
+    v3.0 新增 ic_multipliers：因子 IC 动态调整 multiplier（IC<0 衰减，floor 0.5）
+
+    三个 v2.8+ 参数的叠加顺序：基础矩阵 → extreme_drop → national_team →
+    ic_multipliers。IC floor (0.5) 高于 extreme_drop (0.3)，故 IC 转换可
+    拉高 extreme_drop 的过度降权。
+
     Args:
         original_weights: 策略原权重 dict（含 quality/valuation/momentum/... ）
         regime: 市场状态枚举
+        extreme_drop: v2.8 是否触发极端跌幅降动量
+        national_team: v2.9 是否触发国家队放量 chip 保底
+        ic_multipliers: v3.0 {factor: ic_value} dict，IC ∈ [-1, 1]
 
     Returns:
         调节并归一化后的新权重 dict（和 = 1.0）
@@ -189,7 +233,27 @@ def compute_overlay_weights(
             # 当前策略在混合规则中，按比例混合
             weights = _blend_strategy_weights(strategy_name, blend_rule, regime)
 
-    multipliers = matrix.get(regime, {})
+    # 应用基础矩阵 multiplier
+    multipliers = dict(matrix.get(regime, {}))
+
+    # v2.8: extreme_drop 时 momentum 强制 ×0.3
+    if extreme_drop and "momentum" in multipliers:
+        multipliers["momentum"] = multipliers["momentum"] * 0.3
+
+    # v2.9: national_team 时 chip multiplier 保底 0.6
+    if national_team and "chip" in multipliers:
+        multipliers["chip"] = max(multipliers["chip"], 0.6)
+
+    # v3.0: IC 动态 multiplier（覆盖式，floor 0.5）
+    if ic_multipliers:
+        from strategies.factor.ic import ic_to_multiplier
+
+        for factor, ic_val in ic_multipliers.items():
+            if factor not in multipliers:
+                continue
+            base_mult = multipliers[factor]
+            multipliers[factor] = ic_to_multiplier(ic_val, base_mult, min_mult=0.5)
+
     adjusted = {}
     for k, v in weights.items():
         if k in ("label", "two_stage"):

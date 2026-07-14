@@ -1,0 +1,23 @@
+{
+  "updated": "2026-07-14T13:34:33.943088",
+  "ic": {
+    "range_low_vol": {
+      "quality": 0.0,
+      "momentum": 0.0,
+      "liquidity": 0.0,
+      "volatility": 0.0,
+      "chip": 0.0,
+      "dividend": 0.0,
+      "valuation": 0.0
+    },
+    "bull": {
+      "quality": 0.0,
+      "momentum": 0.0,
+      "liquidity": 0.0,
+      "volatility": 0.0,
+      "chip": 0.0,
+      "dividend": 0.0,
+      "valuation": 0.0
+    }
+  }
+}

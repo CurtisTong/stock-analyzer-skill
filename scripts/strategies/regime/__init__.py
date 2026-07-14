@@ -24,11 +24,13 @@ Overlay 输出 6 因子权重调节系数（1.0=不变）：
 from .detector import detect_signals
 from .classifier import classify_regime, RegimeState
 from .overlay import compute_overlay_weights, OVERLAY_MATRIX
+from .smoothing import RegimeSmoother
 
 __all__ = [
     "detect_signals",
     "classify_regime",
     "compute_overlay_weights",
     "RegimeState",
+    "RegimeSmoother",
     "OVERLAY_MATRIX",
 ]

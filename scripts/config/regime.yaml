@@ -1,0 +1,48 @@
+# Regime 检测配置（v2.8）
+# 阈值设计：分位数化 + Parkinson 辅助 + RANGE 细分 + 极端跌幅降动量
+#
+# 状态机：
+#   panic:        vol>=35 OR parkinson>=35 OR amplitude>=5% OR (turnover_ratio<0.6 AND trend<-0.3)
+#   bull:         trend>0.3 AND breadth>0.55
+#   bear:         trend<-0.2 AND breadth<0.45
+#   range_low_vol: 非牛非熊且 vol<25（低波震荡，维持动量）
+#   range_choppy:  非牛非熊且 vol>=25（高波震荡，走防御）
+#
+# 优先级：panic > bull > bear > range_*
+
+enabled: true
+
+thresholds:
+  # 波动率（close-to-close 年化）
+  vol_panic: 35              # >= 35 -> PANIC
+  # Parkinson 波动率（v2.8 新增，日内高低价）
+  parkinson_panic: 35        # >= 35 -> PANIC
+  # 日内振幅（v2.8 新增，当日 high-low/close）
+  amplitude_panic: 0.05      # >= 5% -> PANIC（日内闪崩）
+  # 相对成交额（v2.8: 替代绝对值 8000 亿）
+  turnover_panic_ratio: 0.6  # 近20日/前60日 < 0.6 且 trend<-0.3 -> PANIC
+  trend_panic: -0.3
+  # BULL/BEAR
+  bull_trend: 0.3
+  bull_breadth: 0.55
+  bear_trend: -0.2
+  bear_breadth: 0.45
+  # RANGE 细分（v2.8 新增）
+  choppy_vol_threshold: 25   # vol >= 25 -> RANGE_CHOPPY, else RANGE_LOW_VOL
+  # 极端跌幅（v2.8 新增，强制降动量）
+  extreme_drop_threshold: -0.05  # 单日跌幅 < -5% -> momentum 强制 ×0.3
+  extreme_drop_window: 10
+  # tanh 压缩（v2.9 新增，替代硬 clamp）
+  tanh_scale: 1.5              # index_trend = tanh(raw * scale)，scale=1.5 不翻转阈值
+  # 国家队 ETF 放量（v2.9 新增）
+  national_team_daily_threshold: 3.0   # 日级放量倍数
+  national_team_tail_threshold: 2.5    # 尾盘放量倍数
+
+# EMA 平滑（v2.8 新增）
+smoothing:
+  enabled: true
+  alpha: 0.3                 # 混合系数（新 regime 权重占比 30%）
+
+# 数据
+benchmark: sh000300
+window: 80                   # K 线根数（60->80 支持 turnover 分位数的 60 日 base）
