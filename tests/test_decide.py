@@ -205,7 +205,7 @@ class TestDetectMarketState:
 
 class TestAggregateVotes:
     def test_double_bull_8_bullish(self):
-        """9 人全看多（6长+3短）：强烈看多，巴菲特>=70触发强势确认标注。"""
+        """9 位 helper 全看多（6长+3短，混合 legacy/active）：强烈看多，巴菲特>=70触发强势确认标注。"""
         results = _bullish_long_experts() + _bullish_short_experts()
         agg = aggregate_votes(results, market_state=None, horizon="medium")
         assert agg["direction"] == "强烈看多"

@@ -19,7 +19,7 @@ from experts import (
 
 
 class TestExpertSwitchAPI:
-    def test_list_active_returns_9(self):
+    def test_list_active_returns_8(self):
         """v2.4.0 active 数 = 8（value_anchor+institution 合并为 value_institution）。"""
         active = list_active_experts()
         assert len(active) == 8, f"expected 8, got {len(active)}"
@@ -31,8 +31,8 @@ class TestExpertSwitchAPI:
         assert len(legacy) >= 6
         assert all(not p.active for p in legacy)
 
-    def test_list_experts_returns_15(self):
-        """list_experts() 返回 16（v2.4.0 新增 value_institution：9 active + 7 legacy）。"""
+    def test_list_experts_returns_16(self):
+        """list_experts() 返回 16（v2.4.0 新增 value_institution：8 active + 8 legacy）。"""
         all_experts = list_experts()
         assert len(all_experts) == 16
 

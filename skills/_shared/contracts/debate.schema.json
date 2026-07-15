@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ExpertDebate",
-  "description": "/stock debate 8 人专家圆桌输出契约（v2.2.0）",
+  "description": "/stock debate 8 人专家圆桌输出契约（v2.4.0 起 8 active = 5 长线 + 3 短线）",
   "type": "object",
   "required": ["code", "name", "experts", "aggregate", "confidence"],
   "properties": {
@@ -10,7 +10,7 @@
     "experts": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 9,
+      "maxItems": 8,
       "items": {
         "type": "object",
         "required": ["id", "group", "score", "direction"],
