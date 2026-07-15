@@ -487,9 +487,7 @@ def aggregate_votes(
                 else:
                     # 弹性风险系数：折扣
                     r["score"] = round(original_score * coeff, 1)
-                    r["direction"] = (
-                        "强烈看空" if r["score"] < 30 else r["direction"]
-                    )
+                    r["direction"] = "强烈看空" if r["score"] < 30 else r["direction"]
                     veto_notes.append(
                         f"{r.get('display_name', name)} 风险折扣"
                         f"（risk_coeff={coeff:.1f}），评分 {original_score:.0f}"
