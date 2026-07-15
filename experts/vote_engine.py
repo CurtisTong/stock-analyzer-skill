@@ -3,8 +3,10 @@
 import statistics
 from typing import Dict, List, Optional
 
+from config import get_scoring_config
 from experts import direction_from_score
-from experts.scoring import _consistency_from_scores
+from experts.market_detector import _HORIZON_WEIGHTS
+from experts.scoring import consistency_from_scores
 
 # ═══════════════════════════════════════════════════════════════
 # 投票整合 (decide.md §一 + §三)
@@ -33,8 +35,6 @@ def _get_short_defensive_factor(market_state: Optional[dict], is_ice: bool) -> f
         return 1.0
     state = market_state.get("state", "")
     try:
-        from config import get_scoring_config
-
         bearish_states = get_scoring_config(
             "experts.short_term.bearish_states", list(_DEFENSIVE_STATES)
         )
@@ -403,9 +403,6 @@ def _compute_position(
 # ═══════════════════════════════════════════════════════════════
 # 主入口：投票整合
 # ═══════════════════════════════════════════════════════════════
-
-# 从 market_detector 导入权重常量，避免重复定义
-from experts.market_detector import _HORIZON_WEIGHTS  # noqa: E402
 
 
 def aggregate_votes(
@@ -822,7 +819,7 @@ def aggregate_group_votes(
 
     # 信心指数（单组模式 §七.3）
     if scores:
-        consistency = _consistency_from_scores(scores)
+        consistency = consistency_from_scores(scores)
         confidence = consistency * 0.45 + avg * 0.55
     else:
         confidence = 50.0

@@ -107,25 +107,26 @@ def score_expert(
 # ═══════════════════════════════════════════════════════════════
 
 _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
+    # ── legacy 8 人（active=False，保留为研究/A-B 对比档案）──
+    # 注意：vote_engine.aggregate_votes 不会主动调用 legacy 评分；
+    # 仅当用户显式 _EXPERT_SCORING_FUNCTIONS["buffett"](data) 时执行。
     "buffett": buffett.score,
-    "lynch": lynch.score,
-    "soros": soros.score,
     "duan_yongping": duan_yongping.score,
     "xu_xiang": xu_xiang.score,
     "zhao_laoge": zhao_laoge.score,
     "chaogu_yangjia": chaogu_yangjia.score,
     "zuoshou_xinyi": zuoshou_xinyi.score,
-    # v2.1.0 扩展视角
     "value_anchor": value_anchor.score,
+    "institution": institution.score,
+    # ── active 8 人（5 长线 + 3 短线）──
+    "lynch": lynch.score,
+    "soros": soros.score,
+    "value_institution": value_institution.score,
+    "sector_specialist": sector_specialist.score,
+    "risk_manager": risk_manager.score,
     "topic_leader": topic_leader.score,
     "emotion_tech": emotion_tech.score,
-    "sector_specialist": sector_specialist.score,
-    "institution": institution.score,
-    "risk_manager": risk_manager.score,
-    # v2.2.0 新增：动量派
     "momentum_trader": momentum_trader.score,
-    # v2.4.0 新增：价值机构锚
-    "value_institution": value_institution.score,
 }
 
 
@@ -264,7 +265,7 @@ def score_expert_precise(
 # ═══════════════════════════════════════════════════════════════
 
 
-def _consistency_from_scores(scores: List[float]) -> float:
+def consistency_from_scores(scores: List[float]) -> float:
     """从评分列表计算一致性分数（CV→一致性映射）。
 
     公式来源：decide.md §六.3。
@@ -315,7 +316,7 @@ def compute_confidence_index(
     if not expert_scores:
         return 50.0
 
-    consistency = _consistency_from_scores(expert_scores)
+    consistency = consistency_from_scores(expert_scores)
     # 校准因子贡献：calibration_factor ∈ [-1,1]，×10 后贡献 ±10 分（decide.md §6.3）。
     # 第六轮审查修正：原代码 cal_adjustment * 0.1 使实际贡献仅 ±1 分，与文档承诺的
     # ±10 分矛盾，且不足以让低准确率专家组（如短线 20%）实质压低信心。现改为直接
@@ -334,5 +335,5 @@ __all__ = [
     "score_expert_precise",
     "score_expert_with_reasoning",
     "compute_confidence_index",
-    "_consistency_from_scores",
+    "consistency_from_scores",
 ]
