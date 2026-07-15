@@ -203,9 +203,7 @@ def _check_peg_high(stock_data: dict) -> ConditionResult:
     quote = _get_quote(stock_data)
     fin = _get_fin(stock_data)
     pe = _safe_float(quote.get("pe"))
-    growth = _safe_float(
-        fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy")
-    )
+    growth = _safe_float(fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy"))
     if pe <= 0 or growth <= 0:
         return ConditionResult(evaluable=False, detail="PE或增速数据缺失/非正")
     peg = pe / growth
@@ -227,9 +225,7 @@ def _check_continuous_loss(stock_data: dict) -> ConditionResult:
     if not fin_records or len(fin_records) < 4:
         return ConditionResult(evaluable=False, detail="多期财务数据缺失")
     # 检查最近4期（约2年）的 EPS 是否连续为负
-    eps_values = [
-        _safe_float(r.get("EPSJB") or r.get("eps")) for r in fin_records[:4]
-    ]
+    eps_values = [_safe_float(r.get("EPSJB") or r.get("eps")) for r in fin_records[:4]]
     if all(e < 0 for e in eps_values):
         return ConditionResult(
             triggered=True,
@@ -356,9 +352,7 @@ def evaluate_veto_conditions(
                 result = evaluator_fn(stock_data)
             except Exception as e:
                 logger.warning("评估器异常 (%s): %s", cond_desc, e)
-                result = ConditionResult(
-                    evaluable=False, detail=f"评估异常: {e}"
-                )
+                result = ConditionResult(evaluable=False, detail=f"评估异常: {e}")
             conditions[cond_desc] = result.to_dict()
 
             # 复合系数：取所有触发条件中最低的 risk_coeff

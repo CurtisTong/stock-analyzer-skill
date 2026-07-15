@@ -33,6 +33,7 @@ class TestPreScreenQuotes:
     def setup_method(self, method):
         """(#1) 每个测试前 mock market_snapshot 返回空水位，回退绝对值阈值。"""
         import data.market_snapshot as ms
+
         self._orig_snapshot = ms.get_market_snapshot
         ms.get_market_snapshot = lambda: {
             "avg_amount_yuan": 0.0,
@@ -43,6 +44,7 @@ class TestPreScreenQuotes:
 
     def teardown_method(self, method):
         import data.market_snapshot as ms
+
         ms.get_market_snapshot = self._orig_snapshot
 
     def test_excludes_st_stocks(self):
@@ -188,9 +190,7 @@ class TestAdaptiveThresholds:
         result = adaptive_cap_threshold("主板", 100)
         assert result == 50  # 取动态值
 
-    def test_pre_screen_uses_adaptive_when_market_ref_available(
-        self, monkeypatch
-    ):
+    def test_pre_screen_uses_adaptive_when_market_ref_available(self, monkeypatch):
         """pre_screen_quotes 在有市场水位时使用自适应阈值。"""
         # mock market_snapshot 返回高水位（亢奋市场）
         import data.market_snapshot as ms
@@ -200,7 +200,7 @@ class TestAdaptiveThresholds:
             "get_market_snapshot",
             lambda: {
                 "avg_amount_yuan": 10**11,  # 全市场日均 1000 亿
-                "median_cap": 100,           # 全市场中位市值 100 亿
+                "median_cap": 100,  # 全市场中位市值 100 亿
                 "updated": "2099-01-01T00:00:00",
                 "source": "cache",
             },

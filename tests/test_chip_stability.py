@@ -174,7 +174,9 @@ class TestDecayIntegration:
             HolderData(end_date=recent, holder_num_change=-20, avg_amount=0),
             HolderData(end_date=recent, holder_num_change=-20, avg_amount=0),
         ]
-        with patch.object(chip_factor, "_get_cached_holders", return_value=recent_holders):
+        with patch.object(
+            chip_factor, "_get_cached_holders", return_value=recent_holders
+        ):
             fresh_score = chip_factor.chip_score_static("sh600519")
 
         # 陈旧数据：同样的 change 但 end_date 很久以前
@@ -183,7 +185,9 @@ class TestDecayIntegration:
             HolderData(end_date=stale, holder_num_change=-20, avg_amount=0),
             HolderData(end_date=stale, holder_num_change=-20, avg_amount=0),
         ]
-        with patch.object(chip_factor, "_get_cached_holders", return_value=stale_holders):
+        with patch.object(
+            chip_factor, "_get_cached_holders", return_value=stale_holders
+        ):
             stale_score = chip_factor.chip_score_static("sh600519")
 
         # 新鲜数据 signal=30 -> 80；陈旧数据 signal=30*0.5=15 -> 65

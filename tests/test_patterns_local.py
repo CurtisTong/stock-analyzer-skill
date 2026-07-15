@@ -15,7 +15,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
 from strategies.patterns import (
-    zhangting, dibu_shouban, sanying, shuangzhen, meirenjian, laoyatou,
+    zhangting,
+    dibu_shouban,
+    sanying,
+    shuangzhen,
+    meirenjian,
+    laoyatou,
 )
 
 
@@ -48,7 +53,9 @@ class TestZhangting:
 
     def test_no_double_thunder(self):
         """无涨停双响炮。"""
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(10)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(10)
+        ]
         closes = [r["close"] for r in records]
         volumes = [r["volume"] for r in records]
         result = zhangting.detect_zhangting(records, closes, volumes)
@@ -76,7 +83,9 @@ class TestDibuShouban:
 
     def test_no_signal(self):
         """无底部形态时返回空。"""
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(20)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(20)
+        ]
         closes = [r["close"] for r in records]
         highs = [11 for _ in records]
         lows = [10 for _ in records]
@@ -85,14 +94,17 @@ class TestDibuShouban:
         assert isinstance(result, list)
 
     def test_with_code(self):
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000,
-                                  high=11, low=9) for i in range(20)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000, high=11, low=9)
+            for i in range(20)
+        ]
         closes = [r["close"] for r in records]
         highs = [r["high"] for r in records]
         lows = [r["low"] for r in records]
         volumes = [r["volume"] for r in records]
-        result = dibu_shouban.detect_dibu_shouban(records, closes, highs, lows, volumes,
-                                                  code="sh600519")
+        result = dibu_shouban.detect_dibu_shouban(
+            records, closes, highs, lows, volumes, code="sh600519"
+        )
         assert isinstance(result, list)
 
 
@@ -107,13 +119,17 @@ class TestSanying:
         assert result == []
 
     def test_with_code(self):
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(10)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(10)
+        ]
         volumes = [r["volume"] for r in records]
         result = sanying.detect_sanying_yiyang(records, volumes, code="sh600519")
         assert isinstance(result, list)
 
     def test_no_code(self):
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(10)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000) for i in range(10)
+        ]
         volumes = [r["volume"] for r in records]
         result = sanying.detect_sanying_yiyang(records, volumes)
         assert isinstance(result, list)
@@ -130,8 +146,10 @@ class TestShuangzhen:
         assert result == []
 
     def test_no_signal(self):
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000,
-                                  low=9.5) for i in range(10)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000, low=9.5)
+            for i in range(10)
+        ]
         closes = [r["close"] for r in records]
         lows = [r["low"] for r in records]
         volumes = [r["volume"] for r in records]
@@ -154,8 +172,10 @@ class TestMeirenjian:
         assert result == []
 
     def test_no_signal(self):
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000,
-                                  high=10.5, low=9.5) for i in range(20)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000, high=10.5, low=9.5)
+            for i in range(20)
+        ]
         closes = [r["close"] for r in records]
         highs = [r["high"] for r in records]
         lows = [r["low"] for r in records]
@@ -179,8 +199,10 @@ class TestLaoyatou:
         assert result == []
 
     def test_no_signal(self):
-        records = [_make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000,
-                                  high=10.5, low=9.5) for i in range(30)]
+        records = [
+            _make_record(f"2026-07-{i+1:02d}", 10, 10.5, 1000, high=10.5, low=9.5)
+            for i in range(30)
+        ]
         closes = [r["close"] for r in records]
         volumes = [r["volume"] for r in records]
         result = laoyatou.detect_laoyatou(records, closes, volumes, {})
@@ -196,6 +218,7 @@ class TestPatternsUtils:
     def test_is_limit_up(self):
         """_is_limit_up 涨停判断（主板 10% 涨停）。"""
         from strategies.patterns import utils
+
         # 主板 +10% 涨停
         assert utils._is_limit_up(10, 11, 10, "主板") is True
         # 主板 +5% 未涨停
@@ -207,8 +230,11 @@ class TestPatternsUtils:
 
     def test_is_limit_up_zero(self):
         from strategies.patterns import utils
+
         # prev_close=0 边界
         assert utils._is_limit_up(10, 11, 0, "主板") in (True, False)
+
+
 import sys
 from pathlib import Path
 

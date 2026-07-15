@@ -72,28 +72,36 @@ class TestMain:
     def test_main_full_market(self, capsys):
         """--full-market 拉取全市场并保存。"""
         mock_result = {"主板沪": ["sh600519"], "主板深": ["sz000001"]}
-        with patch("sys.argv", ["refresh_pool.py", "--full-market"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.fetch_all_market_stocks", return_value=mock_result), \
-             patch("refresh_pool.save_all_market_stocks") as mock_save:
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--full-market"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("refresh_pool.fetch_all_market_stocks", return_value=mock_result),
+            patch("refresh_pool.save_all_market_stocks") as mock_save,
+        ):
             refresh_pool.main()
         mock_save.assert_called_once_with(mock_result)
 
     def test_main_full_market_dry_run(self, capsys):
         """--full-market --dry-run 不保存。"""
         mock_result = {"主板沪": ["sh600519"]}
-        with patch("sys.argv", ["refresh_pool.py", "--full-market", "--dry-run"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.fetch_all_market_stocks", return_value=mock_result), \
-             patch("refresh_pool.save_all_market_stocks") as mock_save:
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--full-market", "--dry-run"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("refresh_pool.fetch_all_market_stocks", return_value=mock_result),
+            patch("refresh_pool.save_all_market_stocks") as mock_save,
+        ):
             refresh_pool.main()
         mock_save.assert_not_called()
 
     def test_main_default(self, capsys):
         """--default 用预置数据初始化。"""
-        with patch("sys.argv", ["refresh_pool.py", "--default", "--top", "10"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.init_from_default", return_value={"消费": ["sh600519"]}) as mock_init:
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--default", "--top", "10"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch(
+                "refresh_pool.init_from_default", return_value={"消费": ["sh600519"]}
+            ) as mock_init,
+        ):
             refresh_pool.main()
         mock_init.assert_called_once()
         args, kwargs = mock_init.call_args
@@ -101,9 +109,13 @@ class TestMain:
 
     def test_main_refresh(self, capsys):
         """普通 refresh 模式。"""
-        with patch("sys.argv", ["refresh_pool.py", "--top", "15", "--sort", "cap"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.refresh_pool", return_value={"消费": ["sh600519"]}) as mock_refresh:
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--top", "15", "--sort", "cap"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch(
+                "refresh_pool.refresh_pool", return_value={"消费": ["sh600519"]}
+            ) as mock_refresh,
+        ):
             refresh_pool.main()
         args, kwargs = mock_refresh.call_args
         assert kwargs["top_n"] == 15
@@ -113,10 +125,12 @@ class TestMain:
         """--diff 显示变更对比。"""
         current = {"消费": ["sh600519"]}
         new_pool = {"消费": ["sh600519", "sh600000"]}
-        with patch("sys.argv", ["refresh_pool.py", "--diff"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.load_current_pool", return_value=current), \
-             patch("refresh_pool.refresh_pool", return_value=new_pool):
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--diff"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("refresh_pool.load_current_pool", return_value=current),
+            patch("refresh_pool.refresh_pool", return_value=new_pool),
+        ):
             refresh_pool.main()
         out = capsys.readouterr().out
         assert "新增" in out
@@ -124,10 +138,15 @@ class TestMain:
 
     def test_main_json_output(self, capsys):
         """-j 输出 JSON 摘要。"""
-        with patch("sys.argv", ["refresh_pool.py", "--full-market", "-j"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.fetch_all_market_stocks", return_value={"主板沪": ["sh600519"]}), \
-             patch("refresh_pool.save_all_market_stocks"):
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--full-market", "-j"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch(
+                "refresh_pool.fetch_all_market_stocks",
+                return_value={"主板沪": ["sh600519"]},
+            ),
+            patch("refresh_pool.save_all_market_stocks"),
+        ):
             refresh_pool.main()
         out = capsys.readouterr().out
         # JSON 输出（前面可能有 logging 输出，从第一个 { 提取 JSON）
@@ -138,9 +157,11 @@ class TestMain:
 
     def test_main_refresh_with_sector(self, capsys):
         """--sector 指定板块。"""
-        with patch("sys.argv", ["refresh_pool.py", "--sector", "消费", "金融"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("refresh_pool.refresh_pool", return_value={}) as mock_refresh:
+        with (
+            patch("sys.argv", ["refresh_pool.py", "--sector", "消费", "金融"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("refresh_pool.refresh_pool", return_value={}) as mock_refresh,
+        ):
             refresh_pool.main()
         args, kwargs = mock_refresh.call_args
         assert kwargs["sectors"] == ["消费", "金融"]

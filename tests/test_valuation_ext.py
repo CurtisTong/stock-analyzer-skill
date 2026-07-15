@@ -13,11 +13,14 @@ class TestDynamicPe:
 
     def test_three_scenarios(self):
         """宝丰数据：三口径 PE 均正确计算。"""
-        result = dynamic_pe(1519, {
-            "q1_annualized": 146.44,
-            "h1_forecast_mid": 97.5,
-            "fy_forecast": 145.1,
-        })
+        result = dynamic_pe(
+            1519,
+            {
+                "q1_annualized": 146.44,
+                "h1_forecast_mid": 97.5,
+                "fy_forecast": 145.1,
+            },
+        )
         # Q1 年化: 1519 / 146.44 ≈ 10.37
         assert abs(result["pe_q1_annualized"] - 10.37) < 0.1
         # H1 预增: 1519 / (97.5 × 2) ≈ 7.79
@@ -30,10 +33,13 @@ class TestDynamicPe:
 
     def test_fallback_to_h1_when_no_fy(self):
         """无机构全年预测时，回退到 H1 预增口径。"""
-        result = dynamic_pe(1519, {
-            "q1_annualized": 146.44,
-            "h1_forecast_mid": 97.5,
-        })
+        result = dynamic_pe(
+            1519,
+            {
+                "q1_annualized": 146.44,
+                "h1_forecast_mid": 97.5,
+            },
+        )
         assert result["recommended_pe"] == result["pe_h1_forecast"]
         assert "H1 预增修正" in result["recommended_basis"]
 
@@ -58,10 +64,13 @@ class TestDynamicPe:
 
     def test_zero_profit_scenario_skipped(self):
         """净利为 0 的口径跳过计算。"""
-        result = dynamic_pe(1519, {
-            "q1_annualized": 0,      # 跳过
-            "h1_forecast_mid": 97.5,  # 使用
-        })
+        result = dynamic_pe(
+            1519,
+            {
+                "q1_annualized": 0,  # 跳过
+                "h1_forecast_mid": 97.5,  # 使用
+            },
+        )
         assert result["pe_q1_annualized"] == 0.0
         assert result["pe_h1_forecast"] > 0
         assert "h1_forecast" in result["available_scenarios"]
@@ -100,7 +109,9 @@ class TestTargetPeJustification:
 
     def test_only_comparable_pe(self):
         """仅有可比公司 PE 时单因素。"""
-        result = target_pe_justification(comparable_pe=17.0, peg=0, consensus_implied_pe=0)
+        result = target_pe_justification(
+            comparable_pe=17.0, peg=0, consensus_implied_pe=0
+        )
         assert result["target_pe"] == 17.0
         assert len(result["weighting"]) > 0
 

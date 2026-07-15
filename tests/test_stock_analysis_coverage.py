@@ -26,14 +26,29 @@ def _uptrend_bars(n=30, start=10.0):
     bars = []
     for i in range(1, n + 1):
         close = round(start + i * 0.3, 2)
-        bars.append(_bar(f"2025-01-{i:02d}", close=close, high=close + 0.5, low=close - 0.5, volume=1000 + i * 50))
+        bars.append(
+            _bar(
+                f"2025-01-{i:02d}",
+                close=close,
+                high=close + 0.5,
+                low=close - 0.5,
+                volume=1000 + i * 50,
+            )
+        )
     return bars
 
 
 def _quote(code="sh600519", price=1800.0, name="贵州茅台"):
     return Quote(
-        code=code, name=name, price=price, prev_close=1790, change_pct=0.56,
-        pe=25.6, pb=8.2, total_cap=22600, fetch_time="2025-01-01T10:00:00",
+        code=code,
+        name=name,
+        price=price,
+        prev_close=1790,
+        change_pct=0.56,
+        pe=25.6,
+        pb=8.2,
+        total_cap=22600,
+        fetch_time="2025-01-01T10:00:00",
     )
 
 
@@ -54,18 +69,28 @@ class TestNormalizeCode:
 class TestAnalyzeDataDegradation:
     def test_quote_failure_records_warning(self):
         """行情获取失败 -> data_warnings 记录 + data_failed。"""
-        with patch.object(sa, "get_quote", side_effect=[RuntimeError("net"), _quote("sh000001", 3000, "上证")]), \
-                patch.object(sa, "get_kline", return_value=[]), \
-                patch.object(sa, "get_finance", return_value=[]):
+        with (
+            patch.object(
+                sa,
+                "get_quote",
+                side_effect=[RuntimeError("net"), _quote("sh000001", 3000, "上证")],
+            ),
+            patch.object(sa, "get_kline", return_value=[]),
+            patch.object(sa, "get_finance", return_value=[]),
+        ):
             result = sa.analyze("sh600519", include_technical=False, include_chan=False)
         assert any("行情数据获取失败" in w for w in result["data_warnings"])
         assert "行情" in result["data_failed"]
 
     def test_kline_failure_records_warning(self):
         """K线获取失败 -> data_warnings 记录技术面跳过。"""
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", side_effect=RuntimeError("net")), \
-                patch.object(sa, "get_finance", return_value=[]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", side_effect=RuntimeError("net")),
+            patch.object(sa, "get_finance", return_value=[]),
+        ):
             result = sa.analyze("sh600519", include_finance=False, include_chan=False)
         assert any("K线数据获取失败" in w for w in result["data_warnings"])
         assert "K线" in result["data_failed"]
@@ -73,18 +98,26 @@ class TestAnalyzeDataDegradation:
     def test_finance_failure_records_warning(self):
         """财务获取失败 -> data_warnings 记录基本面跳过。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", side_effect=RuntimeError("net")):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", side_effect=RuntimeError("net")),
+        ):
             result = sa.analyze("sh600519", include_chan=False)
         assert any("财务数据获取失败" in w for w in result["data_warnings"])
         assert "财务" in result["data_failed"]
 
     def test_insufficient_kline_records_warning(self):
         """K线不足 10 根 -> warning + data_warnings。"""
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=[_bar("2025-01-01")]), \
-                patch.object(sa, "get_finance", return_value=[]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=[_bar("2025-01-01")]),
+            patch.object(sa, "get_finance", return_value=[]),
+        ):
             result = sa.analyze("sh600519", include_chan=False)
         assert result.get("warning") == "K线数据不足"
         assert any("K线数据不足" in w for w in result["data_warnings"])
@@ -94,9 +127,13 @@ class TestAnalyzeDataSources:
     def test_data_sources_recorded(self):
         """成功获取的数据记录到 data_sources。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[_finance()]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[_finance()]),
+        ):
             result = sa.analyze("sh600519", include_chan=False)
         assert "行情" in result["data_sources"]
         assert "K线" in result["data_sources"]
@@ -105,9 +142,13 @@ class TestAnalyzeDataSources:
     def test_data_time_from_quote_fetch_time(self):
         """quote.fetch_time 优先作为 data_time。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[]),
+        ):
             result = sa.analyze("sh600519", include_finance=False, include_chan=False)
         assert result["data_time"] == "2025-01-01T10:00:00"
 
@@ -116,9 +157,11 @@ class TestAnalyzeDataSources:
         q = _quote()
         q.fetch_time = ""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[q, _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[]):
+        with (
+            patch.object(sa, "get_quote", side_effect=[q, _quote("sh000001", 3000)]),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[]),
+        ):
             result = sa.analyze("sh600519", include_finance=False, include_chan=False)
         assert result["data_time"] == "2025-01-30"
 
@@ -127,9 +170,13 @@ class TestAnalyzeFinanceSummary:
     def test_finance_summary_extracted(self):
         """财务数据成功时提取 finance 摘要。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[_finance()]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[_finance()]),
+        ):
             result = sa.analyze("sh600519", include_chan=False)
         assert "finance" in result
         assert result["finance"]["eps"] == 50.0
@@ -137,9 +184,13 @@ class TestAnalyzeFinanceSummary:
     def test_finance_unavailable_warning(self):
         """include_finance=True 但无财务数据 -> 警告。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[]),
+        ):
             result = sa.analyze("sh600519", include_chan=False)
         assert any("财务数据不可用" in w for w in result["data_warnings"])
 
@@ -148,9 +199,13 @@ class TestAnalyzeCompositeScore:
     def test_composite_score_when_technical_and_profile_present(self):
         """technical + profile 同时存在时计算综合评分。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[_finance()]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[_finance()]),
+        ):
             result = sa.analyze("sh600519", include_chan=False)
         # technical 和 profile 都在时应触发 score 计算
         assert "technical" in result
@@ -161,9 +216,13 @@ class TestStockAnalysisService:
     def test_service_delegates_to_module_analyze(self):
         """StockAnalysisService.analyze 委托模块级 _analyze。"""
         bars = _uptrend_bars(30)
-        with patch.object(sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]), \
-                patch.object(sa, "get_kline", return_value=bars), \
-                patch.object(sa, "get_finance", return_value=[_finance()]):
+        with (
+            patch.object(
+                sa, "get_quote", side_effect=[_quote(), _quote("sh000001", 3000)]
+            ),
+            patch.object(sa, "get_kline", return_value=bars),
+            patch.object(sa, "get_finance", return_value=[_finance()]),
+        ):
             service = sa.StockAnalysisService()
             result = service.analyze("sh600519", include_chan=False)
         assert result["code"] == "sh600519"

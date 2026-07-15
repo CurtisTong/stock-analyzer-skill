@@ -45,44 +45,52 @@ class TestForecastScoring:
 
     def test_forecast_increase_big(self):
         """大幅预增（change_min > 100%）-> +15。"""
-        forecast = [{
-            "forecast_type": "increase",
-            "change_min": 150,
-            "change_max": 200,
-        }]
+        forecast = [
+            {
+                "forecast_type": "increase",
+                "change_min": 150,
+                "change_max": 200,
+            }
+        ]
         with patch("data.event.get_events", return_value=_make_events(forecast)):
             score = event_score("sh600519")
         assert score == 65.0  # 50 + 15
 
     def test_forecast_increase_moderate(self):
         """中幅预增（50-100%）-> +10。"""
-        forecast = [{
-            "forecast_type": "increase",
-            "change_min": 60,
-            "change_max": 80,
-        }]
+        forecast = [
+            {
+                "forecast_type": "increase",
+                "change_min": 60,
+                "change_max": 80,
+            }
+        ]
         with patch("data.event.get_events", return_value=_make_events(forecast)):
             score = event_score("sh600519")
         assert score == 60.0  # 50 + 10
 
     def test_forecast_increase_small(self):
         """小幅预增（<50%）-> +5。"""
-        forecast = [{
-            "forecast_type": "increase",
-            "change_min": 20,
-            "change_max": 40,
-        }]
+        forecast = [
+            {
+                "forecast_type": "increase",
+                "change_min": 20,
+                "change_max": 40,
+            }
+        ]
         with patch("data.event.get_events", return_value=_make_events(forecast)):
             score = event_score("sh600519")
         assert score == 55.0  # 50 + 5
 
     def test_forecast_loss(self):
         """预亏 -> -20。"""
-        forecast = [{
-            "forecast_type": "loss",
-            "change_min": -100,
-            "change_max": -50,
-        }]
+        forecast = [
+            {
+                "forecast_type": "loss",
+                "change_min": -100,
+                "change_max": -50,
+            }
+        ]
         with patch("data.event.get_events", return_value=_make_events(forecast)):
             score = event_score("sh600519")
         assert score == 30.0  # 50 - 20
@@ -96,22 +104,26 @@ class TestForecastScoring:
 
     def test_forecast_decrease_big(self):
         """大幅预减（change_max < -50%）-> -12。"""
-        forecast = [{
-            "forecast_type": "decrease",
-            "change_min": -80,
-            "change_max": -60,
-        }]
+        forecast = [
+            {
+                "forecast_type": "decrease",
+                "change_min": -80,
+                "change_max": -60,
+            }
+        ]
         with patch("data.event.get_events", return_value=_make_events(forecast)):
             score = event_score("sh600519")
         assert score == 38.0  # 50 - 12
 
     def test_forecast_decrease_small(self):
         """小幅预减 -> -5。"""
-        forecast = [{
-            "forecast_type": "decrease",
-            "change_min": -30,
-            "change_max": -10,
-        }]
+        forecast = [
+            {
+                "forecast_type": "decrease",
+                "change_min": -30,
+                "change_max": -10,
+            }
+        ]
         with patch("data.event.get_events", return_value=_make_events(forecast)):
             score = event_score("sh600519")
         assert score == 45.0  # 50 - 5
@@ -138,8 +150,14 @@ class TestEventFactorActivation:
         """(#10) 所有 6 策略 event 权重 > 0。"""
         from strategies import get_strategy
 
-        for name in ["balanced", "quality_value", "growth_momentum",
-                      "defensive", "turning_point", "ma_volume_momentum"]:
+        for name in [
+            "balanced",
+            "quality_value",
+            "growth_momentum",
+            "defensive",
+            "turning_point",
+            "ma_volume_momentum",
+        ]:
             weights = get_strategy(name)
             assert weights.get("event", 0) > 0, f"{name} event 权重应 > 0"
 
@@ -154,11 +172,18 @@ class TestEventFactorActivation:
         """策略权重归一化（和 ≈ 1.0）。"""
         from strategies import get_strategy
 
-        for name in ["balanced", "quality_value", "growth_momentum",
-                      "defensive", "turning_point", "ma_volume_momentum"]:
+        for name in [
+            "balanced",
+            "quality_value",
+            "growth_momentum",
+            "defensive",
+            "turning_point",
+            "ma_volume_momentum",
+        ]:
             weights = get_strategy(name)
-            total = sum(v for k, v in weights.items()
-                       if k not in ("label", "two_stage"))
+            total = sum(
+                v for k, v in weights.items() if k not in ("label", "two_stage")
+            )
             assert abs(total - 1.0) < 0.01, f"{name} 权重和 {total} 不等于 1.0"
 
 

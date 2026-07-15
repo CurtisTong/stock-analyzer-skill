@@ -74,7 +74,10 @@ class TestGetSectorStocks:
         }
 
     def test_exact_match(self):
-        assert sector.get_sector_stocks("新能源", self._data()) == ["sh600000", "sz000001"]
+        assert sector.get_sector_stocks("新能源", self._data()) == [
+            "sh600000",
+            "sz000001",
+        ]
 
     def test_fuzzy_match(self):
         """精确匹配失败后模糊匹配。"""
@@ -99,7 +102,16 @@ class TestGetSectorStocks:
 # ═══════════════════════════════════════════════════════════════
 
 
-def _make_quote(code, name="测试", price=10.0, change_pct=1.0, pe=15, pb=1.5, turnover=2.0, total_cap=100):
+def _make_quote(
+    code,
+    name="测试",
+    price=10.0,
+    change_pct=1.0,
+    pe=15,
+    pb=1.5,
+    turnover=2.0,
+    total_cap=100,
+):
     q = MagicMock()
     q.code = code
     q.name = name
@@ -147,10 +159,21 @@ class TestFetchSectorQuotes:
 
     def test_result_fields(self):
         codes = ["sh600000"]
-        with patch("sector.parallel_map", return_value={"sh600000": _make_quote("sh600000")}):
+        with patch(
+            "sector.parallel_map", return_value={"sh600000": _make_quote("sh600000")}
+        ):
             results = sector.fetch_sector_quotes(codes)
         r = results[0]
-        for key in ("code", "name", "price", "change_pct", "pe", "pb", "turnover", "total_cap"):
+        for key in (
+            "code",
+            "name",
+            "price",
+            "change_pct",
+            "pe",
+            "pb",
+            "turnover",
+            "total_cap",
+        ):
             assert key in r
 
 
@@ -331,11 +354,35 @@ class TestMainCLI:
 
         with patch.object(sys, "argv", ["sector.py", "sh600000", "-j"]):
             with patch("sector._load_sector_stocks", return_value=self._DATA):
-                with patch("sector.fetch_sector_quotes", return_value=[
-                    {"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "pe": 15, "pb": 1.5, "turnover": 2, "total_cap": 100},
-                    {"code": "sz000001", "name": "乙", "price": 20, "change_pct": -1, "pe": 20, "pb": 2, "turnover": 3, "total_cap": 200},
-                ]):
-                    with patch("sector.fetch_sector_finance", return_value={"sh600000": {"roe": 10}}):
+                with patch(
+                    "sector.fetch_sector_quotes",
+                    return_value=[
+                        {
+                            "code": "sh600000",
+                            "name": "甲",
+                            "price": 10,
+                            "change_pct": 1,
+                            "pe": 15,
+                            "pb": 1.5,
+                            "turnover": 2,
+                            "total_cap": 100,
+                        },
+                        {
+                            "code": "sz000001",
+                            "name": "乙",
+                            "price": 20,
+                            "change_pct": -1,
+                            "pe": 20,
+                            "pb": 2,
+                            "turnover": 3,
+                            "total_cap": 200,
+                        },
+                    ],
+                ):
+                    with patch(
+                        "sector.fetch_sector_finance",
+                        return_value={"sh600000": {"roe": 10}},
+                    ):
                         sector.main()
         out = capsys.readouterr().out
         parsed = json.loads(out)
@@ -345,9 +392,21 @@ class TestMainCLI:
     def test_code_query_text(self, capsys):
         with patch.object(sys, "argv", ["sector.py", "sh600000"]):
             with patch("sector._load_sector_stocks", return_value=self._DATA):
-                with patch("sector.fetch_sector_quotes", return_value=[
-                    {"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "pe": 15, "pb": 1.5, "turnover": 2, "total_cap": 100},
-                ]):
+                with patch(
+                    "sector.fetch_sector_quotes",
+                    return_value=[
+                        {
+                            "code": "sh600000",
+                            "name": "甲",
+                            "price": 10,
+                            "change_pct": 1,
+                            "pe": 15,
+                            "pb": 1.5,
+                            "turnover": 2,
+                            "total_cap": 100,
+                        },
+                    ],
+                ):
                     with patch("sector.fetch_sector_finance", return_value={}):
                         sector.main()
         out = capsys.readouterr().out
@@ -371,9 +430,21 @@ class TestMainCLI:
 
         with patch.object(sys, "argv", ["sector.py", "新能源", "-j"]):
             with patch("sector._load_sector_stocks", return_value=self._DATA):
-                with patch("sector.fetch_sector_quotes", return_value=[
-                    {"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "pe": 15, "pb": 1.5, "turnover": 2, "total_cap": 100},
-                ]):
+                with patch(
+                    "sector.fetch_sector_quotes",
+                    return_value=[
+                        {
+                            "code": "sh600000",
+                            "name": "甲",
+                            "price": 10,
+                            "change_pct": 1,
+                            "pe": 15,
+                            "pb": 1.5,
+                            "turnover": 2,
+                            "total_cap": 100,
+                        },
+                    ],
+                ):
                     with patch("sector.fetch_sector_finance", return_value={}):
                         sector.main()
         out = capsys.readouterr().out

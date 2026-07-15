@@ -34,7 +34,14 @@ class TestRenderTable:
 
     def test_renders_lines(self):
         records = [
-            {"day": "2025-01-01", "open": 10.0, "high": 11.0, "low": 9.5, "close": 10.5, "volume": 1000},
+            {
+                "day": "2025-01-01",
+                "open": 10.0,
+                "high": 11.0,
+                "low": 9.5,
+                "close": 10.5,
+                "volume": 1000,
+            },
         ]
         out = kline.render_table(records)
         assert "2025-01-01" in out
@@ -48,9 +55,30 @@ class TestAggregateKlines:
     def test_week_aggregation(self):
         """同一 ISO 周的多根日 K 聚合为一根周 K。"""
         records = [
-            {"day": "2025-01-06", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100},
-            {"day": "2025-01-07", "open": 10.5, "high": 12, "low": 10, "close": 11.5, "volume": 200},
-            {"day": "2025-01-13", "open": 11.5, "high": 13, "low": 11, "close": 12.5, "volume": 150},
+            {
+                "day": "2025-01-06",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 100,
+            },
+            {
+                "day": "2025-01-07",
+                "open": 10.5,
+                "high": 12,
+                "low": 10,
+                "close": 11.5,
+                "volume": 200,
+            },
+            {
+                "day": "2025-01-13",
+                "open": 11.5,
+                "high": 13,
+                "low": 11,
+                "close": 12.5,
+                "volume": 150,
+            },
         ]
         result = kline.aggregate_klines(records, period="week")
         assert len(result) == 2
@@ -64,8 +92,22 @@ class TestAggregateKlines:
     def test_month_aggregation(self):
         """按月聚合。"""
         records = [
-            {"day": "2025-01-05", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100},
-            {"day": "2025-02-03", "open": 10.5, "high": 12, "low": 10, "close": 11.5, "volume": 200},
+            {
+                "day": "2025-01-05",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 100,
+            },
+            {
+                "day": "2025-02-03",
+                "open": 10.5,
+                "high": 12,
+                "low": 10,
+                "close": 11.5,
+                "volume": 200,
+            },
         ]
         result = kline.aggregate_klines(records, period="month")
         assert len(result) == 2
@@ -74,7 +116,14 @@ class TestAggregateKlines:
     def test_invalid_date_fallback(self):
         """异常日期字符串时按前 8 位分组（不崩溃）。"""
         records = [
-            {"day": "bad-date", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100},
+            {
+                "day": "bad-date",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 100,
+            },
         ]
         result = kline.aggregate_klines(records)
         assert len(result) == 1
@@ -86,9 +135,11 @@ class TestMain:
         fake_fetcher = MagicMock()
         fake_fetcher.name = "sina"
         fake_fetcher.priority = 10
-        with patch("sys.argv", ["kline.py", "--sources"]), patch(
-            "fetchers.get_kline_fetchers", return_value=[fake_fetcher]
-        ), patch("common.cache.cleanup_tmp_files"):
+        with (
+            patch("sys.argv", ["kline.py", "--sources"]),
+            patch("fetchers.get_kline_fetchers", return_value=[fake_fetcher]),
+            patch("common.cache.cleanup_tmp_files"),
+        ):
             kline.main()
         out = capsys.readouterr().out
         assert "可用 K 线数据源" in out
@@ -102,10 +153,21 @@ class TestMain:
 
     def test_json_output(self, capsys):
         """-j 输出 JSON。"""
-        records = [{"day": "2025-01-01", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100}]
-        with patch("sys.argv", ["kline.py", "sh600519", "240", "5", "-j"]), patch(
-            "common.cache.cleanup_tmp_files"
-        ), patch.object(kline, "fetch", return_value=records):
+        records = [
+            {
+                "day": "2025-01-01",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 100,
+            }
+        ]
+        with (
+            patch("sys.argv", ["kline.py", "sh600519", "240", "5", "-j"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(kline, "fetch", return_value=records),
+        ):
             kline.main()
         out = capsys.readouterr().out
         parsed = json.loads(out)
@@ -113,10 +175,21 @@ class TestMain:
 
     def test_table_output(self, capsys):
         """默认表格输出。"""
-        records = [{"day": "2025-01-01", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100}]
-        with patch("sys.argv", ["kline.py", "sh600519", "240", "5"]), patch(
-            "common.cache.cleanup_tmp_files"
-        ), patch.object(kline, "fetch", return_value=records):
+        records = [
+            {
+                "day": "2025-01-01",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 100,
+            }
+        ]
+        with (
+            patch("sys.argv", ["kline.py", "sh600519", "240", "5"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(kline, "fetch", return_value=records),
+        ):
             kline.main()
         out = capsys.readouterr().out
         assert "2025-01-01" in out
@@ -124,10 +197,21 @@ class TestMain:
 
     def test_default_scale_and_datalen(self, capsys):
         """仅传 symbol 时使用默认 scale=240 datalen=30。"""
-        records = [{"day": "2025-01-01", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100}]
-        with patch("sys.argv", ["kline.py", "sh600519"]), patch(
-            "common.cache.cleanup_tmp_files"
-        ), patch.object(kline, "fetch", return_value=records) as mock_fetch:
+        records = [
+            {
+                "day": "2025-01-01",
+                "open": 10,
+                "high": 11,
+                "low": 9,
+                "close": 10.5,
+                "volume": 100,
+            }
+        ]
+        with (
+            patch("sys.argv", ["kline.py", "sh600519"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(kline, "fetch", return_value=records) as mock_fetch,
+        ):
             kline.main()
         # 验证默认参数
         call_args = mock_fetch.call_args

@@ -128,7 +128,13 @@ class TestNotificationManagerInit:
 
     def test_setup_channels_bark(self):
         config = {
-            "channels": {"bark": {"enabled": True, "key": "test_key", "server": "https://api.day.app"}},
+            "channels": {
+                "bark": {
+                    "enabled": True,
+                    "key": "test_key",
+                    "server": "https://api.day.app",
+                }
+            },
             "throttle": {},
         }
         with patch("monitor.manager.BarkChannel") as BarkMock:
@@ -247,21 +253,35 @@ class TestSend:
 
 class TestSendAlert:
     def test_send_alert_format(self):
-        nm = _make_manager({"channels": {}, "throttle": {"dedup_window": 0, "daily_limit": 100}})
+        nm = _make_manager(
+            {"channels": {}, "throttle": {"dedup_window": 0, "daily_limit": 100}}
+        )
         result = nm.send_alert("price", "茅台", "sh600519", "突破前高")
         # 无通道 -> no_channels（说明格式化 + throttle 通过）
         assert result["reason"] == "no_channels"
 
     def test_send_alert_icon_map(self):
-        nm = _make_manager({"channels": {}, "throttle": {"dedup_window": 0, "daily_limit": 100}})
-        for alert_type in ["price", "technical", "portfolio", "market", "risk", "break", "unknown"]:
+        nm = _make_manager(
+            {"channels": {}, "throttle": {"dedup_window": 0, "daily_limit": 100}}
+        )
+        for alert_type in [
+            "price",
+            "technical",
+            "portfolio",
+            "market",
+            "risk",
+            "break",
+            "unknown",
+        ]:
             # send_alert 的 throttle_key 内部派生自 alert_type+code+message
             # 用不同 message 避免去重
             result = nm.send_alert(alert_type, "X", "sh000001", f"msg_{alert_type}")
             assert result["reason"] == "no_channels"
 
     def test_send_alert_no_code(self):
-        nm = _make_manager({"channels": {}, "throttle": {"dedup_window": 0, "daily_limit": 100}})
+        nm = _make_manager(
+            {"channels": {}, "throttle": {"dedup_window": 0, "daily_limit": 100}}
+        )
         result = nm.send_alert("price", "X", "", "msg")
         assert result["reason"] == "no_channels"
 

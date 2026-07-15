@@ -7,7 +7,17 @@ from strategies.regime.overlay import compute_overlay_weights
 
 def _equal_weights():
     """6 因子等权重。"""
-    return {k: 1 / 6 for k in ("quality", "valuation", "momentum", "liquidity", "volatility", "dividend")}
+    return {
+        k: 1 / 6
+        for k in (
+            "quality",
+            "valuation",
+            "momentum",
+            "liquidity",
+            "volatility",
+            "dividend",
+        )
+    }
 
 
 class TestRegimeSmoother:

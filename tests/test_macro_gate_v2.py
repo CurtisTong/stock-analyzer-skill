@@ -183,7 +183,9 @@ class TestTTLCache:
         def worker():
             try:
                 barrier.wait(timeout=5)
-                with patch("strategies.macro.gate.safe_get", side_effect=_enabled_safe_get):
+                with patch(
+                    "strategies.macro.gate.safe_get", side_effect=_enabled_safe_get
+                ):
                     state, msg = gate.check()
                     results.append(state)
             except Exception as e:
@@ -241,6 +243,7 @@ class TestPositionRatio:
 @dataclass
 class _MockBar:
     """模拟 KlineBar。"""
+
     day: str
     open: float
     high: float
@@ -266,7 +269,15 @@ class TestAShareVol:
         for i in range(30):
             # 交替涨跌 1%，制造 ~1% 日波动
             close = base * (1 + 0.01 * ((-1) ** i))
-            bars.append(_MockBar(day=f"2025-01-{i+1:02d}", open=base, high=close*1.01, low=close*0.99, close=close))
+            bars.append(
+                _MockBar(
+                    day=f"2025-01-{i+1:02d}",
+                    open=base,
+                    high=close * 1.01,
+                    low=close * 0.99,
+                    close=close,
+                )
+            )
             base = close
 
         with patch("data.get_kline", return_value=bars):
@@ -278,7 +289,10 @@ class TestAShareVol:
         """K 线不足 -> 返回 None。"""
         from strategies.macro.ashare import fetch_ashare_vol
 
-        bars = [_MockBar(day=f"2025-01-{i+1:02d}", open=10, high=11, low=9, close=10) for i in range(5)]
+        bars = [
+            _MockBar(day=f"2025-01-{i+1:02d}", open=10, high=11, low=9, close=10)
+            for i in range(5)
+        ]
 
         with patch("data.get_kline", return_value=bars):
             vol = fetch_ashare_vol(window=20)
@@ -326,17 +340,29 @@ class TestPipelinePositionControl:
         args.strategy = "balanced"
 
         # mock pipeline 依赖
-        rows = [{"code": f"sh60000{i}", "score": 100 - i, "rejected": None} for i in range(10)]
+        rows = [
+            {"code": f"sh60000{i}", "score": 100 - i, "rejected": None}
+            for i in range(10)
+        ]
 
-        with patch("business.screening_pipeline.load_universe", return_value=["sh600001"]), \
-             patch("business.screening_pipeline.fetch_batch_dicts", return_value=[{"code": "sh600001"}]), \
-             patch("business.screening_pipeline.prefetch_finance_all", return_value={}), \
-             patch("business.screening_pipeline.analyze_code", return_value=rows[0]), \
-             patch("strategies.macro.MacroSafetyGate") as MockGate:
+        with (
+            patch(
+                "business.screening_pipeline.load_universe", return_value=["sh600001"]
+            ),
+            patch(
+                "business.screening_pipeline.fetch_batch_dicts",
+                return_value=[{"code": "sh600001"}],
+            ),
+            patch("business.screening_pipeline.prefetch_finance_all", return_value={}),
+            patch("business.screening_pipeline.analyze_code", return_value=rows[0]),
+            patch("strategies.macro.MacroSafetyGate") as MockGate,
+        ):
             MockGate.return_value.check.return_value = (
-                MacroState.YELLOW, "🟡 避险升温 仓位上限建议 50%"
+                MacroState.YELLOW,
+                "🟡 避险升温 仓位上限建议 50%",
             )
             from business.screening_pipeline import run_screening
+
             result = run_screening(args)
             assert result["halted"] is False
             assert result["position_ratio"] == 0.5
@@ -358,17 +384,26 @@ class TestPipelinePositionControl:
         args.full_market = False
         args.strategy = "balanced"
 
-        rows = [{"code": f"sh60000{i}", "score": 100 - i, "rejected": None} for i in range(8)]
+        rows = [
+            {"code": f"sh60000{i}", "score": 100 - i, "rejected": None}
+            for i in range(8)
+        ]
 
-        with patch("business.screening_pipeline.load_universe", return_value=["sh600001"]), \
-             patch("business.screening_pipeline.fetch_batch_dicts", return_value=[{"code": "sh600001"}]), \
-             patch("business.screening_pipeline.prefetch_finance_all", return_value={}), \
-             patch("business.screening_pipeline.analyze_code", return_value=rows[0]), \
-             patch("strategies.macro.MacroSafetyGate") as MockGate:
-            MockGate.return_value.check.return_value = (
-                MacroState.GREEN, "🟢 宏观稳定"
-            )
+        with (
+            patch(
+                "business.screening_pipeline.load_universe", return_value=["sh600001"]
+            ),
+            patch(
+                "business.screening_pipeline.fetch_batch_dicts",
+                return_value=[{"code": "sh600001"}],
+            ),
+            patch("business.screening_pipeline.prefetch_finance_all", return_value={}),
+            patch("business.screening_pipeline.analyze_code", return_value=rows[0]),
+            patch("strategies.macro.MacroSafetyGate") as MockGate,
+        ):
+            MockGate.return_value.check.return_value = (MacroState.GREEN, "🟢 宏观稳定")
             from business.screening_pipeline import run_screening
+
             result = run_screening(args)
             assert result["position_ratio"] == 1.0
 
@@ -387,14 +422,20 @@ class TestPipelinePositionControl:
         args.full_market = False
         args.strategy = "balanced"
 
-        with patch("business.screening_pipeline.load_universe", return_value=["sh600001"]), \
-             patch("business.screening_pipeline.fetch_batch_dicts", return_value=[{"code": "sh600001"}]), \
-             patch("business.screening_pipeline.prefetch_finance_all", return_value={}), \
-             patch("strategies.macro.MacroSafetyGate") as MockGate:
-            MockGate.return_value.check.return_value = (
-                MacroState.RED, "🔴 系统性风险"
-            )
+        with (
+            patch(
+                "business.screening_pipeline.load_universe", return_value=["sh600001"]
+            ),
+            patch(
+                "business.screening_pipeline.fetch_batch_dicts",
+                return_value=[{"code": "sh600001"}],
+            ),
+            patch("business.screening_pipeline.prefetch_finance_all", return_value={}),
+            patch("strategies.macro.MacroSafetyGate") as MockGate,
+        ):
+            MockGate.return_value.check.return_value = (MacroState.RED, "🔴 系统性风险")
             from business.screening_pipeline import run_screening
+
             result = run_screening(args)
             assert result["halted"] is True
             assert result["position_ratio"] == 0.0
@@ -426,8 +467,22 @@ class TestAdvisoryRebalance:
     def test_advisory_rebalance_generates_suggestions(self, tmp_path):
         """target_ratio=0.5 生成 reduce 建议。"""
         positions = [
-            {"code": "sh600001", "name": "测试A", "cost": 10.0, "quantity": 1000, "buy_date": "", "tags": []},
-            {"code": "sh600002", "name": "测试B", "cost": 20.0, "quantity": 500, "buy_date": "", "tags": []},
+            {
+                "code": "sh600001",
+                "name": "测试A",
+                "cost": 10.0,
+                "quantity": 1000,
+                "buy_date": "",
+                "tags": [],
+            },
+            {
+                "code": "sh600002",
+                "name": "测试B",
+                "cost": 20.0,
+                "quantity": 500,
+                "buy_date": "",
+                "tags": [],
+            },
         ]
         pm = self._make_pm(tmp_path, positions)
 
@@ -446,7 +501,14 @@ class TestAdvisoryRebalance:
     def test_advisory_rebalance_with_quotes(self, tmp_path):
         """提供 quotes 时按市价计算。"""
         positions = [
-            {"code": "sh600001", "name": "测试A", "cost": 10.0, "quantity": 1000, "buy_date": "", "tags": []},
+            {
+                "code": "sh600001",
+                "name": "测试A",
+                "cost": 10.0,
+                "quantity": 1000,
+                "buy_date": "",
+                "tags": [],
+            },
         ]
         pm = self._make_pm(tmp_path, positions)
 
@@ -460,8 +522,16 @@ class TestAdvisoryRebalance:
     def test_advisory_rebalance_does_not_modify_portfolio(self, tmp_path):
         """调仓建议不修改 portfolio.json（纯只读）。"""
         import json
+
         positions = [
-            {"code": "sh600001", "name": "测试A", "cost": 10.0, "quantity": 1000, "buy_date": "", "tags": []},
+            {
+                "code": "sh600001",
+                "name": "测试A",
+                "cost": 10.0,
+                "quantity": 1000,
+                "buy_date": "",
+                "tags": [],
+            },
         ]
         pm = self._make_pm(tmp_path, positions)
         portfolio_file = pm._path
@@ -480,7 +550,14 @@ class TestAdvisoryRebalance:
     def test_advisory_rebalance_green_no_suggestion(self, tmp_path):
         """target_ratio=1.0（GREEN）-> 无减仓建议。"""
         positions = [
-            {"code": "sh600001", "name": "测试A", "cost": 10.0, "quantity": 1000, "buy_date": "", "tags": []},
+            {
+                "code": "sh600001",
+                "name": "测试A",
+                "cost": 10.0,
+                "quantity": 1000,
+                "buy_date": "",
+                "tags": [],
+            },
         ]
         pm = self._make_pm(tmp_path, positions)
 
@@ -509,6 +586,7 @@ class TestHistoryFetch:
         class _FakeRow:
             def __init__(self, close):
                 self.Close = close
+
             def __getitem__(self, key):
                 return self.Close
 
@@ -516,13 +594,19 @@ class TestHistoryFetch:
             def __init__(self, items):
                 # items: [(date_str, close_value), ...]
                 self._items = items
+
             def iterrows(self):
                 from datetime import datetime
+
                 for date_str, close in self._items:
                     yield datetime.strptime(date_str, "%Y-%m-%d"), _FakeRow(close)
 
-        vix_hist = _FakeHist([("2025-01-01", 15.0), ("2025-01-02", 16.0), ("2025-01-03", 18.0)])
-        tlt_hist = _FakeHist([("2025-01-01", 90.0), ("2025-01-02", 89.0), ("2025-01-03", 88.0)])
+        vix_hist = _FakeHist(
+            [("2025-01-01", 15.0), ("2025-01-02", 16.0), ("2025-01-03", 18.0)]
+        )
+        tlt_hist = _FakeHist(
+            [("2025-01-01", 90.0), ("2025-01-02", 89.0), ("2025-01-03", 88.0)]
+        )
 
         mock_yf = MagicMock()
         mock_yf.Ticker.return_value.history.side_effect = [vix_hist, tlt_hist]
@@ -533,7 +617,15 @@ class TestHistoryFetch:
         base = 4000.0
         for i in range(25):
             close = base * (1 + 0.01 * ((-1) ** i))
-            bars.append(_MockBar(day=f"2025-01-{i+1:02d}", open=base, high=close*1.01, low=close*0.99, close=close))
+            bars.append(
+                _MockBar(
+                    day=f"2025-01-{i+1:02d}",
+                    open=base,
+                    high=close * 1.01,
+                    low=close * 0.99,
+                    close=close,
+                )
+            )
             base = close
 
         monkeypatch.setattr("data.get_kline", lambda *a, **kw: bars)

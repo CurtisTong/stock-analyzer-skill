@@ -93,7 +93,9 @@ class TestGetConnection:
 
         mock_conn = MagicMock()
         mock_conn.sock = MagicMock()  # 有效连接
-        http_mod._connection_pool["key"] = [(mock_conn, _time.time())]  # 当前时间，不过期
+        http_mod._connection_pool["key"] = [
+            (mock_conn, _time.time())
+        ]  # 当前时间，不过期
         with patch.object(http_mod, "_create_connection") as mock_create:
             conn = http_mod._get_connection("key", "https", "host", 443)
         assert conn is mock_conn
@@ -285,52 +287,54 @@ class TestHttpGetRequests:
 
 class TestHttpGetInternal:
     def test_success_no_retry(self):
-        with patch.object(http_mod, "_get_connection", return_value=MagicMock()), \
-             patch.object(http_mod, "_do_request", return_value=b"ok"), \
-             patch.object(http_mod, "_return_connection"):
+        with (
+            patch.object(http_mod, "_get_connection", return_value=MagicMock()),
+            patch.object(http_mod, "_do_request", return_value=b"ok"),
+            patch.object(http_mod, "_return_connection"),
+        ):
             result = http_mod._http_get_internal("http://example.com/", max_retries=1)
         assert result == b"ok"
 
     def test_429_not_retried(self):
         """RateLimitError 立即抛出不重试。"""
-        with patch.object(http_mod, "_get_connection", return_value=MagicMock()), \
-             patch.object(http_mod, "_do_request", side_effect=RateLimitError("url")), \
-             patch.object(http_mod, "_return_connection"), \
-             patch.object(http_mod, "_invalidate_connection"), \
-             patch("common.http.time.sleep"):
+        with (
+            patch.object(http_mod, "_get_connection", return_value=MagicMock()),
+            patch.object(http_mod, "_do_request", side_effect=RateLimitError("url")),
+            patch.object(http_mod, "_return_connection"),
+            patch.object(http_mod, "_invalidate_connection"),
+            patch("common.http.time.sleep"),
+        ):
             with pytest.raises(RateLimitError):
                 http_mod._http_get_internal("http://example.com/", max_retries=3)
 
     def test_retries_on_network_error(self):
         """网络错误重试后成功。"""
         mock_conn = MagicMock()
-        with patch.object(http_mod, "_get_connection", return_value=mock_conn), \
-             patch.object(
-                 http_mod,
-                 "_do_request",
-                 side_effect=[ConnectionError("fail"), b"ok"],
-             ), \
-             patch.object(http_mod, "_return_connection"), \
-             patch.object(http_mod, "_invalidate_connection"), \
-             patch("common.http.time.sleep"):
-            result = http_mod._http_get_internal(
-                "http://example.com/", max_retries=3
-            )
+        with (
+            patch.object(http_mod, "_get_connection", return_value=mock_conn),
+            patch.object(
+                http_mod,
+                "_do_request",
+                side_effect=[ConnectionError("fail"), b"ok"],
+            ),
+            patch.object(http_mod, "_return_connection"),
+            patch.object(http_mod, "_invalidate_connection"),
+            patch("common.http.time.sleep"),
+        ):
+            result = http_mod._http_get_internal("http://example.com/", max_retries=3)
         assert result == b"ok"
 
     def test_all_retries_fail_raises_network_error(self):
         """所有重试失败抛 NetworkError。"""
-        with patch.object(http_mod, "_get_connection", return_value=MagicMock()), \
-             patch.object(
-                 http_mod, "_do_request", side_effect=ConnectionError("fail")
-             ), \
-             patch.object(http_mod, "_return_connection"), \
-             patch.object(http_mod, "_invalidate_connection"), \
-             patch("common.http.time.sleep"):
+        with (
+            patch.object(http_mod, "_get_connection", return_value=MagicMock()),
+            patch.object(http_mod, "_do_request", side_effect=ConnectionError("fail")),
+            patch.object(http_mod, "_return_connection"),
+            patch.object(http_mod, "_invalidate_connection"),
+            patch("common.http.time.sleep"),
+        ):
             with pytest.raises(NetworkError):
-                http_mod._http_get_internal(
-                    "http://example.com/", max_retries=2
-                )
+                http_mod._http_get_internal("http://example.com/", max_retries=2)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -340,16 +344,24 @@ class TestHttpGetInternal:
 
 class TestHttpGetFallback:
     def test_http_get_no_requests_uses_internal(self):
-        with patch.object(http_mod, "_HAS_REQUESTS", False), \
-             patch.object(http_mod, "_http_get_internal", return_value=b"data") as mock_internal:
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", False),
+            patch.object(
+                http_mod, "_http_get_internal", return_value=b"data"
+            ) as mock_internal,
+        ):
             result = http_mod.http_get("http://example.com/")
         assert result == b"data"
         mock_internal.assert_called_once()
 
     def test_http_get_requests_path_success(self):
         """requests 可用时优先走 requests 路径。"""
-        with patch.object(http_mod, "_HAS_REQUESTS", True), \
-             patch.object(http_mod, "_http_get_requests", return_value=b"data") as mock_req:
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", True),
+            patch.object(
+                http_mod, "_http_get_requests", return_value=b"data"
+            ) as mock_req,
+        ):
             result = http_mod.http_get("http://example.com/")
         assert result == b"data"
         mock_req.assert_called_once()
@@ -363,8 +375,10 @@ class TestHttpGetFallback:
         mock_resp.text = "not found"
         err = _req.RequestException()
         err.response = mock_resp
-        with patch.object(http_mod, "_HAS_REQUESTS", True), \
-             patch.object(http_mod, "_http_get_requests", side_effect=err):
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", True),
+            patch.object(http_mod, "_http_get_requests", side_effect=err),
+        ):
             with pytest.raises(HTTPStatusError) as exc_info:
                 http_mod.http_get("http://example.com/")
         assert exc_info.value.status == 404
@@ -375,22 +389,32 @@ class TestHttpGetFallback:
 
         err = _req.RequestException("connection reset")
         err.response = None
-        with patch.object(http_mod, "_HAS_REQUESTS", True), \
-             patch.object(http_mod, "_http_get_requests", side_effect=err), \
-             patch.object(http_mod, "_http_get_internal", return_value=b"fallback"):
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", True),
+            patch.object(http_mod, "_http_get_requests", side_effect=err),
+            patch.object(http_mod, "_http_get_internal", return_value=b"fallback"),
+        ):
             result = http_mod.http_get("http://example.com/")
         assert result == b"fallback"
 
     def test_http_get_rate_limit_propagates(self):
         """RateLimitError 不降级，直接抛出。"""
-        with patch.object(http_mod, "_HAS_REQUESTS", True), \
-             patch.object(http_mod, "_http_get_requests", side_effect=RateLimitError("url")):
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", True),
+            patch.object(
+                http_mod, "_http_get_requests", side_effect=RateLimitError("url")
+            ),
+        ):
             with pytest.raises(RateLimitError):
                 http_mod.http_get("http://example.com/")
 
     def test_http_get_with_headers_no_requests(self):
-        with patch.object(http_mod, "_HAS_REQUESTS", False), \
-             patch.object(http_mod, "_http_get_internal", return_value=b"data") as mock_internal:
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", False),
+            patch.object(
+                http_mod, "_http_get_internal", return_value=b"data"
+            ) as mock_internal,
+        ):
             result = http_mod.http_get_with_headers(
                 "http://example.com/", headers={"X": "1"}
             )
@@ -398,8 +422,12 @@ class TestHttpGetFallback:
         mock_internal.assert_called_once()
 
     def test_http_get_with_headers_rate_limit_propagates(self):
-        with patch.object(http_mod, "_HAS_REQUESTS", True), \
-             patch.object(http_mod, "_http_get_requests", side_effect=RateLimitError("url")):
+        with (
+            patch.object(http_mod, "_HAS_REQUESTS", True),
+            patch.object(
+                http_mod, "_http_get_requests", side_effect=RateLimitError("url")
+            ),
+        ):
             with pytest.raises(RateLimitError):
                 http_mod.http_get_with_headers("http://example.com/")
 

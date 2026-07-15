@@ -44,8 +44,20 @@ class TestEarningsCalendar:
 
     def test_code_filter(self):
         rows = [
-            {"SECURITY_CODE": "600519", "SECURITY_NAME_ABBR": "A", "REPORT_DATE": "", "OP_DATE": "", "OP_CHANGE": ""},
-            {"SECURITY_CODE": "000001", "SECURITY_NAME_ABBR": "B", "REPORT_DATE": "", "OP_DATE": "", "OP_CHANGE": ""},
+            {
+                "SECURITY_CODE": "600519",
+                "SECURITY_NAME_ABBR": "A",
+                "REPORT_DATE": "",
+                "OP_DATE": "",
+                "OP_CHANGE": "",
+            },
+            {
+                "SECURITY_CODE": "000001",
+                "SECURITY_NAME_ABBR": "B",
+                "REPORT_DATE": "",
+                "OP_DATE": "",
+                "OP_CHANGE": "",
+            },
         ]
         with patch.object(ee, "http_get", return_value=_ok(rows)):
             f = ee.EarningsCalendarFetcher()
@@ -93,8 +105,22 @@ class TestLockupCalendar:
 
     def test_code_filter_excludes_others(self):
         rows = [
-            {"SECURITY_CODE": "600519", "SECURITY_NAME_ABBR": "A", "FREE_DATE": "2025-06-01", "LIFT_NUM": "1", "LIFT_MARKET_CAP": "1", "NEW_PRICE": "1"},
-            {"SECURITY_CODE": "000001", "SECURITY_NAME_ABBR": "B", "FREE_DATE": "2025-06-01", "LIFT_NUM": "1", "LIFT_MARKET_CAP": "1", "NEW_PRICE": "1"},
+            {
+                "SECURITY_CODE": "600519",
+                "SECURITY_NAME_ABBR": "A",
+                "FREE_DATE": "2025-06-01",
+                "LIFT_NUM": "1",
+                "LIFT_MARKET_CAP": "1",
+                "NEW_PRICE": "1",
+            },
+            {
+                "SECURITY_CODE": "000001",
+                "SECURITY_NAME_ABBR": "B",
+                "FREE_DATE": "2025-06-01",
+                "LIFT_NUM": "1",
+                "LIFT_MARKET_CAP": "1",
+                "NEW_PRICE": "1",
+            },
         ]
         with patch.object(ee, "http_get", return_value=_ok(rows)):
             f = ee.LockupCalendarFetcher()

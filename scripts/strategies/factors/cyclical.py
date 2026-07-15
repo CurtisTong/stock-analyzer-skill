@@ -86,16 +86,12 @@ def _price_dimension(fin: dict, quote: dict, industry: str) -> dict:
     """
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
-    profit_growth = to_float(
-        fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ"))
-    )
+    profit_growth = to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ")))
 
     pe_expensive = get_industry_threshold(industry, "pe_expensive", 40)
     pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)
     pb_expensive = get_industry_threshold(industry, "pb_expensive", 3.5)
-    cycle_peak_growth = get_industry_threshold(
-        industry, "cycle_peak_profit_growth", 50
-    )
+    cycle_peak_growth = get_industry_threshold(industry, "cycle_peak_profit_growth", 50)
 
     if pe <= 0 and pb <= 0:
         return {"position": "mid", "evaluable": False, "detail": "PE/PB数据缺失"}
@@ -127,7 +123,11 @@ def _price_dimension(fin: dict, quote: dict, industry: str) -> dict:
         return {"position": "high", "evaluable": True, "detail": "; ".join(details)}
     if low_signals >= 1:
         return {"position": "low", "evaluable": True, "detail": "; ".join(details)}
-    return {"position": "mid", "evaluable": True, "detail": "; ".join(details) or "估值中性"}
+    return {
+        "position": "mid",
+        "evaluable": True,
+        "detail": "; ".join(details) or "估值中性",
+    }
 
 
 def _supply_dimension(fin: dict, industry: str) -> dict:
@@ -179,7 +179,11 @@ def _cost_dimension(industry: str) -> dict:
 
     price_data = _fetch_raw_material_price(material_key)
     if price_data is None:
-        return {"position": "mid", "evaluable": False, "detail": f"{material_key}价格缺失"}
+        return {
+            "position": "mid",
+            "evaluable": False,
+            "detail": f"{material_key}价格缺失",
+        }
 
     # fixture-only 模式下无历史序列，无法判断分位
     # 但价格存在即说明数据可用，返回中性（Phase 3 后续可扩展历史序列）
@@ -195,9 +199,7 @@ def _cost_dimension(industry: str) -> dict:
 # ═══════════════════════════════════════════════════════════════
 
 
-def cyclical_score(
-    fin: dict, quote: dict, features: dict, industry: str
-) -> float:
+def cyclical_score(fin: dict, quote: dict, features: dict, industry: str) -> float:
     """周期因子评分（三维度周期位置矩阵）。
 
     Args:

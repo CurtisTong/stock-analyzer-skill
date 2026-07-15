@@ -14,7 +14,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import business.long_term as long_term_mod
-from business.long_term import LongTermEvaluator, _load_long_term_weights, format_long_term_result
+from business.long_term import (
+    LongTermEvaluator,
+    _load_long_term_weights,
+    format_long_term_result,
+)
 
 
 def _make_evaluator():
@@ -26,7 +30,9 @@ class TestCalcMoat:
         self.ev = _make_evaluator()
 
     def test_high_gross_margin(self):
-        score, reasoning = self.ev._calc_moat({"gross_margin": 60, "net_margin": 25, "roe": 25})
+        score, reasoning = self.ev._calc_moat(
+            {"gross_margin": 60, "net_margin": 25, "roe": 25}
+        )
         assert score > 50
         assert any("毛利率" in r for r in reasoning)
 
@@ -35,7 +41,9 @@ class TestCalcMoat:
         assert score > 50
 
     def test_low_gross_margin(self):
-        score, reasoning = self.ev._calc_moat({"gross_margin": 20, "net_margin": 5, "roe": 8})
+        score, reasoning = self.ev._calc_moat(
+            {"gross_margin": 20, "net_margin": 5, "roe": 8}
+        )
         assert score < 50
         assert any("定价权弱" in r for r in reasoning)
 
@@ -44,7 +52,9 @@ class TestCalcMoat:
         assert "净利率" in "".join(_) or score > 50
 
     def test_low_net_margin(self):
-        score, reasoning = self.ev._calc_moat({"gross_margin": 60, "net_margin": 5, "roe": 25})
+        score, reasoning = self.ev._calc_moat(
+            {"gross_margin": 60, "net_margin": 5, "roe": 25}
+        )
         assert any("盈利能力弱" in r for r in reasoning)
 
     def test_high_roe(self):
@@ -52,11 +62,15 @@ class TestCalcMoat:
         assert score > 60
 
     def test_medium_roe(self):
-        score, reasoning = self.ev._calc_moat({"gross_margin": 60, "net_margin": 25, "roe": 16})
+        score, reasoning = self.ev._calc_moat(
+            {"gross_margin": 60, "net_margin": 25, "roe": 16}
+        )
         assert any("资本效率良好" in r for r in reasoning)
 
     def test_low_roe(self):
-        score, reasoning = self.ev._calc_moat({"gross_margin": 60, "net_margin": 25, "roe": 8})
+        score, reasoning = self.ev._calc_moat(
+            {"gross_margin": 60, "net_margin": 25, "roe": 8}
+        )
         assert any("资本效率一般" in r for r in reasoning)
 
     def test_empty_finance(self):
@@ -69,27 +83,39 @@ class TestCalcGrowth:
         self.ev = _make_evaluator()
 
     def test_high_revenue_growth(self):
-        score, reasoning = self.ev._calc_growth({"revenue_yoy": 30, "net_profit_yoy": 25, "roe": 20})
+        score, reasoning = self.ev._calc_growth(
+            {"revenue_yoy": 30, "net_profit_yoy": 25, "roe": 20}
+        )
         assert any("高成长" in r for r in reasoning)
 
     def test_medium_revenue_growth(self):
-        score, reasoning = self.ev._calc_growth({"revenue_yoy": 15, "net_profit_yoy": 15, "roe": 12})
+        score, reasoning = self.ev._calc_growth(
+            {"revenue_yoy": 15, "net_profit_yoy": 15, "roe": 12}
+        )
         assert any("稳定成长" in r for r in reasoning)
 
     def test_low_revenue_growth(self):
-        score, reasoning = self.ev._calc_growth({"revenue_yoy": 5, "net_profit_yoy": 5, "roe": 12})
+        score, reasoning = self.ev._calc_growth(
+            {"revenue_yoy": 5, "net_profit_yoy": 5, "roe": 12}
+        )
         assert any("低增长" in r for r in reasoning)
 
     def test_negative_revenue_growth(self):
-        score, reasoning = self.ev._calc_growth({"revenue_yoy": -5, "net_profit_yoy": -5, "roe": 12})
+        score, reasoning = self.ev._calc_growth(
+            {"revenue_yoy": -5, "net_profit_yoy": -5, "roe": 12}
+        )
         assert any("负增长" in r for r in reasoning)
 
     def test_high_profit_growth(self):
-        score, reasoning = self.ev._calc_growth({"revenue_yoy": 30, "net_profit_yoy": 30, "roe": 20})
+        score, reasoning = self.ev._calc_growth(
+            {"revenue_yoy": 30, "net_profit_yoy": 30, "roe": 20}
+        )
         assert any("利润增长" in r for r in reasoning)
 
     def test_negative_profit_growth(self):
-        score, reasoning = self.ev._calc_growth({"revenue_yoy": 30, "net_profit_yoy": -10, "roe": 20})
+        score, reasoning = self.ev._calc_growth(
+            {"revenue_yoy": 30, "net_profit_yoy": -10, "roe": 20}
+        )
         assert any("利润增长" in r for r in reasoning)
 
 
@@ -98,56 +124,82 @@ class TestCalcStability:
         self.ev = _make_evaluator()
 
     def test_low_debt_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4}
+        )
         assert any("财务稳健" in r for r in reasoning)
 
     def test_medium_debt_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 40, "ocf_per_share": 2, "eps": 1, "dividend_yield": 2})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 40, "ocf_per_share": 2, "eps": 1, "dividend_yield": 2}
+        )
         assert any("财务正常" in r for r in reasoning)
 
     def test_high_debt_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 60, "ocf_per_share": 2, "eps": 1, "dividend_yield": 0.5})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 60, "ocf_per_share": 2, "eps": 1, "dividend_yield": 0.5}
+        )
         assert any("负债偏高" in r for r in reasoning)
 
     def test_very_high_debt_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 80, "ocf_per_share": 2, "eps": 1, "dividend_yield": 0.5})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 80, "ocf_per_share": 2, "eps": 1, "dividend_yield": 0.5}
+        )
         assert any("财务风险高" in r for r in reasoning)
 
     def test_good_cash_flow_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4}
+        )
         assert any("现金流充足" in r for r in reasoning)
 
     def test_medium_cash_flow_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 0.6, "eps": 1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 0.6, "eps": 1, "dividend_yield": 4}
+        )
         assert any("现金流一般" in r for r in reasoning)
 
     def test_low_cash_flow_ratio(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 0.3, "eps": 1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 0.3, "eps": 1, "dividend_yield": 4}
+        )
         assert any("现金流不足" in r for r in reasoning)
 
     def test_loss_but_positive_ocf(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 0.5, "eps": -1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 0.5, "eps": -1, "dividend_yield": 4}
+        )
         assert any("造血能力" in r for r in reasoning)
 
     def test_negative_ocf(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": -0.5, "eps": 1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": -0.5, "eps": 1, "dividend_yield": 4}
+        )
         assert any("资金链风险" in r for r in reasoning)
 
     def test_missing_cash_flow(self):
         # eps=0, ocf=0: 走 elif ocf <= 0 分支 -> 资金链风险
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 0, "eps": 0, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 0, "eps": 0, "dividend_yield": 4}
+        )
         assert any("资金链风险" in r for r in reasoning)
 
     def test_high_dividend(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4}
+        )
         assert any("分红慷慨" in r for r in reasoning)
 
     def test_medium_dividend(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 2})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 2}
+        )
         assert any("分红一般" in r for r in reasoning)
 
     def test_low_dividend(self):
-        score, reasoning = self.ev._calc_stability({"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 0.5})
+        score, reasoning = self.ev._calc_stability(
+            {"debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 0.5}
+        )
         assert any("分红较少" in r for r in reasoning)
 
 
@@ -156,43 +208,63 @@ class TestCalcValuation:
         self.ev = _make_evaluator()
 
     def test_low_pe(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 10, "pe_percentile": 20, "pb": 0.8}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 10, "pe_percentile": 20, "pb": 0.8}, {}
+        )
         assert any("低估" in r for r in reasoning)
 
     def test_medium_pe(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 20, "pe_percentile": 50, "pb": 2}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 20, "pe_percentile": 50, "pb": 2}, {}
+        )
         assert any("合理估值" in r for r in reasoning)
 
     def test_high_pe(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 30, "pe_percentile": 50, "pb": 2}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 30, "pe_percentile": 50, "pb": 2}, {}
+        )
         assert any("偏高" in r for r in reasoning)
 
     def test_very_high_pe(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 50, "pe_percentile": 50, "pb": 2}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 50, "pe_percentile": 50, "pb": 2}, {}
+        )
         assert any("高估" in r for r in reasoning)
 
     def test_low_pe_percentile(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 20, "pe_percentile": 10, "pb": 2}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 20, "pe_percentile": 10, "pb": 2}, {}
+        )
         assert any("历史低位" in r for r in reasoning)
 
     def test_high_pe_percentile(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 20, "pe_percentile": 80, "pb": 2}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 20, "pe_percentile": 80, "pb": 2}, {}
+        )
         assert any("历史高位" in r for r in reasoning)
 
     def test_mid_pe_percentile(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 20, "pe_percentile": 50, "pb": 2}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 20, "pe_percentile": 50, "pb": 2}, {}
+        )
         assert any("历史中位" in r for r in reasoning)
 
     def test_low_pb(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 20, "pe_percentile": 50, "pb": 0.5}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 20, "pe_percentile": 50, "pb": 0.5}, {}
+        )
         assert any("低估" in r for r in reasoning)
 
     def test_high_pb(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 20, "pe_percentile": 50, "pb": 5}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 20, "pe_percentile": 50, "pb": 5}, {}
+        )
         assert any("高估" in r for r in reasoning)
 
     def test_no_pe(self):
-        score, reasoning = self.ev._calc_valuation({"pe": 0, "pe_percentile": -1, "pb": 0}, {})
+        score, reasoning = self.ev._calc_valuation(
+            {"pe": 0, "pe_percentile": -1, "pb": 0}, {}
+        )
         assert 0 <= score <= 100
 
 
@@ -200,13 +272,16 @@ class TestCalcLevel:
     def setup_method(self):
         self.ev = _make_evaluator()
 
-    @pytest.mark.parametrize("score,expected", [
-        (85, "非常适合"),
-        (70, "适合"),
-        (55, "一般"),
-        (40, "不太适合"),
-        (20, "不适合"),
-    ])
+    @pytest.mark.parametrize(
+        "score,expected",
+        [
+            (85, "非常适合"),
+            (70, "适合"),
+            (55, "一般"),
+            (40, "不太适合"),
+            (20, "不适合"),
+        ],
+    )
     def test_levels(self, score, expected):
         assert self.ev._calc_level(score) == expected
 
@@ -259,12 +334,24 @@ class TestEvaluate:
     def test_full_evaluation(self):
         ev = _make_evaluator()
         with (
-            patch.object(ev, "_get_quote", return_value={"name": "茅台", "pe": 20, "pb": 2}),
-            patch.object(ev, "_get_finance", return_value={
-                "gross_margin": 60, "net_margin": 25, "roe": 25,
-                "revenue_yoy": 30, "net_profit_yoy": 25,
-                "debt_ratio": 20, "ocf_per_share": 2, "eps": 1, "dividend_yield": 4,
-            }),
+            patch.object(
+                ev, "_get_quote", return_value={"name": "茅台", "pe": 20, "pb": 2}
+            ),
+            patch.object(
+                ev,
+                "_get_finance",
+                return_value={
+                    "gross_margin": 60,
+                    "net_margin": 25,
+                    "roe": 25,
+                    "revenue_yoy": 30,
+                    "net_profit_yoy": 25,
+                    "debt_ratio": 20,
+                    "ocf_per_share": 2,
+                    "eps": 1,
+                    "dividend_yield": 4,
+                },
+            ),
         ):
             result = ev.evaluate("sh600519")
         assert result["code"] == "sh600519"
@@ -308,9 +395,13 @@ class TestFormatLongTermResult:
     def test_all_levels_icons(self):
         for level in ["非常适合", "适合", "一般", "不太适合", "不适合", "未知"]:
             result = {
-                "code": "sh000001", "name": "X", "total_score": 50, "level": level,
+                "code": "sh000001",
+                "name": "X",
+                "total_score": 50,
+                "level": level,
                 "dimensions": {"moat": {"score": 50, "weight": 0.3}},
-                "reasoning": [], "conclusion": "test",
+                "reasoning": [],
+                "conclusion": "test",
             }
             output = format_long_term_result(result)
             assert "综合评分" in output
@@ -325,7 +416,9 @@ class TestLoadLongTermWeights:
         assert "valuation" in weights
 
     def test_invalid_weight_falls_back(self):
-        with patch("config.loader.get_scoring_config", return_value={"moat": "invalid"}):
+        with patch(
+            "config.loader.get_scoring_config", return_value={"moat": "invalid"}
+        ):
             weights = _load_long_term_weights()
         assert weights["moat"] == 0.30  # 回退默认
 
@@ -333,7 +426,10 @@ class TestLoadLongTermWeights:
 class TestMain:
     def test_main_json_output(self, capsys):
         with (
-            patch("business.long_term.LongTermEvaluator.evaluate", return_value={"code": "sh600519", "total_score": 70}),
+            patch(
+                "business.long_term.LongTermEvaluator.evaluate",
+                return_value={"code": "sh600519", "total_score": 70},
+            ),
             patch("sys.argv", ["long_term.py", "sh600519", "--json"]),
         ):
             long_term_mod.main()
@@ -343,11 +439,18 @@ class TestMain:
 
     def test_main_text_output(self, capsys):
         with (
-            patch("business.long_term.LongTermEvaluator.evaluate", return_value={
-                "code": "sh600519", "name": "茅台", "total_score": 70, "level": "适合",
-                "dimensions": {"moat": {"score": 70, "weight": 0.3}},
-                "reasoning": [], "conclusion": "test",
-            }),
+            patch(
+                "business.long_term.LongTermEvaluator.evaluate",
+                return_value={
+                    "code": "sh600519",
+                    "name": "茅台",
+                    "total_score": 70,
+                    "level": "适合",
+                    "dimensions": {"moat": {"score": 70, "weight": 0.3}},
+                    "reasoning": [],
+                    "conclusion": "test",
+                },
+            ),
             patch("sys.argv", ["long_term.py", "sh600519"]),
         ):
             long_term_mod.main()

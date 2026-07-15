@@ -170,7 +170,10 @@ class TestComputeMultiTimeframe:
         with patch("market_anchor.get_kline", return_value=klines):
             result = market_anchor._compute_multi_timeframe()
         assert "data_quality" in result
-        assert "multi_timeframe.insufficient_data" in result["data_quality"]["degraded_fields"]
+        assert (
+            "multi_timeframe.insufficient_data"
+            in result["data_quality"]["degraded_fields"]
+        )
 
     def test_no_kline(self):
         """空 klines 返回 degraded dict。"""
@@ -219,7 +222,10 @@ class TestFetchMacroAnchor:
 class TestFetchLiquidityVolatility:
     def test_with_kline_data(self):
         """有 K 线时计算 ATR + 年化波动率。"""
-        index_klines = [_mock_kline(close=4000 + i * 5, high=4010 + i, low=3990 + i) for i in range(60)]
+        index_klines = [
+            _mock_kline(close=4000 + i * 5, high=4010 + i, low=3990 + i)
+            for i in range(60)
+        ]
         with patch("market_anchor.get_kline", return_value=index_klines):
             result = market_anchor._fetch_liquidity_volatility(stock_code="sh600519")
         assert result is not None
@@ -272,8 +278,10 @@ class TestFetchEmotionPhase:
 class TestFetchIndustryBeta:
     def test_with_stock_code(self):
         fake = {"beta": 1.2, "alpha_annual": 0.05, "r_squared": 0.7, "data_quality": {}}
-        with patch("market_anchor.select_index_by_size", return_value="sh000300"), \
-             patch("market_anchor.compute_beta", return_value=fake):
+        with (
+            patch("market_anchor.select_index_by_size", return_value="sh000300"),
+            patch("market_anchor.compute_beta", return_value=fake),
+        ):
             result = market_anchor._fetch_industry_beta("sh600519")
         assert result is not None
         assert result["beta"] == 1.2
@@ -284,15 +292,19 @@ class TestFetchIndustryBeta:
 
     def test_compute_beta_returns_none(self):
         """compute_beta 返回 None 时返回 degraded dict。"""
-        with patch("market_anchor.select_index_by_size", return_value="sh000300"), \
-             patch("market_anchor.compute_beta", return_value=None):
+        with (
+            patch("market_anchor.select_index_by_size", return_value="sh000300"),
+            patch("market_anchor.compute_beta", return_value=None),
+        ):
             result = market_anchor._fetch_industry_beta("sh600519")
         assert result is not None
         assert "industry_beta" in result["data_quality"]["degraded_fields"]
 
     def test_exception(self):
-        with patch("market_anchor.select_index_by_size", return_value="sh000300"), \
-             patch("market_anchor.compute_beta", side_effect=Exception("kline err")):
+        with (
+            patch("market_anchor.select_index_by_size", return_value="sh000300"),
+            patch("market_anchor.compute_beta", side_effect=Exception("kline err")),
+        ):
             result = market_anchor._fetch_industry_beta("sh600519")
         # 失败返回 degraded dict
         assert result is not None
@@ -306,8 +318,14 @@ class TestFetchIndustryBeta:
 
 class TestFetchPortfolioCorrelation:
     def test_with_stock_code(self):
-        fake = {"avg_pairwise_corr": 0.5, "vs_portfolio_avg_corr": 0.3, "data_quality": {}}
-        with patch("market_anchor.compute_full_portfolio_correlation", return_value=fake):
+        fake = {
+            "avg_pairwise_corr": 0.5,
+            "vs_portfolio_avg_corr": 0.3,
+            "data_quality": {},
+        }
+        with patch(
+            "market_anchor.compute_full_portfolio_correlation", return_value=fake
+        ):
             result = market_anchor._fetch_portfolio_correlation("sh600519")
         assert result is not None
         assert result["avg_pairwise_corr"] == 0.5
@@ -316,7 +334,9 @@ class TestFetchPortfolioCorrelation:
         """stock_code 为 None 时可能返回 None 或 graceful degraded dict。"""
         result = market_anchor._fetch_portfolio_correlation(None)
         # 行为: 应当安全（None 或包含 data_quality 的 dict）
-        assert result is None or "data_quality" in result or "n_portfolio_codes" in result
+        assert (
+            result is None or "data_quality" in result or "n_portfolio_codes" in result
+        )
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -424,11 +444,16 @@ class TestMdRegimeEmoji:
 def _minimal_mocks():
     """构建一组最小 mock，覆盖所有外部调用。"""
     index_snapshot = {
-        "code": "sh000300", "name": "沪深300", "price": 4000.0,
-        "change_pct": 1.0, "pe_percentile": 50,
+        "code": "sh000300",
+        "name": "沪深300",
+        "price": 4000.0,
+        "change_pct": 1.0,
+        "pe_percentile": 50,
     }
     return [
-        patch.object(market_anchor, "_fetch_index_snapshot", return_value=index_snapshot),
+        patch.object(
+            market_anchor, "_fetch_index_snapshot", return_value=index_snapshot
+        ),
         patch.object(market_anchor, "_fetch_index_kline", return_value=None),
         patch.object(market_anchor, "_fetch_breadth", return_value=None),
         patch.object(market_anchor, "_compute_multi_timeframe", return_value=None),
@@ -439,19 +464,35 @@ def _minimal_mocks():
         patch.object(market_anchor, "_fetch_portfolio_correlation", return_value=None),
         patch.object(market_anchor, "_fetch_northbound_pricer", return_value=None),
         patch.object(market_anchor, "_fetch_sector_rotation", return_value=None),
-        patch.object(market_anchor, "detect_market_state", return_value={
-            "regime": "bull", "regime_label_zh": "牛市", "confidence": 0.8,
-        }),
+        patch.object(
+            market_anchor,
+            "detect_market_state",
+            return_value={
+                "regime": "bull",
+                "regime_label_zh": "牛市",
+                "confidence": 0.8,
+            },
+        ),
     ]
 
 
 class TestAnalyze:
     def test_minimal_no_args(self):
         """无 stock_code + 关掉所有 fetch_*。"""
-        with _minimal_mocks()[0], _minimal_mocks()[1], _minimal_mocks()[2], \
-             _minimal_mocks()[3], _minimal_mocks()[4], _minimal_mocks()[5], \
-             _minimal_mocks()[6], _minimal_mocks()[7], _minimal_mocks()[8], \
-             _minimal_mocks()[9], _minimal_mocks()[10], _minimal_mocks()[11]:
+        with (
+            _minimal_mocks()[0],
+            _minimal_mocks()[1],
+            _minimal_mocks()[2],
+            _minimal_mocks()[3],
+            _minimal_mocks()[4],
+            _minimal_mocks()[5],
+            _minimal_mocks()[6],
+            _minimal_mocks()[7],
+            _minimal_mocks()[8],
+            _minimal_mocks()[9],
+            _minimal_mocks()[10],
+            _minimal_mocks()[11],
+        ):
             result = market_anchor.analyze(
                 stock_code=None,
                 fetch_sector=False,
@@ -468,15 +509,33 @@ class TestAnalyze:
         """有 stock_code + industry_beta/portfolio。"""
         mocks = _minimal_mocks()
         mocks[7] = patch.object(
-            market_anchor, "_fetch_industry_beta",
-            return_value={"beta": 1.0, "data_quality": {}, "index_selection": "dynamic"},
+            market_anchor,
+            "_fetch_industry_beta",
+            return_value={
+                "beta": 1.0,
+                "data_quality": {},
+                "index_selection": "dynamic",
+            },
         )
         mocks[8] = patch.object(
-            market_anchor, "_fetch_portfolio_correlation",
+            market_anchor,
+            "_fetch_portfolio_correlation",
             return_value={"avg_pairwise_corr": 0.5, "data_quality": {}},
         )
-        with mocks[0], mocks[1], mocks[2], mocks[3], mocks[4], mocks[5], \
-             mocks[6], mocks[7], mocks[8], mocks[9], mocks[10], mocks[11]:
+        with (
+            mocks[0],
+            mocks[1],
+            mocks[2],
+            mocks[3],
+            mocks[4],
+            mocks[5],
+            mocks[6],
+            mocks[7],
+            mocks[8],
+            mocks[9],
+            mocks[10],
+            mocks[11],
+        ):
             result = market_anchor.analyze(
                 stock_code="sh600519",
                 fetch_sector=False,
@@ -491,11 +550,26 @@ class TestAnalyze:
         """失败的字段被记录到 degraded_fields。"""
         mocks = _minimal_mocks()
         # 全部 mock 返回 None
-        with mocks[0], mocks[1], mocks[2], mocks[3], mocks[4], mocks[5], \
-             mocks[6], mocks[7], mocks[8], mocks[9], mocks[10], mocks[11]:
+        with (
+            mocks[0],
+            mocks[1],
+            mocks[2],
+            mocks[3],
+            mocks[4],
+            mocks[5],
+            mocks[6],
+            mocks[7],
+            mocks[8],
+            mocks[9],
+            mocks[10],
+            mocks[11],
+        ):
             result = market_anchor.analyze(
-                stock_code=None, fetch_sector=False, fetch_portfolio=False,
-                fetch_rotation=False, fetch_northbound=False,
+                stock_code=None,
+                fetch_sector=False,
+                fetch_portfolio=False,
+                fetch_rotation=False,
+                fetch_northbound=False,
             )
         assert len(result["data_quality"]["degraded_fields"]) >= 1
 
@@ -503,16 +577,37 @@ class TestAnalyze:
         """index_code 参数被使用。"""
         mocks = _minimal_mocks()
         mocks[0] = patch.object(
-            market_anchor, "_fetch_index_snapshot",
-            return_value={"code": "sh000905", "name": "中证500", "price": 5000.0,
-                          "change_pct": 1.0, "pe_percentile": 50},
+            market_anchor,
+            "_fetch_index_snapshot",
+            return_value={
+                "code": "sh000905",
+                "name": "中证500",
+                "price": 5000.0,
+                "change_pct": 1.0,
+                "pe_percentile": 50,
+            },
         )
-        with mocks[0], mocks[1], mocks[2], mocks[3], mocks[4], mocks[5], \
-             mocks[6], mocks[7], mocks[8], mocks[9], mocks[10], mocks[11]:
+        with (
+            mocks[0],
+            mocks[1],
+            mocks[2],
+            mocks[3],
+            mocks[4],
+            mocks[5],
+            mocks[6],
+            mocks[7],
+            mocks[8],
+            mocks[9],
+            mocks[10],
+            mocks[11],
+        ):
             result = market_anchor.analyze(
-                stock_code=None, index_code="sh000905",
-                fetch_sector=False, fetch_portfolio=False,
-                fetch_rotation=False, fetch_northbound=False,
+                stock_code=None,
+                index_code="sh000905",
+                fetch_sector=False,
+                fetch_portfolio=False,
+                fetch_rotation=False,
+                fetch_northbound=False,
             )
         assert "index_code" in result
         assert result["index_code"] == "sh000905"
@@ -561,7 +656,11 @@ class TestToMarkdown:
 
     def test_with_breadth(self):
         payload = _base_payload()
-        payload["breadth"] = {"advance_count": 3000, "decline_count": 1500, "limit_up_count": 30}
+        payload["breadth"] = {
+            "advance_count": 3000,
+            "decline_count": 1500,
+            "limit_up_count": 30,
+        }
         result = market_anchor.to_markdown(payload)
         assert "市场宽度" in result
 
@@ -581,12 +680,19 @@ class TestToMarkdown:
     def test_with_stock_sector_compare(self):
         payload = _base_payload()
         payload["stock_sector_compare"] = {
-            "stock_code": "sh600519", "stock_rps": 75, "stock_5d_pct": 5.0,
-            "sector_name": "科技ETF", "sector_rps": 60,
-            "sector_change_pct": 3.0, "index_change_pct": 1.0,
-            "rps_vs_sector": 15.0, "rps_vs_index": 25.0,
-            "rank_in_sector": 3, "n_sector_stocks": 20,
-            "verdict": "强势", "outperformance": True,
+            "stock_code": "sh600519",
+            "stock_rps": 75,
+            "stock_5d_pct": 5.0,
+            "sector_name": "科技ETF",
+            "sector_rps": 60,
+            "sector_change_pct": 3.0,
+            "index_change_pct": 1.0,
+            "rps_vs_sector": 15.0,
+            "rps_vs_index": 25.0,
+            "rank_in_sector": 3,
+            "n_sector_stocks": 20,
+            "verdict": "强势",
+            "outperformance": True,
         }
         result = market_anchor.to_markdown(payload)
         assert "个股" in result or "vs 板块" in result
@@ -594,9 +700,14 @@ class TestToMarkdown:
     def test_with_multi_timeframe(self):
         payload = _base_payload()
         payload["multi_timeframe"] = {
-            "ma20": 100, "ma60": 95, "ma250": 90,
-            "ma_alignment": "多头排列", "ret_5d_pct": 5.0, "ret_20d_pct": 10.0,
-            "atr_14": 2.5, "vs_ma20_pct": 1.0,
+            "ma20": 100,
+            "ma60": 95,
+            "ma250": 90,
+            "ma_alignment": "多头排列",
+            "ret_5d_pct": 5.0,
+            "ret_20d_pct": 10.0,
+            "atr_14": 2.5,
+            "vs_ma20_pct": 1.0,
             "data_quality": {"degraded_fields": []},
         }
         result = market_anchor.to_markdown(payload)
@@ -614,7 +725,8 @@ class TestToMarkdown:
     def test_with_liquidity_volatility(self):
         payload = _base_payload()
         payload["liquidity_volatility"] = {
-            "sh300_atr_14": 50.0, "sh300_annualized_vol_pct": 15.0,
+            "sh300_atr_14": 50.0,
+            "sh300_annualized_vol_pct": 15.0,
         }
         result = market_anchor.to_markdown(payload)
         assert "波动" in result or "ATR" in result
@@ -628,7 +740,9 @@ class TestToMarkdown:
     def test_with_industry_beta(self):
         payload = _base_payload()
         payload["industry_beta"] = {
-            "beta": 1.2, "alpha_annual": 0.05, "r_squared": 0.7,
+            "beta": 1.2,
+            "alpha_annual": 0.05,
+            "r_squared": 0.7,
         }
         result = market_anchor.to_markdown(payload)
         assert "β" in result or "beta" in result.lower()
@@ -636,8 +750,10 @@ class TestToMarkdown:
     def test_with_portfolio_correlation(self):
         payload = _base_payload()
         payload["portfolio_correlation"] = {
-            "n_portfolio_codes": 3, "avg_pairwise_corr": 0.5,
-            "vs_portfolio_avg_corr": 0.3, "high_corr_pairs": [],
+            "n_portfolio_codes": 3,
+            "avg_pairwise_corr": 0.5,
+            "vs_portfolio_avg_corr": 0.3,
+            "high_corr_pairs": [],
             "diversification_benefit": "中",
         }
         result = market_anchor.to_markdown(payload)
@@ -656,8 +772,11 @@ class TestToMarkdown:
     def test_with_northbound(self):
         payload = _base_payload()
         payload["northbound_pricer"] = {
-            "days": 20, "total_net_yi": 100.0, "direction": "持续流入",
-            "interpretation": "北向持续流入", "data_quality": {"degraded_fields": []},
+            "days": 20,
+            "total_net_yi": 100.0,
+            "direction": "持续流入",
+            "interpretation": "北向持续流入",
+            "data_quality": {"degraded_fields": []},
         }
         result = market_anchor.to_markdown(payload)
         assert "北向" in result
@@ -708,20 +827,25 @@ class TestMain:
 
     def test_no_sector_flag(self, monkeypatch):
         with patch.object(market_anchor, "analyze", return_value=_base_payload()) as m:
-            monkeypatch.setattr(sys, "argv", ["market_anchor.py", "sh600519", "--no-sector"])
+            monkeypatch.setattr(
+                sys, "argv", ["market_anchor.py", "sh600519", "--no-sector"]
+            )
             market_anchor.main()
         assert m.call_args.kwargs.get("fetch_sector") is False
 
     def test_index_flag(self, monkeypatch):
         with patch.object(market_anchor, "analyze", return_value=_base_payload()) as m:
-            monkeypatch.setattr(sys, "argv", ["market_anchor.py", "--index", "sh000905"])
+            monkeypatch.setattr(
+                sys, "argv", ["market_anchor.py", "--index", "sh000905"]
+            )
             market_anchor.main()
         assert m.call_args.kwargs.get("index_code") == "sh000905"
 
     def test_no_portfolio_flag(self, monkeypatch):
         with patch.object(market_anchor, "analyze", return_value=_base_payload()) as m:
             monkeypatch.setattr(
-                sys, "argv",
+                sys,
+                "argv",
                 ["market_anchor.py", "sh600519", "--no-portfolio"],
             )
             market_anchor.main()
@@ -730,7 +854,8 @@ class TestMain:
     def test_no_rotation_flag(self, monkeypatch):
         with patch.object(market_anchor, "analyze", return_value=_base_payload()) as m:
             monkeypatch.setattr(
-                sys, "argv",
+                sys,
+                "argv",
                 ["market_anchor.py", "sh600519", "--no-rotation"],
             )
             market_anchor.main()
@@ -739,7 +864,8 @@ class TestMain:
     def test_no_northbound_flag(self, monkeypatch):
         with patch.object(market_anchor, "analyze", return_value=_base_payload()) as m:
             monkeypatch.setattr(
-                sys, "argv",
+                sys,
+                "argv",
                 ["market_anchor.py", "sh600519", "--no-northbound"],
             )
             market_anchor.main()

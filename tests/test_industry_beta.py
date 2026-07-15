@@ -197,12 +197,68 @@ class TestInterpretBeta:
 class TestComputeBeta:
     def test_success(self):
         """完整流程：拉 K 线 + 计算 OLS。"""
-        closes = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
-                  109, 108, 107, 106, 105, 104, 103, 102, 101,
-                  100, 101, 102, 103, 104, 105, 106, 107, 108, 109,
-                  110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
-                  120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
-                  130, 131, 132, 133, 134, 135, 136, 137, 138, 139]
+        closes = [
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            109,
+            108,
+            107,
+            106,
+            105,
+            104,
+            103,
+            102,
+            101,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            106,
+            107,
+            108,
+            109,
+            110,
+            111,
+            112,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            130,
+            131,
+            132,
+            133,
+            134,
+            135,
+            136,
+            137,
+            138,
+            139,
+        ]
         index_closes = [4000 + i for i in range(len(closes))]  # 同样上升
 
         def mock_kline(code, scale=240, datalen=60):
@@ -213,7 +269,9 @@ class TestComputeBeta:
             return []
 
         with patch.object(industry_beta, "get_kline", side_effect=mock_kline):
-            result = industry_beta.compute_beta("sh600519", index_code="sh000300", window=60)
+            result = industry_beta.compute_beta(
+                "sh600519", index_code="sh000300", window=60
+            )
         assert result is not None
         assert "beta" in result
         assert "alpha" in result
@@ -224,8 +282,16 @@ class TestComputeBeta:
     def test_default_index(self):
         """未传 index_code 时使用 select_index_by_size。"""
         closes = [100 + i for i in range(60)]
-        with patch.object(industry_beta, "select_index_by_size", return_value="sh000300"), \
-             patch.object(industry_beta, "get_kline", side_effect=lambda *a, **kw: _mock_kline(closes)):
+        with (
+            patch.object(
+                industry_beta, "select_index_by_size", return_value="sh000300"
+            ),
+            patch.object(
+                industry_beta,
+                "get_kline",
+                side_effect=lambda *a, **kw: _mock_kline(closes),
+            ),
+        ):
             result = industry_beta.compute_beta("sh600519")
         assert result is not None
 
@@ -268,13 +334,23 @@ class TestMain:
         assert captured is not None
 
     def test_with_stock_code(self, capsys, monkeypatch):
-        with patch.object(industry_beta, "compute_beta", return_value={
-            "stock_code": "sh600519", "index_code": "sh000300", "window": 60,
-            "beta": 1.2, "alpha": 0.01, "alpha_annual": 2.5, "r_squared": 0.7,
-            "volatility_pct": 25.0, "n_observations": 60,
-            "interpretation": "正常弹性",
-            "data_quality": {"degraded_fields": []},
-        }):
+        with patch.object(
+            industry_beta,
+            "compute_beta",
+            return_value={
+                "stock_code": "sh600519",
+                "index_code": "sh000300",
+                "window": 60,
+                "beta": 1.2,
+                "alpha": 0.01,
+                "alpha_annual": 2.5,
+                "r_squared": 0.7,
+                "volatility_pct": 25.0,
+                "n_observations": 60,
+                "interpretation": "正常弹性",
+                "data_quality": {"degraded_fields": []},
+            },
+        ):
             monkeypatch.setattr(sys, "argv", ["industry_beta.py", "sh600519"])
             industry_beta.main()
         captured = capsys.readouterr()
@@ -289,13 +365,24 @@ class TestMain:
 
     def test_json_output(self, capsys, monkeypatch):
         import json
-        with patch.object(industry_beta, "compute_beta", return_value={
-            "stock_code": "sh600519", "index_code": "sh000300", "window": 60,
-            "beta": 1.2, "alpha": 0.01, "alpha_annual": 2.5, "r_squared": 0.7,
-            "volatility_pct": 25.0, "n_observations": 60,
-            "interpretation": "正常弹性",
-            "data_quality": {"degraded_fields": []},
-        }):
+
+        with patch.object(
+            industry_beta,
+            "compute_beta",
+            return_value={
+                "stock_code": "sh600519",
+                "index_code": "sh000300",
+                "window": 60,
+                "beta": 1.2,
+                "alpha": 0.01,
+                "alpha_annual": 2.5,
+                "r_squared": 0.7,
+                "volatility_pct": 25.0,
+                "n_observations": 60,
+                "interpretation": "正常弹性",
+                "data_quality": {"degraded_fields": []},
+            },
+        ):
             monkeypatch.setattr(sys, "argv", ["industry_beta.py", "sh600519", "-j"])
             industry_beta.main()
         captured = capsys.readouterr()
@@ -304,6 +391,8 @@ class TestMain:
 
     def test_with_index_flag(self, monkeypatch):
         with patch.object(industry_beta, "compute_beta", return_value=None) as m:
-            monkeypatch.setattr(sys, "argv", ["industry_beta.py", "sh600519", "--index", "sh000905"])
+            monkeypatch.setattr(
+                sys, "argv", ["industry_beta.py", "sh600519", "--index", "sh000905"]
+            )
             industry_beta.main()
         assert m.call_args.kwargs.get("index_code") == "sh000905"

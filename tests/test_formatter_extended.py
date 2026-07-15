@@ -23,11 +23,21 @@ from experts import formatter
 
 
 def _make_expert_result(name="buffett", direction="看多", confidence=0.75, score=72):
-    return {"name": name, "direction": direction, "confidence": confidence, "score": score}
+    return {
+        "name": name,
+        "direction": direction,
+        "confidence": confidence,
+        "score": score,
+    }
 
 
-def _make_debate_result(group="long_term", expert_results=None, final_score=70,
-                        final_direction="看多", final_confidence=0.8):
+def _make_debate_result(
+    group="long_term",
+    expert_results=None,
+    final_score=70,
+    final_direction="看多",
+    final_confidence=0.8,
+):
     """构造 debate 结果。"""
     if expert_results is None:
         expert_results = [
@@ -47,13 +57,17 @@ def _make_debate_result(group="long_term", expert_results=None, final_score=70,
     long_votes = {
         "bull": len([e for e in lv_experts if e["direction"] in ("看多", "强烈看多")]),
         "bear": len([e for e in lv_experts if e["direction"] in ("看空", "强烈看空")]),
-        "avg": sum(v["score"] for v in lv_experts) / len(lv_experts) if lv_experts else 0,
+        "avg": (
+            sum(v["score"] for v in lv_experts) / len(lv_experts) if lv_experts else 0
+        ),
         "experts": lv_experts,
     }
     short_votes = {
         "bull": len([e for e in sv_experts if e["direction"] in ("看多", "强烈看多")]),
         "bear": len([e for e in sv_experts if e["direction"] in ("看空", "强烈看空")]),
-        "avg": sum(v["score"] for v in sv_experts) / len(sv_experts) if sv_experts else 0,
+        "avg": (
+            sum(v["score"] for v in sv_experts) / len(sv_experts) if sv_experts else 0
+        ),
         "experts": sv_experts,
     }
     long_avg = long_votes["avg"]
@@ -67,17 +81,26 @@ def _make_debate_result(group="long_term", expert_results=None, final_score=70,
         "买入": len([e for e in expert_results if e["direction"] == "看多"]),
         "持有": len([e for e in expert_results if e["direction"] == "中性"]),
         "卖出": len([e for e in expert_results if e["direction"] == "看空"]),
-        "bull": len([e for e in expert_results if e["direction"] in ("看多", "强烈看多")]),
-        "bear": len([e for e in expert_results if e["direction"] in ("看空", "强烈看空")]),
+        "bull": len(
+            [e for e in expert_results if e["direction"] in ("看多", "强烈看多")]
+        ),
+        "bear": len(
+            [e for e in expert_results if e["direction"] in ("看空", "强烈看空")]
+        ),
     }
     return {
-        "code": "sh600519", "name": "测试股", "group": group,
+        "code": "sh600519",
+        "name": "测试股",
+        "group": group,
         "expert_results": expert_results,
         "votes": votes,
         "market_state": "震荡",
-        "long_weight": 0.7, "short_weight": 0.3,
-        "long_votes": long_votes, "short_votes": short_votes,
-        "long_avg": long_avg, "short_avg": short_avg,
+        "long_weight": 0.7,
+        "short_weight": 0.3,
+        "long_votes": long_votes,
+        "short_votes": short_votes,
+        "long_avg": long_avg,
+        "short_avg": short_avg,
         "composite_score": final_score,
         "avg_score": final_score,
         "position": position,
@@ -112,8 +135,7 @@ class TestFormatDebateOutput:
         assert "看多" in output or "方向" in output
 
     def test_short_term(self):
-        result = _make_debate_result(group="short_term",
-                                     final_direction="看空")
+        result = _make_debate_result(group="short_term", final_direction="看空")
         output = formatter.format_debate_output(result)
         assert "看空" in output
 
@@ -152,8 +174,7 @@ class TestFormatDebateBrief:
 
     def test_short_brief(self):
         """brief 输出应包含方向+信心。"""
-        result = _make_debate_result(final_direction="看多",
-                                     final_confidence=0.85)
+        result = _make_debate_result(final_direction="看多", final_confidence=0.85)
         output = formatter.format_debate_brief(result)
         assert "看多" in output or "0.85" in output or "85%" in output
 
@@ -170,8 +191,7 @@ class TestFormatGroupOutput:
         assert "长线" in output or "buffett" in output
 
     def test_short_term_group(self):
-        result = _make_debate_result(group="short_term",
-                                     final_direction="看空")
+        result = _make_debate_result(group="short_term", final_direction="看空")
         output = formatter.format_group_output(result)
         assert "短线" in output
 
@@ -226,7 +246,12 @@ class TestAppendDisclaimer:
         formatter._append_disclaimer(lines)
         assert len(lines) >= 1
         joined = "\n".join(lines)
-        assert "免责" in joined or "AI" in joined or "投资建议" in joined or "仅供" in joined
+        assert (
+            "免责" in joined
+            or "AI" in joined
+            or "投资建议" in joined
+            or "仅供" in joined
+        )
 
     def test_no_disclaimer_flag(self, monkeypatch):
         """NO_DISCLAIMER=1 时不添加。"""

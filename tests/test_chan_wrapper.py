@@ -26,23 +26,39 @@ class TestChanWrapper:
 
     def test_all_callable(self):
         """所有导出函数均可调用。"""
-        for name in ["chan_merge_inclusions", "chan_fenxing", "chan_bi",
-                     "chan_xianduan", "chan_zhongshu", "chan_beichi",
-                     "chan_maidian", "chan_full_analysis"]:
+        for name in [
+            "chan_merge_inclusions",
+            "chan_fenxing",
+            "chan_bi",
+            "chan_xianduan",
+            "chan_zhongshu",
+            "chan_beichi",
+            "chan_maidian",
+            "chan_full_analysis",
+        ]:
             assert callable(getattr(chan_wrapper, name))
 
     def test_all_exports(self):
         """__all__ 至少包含主要 API（可能含额外辅助符号）。"""
         all_set = set(chan_wrapper.__all__)
-        for name in ["chan_merge_inclusions", "chan_fenxing", "chan_bi",
-                     "chan_xianduan", "chan_zhongshu", "_macd_area",
-                     "chan_beichi", "chan_maidian", "chan_full_analysis"]:
+        for name in [
+            "chan_merge_inclusions",
+            "chan_fenxing",
+            "chan_bi",
+            "chan_xianduan",
+            "chan_zhongshu",
+            "_macd_area",
+            "chan_beichi",
+            "chan_maidian",
+            "chan_full_analysis",
+        ]:
             assert name in all_set, f"Missing {name} in __all__"
 
     def test_main_no_args(self, capsys, monkeypatch):
         """无参数时调用 main 会抛 SystemExit（usage）。"""
         # 触发 if __name__ == "__main__" 块用 runpy
         import runpy
+
         monkeypatch.setattr(sys, "argv", ["chan.py"])
         with pytest.raises((SystemExit, Exception)):
             runpy.run_module("chan", run_name="__main__", alter_sys=True)

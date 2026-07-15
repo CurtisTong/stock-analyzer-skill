@@ -55,9 +55,7 @@ class TestRiskCoefficientsRigid:
             experts,
             risk_coefficients={"buffett": 0.0},
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["score"] == 0.0
         assert buffett["direction"] == "强烈看空"
 
@@ -85,9 +83,7 @@ class TestRiskCoefficientsElastic:
             experts,
             risk_coefficients={"buffett": 0.5},
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["score"] == 75 * 0.5  # 37.5
 
     def test_elastic_note_recorded(self):
@@ -105,9 +101,7 @@ class TestRiskCoefficientsElastic:
             experts,
             risk_coefficients={"buffett": 0.3},  # 75 * 0.3 = 22.5 < 30
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["direction"] == "强烈看空"
 
 
@@ -125,9 +119,7 @@ class TestRiskCoefficientsNoDiscount:
             experts,
             risk_coefficients={"buffett": 1.0},
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["score"] == 75  # 无变化
 
     def test_missing_expert_no_change(self):
@@ -137,9 +129,7 @@ class TestRiskCoefficientsNoDiscount:
             experts,
             risk_coefficients={"buffett": 0.5},  # 只列 buffett
         )
-        lynch = next(
-            r for r in result["expert_results"] if r["name"] == "lynch"
-        )
+        lynch = next(r for r in result["expert_results"] if r["name"] == "lynch")
         assert lynch["score"] == 70  # 无变化
 
 
@@ -154,26 +144,18 @@ class TestVetoResultsBackwardCompat:
     def test_old_bool_format_triggers_to_20(self):
         result = aggregate_votes(
             _make_experts(),
-            veto_results={
-                "buffett": {"ROE < 10%": True}
-            },
+            veto_results={"buffett": {"ROE < 10%": True}},
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["score"] == 20.0
         assert buffett["direction"] == "强烈看空"
 
     def test_old_format_not_triggered(self):
         result = aggregate_votes(
             _make_experts(),
-            veto_results={
-                "buffett": {"ROE < 10%": False}
-            },
+            veto_results={"buffett": {"ROE < 10%": False}},
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["score"] == 75  # 无变化
 
     def test_risk_coefficients_takes_priority_over_veto_results(self):
@@ -183,9 +165,7 @@ class TestVetoResultsBackwardCompat:
             veto_results={"buffett": {"ROE < 10%": True}},
             risk_coefficients={"buffett": 0.5},
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         # risk_coefficients 优先：75 * 0.5 = 37.5，而非降至 20
         assert buffett["score"] == 37.5
 
@@ -194,14 +174,10 @@ class TestVetoResultsBackwardCompat:
         result = aggregate_votes(
             _make_experts(),
             veto_results={
-                "buffett": {
-                    "ROE < 10%": {"triggered": True, "risk_coeff": 0.5}
-                }
+                "buffett": {"ROE < 10%": {"triggered": True, "risk_coeff": 0.5}}
             },
         )
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         # 新格式走旧逻辑降至20（因为 risk_coefficients 未传）
         assert buffett["score"] == 20.0
 
@@ -217,9 +193,7 @@ class TestNoVetoParams:
     def test_no_change_without_veto(self):
         experts = _make_experts()
         result = aggregate_votes(experts)
-        buffett = next(
-            r for r in result["expert_results"] if r["name"] == "buffett"
-        )
+        buffett = next(r for r in result["expert_results"] if r["name"] == "buffett")
         assert buffett["score"] == 75
         assert buffett["direction"] == "看多"
         # 不应有 veto 相关 notes

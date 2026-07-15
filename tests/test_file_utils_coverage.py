@@ -129,6 +129,7 @@ class TestFileLock:
         lp = fu.lock_path(p)
         # 写入存活 PID 但创建时间很老（> 300s）
         import os
+
         old_ts = time.time() - 1000
         lp.write_text(f"{os.getpid()}:{old_ts}")
         with fu.file_lock(p, timeout=2):

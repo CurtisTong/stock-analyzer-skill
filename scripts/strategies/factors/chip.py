@@ -18,10 +18,10 @@ from common import clamp, to_float
 logger = logging.getLogger(__name__)
 
 # (#5) 滞后衰减参数
-_STALE_THRESHOLD_TRADING_DAYS = 60   # 超过此交易日数开始衰减
-_STALE_MAX_DECAY_DAYS = 120           # 衰减至 0.5× 的天数
-_STALE_FLOOR = 0.5                    # 衰减下限
-_TRADING_DAYS_PER_CALENDAR = 0.68     # 日历日 -> 交易日近似系数（252/365）
+_STALE_THRESHOLD_TRADING_DAYS = 60  # 超过此交易日数开始衰减
+_STALE_MAX_DECAY_DAYS = 120  # 衰减至 0.5× 的天数
+_STALE_FLOOR = 0.5  # 衰减下限
+_TRADING_DAYS_PER_CALENDAR = 0.68  # 日历日 -> 交易日近似系数（252/365）
 
 
 def chip_score_static(code: str) -> float:
@@ -47,7 +47,9 @@ def chip_score_static(code: str) -> float:
     # (#5) 多期平滑：取最近 4 期变化率中位数
     recent = holders[:4]
     changes = [
-        to_float(h.holder_num_change) for h in recent if to_float(h.holder_num_change) != 0
+        to_float(h.holder_num_change)
+        for h in recent
+        if to_float(h.holder_num_change) != 0
     ]
     if not changes:
         return 50  # 无有效变化率

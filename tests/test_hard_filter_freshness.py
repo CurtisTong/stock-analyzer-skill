@@ -115,7 +115,14 @@ class TestCheckFinanceFreshness:
 class TestHardFilterFreshness:
     """_hard_filter 中 stale 时硬过滤降级为软警告。"""
 
-    def _make_quote(self, code="sh600519", name="茅台", total_cap=100, amount=10000_0000, change_pct=0.5):
+    def _make_quote(
+        self,
+        code="sh600519",
+        name="茅台",
+        total_cap=100,
+        amount=10000_0000,
+        change_pct=0.5,
+    ):
         return {
             "code": code,
             "name": name,
@@ -132,8 +139,10 @@ class TestHardFilterFreshness:
         quote = self._make_quote()
         fin = {"report_date": "2025-12-31", "eps": -0.5}  # 亏损 + 过期
 
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(True, "财报数据过期")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(True, "财报数据过期"),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
 
         # EPS<0 应在 warnings 中而非 reasons
@@ -148,8 +157,10 @@ class TestHardFilterFreshness:
         quote = self._make_quote()
         fin = {"report_date": "2026-03-31", "eps": -0.5}  # 亏损 + 新鲜
 
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(False, ""),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
 
         assert any("EPS<0" in r for r in reasons)
@@ -162,8 +173,10 @@ class TestHardFilterFreshness:
         quote = self._make_quote()
         fin = {"report_date": "2025-12-31", "eps": 1.0, "goodwill_ratio": 50}
 
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(True, "财报数据过期")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(True, "财报数据过期"),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
 
         assert not any("商誉" in r for r in reasons)
@@ -177,8 +190,10 @@ class TestHardFilterFreshness:
         quote = self._make_quote()
         fin = {"report_date": "2025-12-31", "eps": 1.0, "pledge_ratio": 80}
 
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(True, "财报数据过期")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(True, "财报数据过期"),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
 
         assert not any("质押" in r for r in reasons)
@@ -192,8 +207,10 @@ class TestHardFilterFreshness:
         quote = self._make_quote()
         fin = {"report_date": "2025-12-31", "eps": -0.5}
 
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(True, "财报数据过期(report_date=2025-12-31)")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(True, "财报数据过期(report_date=2025-12-31)"),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
 
         assert any("财报数据过期" in w for w in warnings)

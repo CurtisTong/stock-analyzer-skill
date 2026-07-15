@@ -46,9 +46,15 @@ class TestFinance:
 
     def test_render_table_with_data(self):
         records = [
-            {"eps": 1.5, "roe": 15.0, "revenue_yoy": 10.0,
-             "net_profit_yoy": 12.0, "gross_margin": 30.0,
-             "net_margin": 10.0, "debt_ratio": 50.0},
+            {
+                "eps": 1.5,
+                "roe": 15.0,
+                "revenue_yoy": 10.0,
+                "net_profit_yoy": 12.0,
+                "gross_margin": 30.0,
+                "net_margin": 10.0,
+                "debt_ratio": 50.0,
+            },
         ]
         result = finance.render_table(records)
         assert isinstance(result, str)
@@ -57,6 +63,7 @@ class TestFinance:
     def test_main_no_args(self, capsys, monkeypatch):
         """无参数时抛 DataError（handle_errors）。"""
         from common.exceptions import DataError
+
         monkeypatch.setattr(sys, "argv", ["finance.py"])
         with pytest.raises(DataError):
             finance.main()
@@ -88,6 +95,7 @@ class TestQuote:
     def test_main_no_args(self, capsys, monkeypatch):
         """无参数时打印用法（handle_errors 抛 DataError）。"""
         from common.exceptions import DataError
+
         monkeypatch.setattr(sys, "argv", ["quote.py"])
         with pytest.raises(DataError):
             quote.main()
@@ -95,8 +103,10 @@ class TestQuote:
     def test_main_sources_flag(self, capsys, monkeypatch):
         """--sources 时列出数据源。"""
         from fetchers import get_quote_fetchers
+
         # 拦截真实的 fetchers 模块
         import fetchers
+
         with patch.object(fetchers, "get_quote_fetchers", return_value=[]):
             monkeypatch.setattr(sys, "argv", ["quote.py", "--sources"])
             quote.main()

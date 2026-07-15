@@ -155,10 +155,26 @@ class TestFormatPerformanceReport:
     def test_with_contributions(self):
         m = PerformanceMetrics(total_return=10.0, total_profit=1000, position_count=2)
         contributions = [
-            PositionContribution(code="sh600519", name="茅台", cost=100, current_price=120,
-                                  profit=2000, profit_pct=20.0, weight=60.0, contribution=12.0),
-            PositionContribution(code="sh600001", name="浦发", cost=10, current_price=8,
-                                  profit=-200, profit_pct=-20.0, weight=40.0, contribution=-8.0),
+            PositionContribution(
+                code="sh600519",
+                name="茅台",
+                cost=100,
+                current_price=120,
+                profit=2000,
+                profit_pct=20.0,
+                weight=60.0,
+                contribution=12.0,
+            ),
+            PositionContribution(
+                code="sh600001",
+                name="浦发",
+                cost=10,
+                current_price=8,
+                profit=-200,
+                profit_pct=-20.0,
+                weight=40.0,
+                contribution=-8.0,
+            ),
         ]
         report = format_performance_report(m, contributions)
         assert "茅台" in report
@@ -168,8 +184,13 @@ class TestFormatPerformanceReport:
     def test_no_drag_when_all_positive(self):
         m = PerformanceMetrics(total_return=10.0, position_count=1)
         contributions = [
-            PositionContribution(code="sh600519", name="茅台", profit=2000, profit_pct=20.0,
-                                  contribution=12.0),
+            PositionContribution(
+                code="sh600519",
+                name="茅台",
+                profit=2000,
+                profit_pct=20.0,
+                contribution=12.0,
+            ),
         ]
         report = format_performance_report(m, contributions)
         assert "最大拖累" not in report
@@ -202,9 +223,27 @@ class TestSectorAttribution:
 
     def test_calculate_sector_attribution_with_industry(self):
         positions = [
-            {"code": "sh600519", "name": "茅台", "cost": 100, "quantity": 100, "industry": "白酒"},
-            {"code": "sh000858", "name": "五粮液", "cost": 100, "quantity": 100, "industry": "白酒"},
-            {"code": "sh600036", "name": "招行", "cost": 30, "quantity": 100, "industry": "银行"},
+            {
+                "code": "sh600519",
+                "name": "茅台",
+                "cost": 100,
+                "quantity": 100,
+                "industry": "白酒",
+            },
+            {
+                "code": "sh000858",
+                "name": "五粮液",
+                "cost": 100,
+                "quantity": 100,
+                "industry": "白酒",
+            },
+            {
+                "code": "sh600036",
+                "name": "招行",
+                "cost": 30,
+                "quantity": 100,
+                "industry": "银行",
+            },
         ]
         quotes = {
             "sh600519": {"price": 120},
@@ -226,7 +265,13 @@ class TestSectorAttribution:
     def test_calculate_sector_attribution_empty_code_skipped(self):
         positions = [
             {"code": "", "name": "A", "cost": 10, "quantity": 100},
-            {"code": "sh600519", "name": "B", "cost": 10, "quantity": 100, "industry": "白酒"},
+            {
+                "code": "sh600519",
+                "name": "B",
+                "cost": 10,
+                "quantity": 100,
+                "industry": "白酒",
+            },
         ]
         quotes = {"sh600519": {"price": 12}}
         result = calculate_sector_attribution(positions, quotes)
@@ -239,10 +284,20 @@ class TestFormatSectorAttribution:
 
     def test_basic_format(self):
         attributions = [
-            SectorAttribution(sector="白酒", weight=60.0, contribution=12.0,
-                              profit_pct=20.0, position_count=2),
-            SectorAttribution(sector="银行", weight=40.0, contribution=-4.0,
-                              profit_pct=-10.0, position_count=1),
+            SectorAttribution(
+                sector="白酒",
+                weight=60.0,
+                contribution=12.0,
+                profit_pct=20.0,
+                position_count=2,
+            ),
+            SectorAttribution(
+                sector="银行",
+                weight=40.0,
+                contribution=-4.0,
+                profit_pct=-10.0,
+                position_count=1,
+            ),
         ]
         report = format_sector_attribution(attributions)
         assert "行业归因分析" in report
@@ -252,7 +307,9 @@ class TestFormatSectorAttribution:
 
     def test_no_drag_when_all_positive(self):
         attributions = [
-            SectorAttribution(sector="白酒", weight=60.0, contribution=12.0, profit_pct=20.0),
+            SectorAttribution(
+                sector="白酒", weight=60.0, contribution=12.0, profit_pct=20.0
+            ),
         ]
         report = format_sector_attribution(attributions)
         assert "最大拖累行业" not in report

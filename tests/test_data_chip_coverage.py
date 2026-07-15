@@ -49,7 +49,14 @@ class TestGetHolders:
 
     def test_valid_result(self):
         fetcher = MagicMock()
-        raw = [{"end_date": "2025-01-01", "code": "sh600519", "holder_num": 10000, "concentration": "集中"}]
+        raw = [
+            {
+                "end_date": "2025-01-01",
+                "code": "sh600519",
+                "holder_num": 10000,
+                "concentration": "集中",
+            }
+        ]
         with (
             patch.object(chip_mod._registry, "find", return_value=fetcher),
             patch.object(chip_mod, "fetch_with_breaker", return_value=raw),
@@ -67,7 +74,14 @@ class TestGetTopHolders:
 
     def test_valid_result(self):
         fetcher = MagicMock()
-        raw = [{"end_date": "2025-01-01", "rank": 1, "holder_name": "X", "is_institution": True}]
+        raw = [
+            {
+                "end_date": "2025-01-01",
+                "rank": 1,
+                "holder_name": "X",
+                "is_institution": True,
+            }
+        ]
         with (
             patch.object(chip_mod._registry, "find", return_value=fetcher),
             patch.object(chip_mod, "fetch_with_breaker", return_value=raw),
@@ -117,9 +131,7 @@ class TestGetMarginSummary:
 
     def test_bullish_sentiment(self):
         """rzjme_5d > 0 且 rz_ratio > 30 -> 偏多。"""
-        data = [
-            MarginData(date="2025-01-01", rzjme=100, rzye=3000, rqye=10)
-        ]
+        data = [MarginData(date="2025-01-01", rzjme=100, rzye=3000, rqye=10)]
         with patch.object(chip_mod, "get_margin", return_value=data):
             result = chip_mod.get_margin_summary("sh600519")
         assert result["sentiment"] == "偏多"
@@ -127,18 +139,14 @@ class TestGetMarginSummary:
 
     def test_bearish_sentiment(self):
         """rzjme_5d < 0 且 rz_ratio < 20 -> 偏空。"""
-        data = [
-            MarginData(date="2025-01-01", rzjme=-100, rzye=100, rqye=10)
-        ]
+        data = [MarginData(date="2025-01-01", rzjme=-100, rzye=100, rqye=10)]
         with patch.object(chip_mod, "get_margin", return_value=data):
             result = chip_mod.get_margin_summary("sh600519")
         assert result["sentiment"] == "偏空"
 
     def test_neutral_sentiment(self):
         """介于偏多偏空之间 -> 中性。"""
-        data = [
-            MarginData(date="2025-01-01", rzjme=100, rzye=100, rqye=10)
-        ]
+        data = [MarginData(date="2025-01-01", rzjme=100, rzye=100, rqye=10)]
         with patch.object(chip_mod, "get_margin", return_value=data):
             result = chip_mod.get_margin_summary("sh600519")
         assert result["sentiment"] == "中性"
@@ -159,7 +167,9 @@ class TestGetHoldersSummary:
     def test_persist_concentration(self):
         """前3期变化率全 < 0 -> 持续集中。"""
         data = [
-            HolderData(end_date="2025-01-01", holder_num_change=-5, concentration="集中"),
+            HolderData(
+                end_date="2025-01-01", holder_num_change=-5, concentration="集中"
+            ),
             HolderData(end_date="2024-12-01", holder_num_change=-3, concentration=""),
             HolderData(end_date="2024-11-01", holder_num_change=-2, concentration=""),
         ]
@@ -172,7 +182,9 @@ class TestGetHoldersSummary:
     def test_persist_dispersion(self):
         """前3期变化率全 > 0 -> 持续分散。"""
         data = [
-            HolderData(end_date="2025-01-01", holder_num_change=5, concentration="分散"),
+            HolderData(
+                end_date="2025-01-01", holder_num_change=5, concentration="分散"
+            ),
             HolderData(end_date="2024-12-01", holder_num_change=3, concentration=""),
             HolderData(end_date="2024-11-01", holder_num_change=2, concentration=""),
         ]
@@ -184,7 +196,9 @@ class TestGetHoldersSummary:
     def test_fluctuate_trend(self):
         """变化率有正有负 -> 波动。"""
         data = [
-            HolderData(end_date="2025-01-01", holder_num_change=5, concentration="波动评级"),
+            HolderData(
+                end_date="2025-01-01", holder_num_change=5, concentration="波动评级"
+            ),
             HolderData(end_date="2024-12-01", holder_num_change=-3, concentration=""),
         ]
         with patch.object(chip_mod, "get_holders", return_value=data):
@@ -194,7 +208,9 @@ class TestGetHoldersSummary:
 
     def test_insufficient_data(self):
         """仅 1 期数据 -> 数据不足。"""
-        data = [HolderData(end_date="2025-01-01", holder_num_change=5, concentration="单期")]
+        data = [
+            HolderData(end_date="2025-01-01", holder_num_change=5, concentration="单期")
+        ]
         with patch.object(chip_mod, "get_holders", return_value=data):
             result = chip_mod.get_holders_summary("sh600519")
         assert result["trend"] == "数据不足"
@@ -204,9 +220,17 @@ class TestGetHoldersSummary:
 class TestDictToMargin:
     def test_full_dict(self):
         d = {
-            "date": "2025-01-01", "code": "sh600519",
-            "rzye": "1000", "rqye": "100", "rzmre": "200", "rzche": "50",
-            "rzjme": "150", "rqmcl": "20", "rqchl": "10", "rqjmg": "5", "rqyl": "100",
+            "date": "2025-01-01",
+            "code": "sh600519",
+            "rzye": "1000",
+            "rqye": "100",
+            "rzmre": "200",
+            "rzche": "50",
+            "rzjme": "150",
+            "rqmcl": "20",
+            "rqchl": "10",
+            "rqjmg": "5",
+            "rqyl": "100",
         }
         m = chip_mod._dict_to_margin(d)
         assert m.date == "2025-01-01"
@@ -227,9 +251,12 @@ class TestDictToMargin:
 class TestDictToHolder:
     def test_full_dict(self):
         d = {
-            "end_date": "2025-01-01", "code": "sh600519",
-            "holder_num": "10000", "avg_amount": "1.5",
-            "holder_num_change": "-5", "prev_holder_num": "10500",
+            "end_date": "2025-01-01",
+            "code": "sh600519",
+            "holder_num": "10000",
+            "avg_amount": "1.5",
+            "holder_num_change": "-5",
+            "prev_holder_num": "10500",
             "concentration": "集中",
         }
         h = chip_mod._dict_to_holder(d)
@@ -247,9 +274,15 @@ class TestDictToHolder:
 class TestDictToTopHolder:
     def test_full_dict(self):
         d = {
-            "end_date": "2025-01-01", "rank": "1", "holder_name": "机构A",
-            "holder_type": "基金", "hold_num": "1000000", "hold_ratio": "5.5",
-            "change": "10000", "change_type": "增持", "is_institution": "True",
+            "end_date": "2025-01-01",
+            "rank": "1",
+            "holder_name": "机构A",
+            "holder_type": "基金",
+            "hold_num": "1000000",
+            "hold_ratio": "5.5",
+            "change": "10000",
+            "change_type": "增持",
+            "is_institution": "True",
         }
         t = chip_mod._dict_to_top_holder(d)
         assert t.end_date == "2025-01-01"

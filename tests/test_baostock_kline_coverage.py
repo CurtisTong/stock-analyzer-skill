@@ -23,6 +23,7 @@ def baostock_module(monkeypatch):
     fake_bs.logout = MagicMock()
     monkeypatch.setitem(sys.modules, "baostock", fake_bs)
     import fetchers.kline.baostock_kline as bk
+
     importlib.reload(bk)
     bk._bs_logged_in = False
     return bk, fake_bs

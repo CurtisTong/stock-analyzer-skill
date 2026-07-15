@@ -39,7 +39,9 @@ def _make_quote(
     return q
 
 
-def _make_bar(amount=1e8, volume=1e6, day="2024-01-01", high=11, low=9, close=10, pct_chg=1.0):
+def _make_bar(
+    amount=1e8, volume=1e6, day="2024-01-01", high=11, low=9, close=10, pct_chg=1.0
+):
     """构造 KlineBar mock 对象。"""
     b = MagicMock()
     b.amount = amount
@@ -70,7 +72,9 @@ class TestLoadAllStocks:
         pool_file = tmp_path / "all_stocks.json"
         pool_file.write_text(json.dumps(all_stocks), encoding="utf-8")
         monkeypatch.setattr(hot_rank, "DATA_DIR", tmp_path)
-        monkeypatch.setattr(hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank")
+        monkeypatch.setattr(
+            hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank"
+        )
 
         codes = hot_rank._load_all_stocks()
         assert "sh600000" in codes
@@ -82,7 +86,9 @@ class TestLoadAllStocks:
     def test_missing_file_raises_systemexit(self, tmp_path, monkeypatch):
         """文件不存在 -> SystemExit。"""
         monkeypatch.setattr(hot_rank, "DATA_DIR", tmp_path)
-        monkeypatch.setattr(hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank")
+        monkeypatch.setattr(
+            hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank"
+        )
         with pytest.raises(SystemExit):
             hot_rank._load_all_stocks()
 
@@ -91,7 +97,9 @@ class TestLoadAllStocks:
         pool_file = tmp_path / "all_stocks.json"
         pool_file.write_text(json.dumps({}), encoding="utf-8")
         monkeypatch.setattr(hot_rank, "DATA_DIR", tmp_path)
-        monkeypatch.setattr(hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank")
+        monkeypatch.setattr(
+            hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank"
+        )
         assert hot_rank._load_all_stocks() == []
 
     def test_partial_categories(self, tmp_path, monkeypatch):
@@ -100,7 +108,9 @@ class TestLoadAllStocks:
         pool_file = tmp_path / "all_stocks.json"
         pool_file.write_text(json.dumps(all_stocks), encoding="utf-8")
         monkeypatch.setattr(hot_rank, "DATA_DIR", tmp_path)
-        monkeypatch.setattr(hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank")
+        monkeypatch.setattr(
+            hot_rank, "HOT_RANK_DIR", tmp_path / "snapshots" / "hot_rank"
+        )
         codes = hot_rank._load_all_stocks()
         assert codes == ["sh600000"]
 
@@ -166,12 +176,24 @@ class TestRankRecentDays:
         """多日累计成交额排序。"""
         codes = ["sh600000", "sh600001"]
         quotes = [
-            _make_quote("sh600000", name="甲", amount=2e8, turnover=3.0, change_pct=1.0),
-            _make_quote("sh600001", name="乙", amount=1e8, turnover=5.0, change_pct=2.0),
+            _make_quote(
+                "sh600000", name="甲", amount=2e8, turnover=3.0, change_pct=1.0
+            ),
+            _make_quote(
+                "sh600001", name="乙", amount=1e8, turnover=5.0, change_pct=2.0
+            ),
         ]
         kline_map = {
-            "sh600000": [_make_bar(amount=1e8), _make_bar(amount=2e8), _make_bar(amount=3e8)],
-            "sh600001": [_make_bar(amount=5e7), _make_bar(amount=5e7), _make_bar(amount=5e7)],
+            "sh600000": [
+                _make_bar(amount=1e8),
+                _make_bar(amount=2e8),
+                _make_bar(amount=3e8),
+            ],
+            "sh600001": [
+                _make_bar(amount=5e7),
+                _make_bar(amount=5e7),
+                _make_bar(amount=5e7),
+            ],
         }
         with patch("hot_rank.rank_today", return_value=quotes):
             with patch("hot_rank.parallel_map", return_value=kline_map):
@@ -190,7 +212,15 @@ class TestRankRecentDays:
             with patch("hot_rank.parallel_map", return_value=kline_map):
                 result = hot_rank.rank_recent_days(codes, days=1, top=10)
         assert isinstance(result[0], dict)
-        for key in ("code", "name", "price", "change_pct", "amount_1d", "amount_recent", "hot_score"):
+        for key in (
+            "code",
+            "name",
+            "price",
+            "change_pct",
+            "amount_1d",
+            "amount_recent",
+            "hot_score",
+        ):
             assert key in result[0]
 
     def test_kline_bars_truncated_to_days(self, capsys):
@@ -224,17 +254,52 @@ class TestRankHistorical:
         """历史某日热度榜：用 K 线 volume 估算。"""
         codes = ["sh600000", "sh600001"]
         quotes = [
-            _make_quote("sh600000", name="甲", amount=2e8, turnover=3.0, price=10, circulating_cap=10),
-            _make_quote("sh600001", name="乙", amount=1e8, turnover=5.0, price=20, circulating_cap=20),
+            _make_quote(
+                "sh600000",
+                name="甲",
+                amount=2e8,
+                turnover=3.0,
+                price=10,
+                circulating_cap=10,
+            ),
+            _make_quote(
+                "sh600001",
+                name="乙",
+                amount=1e8,
+                turnover=5.0,
+                price=20,
+                circulating_cap=20,
+            ),
         ]
         # 新浪 fetcher 返回 dict 格式 K 线
         kline_map = {
             "sh600000": [
-                {"day": "2024-01-01", "volume": "1000000", "high": "11", "low": "9", "close": "10", "pct_chg": "1.0"},
-                {"day": "2024-01-02", "volume": "2000000", "high": "12", "low": "10", "close": "11", "pct_chg": "10.0"},
+                {
+                    "day": "2024-01-01",
+                    "volume": "1000000",
+                    "high": "11",
+                    "low": "9",
+                    "close": "10",
+                    "pct_chg": "1.0",
+                },
+                {
+                    "day": "2024-01-02",
+                    "volume": "2000000",
+                    "high": "12",
+                    "low": "10",
+                    "close": "11",
+                    "pct_chg": "10.0",
+                },
             ],
             "sh600001": [
-                {"day": "2024-01-01", "volume": "500000", "high": "21", "low": "19", "close": "20", "pct_chg": "0.5"},
+                {
+                    "day": "2024-01-01",
+                    "volume": "500000",
+                    "high": "21",
+                    "low": "19",
+                    "close": "20",
+                    "pct_chg": "0.5",
+                },
             ],
         }
         with patch("hot_rank.rank_today", return_value=quotes):
@@ -259,7 +324,13 @@ class TestRankHistorical:
         quotes = [_make_quote("sh600000", name="甲", price=10, circulating_cap=10)]
         kline_map = {
             "sh600000": [
-                {"day": "2024-01-01", "volume": "0", "high": "11", "low": "9", "close": "10"},
+                {
+                    "day": "2024-01-01",
+                    "volume": "0",
+                    "high": "11",
+                    "low": "9",
+                    "close": "10",
+                },
             ]
         }
 
@@ -285,7 +356,13 @@ class TestRankHistorical:
         kline_map = {
             "sh600000": [],  # 空
             "sh600001": [
-                {"day": "2024-01-01", "volume": "1000000", "high": "21", "low": "19", "close": "20"},
+                {
+                    "day": "2024-01-01",
+                    "volume": "1000000",
+                    "high": "21",
+                    "low": "19",
+                    "close": "20",
+                },
             ],
         }
 
@@ -389,9 +466,15 @@ class TestLoadWindowSnapshots:
             Path("/data/2024-01-03/snap.json"),
         ]
         snapshots = {
-            Path("/data/2024-01-01/snap.json"): {"rows": [{"code": "sh600000", "hot_score": 50}]},
-            Path("/data/2024-01-02/snap.json"): {"rows": [{"code": "sh600000", "hot_score": 80}]},
-            Path("/data/2024-01-03/snap.json"): {"rows": [{"code": "sh600000", "hot_score": 100}]},
+            Path("/data/2024-01-01/snap.json"): {
+                "rows": [{"code": "sh600000", "hot_score": 50}]
+            },
+            Path("/data/2024-01-02/snap.json"): {
+                "rows": [{"code": "sh600000", "hot_score": 80}]
+            },
+            Path("/data/2024-01-03/snap.json"): {
+                "rows": [{"code": "sh600000", "hot_score": 100}]
+            },
         }
         with patch("hot_rank.list_snapshots", return_value=paths):
             with patch("hot_rank.load_snapshot", side_effect=lambda p: snapshots[p]):
@@ -530,7 +613,15 @@ class TestMainCLI:
 
     def test_merge_json(self, capsys):
         """--merge N --json 输出 JSON。"""
-        merge_rows = [{"code": "sh600000", "name": "甲", "appear_count": 3, "appear_ratio": 0.6, "latest_score": 100}]
+        merge_rows = [
+            {
+                "code": "sh600000",
+                "name": "甲",
+                "appear_count": 3,
+                "appear_ratio": 0.6,
+                "latest_score": 100,
+            }
+        ]
         with patch.object(sys, "argv", ["hot_rank.py", "--merge", "5", "-j"]):
             with patch("hot_rank.merge_recent", return_value=merge_rows):
                 hot_rank.main()
@@ -540,7 +631,15 @@ class TestMainCLI:
 
     def test_merge_text(self, capsys):
         """--merge N 文本输出。"""
-        merge_rows = [{"code": "sh600000", "name": "甲", "appear_count": 3, "appear_ratio": 0.6, "latest_score": 100}]
+        merge_rows = [
+            {
+                "code": "sh600000",
+                "name": "甲",
+                "appear_count": 3,
+                "appear_ratio": 0.6,
+                "latest_score": 100,
+            }
+        ]
         with patch.object(sys, "argv", ["hot_rank.py", "--merge", "5"]):
             with patch("hot_rank.merge_recent", return_value=merge_rows):
                 hot_rank.main()
@@ -555,7 +654,9 @@ class TestMainCLI:
         with patch.object(sys, "argv", ["hot_rank.py", "-j"]):
             with patch("hot_rank._load_all_stocks", return_value=["sh600000"]):
                 with patch("hot_rank.rank_today", return_value=[q]):
-                    with patch("hot_rank._save_snapshot", return_value="/tmp/snap.json"):
+                    with patch(
+                        "hot_rank._save_snapshot", return_value="/tmp/snap.json"
+                    ):
                         hot_rank.main()
         out = capsys.readouterr().out
         parsed = json.loads(out)
@@ -567,7 +668,9 @@ class TestMainCLI:
         with patch.object(sys, "argv", ["hot_rank.py"]):
             with patch("hot_rank._load_all_stocks", return_value=["sh600000"]):
                 with patch("hot_rank.rank_today", return_value=[q]):
-                    with patch("hot_rank._save_snapshot", return_value="/tmp/snap.json"):
+                    with patch(
+                        "hot_rank._save_snapshot", return_value="/tmp/snap.json"
+                    ):
                         hot_rank.main()
         out = capsys.readouterr().out
         assert "快照已保存" in out
@@ -575,22 +678,44 @@ class TestMainCLI:
 
     def test_recent_days_text(self, capsys):
         """--days N 多日榜文本输出。"""
-        rows = [{"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "amount_recent": 3e8, "hot_score": 100}]
+        rows = [
+            {
+                "code": "sh600000",
+                "name": "甲",
+                "price": 10,
+                "change_pct": 1,
+                "amount_recent": 3e8,
+                "hot_score": 100,
+            }
+        ]
         with patch.object(sys, "argv", ["hot_rank.py", "--days", "3"]):
             with patch("hot_rank._load_all_stocks", return_value=["sh600000"]):
                 with patch("hot_rank.rank_recent_days", return_value=rows):
-                    with patch("hot_rank._save_snapshot", return_value="/tmp/snap.json"):
+                    with patch(
+                        "hot_rank._save_snapshot", return_value="/tmp/snap.json"
+                    ):
                         hot_rank.main()
         out = capsys.readouterr().out
         assert "快照已保存" in out
 
     def test_recent_days_json(self, capsys):
         """--days N -j JSON 输出。"""
-        rows = [{"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "amount_recent": 3e8, "hot_score": 100}]
+        rows = [
+            {
+                "code": "sh600000",
+                "name": "甲",
+                "price": 10,
+                "change_pct": 1,
+                "amount_recent": 3e8,
+                "hot_score": 100,
+            }
+        ]
         with patch.object(sys, "argv", ["hot_rank.py", "--days", "3", "-j"]):
             with patch("hot_rank._load_all_stocks", return_value=["sh600000"]):
                 with patch("hot_rank.rank_recent_days", return_value=rows):
-                    with patch("hot_rank._save_snapshot", return_value="/tmp/snap.json"):
+                    with patch(
+                        "hot_rank._save_snapshot", return_value="/tmp/snap.json"
+                    ):
                         hot_rank.main()
         out = capsys.readouterr().out
         parsed = json.loads(out)
@@ -598,22 +723,48 @@ class TestMainCLI:
 
     def test_historical_text(self, capsys):
         """--historical YYYY-MM-DD 文本输出。"""
-        rows = [{"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "turnover_est": 2, "amount_1d": 1e8, "hot_score": 100}]
+        rows = [
+            {
+                "code": "sh600000",
+                "name": "甲",
+                "price": 10,
+                "change_pct": 1,
+                "turnover_est": 2,
+                "amount_1d": 1e8,
+                "hot_score": 100,
+            }
+        ]
         with patch.object(sys, "argv", ["hot_rank.py", "--historical", "2024-01-01"]):
             with patch("hot_rank._load_all_stocks", return_value=["sh600000"]):
                 with patch("hot_rank.rank_historical", return_value=rows):
-                    with patch("hot_rank._save_snapshot", return_value="/tmp/snap.json"):
+                    with patch(
+                        "hot_rank._save_snapshot", return_value="/tmp/snap.json"
+                    ):
                         hot_rank.main()
         out = capsys.readouterr().out
         assert "快照已保存" in out
 
     def test_historical_json(self, capsys):
         """--historical YYYY-MM-DD -j JSON 输出。"""
-        rows = [{"code": "sh600000", "name": "甲", "price": 10, "change_pct": 1, "turnover_est": 2, "amount_1d": 1e8, "hot_score": 100}]
-        with patch.object(sys, "argv", ["hot_rank.py", "--historical", "2024-01-01", "-j"]):
+        rows = [
+            {
+                "code": "sh600000",
+                "name": "甲",
+                "price": 10,
+                "change_pct": 1,
+                "turnover_est": 2,
+                "amount_1d": 1e8,
+                "hot_score": 100,
+            }
+        ]
+        with patch.object(
+            sys, "argv", ["hot_rank.py", "--historical", "2024-01-01", "-j"]
+        ):
             with patch("hot_rank._load_all_stocks", return_value=["sh600000"]):
                 with patch("hot_rank.rank_historical", return_value=rows):
-                    with patch("hot_rank._save_snapshot", return_value="/tmp/snap.json"):
+                    with patch(
+                        "hot_rank._save_snapshot", return_value="/tmp/snap.json"
+                    ):
                         hot_rank.main()
         out = capsys.readouterr().out
         parsed = json.loads(out)
@@ -671,7 +822,9 @@ class TestPrintTable:
 
     def test_top_limit(self, capsys):
         """top 限制输出行数。"""
-        rows = [{"code": f"sh60000{i}", "amount": 1e8, "hot_score": i} for i in range(5)]
+        rows = [
+            {"code": f"sh60000{i}", "amount": 1e8, "hot_score": i} for i in range(5)
+        ]
         hot_rank._print_table(
             rows,
             cols=["code", "amount", "hot_score"],

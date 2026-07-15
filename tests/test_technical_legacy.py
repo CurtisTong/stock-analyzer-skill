@@ -32,14 +32,32 @@ def _make_input(n=100, code="sh600519"):
     volumes = [1000 + i * 10 for i in range(n)]
     records = [
         SimpleNamespace(
-            date=f"2026-07-{i+1:02d}", open=o, high=h, low=l, close=c, volume=v,
+            date=f"2026-07-{i+1:02d}",
+            open=o,
+            high=h,
+            low=l,
+            close=c,
+            volume=v,
         )
         for i, (o, h, l, c, v) in enumerate(zip(opens, highs, lows, closes, volumes))
     ]
-    quote = {"code": code, "name": "test", "pe": 15.0, "pb": 2.0, "net_profit_yoy": 10.0}
+    quote = {
+        "code": code,
+        "name": "test",
+        "pe": 15.0,
+        "pb": 2.0,
+        "net_profit_yoy": 10.0,
+    }
     return technical.TechnicalInput(
-        closes=closes, opens=opens, highs=highs, lows=lows, volumes=volumes,
-        records=records, board="main", quote=quote, args=None,
+        closes=closes,
+        opens=opens,
+        highs=highs,
+        lows=lows,
+        volumes=volumes,
+        records=records,
+        board="main",
+        quote=quote,
+        args=None,
     )
 
 
@@ -108,26 +126,41 @@ class TestComputeAll:
         inp = _make_input()
         inp.args = args
         # 修改 support_resistance 让 nearest_resistance=None 避开 breakout
-        with patch.object(technical, "ma_system", return_value={}), \
-             patch.object(technical, "macd_full", return_value={}), \
-             patch.object(technical, "kdj_full", return_value={}), \
-             patch.object(technical, "bollinger", return_value={}), \
-             patch.object(technical, "rsi_features", return_value={}), \
-             patch.object(technical, "volume_analysis", return_value={}), \
-             patch.object(technical, "detect_candle_patterns", return_value=[]), \
-             patch.object(technical, "support_resistance", return_value={"nearest_resistance": None}), \
-             patch.object(technical, "box_detection", return_value={}), \
-             patch.object(technical, "breakout_check", return_value={}), \
-             patch.object(technical, "wave_state", return_value={}), \
-             patch.object(technical, "limit_analysis", return_value={}), \
-             patch.object(technical, "incremental_ma", return_value=[]), \
-             patch.object(technical, "pe_percentile_score", return_value=60), \
-             patch.object(technical, "detect_market_environment", return_value={"state": "bull"}):
+        with (
+            patch.object(technical, "ma_system", return_value={}),
+            patch.object(technical, "macd_full", return_value={}),
+            patch.object(technical, "kdj_full", return_value={}),
+            patch.object(technical, "bollinger", return_value={}),
+            patch.object(technical, "rsi_features", return_value={}),
+            patch.object(technical, "volume_analysis", return_value={}),
+            patch.object(technical, "detect_candle_patterns", return_value=[]),
+            patch.object(
+                technical,
+                "support_resistance",
+                return_value={"nearest_resistance": None},
+            ),
+            patch.object(technical, "box_detection", return_value={}),
+            patch.object(technical, "breakout_check", return_value={}),
+            patch.object(technical, "wave_state", return_value={}),
+            patch.object(technical, "limit_analysis", return_value={}),
+            patch.object(technical, "incremental_ma", return_value=[]),
+            patch.object(technical, "pe_percentile_score", return_value=60),
+            patch.object(
+                technical, "detect_market_environment", return_value={"state": "bull"}
+            ),
+        ):
             # Patch 内部 import 的 chan/classifier
-            with patch.dict(sys.modules, {
-                "chan": MagicMock(chan_full_analysis=MagicMock(return_value={"valid": True})),
-                "classifier": MagicMock(classify_stock=MagicMock(return_value={"type": "value"})),
-            }):
+            with patch.dict(
+                sys.modules,
+                {
+                    "chan": MagicMock(
+                        chan_full_analysis=MagicMock(return_value={"valid": True})
+                    ),
+                    "classifier": MagicMock(
+                        classify_stock=MagicMock(return_value={"type": "value"})
+                    ),
+                },
+            ):
                 result = technical._compute_all(inp)
         assert "classification" in result
         assert "chan_theory" in result
@@ -172,9 +205,13 @@ class TestMain:
         """正常 main 调用（mock 所有外部依赖）。"""
         # 注入 fetch_kline/fetch_batch 到 technical module
         technical.fetch_kline = MagicMock(return_value=[])
-        technical.fetch_batch = MagicMock(return_value=[SimpleNamespace(code="sh600519", price=100)])
-        with patch.object(technical, "_compute_all", return_value={}), \
-             patch("builtins.print"):
+        technical.fetch_batch = MagicMock(
+            return_value=[SimpleNamespace(code="sh600519", price=100)]
+        )
+        with (
+            patch.object(technical, "_compute_all", return_value={}),
+            patch("builtins.print"),
+        ):
             monkeypatch.setattr(sys, "argv", ["technical.py", "sh600519"])
             try:
                 technical.main()
@@ -183,11 +220,14 @@ class TestMain:
 
     def test_with_classify_flag(self, capsys, monkeypatch):
         technical.fetch_kline = MagicMock(return_value=[])
-        technical.fetch_batch = MagicMock(return_value=[SimpleNamespace(code="sh600519", price=100)])
-        with patch.object(technical, "_compute_all", return_value={}), \
-             patch("builtins.print"):
-            monkeypatch.setattr(sys, "argv",
-                                 ["technical.py", "sh600519", "--classify"])
+        technical.fetch_batch = MagicMock(
+            return_value=[SimpleNamespace(code="sh600519", price=100)]
+        )
+        with (
+            patch.object(technical, "_compute_all", return_value={}),
+            patch("builtins.print"),
+        ):
+            monkeypatch.setattr(sys, "argv", ["technical.py", "sh600519", "--classify"])
             try:
                 technical.main()
             except SystemExit:
@@ -195,9 +235,13 @@ class TestMain:
 
     def test_with_json_flag(self, capsys, monkeypatch):
         technical.fetch_kline = MagicMock(return_value=[])
-        technical.fetch_batch = MagicMock(return_value=[SimpleNamespace(code="sh600519", price=100)])
-        with patch.object(technical, "_compute_all", return_value={}), \
-             patch("builtins.print"):
+        technical.fetch_batch = MagicMock(
+            return_value=[SimpleNamespace(code="sh600519", price=100)]
+        )
+        with (
+            patch.object(technical, "_compute_all", return_value={}),
+            patch("builtins.print"),
+        ):
             monkeypatch.setattr(sys, "argv", ["technical.py", "sh600519", "-j"])
             try:
                 technical.main()
@@ -206,11 +250,16 @@ class TestMain:
 
     def test_with_no_chan_flag(self, capsys, monkeypatch):
         technical.fetch_kline = MagicMock(return_value=[])
-        technical.fetch_batch = MagicMock(return_value=[SimpleNamespace(code="sh600519", price=100)])
-        with patch.object(technical, "_compute_all", return_value={}), \
-             patch("builtins.print"):
-            monkeypatch.setattr(sys, "argv",
-                                 ["technical.py", "sh600519", "--classify", "--no-chan"])
+        technical.fetch_batch = MagicMock(
+            return_value=[SimpleNamespace(code="sh600519", price=100)]
+        )
+        with (
+            patch.object(technical, "_compute_all", return_value={}),
+            patch("builtins.print"),
+        ):
+            monkeypatch.setattr(
+                sys, "argv", ["technical.py", "sh600519", "--classify", "--no-chan"]
+            )
             try:
                 technical.main()
             except SystemExit:

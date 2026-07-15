@@ -108,15 +108,31 @@ class TestGetPm:
 
 
 class TestParseHelpers:
-    @pytest.mark.parametrize("v,expected", [
-        (1.5, 1.5), ("1.5", 1.5), (1, 1.0), ("abc", None), (None, None), (True, None),
-    ])
+    @pytest.mark.parametrize(
+        "v,expected",
+        [
+            (1.5, 1.5),
+            ("1.5", 1.5),
+            (1, 1.0),
+            ("abc", None),
+            (None, None),
+            (True, None),
+        ],
+    )
     def test_parse_float(self, v, expected):
         assert wu._parse_float(v) == expected
 
-    @pytest.mark.parametrize("v,expected", [
-        (1, 1), ("1", 1), (1.9, 1), ("abc", None), (None, None), (False, None),
-    ])
+    @pytest.mark.parametrize(
+        "v,expected",
+        [
+            (1, 1),
+            ("1", 1),
+            (1.9, 1),
+            ("abc", None),
+            (None, None),
+            (False, None),
+        ],
+    )
     def test_parse_int(self, v, expected):
         assert wu._parse_int(v) == expected
 
@@ -150,7 +166,9 @@ class TestGetNotifier:
             assert nm1 is inst
 
     def test_exception_returns_none(self):
-        with patch("monitor.manager.NotificationManager", side_effect=RuntimeError("err")):
+        with patch(
+            "monitor.manager.NotificationManager", side_effect=RuntimeError("err")
+        ):
             assert wu._get_notifier() is None
 
 
@@ -185,62 +203,100 @@ class TestNotifyAsync:
 
 class TestFormatNotify:
     def test_add_position(self):
-        title, body = wu._format_notify("add_position", {"data": {"name": "茅台", "quantity": 100, "cost": 1800, "tags": ["白酒"]}}, {"code": "sh600519"})
+        title, body = wu._format_notify(
+            "add_position",
+            {"data": {"name": "茅台", "quantity": 100, "cost": 1800, "tags": ["白酒"]}},
+            {"code": "sh600519"},
+        )
         assert "加仓" in title
         assert "茅台" in title
         assert "100" in body
 
     def test_reduce_position_partial(self):
-        title, body = wu._format_notify("reduce_position", {"data": {"quantity": 50}}, {"code": "sh600519", "_name": "茅台", "quantity": 50})
+        title, body = wu._format_notify(
+            "reduce_position",
+            {"data": {"quantity": 50}},
+            {"code": "sh600519", "_name": "茅台", "quantity": 50},
+        )
         assert "减仓" in title
         assert "50" in body
 
     def test_reduce_position_cleared(self):
-        title, body = wu._format_notify("reduce_position", {"data": None}, {"code": "sh600519", "_name": "茅台", "quantity": 100})
+        title, body = wu._format_notify(
+            "reduce_position",
+            {"data": None},
+            {"code": "sh600519", "_name": "茅台", "quantity": 100},
+        )
         assert "清仓" in title
 
     def test_remove_position_found(self):
-        title, body = wu._format_notify("remove_position", {"data": {"code": "sh600519"}}, {"code": "sh600519"})
+        title, body = wu._format_notify(
+            "remove_position", {"data": {"code": "sh600519"}}, {"code": "sh600519"}
+        )
         assert "清仓" in title
         assert "移除" in body
 
     def test_remove_position_not_found(self):
-        title, body = wu._format_notify("remove_position", {"data": None}, {"code": "sh600519"})
+        title, body = wu._format_notify(
+            "remove_position", {"data": None}, {"code": "sh600519"}
+        )
         assert "未找到" in body
 
     def test_update_position(self):
-        title, body = wu._format_notify("update_position", {"data": {}}, {"action": "update_position", "code": "sh600519", "cost": 110})
+        title, body = wu._format_notify(
+            "update_position",
+            {"data": {}},
+            {"action": "update_position", "code": "sh600519", "cost": 110},
+        )
         assert "更新" in title
         assert "cost" in body
 
     def test_tag_position(self):
-        title, body = wu._format_notify("tag_position", {"data": {}}, {"code": "sh600519", "tags": ["白酒"]})
+        title, body = wu._format_notify(
+            "tag_position", {"data": {}}, {"code": "sh600519", "tags": ["白酒"]}
+        )
         assert "加标签" in title
         assert "白酒" in body
 
     def test_untag_position(self):
-        title, body = wu._format_notify("untag_position", {"data": {}}, {"code": "sh600519", "tags": ["白酒"]})
+        title, body = wu._format_notify(
+            "untag_position", {"data": {}}, {"code": "sh600519", "tags": ["白酒"]}
+        )
         assert "删标签" in title
 
     def test_add_watch(self):
-        title, body = wu._format_notify("add_watch", {"data": {"name": "五粮液", "target_buy": 70, "target_sell": 90}}, {"code": "sz000858"})
+        title, body = wu._format_notify(
+            "add_watch",
+            {"data": {"name": "五粮液", "target_buy": 70, "target_sell": 90}},
+            {"code": "sz000858"},
+        )
         assert "加自选" in title
         assert "五粮液" in title
 
     def test_add_watch_no_targets(self):
-        title, body = wu._format_notify("add_watch", {"data": {"name": "X", "target_buy": 0, "target_sell": 0}}, {"code": "sz000858"})
+        title, body = wu._format_notify(
+            "add_watch",
+            {"data": {"name": "X", "target_buy": 0, "target_sell": 0}},
+            {"code": "sz000858"},
+        )
         assert "已添加" in body
 
     def test_remove_watch_found(self):
-        title, body = wu._format_notify("remove_watch", {"data": {"code": "sz000858"}}, {"code": "sz000858"})
+        title, body = wu._format_notify(
+            "remove_watch", {"data": {"code": "sz000858"}}, {"code": "sz000858"}
+        )
         assert "已移除" in body
 
     def test_remove_watch_not_found(self):
-        title, body = wu._format_notify("remove_watch", {"data": None}, {"code": "sz000858"})
+        title, body = wu._format_notify(
+            "remove_watch", {"data": None}, {"code": "sz000858"}
+        )
         assert "未找到" in body
 
     def test_unknown_action(self):
-        title, body = wu._format_notify("custom_action", {"data": "something"}, {"code": "sh600519"})
+        title, body = wu._format_notify(
+            "custom_action", {"data": "something"}, {"code": "sh600519"}
+        )
         assert "custom_action" in title
 
 
@@ -254,13 +310,23 @@ class TestCollectCodeNameMap:
 
         scripts_data = tmp_path / "data"
         scripts_data.mkdir()
-        (scripts_data / "portfolio.json").write_text(json.dumps({
-            "positions": [{"code": "sh600519", "name": "茅台"}],
-            "watchlist": [{"code": "sz000858", "name": "五粮液"}],
-        }), encoding="utf-8")
-        (scripts_data / "sector_stocks.json").write_text(json.dumps({
-            "白酒": ["sh600519", "sz000858", "sh603369"],
-        }), encoding="utf-8")
+        (scripts_data / "portfolio.json").write_text(
+            json.dumps(
+                {
+                    "positions": [{"code": "sh600519", "name": "茅台"}],
+                    "watchlist": [{"code": "sz000858", "name": "五粮液"}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (scripts_data / "sector_stocks.json").write_text(
+            json.dumps(
+                {
+                    "白酒": ["sh600519", "sz000858", "sh603369"],
+                }
+            ),
+            encoding="utf-8",
+        )
 
         # _collect_code_name_map 使用 Path(__file__).parent.parent.parent / "data"
         # 无法直接 patch，所以直接测试真实逻辑但用 monkeypatch 替换函数内部路径
@@ -272,6 +338,7 @@ class TestCollectCodeNameMap:
                 if not p.exists():
                     continue
                 import json as _json
+
                 try:
                     data = _json.loads(p.read_text(encoding="utf-8"))
                 except (OSError, _json.JSONDecodeError):
@@ -284,6 +351,7 @@ class TestCollectCodeNameMap:
             p = scripts_data / "sector_stocks.json"
             if p.exists():
                 import json as _json
+
                 try:
                     data = _json.loads(p.read_text(encoding="utf-8"))
                     for v in data.values():
@@ -312,6 +380,7 @@ class TestCollectCodeNameMap:
         def _patched():
             seen = {}
             import json as _json
+
             for fname in ("portfolio.json", "portfolio_example.json"):
                 p = scripts_data / fname
                 if not p.exists():
@@ -351,6 +420,7 @@ class TestMonitorLoop:
     def test_import_error_returns(self, monkeypatch):
         # 模拟 alert_engine 导入失败
         import importlib
+
         orig_import = importlib.import_module
 
         def _fail(name):
@@ -366,7 +436,11 @@ class TestMonitorLoop:
 
     def test_loop_runs_one_cycle(self, monkeypatch):
         fake_engine = MagicMock()
-        fake_engine.check_and_push.return_value = {"alerts": 1, "pushed": 1, "timestamp": "2025-01-01"}
+        fake_engine.check_and_push.return_value = {
+            "alerts": 1,
+            "pushed": 1,
+            "timestamp": "2025-01-01",
+        }
         monkeypatch.setitem(sys.modules, "monitor.alert_engine", fake_engine)
         monkeypatch.setattr(wu, "_is_trading_hours", lambda: True)
         monkeypatch.setattr(wu, "_monitor_interval", 0.01)

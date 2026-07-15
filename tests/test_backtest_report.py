@@ -129,12 +129,24 @@ class TestGenerateReturnDistribution:
 class TestGenerateTradeTimeline:
     def test_basic(self):
         trades = [
-            {"buy_date": "2026-07-01", "sell_date": "2026-07-05", "code": "sh600519",
-             "buy_price": 100.0, "sell_price": 105.0, "return_pct": 5.0,
-             "signal": "MA金叉"},
-            {"buy_date": "2026-07-02", "sell_date": "2026-07-08", "code": "sh600000",
-             "buy_price": 200.0, "sell_price": 196.0, "return_pct": -2.0,
-             "signal": "放量"},
+            {
+                "buy_date": "2026-07-01",
+                "sell_date": "2026-07-05",
+                "code": "sh600519",
+                "buy_price": 100.0,
+                "sell_price": 105.0,
+                "return_pct": 5.0,
+                "signal": "MA金叉",
+            },
+            {
+                "buy_date": "2026-07-02",
+                "sell_date": "2026-07-08",
+                "code": "sh600000",
+                "buy_price": 200.0,
+                "sell_price": 196.0,
+                "return_pct": -2.0,
+                "signal": "放量",
+            },
         ]
         result = generate_trade_timeline(trades, max_trades=10)
         assert isinstance(result, str)
@@ -146,9 +158,16 @@ class TestGenerateTradeTimeline:
 
     def test_max_trades_limit(self):
         trades = [
-            {"buy_date": f"2026-07-{i+1:02d}", "sell_date": f"2026-07-{i+2:02d}",
-             "code": f"sh{i:06d}", "buy_price": 100.0, "sell_price": 101.0,
-             "return_pct": 1.0, "signal": "x"} for i in range(30)
+            {
+                "buy_date": f"2026-07-{i+1:02d}",
+                "sell_date": f"2026-07-{i+2:02d}",
+                "code": f"sh{i:06d}",
+                "buy_price": 100.0,
+                "sell_price": 101.0,
+                "return_pct": 1.0,
+                "signal": "x",
+            }
+            for i in range(30)
         ]
         result = generate_trade_timeline(trades, max_trades=5)
         assert isinstance(result, str)
@@ -172,7 +191,8 @@ class TestGenerateBacktestReport:
         ]
         # 直接传 data，signature 是 (data, stock_name)
         result = generate_backtest_report(
-            data=kline_data, stock_name="sh600519",
+            data=kline_data,
+            stock_name="sh600519",
         )
         assert isinstance(result, str)
 
@@ -180,7 +200,8 @@ class TestGenerateBacktestReport:
         """数据不足时报告无交易。"""
         kline_data = [{"date": "2026-07-01", "close": 100.0}]
         result = generate_backtest_report(
-            data=kline_data, stock_name="sh600519",
+            data=kline_data,
+            stock_name="sh600519",
         )
         assert isinstance(result, str)
 
@@ -195,17 +216,14 @@ class TestGenerateComparisonReport:
         """stock_data 是 dict[stock_name, kline_list]。"""
         # 需要足够的 K 线让 backtest_strategy 运行
         kline_a = [
-            {"date": f"2026-07-{i+1:02d}", "close": 100 + i * 0.5}
-            for i in range(60)
+            {"date": f"2026-07-{i+1:02d}", "close": 100 + i * 0.5} for i in range(60)
         ]
-        kline_b = [
-            {"date": f"2026-07-{i+1:02d}", "close": 200 + i}
-            for i in range(60)
-        ]
+        kline_b = [{"date": f"2026-07-{i+1:02d}", "close": 200 + i} for i in range(60)]
         stocks_data = {"sh600519": kline_a, "sh600000": kline_b}
         try:
-            result = generate_comparison_report(stocks_data, ma_short=5, ma_long=10,
-                                                vol_threshold=2.0)
+            result = generate_comparison_report(
+                stocks_data, ma_short=5, ma_long=10, vol_threshold=2.0
+            )
             assert isinstance(result, str)
         except (ZeroDivisionError, KeyError):
             # 边界情况下 backtest_strategy 异常（K 线不足等）— 接受

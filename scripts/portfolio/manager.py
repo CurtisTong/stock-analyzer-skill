@@ -787,7 +787,9 @@ class PortfolioManager:
         result = brinson_from_holdings(positions, quotes, period=period)
         return format_brinson_report(result)
 
-    def advisory_rebalance(self, target_ratio: float = 1.0, quotes: dict = None) -> list:
+    def advisory_rebalance(
+        self, target_ratio: float = 1.0, quotes: dict = None
+    ) -> list:
         """(#12) 宏观仓位控制的调仓建议（纯只读，不修改 portfolio）。
 
         根据 MacroState.position_ratio 生成减仓建议，将每个持仓压缩至 target_ratio。
@@ -831,14 +833,16 @@ class PortfolioManager:
             reduce_value = current_value - target_value
 
             if reduce_value > 0:
-                suggestions.append({
-                    "code": code,
-                    "name": name,
-                    "action": "reduce",
-                    "current_value": round(current_value, 2),
-                    "target_value": round(target_value, 2),
-                    "reduce_value": round(reduce_value, 2),
-                    "reason": f"宏观{int(target_ratio*100)}%仓位控制",
-                })
+                suggestions.append(
+                    {
+                        "code": code,
+                        "name": name,
+                        "action": "reduce",
+                        "current_value": round(current_value, 2),
+                        "target_value": round(target_value, 2),
+                        "reduce_value": round(reduce_value, 2),
+                        "reason": f"宏观{int(target_ratio*100)}%仓位控制",
+                    }
+                )
 
         return suggestions

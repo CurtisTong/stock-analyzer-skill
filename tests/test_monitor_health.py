@@ -27,12 +27,14 @@ class TestGetFetcherHealth:
 
     def test_with_data(self):
         """mock 所有 fetcher。"""
-        with patch("fetchers.get_quote_fetchers", return_value=[]), \
-             patch("fetchers.get_kline_fetchers", return_value=[]), \
-             patch("fetchers.get_finance_fetchers", return_value=[]), \
-             patch("fetchers.get_flow_fetchers", return_value=[]), \
-             patch("fetchers.get_lhb_fetchers", return_value=[]), \
-             patch("fetchers.get_event_fetchers", return_value=[]):
+        with (
+            patch("fetchers.get_quote_fetchers", return_value=[]),
+            patch("fetchers.get_kline_fetchers", return_value=[]),
+            patch("fetchers.get_finance_fetchers", return_value=[]),
+            patch("fetchers.get_flow_fetchers", return_value=[]),
+            patch("fetchers.get_lhb_fetchers", return_value=[]),
+            patch("fetchers.get_event_fetchers", return_value=[]),
+        ):
             try:
                 result = health.get_fetcher_health()
                 assert isinstance(result, dict)
@@ -92,7 +94,8 @@ class TestCalcMa:
 class TestScanStockPool:
     def test_empty_pool(self):
         result = strategy_signals.scan_stock_pool(
-            stock_pool=[], kline_data_dict={},
+            stock_pool=[],
+            kline_data_dict={},
         )
         assert isinstance(result, list)
         assert result == []
@@ -110,11 +113,20 @@ class TestFormatSignalReport:
 
     def test_with_signals(self):
         signals = [
-            {"code": "sh600519", "name": "贵州茅台", "signal_type": "MA金叉",
-             "ma_short": 5.0, "ma_long": 10.0, "price": 100.0,
-             "change_pct": 2.0, "signal_strength": 0.8},
+            {
+                "code": "sh600519",
+                "name": "贵州茅台",
+                "signal_type": "MA金叉",
+                "ma_short": 5.0,
+                "ma_long": 10.0,
+                "price": 100.0,
+                "change_pct": 2.0,
+                "signal_strength": 0.8,
+            },
         ]
-        result = strategy_signals.format_signal_report(signals, {"sh600519": "贵州茅台"})
+        result = strategy_signals.format_signal_report(
+            signals, {"sh600519": "贵州茅台"}
+        )
         assert isinstance(result, str)
         assert "sh600519" in result or "贵州茅台" in result
 
@@ -127,9 +139,16 @@ class TestFormatSignalJson:
 
     def test_with_signals(self):
         signals = [
-            {"code": "sh600519", "name": "贵州茅台", "signal_type": "MA金叉",
-             "ma_short": 5.0, "ma_long": 10.0, "price": 100.0,
-             "change_pct": 2.0, "signal_strength": 0.8},
+            {
+                "code": "sh600519",
+                "name": "贵州茅台",
+                "signal_type": "MA金叉",
+                "ma_short": 5.0,
+                "ma_long": 10.0,
+                "price": 100.0,
+                "change_pct": 2.0,
+                "signal_strength": 0.8,
+            },
         ]
         result = strategy_signals.format_signal_json(signals)
         assert isinstance(result, dict)
@@ -144,9 +163,17 @@ class TestGenerateAlertMessage:
 
     def test_with_signals(self):
         signals = [
-            {"code": "sh600519", "name": "贵州茅台", "signal_type": "MA金叉",
-             "ma_short": 5.0, "ma_long": 10.0, "price": 100.0,
-             "change_pct": 2.0, "signal_strength": 0.8, "confidence": "高"},
+            {
+                "code": "sh600519",
+                "name": "贵州茅台",
+                "signal_type": "MA金叉",
+                "ma_short": 5.0,
+                "ma_long": 10.0,
+                "price": 100.0,
+                "change_pct": 2.0,
+                "signal_strength": 0.8,
+                "confidence": "高",
+            },
         ]
         result = strategy_signals.generate_alert_message(signals)
         # 返回值可能为 str 或 None

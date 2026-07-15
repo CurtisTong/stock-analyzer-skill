@@ -336,9 +336,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
     _YI = 1e8
 
     total_revenue = round(to_float(_find(FIELD_MAP["total_revenue"])) / _YI, 2)
-    parent_net_profit = round(
-        to_float(_find(FIELD_MAP["parent_net_profit"])) / _YI, 2
-    )
+    parent_net_profit = round(to_float(_find(FIELD_MAP["parent_net_profit"])) / _YI, 2)
     deducted_net_profit = round(
         to_float(_find(FIELD_MAP["deducted_net_profit"])) / _YI, 2
     )

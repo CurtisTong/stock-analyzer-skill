@@ -621,6 +621,7 @@ class TestPreScreenQuotes:
     def setup_method(self, method):
         """(#1) 每个测试前 mock market_snapshot 返回空水位，回退绝对值阈值。"""
         import data.market_snapshot as ms
+
         self._orig_snapshot = ms.get_market_snapshot
         ms.get_market_snapshot = lambda: {
             "avg_amount_yuan": 0.0,
@@ -631,6 +632,7 @@ class TestPreScreenQuotes:
 
     def teardown_method(self, method):
         import data.market_snapshot as ms
+
         ms.get_market_snapshot = self._orig_snapshot
 
     def _make_args(self, **kwargs):

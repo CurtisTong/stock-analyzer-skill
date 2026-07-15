@@ -242,6 +242,7 @@ class TestInitFullMarket:
     def test_already_initialized(self, tmp_path, capsys, monkeypatch):
         """全市场已初始化时跳过。"""
         import init_pool as ip
+
         all_path = tmp_path / "all_stocks.json"
         all_path.parent.mkdir(parents=True, exist_ok=True)
         all_path.write_text(json.dumps({"_meta": {"total_stocks": 5000}}))
@@ -254,21 +255,28 @@ class TestInitFullMarket:
     def test_force_refresh(self, tmp_path, capsys, monkeypatch):
         """force=True 时强制重新拉取。"""
         import init_pool as ip
+
         all_path = tmp_path / "all_stocks.json"
         monkeypatch.setattr(ip, "ALL_STOCKS_FILE", all_path)
-        with patch("init_pool.fetch_all_market_stocks",
-                   return_value={"主板": ["sh600519"], "创业板": ["sz300750"]}), \
-             patch("init_pool.save_all_market_stocks", return_value=None):
+        with (
+            patch(
+                "init_pool.fetch_all_market_stocks",
+                return_value={"主板": ["sh600519"], "创业板": ["sz300750"]},
+            ),
+            patch("init_pool.save_all_market_stocks", return_value=None),
+        ):
             result = ip.init_full_market(force=True)
         assert result is True
 
     def test_init_failure(self, tmp_path, capsys, monkeypatch):
         """fetch 失败时 graceful 返回 False。"""
         import init_pool as ip
+
         all_path = tmp_path / "all_stocks.json"
         monkeypatch.setattr(ip, "ALL_STOCKS_FILE", all_path)
-        with patch("init_pool.fetch_all_market_stocks",
-                   side_effect=Exception("API down")):
+        with patch(
+            "init_pool.fetch_all_market_stocks", side_effect=Exception("API down")
+        ):
             result = ip.init_full_market(force=True)
         assert result is False
 
@@ -279,6 +287,7 @@ class TestMain:
         with patch("init_pool.init_pool", return_value={"A": ["sh"]}):
             try:
                 import init_pool as ip
+
                 ip.main()
             except SystemExit:
                 pass
@@ -289,6 +298,7 @@ class TestMain:
             monkeypatch.setattr(sys, "argv", ["init_pool.py", "--full-market"])
             try:
                 import init_pool as ip
+
                 ip.main()
             except SystemExit:
                 pass
@@ -300,6 +310,7 @@ class TestMain:
             monkeypatch.setattr(sys, "argv", ["init_pool.py", "--force"])
             try:
                 import init_pool as ip
+
                 ip.main()
             except SystemExit:
                 pass
@@ -311,6 +322,7 @@ class TestMain:
             monkeypatch.setattr(sys, "argv", ["init_pool.py", "--top", "30"])
             try:
                 import init_pool as ip
+
                 ip.main()
             except SystemExit:
                 pass
@@ -322,6 +334,7 @@ class TestMain:
             monkeypatch.setattr(sys, "argv", ["init_pool.py", "--default"])
             try:
                 import init_pool as ip
+
                 ip.main()
             except SystemExit:
                 pass
@@ -333,6 +346,7 @@ class TestMain:
             monkeypatch.setattr(sys, "argv", ["init_pool.py", "--full-market", "-j"])
             try:
                 import init_pool as ip
+
                 ip.main()
             except SystemExit:
                 pass

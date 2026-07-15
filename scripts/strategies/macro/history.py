@@ -101,13 +101,15 @@ def fetch_history(years: int = 10) -> str:
 
             # 只写至少有一个指标有值的行
             if vix_val != "" or tlt_val != "" or close is not None:
-                writer.writerow([
-                    date_str,
-                    vix_val,
-                    tlt_val,
-                    round(close, 2) if close is not None else "",
-                    vol_20d,
-                ])
+                writer.writerow(
+                    [
+                        date_str,
+                        vix_val,
+                        tlt_val,
+                        round(close, 2) if close is not None else "",
+                        vol_20d,
+                    ]
+                )
                 rows_written += 1
 
     logger.info("历史宏观数据落盘: %s (%d 行)", HISTORY_FILE, rows_written)
@@ -118,9 +120,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="拉取历史宏观数据（VIX/TLT/沪深300）")
-    parser.add_argument(
-        "--years", type=int, default=10, help="拉取年数（默认 10）"
-    )
+    parser.add_argument("--years", type=int, default=10, help="拉取年数（默认 10）")
     args = parser.parse_args()
 
     path = fetch_history(years=args.years)

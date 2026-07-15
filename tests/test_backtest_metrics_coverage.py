@@ -13,7 +13,11 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 import backtest.metrics as metrics_mod
-from backtest.metrics import _calc_win_by_position, _fetch_benchmark_returns, run_backtest
+from backtest.metrics import (
+    _calc_win_by_position,
+    _fetch_benchmark_returns,
+    run_backtest,
+)
 
 
 class TestCalcWinByPosition:
@@ -64,6 +68,7 @@ class TestFetchBenchmarkReturns:
 
     def test_insufficient_bars_returns_none(self):
         """K 线不足 2 根返回 None。"""
+
         class _Bar:
             def __init__(self, close):
                 self.close = close
@@ -88,13 +93,17 @@ class TestFetchBenchmarkReturns:
 class TestRunBacktest:
     def test_error_propagated(self):
         """simulate_strategy 返回 error 时透传。"""
-        with patch.object(metrics_mod, "simulate_strategy", return_value={"error": "no data"}):
+        with patch.object(
+            metrics_mod, "simulate_strategy", return_value={"error": "no data"}
+        ):
             result = run_backtest("balanced", ["sh600519"], days=60)
         assert result == {"error": "no data"}
 
     def test_no_periods_returns_error(self):
         with patch.object(
-            metrics_mod, "simulate_strategy", return_value={"returns": [], "daily_returns": []}
+            metrics_mod,
+            "simulate_strategy",
+            return_value={"returns": [], "daily_returns": []},
         ):
             result = run_backtest("balanced", ["sh600519"], days=60)
         assert result == {"error": "回测失败，无有效数据"}
@@ -127,7 +136,9 @@ class TestRunBacktest:
             patch.object(metrics_mod, "simulate_strategy", return_value=fake_result),
             patch.object(metrics_mod, "_fetch_benchmark_returns", return_value=[0.001]),
         ):
-            result = run_backtest("balanced", ["sh600519"], days=60, benchmark="sh000300")
+            result = run_backtest(
+                "balanced", ["sh600519"], days=60, benchmark="sh000300"
+            )
         # benchmark_returns 长度 1 < 2 -> IR=0
         assert result["information_ratio"] == 0
         assert result["benchmark"] == "sh000300"

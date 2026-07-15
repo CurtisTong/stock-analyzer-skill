@@ -15,11 +15,13 @@ class TestCalculateMaxDrawdown:
 
     def test_empty_kline(self):
         from portfolio.performance import _calculate_max_drawdown
+
         assert _calculate_max_drawdown([], {}, {}) == 0.0
 
     def test_single_bar(self):
         """仅 1 根 K 线无法计算回撤。"""
         from portfolio.performance import _calculate_max_drawdown
+
         positions = [{"code": "sh600519", "quantity": 100}]
         kline = {"sh600519": [MagicMock(day="2026-01-01", close=100)]}
         assert _calculate_max_drawdown(positions, kline, {}) == 0.0
@@ -27,6 +29,7 @@ class TestCalculateMaxDrawdown:
     def test_drawdown_calculation(self):
         """3 根 K 线：100 -> 120 -> 90，最大回撤 = (120-90)/120 = 25%。"""
         from portfolio.performance import _calculate_max_drawdown
+
         positions = [{"code": "sh600519", "quantity": 100}]
         kline = {
             "sh600519": [
@@ -41,6 +44,7 @@ class TestCalculateMaxDrawdown:
     def test_no_matching_position(self):
         """K 线有但持仓无匹配 -> 回撤 0。"""
         from portfolio.performance import _calculate_max_drawdown
+
         positions = [{"code": "sz000858", "quantity": 100}]
         kline = {"sh600519": [MagicMock(day="2026-01-01", close=100)]}
         assert _calculate_max_drawdown(positions, kline, {}) == 0.0
@@ -48,14 +52,20 @@ class TestCalculateMaxDrawdown:
     def test_zero_quantity_skipped(self):
         """数量为 0 的持仓跳过。"""
         from portfolio.performance import _calculate_max_drawdown
+
         positions = [{"code": "sh600519", "quantity": 0}]
-        kline = {"sh600519": [MagicMock(day="2026-01-01", close=100),
-                                MagicMock(day="2026-01-02", close=90)]}
+        kline = {
+            "sh600519": [
+                MagicMock(day="2026-01-01", close=100),
+                MagicMock(day="2026-01-02", close=90),
+            ]
+        }
         assert _calculate_max_drawdown(positions, kline, {}) == 0.0
 
     def test_dict_bars(self):
         """支持 dict 格式的 bar（非 dataclass）。"""
         from portfolio.performance import _calculate_max_drawdown
+
         positions = [{"code": "sh600519", "quantity": 100}]
         kline = {
             "sh600519": [
@@ -72,6 +82,7 @@ class TestFormatPerformanceReport:
 
     def test_report_contains_key_sections(self):
         from portfolio.performance import PerformanceMetrics, format_performance_report
+
         metrics = PerformanceMetrics(
             total_return=15.5,
             max_drawdown=8.2,
@@ -84,6 +95,7 @@ class TestFormatPerformanceReport:
 
     def test_negative_return(self):
         from portfolio.performance import PerformanceMetrics, format_performance_report
+
         metrics = PerformanceMetrics(
             total_return=-10.0,
             max_drawdown=15.0,

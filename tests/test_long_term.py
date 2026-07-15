@@ -31,16 +31,22 @@ class TestLoadLongTermWeights:
 
     def test_custom_weights(self):
         """使用 config 中的自定义权重。"""
-        with patch.object(long_term, "get_scoring_config",
-                          return_value={"moat": 0.5, "growth": 0.2,
-                                       "stability": 0.2, "valuation": 0.1}):
+        with patch.object(
+            long_term,
+            "get_scoring_config",
+            return_value={
+                "moat": 0.5,
+                "growth": 0.2,
+                "stability": 0.2,
+                "valuation": 0.1,
+            },
+        ):
             weights = long_term._load_long_term_weights()
         assert weights["moat"] == 0.5
 
     def test_partial_weights(self):
         """部分 config：缺失的用 default。"""
-        with patch.object(long_term, "get_scoring_config",
-                          return_value={"moat": 0.5}):
+        with patch.object(long_term, "get_scoring_config", return_value={"moat": 0.5}):
             weights = long_term._load_long_term_weights()
         assert weights["moat"] == 0.5
         assert abs(weights["growth"] - 0.25) < 0.01
@@ -59,23 +65,38 @@ class TestLongTermEvaluator:
     def test_evaluate_no_quote(self):
         """无 quote 数据时返回 error dict。"""
         ev = long_term.LongTermEvaluator()
-        with patch.object(ev, "_get_quote", return_value=None), \
-             patch.object(ev, "_get_finance", return_value={}):
+        with (
+            patch.object(ev, "_get_quote", return_value=None),
+            patch.object(ev, "_get_finance", return_value={}),
+        ):
             result = ev.evaluate("sh600519")
         assert "error" in result
 
     def test_evaluate_with_data(self):
         """完整数据时返回评分结果。"""
         ev = long_term.LongTermEvaluator()
-        quote = {"code": "sh600519", "name": "贵州茅台", "price": 1800.0,
-                 "pe": 25.0, "pb": 8.0, "total_cap": 2e12}
-        finance = {
-            "gross_margin": 70.0, "net_margin": 30.0, "roe": 25.0,
-            "revenue_yoy": 20.0, "net_profit_yoy": 25.0,
-            "debt_ratio": 30.0, "current_ratio": 2.0, "eps": 50.0,
+        quote = {
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "price": 1800.0,
+            "pe": 25.0,
+            "pb": 8.0,
+            "total_cap": 2e12,
         }
-        with patch.object(ev, "_get_quote", return_value=quote), \
-             patch.object(ev, "_get_finance", return_value=finance):
+        finance = {
+            "gross_margin": 70.0,
+            "net_margin": 30.0,
+            "roe": 25.0,
+            "revenue_yoy": 20.0,
+            "net_profit_yoy": 25.0,
+            "debt_ratio": 30.0,
+            "current_ratio": 2.0,
+            "eps": 50.0,
+        }
+        with (
+            patch.object(ev, "_get_quote", return_value=quote),
+            patch.object(ev, "_get_finance", return_value=finance),
+        ):
             result = ev.evaluate("sh600519")
         assert "total_score" in result
         assert "level" in result
@@ -86,29 +107,53 @@ class TestLongTermEvaluator:
     def test_evaluate_weak_company(self):
         """弱公司：毛利率低 + 负债高。"""
         ev = long_term.LongTermEvaluator()
-        quote = {"code": "sh000000", "name": "X", "price": 5.0,
-                 "pe": 100.0, "pb": 5.0, "total_cap": 1e9}
-        finance = {
-            "gross_margin": 10.0, "net_margin": 2.0, "roe": 3.0,
-            "revenue_yoy": -5.0, "net_profit_yoy": -10.0,
-            "debt_ratio": 80.0, "current_ratio": 0.5,
+        quote = {
+            "code": "sh000000",
+            "name": "X",
+            "price": 5.0,
+            "pe": 100.0,
+            "pb": 5.0,
+            "total_cap": 1e9,
         }
-        with patch.object(ev, "_get_quote", return_value=quote), \
-             patch.object(ev, "_get_finance", return_value=finance):
+        finance = {
+            "gross_margin": 10.0,
+            "net_margin": 2.0,
+            "roe": 3.0,
+            "revenue_yoy": -5.0,
+            "net_profit_yoy": -10.0,
+            "debt_ratio": 80.0,
+            "current_ratio": 0.5,
+        }
+        with (
+            patch.object(ev, "_get_quote", return_value=quote),
+            patch.object(ev, "_get_finance", return_value=finance),
+        ):
             result = ev.evaluate("sh000000")
         assert result["total_score"] <= 60
 
     def test_evaluate_mid_company(self):
         ev = long_term.LongTermEvaluator()
-        quote = {"code": "sh600000", "name": "X", "price": 10.0,
-                 "pe": 15.0, "pb": 1.5, "total_cap": 5e10}
-        finance = {
-            "gross_margin": 25.0, "net_margin": 8.0, "roe": 10.0,
-            "revenue_yoy": 5.0, "net_profit_yoy": 5.0,
-            "debt_ratio": 50.0, "current_ratio": 1.0,
+        quote = {
+            "code": "sh600000",
+            "name": "X",
+            "price": 10.0,
+            "pe": 15.0,
+            "pb": 1.5,
+            "total_cap": 5e10,
         }
-        with patch.object(ev, "_get_quote", return_value=quote), \
-             patch.object(ev, "_get_finance", return_value=finance):
+        finance = {
+            "gross_margin": 25.0,
+            "net_margin": 8.0,
+            "roe": 10.0,
+            "revenue_yoy": 5.0,
+            "net_profit_yoy": 5.0,
+            "debt_ratio": 50.0,
+            "current_ratio": 1.0,
+        }
+        with (
+            patch.object(ev, "_get_quote", return_value=quote),
+            patch.object(ev, "_get_finance", return_value=finance),
+        ):
             result = ev.evaluate("sh600000")
         assert 30 <= result["total_score"] <= 80
 
@@ -262,8 +307,10 @@ class TestCalcLevel:
 class TestFormatLongTermResult:
     def test_normal(self, capsys):
         result = {
-            "code": "sh600519", "name": "贵州茅台",
-            "total_score": 85, "level": "非常适合",
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "total_score": 85,
+            "level": "非常适合",
             "dimensions": {
                 "moat": {"score": 90, "weight": 0.3},
                 "growth": {"score": 80, "weight": 0.25},
@@ -308,14 +355,19 @@ class TestMain:
 
     def test_with_stock_code(self, capsys, monkeypatch):
         fake_result = {
-            "code": "sh600519", "name": "贵州茅台", "total_score": 85,
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "total_score": 85,
             "level": "强烈推荐",
             "dimensions": {"moat": 90, "growth": 80, "stability": 85, "valuation": 80},
-            "reasoning": ["强"], "conclusion": "推荐",
+            "reasoning": ["强"],
+            "conclusion": "推荐",
         }
         # mock 整个 LongTermEvaluator 类
-        with patch("business.long_term.LongTermEvaluator") as MockEv, \
-             patch("builtins.print"):  # 屏蔽 print 输出
+        with (
+            patch("business.long_term.LongTermEvaluator") as MockEv,
+            patch("builtins.print"),
+        ):  # 屏蔽 print 输出
             instance = MockEv.return_value
             instance.evaluate = MagicMock(return_value=fake_result)
             monkeypatch.setattr(sys, "argv", ["long_term.py", "sh600519"])
@@ -327,10 +379,14 @@ class TestMain:
         assert True
 
     def test_error(self, capsys, monkeypatch):
-        with patch("business.long_term.LongTermEvaluator") as MockEv, \
-             patch("builtins.print"):
+        with (
+            patch("business.long_term.LongTermEvaluator") as MockEv,
+            patch("builtins.print"),
+        ):
             instance = MockEv.return_value
-            instance.evaluate = MagicMock(return_value={"code": "sh000000", "error": "失败"})
+            instance.evaluate = MagicMock(
+                return_value={"code": "sh000000", "error": "失败"}
+            )
             monkeypatch.setattr(sys, "argv", ["long_term.py", "sh000000"])
             try:
                 long_term.main()

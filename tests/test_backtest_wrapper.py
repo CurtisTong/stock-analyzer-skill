@@ -12,6 +12,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 # scripts/backtest.py 和 scripts/backtest/ 同时存在，sys.path 加载时 package 优先。
 # 用 importlib 直接加载 .py 版。
 import importlib.util
+
 _spec = importlib.util.spec_from_file_location(
     "backtest_wrapper", PROJECT_ROOT / "scripts" / "backtest.py"
 )

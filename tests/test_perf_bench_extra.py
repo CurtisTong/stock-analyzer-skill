@@ -96,7 +96,9 @@ class TestMain:
         mock_args.command = None
         mock_args.codes = "sh600519"
         mock_args.rounds = 1
-        with patch("perf_bench.argparse.ArgumentParser.parse_args", return_value=mock_args):
+        with patch(
+            "perf_bench.argparse.ArgumentParser.parse_args", return_value=mock_args
+        ):
             main()
         out = capsys.readouterr().out
         assert "screener" in out or "backtest" in out or "usage" in out.lower()
@@ -104,8 +106,13 @@ class TestMain:
     def test_screener_command(self, capsys):
         from perf_bench import main
 
-        with patch("sys.argv", ["perf_bench.py", "screener", "--codes", "sh600519", "--rounds", "1"]), \
-             patch("screener.analyze_code", return_value={}):
+        with (
+            patch(
+                "sys.argv",
+                ["perf_bench.py", "screener", "--codes", "sh600519", "--rounds", "1"],
+            ),
+            patch("screener.analyze_code", return_value={}),
+        ):
             main()
         out = capsys.readouterr().out
         assert "[screener]" in out
@@ -113,9 +120,18 @@ class TestMain:
     def test_backtest_command(self, capsys):
         from perf_bench import main
 
-        mock_report = {"total_return_pct": 5.0, "sharpe_ratio": 1.0, "win_rate_pct": 50.0}
-        with patch("sys.argv", ["perf_bench.py", "backtest", "--codes", "sh600519", "--rounds", "1"]), \
-             patch("backtest.run_backtest", return_value=mock_report):
+        mock_report = {
+            "total_return_pct": 5.0,
+            "sharpe_ratio": 1.0,
+            "win_rate_pct": 50.0,
+        }
+        with (
+            patch(
+                "sys.argv",
+                ["perf_bench.py", "backtest", "--codes", "sh600519", "--rounds", "1"],
+            ),
+            patch("backtest.run_backtest", return_value=mock_report),
+        ):
             main()
         out = capsys.readouterr().out
         assert "[backtest]" in out
@@ -123,10 +139,19 @@ class TestMain:
     def test_all_command(self, capsys):
         from perf_bench import main
 
-        mock_report = {"total_return_pct": 5.0, "sharpe_ratio": 1.0, "win_rate_pct": 50.0}
-        with patch("sys.argv", ["perf_bench.py", "all", "--codes", "sh600519", "--rounds", "1"]), \
-             patch("screener.analyze_code", return_value={}), \
-             patch("backtest.run_backtest", return_value=mock_report):
+        mock_report = {
+            "total_return_pct": 5.0,
+            "sharpe_ratio": 1.0,
+            "win_rate_pct": 50.0,
+        }
+        with (
+            patch(
+                "sys.argv",
+                ["perf_bench.py", "all", "--codes", "sh600519", "--rounds", "1"],
+            ),
+            patch("screener.analyze_code", return_value={}),
+            patch("backtest.run_backtest", return_value=mock_report),
+        ):
             main()
         out = capsys.readouterr().out
         assert "[screener]" in out
@@ -137,11 +162,20 @@ class TestMain:
         from perf_bench import main
 
         out_path = tmp_path / "perf_benchmarks.json"
-        mock_report = {"total_return_pct": 5.0, "sharpe_ratio": 1.0, "win_rate_pct": 50.0}
-        with patch("sys.argv", ["perf_bench.py", "save", "--codes", "sh600519", "--rounds", "1"]), \
-             patch("screener.analyze_code", return_value={}), \
-             patch("backtest.run_backtest", return_value=mock_report), \
-             patch("common.DATA_DIR", str(tmp_path)):
+        mock_report = {
+            "total_return_pct": 5.0,
+            "sharpe_ratio": 1.0,
+            "win_rate_pct": 50.0,
+        }
+        with (
+            patch(
+                "sys.argv",
+                ["perf_bench.py", "save", "--codes", "sh600519", "--rounds", "1"],
+            ),
+            patch("screener.analyze_code", return_value={}),
+            patch("backtest.run_backtest", return_value=mock_report),
+            patch("common.DATA_DIR", str(tmp_path)),
+        ):
             main()
         assert out_path.exists()
         data = json.loads(out_path.read_text(encoding="utf-8"))
@@ -154,8 +188,13 @@ class TestMain:
         """backtest 返回 error 时打印 ERROR。"""
         from perf_bench import main
 
-        with patch("sys.argv", ["perf_bench.py", "backtest", "--codes", "sh600519", "--rounds", "1"]), \
-             patch("backtest.run_backtest", return_value={"error": "fail"}):
+        with (
+            patch(
+                "sys.argv",
+                ["perf_bench.py", "backtest", "--codes", "sh600519", "--rounds", "1"],
+            ),
+            patch("backtest.run_backtest", return_value={"error": "fail"}),
+        ):
             main()
         out = capsys.readouterr().out
         assert "ERROR" in out

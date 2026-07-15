@@ -74,7 +74,9 @@ class TestDupontAnalysis:
 
     def test_missing_revenue_warns(self):
         """营收为 0 时输出 warning。"""
-        result = dupont_analysis({"net_margin": 20, "total_assets": 100, "net_assets": 60, "roe": 15})
+        result = dupont_analysis(
+            {"net_margin": 20, "total_assets": 100, "net_assets": 60, "roe": 15}
+        )
         assert "营收为 0" in result["warning"]
         assert result["asset_turnover"] == 0.0
 

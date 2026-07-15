@@ -62,6 +62,7 @@ class TestGetPut:
         # 修改 mtime 为很久以前
         old_time = time.time() - 10000
         import os
+
         os.utime(cache_file, (old_time, old_time))
         assert cache_mod.get("expired", 100) is None
         # 过期文件应被删除
@@ -75,6 +76,7 @@ class TestGetPut:
 
     def test_set_deprecated_warns(self, isolated_cache):
         import warnings
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             cache_mod.set("deprkey", b"data")
@@ -121,6 +123,7 @@ class TestClear:
 class TestCleanup:
     def test_cleanup_expired(self, isolated_cache):
         import os
+
         cache_mod.put("old", b"1")
         cache_mod.put("new", b"2")
         old_file = isolated_cache / "old.cache"
@@ -133,6 +136,7 @@ class TestCleanup:
 
     def test_cleanup_with_prefix(self, isolated_cache):
         import os
+
         cache_mod.put("stock_old", b"1")
         cache_mod.put("kline_old", b"2")
         old_file = isolated_cache / "stock_old.cache"
@@ -155,7 +159,9 @@ class TestCacheKey:
         assert len(k1) == 32
 
     def test_cache_key_different_urls(self):
-        assert cache_mod.cache_key("http://a.com") != cache_mod.cache_key("http://b.com")
+        assert cache_mod.cache_key("http://a.com") != cache_mod.cache_key(
+            "http://b.com"
+        )
 
     def test_cache_key_for_stock_with_params(self):
         k = cache_mod.cache_key_for_stock("quote", "sh600519", scale="day", limit=250)

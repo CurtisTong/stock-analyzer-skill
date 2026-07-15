@@ -25,27 +25,34 @@ class TestDetectLaoyatou:
     def test_insufficient_closes(self):
         """K 线不足 60 根返回空。"""
         from strategies.patterns.laoyatou import detect_laoyatou
+
         result = detect_laoyatou([], [10] * 50, [100] * 50, {})
         assert result == []
 
     def test_missing_ma_keys(self):
         """缺少 MA 键返回空。"""
         from strategies.patterns.laoyatou import detect_laoyatou
-        result = detect_laoyatou(
-            [], [10] * 100, [100] * 100, {"ma5": [10] * 100}
-        )
+
+        result = detect_laoyatou([], [10] * 100, [100] * 100, {"ma5": [10] * 100})
         assert result == []
 
     def test_ma60_too_short(self):
         """MA60 不足 20 根返回空。"""
         from strategies.patterns.laoyatou import detect_laoyatou
-        mas = {"ma5": [10] * 100, "ma10": [10] * 100, "ma20": [10] * 100, "ma60": [10] * 10}
+
+        mas = {
+            "ma5": [10] * 100,
+            "ma10": [10] * 100,
+            "ma20": [10] * 100,
+            "ma60": [10] * 10,
+        }
         result = detect_laoyatou([], [10] * 100, [100] * 100, mas)
         assert result == []
 
     def test_flat_market_no_signal(self):
         """横盘市场无老鸭头信号。"""
         from strategies.patterns.laoyatou import detect_laoyatou
+
         n = 100
         closes = [10.0] * n
         volumes = [1000] * n
@@ -62,6 +69,7 @@ class TestDetectLaoyatou:
     def test_uptrend_no_cross_no_signal(self):
         """持续上升无金叉不触发信号。"""
         from strategies.patterns.laoyatou import detect_laoyatou
+
         n = 100
         closes = [10.0 + i * 0.1 for i in range(n)]
         volumes = [1000] * n

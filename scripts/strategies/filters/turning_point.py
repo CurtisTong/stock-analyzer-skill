@@ -64,9 +64,7 @@ def turning_point_filter(
     return (len(reasons) == 0, "; ".join(reasons))
 
 
-def _check_fund_flow(
-    quote: dict, features: dict, flow_data: list = None
-) -> tuple:
+def _check_fund_flow(quote: dict, features: dict, flow_data: list = None) -> tuple:
     """(#4) 资金流向确认。
 
     优先使用主力净流入数据；不可用时降级为"放量日同步上涨"判定。

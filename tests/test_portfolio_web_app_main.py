@@ -40,7 +40,9 @@ def _isolate(tmp_path, monkeypatch):
     utils_mod._token = None
 
 
-def _make_handler(method="GET", path="/api/health", headers=None, body=b"", client_ip="127.0.0.1"):
+def _make_handler(
+    method="GET", path="/api/health", headers=None, body=b"", client_ip="127.0.0.1"
+):
     h = app_mod.Handler.__new__(app_mod.Handler)
     h.command = method
     h.path = path
@@ -90,7 +92,9 @@ class TestMainPublicBindRefused:
 class TestMainBindFailure:
     def test_make_server_oserror_exits(self):
         with patch("sys.argv", ["prog", "--host", "127.0.0.1", "--port", "0"]):
-            with patch.object(app_mod, "make_server", side_effect=OSError("addr in use")):
+            with patch.object(
+                app_mod, "make_server", side_effect=OSError("addr in use")
+            ):
                 with pytest.raises(SystemExit) as exc:
                     app_mod.main()
         assert exc.value.code == 1
@@ -139,7 +143,9 @@ class TestMainNormalStartup:
         fake_server.server_close = MagicMock()
         monkeypatch.setattr(app_mod, "make_server", lambda *a, **kw: fake_server)
         monkeypatch.setattr(utils_mod, "_monitor_stop_event", threading.Event())
-        monkeypatch.setattr(sys, "argv", ["prog", "--host", "127.0.0.1", "--port", "0", "--no-open"])
+        monkeypatch.setattr(
+            sys, "argv", ["prog", "--host", "127.0.0.1", "--port", "0", "--no-open"]
+        )
         fake_server.serve_forever = MagicMock(side_effect=KeyboardInterrupt())
         # 不应抛异常
         app_mod.main()
@@ -158,7 +164,20 @@ class TestMainNormalStartup:
         fake_server.server_address = ("127.0.0.1", 8765)
         monkeypatch.setattr(app_mod, "make_server", lambda *a, **kw: fake_server)
         monkeypatch.setattr(utils_mod, "_monitor_stop_event", threading.Event())
-        monkeypatch.setattr(sys, "argv", ["prog", "--host", "127.0.0.1", "--port", "0", "--no-open", "--monitor-interval", "10"])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "0",
+                "--no-open",
+                "--monitor-interval",
+                "10",
+            ],
+        )
         fake_server.serve_forever = MagicMock()
         app_mod.main()
         assert app_mod._monitor_enabled is True
@@ -195,7 +214,19 @@ class TestMainPublicBind:
         fake_server.server_address = ("0.0.0.0", 8765)
         monkeypatch.setattr(app_mod, "make_server", lambda *a, **kw: fake_server)
         monkeypatch.setattr(utils_mod, "_monitor_stop_event", threading.Event())
-        monkeypatch.setattr(sys, "argv", ["prog", "--host", "0.0.0.0", "--port", "0", "--allow-public-bind", "--no-open"])
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "prog",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "0",
+                "--allow-public-bind",
+                "--no-open",
+            ],
+        )
         fake_server.serve_forever = MagicMock()
         app_mod.main()
         fake_server.serve_forever.assert_called_once()
@@ -209,16 +240,31 @@ class TestMainPublicBind:
 class TestPostNotify:
     def test_post_success_triggers_notify(self, tmp_path, monkeypatch):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({"version": 2, "positions": [], "watchlist": []}), encoding="utf-8")
+        data_file.write_text(
+            json.dumps({"version": 2, "positions": [], "watchlist": []}),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(utils_mod, "_data_file", str(data_file))
         monkeypatch.setattr(utils_mod, "_virtual_mode", False)
         utils_mod._reset_pm_for_tests()
 
         token = _token()
-        body = json.dumps({"action": "add_position", "code": "sh600519", "name": "茅台", "cost": 100, "quantity": 100}).encode()
+        body = json.dumps(
+            {
+                "action": "add_position",
+                "code": "sh600519",
+                "name": "茅台",
+                "cost": 100,
+                "quantity": 100,
+            }
+        ).encode()
         h = _make_handler(
-            method="POST", path="/api/positions",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            method="POST",
+            path="/api/positions",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             body=body,
         )
         with patch.object(app_mod, "_notify_async") as m_notify:
@@ -230,7 +276,10 @@ class TestPostNotify:
 
     def test_post_error_no_notify(self, tmp_path, monkeypatch):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({"version": 2, "positions": [], "watchlist": []}), encoding="utf-8")
+        data_file.write_text(
+            json.dumps({"version": 2, "positions": [], "watchlist": []}),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(utils_mod, "_data_file", str(data_file))
         monkeypatch.setattr(utils_mod, "_virtual_mode", False)
         utils_mod._reset_pm_for_tests()
@@ -239,8 +288,12 @@ class TestPostNotify:
         # 无效 action -> dispatch 返回 error
         body = json.dumps({"action": "unknown_action", "code": "sh600519"}).encode()
         h = _make_handler(
-            method="POST", path="/api/positions",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            method="POST",
+            path="/api/positions",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             body=body,
         )
         with patch.object(app_mod, "_notify_async") as m_notify:
@@ -257,17 +310,39 @@ class TestPostNotify:
 class TestServeListNoQuotes:
     def test_list_no_quote_data(self, tmp_path, monkeypatch):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({
-            "version": 2,
-            "positions": [{"code": "sh600519", "name": "茅台", "cost": 100, "quantity": 100, "tags": []}],
-            "watchlist": [{"code": "sz000858", "name": "五粮液", "target_buy": 70, "target_sell": 90}],
-        }), encoding="utf-8")
+        data_file.write_text(
+            json.dumps(
+                {
+                    "version": 2,
+                    "positions": [
+                        {
+                            "code": "sh600519",
+                            "name": "茅台",
+                            "cost": 100,
+                            "quantity": 100,
+                            "tags": [],
+                        }
+                    ],
+                    "watchlist": [
+                        {
+                            "code": "sz000858",
+                            "name": "五粮液",
+                            "target_buy": 70,
+                            "target_sell": 90,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(utils_mod, "_data_file", str(data_file))
         monkeypatch.setattr(utils_mod, "_virtual_mode", False)
         utils_mod._reset_pm_for_tests()
 
         token = _token()
-        h = _make_handler(path="/api/positions", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/positions", headers={"Authorization": f"Bearer {token}"}
+        )
         with patch("data.get_quotes", side_effect=Exception("net err")):
             h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.OK
@@ -282,15 +357,24 @@ class TestServeListNoQuotes:
 class TestServeGetOneValidation:
     def test_validation_error_returns_404(self, tmp_path, monkeypatch):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({"version": 2, "positions": [], "watchlist": []}), encoding="utf-8")
+        data_file.write_text(
+            json.dumps({"version": 2, "positions": [], "watchlist": []}),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(utils_mod, "_data_file", str(data_file))
         monkeypatch.setattr(utils_mod, "_virtual_mode", False)
         utils_mod._reset_pm_for_tests()
 
         token = _token()
-        h = _make_handler(path="/api/positions/!!!", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/positions/!!!", headers={"Authorization": f"Bearer {token}"}
+        )
         from common.exceptions import ValidationError
-        with patch("portfolio.manager.PortfolioManager.get_position", side_effect=ValidationError("code", "!!!", "invalid format")):
+
+        with patch(
+            "portfolio.manager.PortfolioManager.get_position",
+            side_effect=ValidationError("code", "!!!", "invalid format"),
+        ):
             h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.NOT_FOUND
         utils_mod._reset_pm_for_tests()
@@ -304,12 +388,17 @@ class TestServeGetOneValidation:
 class TestDoGetException:
     def test_serve_list_exception_500(self, tmp_path, monkeypatch):
         data_file = tmp_path / "portfolio.json"
-        data_file.write_text(json.dumps({"version": 2, "positions": [], "watchlist": []}), encoding="utf-8")
+        data_file.write_text(
+            json.dumps({"version": 2, "positions": [], "watchlist": []}),
+            encoding="utf-8",
+        )
         monkeypatch.setattr(utils_mod, "_data_file", str(data_file))
         utils_mod._reset_pm_for_tests()
 
         token = _token()
-        h = _make_handler(path="/api/positions", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/positions", headers={"Authorization": f"Bearer {token}"}
+        )
         with patch("portfolio.web.app._get_pm", side_effect=RuntimeError("boom")):
             h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.INTERNAL_SERVER_ERROR

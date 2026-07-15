@@ -29,7 +29,9 @@ class TestRenderScanBranches:
         assert "🟢" in out
 
     def test_negative_change_red_icon(self):
-        results = [{"code": "sh600000", "name": "测试", "price": 10, "change_pct": -1.5}]
+        results = [
+            {"code": "sh600000", "name": "测试", "price": 10, "change_pct": -1.5}
+        ]
         out = alert_engine.render_scan(results)
         assert "🔴" in out
 
@@ -241,7 +243,9 @@ class TestMainCLI:
         assert "用法" in out
 
     def test_scan_command_json(self, capsys):
-        mock_results = [{"code": "sh600000", "name": "测试", "price": 10, "change_pct": 1}]
+        mock_results = [
+            {"code": "sh600000", "name": "测试", "price": 10, "change_pct": 1}
+        ]
         with patch.object(sys, "argv", ["alert_engine.py", "scan", "--json"]):
             with patch("monitor.alert_engine.scan_all", return_value=mock_results):
                 alert_engine.main()
@@ -250,7 +254,9 @@ class TestMainCLI:
         assert parsed[0]["code"] == "sh600000"
 
     def test_scan_command_text(self, capsys):
-        mock_results = [{"code": "sh600000", "name": "测试", "price": 10, "change_pct": 1}]
+        mock_results = [
+            {"code": "sh600000", "name": "测试", "price": 10, "change_pct": 1}
+        ]
         with patch.object(sys, "argv", ["alert_engine.py", "scan"]):
             with patch("monitor.alert_engine.scan_all", return_value=mock_results):
                 alert_engine.main()
@@ -283,11 +289,19 @@ class TestMainCLI:
             "filtered": 1,
             "pushed": 0,
             "details": [
-                {"code": "sh600000", "name": "测试", "pushed": False, "level": "urgent", "message": "止损"},
+                {
+                    "code": "sh600000",
+                    "name": "测试",
+                    "pushed": False,
+                    "level": "urgent",
+                    "message": "止损",
+                },
             ],
         }
         with patch.object(sys, "argv", ["alert_engine.py", "check", "--dry-run"]):
-            with patch("monitor.alert_engine.check_and_push", return_value=mock_summary):
+            with patch(
+                "monitor.alert_engine.check_and_push", return_value=mock_summary
+            ):
                 alert_engine.main()
         out = capsys.readouterr().out
         assert "盘中检查" in out
@@ -302,14 +316,20 @@ class TestMainCLI:
             "pushed": 0,
             "details": [],
         }
-        with patch.object(sys, "argv", ["alert_engine.py", "check", "--level", "normal"]):
-            with patch("monitor.alert_engine.check_and_push", return_value=mock_summary):
+        with patch.object(
+            sys, "argv", ["alert_engine.py", "check", "--level", "normal"]
+        ):
+            with patch(
+                "monitor.alert_engine.check_and_push", return_value=mock_summary
+            ):
                 alert_engine.main()
         out = capsys.readouterr().out
         assert "推送级别" in out
 
     def test_check_invalid_level_exits(self, capsys):
-        with patch.object(sys, "argv", ["alert_engine.py", "check", "--level", "bogus"]):
+        with patch.object(
+            sys, "argv", ["alert_engine.py", "check", "--level", "bogus"]
+        ):
             try:
                 alert_engine.main()
                 assert False, "应 SystemExit"
@@ -330,7 +350,10 @@ class TestMainCLI:
             "portfolio": {"total_pnl": 0, "total_pnl_pct": 0},
         }
         with patch.object(sys, "argv", ["alert_engine.py", "briefing"]):
-            with patch("monitor.alert_engine.daily_briefing", return_value={"summary": "简报文本"}):
+            with patch(
+                "monitor.alert_engine.daily_briefing",
+                return_value={"summary": "简报文本"},
+            ):
                 alert_engine.main()
         out = capsys.readouterr().out
         assert "简报文本" in out
@@ -338,7 +361,9 @@ class TestMainCLI:
     def test_briefing_json(self, capsys):
         {"summary": "简报文本", "timestamp": "2024-01-01", "extra": 1}
         with patch.object(sys, "argv", ["alert_engine.py", "briefing", "--json"]):
-            with patch("monitor.alert_engine.daily_briefing", return_value={"summary": "test"}):
+            with patch(
+                "monitor.alert_engine.daily_briefing", return_value={"summary": "test"}
+            ):
                 alert_engine.main()
         out = capsys.readouterr().out
         parsed = json.loads(out)

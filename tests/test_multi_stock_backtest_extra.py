@@ -64,9 +64,7 @@ class TestRunOneStrategy:
         assert "import failed" in result["error"]
 
     def test_exception_returns_error(self):
-        with patch(
-            "backtest.metrics.run_backtest", side_effect=RuntimeError("boom")
-        ):
+        with patch("backtest.metrics.run_backtest", side_effect=RuntimeError("boom")):
             result = run_one_strategy("balanced", ["sh600519"])
         assert "error" in result
         assert "RuntimeError" in result["error"]
@@ -102,9 +100,7 @@ class TestRunBenchmark:
         assert "import failed" in result["error"]
 
     def test_exception_returns_error(self):
-        with patch(
-            "backtest.metrics.run_backtest", side_effect=ValueError("bad data")
-        ):
+        with patch("backtest.metrics.run_backtest", side_effect=ValueError("bad data")):
             result = run_benchmark("sh000300", "沪深300")
         assert "error" in result
         assert "ValueError" in result["error"]
@@ -117,10 +113,36 @@ class TestRunBenchmark:
 
 class TestMain:
     def test_main_default_output_to_stdout(self, capsys):
-        with patch("sys.argv", ["multi_stock_backtest.py", "--codes", "sh600519,sh600000", "--total-days", "10"]), \
-             patch("multi_stock_backtest.run_one_strategy", return_value={"strategy": "balanced", "codes_count": 2, "result": _backtest_result()}), \
-             patch("multi_stock_backtest.run_benchmark", return_value={"benchmark": "沪深300", "code": "sh000300", "result": _backtest_result(avg_return_pct=3.0)}):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "multi_stock_backtest.py",
+                    "--codes",
+                    "sh600519,sh600000",
+                    "--total-days",
+                    "10",
+                ],
+            ),
+            patch(
+                "multi_stock_backtest.run_one_strategy",
+                return_value={
+                    "strategy": "balanced",
+                    "codes_count": 2,
+                    "result": _backtest_result(),
+                },
+            ),
+            patch(
+                "multi_stock_backtest.run_benchmark",
+                return_value={
+                    "benchmark": "沪深300",
+                    "code": "sh000300",
+                    "result": _backtest_result(avg_return_pct=3.0),
+                },
+            ),
+        ):
             from multi_stock_backtest import main
+
             main()
         out = capsys.readouterr().out
         assert "多股票外样本回测报告" in out
@@ -128,10 +150,36 @@ class TestMain:
 
     def test_main_writes_output_file(self, tmp_path, capsys):
         out_file = tmp_path / "report.md"
-        with patch("sys.argv", ["multi_stock_backtest.py", "--codes", "sh600519", "--output", str(out_file)]), \
-             patch("multi_stock_backtest.run_one_strategy", return_value={"strategy": "balanced", "codes_count": 1, "result": _backtest_result()}), \
-             patch("multi_stock_backtest.run_benchmark", return_value={"benchmark": "沪深300", "code": "sh000300", "result": _backtest_result()}):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "multi_stock_backtest.py",
+                    "--codes",
+                    "sh600519",
+                    "--output",
+                    str(out_file),
+                ],
+            ),
+            patch(
+                "multi_stock_backtest.run_one_strategy",
+                return_value={
+                    "strategy": "balanced",
+                    "codes_count": 1,
+                    "result": _backtest_result(),
+                },
+            ),
+            patch(
+                "multi_stock_backtest.run_benchmark",
+                return_value={
+                    "benchmark": "沪深300",
+                    "code": "sh000300",
+                    "result": _backtest_result(),
+                },
+            ),
+        ):
             from multi_stock_backtest import main
+
             main()
         assert out_file.exists()
         content = out_file.read_text(encoding="utf-8")
@@ -139,30 +187,90 @@ class TestMain:
 
     def test_main_strategy_error_still_runs(self, capsys):
         """策略回测报错时仍继续生成报告。"""
-        with patch("sys.argv", ["multi_stock_backtest.py", "--codes", "sh600519", "--strategies", "balanced"]), \
-             patch("multi_stock_backtest.run_one_strategy", return_value={"strategy": "balanced", "codes_count": 1, "error": "boom"}), \
-             patch("multi_stock_backtest.run_benchmark", return_value={"benchmark": "沪深300", "code": "sh000300", "result": _backtest_result()}):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "multi_stock_backtest.py",
+                    "--codes",
+                    "sh600519",
+                    "--strategies",
+                    "balanced",
+                ],
+            ),
+            patch(
+                "multi_stock_backtest.run_one_strategy",
+                return_value={
+                    "strategy": "balanced",
+                    "codes_count": 1,
+                    "error": "boom",
+                },
+            ),
+            patch(
+                "multi_stock_backtest.run_benchmark",
+                return_value={
+                    "benchmark": "沪深300",
+                    "code": "sh000300",
+                    "result": _backtest_result(),
+                },
+            ),
+        ):
             from multi_stock_backtest import main
+
             main()
         out = capsys.readouterr().out
         assert "boom" in out
 
     def test_main_benchmark_error_still_runs(self, capsys):
         """基准回测报错时仍继续生成报告。"""
-        with patch("sys.argv", ["multi_stock_backtest.py", "--codes", "sh600519"]), \
-             patch("multi_stock_backtest.run_one_strategy", return_value={"strategy": "balanced", "codes_count": 1, "result": _backtest_result()}), \
-             patch("multi_stock_backtest.run_benchmark", return_value={"benchmark": "沪深300", "code": "sh000300", "error": "net fail"}):
+        with (
+            patch("sys.argv", ["multi_stock_backtest.py", "--codes", "sh600519"]),
+            patch(
+                "multi_stock_backtest.run_one_strategy",
+                return_value={
+                    "strategy": "balanced",
+                    "codes_count": 1,
+                    "result": _backtest_result(),
+                },
+            ),
+            patch(
+                "multi_stock_backtest.run_benchmark",
+                return_value={
+                    "benchmark": "沪深300",
+                    "code": "sh000300",
+                    "error": "net fail",
+                },
+            ),
+        ):
             from multi_stock_backtest import main
+
             main()
         out = capsys.readouterr().out
         assert "net fail" in out
 
     def test_main_default_codes_used(self, capsys):
         """无 --codes 时用默认 50+ 只。"""
-        with patch("sys.argv", ["multi_stock_backtest.py", "--strategies", "balanced"]), \
-             patch("multi_stock_backtest.run_one_strategy", return_value={"strategy": "balanced", "codes_count": 50, "result": _backtest_result()}) as mock_run, \
-             patch("multi_stock_backtest.run_benchmark", return_value={"benchmark": "沪深300", "code": "sh000300", "result": _backtest_result()}):
+        with (
+            patch("sys.argv", ["multi_stock_backtest.py", "--strategies", "balanced"]),
+            patch(
+                "multi_stock_backtest.run_one_strategy",
+                return_value={
+                    "strategy": "balanced",
+                    "codes_count": 50,
+                    "result": _backtest_result(),
+                },
+            ) as mock_run,
+            patch(
+                "multi_stock_backtest.run_benchmark",
+                return_value={
+                    "benchmark": "沪深300",
+                    "code": "sh000300",
+                    "result": _backtest_result(),
+                },
+            ),
+        ):
             from multi_stock_backtest import main
+
             main()
         # 默认至少 50 只
         args, kwargs = mock_run.call_args
@@ -177,10 +285,18 @@ class TestMain:
 class TestFormatReportAlpha:
     def test_alpha_calculated_when_no_errors(self):
         strategy_results = [
-            {"strategy": "balanced", "codes_count": 5, "result": _backtest_result(avg_return_pct=8.0)}
+            {
+                "strategy": "balanced",
+                "codes_count": 5,
+                "result": _backtest_result(avg_return_pct=8.0),
+            }
         ]
         benchmark_results = [
-            {"benchmark": "沪深300", "code": "sh000300", "result": _backtest_result(avg_return_pct=3.0)}
+            {
+                "benchmark": "沪深300",
+                "code": "sh000300",
+                "result": _backtest_result(avg_return_pct=3.0),
+            }
         ]
         report = format_report(strategy_results, benchmark_results, ["sh600519"])
         # alpha = 8.0 - 3.0 = 5.0

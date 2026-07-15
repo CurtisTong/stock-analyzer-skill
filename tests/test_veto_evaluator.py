@@ -189,7 +189,10 @@ class TestCheckContinuousLoss:
     def test_triggered_when_all_negative(self):
         stock_data = {
             "finance_records": [
-                {"EPSJB": -0.5}, {"EPSJB": -0.3}, {"EPSJB": -0.4}, {"EPSJB": -0.2}
+                {"EPSJB": -0.5},
+                {"EPSJB": -0.3},
+                {"EPSJB": -0.4},
+                {"EPSJB": -0.2},
             ]
         }
         result = _check_continuous_loss(stock_data)
@@ -199,7 +202,10 @@ class TestCheckContinuousLoss:
     def test_not_triggered_when_profitable(self):
         stock_data = {
             "finance_records": [
-                {"EPSJB": 0.5}, {"EPSJB": 0.3}, {"EPSJB": 0.4}, {"EPSJB": 0.2}
+                {"EPSJB": 0.5},
+                {"EPSJB": 0.3},
+                {"EPSJB": 0.4},
+                {"EPSJB": 0.2},
             ]
         }
         result = _check_continuous_loss(stock_data)
@@ -228,9 +234,7 @@ class TestEvaluateVetoConditions:
     def test_rigid_triggers_zero_coeff(self):
         """刚性底线触发 -> risk_coeff=0.0。"""
         profiles = {
-            "buffett": _make_profile(
-                veto_conditions=["公司涉财务造假或管理层失信"]
-            )
+            "buffett": _make_profile(veto_conditions=["公司涉财务造假或管理层失信"])
         }
         stock_data = {"fraud_flag": True}
         veto, coeff = evaluate_veto_conditions(stock_data, profiles)

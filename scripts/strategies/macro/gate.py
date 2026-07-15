@@ -109,7 +109,9 @@ class MacroSafetyGate:
         vix_str = f"VIX {vix:.1f}" if vix is not None else "VIX N/A"
         tlt_str = f"TLT ${tlt:.1f}" if tlt is not None else "TLT N/A"
         ashare_str = (
-            f"沪深300波动率 {ashare_vol:.1f}%" if ashare_vol is not None else "ashare N/A"
+            f"沪深300波动率 {ashare_vol:.1f}%"
+            if ashare_vol is not None
+            else "ashare N/A"
         )
         indicators = f"{vix_str} / {tlt_str} / {ashare_str}"
 

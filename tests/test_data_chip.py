@@ -48,7 +48,9 @@ class TestGetHolders:
     def test_successful(self):
         mock_fetcher = MagicMock()
         mock_fetcher.is_available.return_value = True
-        mock_fetcher.fetch.return_value = [{"end_date": "2026-01-01", "holder_num": "10000"}]
+        mock_fetcher.fetch.return_value = [
+            {"end_date": "2026-01-01", "holder_num": "10000"}
+        ]
         with patch.object(chip_mod, "_registry") as mock_reg:
             mock_reg.find.return_value = mock_fetcher
             result = chip_mod.get_holders("sh600519")
@@ -69,27 +71,50 @@ class TestDictConverters:
 
     def test_dict_to_margin(self):
         from data.chip import _dict_to_margin
-        d = {"date": "2026-01-01", "rzye": "1000", "rqye": "500",
-             "rzjme": "100", "rzche": "50", "rqjmg": "-20",
-             "rqmcl": "10", "rqchl": "5", "rqyl": "100"}
+
+        d = {
+            "date": "2026-01-01",
+            "rzye": "1000",
+            "rqye": "500",
+            "rzjme": "100",
+            "rzche": "50",
+            "rqjmg": "-20",
+            "rqmcl": "10",
+            "rqchl": "5",
+            "rqyl": "100",
+        }
         result = _dict_to_margin(d)
         assert result.date == "2026-01-01"
         assert result.rzjme == 100.0
 
     def test_dict_to_holder(self):
         from data.chip import _dict_to_holder
-        d = {"end_date": "2026-01-01", "holder_num": "10000",
-             "avg_amount": "1000", "holder_num_change": "-5.0",
-             "prev_holder_num": "10500", "concentration": "持续集中"}
+
+        d = {
+            "end_date": "2026-01-01",
+            "holder_num": "10000",
+            "avg_amount": "1000",
+            "holder_num_change": "-5.0",
+            "prev_holder_num": "10500",
+            "concentration": "持续集中",
+        }
         result = _dict_to_holder(d)
         assert result.holder_num == 10000
         assert result.holder_num_change == -5.0
 
     def test_dict_to_top_holder(self):
         from data.chip import _dict_to_top_holder
-        d = {"rank": "1", "holder_name": "机构A", "holder_type": "基金",
-             "hold_num": "1000000", "hold_ratio": "5.0",
-             "change": "100000", "change_type": "增持", "is_institution": True}
+
+        d = {
+            "rank": "1",
+            "holder_name": "机构A",
+            "holder_type": "基金",
+            "hold_num": "1000000",
+            "hold_ratio": "5.0",
+            "change": "100000",
+            "change_type": "增持",
+            "is_institution": True,
+        }
         result = _dict_to_top_holder(d)
         assert result.holder_name == "机构A"
         assert result.is_institution is True

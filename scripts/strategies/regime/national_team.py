@@ -41,9 +41,7 @@ def detect_national_team(
         daily_bars = _safe_get_kline(code, scale=240, datalen=21)
         if daily_bars and len(daily_bars) >= 21:
             today_vol = to_float(daily_bars[-1].volume)
-            base_vols = [
-                to_float(b.volume) for b in daily_bars[-21:-1] if b.volume > 0
-            ]
+            base_vols = [to_float(b.volume) for b in daily_bars[-21:-1] if b.volume > 0]
             if base_vols and today_vol > 0:
                 base_avg = statistics.mean(base_vols)
                 ratio = today_vol / base_avg if base_avg > 0 else 1.0
@@ -55,9 +53,7 @@ def detect_national_team(
         tail_bars = _safe_get_kline(code, scale=5, datalen=24)
         if tail_bars and len(tail_bars) >= 24:
             tail_vol = sum(to_float(b.volume) for b in tail_bars[-6:])
-            base_tail = [
-                to_float(b.volume) for b in tail_bars[-24:-6] if b.volume > 0
-            ]
+            base_tail = [to_float(b.volume) for b in tail_bars[-24:-6] if b.volume > 0]
             if base_tail and tail_vol > 0:
                 base_tail_avg = statistics.mean(base_tail) * 6  # 对齐窗口
                 ratio = tail_vol / base_tail_avg if base_tail_avg > 0 else 1.0

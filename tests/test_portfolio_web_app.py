@@ -38,8 +38,13 @@ def _isolate_token(tmp_path, monkeypatch):
     yield
 
 
-def _make_handler(method: str = "GET", path: str = "/api/health", headers=None,
-                  body: bytes = b"", client_ip: str = "127.0.0.1"):
+def _make_handler(
+    method: str = "GET",
+    path: str = "/api/health",
+    headers=None,
+    body: bytes = b"",
+    client_ip: str = "127.0.0.1",
+):
     """构造一个 Handler 实例，mock 掉 socket I/O。
 
     直接调用 __init__ 会触发 socket 读取，所以用 __new__ + 手动设置属性。
@@ -203,11 +208,15 @@ class TestDoGetRoutes:
     def test_health(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/health", headers={"Authorization": f"Bearer {token}"})
-        with patch.object(app_mod, "_get_pm") as mock_pm, \
-             patch.object(app_mod, "_monitor_enabled", True), \
-             patch.object(app_mod, "_monitor_interval", 300), \
-             patch.object(app_mod, "_monitor_last_result", {"alerts": 0}):
+        h = _make_handler(
+            path="/api/health", headers={"Authorization": f"Bearer {token}"}
+        )
+        with (
+            patch.object(app_mod, "_get_pm") as mock_pm,
+            patch.object(app_mod, "_monitor_enabled", True),
+            patch.object(app_mod, "_monitor_interval", 300),
+            patch.object(app_mod, "_monitor_last_result", {"alerts": 0}),
+        ):
             mock_pm.return_value.is_example = False
             mock_pm.return_value.summary = MagicMock()
             h.do_GET()
@@ -216,14 +225,18 @@ class TestDoGetRoutes:
     def test_favicon(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/favicon.ico", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/favicon.ico", headers={"Authorization": f"Bearer {token}"}
+        )
         h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.NO_CONTENT
 
     def test_unknown_path_returns_404(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/unknown", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/unknown", headers={"Authorization": f"Bearer {token}"}
+        )
         h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.NOT_FOUND
 
@@ -238,10 +251,14 @@ class TestDoGetRoutes:
     def test_monitor_endpoint(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/monitor", headers={"Authorization": f"Bearer {token}"})
-        with patch.object(app_mod, "_monitor_enabled", True), \
-             patch.object(app_mod, "_monitor_interval", 300), \
-             patch.object(app_mod, "_monitor_last_result", {"alerts": 1}):
+        h = _make_handler(
+            path="/api/monitor", headers={"Authorization": f"Bearer {token}"}
+        )
+        with (
+            patch.object(app_mod, "_monitor_enabled", True),
+            patch.object(app_mod, "_monitor_interval", 300),
+            patch.object(app_mod, "_monitor_last_result", {"alerts": 1}),
+        ):
             h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.OK
 
@@ -285,7 +302,9 @@ class TestDoGetRoutes:
     def test_trades_endpoint(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/trades", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/trades", headers={"Authorization": f"Bearer {token}"}
+        )
         with patch("portfolio.trade_log.TradeLog") as mock_tl_class:
             mock_tl = mock_tl_class.return_value
             mock_tl.query.return_value = []
@@ -296,7 +315,9 @@ class TestDoGetRoutes:
     def test_trades_endpoint_exception_returns_empty(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/trades", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/trades", headers={"Authorization": f"Bearer {token}"}
+        )
         with patch("portfolio.trade_log.TradeLog", side_effect=RuntimeError("boom")):
             h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.OK
@@ -304,7 +325,9 @@ class TestDoGetRoutes:
     def test_positions_list_with_quotes(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/positions", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/positions", headers={"Authorization": f"Bearer {token}"}
+        )
         mock_pm = MagicMock()
         mock_pm.to_dict.return_value = {
             "positions": [{"code": "sh600519", "cost": 100, "quantity": 10}],
@@ -319,9 +342,11 @@ class TestDoGetRoutes:
         mock_quote2.code = "sh600000"
         mock_quote2.price = 10.0
         mock_quote2.change_pct = 2.0
-        with patch.object(app_mod, "_get_pm", return_value=mock_pm), \
-             patch.object(utils_mod, "_virtual_mode", False), \
-             patch("data.get_quotes", return_value=[mock_quote, mock_quote2]):
+        with (
+            patch.object(app_mod, "_get_pm", return_value=mock_pm),
+            patch.object(utils_mod, "_virtual_mode", False),
+            patch("data.get_quotes", return_value=[mock_quote, mock_quote2]),
+        ):
             h.do_GET()
         assert h._sent_status[-1] == HTTPStatus.OK
 
@@ -338,7 +363,10 @@ class TestDoPostRoutes:
         h = _make_handler(
             method="POST",
             path="/api/other",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
         )
         h.do_POST()
         assert h._sent_status[-1] == HTTPStatus.NOT_FOUND
@@ -360,7 +388,10 @@ class TestDoPostRoutes:
         h = _make_handler(
             method="POST",
             path="/api/positions",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             body=b"not json{",
         )
         h.do_POST()
@@ -369,16 +400,25 @@ class TestDoPostRoutes:
     def test_post_valid_action_returns_ok(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        body = json.dumps({"action": "add_position", "code": "sh600519", "cost": 100, "quantity": 10}).encode()
+        body = json.dumps(
+            {"action": "add_position", "code": "sh600519", "cost": 100, "quantity": 10}
+        ).encode()
         h = _make_handler(
             method="POST",
             path="/api/positions",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             body=body,
         )
         mock_pm = MagicMock()
-        with patch.object(app_mod, "_get_pm", return_value=mock_pm), \
-             patch("portfolio.web.app.dispatch", return_value={"ok": True, "data": {}}) as mock_dispatch:
+        with (
+            patch.object(app_mod, "_get_pm", return_value=mock_pm),
+            patch(
+                "portfolio.web.app.dispatch", return_value={"ok": True, "data": {}}
+            ) as mock_dispatch,
+        ):
             h.do_POST()
         assert h._sent_status[-1] == HTTPStatus.OK
         mock_dispatch.assert_called_once()
@@ -390,12 +430,20 @@ class TestDoPostRoutes:
         h = _make_handler(
             method="POST",
             path="/api/positions",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             body=body,
         )
         mock_pm = MagicMock()
-        with patch.object(app_mod, "_get_pm", return_value=mock_pm), \
-             patch("portfolio.web.app.dispatch", return_value={"ok": False, "code": 400, "error": "missing field"}):
+        with (
+            patch.object(app_mod, "_get_pm", return_value=mock_pm),
+            patch(
+                "portfolio.web.app.dispatch",
+                return_value={"ok": False, "code": 400, "error": "missing field"},
+            ),
+        ):
             h.do_POST()
         assert h._sent_status[-1] == HTTPStatus.BAD_REQUEST
 
@@ -406,11 +454,16 @@ class TestDoPostRoutes:
         h = _make_handler(
             method="POST",
             path="/api/positions",
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             body=body,
         )
-        with patch.object(app_mod, "_get_pm", return_value=MagicMock()), \
-             patch("portfolio.web.app.dispatch", side_effect=RuntimeError("boom")):
+        with (
+            patch.object(app_mod, "_get_pm", return_value=MagicMock()),
+            patch("portfolio.web.app.dispatch", side_effect=RuntimeError("boom")),
+        ):
             h.do_POST()
         assert h._sent_status[-1] == HTTPStatus.INTERNAL_SERVER_ERROR
 
@@ -424,35 +477,51 @@ class TestOtherMethods:
     def test_head_known_path(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/health", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/health", headers={"Authorization": f"Bearer {token}"}
+        )
         h.do_HEAD()
         assert h._sent_status[-1] == HTTPStatus.OK
 
     def test_head_unknown_path(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(path="/api/unknown", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            path="/api/unknown", headers={"Authorization": f"Bearer {token}"}
+        )
         h.do_HEAD()
         assert h._sent_status[-1] == HTTPStatus.NOT_FOUND
 
     def test_put_returns_405(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(method="PUT", path="/api/positions", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            method="PUT",
+            path="/api/positions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
         h.do_PUT()
         assert h._sent_status[-1] == HTTPStatus.METHOD_NOT_ALLOWED
 
     def test_delete_returns_405(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(method="DELETE", path="/api/positions", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            method="DELETE",
+            path="/api/positions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
         h.do_DELETE()
         assert h._sent_status[-1] == HTTPStatus.METHOD_NOT_ALLOWED
 
     def test_patch_returns_405(self):
         token = utils_mod._ensure_token()
         app_mod.Handler.reset_rate_limit_for_tests()
-        h = _make_handler(method="PATCH", path="/api/positions", headers={"Authorization": f"Bearer {token}"})
+        h = _make_handler(
+            method="PATCH",
+            path="/api/positions",
+            headers={"Authorization": f"Bearer {token}"},
+        )
         h.do_PATCH()
         assert h._sent_status[-1] == HTTPStatus.METHOD_NOT_ALLOWED
 

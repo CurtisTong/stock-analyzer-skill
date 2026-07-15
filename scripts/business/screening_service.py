@@ -410,7 +410,9 @@ class ScreeningService:
         )
         if goodwill_ratio > _goodwill_threshold():
             if fin_stale:
-                warnings.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险,财务数据过期降级)")
+                warnings.append(
+                    f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险,财务数据过期降级)"
+                )
             else:
                 reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
@@ -660,7 +662,9 @@ def normalize_factors_batch(
 
     else:
         # 小样本降级：MAD 标准化
-        factor_medians = {k: statistics.median(vals) for k, vals in factor_values.items()}
+        factor_medians = {
+            k: statistics.median(vals) for k, vals in factor_values.items()
+        }
         factor_mads = {}
         for k in keys:
             vals = factor_values[k]

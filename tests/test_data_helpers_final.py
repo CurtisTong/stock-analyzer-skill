@@ -38,8 +38,10 @@ class TestFetchStockBundle:
     def test_returns_dict(self):
         mock_q = MagicMock()
         mock_q.to_dict.return_value = {"code": "sh600519"}
-        with patch.object(helpers_mod, "get_quote", return_value=mock_q), \
-             patch.object(helpers_mod, "get_kline", return_value=[]), \
-             patch.object(helpers_mod, "get_finance", return_value=[]):
+        with (
+            patch.object(helpers_mod, "get_quote", return_value=mock_q),
+            patch.object(helpers_mod, "get_kline", return_value=[]),
+            patch.object(helpers_mod, "get_finance", return_value=[]),
+        ):
             result = helpers_mod.fetch_stock_bundle("sh600519")
             assert isinstance(result, dict)

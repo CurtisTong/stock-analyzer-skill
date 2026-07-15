@@ -8,16 +8,33 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 class TestFormatEventsText:
     def test_empty(self):
         from events import format_events_text
-        result = format_events_text({"query_days": 30, "code": "sh600519", "earnings": [], "lockup": [], "dividend": [], "shareholder": [], "violation": [], "summary": "test"})
+
+        result = format_events_text(
+            {
+                "query_days": 30,
+                "code": "sh600519",
+                "earnings": [],
+                "lockup": [],
+                "dividend": [],
+                "shareholder": [],
+                "violation": [],
+                "summary": "test",
+            }
+        )
         assert isinstance(result, str)
 
     def test_with_data(self):
         from events import format_events_text
+
         events = {
-            "query_days": 30, "code": "sh600519",
+            "query_days": 30,
+            "code": "sh600519",
             "earnings": [{"disclosure_date": "2026-01-15", "title": "年报"}],
             "lockup": [{"free_date": "2026-02-01", "lift_market_cap": 50}],
-            "dividend": [], "shareholder": [], "violation": [], "summary": "test",
+            "dividend": [],
+            "shareholder": [],
+            "violation": [],
+            "summary": "test",
         }
         result = format_events_text(events)
         assert isinstance(result, str)
@@ -25,8 +42,10 @@ class TestFormatEventsText:
 
     def test_with_all_categories(self):
         from events import format_events_text
+
         events = {
-            "query_days": 30, "code": "sh600519",
+            "query_days": 30,
+            "code": "sh600519",
             "earnings": [{"disclosure_date": "2026-01-15"}],
             "lockup": [{"free_date": "2026-02-01", "lift_market_cap": 30}],
             "dividend": [{"ex_date": "2026-01-20", "bonus_per_share": 0.5}],
@@ -41,6 +60,7 @@ class TestFormatEventsText:
 class TestMain:
     def test_no_args(self):
         from events import main
+
         with patch("sys.argv", ["events.py"]):
             try:
                 main()

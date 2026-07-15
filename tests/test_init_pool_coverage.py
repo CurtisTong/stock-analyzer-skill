@@ -52,7 +52,9 @@ class TestIsPoolPopulated:
 
     def test_populated(self, tmp_path):
         pool_file = tmp_path / "pool.json"
-        data = {f"sector_{i}": [f"sh6000{i}{j:02d}" for j in range(20)] for i in range(10)}
+        data = {
+            f"sector_{i}": [f"sh6000{i}{j:02d}" for j in range(20)] for i in range(10)
+        }
         pool_file.write_text(json.dumps(data), encoding="utf-8")
         with patch.object(ip, "POOL_FILE", str(pool_file)):
             populated, desc = ip.is_pool_populated()
@@ -73,7 +75,9 @@ class TestIsPoolPopulated:
 class TestInitPool:
     def test_already_populated_skips(self, capsys):
         with (
-            patch.object(ip, "is_pool_populated", return_value=(True, "20 个板块，500 只股票")),
+            patch.object(
+                ip, "is_pool_populated", return_value=(True, "20 个板块，500 只股票")
+            ),
         ):
             result = ip.init_pool(force=False)
         assert result is False
@@ -82,10 +86,15 @@ class TestInitPool:
 
     def test_force_init_with_default(self, capsys):
         with (
-            patch.object(ip, "init_from_default", return_value={"银行": ["sh600036"], "白酒": ["sh600519"]}),
+            patch.object(
+                ip,
+                "init_from_default",
+                return_value={"银行": ["sh600036"], "白酒": ["sh600519"]},
+            ),
             patch.dict("os.environ", {}, clear=False),
         ):
             import os
+
             os.environ.pop("EASTMONEY_API_TOKEN", None)
             result = ip.init_pool(top_n=20, force=True, use_default=True)
         assert result is True
@@ -93,10 +102,9 @@ class TestInitPool:
         assert "初始化完成" in captured.out
 
     def test_init_via_refresh_pool(self, capsys):
-        with (
-            patch.object(ip, "refresh_pool", return_value={"银行": ["sh600036"]}),
-        ):
+        with (patch.object(ip, "refresh_pool", return_value={"银行": ["sh600036"]}),):
             import os
+
             os.environ.pop("EASTMONEY_API_TOKEN", None)
             result = ip.init_pool(top_n=20, force=True, use_default=False)
         assert result is True
@@ -104,6 +112,7 @@ class TestInitPool:
     def test_init_returns_empty(self, capsys):
         with patch.object(ip, "refresh_pool", return_value={}):
             import os
+
             os.environ.pop("EASTMONEY_API_TOKEN", None)
             result = ip.init_pool(top_n=20, force=True)
         assert result is False
@@ -113,8 +122,10 @@ class TestInitPool:
     def test_init_raises_exception(self, capsys):
         def _raise(*a, **kw):
             raise RuntimeError("network error")
+
         with patch.object(ip, "refresh_pool", _raise):
             import os
+
             os.environ.pop("EASTMONEY_API_TOKEN", None)
             result = ip.init_pool(top_n=20, force=True)
         assert result is False
@@ -125,7 +136,9 @@ class TestInitPool:
 class TestInitFullMarket:
     def test_already_exists_skips(self, tmp_path, capsys):
         all_file = tmp_path / "all_stocks.json"
-        all_file.write_text(json.dumps({"_meta": {"total_stocks": 5000}}), encoding="utf-8")
+        all_file.write_text(
+            json.dumps({"_meta": {"total_stocks": 5000}}), encoding="utf-8"
+        )
         with patch.object(ip, "ALL_STOCKS_FILE", str(all_file)):
             result = ip.init_full_market(force=False)
         assert result is False
@@ -134,7 +147,11 @@ class TestInitFullMarket:
 
     def test_force_init(self, capsys):
         with (
-            patch.object(ip, "fetch_all_market_stocks", return_value={"sh": ["sh600519"], "sz": ["sz000001"]}),
+            patch.object(
+                ip,
+                "fetch_all_market_stocks",
+                return_value={"sh": ["sh600519"], "sz": ["sz000001"]},
+            ),
             patch.object(ip, "save_all_market_stocks", lambda x: None),
         ):
             result = ip.init_full_market(force=True)
@@ -147,7 +164,9 @@ class TestInitFullMarket:
         all_file.write_text("corrupt{", encoding="utf-8")
         with (
             patch.object(ip, "ALL_STOCKS_FILE", str(all_file)),
-            patch.object(ip, "fetch_all_market_stocks", return_value={"sh": ["sh600519"]}),
+            patch.object(
+                ip, "fetch_all_market_stocks", return_value={"sh": ["sh600519"]}
+            ),
             patch.object(ip, "save_all_market_stocks", lambda x: None),
         ):
             result = ip.init_full_market(force=False)
@@ -156,6 +175,7 @@ class TestInitFullMarket:
     def test_init_raises_exception(self, capsys):
         def _raise(*a, **kw):
             raise RuntimeError("net error")
+
         with patch.object(ip, "fetch_all_market_stocks", _raise):
             result = ip.init_full_market(force=True)
         assert result is False

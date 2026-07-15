@@ -23,19 +23,23 @@ class TestZtPoolNormalize:
 
     def test_sh_code(self):
         from data.zt_pool import _normalize_code
+
         assert _normalize_code("600519") == "sh600519"
 
     def test_sz_code(self):
         from data.zt_pool import _normalize_code
+
         assert _normalize_code("000001") == "sz000001"
         assert _normalize_code("300750") == "sz300750"
 
     def test_bj_code(self):
         from data.zt_pool import _normalize_code
+
         assert _normalize_code("830799") == "bj830799"
 
     def test_already_prefixed(self):
         from data.zt_pool import _normalize_code
+
         assert _normalize_code("sh600519") == "sh600519"
 
 
@@ -48,8 +52,12 @@ class TestIsOneWordLimitUp:
 
         pool = {
             "sh600519": {
-                "lbc": 1, "zbc": 0, "fund_buy": 50000000,
-                "turnover_rate": 0.3, "name": "茅台", "change_pct": 10.0,
+                "lbc": 1,
+                "zbc": 0,
+                "fund_buy": 50000000,
+                "turnover_rate": 0.3,
+                "name": "茅台",
+                "change_pct": 10.0,
             }
         }
         assert is_one_word_limit_up("sh600519", zt_pool=pool) is True
@@ -60,8 +68,12 @@ class TestIsOneWordLimitUp:
 
         pool = {
             "sh600519": {
-                "lbc": 1, "zbc": 2, "fund_buy": 10000000,
-                "turnover_rate": 8.5, "name": "茅台", "change_pct": 10.0,
+                "lbc": 1,
+                "zbc": 2,
+                "fund_buy": 10000000,
+                "turnover_rate": 8.5,
+                "name": "茅台",
+                "change_pct": 10.0,
             }
         }
         assert is_one_word_limit_up("sh600519", zt_pool=pool) is False
@@ -72,8 +84,12 @@ class TestIsOneWordLimitUp:
 
         pool = {
             "sh600519": {
-                "lbc": 1, "zbc": 0, "fund_buy": 20000000,
-                "turnover_rate": 5.0, "name": "茅台", "change_pct": 10.0,
+                "lbc": 1,
+                "zbc": 0,
+                "fund_buy": 20000000,
+                "turnover_rate": 5.0,
+                "name": "茅台",
+                "change_pct": 10.0,
             }
         }
         assert is_one_word_limit_up("sh600519", zt_pool=pool) is False
@@ -88,11 +104,20 @@ class TestIsOneWordLimitUp:
 class TestHardFilterLimitUp:
     """_hard_filter 涨跌停区分。"""
 
-    def _make_quote(self, code="sh600519", name="茅台", total_cap=2000,
-                    amount=10000_0000, change_pct=0.5):
+    def _make_quote(
+        self,
+        code="sh600519",
+        name="茅台",
+        total_cap=2000,
+        amount=10000_0000,
+        change_pct=0.5,
+    ):
         return {
-            "code": code, "name": name, "total_cap": total_cap,
-            "amount": amount, "change_pct": change_pct,
+            "code": code,
+            "name": name,
+            "total_cap": total_cap,
+            "amount": amount,
+            "change_pct": change_pct,
         }
 
     def test_normal_stock_no_limit_filter(self):
@@ -102,8 +127,10 @@ class TestHardFilterLimitUp:
         svc = ScreeningService()
         quote = self._make_quote(change_pct=3.0)
         fin = {"eps": 1.0, "report_date": "2026-03-31"}
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(False, ""),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
         assert not any("涨跌停" in r for r in reasons)
         assert not any("涨停" in w for w in warnings)
@@ -116,8 +143,10 @@ class TestHardFilterLimitUp:
         # 主板跌停 change_pct <= -9.5
         quote = self._make_quote(change_pct=-10.0)
         fin = {"eps": 1.0, "report_date": "2026-03-31"}
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(False, ""),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
         assert any("涨跌停" in r for r in reasons)
 
@@ -128,8 +157,10 @@ class TestHardFilterLimitUp:
         svc = ScreeningService()
         quote = self._make_quote(change_pct=10.0)
         fin = {"eps": 1.0, "report_date": "2026-03-31"}
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")):
+        with patch(
+            "business.finance_freshness.check_finance_freshness",
+            return_value=(False, ""),
+        ):
             reasons, warnings = svc._hard_filter(quote, fin, {})
         assert any("涨跌停" in r for r in reasons)
 
@@ -142,13 +173,21 @@ class TestHardFilterLimitUp:
         fin = {"eps": 1.0, "report_date": "2026-03-31"}
         pool = {
             "sh600519": {
-                "lbc": 1, "zbc": 0, "fund_buy": 50000000,
-                "turnover_rate": 0.3, "name": "茅台", "change_pct": 10.0,
+                "lbc": 1,
+                "zbc": 0,
+                "fund_buy": 50000000,
+                "turnover_rate": 0.3,
+                "name": "茅台",
+                "change_pct": 10.0,
             }
         }
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")), \
-             patch("data.zt_pool.get_zt_pool", return_value=pool):
+        with (
+            patch(
+                "business.finance_freshness.check_finance_freshness",
+                return_value=(False, ""),
+            ),
+            patch("data.zt_pool.get_zt_pool", return_value=pool),
+        ):
             reasons, warnings = svc._hard_filter(
                 quote, fin, {"allow_tradable_limit_up": True}
             )
@@ -163,13 +202,21 @@ class TestHardFilterLimitUp:
         fin = {"eps": 1.0, "report_date": "2026-03-31"}
         pool = {
             "sh600519": {
-                "lbc": 1, "zbc": 2, "fund_buy": 10000000,
-                "turnover_rate": 8.5, "name": "茅台", "change_pct": 10.0,
+                "lbc": 1,
+                "zbc": 2,
+                "fund_buy": 10000000,
+                "turnover_rate": 8.5,
+                "name": "茅台",
+                "change_pct": 10.0,
             }
         }
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")), \
-             patch("data.zt_pool.get_zt_pool", return_value=pool):
+        with (
+            patch(
+                "business.finance_freshness.check_finance_freshness",
+                return_value=(False, ""),
+            ),
+            patch("data.zt_pool.get_zt_pool", return_value=pool),
+        ):
             reasons, warnings = svc._hard_filter(
                 quote, fin, {"allow_tradable_limit_up": True}
             )
@@ -183,10 +230,16 @@ class TestHardFilterLimitUp:
         svc = ScreeningService()
         quote = self._make_quote(change_pct=10.0)
         fin = {"eps": 1.0, "report_date": "2026-03-31"}
-        with patch("business.finance_freshness.check_finance_freshness",
-                   return_value=(False, "")), \
-             patch("data.zt_pool.is_one_word_limit_up",
-                   side_effect=Exception("network error")):
+        with (
+            patch(
+                "business.finance_freshness.check_finance_freshness",
+                return_value=(False, ""),
+            ),
+            patch(
+                "data.zt_pool.is_one_word_limit_up",
+                side_effect=Exception("network error"),
+            ),
+        ):
             reasons, warnings = svc._hard_filter(
                 quote, fin, {"allow_tradable_limit_up": True}
             )

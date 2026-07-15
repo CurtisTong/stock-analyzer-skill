@@ -195,27 +195,41 @@ class TestComputeAllBasic:
 class TestComputeAllClassify:
     def test_classify_triggers_classification_field(self):
         inp = _make_input(n=40, classify=True)
-        with patch("classifier.classify_stock", return_value={"type": "白马股"}), \
-             patch("classifier.profile_stock", return_value={"industry": "默认"}), \
-             patch("strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]):
+        with (
+            patch("classifier.classify_stock", return_value={"type": "白马股"}),
+            patch("classifier.profile_stock", return_value={"industry": "默认"}),
+            patch(
+                "strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]
+            ),
+        ):
             features = tech_cli._compute_all(inp)
         assert "classification" in features
         assert features["classification"]["type"] == "白马股"
 
     def test_classify_chan_enabled_with_enough_data(self):
         inp = _make_input(n=40, classify=True)
-        with patch("classifier.classify_stock", return_value={"type": "普通股"}), \
-             patch("classifier.profile_stock", return_value={"industry": "默认"}), \
-             patch("strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]), \
-             patch("chan.chan_full_analysis", return_value={"valid": True, "state": "上升"}):
+        with (
+            patch("classifier.classify_stock", return_value={"type": "普通股"}),
+            patch("classifier.profile_stock", return_value={"industry": "默认"}),
+            patch(
+                "strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]
+            ),
+            patch(
+                "chan.chan_full_analysis", return_value={"valid": True, "state": "上升"}
+            ),
+        ):
             features = tech_cli._compute_all(inp)
         assert features["chan_theory"]["valid"] is True
 
     def test_classify_no_chan_skips_chan(self):
         inp = _make_input(n=40, classify=True, no_chan=True)
-        with patch("classifier.classify_stock", return_value={"type": "普通股"}), \
-             patch("classifier.profile_stock", return_value={"industry": "默认"}), \
-             patch("strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]):
+        with (
+            patch("classifier.classify_stock", return_value={"type": "普通股"}),
+            patch("classifier.profile_stock", return_value={"industry": "默认"}),
+            patch(
+                "strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]
+            ),
+        ):
             features = tech_cli._compute_all(inp)
         assert features["chan_theory"]["valid"] is False
         # do_classify=True but no_chan -> else 分支，do_classify 为真 -> "数据不足"
@@ -224,29 +238,42 @@ class TestComputeAllClassify:
     def test_classify_chan_skipped_when_data_insufficient(self):
         """records < 30 时跳过缠论。"""
         inp = _make_input(n=20, classify=True)
-        with patch("classifier.classify_stock", return_value={"type": "普通股"}), \
-             patch("classifier.profile_stock", return_value={"industry": "默认"}), \
-             patch("strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]):
+        with (
+            patch("classifier.classify_stock", return_value={"type": "普通股"}),
+            patch("classifier.profile_stock", return_value={"industry": "默认"}),
+            patch(
+                "strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]
+            ),
+        ):
             features = tech_cli._compute_all(inp)
         assert features["chan_theory"]["valid"] is False
 
     def test_classify_market_environment_with_market_index(self):
         inp = _make_input(n=40, classify=True)
         inp.args.market_index = "sh000001"
-        with patch("classifier.classify_stock", return_value={"type": "普通股"}), \
-             patch("classifier.profile_stock", return_value={"industry": "默认"}), \
-             patch("strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]), \
-             patch("quote.fetch_batch", return_value=[{"code": "sh000001"}]), \
-             patch.object(tech_cli, "detect_market_environment", return_value={"state": "牛市"}):
+        with (
+            patch("classifier.classify_stock", return_value={"type": "普通股"}),
+            patch("classifier.profile_stock", return_value={"industry": "默认"}),
+            patch(
+                "strategies.thresholds.get_industry_threshold", side_effect=[15, 25, 40]
+            ),
+            patch("quote.fetch_batch", return_value=[{"code": "sh000001"}]),
+            patch.object(
+                tech_cli, "detect_market_environment", return_value={"state": "牛市"}
+            ),
+        ):
             features = tech_cli._compute_all(inp)
         assert features["market_environment"]["state"] == "牛市"
 
     def test_local_patterns_fallback_on_exception(self):
         inp = _make_input(n=40)
-        with patch(
-            "strategies.patterns.detect_all_local_patterns",
-            side_effect=RuntimeError("boom"),
-        ), patch("strategies.patterns.PatternInput", MagicMock()):
+        with (
+            patch(
+                "strategies.patterns.detect_all_local_patterns",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch("strategies.patterns.PatternInput", MagicMock()),
+        ):
             features = tech_cli._compute_all(inp)
         lp = features["local_patterns"]
         assert lp["count"] == 0
@@ -266,13 +293,15 @@ class TestMainCLI:
 
     def test_main_json_output(self, capsys):
         records, quote = self._setup_mocks()
-        with patch("sys.argv", ["technical.py", "sh600519", "-j"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[quote]), \
-             patch.object(tech_cli, "composite_score", return_value=75.0), \
-             patch.object(tech_cli, "render_report", return_value="REPORT"), \
-             patch.object(tech_cli, "render_quick", return_value="QUICK"):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519", "-j"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[quote]),
+            patch.object(tech_cli, "composite_score", return_value=75.0),
+            patch.object(tech_cli, "render_report", return_value="REPORT"),
+            patch.object(tech_cli, "render_quick", return_value="QUICK"),
+        ):
             tech_cli.main()
         out = capsys.readouterr().out
         # JSON 模式输出 JSON（含 meta/score/features）
@@ -280,64 +309,76 @@ class TestMainCLI:
 
     def test_main_quick_output(self, capsys):
         records, quote = self._setup_mocks()
-        with patch("sys.argv", ["technical.py", "sh600519", "--quick"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[quote]), \
-             patch.object(tech_cli, "composite_score", return_value=80.0), \
-             patch.object(tech_cli, "render_quick", return_value="QUICK_REPORT"):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519", "--quick"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[quote]),
+            patch.object(tech_cli, "composite_score", return_value=80.0),
+            patch.object(tech_cli, "render_quick", return_value="QUICK_REPORT"),
+        ):
             tech_cli.main()
         assert "QUICK_REPORT" in capsys.readouterr().out
 
     def test_main_full_report(self, capsys):
         records, quote = self._setup_mocks()
-        with patch("sys.argv", ["technical.py", "sh600519"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[quote]), \
-             patch.object(tech_cli, "composite_score", return_value=70.0), \
-             patch.object(tech_cli, "render_report", return_value="FULL_REPORT"):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[quote]),
+            patch.object(tech_cli, "composite_score", return_value=70.0),
+            patch.object(tech_cli, "render_report", return_value="FULL_REPORT"),
+        ):
             tech_cli.main()
         assert "FULL_REPORT" in capsys.readouterr().out
 
     def test_main_exit_when_no_kline(self):
-        with patch("sys.argv", ["technical.py", "sh600519"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=[]):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=[]),
+        ):
             with pytest.raises(SystemExit):
                 tech_cli.main()
 
     def test_main_exit_when_no_quote(self):
         records, _ = self._setup_mocks()
-        with patch("sys.argv", ["technical.py", "sh600519"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[]):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[]),
+        ):
             with pytest.raises(SystemExit):
                 tech_cli.main()
 
     def test_main_exit_when_data_insufficient(self):
         records, quote = self._setup_mocks(records=_make_records(5))
-        with patch("sys.argv", ["technical.py", "sh600519"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[quote]):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[quote]),
+        ):
             with pytest.raises(SystemExit):
                 tech_cli.main()
 
     def test_main_classify_json_includes_classify_features(self, capsys):
         records, quote = self._setup_mocks()
-        with patch("sys.argv", ["technical.py", "sh600519", "--classify", "-j"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[quote]), \
-             patch.object(tech_cli, "composite_score", return_value=60.0), \
-             patch("classifier.classify_stock", return_value={"type": "白马股"}), \
-             patch("classifier.profile_stock", return_value={"industry": "默认"}), \
-             patch(
-                 "strategies.thresholds.get_industry_threshold",
-                 side_effect=[15, 25, 40],
-             ):
+        with (
+            patch("sys.argv", ["technical.py", "sh600519", "--classify", "-j"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[quote]),
+            patch.object(tech_cli, "composite_score", return_value=60.0),
+            patch("classifier.classify_stock", return_value={"type": "白马股"}),
+            patch("classifier.profile_stock", return_value={"industry": "默认"}),
+            patch(
+                "strategies.thresholds.get_industry_threshold",
+                side_effect=[15, 25, 40],
+            ),
+        ):
             tech_cli.main()
         out = capsys.readouterr().out
         assert '"classification"' in out
@@ -346,12 +387,14 @@ class TestMainCLI:
     def test_main_stop_loss_pct_when_support_exists(self, capsys):
         records, quote = self._setup_mocks()
         quote["price"] = 100.0
-        with patch("sys.argv", ["technical.py", "sh600519", "-j"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch.object(tech_cli, "fetch_kline", return_value=records), \
-             patch.object(tech_cli, "fetch_batch", return_value=[quote]), \
-             patch.object(tech_cli, "composite_score", return_value=50.0), \
-             patch.object(tech_cli, "_compute_all") as mock_compute:
+        with (
+            patch("sys.argv", ["technical.py", "sh600519", "-j"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch.object(tech_cli, "fetch_kline", return_value=records),
+            patch.object(tech_cli, "fetch_batch", return_value=[quote]),
+            patch.object(tech_cli, "composite_score", return_value=50.0),
+            patch.object(tech_cli, "_compute_all") as mock_compute,
+        ):
             # _compute_all 返回带 nearest_support 的 features
             mock_compute.return_value = {
                 "support_resistance": {"nearest_support": 90.0},

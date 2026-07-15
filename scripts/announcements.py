@@ -183,9 +183,7 @@ def summarize_consensus(items: list) -> dict:
             sum(target_prices) / len(target_prices) if target_prices else 0.0
         ),
         "target_price_count": len(target_prices),
-        "rating_distribution": sorted(
-            ratings.items(), key=lambda x: -x[1]
-        ),
+        "rating_distribution": sorted(ratings.items(), key=lambda x: -x[1]),
         "predict_eps_this_year": _safe_float(latest.get("predictThisYearEps")),
         "predict_eps_next_year": _safe_float(latest.get("predictNextYearEps")),
         "predict_pe_this_year": _safe_float(latest.get("predictThisYearPe")),

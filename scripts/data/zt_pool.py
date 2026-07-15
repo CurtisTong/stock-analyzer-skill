@@ -64,12 +64,12 @@ def get_zt_pool(date: str = "") -> dict:
                 continue
             code = _normalize_code(raw_code)
             result[code] = {
-                "lbc": item.get("lbc", 0),            # 连板数
-                "zbc": item.get("zbc", 0),            # 炸板次数
-                "fund_buy": item.get("fund", 0),      # 封单资金（元）
-                "turnover_rate": item.get("hs", 0),   # 换手率(%)
+                "lbc": item.get("lbc", 0),  # 连板数
+                "zbc": item.get("zbc", 0),  # 炸板次数
+                "fund_buy": item.get("fund", 0),  # 封单资金（元）
+                "turnover_rate": item.get("hs", 0),  # 换手率(%)
                 "name": item.get("n", ""),
-                "change_pct": item.get("zdp", 0),     # 涨跌幅
+                "change_pct": item.get("zdp", 0),  # 涨跌幅
             }
 
         # 更新缓存（仅未指定日期时缓存当日数据）

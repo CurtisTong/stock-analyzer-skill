@@ -12,11 +12,13 @@ class TestShouldNotifySignal:
 
     def test_first_notification_allowed(self):
         from monitor.notifier import _should_notify_signal, _reset_cache
+
         _reset_cache()
         assert _should_notify_signal("sh600519", "ma_cross") is True
 
     def test_duplicate_blocked(self):
         from monitor.notifier import _should_notify_signal, _reset_cache, _get_nm
+
         _reset_cache()
         nm = _get_nm()
         nm._notified_signals = {"sh600519:ma_cross": True}
@@ -24,6 +26,7 @@ class TestShouldNotifySignal:
 
     def test_different_signal_allowed(self):
         from monitor.notifier import _should_notify_signal, _reset_cache, _get_nm
+
         _reset_cache()
         nm = _get_nm()
         nm._notified_signals = {"sh600519:ma_cross": True}
@@ -31,6 +34,7 @@ class TestShouldNotifySignal:
 
     def test_different_code_allowed(self):
         from monitor.notifier import _should_notify_signal, _reset_cache, _get_nm
+
         _reset_cache()
         nm = _get_nm()
         nm._notified_signals = {"sh600519:ma_cross": True}
@@ -42,6 +46,7 @@ class TestGetNm:
 
     def test_singleton(self):
         from monitor.notifier import _get_nm, _reset_cache
+
         _reset_cache()
         nm1 = _get_nm()
         nm2 = _get_nm()
@@ -53,6 +58,7 @@ class TestCheckAndPush:
 
     def test_dry_run_no_push(self):
         from monitor.notifier import check_and_push, _reset_cache
+
         _reset_cache()
         with patch("monitor.notifier._get_nm") as mock_get_nm:
             mock_nm = MagicMock()
@@ -63,6 +69,7 @@ class TestCheckAndPush:
 
     def test_dry_run_with_signals(self):
         from monitor.notifier import check_and_push, _reset_cache
+
         _reset_cache()
         with patch("monitor.notifier._get_nm") as mock_get_nm:
             mock_nm = MagicMock()

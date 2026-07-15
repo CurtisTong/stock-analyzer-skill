@@ -33,9 +33,13 @@ class TestPushBranches:
             json.dumps({"predictions": [{"stock": "sh600519", "expert_scores": {}}]}),
             encoding="utf-8",
         )
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_update_gist", return_value=True) as mock_update:
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(
+                calibration_sync, "_update_gist", return_value=True
+            ) as mock_update,
+        ):
             result = calibration_sync.push()
         assert result is True
         mock_update.assert_called_once()
@@ -46,9 +50,11 @@ class TestPushBranches:
         """push 更新失败时返回 False。"""
         fake_file = tmp_path / "expert_calibration.json"
         fake_file.write_text(json.dumps({"predictions": []}), encoding="utf-8")
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_update_gist", return_value=False):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_update_gist", return_value=False),
+        ):
             result = calibration_sync.push()
         assert result is False
         captured = capsys.readouterr()
@@ -58,9 +64,11 @@ class TestPushBranches:
         """push 时无 gist -> 创建。"""
         fake_file = tmp_path / "expert_calibration.json"
         fake_file.write_text(json.dumps({"predictions": []}), encoding="utf-8")
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value=None), \
-             patch.object(calibration_sync, "_create_gist", return_value="newgist456"):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value=None),
+            patch.object(calibration_sync, "_create_gist", return_value="newgist456"),
+        ):
             result = calibration_sync.push()
         assert result is True
         captured = capsys.readouterr()
@@ -70,9 +78,11 @@ class TestPushBranches:
         """push 创建失败（返回 None）时返回 False。"""
         fake_file = tmp_path / "expert_calibration.json"
         fake_file.write_text(json.dumps({"predictions": []}), encoding="utf-8")
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value=None), \
-             patch.object(calibration_sync, "_create_gist", return_value=None):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value=None),
+            patch.object(calibration_sync, "_create_gist", return_value=None),
+        ):
             result = calibration_sync.push()
         assert result is False
         captured = capsys.readouterr()
@@ -100,11 +110,13 @@ class TestAutoBranches:
             encoding="utf-8",
         )
         remote = {"predictions": [{"stock": "sz000001", "expert_scores": {}}]}
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=remote), \
-             patch.object(calibration_sync, "pull", return_value=True), \
-             patch.object(calibration_sync, "push", return_value=True) as mock_push:
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=remote),
+            patch.object(calibration_sync, "pull", return_value=True),
+            patch.object(calibration_sync, "push", return_value=True) as mock_push,
+        ):
             result = calibration_sync.auto()
         assert result is True
         mock_push.assert_called_once()
@@ -123,11 +135,13 @@ class TestAutoBranches:
                 {"stock": f"sh60000{i}", "expert_scores": {}} for i in range(5)
             ]
         }
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=remote), \
-             patch.object(calibration_sync, "pull", return_value=True), \
-             patch.object(calibration_sync, "push") as mock_push:
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=remote),
+            patch.object(calibration_sync, "pull", return_value=True),
+            patch.object(calibration_sync, "push") as mock_push,
+        ):
             result = calibration_sync.auto()
         assert result is True
         mock_push.assert_not_called()
@@ -138,10 +152,12 @@ class TestAutoBranches:
         """无远程 gist -> 创建新 gist。"""
         fake_file = tmp_path / "expert_calibration.json"
         fake_file.write_text(json.dumps({"predictions": []}), encoding="utf-8")
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value=None), \
-             patch.object(calibration_sync, "pull", return_value=True), \
-             patch.object(calibration_sync, "push", return_value=True) as mock_push:
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value=None),
+            patch.object(calibration_sync, "pull", return_value=True),
+            patch.object(calibration_sync, "push", return_value=True) as mock_push,
+        ):
             result = calibration_sync.auto()
         assert result is True
         mock_push.assert_called_once()
@@ -150,9 +166,11 @@ class TestAutoBranches:
 
     def test_auto_no_local_file_returns_false(self, tmp_path, capsys):
         """pull 后本地文件不存在 -> 返回 False。"""
-        with patch.object(calibration_sync, "_find_gist", return_value=None), \
-             patch.object(calibration_sync, "pull", return_value=False), \
-             patch.object(calibration_sync, "_CALIBRATION_FILE", tmp_path / "nope.json"):
+        with (
+            patch.object(calibration_sync, "_find_gist", return_value=None),
+            patch.object(calibration_sync, "pull", return_value=False),
+            patch.object(calibration_sync, "_CALIBRATION_FILE", tmp_path / "nope.json"),
+        ):
             result = calibration_sync.auto()
         assert result is False
 
@@ -182,9 +200,11 @@ class TestStatusBranches:
                 {"stock": "sh600000", "expert_scores": {}, "verified": False}
             ],
         }
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=remote):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=remote),
+        ):
             calibration_sync.status()
         captured = capsys.readouterr()
         assert "本地" in captured.out
@@ -195,17 +215,21 @@ class TestStatusBranches:
         """gist 存在但无法读取。"""
         fake_file = tmp_path / "expert_calibration.json"
         fake_file.write_text(json.dumps({"predictions": []}), encoding="utf-8")
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist456"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=None):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist456"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=None),
+        ):
             calibration_sync.status()
         captured = capsys.readouterr()
         assert "无法读取" in captured.out
 
     def test_status_no_local_data(self, capsys, tmp_path):
         """本地无数据文件。"""
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", tmp_path / "nope.json"), \
-             patch.object(calibration_sync, "_find_gist", return_value=None):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", tmp_path / "nope.json"),
+            patch.object(calibration_sync, "_find_gist", return_value=None),
+        ):
             calibration_sync.status()
         captured = capsys.readouterr()
         assert "无数据" in captured.out
@@ -227,13 +251,19 @@ class TestPullBranches:
         fake_file.write_text(json.dumps(local_data), encoding="utf-8")
         remote = {
             "predictions": [
-                {"stock": "sh600000", "direction": "看多", "expert_scores": {"lynch": 80}}
+                {
+                    "stock": "sh600000",
+                    "direction": "看多",
+                    "expert_scores": {"lynch": 80},
+                }
             ],
             "experts": {"lynch": {"events": 2}},
         }
-        with patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file), \
-             patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=remote):
+        with (
+            patch.object(calibration_sync, "_CALIBRATION_FILE", fake_file),
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=remote),
+        ):
             result = calibration_sync.pull()
         assert result is True
         backup = fake_file.with_suffix(".json.bak")
@@ -243,8 +273,10 @@ class TestPullBranches:
 
     def test_pull_remote_unreadable(self, tmp_path, capsys):
         """远程数据无法读取时返回 False。"""
-        with patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=None):
+        with (
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(calibration_sync, "_get_gist_content", return_value=None),
+        ):
             result = calibration_sync.pull()
         assert result is False
         captured = capsys.readouterr()
@@ -252,8 +284,12 @@ class TestPullBranches:
 
     def test_pull_rejects_non_dict_remote(self, tmp_path, capsys):
         """远程数据非 dict 时拒绝写入。"""
-        with patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value="not a dict"):
+        with (
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(
+                calibration_sync, "_get_gist_content", return_value="not a dict"
+            ),
+        ):
             result = calibration_sync.pull()
         assert result is False
         captured = capsys.readouterr()
@@ -262,16 +298,24 @@ class TestPullBranches:
     def test_pull_rejects_predictions_not_list(self, tmp_path, capsys):
         """predictions 不是 list 时拒绝。"""
         bad_remote = {"predictions": "not_a_list"}
-        with patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=bad_remote):
+        with (
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(
+                calibration_sync, "_get_gist_content", return_value=bad_remote
+            ),
+        ):
             result = calibration_sync.pull()
         assert result is False
 
     def test_pull_rejects_prediction_not_dict(self, tmp_path, capsys):
         """predictions 元素不是 dict 时拒绝。"""
         bad_remote = {"predictions": ["not_a_dict"]}
-        with patch.object(calibration_sync, "_find_gist", return_value="gist123"), \
-             patch.object(calibration_sync, "_get_gist_content", return_value=bad_remote):
+        with (
+            patch.object(calibration_sync, "_find_gist", return_value="gist123"),
+            patch.object(
+                calibration_sync, "_get_gist_content", return_value=bad_remote
+            ),
+        ):
             result = calibration_sync.pull()
         assert result is False
 
@@ -322,7 +366,9 @@ class TestGistTempFiles:
     def test_create_gist_cleans_temp_file(self, tmp_path):
         """_create_gist 完成后删除临时文件。"""
         data = {"predictions": [{"stock": "sh600519", "expert_scores": {}}]}
-        mock_result = MagicMock(returncode=0, stdout="https://gist.github.com/x/abc123", stderr="")
+        mock_result = MagicMock(
+            returncode=0, stdout="https://gist.github.com/x/abc123", stderr=""
+        )
         with patch("subprocess.run", return_value=mock_result) as mock_run:
             gist_id = calibration_sync._create_gist(data)
         assert gist_id == "abc123"

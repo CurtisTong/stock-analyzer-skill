@@ -28,9 +28,7 @@ from typing import Dict, List
 
 logger = logging.getLogger(__name__)
 
-IC_FILE = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "factor_ic.json"
-)
+IC_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "factor_ic.json"
 
 
 def _rank(values: List[float]) -> List[float]:

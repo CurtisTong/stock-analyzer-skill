@@ -16,11 +16,21 @@ class TestTurningPointFilter:
     """Stage 1 硬条件过滤测试。"""
 
     # (#4) 资金流向确认通过的 mock 数据：近 5 日 4 日净流入
-    _FLOW_PASS = [{"main_net": 100}, {"main_net": -50}, {"main_net": 200},
-                  {"main_net": 80}, {"main_net": 150}]
+    _FLOW_PASS = [
+        {"main_net": 100},
+        {"main_net": -50},
+        {"main_net": 200},
+        {"main_net": 80},
+        {"main_net": 150},
+    ]
     # 资金流向不通过的 mock 数据：近 5 日仅 1 日净流入
-    _FLOW_FAIL = [{"main_net": 100}, {"main_net": -50}, {"main_net": -200},
-                  {"main_net": -80}, {"main_net": -150}]
+    _FLOW_FAIL = [
+        {"main_net": 100},
+        {"main_net": -50},
+        {"main_net": -200},
+        {"main_net": -80},
+        {"main_net": -150},
+    ]
 
     def test_passes_oversold_with_volume_recovery(self):
         """超跌+量能恢复+ROE>8%+EPS>0+资金确认 应通过。"""
@@ -116,9 +126,7 @@ class TestTurningPointFilter:
         fin = {"roe": 12.5, "eps": 1.5}
         # volume_ratio > 1.2 + vol_price_signal > 0 -> 降级通过
         features = {"ret20": -18.0, "volume_ratio": 1.5, "vol_price_signal": 1}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=None
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=None)
         assert passed is True
 
     def test_fallback_fails_when_no_volume_price_confirm(self):
@@ -126,9 +134,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 1.5, "vol_price_signal": 0}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=None
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=None)
         assert passed is False
         assert "资金未确认" in reason
         assert "降级" in reason

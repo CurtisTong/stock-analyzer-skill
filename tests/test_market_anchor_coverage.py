@@ -70,9 +70,7 @@ class TestFetchNorthboundPricer:
         assert result["recent_5d_slope"] == "流入"
 
     def test_with_data_continuous_outflow(self):
-        flow_data = [
-            {"net_buy": -500000, "sh_net": -300000, "sz_net": -200000}
-        ] * 20
+        flow_data = [{"net_buy": -500000, "sh_net": -300000, "sz_net": -200000}] * 20
         with patch("market_anchor.get_northbound_flow", return_value=flow_data):
             result = ma._fetch_northbound_pricer(days=20)
         assert result["total_net_yi"] == -1000.0
@@ -94,10 +92,14 @@ class TestFetchNorthboundPricer:
         flow_data = [{"net_buy": 500000, "sh_net": 300000, "sz_net": 200000}] * 10
         with patch("market_anchor.get_northbound_flow", return_value=flow_data):
             result = ma._fetch_northbound_pricer(days=20)
-        assert any("insufficient_days" in d for d in result["data_quality"]["degraded_fields"])
+        assert any(
+            "insufficient_days" in d for d in result["data_quality"]["degraded_fields"]
+        )
 
     def test_exception_returns_degraded(self):
-        with patch("market_anchor.get_northbound_flow", side_effect=RuntimeError("err")):
+        with patch(
+            "market_anchor.get_northbound_flow", side_effect=RuntimeError("err")
+        ):
             result = ma._fetch_northbound_pricer(days=20)
         assert result["total_net_yi"] is None
         assert "northbound_pricer" in result["data_quality"]["degraded_fields"]
@@ -110,13 +112,19 @@ class TestFetchNorthboundPricer:
 
 class TestFetchSectorRotation:
     def test_exception_returns_degraded(self):
-        with patch("market_anchor.sector_etf_strength.compute_rotation_strength", side_effect=RuntimeError("err")):
+        with patch(
+            "market_anchor.sector_etf_strength.compute_rotation_strength",
+            side_effect=RuntimeError("err"),
+        ):
             result = ma._fetch_sector_rotation(window=5)
         assert "sector_rotation" in result["data_quality"]["degraded_fields"]
 
     def test_success(self):
         mock_result = {"rotation_strength": 3.5, "window": 5}
-        with patch("market_anchor.sector_etf_strength.compute_rotation_strength", return_value=mock_result):
+        with patch(
+            "market_anchor.sector_etf_strength.compute_rotation_strength",
+            return_value=mock_result,
+        ):
             result = ma._fetch_sector_rotation(window=5)
         assert result["rotation_strength"] == 3.5
 
@@ -128,9 +136,17 @@ class TestFetchSectorRotation:
 
 class TestAnalyzeDegradation:
     def _mock_all_fetches(self, monkeypatch):
-        monkeypatch.setattr(ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.5})
-        monkeypatch.setattr(ma, "_fetch_index_kline", lambda *a, **kw: {"closes": [100]})
-        monkeypatch.setattr(ma, "_fetch_breadth", lambda *a, **kw: {"up_count": 2000, "down_count": 1000})
+        monkeypatch.setattr(
+            ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.5}
+        )
+        monkeypatch.setattr(
+            ma, "_fetch_index_kline", lambda *a, **kw: {"closes": [100]}
+        )
+        monkeypatch.setattr(
+            ma,
+            "_fetch_breadth",
+            lambda *a, **kw: {"up_count": 2000, "down_count": 1000},
+        )
         monkeypatch.setattr(ma, "_compute_multi_timeframe", lambda *a, **kw: None)
         monkeypatch.setattr(ma, "_fetch_macro_anchor", lambda *a, **kw: None)
         monkeypatch.setattr(ma, "_fetch_liquidity_volatility", lambda *a, **kw: None)
@@ -143,15 +159,31 @@ class TestAnalyzeDegradation:
             raise RuntimeError("err")
 
         monkeypatch.setattr(ma, "detect_market_state", _raise)
-        monkeypatch.setattr(ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None)))
+        monkeypatch.setattr(
+            ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None))
+        )
         result = ma.analyze()
         assert result["regime"] == "defensive"
         assert "regime" in result["data_quality"]["degraded_fields"]
 
     def test_all_fetch_disabled(self, monkeypatch):
         self._mock_all_fetches(monkeypatch)
-        monkeypatch.setattr(ma, "detect_market_state", lambda **kw: {"state": "牛市", "long_weight": 0.8, "short_weight": 0.2, "reason": "up"})
-        result = ma.analyze(fetch_sector=False, fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        monkeypatch.setattr(
+            ma,
+            "detect_market_state",
+            lambda **kw: {
+                "state": "牛市",
+                "long_weight": 0.8,
+                "short_weight": 0.2,
+                "reason": "up",
+            },
+        )
+        result = ma.analyze(
+            fetch_sector=False,
+            fetch_portfolio=False,
+            fetch_rotation=False,
+            fetch_northbound=False,
+        )
         assert result["sector_strength"] is None
         assert result["portfolio_correlation"] is None
         assert result["sector_rotation"] is None
@@ -160,36 +192,94 @@ class TestAnalyzeDegradation:
 
     def test_sector_exception(self, monkeypatch):
         self._mock_all_fetches(monkeypatch)
-        monkeypatch.setattr(ma, "detect_market_state", lambda **kw: {"state": "牛市", "long_weight": 0.8, "short_weight": 0.2, "reason": "up"})
+        monkeypatch.setattr(
+            ma,
+            "detect_market_state",
+            lambda **kw: {
+                "state": "牛市",
+                "long_weight": 0.8,
+                "short_weight": 0.2,
+                "reason": "up",
+            },
+        )
         mock_sector = MagicMock()
         mock_sector.analyze.side_effect = RuntimeError("err")
         monkeypatch.setattr(ma, "sector_etf_strength", mock_sector)
-        result = ma.analyze(fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False
+        )
         assert "sector" in result["data_quality"]["degraded_fields"]
 
     def test_multi_timeframe_degraded(self, monkeypatch):
         self._mock_all_fetches(monkeypatch)
-        monkeypatch.setattr(ma, "detect_market_state", lambda **kw: {"state": "牛市", "long_weight": 0.8, "short_weight": 0.2, "reason": "up"})
-        monkeypatch.setattr(ma, "_compute_multi_timeframe", lambda *a, **kw: {"data_quality": {"degraded_fields": ["mtf.ma250"]}})
-        monkeypatch.setattr(ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None)))
-        result = ma.analyze(fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        monkeypatch.setattr(
+            ma,
+            "detect_market_state",
+            lambda **kw: {
+                "state": "牛市",
+                "long_weight": 0.8,
+                "short_weight": 0.2,
+                "reason": "up",
+            },
+        )
+        monkeypatch.setattr(
+            ma,
+            "_compute_multi_timeframe",
+            lambda *a, **kw: {"data_quality": {"degraded_fields": ["mtf.ma250"]}},
+        )
+        monkeypatch.setattr(
+            ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None))
+        )
+        result = ma.analyze(
+            fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False
+        )
         assert "mtf.ma250" in result["data_quality"]["degraded_fields"]
 
     def test_emotion_phase_none(self, monkeypatch):
         self._mock_all_fetches(monkeypatch)
-        monkeypatch.setattr(ma, "detect_market_state", lambda **kw: {"state": "牛市", "long_weight": 0.8, "short_weight": 0.2, "reason": "up"})
+        monkeypatch.setattr(
+            ma,
+            "detect_market_state",
+            lambda **kw: {
+                "state": "牛市",
+                "long_weight": 0.8,
+                "short_weight": 0.2,
+                "reason": "up",
+            },
+        )
         monkeypatch.setattr(ma, "_fetch_emotion_phase", lambda *a, **kw: None)
-        monkeypatch.setattr(ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None)))
-        result = ma.analyze(fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        monkeypatch.setattr(
+            ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None))
+        )
+        result = ma.analyze(
+            fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False
+        )
         assert "emotion_phase" in result["data_quality"]["degraded_fields"]
 
     def test_with_stock_code(self, monkeypatch):
         self._mock_all_fetches(monkeypatch)
-        monkeypatch.setattr(ma, "detect_market_state", lambda **kw: {"state": "牛市", "long_weight": 0.8, "short_weight": 0.2, "reason": "up"})
-        monkeypatch.setattr(ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None)))
-        monkeypatch.setattr(ma, "_fetch_industry_beta", lambda *a, **kw: {"beta": 1.2, "data_quality": {"degraded_fields": []}})
+        monkeypatch.setattr(
+            ma,
+            "detect_market_state",
+            lambda **kw: {
+                "state": "牛市",
+                "long_weight": 0.8,
+                "short_weight": 0.2,
+                "reason": "up",
+            },
+        )
+        monkeypatch.setattr(
+            ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None))
+        )
+        monkeypatch.setattr(
+            ma,
+            "_fetch_industry_beta",
+            lambda *a, **kw: {"beta": 1.2, "data_quality": {"degraded_fields": []}},
+        )
         monkeypatch.setattr(ma, "_fetch_portfolio_correlation", lambda *a, **kw: None)
-        result = ma.analyze(stock_code="sh600519", fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            stock_code="sh600519", fetch_rotation=False, fetch_northbound=False
+        )
         assert result["industry_beta"] is not None
         assert result["industry_beta"]["beta"] == 1.2
 
@@ -210,7 +300,12 @@ def _full_payload():
         "short_weight": 0.2,
         "index_code": "sh000300",
         "index_change_pct": 1.5,
-        "breadth": {"up_count": 2500, "down_count": 1500, "limit_up_count": 50, "limit_down_count": 5},
+        "breadth": {
+            "up_count": 2500,
+            "down_count": 1500,
+            "limit_up_count": 50,
+            "limit_down_count": 5,
+        },
         "sector_strength": {
             "etfs": [
                 {"code": "sh512010", "name": "医药ETF", "change_pct": 3.2},
@@ -234,44 +329,80 @@ def _full_payload():
             "data_quality": {"degraded_fields": ["sector.delayed"]},
         },
         "multi_timeframe": {
-            "ma20": 4000, "ma60": 3900, "ma250": 3800,
-            "ma_alignment": "多头排列", "ret_5d_pct": 2.5, "ret_20d_pct": 8.0,
-            "atr_14": 50.5, "vs_ma250_pct": 5.2,
+            "ma20": 4000,
+            "ma60": 3900,
+            "ma250": 3800,
+            "ma_alignment": "多头排列",
+            "ret_5d_pct": 2.5,
+            "ret_20d_pct": 8.0,
+            "atr_14": 50.5,
+            "vs_ma250_pct": 5.2,
         },
         "macro": {
-            "treasury_10y_pct": 4.2, "usd_index": 104.5, "usd_cny": 7.25,
-            "vix": 15.3, "gold_usd_oz": 2000, "brent_oil_usd": 80, "lithium_carbonate_cny_t": 90000,
+            "treasury_10y_pct": 4.2,
+            "usd_index": 104.5,
+            "usd_cny": 7.25,
+            "vix": 15.3,
+            "gold_usd_oz": 2000,
+            "brent_oil_usd": 80,
+            "lithium_carbonate_cny_t": 90000,
         },
         "leverage": {
-            "margin_balance_total_yi": 16000, "margin_change_5d_pct": 2.5,
-            "if_main_basis_pts": 10, "ic_main_basis_pts": -5, "ih_main_basis_pts": None,
+            "margin_balance_total_yi": 16000,
+            "margin_change_5d_pct": 2.5,
+            "if_main_basis_pts": 10,
+            "ic_main_basis_pts": -5,
+            "ih_main_basis_pts": None,
         },
         "valuation_bridge": {"erp_sh300_pct": 5.5},
         "liquidity_volatility": {
-            "sh300_atr_14": 50.5, "sh300_annualized_vol_pct": 18.2,
-            "stock_avg_amount_20d_yi": 5.0, "stock_liquidity_ratio_pct": 1.2,
+            "sh300_atr_14": 50.5,
+            "sh300_annualized_vol_pct": 18.2,
+            "stock_avg_amount_20d_yi": 5.0,
+            "stock_liquidity_ratio_pct": 1.2,
         },
         "emotion_phase": "主升",
         "industry_beta": {
-            "beta": 1.15, "interpretation": "高弹性", "alpha_annual": 0.05,
-            "r_squared": 0.65, "volatility_pct": 25.3, "window": 60,
-            "n_observations": 60, "index_selection": "csi300", "stock_code": "sh600519", "index_code": "sh000300",
+            "beta": 1.15,
+            "interpretation": "高弹性",
+            "alpha_annual": 0.05,
+            "r_squared": 0.65,
+            "volatility_pct": 25.3,
+            "window": 60,
+            "n_observations": 60,
+            "index_selection": "csi300",
+            "stock_code": "sh600519",
+            "index_code": "sh000300",
         },
         "portfolio_correlation": {
-            "portfolio_empty": False, "portfolio_codes": ["sh600519", "sz000858", "sh600001", "sh600002"],
-            "avg_pairwise_corr": 0.45, "high_corr_pairs": [["sh600519", "sz000858", 0.75]],
-            "interpretation": "分散度尚可", "vs_portfolio": {"vs_portfolio_avg_corr": 0.5, "diversification_benefit": "中等"},
+            "portfolio_empty": False,
+            "portfolio_codes": ["sh600519", "sz000858", "sh600001", "sh600002"],
+            "avg_pairwise_corr": 0.45,
+            "high_corr_pairs": [["sh600519", "sz000858", 0.75]],
+            "interpretation": "分散度尚可",
+            "vs_portfolio": {
+                "vs_portfolio_avg_corr": 0.5,
+                "diversification_benefit": "中等",
+            },
         },
         "sector_rotation": {
-            "window": 5, "rotation_strength": 4.2, "rotation_std": 2.1,
+            "window": 5,
+            "rotation_strength": 4.2,
+            "rotation_std": 2.1,
             "biggest_risers": [["sh512010", "医药ETF", 3]],
             "biggest_fallers": [["sh512070", "地产ETF", 2]],
             "interpretation": "轮动剧烈",
         },
         "northbound_pricer": {
-            "days": 20, "total_net_yi": 125.3, "total_net_sh_yi": 80.5, "total_net_sz_yi": 44.8,
-            "latest_day_net_yi": 15.2, "recent_5d_net_yi": 45.6, "recent_5d_slope": "流入",
-            "direction": "持续流入", "interpretation": "看多",
+            "days": 20,
+            "total_net_yi": 125.3,
+            "total_net_sh_yi": 80.5,
+            "total_net_sz_yi": 44.8,
+            "latest_day_net_yi": 15.2,
+            "recent_5d_net_yi": 45.6,
+            "recent_5d_slope": "流入",
+            "direction": "持续流入",
+            "interpretation": "看多",
         },
         "data_quality": {"degraded_fields": ["breadth.delayed"]},
     }
@@ -323,13 +454,22 @@ class TestToMarkdownFull:
 
     def test_portfolio_empty(self):
         payload = _full_payload()
-        payload["portfolio_correlation"] = {"portfolio_empty": True, "interpretation": "无持仓"}
+        payload["portfolio_correlation"] = {
+            "portfolio_empty": True,
+            "interpretation": "无持仓",
+        }
         md = ma.to_markdown(payload)
         assert "无持仓" in md
 
     def test_portfolio_many_codes(self):
         payload = _full_payload()
-        payload["portfolio_correlation"]["portfolio_codes"] = ["c1", "c2", "c3", "c4", "c5"]
+        payload["portfolio_correlation"]["portfolio_codes"] = [
+            "c1",
+            "c2",
+            "c3",
+            "c4",
+            "c5",
+        ]
         md = ma.to_markdown(payload)
         assert "..." in md
 

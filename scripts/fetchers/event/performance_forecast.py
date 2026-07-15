@@ -72,19 +72,21 @@ class PerformanceForecastFetcher(BaseFetcher):
             forecast_type_raw = row.get("FORECAST_TYPE", "")
             forecast_type = FORECAST_TYPE_MAP.get(forecast_type_raw, forecast_type_raw)
 
-            items.append({
-                "code": code,
-                "name": row.get("SECURITY_NAME_ABBR", ""),
-                "notice_date": row.get("NOTICE_DATE", ""),
-                "report_date": row.get("REPORT_DATE", ""),
-                "forecast_type": forecast_type,
-                "forecast_type_raw": forecast_type_raw,
-                "profit_min": to_float(row.get("PROFIT_MIN")),
-                "profit_max": to_float(row.get("PROFIT_MAX")),
-                "change_min": to_float(row.get("CHANGE_MIN")),
-                "change_max": to_float(row.get("CHANGE_MAX")),
-                "pre_profit": to_float(row.get("PRE_PROFIT")),
-            })
+            items.append(
+                {
+                    "code": code,
+                    "name": row.get("SECURITY_NAME_ABBR", ""),
+                    "notice_date": row.get("NOTICE_DATE", ""),
+                    "report_date": row.get("REPORT_DATE", ""),
+                    "forecast_type": forecast_type,
+                    "forecast_type_raw": forecast_type_raw,
+                    "profit_min": to_float(row.get("PROFIT_MIN")),
+                    "profit_max": to_float(row.get("PROFIT_MAX")),
+                    "change_min": to_float(row.get("CHANGE_MIN")),
+                    "change_max": to_float(row.get("CHANGE_MAX")),
+                    "pre_profit": to_float(row.get("PRE_PROFIT")),
+                }
+            )
 
         if not items:
             return None

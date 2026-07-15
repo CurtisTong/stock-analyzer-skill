@@ -41,13 +41,15 @@ class TestGetFetcherHealth:
         fake_fetcher.circuit_breaker.failure_count = 0
         fake_fetcher.circuit_breaker.can_execute = MagicMock(return_value=True)
 
-        with patch("fetchers.get_quote_fetchers", return_value=[fake_fetcher]), \
-             patch("fetchers.get_kline_fetchers", return_value=[]), \
-             patch("fetchers.get_finance_fetchers", return_value=[]), \
-             patch("fetchers.get_flow_fetchers", return_value=[]), \
-             patch("fetchers.get_lhb_fetchers", return_value=[]), \
-             patch("fetchers.get_event_fetchers", return_value=[]), \
-             patch("fetchers.get_chip_fetchers", return_value=[]):
+        with (
+            patch("fetchers.get_quote_fetchers", return_value=[fake_fetcher]),
+            patch("fetchers.get_kline_fetchers", return_value=[]),
+            patch("fetchers.get_finance_fetchers", return_value=[]),
+            patch("fetchers.get_flow_fetchers", return_value=[]),
+            patch("fetchers.get_lhb_fetchers", return_value=[]),
+            patch("fetchers.get_event_fetchers", return_value=[]),
+            patch("fetchers.get_chip_fetchers", return_value=[]),
+        ):
             result = health.get_fetcher_health()
         assert "行情" in result["sources"]
         assert len(result["sources"]["行情"]) == 1
@@ -55,13 +57,15 @@ class TestGetFetcherHealth:
 
     def test_fetcher_error_caught(self):
         """fetcher 异常时不抛错。"""
-        with patch("fetchers.get_quote_fetchers", side_effect=Exception("err")), \
-             patch("fetchers.get_kline_fetchers", return_value=[]), \
-             patch("fetchers.get_finance_fetchers", return_value=[]), \
-             patch("fetchers.get_flow_fetchers", return_value=[]), \
-             patch("fetchers.get_lhb_fetchers", return_value=[]), \
-             patch("fetchers.get_event_fetchers", return_value=[]), \
-             patch("fetchers.get_chip_fetchers", return_value=[]):
+        with (
+            patch("fetchers.get_quote_fetchers", side_effect=Exception("err")),
+            patch("fetchers.get_kline_fetchers", return_value=[]),
+            patch("fetchers.get_finance_fetchers", return_value=[]),
+            patch("fetchers.get_flow_fetchers", return_value=[]),
+            patch("fetchers.get_lhb_fetchers", return_value=[]),
+            patch("fetchers.get_event_fetchers", return_value=[]),
+            patch("fetchers.get_chip_fetchers", return_value=[]),
+        ):
             result = health.get_fetcher_health()
         assert "error" in result["sources"]["行情"]
 
@@ -81,13 +85,18 @@ class TestGetCacheStats:
     def test_with_cache_files(self, tmp_path):
         """含缓存文件时返回统计。"""
         import os as _os
+
         # 创建模拟缓存文件
         (tmp_path / "quote_x.cache").write_bytes(b"x" * 100)
         (tmp_path / "kline_y.cache").write_bytes(b"y" * 200)
-        with patch("common.cache.CACHE_DIR", tmp_path), \
-             patch("common.cache.get_cache_stats",
-                  return_value={"total_files": 2, "total_size_mb": 0.001}), \
-             patch.dict(_os.environ, {"STOCK_CACHE_MAX_SIZE_MB": "500"}):
+        with (
+            patch("common.cache.CACHE_DIR", tmp_path),
+            patch(
+                "common.cache.get_cache_stats",
+                return_value={"total_files": 2, "total_size_mb": 0.001},
+            ),
+            patch.dict(_os.environ, {"STOCK_CACHE_MAX_SIZE_MB": "500"}),
+        ):
             result = health.get_cache_stats()
         assert result["total_files"] == 2
         assert "quote" in result["by_prefix"]
@@ -96,25 +105,35 @@ class TestGetCacheStats:
     def test_size_warning(self, tmp_path):
         """超过阈值时输出警告。"""
         import os as _os
+
         # 创建大文件模拟超额
         (tmp_path / "huge.cache").write_bytes(b"z" * 1024 * 1024)  # 1MB
-        with patch("common.cache.CACHE_DIR", tmp_path), \
-             patch("common.cache.get_cache_stats",
-                  return_value={"total_files": 1, "total_size_mb": 1024}), \
-             patch.dict(_os.environ, {"STOCK_CACHE_MAX_SIZE_MB": "500"}):
+        with (
+            patch("common.cache.CACHE_DIR", tmp_path),
+            patch(
+                "common.cache.get_cache_stats",
+                return_value={"total_files": 1, "total_size_mb": 1024},
+            ),
+            patch.dict(_os.environ, {"STOCK_CACHE_MAX_SIZE_MB": "500"}),
+        ):
             result = health.get_cache_stats()
         assert len(result["warnings"]) >= 1
 
     def test_file_count_warning(self, tmp_path):
         """文件数过多时警告。"""
         import os as _os
+
         # 创建多个空文件
         for i in range(5):
             (tmp_path / f"f{i}.cache").write_bytes(b"x")
-        with patch("common.cache.CACHE_DIR", tmp_path), \
-             patch("common.cache.get_cache_stats",
-                  return_value={"total_files": 2500, "total_size_mb": 0.001}), \
-             patch.dict(_os.environ, {}, clear=False):
+        with (
+            patch("common.cache.CACHE_DIR", tmp_path),
+            patch(
+                "common.cache.get_cache_stats",
+                return_value={"total_files": 2500, "total_size_mb": 0.001},
+            ),
+            patch.dict(_os.environ, {}, clear=False),
+        ):
             result = health.get_cache_stats()
         assert len(result["warnings"]) >= 1
 
@@ -159,11 +178,19 @@ class TestGetDataSourceSummary:
 
 class TestHealthCheck:
     def test_returns_combined_report(self):
-        with patch.object(health, "get_fetcher_health",
-                         return_value={"timestamp": "now", "sources": {}}), \
-             patch.object(health, "get_cache_stats", return_value={}), \
-             patch.object(health, "get_data_source_summary",
-                         return_value={"total": 0, "available": 0}):
+        with (
+            patch.object(
+                health,
+                "get_fetcher_health",
+                return_value={"timestamp": "now", "sources": {}},
+            ),
+            patch.object(health, "get_cache_stats", return_value={}),
+            patch.object(
+                health,
+                "get_data_source_summary",
+                return_value={"total": 0, "available": 0},
+            ),
+        ):
             result = health.health_check()
         assert "timestamp" in result
         assert "fetcher_health" in result
@@ -180,21 +207,33 @@ class TestPrintHealthReport:
         fake_report = {
             "timestamp": "2026-07-10T10:00:00",
             "data_source_summary": {
-                "available": 3, "total": 4, "availability_pct": 75.0, "tripped": 1,
+                "available": 3,
+                "total": 4,
+                "availability_pct": 75.0,
+                "tripped": 1,
             },
             "fetcher_health": {
                 "sources": {
                     "行情": [
-                        {"name": "f1", "available": True, "state": "closed",
-                         "failure_count": 0},
-                        {"name": "f2", "available": False, "state": "open",
-                         "failure_count": 5},
+                        {
+                            "name": "f1",
+                            "available": True,
+                            "state": "closed",
+                            "failure_count": 0,
+                        },
+                        {
+                            "name": "f2",
+                            "available": False,
+                            "state": "open",
+                            "failure_count": 5,
+                        },
                     ],
                 },
             },
             "cache_stats": {
                 "cache_dir": "/tmp/cache",
-                "total_files": 100, "total_size_mb": 10,
+                "total_files": 100,
+                "total_size_mb": 10,
                 "by_prefix": {"quote": {"count": 50, "size_mb": 5}},
                 "warnings": ["test warning"],
             },
@@ -212,7 +251,12 @@ class TestPrintHealthReport:
         """sources 含 error dict 时仍打印。"""
         fake_report = {
             "timestamp": "2026-07-10",
-            "data_source_summary": {"available": 0, "total": 0, "availability_pct": 0, "tripped": 0},
+            "data_source_summary": {
+                "available": 0,
+                "total": 0,
+                "availability_pct": 0,
+                "tripped": 0,
+            },
             "fetcher_health": {
                 "sources": {
                     "行情": {"error": "加载失败"},
@@ -229,18 +273,30 @@ class TestPrintHealthReport:
     def test_no_warnings(self, capsys):
         fake_report = {
             "timestamp": "2026-07-10",
-            "data_source_summary": {"available": 5, "total": 5, "availability_pct": 100.0, "tripped": 0},
+            "data_source_summary": {
+                "available": 5,
+                "total": 5,
+                "availability_pct": 100.0,
+                "tripped": 0,
+            },
             "fetcher_health": {
                 "sources": {
                     "行情": [
-                        {"name": "f1", "available": True, "state": "closed", "failure_count": 0},
+                        {
+                            "name": "f1",
+                            "available": True,
+                            "state": "closed",
+                            "failure_count": 0,
+                        },
                     ],
                 },
             },
             "cache_stats": {
                 "cache_dir": "/tmp",
-                "total_files": 10, "total_size_mb": 1,
-                "by_prefix": {}, "warnings": [],
+                "total_files": 10,
+                "total_size_mb": 1,
+                "by_prefix": {},
+                "warnings": [],
             },
         }
         with patch.object(health, "health_check", return_value=fake_report):
@@ -258,9 +314,14 @@ class TestMainBlock:
     def test_json_flag(self, capsys, monkeypatch):
         """--json 时输出 JSON。"""
         monkeypatch.setattr(sys, "argv", ["health.py", "--json"])
-        with patch.object(health, "health_check",
-                         return_value={"timestamp": "now", "data_source_summary": {}}), \
-             patch("builtins.print") as m_print:
+        with (
+            patch.object(
+                health,
+                "health_check",
+                return_value={"timestamp": "now", "data_source_summary": {}},
+            ),
+            patch("builtins.print") as m_print,
+        ):
             # 模拟 __main__ 块：直接执行 if 分支
             if "--json" in sys.argv[1:]:
                 print(json.dumps(health.health_check(), ensure_ascii=False, indent=2))

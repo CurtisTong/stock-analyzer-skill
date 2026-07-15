@@ -325,9 +325,7 @@ def dcf_scenario_valuation(
         }
     """
     # 三情景增长率推断
-    profit_yoy = to_float(
-        fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0))
-    )
+    profit_yoy = to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0)))
     current_growth = min(max(profit_yoy / 100, 0.01), 0.30) if profit_yoy > 0 else 0.05
 
     # bear: 周期底部利润（增速大幅下滑甚至负增长）
@@ -338,7 +336,11 @@ def dcf_scenario_valuation(
     bull_growth = current_growth
 
     scenarios = {}
-    for name, growth in [("bear", bear_growth), ("base", base_growth), ("bull", bull_growth)]:
+    for name, growth in [
+        ("bear", bear_growth),
+        ("base", base_growth),
+        ("bull", bull_growth),
+    ]:
         result = dcf_valuation(
             price, fin, growth_rate=growth, industry=industry, stock_code=stock_code
         )
@@ -358,7 +360,9 @@ def dcf_scenario_valuation(
         }
 
     # 按周期位置赋权
-    weights = _CYCLE_SCENARIO_WEIGHTS.get(cycle_position, _CYCLE_SCENARIO_WEIGHTS["unknown"])
+    weights = _CYCLE_SCENARIO_WEIGHTS.get(
+        cycle_position, _CYCLE_SCENARIO_WEIGHTS["unknown"]
+    )
 
     # 加权合成安全边际
     weighted_margin = sum(

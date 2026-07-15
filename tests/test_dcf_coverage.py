@@ -24,9 +24,11 @@ import strategies.factors.dcf as dcf
 class TestComputeCapmWacc:
     def test_success_normal_beta(self):
         """正常 beta + 宏观利率 -> CAPM WACC。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": 1.2}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": 1.2}),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}),
+        ):
             result = dcf._compute_capm_wacc("sh600519")
         assert result is not None
         wacc, label = result
@@ -36,41 +38,51 @@ class TestComputeCapmWacc:
 
     def test_beta_none_returns_none(self):
         """beta 为 None 时返回 None。"""
-        with patch("industry_beta.compute_beta", return_value=None), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}):
+        with (
+            patch("industry_beta.compute_beta", return_value=None),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}),
+        ):
             assert dcf._compute_capm_wacc("sh600519") is None
 
     def test_beta_none_value_returns_none(self):
         """beta_result 存在但 beta 字段为 None。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": None}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": None}),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}),
+        ):
             assert dcf._compute_capm_wacc("sh600519") is None
 
     def test_wacc_clamped_to_min(self):
         """极低 beta -> WACC 被约束到下限 0.06。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": 0.1}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 1.0}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 1.0}):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": 0.1}),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 1.0}),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 1.0}),
+        ):
             result = dcf._compute_capm_wacc("sh600519")
         assert result is not None
         assert result[0] == dcf._WACC_MIN
 
     def test_wacc_clamped_to_max(self):
         """极高 beta -> WACC 被约束到上限 0.20。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": 5.0}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 5.0}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 10.0}):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": 5.0}),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 5.0}),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 10.0}),
+        ):
             result = dcf._compute_capm_wacc("sh600519")
         assert result is not None
         assert result[0] == dcf._WACC_MAX
 
     def test_treasury_none_uses_fallback(self):
         """treasury 为 None 时用 fallback 2.5%。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": 1.0}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value=None
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": 1.0}),
+            patch("macro_indicators.fetch_treasury_10y", return_value=None),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}),
+        ):
             result = dcf._compute_capm_wacc("sh600519")
         assert result is not None
         # 0.025 + 1.0 * 0.055 = 0.08
@@ -78,9 +90,11 @@ class TestComputeCapmWacc:
 
     def test_erp_none_uses_fallback(self):
         """ERP 为 None 时用 fallback 5.5%。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": 1.0}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value=None):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": 1.0}),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}),
+            patch("macro_indicators.fetch_erp_sh300", return_value=None),
+        ):
             result = dcf._compute_capm_wacc("sh600519")
         assert result is not None
         assert result[0] == 0.08
@@ -123,16 +137,20 @@ class TestDcfDiscountRatePriority:
 
     def test_capm_success(self):
         """传 stock_code 且 CAPM 成功 -> 'CAPM'。"""
-        with patch("industry_beta.compute_beta", return_value={"beta": 1.2}), patch(
-            "macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}
-        ), patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}):
+        with (
+            patch("industry_beta.compute_beta", return_value={"beta": 1.2}),
+            patch("macro_indicators.fetch_treasury_10y", return_value={"value": 2.5}),
+            patch("macro_indicators.fetch_erp_sh300", return_value={"value": 5.5}),
+        ):
             result = dcf.dcf_valuation(100, {"eps": 5.0}, stock_code="sh600519")
         assert "CAPM" in result["wacc_source"]
 
     def test_capm_fail_fallback_industry(self):
         """传 stock_code 但 CAPM 失败 -> 行业字典 fallback。"""
         with patch("industry_beta.compute_beta", return_value=None):
-            result = dcf.dcf_valuation(100, {"eps": 5.0}, stock_code="sh600519", industry="科技")
+            result = dcf.dcf_valuation(
+                100, {"eps": 5.0}, stock_code="sh600519", industry="科技"
+            )
         assert result["wacc_source"].startswith("行业字典")
         assert result["discount_rate"] == 12.0
 

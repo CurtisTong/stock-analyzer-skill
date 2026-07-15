@@ -96,21 +96,31 @@ class TestFetchBoardStocks:
         """首次抛异常，重试成功。"""
         raw = json.dumps({"data": {"diff": [{"f12": "600519", "f14": "茅台"}]}})
         http_get_cached = MagicMock(side_effect=[ValueError("boom"), raw])
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(http_get_cached, MagicMock(return_value="主板"), MagicMock(return_value="sh")),
-        ), patch("data.pool.time.sleep"):
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(
+                    http_get_cached,
+                    MagicMock(return_value="主板"),
+                    MagicMock(return_value="sh"),
+                ),
+            ),
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.fetch_board_stocks("BK0477", max_retries=2)
         assert len(result) == 1
 
     def test_all_retries_fail_returns_empty(self):
         http_get_cached = MagicMock(side_effect=ValueError("boom"))
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(http_get_cached, MagicMock(), MagicMock()),
-        ), patch("data.pool.time.sleep"):
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(http_get_cached, MagicMock(), MagicMock()),
+            ),
+            patch("data.pool.time.sleep"),
+        ):
             assert pool_mod.fetch_board_stocks("BK0477", max_retries=1) == []
 
 
@@ -121,10 +131,18 @@ class TestFetchBoardStocks:
 
 class TestFetchMultipleBoards:
     def test_dedup(self):
-        s1 = [{"code": "sh600519", "name": "茅台"}, {"code": "sh600000", "name": "浦发"}]
-        s2 = [{"code": "sh600519", "name": "茅台重复"}, {"code": "sz000001", "name": "平安"}]
-        with patch.object(pool_mod, "fetch_board_stocks", side_effect=[s1, s2]), \
-             patch("data.pool.time.sleep"):
+        s1 = [
+            {"code": "sh600519", "name": "茅台"},
+            {"code": "sh600000", "name": "浦发"},
+        ]
+        s2 = [
+            {"code": "sh600519", "name": "茅台重复"},
+            {"code": "sz000001", "name": "平安"},
+        ]
+        with (
+            patch.object(pool_mod, "fetch_board_stocks", side_effect=[s1, s2]),
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.fetch_multiple_boards(["BK1", "BK2"])
         codes = [s["code"] for s in result]
         assert "sh600519" in codes
@@ -132,8 +150,10 @@ class TestFetchMultipleBoards:
         assert "sz000001" in codes
 
     def test_empty_boards(self):
-        with patch.object(pool_mod, "fetch_board_stocks", return_value=[]), \
-             patch("data.pool.time.sleep"):
+        with (
+            patch.object(pool_mod, "fetch_board_stocks", return_value=[]),
+            patch("data.pool.time.sleep"),
+        ):
             assert pool_mod.fetch_multiple_boards(["BK1"]) == []
 
 
@@ -174,8 +194,10 @@ class TestFetchXuanguPage:
         assert total == 0
 
     def test_exception_retries_then_fails(self):
-        with patch("urllib.request.urlopen", side_effect=OSError("net")), \
-             patch("data.pool.time.sleep"):
+        with (
+            patch("urllib.request.urlopen", side_effect=OSError("net")),
+            patch("data.pool.time.sleep"),
+        ):
             stocks, total = pool_mod._fetch_xuangu_page(max_retries=1)
         assert stocks == []
         assert total == 0
@@ -192,15 +214,18 @@ class TestFetchAllMarketStocks:
         big_diff = [{"f12": "600519", "f14": "茅台"}] * 1100
         raw = json.dumps({"data": {"diff": big_diff, "total": 1100}})
         http_get_cached = MagicMock(return_value=raw)
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(
-                http_get_cached,
-                MagicMock(return_value="主板沪"),
-                MagicMock(return_value="sh"),
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(
+                    http_get_cached,
+                    MagicMock(return_value="主板沪"),
+                    MagicMock(return_value="sh"),
+                ),
             ),
-        ), patch("data.pool.time.sleep"):
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.fetch_all_market_stocks()
         assert "主板沪" in result
         assert len(result["主板沪"]) > 0
@@ -211,34 +236,40 @@ class TestFetchAllMarketStocks:
         raw = json.dumps({"data": {"diff": small_diff, "total": 1}})
         http_get_cached = MagicMock(return_value=raw)
         xuangu_records = [{"SECURITY_CODE": "000001", "SECURITY_NAME_ABBR": "平安"}]
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(
-                http_get_cached,
-                MagicMock(return_value="主板深"),
-                MagicMock(return_value="sz"),
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(
+                    http_get_cached,
+                    MagicMock(return_value="主板深"),
+                    MagicMock(return_value="sz"),
+                ),
             ),
-        ), patch.object(
-            pool_mod, "_fetch_xuangu_page", return_value=(xuangu_records, 1)
-        ), patch("data.pool.time.sleep"):
+            patch.object(
+                pool_mod, "_fetch_xuangu_page", return_value=(xuangu_records, 1)
+            ),
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.fetch_all_market_stocks()
         assert len(result["主板深"]) == 1
 
     def test_push2_exception_falls_back_to_xuangu(self):
         """push2 抛异常时切换到选股器 API。"""
         http_get_cached = MagicMock(side_effect=ValueError("boom"))
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(
-                http_get_cached,
-                MagicMock(return_value="主板"),
-                MagicMock(return_value="sh"),
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(
+                    http_get_cached,
+                    MagicMock(return_value="主板"),
+                    MagicMock(return_value="sh"),
+                ),
             ),
-        ), patch.object(
-            pool_mod, "_fetch_xuangu_page", return_value=([], 0)
-        ), patch("data.pool.time.sleep"):
+            patch.object(pool_mod, "_fetch_xuangu_page", return_value=([], 0)),
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.fetch_all_market_stocks()
         assert isinstance(result, dict)
 
@@ -249,17 +280,19 @@ class TestFetchAllMarketStocks:
             {"SECURITY_CODE": "600519", "SECURITY_NAME_ABBR": "茅台"},
             {"SECURITY_CODE": "000002", "SECURITY_NAME_ABBR": "*ST 万科"},
         ]
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(
-                http_get_cached,
-                MagicMock(return_value="主板沪"),
-                MagicMock(return_value="sh"),
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(
+                    http_get_cached,
+                    MagicMock(return_value="主板沪"),
+                    MagicMock(return_value="sh"),
+                ),
             ),
-        ), patch.object(
-            pool_mod, "_fetch_xuangu_page", return_value=(records, 2)
-        ), patch("data.pool.time.sleep"):
+            patch.object(pool_mod, "_fetch_xuangu_page", return_value=(records, 2)),
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.fetch_all_market_stocks()
         # ST 股被排除，只剩茅台
         all_codes = [c for codes in result.values() for c in codes]
@@ -291,11 +324,18 @@ class TestFetchPush2Market:
         http_get_cached = MagicMock(return_value=raw)
         boards = {"主板沪": []}
         board_type = MagicMock(return_value="其他")  # 会被跳过
-        with patch.object(
-            pool_mod,
-            "_get_common_deps",
-            return_value=(http_get_cached, board_type, MagicMock(return_value="sh")),
-        ), patch("data.pool.time.sleep"):
+        with (
+            patch.object(
+                pool_mod,
+                "_get_common_deps",
+                return_value=(
+                    http_get_cached,
+                    board_type,
+                    MagicMock(return_value="sh"),
+                ),
+            ),
+            patch("data.pool.time.sleep"),
+        ):
             pool_mod._fetch_push2_market(boards)
         assert boards["主板沪"] == []
 
@@ -309,8 +349,10 @@ class TestSaveAllMarketStocks:
     def test_writes_meta_and_data(self, tmp_path):
         target = tmp_path / "all_stocks.json"
         stocks = {"主板沪": ["sh600519"], "主板深": ["sz000001"]}
-        with patch.object(pool_mod, "ALL_STOCKS_FILE", str(target)), \
-             patch("common.atomic_write_json") as mock_write:
+        with (
+            patch.object(pool_mod, "ALL_STOCKS_FILE", str(target)),
+            patch("common.atomic_write_json") as mock_write,
+        ):
             pool_mod.save_all_market_stocks(stocks)
             assert mock_write.called
             args = mock_write.call_args
@@ -365,16 +407,16 @@ class TestLoadPools:
             assert pool_mod.load_default_pool() == {}
 
     def test_load_default_pool_invalid_json(self):
-        with patch("os.path.exists", return_value=True), \
-             patch("builtins.open", side_effect=OSError("boom")):
+        with (
+            patch("os.path.exists", return_value=True),
+            patch("builtins.open", side_effect=OSError("boom")),
+        ):
             assert pool_mod.load_default_pool() == {}
 
     def test_load_default_pool_filters_meta_keys(self, tmp_path):
         f = tmp_path / "default.json"
         f.write_text(
-            json.dumps(
-                {"_meta": {"x": 1}, "消费": ["sh600519"]}, ensure_ascii=False
-            ),
+            json.dumps({"_meta": {"x": 1}, "消费": ["sh600519"]}, ensure_ascii=False),
             encoding="utf-8",
         )
         with patch.object(pool_mod, "DEFAULT_POOL_FILE", str(f)):
@@ -409,19 +451,27 @@ class TestInitFromDefault:
             assert pool_mod.init_from_default() == {}
 
     def test_dry_run_does_not_write(self):
-        with patch.object(
-            pool_mod, "load_default_pool", return_value={"消费": ["sh600519", "sh600000"]}
-        ), patch("common.atomic_write_json") as mock_write:
+        with (
+            patch.object(
+                pool_mod,
+                "load_default_pool",
+                return_value={"消费": ["sh600519", "sh600000"]},
+            ),
+            patch("common.atomic_write_json") as mock_write,
+        ):
             result = pool_mod.init_from_default(top_n=1, dry_run=True)
         assert result["消费"] == ["sh600519"]  # 截取 top_n
         assert not mock_write.called
 
     def test_writes_when_not_dry_run(self, tmp_path):
         target = tmp_path / "pool.json"
-        with patch.object(
-            pool_mod, "load_default_pool", return_value={"消费": ["sh600519"]}
-        ), patch.object(pool_mod, "POOL_FILE", str(target)), \
-             patch("common.atomic_write_json") as mock_write:
+        with (
+            patch.object(
+                pool_mod, "load_default_pool", return_value={"消费": ["sh600519"]}
+            ),
+            patch.object(pool_mod, "POOL_FILE", str(target)),
+            patch("common.atomic_write_json") as mock_write,
+        ):
             result = pool_mod.init_from_default(top_n=20, dry_run=False)
         assert result["消费"] == ["sh600519"]
         assert mock_write.called
@@ -434,11 +484,13 @@ class TestInitFromDefault:
 
 class TestRefreshPoolBranches:
     def test_unknown_sector_skipped(self):
-        with patch.object(pool_mod, "load_mapping", return_value={"消费": {}}), \
-             patch.object(pool_mod, "load_current_pool", return_value={}), \
-             patch.object(pool_mod, "load_default_pool", return_value={}), \
-             patch.object(pool_mod, "fetch_multiple_boards") as mock_fetch, \
-             patch("data.pool.time.sleep"):
+        with (
+            patch.object(pool_mod, "load_mapping", return_value={"消费": {}}),
+            patch.object(pool_mod, "load_current_pool", return_value={}),
+            patch.object(pool_mod, "load_default_pool", return_value={}),
+            patch.object(pool_mod, "fetch_multiple_boards") as mock_fetch,
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.refresh_pool(sectors=["未知板块"])
         assert "未知板块" not in result
         mock_fetch.assert_not_called()
@@ -446,46 +498,56 @@ class TestRefreshPoolBranches:
     def test_dividend_filter_sector_skipped_initially(self):
         """filter=dividend 的板块在主循环跳过（延迟处理）。"""
         mapping = {"高股息": {"filter": "dividend", "bk_codes": ["BK1"]}}
-        with patch.object(pool_mod, "load_mapping", return_value=mapping), \
-             patch.object(pool_mod, "load_current_pool", return_value={}), \
-             patch.object(pool_mod, "load_default_pool", return_value={}), \
-             patch.object(pool_mod, "fetch_multiple_boards") as mock_fetch, \
-             patch("data.pool.time.sleep"):
+        with (
+            patch.object(pool_mod, "load_mapping", return_value=mapping),
+            patch.object(pool_mod, "load_current_pool", return_value={}),
+            patch.object(pool_mod, "load_default_pool", return_value={}),
+            patch.object(pool_mod, "fetch_multiple_boards") as mock_fetch,
+            patch("data.pool.time.sleep"),
+        ):
             pool_mod.refresh_pool(sectors=["高股息"])
         # dividend 板块不调用 fetch_multiple_boards
         mock_fetch.assert_not_called()
 
     def test_no_bk_codes_skipped(self):
         mapping = {"消费": {"bk_codes": []}}
-        with patch.object(pool_mod, "load_mapping", return_value=mapping), \
-             patch.object(pool_mod, "load_current_pool", return_value={}), \
-             patch.object(pool_mod, "load_default_pool", return_value={}), \
-             patch.object(pool_mod, "fetch_multiple_boards") as mock_fetch, \
-             patch("data.pool.time.sleep"):
+        with (
+            patch.object(pool_mod, "load_mapping", return_value=mapping),
+            patch.object(pool_mod, "load_current_pool", return_value={}),
+            patch.object(pool_mod, "load_default_pool", return_value={}),
+            patch.object(pool_mod, "fetch_multiple_boards") as mock_fetch,
+            patch("data.pool.time.sleep"),
+        ):
             pool_mod.refresh_pool(sectors=["消费"])
         mock_fetch.assert_not_called()
 
     def test_api_fail_uses_default(self):
         mapping = {"消费": {"bk_codes": ["BK1"]}}
         default = {"消费": ["sh600519", "sh600000", "sh601318"]}
-        with patch.object(pool_mod, "load_mapping", return_value=mapping), \
-             patch.object(pool_mod, "load_current_pool", return_value={}), \
-             patch.object(pool_mod, "load_default_pool", return_value=default), \
-             patch.object(pool_mod, "fetch_multiple_boards", return_value=[]), \
-             patch("data.pool.time.sleep"):
+        with (
+            patch.object(pool_mod, "load_mapping", return_value=mapping),
+            patch.object(pool_mod, "load_current_pool", return_value={}),
+            patch.object(pool_mod, "load_default_pool", return_value=default),
+            patch.object(pool_mod, "fetch_multiple_boards", return_value=[]),
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.refresh_pool(sectors=["消费"], top_n=2)
         # API 失败，无 current，用 default 截取 top_n
         assert result["消费"] == ["sh600519", "sh600000"]
 
     def test_dry_run_no_write(self):
         mapping = {"消费": {"bk_codes": ["BK1"]}}
-        stocks = [{"code": "sh600519", "name": "茅台", "amount": 1e9, "cap": 2e11, "pe": 30}]
-        with patch.object(pool_mod, "load_mapping", return_value=mapping), \
-             patch.object(pool_mod, "load_current_pool", return_value={}), \
-             patch.object(pool_mod, "load_default_pool", return_value={}), \
-             patch.object(pool_mod, "fetch_multiple_boards", return_value=stocks), \
-             patch("common.atomic_write_json") as mock_write, \
-             patch("data.pool.time.sleep"):
+        stocks = [
+            {"code": "sh600519", "name": "茅台", "amount": 1e9, "cap": 2e11, "pe": 30}
+        ]
+        with (
+            patch.object(pool_mod, "load_mapping", return_value=mapping),
+            patch.object(pool_mod, "load_current_pool", return_value={}),
+            patch.object(pool_mod, "load_default_pool", return_value={}),
+            patch.object(pool_mod, "fetch_multiple_boards", return_value=stocks),
+            patch("common.atomic_write_json") as mock_write,
+            patch("data.pool.time.sleep"),
+        ):
             result = pool_mod.refresh_pool(sectors=["消费"], dry_run=True)
         assert "消费" in result
         assert not mock_write.called
@@ -493,14 +555,18 @@ class TestRefreshPoolBranches:
     def test_unchanged_pool_no_write(self):
         """新池与当前池相同时不写入。"""
         mapping = {"消费": {"bk_codes": ["BK1"]}}
-        stocks = [{"code": "sh600519", "name": "茅台", "amount": 1e9, "cap": 2e11, "pe": 30}]
+        stocks = [
+            {"code": "sh600519", "name": "茅台", "amount": 1e9, "cap": 2e11, "pe": 30}
+        ]
         current = {"消费": ["sh600519"]}
-        with patch.object(pool_mod, "load_mapping", return_value=mapping), \
-             patch.object(pool_mod, "load_current_pool", return_value=current), \
-             patch.object(pool_mod, "load_default_pool", return_value={}), \
-             patch.object(pool_mod, "fetch_multiple_boards", return_value=stocks), \
-             patch("common.atomic_write_json") as mock_write, \
-             patch("data.pool.time.sleep"):
+        with (
+            patch.object(pool_mod, "load_mapping", return_value=mapping),
+            patch.object(pool_mod, "load_current_pool", return_value=current),
+            patch.object(pool_mod, "load_default_pool", return_value={}),
+            patch.object(pool_mod, "fetch_multiple_boards", return_value=stocks),
+            patch("common.atomic_write_json") as mock_write,
+            patch("data.pool.time.sleep"),
+        ):
             pool_mod.refresh_pool(sectors=["消费"], top_n=1)
         assert not mock_write.called
 
@@ -551,7 +617,9 @@ class TestLoadMapping:
     def test_load_mapping(self, tmp_path):
         f = tmp_path / "mapping.json"
         f.write_text(
-            json.dumps({"_meta": {"x": 1}, "消费": {"bk_codes": ["BK1"]}}, ensure_ascii=False),
+            json.dumps(
+                {"_meta": {"x": 1}, "消费": {"bk_codes": ["BK1"]}}, ensure_ascii=False
+            ),
             encoding="utf-8",
         )
         with patch.object(pool_mod, "MAPPING_FILE", str(f)):

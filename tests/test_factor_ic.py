@@ -176,7 +176,10 @@ class TestICPersistence:
         ic_file = tmp_path / "factor_ic.json"
         monkeypatch.setattr(ic, "IC_FILE", ic_file)
 
-        ic_data = {"bull": {"momentum": 0.12, "quality": 0.08}, "bear": {"momentum": -0.05}}
+        ic_data = {
+            "bull": {"momentum": 0.12, "quality": 0.08},
+            "bear": {"momentum": -0.05},
+        }
         ic.save_ic(ic_data)
 
         loaded = ic.load_ic()
@@ -204,10 +207,18 @@ class TestOverlayWithIC:
         """IC < 0 时 momentum 权重降低。"""
         from strategies.regime.overlay import compute_overlay_weights, RegimeState
 
-        w = {"quality": 0.2, "momentum": 0.2, "valuation": 0.2, "liquidity": 0.2, "volatility": 0.2}
+        w = {
+            "quality": 0.2,
+            "momentum": 0.2,
+            "valuation": 0.2,
+            "liquidity": 0.2,
+            "volatility": 0.2,
+        }
 
         normal = compute_overlay_weights(w, RegimeState.BULL, ic_multipliers=None)
-        negative_ic = compute_overlay_weights(w, RegimeState.BULL, ic_multipliers={"momentum": -0.5})
+        negative_ic = compute_overlay_weights(
+            w, RegimeState.BULL, ic_multipliers={"momentum": -0.5}
+        )
 
         assert negative_ic["momentum"] < normal["momentum"]
 
@@ -215,10 +226,18 @@ class TestOverlayWithIC:
         """IC > 0 时权重不变。"""
         from strategies.regime.overlay import compute_overlay_weights, RegimeState
 
-        w = {"quality": 0.2, "momentum": 0.2, "valuation": 0.2, "liquidity": 0.2, "volatility": 0.2}
+        w = {
+            "quality": 0.2,
+            "momentum": 0.2,
+            "valuation": 0.2,
+            "liquidity": 0.2,
+            "volatility": 0.2,
+        }
 
         normal = compute_overlay_weights(w, RegimeState.BULL, ic_multipliers=None)
-        positive_ic = compute_overlay_weights(w, RegimeState.BULL, ic_multipliers={"momentum": 0.3})
+        positive_ic = compute_overlay_weights(
+            w, RegimeState.BULL, ic_multipliers={"momentum": 0.3}
+        )
 
         assert abs(positive_ic["momentum"] - normal["momentum"]) < 1e-6
 
@@ -226,11 +245,18 @@ class TestOverlayWithIC:
         """IC + extreme_drop + national_team 组合生效。"""
         from strategies.regime.overlay import compute_overlay_weights, RegimeState
 
-        w = {"quality": 0.2, "momentum": 0.2, "chip": 0.2, "valuation": 0.2, "liquidity": 0.2}
+        w = {
+            "quality": 0.2,
+            "momentum": 0.2,
+            "chip": 0.2,
+            "valuation": 0.2,
+            "liquidity": 0.2,
+        }
 
         # PANIC + extreme_drop + national_team + negative IC on momentum
         result = compute_overlay_weights(
-            w, RegimeState.PANIC,
+            w,
+            RegimeState.PANIC,
             extreme_drop=True,
             national_team=True,
             ic_multipliers={"momentum": -0.8, "chip": 0.1},

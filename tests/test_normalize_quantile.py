@@ -25,14 +25,16 @@ def _make_parts(n, quality_values=None):
         quality_values = list(range(n))
     parts = []
     for i, q in enumerate(quality_values):
-        parts.append({
-            "quality": float(q),
-            "valuation": 50.0,
-            "momentum": 50.0,
-            "liquidity": 50.0,
-            "volatility": 50.0,
-            "dividend": 50.0,
-        })
+        parts.append(
+            {
+                "quality": float(q),
+                "valuation": 50.0,
+                "momentum": 50.0,
+                "liquidity": 50.0,
+                "volatility": 50.0,
+                "dividend": 50.0,
+            }
+        )
     return parts
 
 

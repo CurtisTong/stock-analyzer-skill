@@ -23,13 +23,23 @@ from experts.scoring import buffett, topic_leader, institution, _utils
 def _make_stock_data(roe=20, pe=15, debt=30, fcf=10, price=100, ma20=95):
     """构造标准 stock_data 用于测试。"""
     return {
-        "quote": {"pe": pe, "price": price, "code": "sh600519", "pb": 3.0,
-                  "change_pct": 1.5},
-        "finance": {"ROEJQ": roe, "debt_ratio": debt, "fcf_yield": fcf,
-                    "net_profit_yoy": 15, "roe": roe,
-                    "revenue_yoy": 10, "gross_margin": 30},
-        "kline_features": {"ma20": ma20, "trend": 1, "volatility": 0.2,
-                          "rsi": 60},
+        "quote": {
+            "pe": pe,
+            "price": price,
+            "code": "sh600519",
+            "pb": 3.0,
+            "change_pct": 1.5,
+        },
+        "finance": {
+            "ROEJQ": roe,
+            "debt_ratio": debt,
+            "fcf_yield": fcf,
+            "net_profit_yoy": 15,
+            "roe": roe,
+            "revenue_yoy": 10,
+            "gross_margin": 30,
+        },
+        "kline_features": {"ma20": ma20, "trend": 1, "volatility": 0.2, "rsi": 60},
         "market_features": {"vix": 18, "sentiment": "neutral"},
     }
 
@@ -176,15 +186,21 @@ class TestGetClamp:
 class TestScoreFundamentals:
     def test_high_roe_high_score(self):
         """ROE=20 时 _score_fundamentals 返回相对高分。"""
-        result = _utils._score_fundamentals({"ROEJQ": 25, "roe": 25,
-                                              "net_profit_yoy": 20, "revenue_yoy": 15,
-                                              "gross_margin": 40, "debt_ratio": 20})
+        result = _utils._score_fundamentals(
+            {
+                "ROEJQ": 25,
+                "roe": 25,
+                "net_profit_yoy": 20,
+                "revenue_yoy": 15,
+                "gross_margin": 40,
+                "debt_ratio": 20,
+            }
+        )
         # 5 维度加权，总分应 > 50
         assert result > 50
 
     def test_low_roe_low_score(self):
-        result = _utils._score_fundamentals({"ROEJQ": 2, "roe": 2,
-                                              "debt_ratio": 80})
+        result = _utils._score_fundamentals({"ROEJQ": 2, "roe": 2, "debt_ratio": 80})
         assert result < 60
 
     def test_empty_returns_default(self):
@@ -259,8 +275,13 @@ class TestScoreToReasonLabel:
 class TestDimensionBreakdown:
     def test_breakdown(self):
         scores = {"基本面": 80, "估值": 60, "技术面": 50, "情绪": 50, "安全边际": 70}
-        weights = {"基本面": 0.42, "估值": 0.28, "技术面": 0.05,
-                   "情绪": 0.05, "安全边际": 0.20}
+        weights = {
+            "基本面": 0.42,
+            "估值": 0.28,
+            "技术面": 0.05,
+            "情绪": 0.05,
+            "安全边际": 0.20,
+        }
         try:
             result = _utils.dimension_breakdown(scores, weights)
             assert isinstance(result, dict)
@@ -283,8 +304,10 @@ class TestFormatGenericReasoning:
     def test_basic(self):
         try:
             result = {
-                "display_name": "buffett", "expert_id": "buffett",
-                "total": 70, "scores": {"基本面": 80},
+                "display_name": "buffett",
+                "expert_id": "buffett",
+                "total": 70,
+                "scores": {"基本面": 80},
                 "reasoning": ["基本面好"],
                 "dimensions": {"基本面": {"score": 80, "weight": 0.5}},
             }

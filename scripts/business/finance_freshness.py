@@ -25,13 +25,14 @@ def _parse_date(month_day_str: str, year: int) -> date:
     month, day = month_day_str.split("-")
     return date(year, int(month), int(day))
 
+
 # A 股报告期惯例：(report_end_month, report_end_day, deadline_month, deadline_day)
 # 按报告期结束日降序排列（最近的在前）
 _PERIODS = [
-    ("09-30", "10-31"),   # Q3 三季报
-    ("06-30", "08-31"),   # 半年报
-    ("03-31", "04-30"),   # Q1 一季报
-    ("12-31", "04-30"),   # 年报（次年 4/30）
+    ("09-30", "10-31"),  # Q3 三季报
+    ("06-30", "08-31"),  # 半年报
+    ("03-31", "04-30"),  # Q1 一季报
+    ("12-31", "04-30"),  # 年报（次年 4/30）
 ]
 
 

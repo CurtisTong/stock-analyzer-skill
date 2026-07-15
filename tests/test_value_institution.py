@@ -16,9 +16,15 @@ from experts.scoring import value_institution
 def _make_stock_data():
     return {
         "quote": {"pe": 15, "price": 100, "code": "sh600519", "pb": 3.0},
-        "finance": {"ROEJQ": 20, "debt_ratio": 30, "fcf_yield": 10,
-                    "net_profit_yoy": 15, "roe": 20,
-                    "revenue_yoy": 10, "gross_margin": 30},
+        "finance": {
+            "ROEJQ": 20,
+            "debt_ratio": 30,
+            "fcf_yield": 10,
+            "net_profit_yoy": 15,
+            "roe": 20,
+            "revenue_yoy": 10,
+            "gross_margin": 30,
+        },
         "kline_features": {"ma20": 95, "trend": 1, "volatility": 0.2, "rsi": 60},
         "market_features": {"vix": 18, "sentiment": "neutral"},
     }
@@ -34,8 +40,9 @@ class TestGetBuffettWeights:
 
     def test_from_registry(self):
         """从注册表读取 buffett 权重。"""
-        fake_profile = SimpleNamespace(weights={"基本面": 50, "估值": 30, "技术面": 5,
-                                                 "情绪": 5, "安全边际": 10})
+        fake_profile = SimpleNamespace(
+            weights={"基本面": 50, "估值": 30, "技术面": 5, "情绪": 5, "安全边际": 10}
+        )
         with patch("experts.registry.EXPERT_REGISTRY", {"buffett": fake_profile}):
             weights = value_institution._get_buffett_weights()
         assert abs(weights["基本面"] - 0.50) < 0.01
@@ -59,13 +66,30 @@ class TestComputeBuffettSubScore:
 class TestValueInstitutionScore:
     def test_basic(self):
         """基础评分：value_anchor + institution 加权。"""
-        with patch("experts.scoring.value_anchor.score",
-                  return_value={"基本面": 80, "估值": 70, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60, "buffett_sub_score": 75}), \
-             patch("experts.scoring.institution.score",
-                  return_value={"基本面": 75, "估值": 65, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60}), \
-             patch("experts.registry.EXPERT_REGISTRY", {}):
+        with (
+            patch(
+                "experts.scoring.value_anchor.score",
+                return_value={
+                    "基本面": 80,
+                    "估值": 70,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                    "buffett_sub_score": 75,
+                },
+            ),
+            patch(
+                "experts.scoring.institution.score",
+                return_value={
+                    "基本面": 75,
+                    "估值": 65,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                },
+            ),
+            patch("experts.registry.EXPERT_REGISTRY", {}),
+        ):
             result = value_institution.score(_make_stock_data())
         assert "基本面" in result
         assert "buffett_sub_score" in result
@@ -73,18 +97,39 @@ class TestValueInstitutionScore:
 
     def test_with_registry(self):
         """有 EXPERT_REGISTRY 时使用 registry 权重。"""
-        fake_va = SimpleNamespace(weights={"基本面": 50, "估值": 30, "技术面": 5,
-                                             "情绪": 5, "安全边际": 10})
-        fake_inst = SimpleNamespace(weights={"基本面": 50, "估值": 30, "技术面": 5,
-                                              "情绪": 5, "安全边际": 10})
-        with patch("experts.scoring.value_anchor.score",
-                  return_value={"基本面": 80, "估值": 70, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60, "buffett_sub_score": 75}), \
-             patch("experts.scoring.institution.score",
-                  return_value={"基本面": 75, "估值": 65, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60}), \
-             patch("experts.registry.EXPERT_REGISTRY",
-                  {"value_anchor": fake_va, "institution": fake_inst}):
+        fake_va = SimpleNamespace(
+            weights={"基本面": 50, "估值": 30, "技术面": 5, "情绪": 5, "安全边际": 10}
+        )
+        fake_inst = SimpleNamespace(
+            weights={"基本面": 50, "估值": 30, "技术面": 5, "情绪": 5, "安全边际": 10}
+        )
+        with (
+            patch(
+                "experts.scoring.value_anchor.score",
+                return_value={
+                    "基本面": 80,
+                    "估值": 70,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                    "buffett_sub_score": 75,
+                },
+            ),
+            patch(
+                "experts.scoring.institution.score",
+                return_value={
+                    "基本面": 75,
+                    "估值": 65,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                },
+            ),
+            patch(
+                "experts.registry.EXPERT_REGISTRY",
+                {"value_anchor": fake_va, "institution": fake_inst},
+            ),
+        ):
             result = value_institution.score(_make_stock_data())
         assert "institution_sub_score" in result
         # 应当用 registry 计算
@@ -92,13 +137,29 @@ class TestValueInstitutionScore:
 
     def test_missing_buffett_sub_score_fallback(self):
         """buffett_sub_score 缺失时回退 35（禁用 buffett 警示）。"""
-        with patch("experts.scoring.value_anchor.score",
-                  return_value={"基本面": 80, "估值": 70, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60}), \
-             patch("experts.scoring.institution.score",
-                  return_value={"基本面": 75, "估值": 65, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60}), \
-             patch("experts.registry.EXPERT_REGISTRY", {}):
+        with (
+            patch(
+                "experts.scoring.value_anchor.score",
+                return_value={
+                    "基本面": 80,
+                    "估值": 70,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                },
+            ),
+            patch(
+                "experts.scoring.institution.score",
+                return_value={
+                    "基本面": 75,
+                    "估值": 65,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                },
+            ),
+            patch("experts.registry.EXPERT_REGISTRY", {}),
+        ):
             result = value_institution.score(_make_stock_data())
         # 回退到 35
         assert result["buffett_sub_score"] == 35.0
@@ -107,17 +168,36 @@ class TestValueInstitutionScore:
 class TestValueInstitutionScoreWithReasoning:
     def test_basic(self):
         fake_profile = SimpleNamespace(
-            display_name="value_institution", name="value_institution",
+            display_name="value_institution",
+            name="value_institution",
             weights={"基本面": 50, "估值": 30, "技术面": 5, "情绪": 5, "安全边际": 10},
         )
-        with patch("experts.scoring.value_anchor.score",
-                  return_value={"基本面": 80, "估值": 70, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60, "buffett_sub_score": 75}), \
-             patch("experts.scoring.institution.score",
-                  return_value={"基本面": 75, "估值": 65, "技术面": 50,
-                                 "情绪": 50, "安全边际": 60}), \
-             patch("experts.registry.EXPERT_REGISTRY",
-                  {"value_institution": fake_profile}):
+        with (
+            patch(
+                "experts.scoring.value_anchor.score",
+                return_value={
+                    "基本面": 80,
+                    "估值": 70,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                    "buffett_sub_score": 75,
+                },
+            ),
+            patch(
+                "experts.scoring.institution.score",
+                return_value={
+                    "基本面": 75,
+                    "估值": 65,
+                    "技术面": 50,
+                    "情绪": 50,
+                    "安全边际": 60,
+                },
+            ),
+            patch(
+                "experts.registry.EXPERT_REGISTRY", {"value_institution": fake_profile}
+            ),
+        ):
             result = value_institution.score_with_reasoning(_make_stock_data())
         assert "scores" in result
         assert "reasoning" in result

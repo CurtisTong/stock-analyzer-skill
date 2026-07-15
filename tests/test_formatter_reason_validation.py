@@ -129,39 +129,44 @@ class TestDebateOutputReasonValidation:
     def _make_result(self, reason):
         return {
             "expert_results": [
-                {"name": "buffett", "display_name": "巴菲特", "score": 72,
-                 "direction": "看多", "reason": reason},
+                {
+                    "name": "buffett",
+                    "display_name": "巴菲特",
+                    "score": 72,
+                    "direction": "看多",
+                    "reason": reason,
+                },
             ],
             "market_state": "震荡",
-            "long_weight": 0.7, "short_weight": 0.3,
+            "long_weight": 0.7,
+            "short_weight": 0.3,
             "long_votes": {"bull": 1, "bear": 0},
             "short_votes": {"bull": 0, "bear": 0},
-            "long_avg": 72, "short_avg": 0,
+            "long_avg": 72,
+            "short_avg": 0,
             "composite_score": 72,
             "direction": "看多",
             "confidence": 80,
-            "position": {"position_pct": 30, "stop_loss": "-5%",
-                         "recommendation": "买入", "steps": "-"},
+            "position": {
+                "position_pct": 30,
+                "stop_loss": "-5%",
+                "recommendation": "买入",
+                "steps": "-",
+            },
         }
 
     def test_valid_reason_no_warning(self):
-        output = formatter.format_debate_output(
-            self._make_result("ROE 22%->基本面100")
-        )
+        output = formatter.format_debate_output(self._make_result("ROE 22%->基本面100"))
         # RISK_DISCLAIMER 含 ⚠️ 字符，只检查 reason 相关的警告标记
         assert "⚠含禁用表述" not in output
         assert "⚠理由缺数据引用" not in output
 
     def test_forbidden_reason_flagged_in_output(self):
-        output = formatter.format_debate_output(
-            self._make_result("反向加分")
-        )
+        output = formatter.format_debate_output(self._make_result("反向加分"))
         assert "⚠含禁用表述" in output
 
     def test_missing_data_reason_flagged_in_output(self):
-        output = formatter.format_debate_output(
-            self._make_result("基本面优秀")
-        )
+        output = formatter.format_debate_output(self._make_result("基本面优秀"))
         assert "⚠理由缺数据引用" in output
 
 
@@ -182,15 +187,21 @@ class TestModelLimitationNote:
         result = {
             "expert_results": [],
             "market_state": "震荡",
-            "long_weight": 0.7, "short_weight": 0.3,
+            "long_weight": 0.7,
+            "short_weight": 0.3,
             "long_votes": {"bull": 0, "bear": 0},
             "short_votes": {"bull": 0, "bear": 0},
-            "long_avg": 0, "short_avg": 0,
+            "long_avg": 0,
+            "short_avg": 0,
             "composite_score": 50,
             "direction": "中性",
             "confidence": 50,
-            "position": {"position_pct": 0, "stop_loss": "-",
-                         "recommendation": "观望", "steps": "-"},
+            "position": {
+                "position_pct": 0,
+                "stop_loss": "-",
+                "recommendation": "观望",
+                "steps": "-",
+            },
         }
         output = formatter.format_debate_output(result)
         assert "模型边界" in output

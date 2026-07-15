@@ -49,18 +49,42 @@ class TestGenerateChangelog:
 
     def test_noise_commit_filtered(self):
         """auto-update CHANGELOG 自引用被过滤。"""
-        commits = [{"subject": "docs: auto-update CHANGELOG.md [skip ci]", "author": "a", "date": "d", "hash": "h"}]
+        commits = [
+            {
+                "subject": "docs: auto-update CHANGELOG.md [skip ci]",
+                "author": "a",
+                "date": "d",
+                "hash": "h",
+            }
+        ]
         assert gc.generate_changelog(commits) == ""
 
     def test_data_commit_filtered(self):
         """data: 持仓流水被过滤。"""
-        commits = [{"subject": "data: 记录 2026-06-29 持仓交易", "author": "a", "date": "d", "hash": "h"}]
+        commits = [
+            {
+                "subject": "data: 记录 2026-06-29 持仓交易",
+                "author": "a",
+                "date": "d",
+                "hash": "h",
+            }
+        ]
         assert gc.generate_changelog(commits) == ""
 
     def test_conventional_commit_categorized(self):
         commits = [
-            {"subject": "feat(stock): 新增分析", "author": "a", "date": "d", "hash": "h1"},
-            {"subject": "fix(cache): 修复 bug", "author": "a", "date": "d", "hash": "h2"},
+            {
+                "subject": "feat(stock): 新增分析",
+                "author": "a",
+                "date": "d",
+                "hash": "h1",
+            },
+            {
+                "subject": "fix(cache): 修复 bug",
+                "author": "a",
+                "date": "d",
+                "hash": "h2",
+            },
         ]
         result = gc.generate_changelog(commits)
         assert "### Added" in result
@@ -69,18 +93,24 @@ class TestGenerateChangelog:
         assert "**cache**: 修复 bug" in result
 
     def test_other_category(self):
-        commits = [{"subject": "feat: 无 scope", "author": "a", "date": "d", "hash": "h"}]
+        commits = [
+            {"subject": "feat: 无 scope", "author": "a", "date": "d", "hash": "h"}
+        ]
         result = gc.generate_changelog(commits)
         assert "### Added" in result
         assert "无 scope" in result
 
     def test_unknown_type_goes_to_other(self):
-        commits = [{"subject": "wtf: 未知类型", "author": "a", "date": "d", "hash": "h"}]
+        commits = [
+            {"subject": "wtf: 未知类型", "author": "a", "date": "d", "hash": "h"}
+        ]
         result = gc.generate_changelog(commits)
         assert "### Other" in result
 
     def test_non_conventional_goes_to_other(self):
-        commits = [{"subject": "随便写的提交信息", "author": "a", "date": "d", "hash": "h"}]
+        commits = [
+            {"subject": "随便写的提交信息", "author": "a", "date": "d", "hash": "h"}
+        ]
         result = gc.generate_changelog(commits)
         assert "### Other" in result
         assert "随便写的提交信息" in result
@@ -108,7 +138,9 @@ class TestGetCommits:
         """无 tag 且无 since 时获取全部。"""
         mock_result = MagicMock()
         mock_result.returncode = 0
-        mock_result.stdout = "h1|feat: a|author1|2025-01-01\nh2|fix: b|author2|2025-01-02"
+        mock_result.stdout = (
+            "h1|feat: a|author1|2025-01-01\nh2|fix: b|author2|2025-01-02"
+        )
         tag_result = MagicMock()
         tag_result.returncode = 1
         tag_result.stdout = ""
@@ -166,7 +198,9 @@ class TestGetCommits:
 class TestAppendToChangelog:
     def test_append_to_existing(self, tmp_path, monkeypatch):
         changelog = tmp_path / "CHANGELOG.md"
-        changelog.write_text("# Changelog\n\n## [1.0.0] - 2025-01-01\n\n- 初始版本\n", encoding="utf-8")
+        changelog.write_text(
+            "# Changelog\n\n## [1.0.0] - 2025-01-01\n\n- 初始版本\n", encoding="utf-8"
+        )
         monkeypatch.setattr(gc, "PKG_ROOT", tmp_path)
         gc.append_to_changelog("### Added\n- 新功能\n")
         content = changelog.read_text(encoding="utf-8")
@@ -201,7 +235,14 @@ class TestMain:
 
     def test_main_no_parsing(self, capsys):
         """有 commits 但无可解析内容。"""
-        commits = [{"subject": "auto-update CHANGELOG.md", "author": "", "date": "", "hash": ""}]
+        commits = [
+            {
+                "subject": "auto-update CHANGELOG.md",
+                "author": "",
+                "date": "",
+                "hash": "",
+            }
+        ]
         with (
             patch.object(gc, "get_commits", return_value=commits),
             patch("sys.argv", ["gen_changelog.py"]),

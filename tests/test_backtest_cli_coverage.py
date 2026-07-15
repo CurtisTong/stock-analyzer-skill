@@ -76,7 +76,9 @@ class TestCompareStrategies:
         from backtest.cli import compare_strategies
 
         scenarios = [{"label": "默认"}]
-        with patch("backtest.cli.run_backtest", return_value=_backtest_report()) as mock_run:
+        with patch(
+            "backtest.cli.run_backtest", return_value=_backtest_report()
+        ) as mock_run:
             compare_strategies(
                 ["sh600519"],
                 top_n=3,
@@ -97,7 +99,9 @@ class TestOptimizeWeights:
     def test_returns_result_dict(self):
         from backtest.cli import optimize_weights
 
-        with patch("backtest.cli.run_backtest", return_value=_backtest_report(sharpe_ratio=1.5)):
+        with patch(
+            "backtest.cli.run_backtest", return_value=_backtest_report(sharpe_ratio=1.5)
+        ):
             result = optimize_weights(["sh600519"], "balanced", top_n=3, days=30)
         assert result["strategy"] == "balanced"
         assert "best_weights" in result
@@ -248,9 +252,24 @@ class TestMainCLI:
     def test_main_default_backtest(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519", "--top", "1", "--days", "10", "--rounds", "1"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value=_backtest_report()):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "backtest",
+                    "--codes",
+                    "sh600519",
+                    "--top",
+                    "1",
+                    "--days",
+                    "10",
+                    "--rounds",
+                    "1",
+                ],
+            ),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.run_backtest", return_value=_backtest_report()),
+        ):
             main()
         out = capsys.readouterr().out
         assert "总收益" in out
@@ -259,9 +278,11 @@ class TestMainCLI:
     def test_main_json_output(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519", "-j"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value=_backtest_report()):
+        with (
+            patch("sys.argv", ["backtest", "--codes", "sh600519", "-j"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.run_backtest", return_value=_backtest_report()),
+        ):
             main()
         out = capsys.readouterr().out
         # JSON 前有提示文本，从第一个 { 提取 JSON
@@ -272,9 +293,11 @@ class TestMainCLI:
     def test_main_error_report(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value={"error": "no data"}):
+        with (
+            patch("sys.argv", ["backtest", "--codes", "sh600519"]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.run_backtest", return_value={"error": "no data"}),
+        ):
             main()
         out = capsys.readouterr().out
         assert "no data" in out
@@ -282,18 +305,28 @@ class TestMainCLI:
     def test_main_no_codes_exits(self):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", ""]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.load_test_universe", return_value=[]):
+        with (
+            patch("sys.argv", ["backtest", "--codes", ""]),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.load_test_universe", return_value=[]),
+        ):
             with pytest.raises(SystemExit):
                 main()
 
     def test_main_optimize(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519", "--optimize", "--days", "10"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value=_backtest_report(sharpe_ratio=1.5)):
+        with (
+            patch(
+                "sys.argv",
+                ["backtest", "--codes", "sh600519", "--optimize", "--days", "10"],
+            ),
+            patch("common.cache.cleanup_tmp_files"),
+            patch(
+                "backtest.cli.run_backtest",
+                return_value=_backtest_report(sharpe_ratio=1.5),
+            ),
+        ):
             main()
         out = capsys.readouterr().out
         assert "最优权重" in out or "best_weights" in out
@@ -301,9 +334,13 @@ class TestMainCLI:
     def test_main_all_compare(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519", "--all", "--days", "10"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value=_backtest_report()):
+        with (
+            patch(
+                "sys.argv", ["backtest", "--codes", "sh600519", "--all", "--days", "10"]
+            ),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.run_backtest", return_value=_backtest_report()),
+        ):
             main()
         out = capsys.readouterr().out
         assert "策略" in out
@@ -311,10 +348,24 @@ class TestMainCLI:
     def test_main_all_with_benchmark(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519", "--all", "--benchmark", "sh000300", "--days", "10"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value=_backtest_report()), \
-             patch("backtest.cli._fetch_benchmark_return", return_value=3.5):
+        with (
+            patch(
+                "sys.argv",
+                [
+                    "backtest",
+                    "--codes",
+                    "sh600519",
+                    "--all",
+                    "--benchmark",
+                    "sh000300",
+                    "--days",
+                    "10",
+                ],
+            ),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.run_backtest", return_value=_backtest_report()),
+            patch("backtest.cli._fetch_benchmark_return", return_value=3.5),
+        ):
             main()
         out = capsys.readouterr().out
         assert "sh000300" in out
@@ -322,9 +373,14 @@ class TestMainCLI:
     def test_main_top_adjusted_when_codes_less_than_top(self, capsys):
         from backtest.cli import main
 
-        with patch("sys.argv", ["backtest", "--codes", "sh600519", "--top", "5", "--days", "10"]), \
-             patch("common.cache.cleanup_tmp_files"), \
-             patch("backtest.cli.run_backtest", return_value=_backtest_report()):
+        with (
+            patch(
+                "sys.argv",
+                ["backtest", "--codes", "sh600519", "--top", "5", "--days", "10"],
+            ),
+            patch("common.cache.cleanup_tmp_files"),
+            patch("backtest.cli.run_backtest", return_value=_backtest_report()),
+        ):
             main()
         out = capsys.readouterr().out
         assert "自动调整" in out

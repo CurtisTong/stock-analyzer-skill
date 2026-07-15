@@ -64,8 +64,10 @@ class TestBeichiGuards:
         ]
         result = chan_beichi(bi_list, [], closes)
         # 无 zs，trend_beichi 块被跳过；range_beichi 循环空 -> summary
-        assert result["summary"] in ("当前无明确背驰信号", "检测到" + result["summary"].replace("检测到", "")) \
-            or isinstance(result["summary"], str)
+        assert result["summary"] in (
+            "当前无明确背驰信号",
+            "检测到" + result["summary"].replace("检测到", ""),
+        ) or isinstance(result["summary"], str)
 
 
 class TestTrendBeichi:
@@ -262,4 +264,7 @@ class TestSummaryGeneration:
             _make_bi("down", 10, 15, 14, 9),
         ]
         result = chan_beichi(bi_list, [], closes)
-        assert result["summary"] in ("当前无明确背驰信号",) or "检测到" in result["summary"]
+        assert (
+            result["summary"] in ("当前无明确背驰信号",)
+            or "检测到" in result["summary"]
+        )

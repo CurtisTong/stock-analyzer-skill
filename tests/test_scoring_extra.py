@@ -113,33 +113,51 @@ class TestScoreMacd:
         return _market_weight_adjustments("震荡")
 
     def test_golden_cross_with_expansion(self):
-        s = _score_macd({"signal": 1, "bar_trend": "放大", "divergence": ""}, self._w(), self._adj())
+        s = _score_macd(
+            {"signal": 1, "bar_trend": "放大", "divergence": ""}, self._w(), self._adj()
+        )
         assert s > 10
 
     def test_golden_cross(self):
-        s = _score_macd({"signal": 1, "bar_trend": "", "divergence": ""}, self._w(), self._adj())
+        s = _score_macd(
+            {"signal": 1, "bar_trend": "", "divergence": ""}, self._w(), self._adj()
+        )
         assert s >= 8
 
     def test_death_cross(self):
-        s = _score_macd({"signal": -1, "bar_trend": "", "divergence": ""}, self._w(), self._adj())
+        s = _score_macd(
+            {"signal": -1, "bar_trend": "", "divergence": ""}, self._w(), self._adj()
+        )
         assert s < 8
 
     def test_bottom_divergence_bonus(self):
-        base = _score_macd({"signal": 0, "bar_trend": "", "divergence": ""}, self._w(), self._adj())
+        base = _score_macd(
+            {"signal": 0, "bar_trend": "", "divergence": ""}, self._w(), self._adj()
+        )
         with_div = _score_macd(
-            {"signal": 0, "bar_trend": "", "divergence": "底背离(看涨)"}, self._w(), self._adj()
+            {"signal": 0, "bar_trend": "", "divergence": "底背离(看涨)"},
+            self._w(),
+            self._adj(),
         )
         assert with_div > base
 
     def test_top_divergence_penalty(self):
-        base = _score_macd({"signal": 0, "bar_trend": "", "divergence": ""}, self._w(), self._adj())
+        base = _score_macd(
+            {"signal": 0, "bar_trend": "", "divergence": ""}, self._w(), self._adj()
+        )
         with_div = _score_macd(
-            {"signal": 0, "bar_trend": "", "divergence": "顶背离(看跌)"}, self._w(), self._adj()
+            {"signal": 0, "bar_trend": "", "divergence": "顶背离(看跌)"},
+            self._w(),
+            self._adj(),
         )
         assert with_div < base
 
     def test_clamped_0_20(self):
-        s = _score_macd({"signal": 1, "bar_trend": "放大", "divergence": "底背离(看涨)"}, self._w(), self._adj())
+        s = _score_macd(
+            {"signal": 1, "bar_trend": "放大", "divergence": "底背离(看涨)"},
+            self._w(),
+            self._adj(),
+        )
         assert 0 <= s <= 20
 
 
@@ -325,14 +343,20 @@ class TestScoreChan:
         assert s >= 3
 
     def test_bottom_divergence(self):
-        chan = {"valid": True, "maidian": {"buy_points": []}, "beichi": {"summary": "检测到底背驰"}}
+        chan = {
+            "valid": True,
+            "maidian": {"buy_points": []},
+            "beichi": {"summary": "检测到底背驰"},
+        }
         s = _score_chan(chan, self._adj())
         assert s >= 5
 
     def test_clamped_0_15(self):
         chan = {
             "valid": True,
-            "maidian": {"buy_points": [{"type": "一买"}, {"type": "二买"}, {"type": "三买"}]},
+            "maidian": {
+                "buy_points": [{"type": "一买"}, {"type": "二买"}, {"type": "三买"}]
+            },
             "beichi": {"summary": "检测到底背驰"},
         }
         s = _score_chan(chan, self._adj())
@@ -363,7 +387,11 @@ class TestScoreLocal:
                     {
                         "name": "三阴一阳",
                         "confidence": "高",
-                        "metrics": {"vol_ratio": 1.6, "total_decline": 2, "rebound_ratio": 30},
+                        "metrics": {
+                            "vol_ratio": 1.6,
+                            "total_decline": 2,
+                            "rebound_ratio": 30,
+                        },
                     }
                 ]
             }
@@ -371,7 +399,17 @@ class TestScoreLocal:
         assert s > 0
 
     def test_sanyangyiying_negative(self):
-        s = _score_local({"patterns": [{"name": "三阳一阴", "confidence": "中", "metrics": {"vol_ratio": 2}}]})
+        s = _score_local(
+            {
+                "patterns": [
+                    {
+                        "name": "三阳一阴",
+                        "confidence": "中",
+                        "metrics": {"vol_ratio": 2},
+                    }
+                ]
+            }
+        )
         # 看跌信号，但 clamp 下限 0
         assert s >= 0
 
@@ -403,7 +441,9 @@ class TestScoreChip:
         assert s == 0
 
     def test_margin_inflow(self):
-        s = _score_chip({"margin": {"rzjme_5d": 100, "rzjme_trend": "连续增加"}}, self._w())
+        s = _score_chip(
+            {"margin": {"rzjme_5d": 100, "rzjme_trend": "连续增加"}}, self._w()
+        )
         assert s > 0
 
     def test_margin_outflow_negative(self):
@@ -419,7 +459,10 @@ class TestScoreChip:
         assert s < 0
 
     def test_clamped_neg5_to_10(self):
-        s = _score_chip({"margin": {"rzjme_5d": -100}, "holders": {"concentration": "分散"}}, self._w())
+        s = _score_chip(
+            {"margin": {"rzjme_5d": -100}, "holders": {"concentration": "分散"}},
+            self._w(),
+        )
         assert -5 <= s <= 10
 
 
@@ -442,7 +485,11 @@ class TestCompositeScore:
             "kdj": {"signal": "金叉+超卖"},
             "bollinger": {"position": 0.1, "bandwidth_desc": "收窄"},
             "rsi": {"rsi": 25},
-            "volume": {"volume_price_signal": 1, "volume_ratio": 1.5, "volume_price": "放量上涨"},
+            "volume": {
+                "volume_price_signal": 1,
+                "volume_ratio": 1.5,
+                "volume_price": "放量上涨",
+            },
             "patterns": [{"type": "早晨之星"}],
         }
         result = composite_score(features, "蓝筹股", "牛市")
@@ -455,7 +502,11 @@ class TestCompositeScore:
             "kdj": {"signal": "死叉+超买"},
             "bollinger": {"position": 0.9, "bandwidth_desc": ""},
             "rsi": {"rsi": 80},
-            "volume": {"volume_price_signal": -1, "volume_ratio": 2, "volume_price": "放量下跌出货"},
+            "volume": {
+                "volume_price_signal": -1,
+                "volume_ratio": 2,
+                "volume_price": "放量下跌出货",
+            },
             "patterns": [{"type": "三只乌鸦"}],
         }
         result = composite_score(features, "普通股", "熊市")
@@ -465,7 +516,9 @@ class TestCompositeScore:
         """验证分数到评级的映射。"""
         # 极低分 -> 强烈看空
         result = composite_score(
-            {"ma_system": {"alignment": "空头排列"}, "rsi": {"rsi": 90}}, "普通股", "熊市"
+            {"ma_system": {"alignment": "空头排列"}, "rsi": {"rsi": 90}},
+            "普通股",
+            "熊市",
         )
         assert result["grade"] in ("强烈看空", "偏空(强)", "偏空", "中性(偏空)", "中性")
 
@@ -499,11 +552,15 @@ class TestDetectMarketEnvironment:
         assert "weight_adjustments" in result
 
     def test_bull_market(self):
-        result = detect_market_environment(index_quote={"price": 3000, "change_pct": 2.0, "turnover": 2})
+        result = detect_market_environment(
+            index_quote={"price": 3000, "change_pct": 2.0, "turnover": 2}
+        )
         assert result["state"] == "牛市"
 
     def test_bear_market(self):
-        result = detect_market_environment(index_quote={"price": 3000, "change_pct": -2.0, "turnover": 2})
+        result = detect_market_environment(
+            index_quote={"price": 3000, "change_pct": -2.0, "turnover": 2}
+        )
         assert result["state"] == "熊市"
 
     def test_excited_state(self):
@@ -557,7 +614,9 @@ class TestMarketWeightAdjustments:
 class TestGetScoreMaxConfigOverride:
     def test_config_overrides_default(self):
         """配置覆盖默认值。"""
-        with patch("technical.scoring._scoring_config", return_value={"ma": 50, "macd": 25}):
+        with patch(
+            "technical.scoring._scoring_config", return_value={"ma": 50, "macd": 25}
+        ):
             sm = _get_score_max()
         assert sm["ma"] == 50.0
         assert sm["macd"] == 25.0

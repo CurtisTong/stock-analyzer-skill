@@ -170,7 +170,10 @@ class TestPortfolioSummary:
             {"code": "sh600519", "name": "茅台", "cost": 100, "quantity": 100},
         ]
         with (
-            patch("data.get_quote", side_effect=lambda c: _FakeQuote(120, 2.0) if c == "sh600519" else None),
+            patch(
+                "data.get_quote",
+                side_effect=lambda c: _FakeQuote(120, 2.0) if c == "sh600519" else None,
+            ),
             patch("data.get_northbound_flow", return_value=[]),
             patch("portfolio.PortfolioManager", return_value=pm),
         ):
@@ -225,8 +228,10 @@ class TestAlerts:
             patch("data.get_quote", return_value=None),
             patch("data.get_northbound_flow", return_value=[]),
             patch("portfolio.PortfolioManager", return_value=pm),
-            patch("monitor.briefing.compute_key_levels",
-                  return_value={"alerts": [{"message": "突破前高"}]}),
+            patch(
+                "monitor.briefing.compute_key_levels",
+                return_value={"alerts": [{"message": "突破前高"}]},
+            ),
         ):
             result = briefing_mod.compute_briefing()
         assert len(result["alerts"]) == 1
@@ -242,7 +247,9 @@ class TestAlerts:
             patch("data.get_quote", return_value=None),
             patch("data.get_northbound_flow", return_value=[]),
             patch("portfolio.PortfolioManager", return_value=pm),
-            patch("monitor.briefing.compute_key_levels", side_effect=RuntimeError("err")),
+            patch(
+                "monitor.briefing.compute_key_levels", side_effect=RuntimeError("err")
+            ),
         ):
             result = briefing_mod.compute_briefing()
         assert result["alerts"] == []
@@ -257,8 +264,10 @@ class TestAlerts:
             patch("data.get_quote", return_value=None),
             patch("data.get_northbound_flow", return_value=[]),
             patch("portfolio.PortfolioManager", return_value=pm),
-            patch("monitor.briefing.compute_key_levels",
-                  return_value={"alerts": [{"message": "x"}]}),
+            patch(
+                "monitor.briefing.compute_key_levels",
+                return_value={"alerts": [{"message": "x"}]},
+            ),
         ):
             result = briefing_mod.compute_briefing()
         assert result["alerts"] == []

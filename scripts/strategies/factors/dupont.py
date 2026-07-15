@@ -77,12 +77,8 @@ def dupont_analysis(fin: dict) -> dict:
         warning = (warning + "; " if warning else "") + "净资产为 0，无法计算权益乘数"
 
     # 计算三因子
-    asset_turnover = (
-        total_revenue / total_assets if total_assets > 0 else 0.0
-    )
-    equity_multiplier = (
-        total_assets / net_assets if net_assets > 0 else 0.0
-    )
+    asset_turnover = total_revenue / total_assets if total_assets > 0 else 0.0
+    equity_multiplier = total_assets / net_assets if net_assets > 0 else 0.0
 
     # 重建 ROE：net_margin(%) × turnover × multiplier
     # 注意单位：net_margin 是百分比（如 23.63），turnover 和 multiplier 是倍数

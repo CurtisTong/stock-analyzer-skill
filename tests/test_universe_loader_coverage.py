@@ -105,7 +105,8 @@ class TestApplyPortfolioConstraints:
         ]
         benchmark = {"银行": 12.5, "科技": 87.5}
         result = ul.apply_portfolio_constraints(
-            rows, sector_cap=0.50,  # 放宽 sector_cap 让偏离约束起作用
+            rows,
+            sector_cap=0.50,  # 放宽 sector_cap 让偏离约束起作用
             benchmark_weights=benchmark,
             use_benchmark_align=True,
             max_deviation=0.15,
@@ -122,7 +123,8 @@ class TestApplyPortfolioConstraints:
         ]
         benchmark = {"银行": 1.0, "科技": 99.0}  # 银行基准仅 1%
         result = ul.apply_portfolio_constraints(
-            rows, sector_cap=0.50,
+            rows,
+            sector_cap=0.50,
             benchmark_weights=benchmark,
             use_benchmark_align=True,
             max_deviation=0.15,
@@ -138,7 +140,8 @@ class TestApplyPortfolioConstraints:
             for i in range(25)
         ]
         result = ul.apply_portfolio_constraints(
-            rows, sector_cap=0.30,
+            rows,
+            sector_cap=0.30,
             benchmark_weights=None,
             use_benchmark_align=True,  # 启用但无权重 -> 不生效
         )
@@ -167,7 +170,9 @@ class TestLoadUniverse:
         """sector 模式：从 sector_stocks.json 匹配。"""
         sectors = {"银行板块": ["sh600036", "sh601398"], "科技板块": ["sz000063"]}
         ul.DATA_DIR = tmp_path
-        (tmp_path / "sector_stocks.json").write_text(json.dumps(sectors), encoding="utf-8")
+        (tmp_path / "sector_stocks.json").write_text(
+            json.dumps(sectors), encoding="utf-8"
+        )
         args = SimpleNamespace(
             codes=None, full_market=False, sector="银行", exclude_board=None
         )
@@ -178,7 +183,9 @@ class TestLoadUniverse:
         """无 sector 时返回所有板块股票。"""
         sectors = {"银行板块": ["sh600036"], "科技板块": ["sz000063"]}
         ul.DATA_DIR = tmp_path
-        (tmp_path / "sector_stocks.json").write_text(json.dumps(sectors), encoding="utf-8")
+        (tmp_path / "sector_stocks.json").write_text(
+            json.dumps(sectors), encoding="utf-8"
+        )
         args = SimpleNamespace(
             codes=None, full_market=False, sector=None, exclude_board=None
         )
@@ -223,6 +230,7 @@ class TestPreScreenQuotes:
     def setup_method(self, method):
         """(#1) 每个测试前 mock market_snapshot 返回空水位，回退绝对值阈值。"""
         import data.market_snapshot as ms
+
         self._orig_snapshot = ms.get_market_snapshot
         ms.get_market_snapshot = lambda: {
             "avg_amount_yuan": 0.0,
@@ -233,14 +241,25 @@ class TestPreScreenQuotes:
 
     def teardown_method(self, method):
         import data.market_snapshot as ms
+
         ms.get_market_snapshot = self._orig_snapshot
 
     def test_filters_st_stocks(self, monkeypatch):
         """ST 股票被过滤。"""
         monkeypatch.setattr("data.pool.is_st", lambda name: "ST" in name)
         quotes = [
-            {"code": "sh600519", "name": "ST退市", "amount": "100000000", "total_cap": "100"},
-            {"code": "sh600520", "name": "正常股", "amount": "100000000", "total_cap": "100"},
+            {
+                "code": "sh600519",
+                "name": "ST退市",
+                "amount": "100000000",
+                "total_cap": "100",
+            },
+            {
+                "code": "sh600520",
+                "name": "正常股",
+                "amount": "100000000",
+                "total_cap": "100",
+            },
         ]
         args = SimpleNamespace(board_limit=0)
         result = ul.pre_screen_quotes(quotes, args)
@@ -251,7 +270,12 @@ class TestPreScreenQuotes:
         """成交额低于板块阈值被过滤。"""
         quotes = [
             # 主板阈值 5000 万 = 5e7 元；这里 amount 远低于
-            {"code": "sh600519", "name": "低流动性", "amount": "1000", "total_cap": "100"},
+            {
+                "code": "sh600519",
+                "name": "低流动性",
+                "amount": "1000",
+                "total_cap": "100",
+            },
         ]
         args = SimpleNamespace(board_limit=0)
         result = ul.pre_screen_quotes(quotes, args)
@@ -275,9 +299,24 @@ class TestPreScreenQuotes:
     def test_board_limit_buckets(self):
         """board_limit > 0 时按板块分桶取 top N。"""
         quotes = [
-            {"code": "sh600519", "name": "A", "amount": "1000000000", "total_cap": "100"},
-            {"code": "sh600520", "name": "B", "amount": "500000000", "total_cap": "100"},
-            {"code": "sh600521", "name": "C", "amount": "300000000", "total_cap": "100"},
+            {
+                "code": "sh600519",
+                "name": "A",
+                "amount": "1000000000",
+                "total_cap": "100",
+            },
+            {
+                "code": "sh600520",
+                "name": "B",
+                "amount": "500000000",
+                "total_cap": "100",
+            },
+            {
+                "code": "sh600521",
+                "name": "C",
+                "amount": "300000000",
+                "total_cap": "100",
+            },
         ]
         args = SimpleNamespace(board_limit=1)
         result = ul.pre_screen_quotes(quotes, args)
@@ -292,8 +331,18 @@ class TestPreScreenQuotes:
             lambda key: ["sh600519"] if key == "blacklist" else [],
         )
         quotes = [
-            {"code": "sh600519", "name": "黑名单", "amount": "1000000000", "total_cap": "100"},
-            {"code": "sh600520", "name": "正常", "amount": "1000000000", "total_cap": "100"},
+            {
+                "code": "sh600519",
+                "name": "黑名单",
+                "amount": "1000000000",
+                "total_cap": "100",
+            },
+            {
+                "code": "sh600520",
+                "name": "正常",
+                "amount": "1000000000",
+                "total_cap": "100",
+            },
         ]
         args = SimpleNamespace(board_limit=0)
         result = ul.pre_screen_quotes(quotes, args)

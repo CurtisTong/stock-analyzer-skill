@@ -60,10 +60,26 @@ class TestSinaNorthboundFlowFetcher:
     def test_fetch_success(self):
         """成功解析北向资金数据。"""
         # 新浪返回 1d 的 close 字段为净流入额（亿元）
-        raw = json.dumps([
-            {"day": "2026-07-01", "open": 1.0, "close": 2.5, "high": 3.0, "low": 0.5, "volume": 1000},
-            {"day": "2026-07-02", "open": 0.0, "close": -1.5, "high": 0.5, "low": -2.0, "volume": 800},
-        ])
+        raw = json.dumps(
+            [
+                {
+                    "day": "2026-07-01",
+                    "open": 1.0,
+                    "close": 2.5,
+                    "high": 3.0,
+                    "low": 0.5,
+                    "volume": 1000,
+                },
+                {
+                    "day": "2026-07-02",
+                    "open": 0.0,
+                    "close": -1.5,
+                    "high": 0.5,
+                    "low": -2.0,
+                    "volume": 800,
+                },
+            ]
+        )
         with patch("sina_flow_mod.http_get", return_value=raw):
             f = sina_flow.SinaNorthboundFlowFetcher()
             result = f.fetch(code="", days=10)
@@ -79,10 +95,12 @@ class TestSinaNorthboundFlowFetcher:
 
     def test_fetch_non_dict_rows(self):
         """非 dict 行被跳过。"""
-        raw = json.dumps([
-            "not a dict",
-            {"day": "2026-07-01", "close": 1.0},
-        ])
+        raw = json.dumps(
+            [
+                "not a dict",
+                {"day": "2026-07-01", "close": 1.0},
+            ]
+        )
         with patch("sina_flow_mod.http_get", return_value=raw):
             f = sina_flow.SinaNorthboundFlowFetcher()
             result = f.fetch(code="", days=10)

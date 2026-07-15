@@ -66,7 +66,8 @@ def score(stock_data: dict) -> Dict[str, float]:
             return False  # 找不到时降级为"非 ST"，不阻塞主流程
 
         spec = importlib.util.spec_from_file_location(
-            "data.pool", pool_path,
+            "data.pool",
+            pool_path,
             submodule_search_locations=[str(pool_path.parent)],
         )
         mod = importlib.util.module_from_spec(spec)

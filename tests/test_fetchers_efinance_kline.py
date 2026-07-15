@@ -40,10 +40,22 @@ class TestEfinanceKlineFetcher:
         except ImportError:
             pytest.skip("pandas not available")
         rows = [
-            {"日期": "2026-07-01", "开盘": 100.0, "收盘": 102.0,
-             "最高": 103.0, "最低": 99.0, "成交量": 1000000},
-            {"日期": "2026-07-02", "开盘": 102.0, "收盘": 105.0,
-             "最高": 106.0, "最低": 101.0, "成交量": 1200000},
+            {
+                "日期": "2026-07-01",
+                "开盘": 100.0,
+                "收盘": 102.0,
+                "最高": 103.0,
+                "最低": 99.0,
+                "成交量": 1000000,
+            },
+            {
+                "日期": "2026-07-02",
+                "开盘": 102.0,
+                "收盘": 105.0,
+                "最高": 106.0,
+                "最低": 101.0,
+                "成交量": 1200000,
+            },
         ]
         df = pd.DataFrame(rows)
 
@@ -92,8 +104,18 @@ class TestEfinanceKlineFetcher:
                 import pandas as pd
             except ImportError:
                 pytest.skip("pandas not available")
-            df = pd.DataFrame([{"日期": "2026-07-01", "开盘": 1, "收盘": 1,
-                                "最高": 1, "最低": 1, "成交量": 1}])
+            df = pd.DataFrame(
+                [
+                    {
+                        "日期": "2026-07-01",
+                        "开盘": 1,
+                        "收盘": 1,
+                        "最高": 1,
+                        "最低": 1,
+                        "成交量": 1,
+                    }
+                ]
+            )
             fake_ef = MagicMock()
             fake_ef.stock.get_quote_history = MagicMock(return_value=df)
             efinance_kline.ef = fake_ef
@@ -109,8 +131,18 @@ class TestEfinanceKlineFetcher:
             import pandas as pd
         except ImportError:
             pytest.skip("pandas not available")
-        df = pd.DataFrame([{"日期": "2026-07-01", "开盘": 1, "收盘": 1,
-                            "最高": 1, "最低": 1, "成交量": 1}])
+        df = pd.DataFrame(
+            [
+                {
+                    "日期": "2026-07-01",
+                    "开盘": 1,
+                    "收盘": 1,
+                    "最高": 1,
+                    "最低": 1,
+                    "成交量": 1,
+                }
+            ]
+        )
         fake_ef = MagicMock()
         fake_ef.stock.get_quote_history = MagicMock(return_value=df)
         efinance_kline.ef = fake_ef
@@ -142,10 +174,18 @@ class TestEfinanceKlineFetcher:
             import pandas as pd
         except ImportError:
             pytest.skip("pandas not available")
-        df = pd.DataFrame([{
-            "日期": "2026-07-01T09:30:00",
-            "开盘": 100.0, "收盘": 102.0, "最高": 103.0, "最低": 99.0, "成交量": 1000000,
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "日期": "2026-07-01T09:30:00",
+                    "开盘": 100.0,
+                    "收盘": 102.0,
+                    "最高": 103.0,
+                    "最低": 99.0,
+                    "成交量": 1000000,
+                }
+            ]
+        )
         fake_ef = MagicMock()
         fake_ef.stock.get_quote_history = MagicMock(return_value=df)
         efinance_kline.ef = fake_ef
@@ -160,12 +200,14 @@ class TestTushareCheck:
         """无 TUSHARE_TOKEN 时返回 False。"""
         monkeypatch.delenv("TUSHARE_TOKEN", raising=False)
         from fetchers._common import tushare_check
+
         assert tushare_check.check_tushare() is False
 
     def test_with_token_tushare_available(self, monkeypatch):
         """有 TUSHARE_TOKEN + tushare 包时返回 True。"""
         monkeypatch.setenv("TUSHARE_TOKEN", "test_token")
         from fetchers._common import tushare_check
+
         with patch.dict("sys.modules", {"tushare": MagicMock()}):
             assert tushare_check.check_tushare() is True
 
@@ -173,6 +215,7 @@ class TestTushareCheck:
         """有 TUSHARE_TOKEN 但 tushare 未装时返回 False。"""
         monkeypatch.setenv("TUSHARE_TOKEN", "test_token")
         from fetchers._common import tushare_check
+
         # 移除 tushare module
         with patch.dict("sys.modules", {"tushare": None}):
             assert tushare_check.check_tushare() is False

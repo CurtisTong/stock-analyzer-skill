@@ -30,8 +30,10 @@ class TestChipDynamicBatch:
         """批量评分返回所有 code 的分数。"""
         codes = ["sh600519", "sh600989"]
 
-        holders = [HolderData(end_date="", holder_num_change=-10, avg_amount=0),
-                   HolderData(end_date="", holder_num_change=0, avg_amount=0)]
+        holders = [
+            HolderData(end_date="", holder_num_change=-10, avg_amount=0),
+            HolderData(end_date="", holder_num_change=0, avg_amount=0),
+        ]
         margin = [MarginData(rzjme=100) for _ in range(5)]
         top = [TopHolderRecord(is_institution=True, change_type="增持")]
 
@@ -45,7 +47,7 @@ class TestChipDynamicBatch:
             with patch("common.parallel_fetch_dict") as mock_parallel:
                 mock_parallel.side_effect = [
                     {c: margin for c in codes},  # margin_data
-                    {c: top for c in codes},      # top_holders_data
+                    {c: top for c in codes},  # top_holders_data
                 ]
                 result = chip_factor.chip_score_dynamic_batch(codes)
 
@@ -58,8 +60,10 @@ class TestChipDynamicBatch:
     def test_batch_uses_parallel_fetch(self):
         """批量评分使用 parallel_fetch_dict 并行获取。"""
         codes = ["sh600519"]
-        holders = [HolderData(end_date="", holder_num_change=-10, avg_amount=0),
-                   HolderData(end_date="", holder_num_change=0, avg_amount=0)]
+        holders = [
+            HolderData(end_date="", holder_num_change=-10, avg_amount=0),
+            HolderData(end_date="", holder_num_change=0, avg_amount=0),
+        ]
 
         with (
             patch.object(chip_factor, "_get_cached_holders", return_value=holders),

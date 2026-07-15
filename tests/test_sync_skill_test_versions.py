@@ -62,7 +62,9 @@ class TestCollectOverrides:
             "---\nversion: 1.15.0\n---\n"
         )
         monkeypatch.setattr(sync_skill_test_versions, "SKILLS_DIR", tmp_path / "skills")
-        with patch.object(sync_skill_test_versions, "get_package_version", return_value="1.15.0"):
+        with patch.object(
+            sync_skill_test_versions, "get_package_version", return_value="1.15.0"
+        ):
             overrides = sync_skill_test_versions.collect_overrides()
         # skill_a: version 1.0.0 ≠ pkg 1.15.0 → override
         # skill_b: 相同 → 不在 overrides
@@ -77,23 +79,23 @@ class TestCollectOverrides:
 
 class TestParseExistingConstants:
     def test_with_constants(self):
-        text = '''DEFAULT_VERSION = "1.15.0"
+        text = """DEFAULT_VERSION = "1.15.0"
 
 VERSION_OVERRIDES = {
     "skill_a": "1.0.0",
     "skill_b": "2.0.0",
 }
-'''
+"""
         default, overrides = sync_skill_test_versions.parse_existing_constants(text)
         assert default == "1.15.0"
         assert overrides == {"skill_a": "1.0.0", "skill_b": "2.0.0"}
 
     def test_empty_overrides(self):
-        text = '''DEFAULT_VERSION = "1.15.0"
+        text = """DEFAULT_VERSION = "1.15.0"
 
 VERSION_OVERRIDES = {
 }
-'''
+"""
         default, overrides = sync_skill_test_versions.parse_existing_constants(text)
         assert default == "1.15.0"
         assert overrides == {}
@@ -112,7 +114,8 @@ VERSION_OVERRIDES = {
 class TestBuildNewConstants:
     def test_builds_text(self):
         result = sync_skill_test_versions.build_new_constants(
-            "1.15.0", {"skill_a": "1.0.0", "skill_b": "2.0.0"},
+            "1.15.0",
+            {"skill_a": "1.0.0", "skill_b": "2.0.0"},
         )
         assert "1.15.0" in result
         assert "skill_a" in result
@@ -135,7 +138,9 @@ class TestSync:
         test_file = tmp_path / "test_skill_metadata.py"
         test_file.write_text('DEFAULT_VERSION = "1.15.0"\n')
         monkeypatch.setattr(sync_skill_test_versions, "TEST_FILE", test_file)
-        with patch.object(sync_skill_test_versions, "collect_overrides", return_value={}):
+        with patch.object(
+            sync_skill_test_versions, "collect_overrides", return_value={}
+        ):
             result = sync_skill_test_versions.sync()
         assert result in (0, 1)
 
@@ -143,7 +148,9 @@ class TestSync:
         test_file = tmp_path / "test_skill_metadata.py"
         test_file.write_text('DEFAULT_VERSION = "1.15.0"\nVERSION_OVERRIDES = {}\n')
         monkeypatch.setattr(sync_skill_test_versions, "TEST_FILE", test_file)
-        with patch.object(sync_skill_test_versions, "collect_overrides", return_value={}):
+        with patch.object(
+            sync_skill_test_versions, "collect_overrides", return_value={}
+        ):
             try:
                 result = sync_skill_test_versions.check()
                 # 一致返回 0，不一致返回 1

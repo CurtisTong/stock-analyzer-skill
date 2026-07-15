@@ -61,7 +61,9 @@ class TestPersistence:
 
         state_file = tmp_path / "regime_state.json"
         old_time = (datetime.now() - timedelta(days=10)).isoformat()
-        state_file.write_text(json.dumps({"updated": old_time, "prev_weights": {"a": 0.5}}))
+        state_file.write_text(
+            json.dumps({"updated": old_time, "prev_weights": {"a": 0.5}})
+        )
 
         monkeypatch.setattr(persistence, "STATE_FILE", state_file)
         assert persistence.load_state() is None
@@ -94,7 +96,13 @@ class TestPersistence:
 
         sm = RegimeSmoother(persist=True)
         sm.reset()  # 清空加载的旧状态
-        w = {"quality": 0.2, "valuation": 0.2, "momentum": 0.2, "liquidity": 0.2, "volatility": 0.2}
+        w = {
+            "quality": 0.2,
+            "valuation": 0.2,
+            "momentum": 0.2,
+            "liquidity": 0.2,
+            "volatility": 0.2,
+        }
         sm.smooth(RegimeState.BULL, w)
 
         # 文件应已写入
@@ -117,7 +125,9 @@ class TestNationalTeam:
         from strategies.regime.national_team import detect_national_team
 
         bars = [_MockBar(day=f"2025-01-{i+1:02d}", volume=1000000) for i in range(21)]
-        with patch("strategies.regime.national_team._safe_get_kline", return_value=bars):
+        with patch(
+            "strategies.regime.national_team._safe_get_kline", return_value=bars
+        ):
             result = detect_national_team()
         assert result["detected"] is False
 
@@ -126,10 +136,14 @@ class TestNationalTeam:
         from strategies.regime.national_team import detect_national_team
 
         # 前 20 天 volume=1000000，今天 volume=4000000 (4x)
-        daily_bars = [_MockBar(day=f"2025-01-{i+1:02d}", volume=1000000) for i in range(20)]
+        daily_bars = [
+            _MockBar(day=f"2025-01-{i+1:02d}", volume=1000000) for i in range(20)
+        ]
         daily_bars.append(_MockBar(day="2025-01-21", volume=4000000))
 
-        with patch("strategies.regime.national_team._safe_get_kline", return_value=daily_bars):
+        with patch(
+            "strategies.regime.national_team._safe_get_kline", return_value=daily_bars
+        ):
             result = detect_national_team(daily_threshold=3.0)
         assert result["daily_spike"] is True
         assert result["detected"] is True
@@ -139,10 +153,12 @@ class TestNationalTeam:
         from strategies.regime.national_team import detect_national_team
 
         # 5 分钟 K：前 18 根 volume=100000，后 6 根 volume=300000 (3x)
-        tail_bars = [_MockBar(day=f"2025-01-01", volume=100000) for _ in range(18)]
+        tail_bars = [_MockBar(day="2025-01-01", volume=100000) for _ in range(18)]
         tail_bars += [_MockBar(day="2025-01-01", volume=300000) for _ in range(6)]
 
-        with patch("strategies.regime.national_team._safe_get_kline", return_value=tail_bars):
+        with patch(
+            "strategies.regime.national_team._safe_get_kline", return_value=tail_bars
+        ):
             result = detect_national_team(tail_threshold=2.5)
         assert result["tail_spike"] is True
         assert result["detected"] is True
@@ -151,15 +167,27 @@ class TestNationalTeam:
         """K 线获取失败返回 detected=False。"""
         from strategies.regime.national_team import detect_national_team
 
-        with patch("strategies.regime.national_team._safe_get_kline", return_value=None):
+        with patch(
+            "strategies.regime.national_team._safe_get_kline", return_value=None
+        ):
             result = detect_national_team()
         assert result["detected"] is False
 
     def test_overlay_national_team_chip_floor(self):
         """v2.9: national_team=True 时 chip 权重至少 0.6 multiplier。"""
-        from strategies.regime.overlay import compute_overlay_weights, OVERLAY_MATRIX, RegimeState
+        from strategies.regime.overlay import (
+            compute_overlay_weights,
+            OVERLAY_MATRIX,
+            RegimeState,
+        )
 
-        w = {"quality": 0.2, "momentum": 0.2, "chip": 0.2, "valuation": 0.2, "liquidity": 0.2}
+        w = {
+            "quality": 0.2,
+            "momentum": 0.2,
+            "chip": 0.2,
+            "valuation": 0.2,
+            "liquidity": 0.2,
+        }
 
         # BULL 中 chip multiplier=0.8，national_team=True 时 max(0.8, 0.6)=0.8（不变）
         # 用 PANIC 测试更有意义：PANIC chip=1.6，national_team 不影响（已 >0.6）
@@ -201,11 +229,19 @@ class TestBreadth:
         bars = []
         base = 10.0
         for i in range(21):
-            bars.append(_MockBar(day=f"2025-01-{i+1:02d}", close=base + i * 0.5,
-                                 high=base + i * 0.5 + 0.3, low=base + i * 0.5 - 0.3))
+            bars.append(
+                _MockBar(
+                    day=f"2025-01-{i+1:02d}",
+                    close=base + i * 0.5,
+                    high=base + i * 0.5 + 0.3,
+                    low=base + i * 0.5 - 0.3,
+                )
+            )
         codes = ["sh600519", "sz000858"]
-        with patch("strategies.regime.breadth._load_csi300", return_value=codes), \
-             patch("strategies.regime.breadth.get_kline", return_value=bars):
+        with (
+            patch("strategies.regime.breadth._load_csi300", return_value=codes),
+            patch("strategies.regime.breadth.get_kline", return_value=bars),
+        ):
             result = breadth.compute_constituent_breadth(window=20)
         assert result is not None
         assert result == 1.0
@@ -224,17 +260,27 @@ class TestBreadth:
         from strategies.regime import breadth
 
         breadth.reset_breadth_cache()
-        bars = [_MockBar(day=f"2025-01-{i+1:02d}", close=10 + i * 0.5,
-                         high=10 + i * 0.5 + 0.3, low=10 + i * 0.5 - 0.3) for i in range(21)]
+        bars = [
+            _MockBar(
+                day=f"2025-01-{i+1:02d}",
+                close=10 + i * 0.5,
+                high=10 + i * 0.5 + 0.3,
+                low=10 + i * 0.5 - 0.3,
+            )
+            for i in range(21)
+        ]
 
         call_count = 0
+
         def mock_get_kline(*a, **kw):
             nonlocal call_count
             call_count += 1
             return bars
 
-        with patch("strategies.regime.breadth._load_csi300", return_value=["sh600519"]), \
-             patch("strategies.regime.breadth.get_kline", side_effect=mock_get_kline):
+        with (
+            patch("strategies.regime.breadth._load_csi300", return_value=["sh600519"]),
+            patch("strategies.regime.breadth.get_kline", side_effect=mock_get_kline),
+        ):
             breadth.compute_constituent_breadth()
             breadth.compute_constituent_breadth()  # 第二次应走缓存
             assert call_count == 1  # 只调用一次 get_kline
@@ -248,11 +294,20 @@ class TestBreadth:
         base = 100.0
         for i in range(61):
             close = base * (1 + 0.01 * ((-1) ** i))
-            bars.append(_MockBar(day=f"2025-01-{i+1:02d}", close=close,
-                                 high=close * 1.01, low=close * 0.99, amount=1e10))
+            bars.append(
+                _MockBar(
+                    day=f"2025-01-{i+1:02d}",
+                    close=close,
+                    high=close * 1.01,
+                    low=close * 0.99,
+                    amount=1e10,
+                )
+            )
             base = close
 
-        with patch("strategies.regime.detector._compute_constituent_breadth", return_value=None):
+        with patch(
+            "strategies.regime.detector._compute_constituent_breadth", return_value=None
+        ):
             signals = compute_signals_from_bars(bars)
         # breadth 应为指数阳线占比（非 None）
         assert 0.0 < signals["breadth"] < 1.0
@@ -271,20 +326,50 @@ class TestTanhCompression:
         from strategies.regime.detector import compute_signals_from_bars
 
         # 上升趋势
-        up_bars = [_MockBar(day=f"2025-01-{i+1:02d}", close=100 + i * 0.5,
-                            high=100 + i * 0.5 + 0.3, low=100 + i * 0.5 - 0.3, amount=1e10)
-                   for i in range(81)]
-        with patch("strategies.regime.detector._compute_constituent_breadth", return_value=None), \
-             patch("strategies.regime.detector._detect_national_team_signal", return_value=False):
+        up_bars = [
+            _MockBar(
+                day=f"2025-01-{i+1:02d}",
+                close=100 + i * 0.5,
+                high=100 + i * 0.5 + 0.3,
+                low=100 + i * 0.5 - 0.3,
+                amount=1e10,
+            )
+            for i in range(81)
+        ]
+        with (
+            patch(
+                "strategies.regime.detector._compute_constituent_breadth",
+                return_value=None,
+            ),
+            patch(
+                "strategies.regime.detector._detect_national_team_signal",
+                return_value=False,
+            ),
+        ):
             up_signals = compute_signals_from_bars(up_bars)
         assert up_signals["index_trend"] > 0
 
         # 下降趋势
-        down_bars = [_MockBar(day=f"2025-01-{i+1:02d}", close=140 - i * 0.5,
-                              high=140 - i * 0.5 + 0.3, low=140 - i * 0.5 - 0.3, amount=1e10)
-                     for i in range(81)]
-        with patch("strategies.regime.detector._compute_constituent_breadth", return_value=None), \
-             patch("strategies.regime.detector._detect_national_team_signal", return_value=False):
+        down_bars = [
+            _MockBar(
+                day=f"2025-01-{i+1:02d}",
+                close=140 - i * 0.5,
+                high=140 - i * 0.5 + 0.3,
+                low=140 - i * 0.5 - 0.3,
+                amount=1e10,
+            )
+            for i in range(81)
+        ]
+        with (
+            patch(
+                "strategies.regime.detector._compute_constituent_breadth",
+                return_value=None,
+            ),
+            patch(
+                "strategies.regime.detector._detect_national_team_signal",
+                return_value=False,
+            ),
+        ):
             down_signals = compute_signals_from_bars(down_bars)
         assert down_signals["index_trend"] < 0
 
@@ -293,11 +378,26 @@ class TestTanhCompression:
         from strategies.regime.detector import compute_signals_from_bars
 
         # 较温和的极端上涨（raw ~3-4，tanh(3*1.5)≈0.9999）
-        extreme_bars = [_MockBar(day=f"2025-01-{i+1:02d}", close=100 * (1.03 ** i),
-                                 high=100 * (1.03 ** i) * 1.01, low=100 * (1.03 ** i) * 0.99,
-                                 amount=1e10) for i in range(81)]
-        with patch("strategies.regime.detector._compute_constituent_breadth", return_value=None), \
-             patch("strategies.regime.detector._detect_national_team_signal", return_value=False):
+        extreme_bars = [
+            _MockBar(
+                day=f"2025-01-{i+1:02d}",
+                close=100 * (1.03**i),
+                high=100 * (1.03**i) * 1.01,
+                low=100 * (1.03**i) * 0.99,
+                amount=1e10,
+            )
+            for i in range(81)
+        ]
+        with (
+            patch(
+                "strategies.regime.detector._compute_constituent_breadth",
+                return_value=None,
+            ),
+            patch(
+                "strategies.regime.detector._detect_national_team_signal",
+                return_value=False,
+            ),
+        ):
             signals = compute_signals_from_bars(extreme_bars)
         # tanh 输出在 (-1, 1) 内
         assert -1.0 <= signals["index_trend"] <= 1.0

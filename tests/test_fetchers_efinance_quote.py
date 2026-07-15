@@ -40,22 +40,37 @@ class TestEfinanceQuoteFetcher:
         except ImportError:
             pytest.skip("pandas not available")
 
-        row = pd.Series({
-            "股票代码": "600519", "股票名称": "贵州茅台",
-            "最新价": 1800.0, "昨收": 1790.0, "今开": 1795.0,
-            "涨跌幅": 0.56, "涨跌额": 10.0, "最高": 1810.0, "最低": 1788.0,
-            "成交量": 1000000, "成交额": 1.8e9, "换手率": 0.5,
-            "市盈率-动态": 30.0, "市净率": 10.0, "总市值": 2.2e12, "流通市值": 2.0e12,
-        })
+        row = pd.Series(
+            {
+                "股票代码": "600519",
+                "股票名称": "贵州茅台",
+                "最新价": 1800.0,
+                "昨收": 1790.0,
+                "今开": 1795.0,
+                "涨跌幅": 0.56,
+                "涨跌额": 10.0,
+                "最高": 1810.0,
+                "最低": 1788.0,
+                "成交量": 1000000,
+                "成交额": 1.8e9,
+                "换手率": 0.5,
+                "市盈率-动态": 30.0,
+                "市净率": 10.0,
+                "总市值": 2.2e12,
+                "流通市值": 2.0e12,
+            }
+        )
         df = pd.DataFrame([row])
 
         # 注入 fake efinance module
         fake_ef = MagicMock()
         fake_ef.stock.get_realtime_quotes = MagicMock(return_value=df)
         # 关键：源码 'import efinance as ef' 在 fetch 内；用 patch.dict 模拟
-        with patch.object(efinance_quote, "HAS_EFINANCE", True), \
-             patch.dict("sys.modules", {"efinance": fake_ef}), \
-             patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch.object(efinance_quote, "HAS_EFINANCE", True),
+            patch.dict("sys.modules", {"efinance": fake_ef}),
+            patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}),
+        ):
             f = efinance_quote.EfinanceQuoteFetcher()
             result = f.fetch("sh600519")
         # 关键断言：HAS_EFINANCE=True + sys.modules 有 fake + cache 干净 → 应有结果
@@ -75,9 +90,11 @@ class TestEfinanceQuoteFetcher:
 
         fake_ef = MagicMock()
         fake_ef.stock.get_realtime_quotes = MagicMock(return_value=df)
-        with patch.object(efinance_quote, "HAS_EFINANCE", True), \
-             patch.dict("sys.modules", {"efinance": fake_ef}), \
-             patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch.object(efinance_quote, "HAS_EFINANCE", True),
+            patch.dict("sys.modules", {"efinance": fake_ef}),
+            patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}),
+        ):
             f = efinance_quote.EfinanceQuoteFetcher()
             result = f.fetch("sh600519")
         assert result is None
@@ -93,9 +110,11 @@ class TestEfinanceQuoteFetcher:
 
         fake_ef = MagicMock()
         fake_ef.stock.get_realtime_quotes = MagicMock(return_value=df)
-        with patch.object(efinance_quote, "HAS_EFINANCE", True), \
-             patch.dict("sys.modules", {"efinance": fake_ef}), \
-             patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch.object(efinance_quote, "HAS_EFINANCE", True),
+            patch.dict("sys.modules", {"efinance": fake_ef}),
+            patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}),
+        ):
             f = efinance_quote.EfinanceQuoteFetcher()
             result = f.fetch("sh600519")
         assert result is None
@@ -106,20 +125,37 @@ class TestEfinanceQuoteFetcher:
             import pandas as pd
         except ImportError:
             pytest.skip("pandas not available")
-        row = pd.Series({
-            "股票代码": "600519", "股票名称": "茅台",
-            "最新价": 1800.0, "昨收": 1790.0, "今开": 1795.0,
-            "涨跌幅": 0.5, "涨跌额": 10.0, "最高": 1810.0, "最低": 1788.0,
-            "成交量": 1000000, "成交额": 1e9, "换手率": 0.5,
-            "市盈率-动态": 30.0, "市净率": 10.0, "总市值": 1e12, "流通市值": 1e12,
-        })
+        row = pd.Series(
+            {
+                "股票代码": "600519",
+                "股票名称": "茅台",
+                "最新价": 1800.0,
+                "昨收": 1790.0,
+                "今开": 1795.0,
+                "涨跌幅": 0.5,
+                "涨跌额": 10.0,
+                "最高": 1810.0,
+                "最低": 1788.0,
+                "成交量": 1000000,
+                "成交额": 1e9,
+                "换手率": 0.5,
+                "市盈率-动态": 30.0,
+                "市净率": 10.0,
+                "总市值": 1e12,
+                "流通市值": 1e12,
+            }
+        )
         cached_df = pd.DataFrame([row])
 
         fake_ef = MagicMock()
         fake_ef.stock.get_realtime_quotes = MagicMock()
-        with patch.object(efinance_quote, "HAS_EFINANCE", True), \
-             patch.dict("sys.modules", {"efinance": fake_ef}), \
-             patch.object(efinance_quote, "_ef_cache", {"df": cached_df, "ts": 99999999999}):
+        with (
+            patch.object(efinance_quote, "HAS_EFINANCE", True),
+            patch.dict("sys.modules", {"efinance": fake_ef}),
+            patch.object(
+                efinance_quote, "_ef_cache", {"df": cached_df, "ts": 99999999999}
+            ),
+        ):
             f = efinance_quote.EfinanceQuoteFetcher()
             result = f.fetch("sh600519")
         # ef.stock.get_realtime_quotes 不应被调用（缓存命中）
@@ -130,9 +166,11 @@ class TestEfinanceQuoteFetcher:
         """异常被捕获。"""
         fake_ef = MagicMock()
         fake_ef.stock.get_realtime_quotes = MagicMock(side_effect=Exception("err"))
-        with patch.object(efinance_quote, "HAS_EFINANCE", True), \
-             patch.dict("sys.modules", {"efinance": fake_ef}), \
-             patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}):
+        with (
+            patch.object(efinance_quote, "HAS_EFINANCE", True),
+            patch.dict("sys.modules", {"efinance": fake_ef}),
+            patch.object(efinance_quote, "_ef_cache", {"df": None, "ts": 0}),
+        ):
             f = efinance_quote.EfinanceQuoteFetcher()
             result = f.fetch("sh600519")
         assert result is None

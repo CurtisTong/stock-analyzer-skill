@@ -83,7 +83,10 @@ class TestComputeMultiTimeframeFinal:
         with patch("market_anchor.get_kline", return_value=klines):
             result = ma._compute_multi_timeframe()
         assert result is not None
-        assert "multi_timeframe.insufficient_data" in result["data_quality"]["degraded_fields"]
+        assert (
+            "multi_timeframe.insufficient_data"
+            in result["data_quality"]["degraded_fields"]
+        )
 
     def test_full_data_with_degraded_ma250(self):
         """数据 >= 60 但 < 250：ma250=None -> degraded 累积（191）。"""
@@ -144,7 +147,16 @@ class TestFetchLiquidityVolatilityFinal:
         用 close=high=low 的常量 K 线，TR 全为 0。
         """
         flat_klines = [
-            KlineBar(day=f"2025-01-{i+1:02d}", open=100, high=100, low=100, close=100, volume=10000, amount=1e9, source="test")
+            KlineBar(
+                day=f"2025-01-{i+1:02d}",
+                open=100,
+                high=100,
+                low=100,
+                close=100,
+                volume=10000,
+                amount=1e9,
+                source="test",
+            )
             for i in range(60)
         ]
         with (
@@ -185,7 +197,16 @@ class TestFetchLiquidityVolatilityFinal:
         index_klines = _gen_klines(60, base=100.0, drift=0.3)
         # stock klines: amount=0 但 volume>0, close>0
         stock_klines = [
-            KlineBar(day=f"2025-01-{i+1:02d}", open=50, high=51, low=49, close=50, volume=100000, amount=0, source="test")
+            KlineBar(
+                day=f"2025-01-{i+1:02d}",
+                open=50,
+                high=51,
+                low=49,
+                close=50,
+                volume=100000,
+                amount=0,
+                source="test",
+            )
             for i in range(20)
         ]
         quote = _make_quote(code="sh600519", price=50.0, total_cap=500.0)
@@ -211,7 +232,16 @@ class TestFetchLiquidityVolatilityFinal:
         """个股 amount=0 且 volume=0 -> avg_amount=None -> degraded stock_amount。"""
         index_klines = _gen_klines(60, base=100.0, drift=0.3)
         stock_klines = [
-            KlineBar(day=f"2025-01-{i+1:02d}", open=50, high=51, low=49, close=50, volume=0, amount=0, source="test")
+            KlineBar(
+                day=f"2025-01-{i+1:02d}",
+                open=50,
+                high=51,
+                low=49,
+                close=50,
+                volume=0,
+                amount=0,
+                source="test",
+            )
             for i in range(20)
         ]
         with (
@@ -279,7 +309,10 @@ class TestFetchLiquidityVolatilityFinal:
 class TestEmotionAndBetaFinal:
     def test_emotion_phase_exception_returns_none(self):
         """market_breadth.get_market_state 抛异常 -> 返回 None（356-358）。"""
-        with patch("market_anchor.market_breadth.get_market_state", side_effect=RuntimeError("err")):
+        with patch(
+            "market_anchor.market_breadth.get_market_state",
+            side_effect=RuntimeError("err"),
+        ):
             result = ma._fetch_emotion_phase({"up_count": 100})
         assert result is None
 
@@ -301,7 +334,10 @@ class TestEmotionAndBetaFinal:
         assert "industry_beta" in result["data_quality"]["degraded_fields"]
 
     def test_portfolio_correlation_exception_degraded(self):
-        with patch("market_anchor.compute_full_portfolio_correlation", side_effect=RuntimeError("err")):
+        with patch(
+            "market_anchor.compute_full_portfolio_correlation",
+            side_effect=RuntimeError("err"),
+        ):
             result = ma._fetch_portfolio_correlation("sh600519")
         assert "portfolio_correlation" in result["data_quality"]["degraded_fields"]
 
@@ -332,68 +368,109 @@ class TestNorthboundDirectionOscillation:
 class TestAnalyzeDegradationPropagation:
     def _mock_base(self, monkeypatch):
         monkeypatch.setattr(ma, "_fetch_index_snapshot", lambda *a, **kw: None)
-        monkeypatch.setattr(ma, "_fetch_index_kline", lambda *a, **kw: {"closes": [100]})
+        monkeypatch.setattr(
+            ma, "_fetch_index_kline", lambda *a, **kw: {"closes": [100]}
+        )
         monkeypatch.setattr(ma, "_fetch_breadth", lambda *a, **kw: {"up_count": 2000})
         monkeypatch.setattr(ma, "_compute_multi_timeframe", lambda *a, **kw: None)
         monkeypatch.setattr(ma, "_fetch_emotion_phase", lambda *a, **kw: "震荡")
-        monkeypatch.setattr(ma, "detect_market_state", lambda **kw: {"state": "牛市", "long_weight": 0.8, "short_weight": 0.2, "reason": "up"})
-        monkeypatch.setattr(ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None)))
+        monkeypatch.setattr(
+            ma,
+            "detect_market_state",
+            lambda **kw: {
+                "state": "牛市",
+                "long_weight": 0.8,
+                "short_weight": 0.2,
+                "reason": "up",
+            },
+        )
+        monkeypatch.setattr(
+            ma, "sector_etf_strength", MagicMock(analyze=MagicMock(return_value=None))
+        )
 
     def test_index_snapshot_none_propagates(self, monkeypatch):
         """index_snapshot=None -> degraded 'index'（567）。"""
         self._mock_base(monkeypatch)
         monkeypatch.setattr(ma, "_fetch_macro_anchor", lambda *a, **kw: None)
         monkeypatch.setattr(ma, "_fetch_liquidity_volatility", lambda *a, **kw: None)
-        result = ma.analyze(fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False
+        )
         assert "index" in result["data_quality"]["degraded_fields"]
 
     def test_macro_anchor_degraded_propagates(self, monkeypatch):
         """macro_payload 带 degraded_fields -> 传播（631）。"""
         self._mock_base(monkeypatch)
-        monkeypatch.setattr(ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0})
         monkeypatch.setattr(
-            ma, "_fetch_macro_anchor", lambda *a, **kw: {"data_quality": {"degraded_fields": ["macro.leverage"]}}
+            ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0}
+        )
+        monkeypatch.setattr(
+            ma,
+            "_fetch_macro_anchor",
+            lambda *a, **kw: {"data_quality": {"degraded_fields": ["macro.leverage"]}},
         )
         monkeypatch.setattr(ma, "_fetch_liquidity_volatility", lambda *a, **kw: None)
-        result = ma.analyze(fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False
+        )
         assert "macro.leverage" in result["data_quality"]["degraded_fields"]
 
     def test_liq_vol_degraded_propagates(self, monkeypatch):
         """liq_vol 带 degraded_fields -> 传播（636）。"""
         self._mock_base(monkeypatch)
-        monkeypatch.setattr(ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0})
+        monkeypatch.setattr(
+            ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0}
+        )
         monkeypatch.setattr(ma, "_fetch_macro_anchor", lambda *a, **kw: None)
         monkeypatch.setattr(
-            ma, "_fetch_liquidity_volatility", lambda *a, **kw: {"data_quality": {"degraded_fields": ["liquidity.sh300_atr"]}}
+            ma,
+            "_fetch_liquidity_volatility",
+            lambda *a, **kw: {
+                "data_quality": {"degraded_fields": ["liquidity.sh300_atr"]}
+            },
         )
-        result = ma.analyze(fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            fetch_portfolio=False, fetch_rotation=False, fetch_northbound=False
+        )
         assert "liquidity.sh300_atr" in result["data_quality"]["degraded_fields"]
 
     def test_industry_beta_degraded_with_stock(self, monkeypatch):
         """stock_code 提供且 industry_beta 带 degraded -> 传播（650）。"""
         self._mock_base(monkeypatch)
-        monkeypatch.setattr(ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0})
+        monkeypatch.setattr(
+            ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0}
+        )
         monkeypatch.setattr(ma, "_fetch_macro_anchor", lambda *a, **kw: None)
         monkeypatch.setattr(ma, "_fetch_liquidity_volatility", lambda *a, **kw: None)
         monkeypatch.setattr(
-            ma, "_fetch_industry_beta", lambda *a, **kw: {"data_quality": {"degraded_fields": ["industry_beta"]}}
+            ma,
+            "_fetch_industry_beta",
+            lambda *a, **kw: {"data_quality": {"degraded_fields": ["industry_beta"]}},
         )
         monkeypatch.setattr(ma, "_fetch_portfolio_correlation", lambda *a, **kw: None)
-        result = ma.analyze(stock_code="sh600519", fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            stock_code="sh600519", fetch_rotation=False, fetch_northbound=False
+        )
         assert "industry_beta" in result["data_quality"]["degraded_fields"]
 
     def test_portfolio_corr_degraded_propagates(self, monkeypatch):
         """portfolio_corr 带 degraded_fields -> 传播（659）。"""
         self._mock_base(monkeypatch)
-        monkeypatch.setattr(ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0})
+        monkeypatch.setattr(
+            ma, "_fetch_index_snapshot", lambda *a, **kw: {"change_pct": 1.0}
+        )
         monkeypatch.setattr(ma, "_fetch_macro_anchor", lambda *a, **kw: None)
         monkeypatch.setattr(ma, "_fetch_liquidity_volatility", lambda *a, **kw: None)
         monkeypatch.setattr(
             ma,
             "_fetch_portfolio_correlation",
-            lambda *a, **kw: {"data_quality": {"degraded_fields": ["portfolio_correlation"]}},
+            lambda *a, **kw: {
+                "data_quality": {"degraded_fields": ["portfolio_correlation"]}
+            },
         )
-        result = ma.analyze(stock_code="sh600519", fetch_rotation=False, fetch_northbound=False)
+        result = ma.analyze(
+            stock_code="sh600519", fetch_rotation=False, fetch_northbound=False
+        )
         assert "portfolio_correlation" in result["data_quality"]["degraded_fields"]
 
 

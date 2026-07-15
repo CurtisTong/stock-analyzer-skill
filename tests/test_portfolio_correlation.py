@@ -44,6 +44,7 @@ class TestPearsonCorr:
     def test_zero_corr(self):
         """无相关。"""
         import random
+
         random.seed(42)
         x = [random.gauss(0, 1) for _ in range(20)]
         y = [random.gauss(0, 1) for _ in range(20)]
@@ -78,8 +79,9 @@ class TestPearsonCorr:
 class TestLoadReturns:
     def test_success(self):
         closes = [100 + i for i in range(60)]
-        with patch.object(portfolio_correlation, "get_kline",
-                          return_value=_mock_kline(closes)):
+        with patch.object(
+            portfolio_correlation, "get_kline", return_value=_mock_kline(closes)
+        ):
             result = portfolio_correlation._load_returns("sh600519", window=60)
         assert result is not None
         # daily returns = (c[i]/c[i-1] - 1)
@@ -91,14 +93,16 @@ class TestLoadReturns:
 
     def test_short_kline(self):
         """短 K 线返回空 list（1 元素无法算 daily returns）。"""
-        with patch.object(portfolio_correlation, "get_kline",
-                          return_value=_mock_kline([100])):
+        with patch.object(
+            portfolio_correlation, "get_kline", return_value=_mock_kline([100])
+        ):
             result = portfolio_correlation._load_returns("sh600519")
         assert result == [] or result is None
 
     def test_exception(self):
-        with patch.object(portfolio_correlation, "get_kline",
-                          side_effect=Exception("net")):
+        with patch.object(
+            portfolio_correlation, "get_kline", side_effect=Exception("net")
+        ):
             assert portfolio_correlation._load_returns("sh600519") is None
 
 
@@ -113,8 +117,7 @@ class TestComputeCorrelationMatrix:
         codes = ["sh600519", "sh600000"]
         # 用变化的数据避免 zero_variance
         returns = [0.01 * (i % 3 - 1) for i in range(60)]
-        with patch.object(portfolio_correlation, "_load_returns",
-                          return_value=returns):
+        with patch.object(portfolio_correlation, "_load_returns", return_value=returns):
             result = portfolio_correlation.compute_correlation_matrix(codes, window=60)
         assert result is not None
         assert "matrix" in result
@@ -123,8 +126,11 @@ class TestComputeCorrelationMatrix:
 
     def test_three_codes(self):
         codes = ["sh600519", "sh600000", "sh601318"]
-        with patch.object(portfolio_correlation, "_load_returns",
-                          return_value=[0.01 * (i % 3 - 1) for i in range(60)]):
+        with patch.object(
+            portfolio_correlation,
+            "_load_returns",
+            return_value=[0.01 * (i % 3 - 1) for i in range(60)],
+        ):
             result = portfolio_correlation.compute_correlation_matrix(codes, window=60)
         assert result is not None
         # 实际 codes 列表会包含 sh000300 指数（自动加入基准），至少 3 个
@@ -135,7 +141,9 @@ class TestComputeCorrelationMatrix:
         assert result is None or isinstance(result, dict)
 
     def test_single_code(self):
-        result = portfolio_correlation.compute_correlation_matrix(["sh600519"], window=60)
+        result = portfolio_correlation.compute_correlation_matrix(
+            ["sh600519"], window=60
+        )
         # 1 只股票没法算 pair 相关，可能 None
         assert result is None or "matrix" in result
 
@@ -169,7 +177,9 @@ class TestInterpretMatrix:
 
     def test_with_high_pairs(self):
         result = portfolio_correlation._interpret_matrix(
-            0.7, [("sh600519", "sh600000", 0.85)], 3,
+            0.7,
+            [("sh600519", "sh600000", 0.85)],
+            3,
         )
         assert isinstance(result, str)
 
@@ -185,27 +195,37 @@ class TestInterpretMatrix:
 
 class TestComputeStockVsPortfolio:
     def test_success(self):
-        with patch.object(portfolio_correlation, "_load_returns",
-                          return_value=[0.01 * i for i in range(60)]):
+        with patch.object(
+            portfolio_correlation,
+            "_load_returns",
+            return_value=[0.01 * i for i in range(60)],
+        ):
             result = portfolio_correlation.compute_stock_vs_portfolio(
-                "sh600519", ["sh600000", "sh601318"], window=60,
+                "sh600519",
+                ["sh600000", "sh601318"],
+                window=60,
             )
         assert result is not None
         assert "vs_portfolio_avg_corr" in result
         assert "diversification_benefit" in result
 
     def test_empty_portfolio(self):
-        with patch.object(portfolio_correlation, "_load_returns",
-                          return_value=[0.01] * 60):
+        with patch.object(
+            portfolio_correlation, "_load_returns", return_value=[0.01] * 60
+        ):
             result = portfolio_correlation.compute_stock_vs_portfolio(
-                "sh600519", [], window=60,
+                "sh600519",
+                [],
+                window=60,
             )
         assert result is None or "n_portfolio_codes" in result
 
     def test_load_failure(self):
         with patch.object(portfolio_correlation, "_load_returns", return_value=None):
             result = portfolio_correlation.compute_stock_vs_portfolio(
-                "sh600519", ["sh600000"], window=60,
+                "sh600519",
+                ["sh600000"],
+                window=60,
             )
         assert result is None or "degraded" in str(result).lower()
 
@@ -241,12 +261,15 @@ class TestInterpretDiversification:
 class TestGetPortfolioCodes:
     def test_with_positions(self):
         fake_pm = MagicMock()
-        fake_pm.get_positions = MagicMock(return_value=[
-            {"code": "sh600519", "shares": 100},
-            {"code": "sh600000", "shares": 200},
-        ])
+        fake_pm.get_positions = MagicMock(
+            return_value=[
+                {"code": "sh600519", "shares": 100},
+                {"code": "sh600000", "shares": 200},
+            ]
+        )
         # mock portfolio.manager.PortfolioManager
         import sys
+
         fake_module = MagicMock()
         fake_module.PortfolioManager = MagicMock(return_value=fake_pm)
         with patch.dict(sys.modules, {"portfolio.manager": fake_module}):
@@ -258,6 +281,7 @@ class TestGetPortfolioCodes:
         fake_pm = MagicMock()
         fake_pm.get_positions = MagicMock(return_value=[])
         import sys
+
         fake_module = MagicMock()
         fake_module.PortfolioManager = MagicMock(return_value=fake_pm)
         with patch.dict(sys.modules, {"portfolio.manager": fake_module}):
@@ -278,12 +302,21 @@ class TestGetPortfolioCodes:
 
 class TestComputeFullPortfolioCorrelation:
     def test_with_stock_and_portfolio(self):
-        with patch.object(portfolio_correlation, "get_portfolio_codes",
-                          return_value=["sh600000", "sh601318"]), \
-             patch.object(portfolio_correlation, "_load_returns",
-                          return_value=[0.01 * i for i in range(60)]):
+        with (
+            patch.object(
+                portfolio_correlation,
+                "get_portfolio_codes",
+                return_value=["sh600000", "sh601318"],
+            ),
+            patch.object(
+                portfolio_correlation,
+                "_load_returns",
+                return_value=[0.01 * i for i in range(60)],
+            ),
+        ):
             result = portfolio_correlation.compute_full_portfolio_correlation(
-                stock_code="sh600519", window=60,
+                stock_code="sh600519",
+                window=60,
             )
         assert result is not None
         assert "data_quality" in result
@@ -292,22 +325,33 @@ class TestComputeFullPortfolioCorrelation:
 
     def test_empty_portfolio(self):
         """无持仓时返回 degraded。"""
-        with patch.object(portfolio_correlation, "get_portfolio_codes",
-                          return_value=[]):
+        with patch.object(
+            portfolio_correlation, "get_portfolio_codes", return_value=[]
+        ):
             result = portfolio_correlation.compute_full_portfolio_correlation(
-                stock_code="sh600519", window=60,
+                stock_code="sh600519",
+                window=60,
             )
         assert result is not None
         assert "data_quality" in result
 
     def test_no_stock_code(self):
         """无 stock_code 时仅算组合矩阵。"""
-        with patch.object(portfolio_correlation, "get_portfolio_codes",
-                          return_value=["sh600000", "sh601318"]), \
-             patch.object(portfolio_correlation, "_load_returns",
-                          return_value=[0.01 * i for i in range(60)]):
+        with (
+            patch.object(
+                portfolio_correlation,
+                "get_portfolio_codes",
+                return_value=["sh600000", "sh601318"],
+            ),
+            patch.object(
+                portfolio_correlation,
+                "_load_returns",
+                return_value=[0.01 * i for i in range(60)],
+            ),
+        ):
             result = portfolio_correlation.compute_full_portfolio_correlation(
-                stock_code=None, window=60,
+                stock_code=None,
+                window=60,
             )
         assert result is not None
 
@@ -328,60 +372,77 @@ class TestMain:
         assert captured is not None
 
     def test_with_stock_code(self, capsys, monkeypatch):
-        with patch.object(portfolio_correlation, "compute_full_portfolio_correlation",
-                          return_value={
-                              "n_portfolio_codes": 2,
-                              "portfolio_codes": ["sh600000", "sh601318"],
-                              "matrix": [[1.0, 0.5], [0.5, 1.0]],
-                              "avg_pairwise_corr": 0.5,
-                              "high_corr_pairs": [],
-                              "vs_portfolio_avg_corr": 0.3,
-                              "diversification_benefit": "中",
-                              "portfolio_empty": False,
-                              "interpretation": "良好分散",
-                              "data_quality": {"degraded_fields": []},
-                          }):
-            monkeypatch.setattr(sys, "argv", ["portfolio_correlation.py", "--stock", "sh600519"])
+        with patch.object(
+            portfolio_correlation,
+            "compute_full_portfolio_correlation",
+            return_value={
+                "n_portfolio_codes": 2,
+                "portfolio_codes": ["sh600000", "sh601318"],
+                "matrix": [[1.0, 0.5], [0.5, 1.0]],
+                "avg_pairwise_corr": 0.5,
+                "high_corr_pairs": [],
+                "vs_portfolio_avg_corr": 0.3,
+                "diversification_benefit": "中",
+                "portfolio_empty": False,
+                "interpretation": "良好分散",
+                "data_quality": {"degraded_fields": []},
+            },
+        ):
+            monkeypatch.setattr(
+                sys, "argv", ["portfolio_correlation.py", "--stock", "sh600519"]
+            )
             portfolio_correlation.main()
         captured = capsys.readouterr()
         assert captured is not None
 
     def test_json_output(self, capsys, monkeypatch):
         import json
-        with patch.object(portfolio_correlation, "compute_full_portfolio_correlation",
-                          return_value={
-                              "n_portfolio_codes": 2,
-                              "portfolio_codes": ["sh600000", "sh601318"],
-                              "matrix": [[1.0, 0.5], [0.5, 1.0]],
-                              "avg_pairwise_corr": 0.5,
-                              "high_corr_pairs": [],
-                              "vs_portfolio_avg_corr": 0.3,
-                              "diversification_benefit": "中",
-                              "portfolio_empty": False,
-                              "interpretation": "良好分散",
-                              "data_quality": {"degraded_fields": []},
-                          }):
-            monkeypatch.setattr(sys, "argv", ["portfolio_correlation.py", "--stock", "sh600519", "-j"])
+
+        with patch.object(
+            portfolio_correlation,
+            "compute_full_portfolio_correlation",
+            return_value={
+                "n_portfolio_codes": 2,
+                "portfolio_codes": ["sh600000", "sh601318"],
+                "matrix": [[1.0, 0.5], [0.5, 1.0]],
+                "avg_pairwise_corr": 0.5,
+                "high_corr_pairs": [],
+                "vs_portfolio_avg_corr": 0.3,
+                "diversification_benefit": "中",
+                "portfolio_empty": False,
+                "interpretation": "良好分散",
+                "data_quality": {"degraded_fields": []},
+            },
+        ):
+            monkeypatch.setattr(
+                sys, "argv", ["portfolio_correlation.py", "--stock", "sh600519", "-j"]
+            )
             portfolio_correlation.main()
         captured = capsys.readouterr()
         parsed = json.loads(captured.out)
         assert parsed["avg_pairwise_corr"] == 0.5
 
     def test_list_flag(self, capsys, monkeypatch):
-        with patch.object(portfolio_correlation, "get_portfolio_codes",
-                          return_value=["sh600000", "sh601318"]):
+        with patch.object(
+            portfolio_correlation,
+            "get_portfolio_codes",
+            return_value=["sh600000", "sh601318"],
+        ):
             monkeypatch.setattr(sys, "argv", ["portfolio_correlation.py", "--list"])
             portfolio_correlation.main()
         captured = capsys.readouterr()
         assert "sh600000" in captured.out or "持仓" in captured.out
 
     def test_empty_portfolio_message(self, capsys, monkeypatch):
-        with patch.object(portfolio_correlation, "compute_full_portfolio_correlation",
-                          return_value={
-                              "portfolio_empty": True,
-                              "interpretation": "无持仓",
-                              "data_quality": {"degraded_fields": []},
-                          }):
+        with patch.object(
+            portfolio_correlation,
+            "compute_full_portfolio_correlation",
+            return_value={
+                "portfolio_empty": True,
+                "interpretation": "无持仓",
+                "data_quality": {"degraded_fields": []},
+            },
+        ):
             monkeypatch.setattr(sys, "argv", ["portfolio_correlation.py"])
             portfolio_correlation.main()
         captured = capsys.readouterr()

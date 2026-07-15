@@ -369,18 +369,24 @@ class TestThinWrappers:
 
 class TestDefaultProgressCallback:
     def test_init_empty_universe(self, capsys):
-        screener._default_progress_callback("init", {"halted": True, "reason": "empty_universe"})
+        screener._default_progress_callback(
+            "init", {"halted": True, "reason": "empty_universe"}
+        )
         out = capsys.readouterr().out
         assert "股票池为空" in out
 
     def test_init_macro_red(self, capsys):
-        screener._default_progress_callback("init", {"halted": True, "reason": "macro_red"})
+        screener._default_progress_callback(
+            "init", {"halted": True, "reason": "macro_red"}
+        )
         out = capsys.readouterr().out
         assert "系统性风险" in out
 
     def test_init_halted_unknown_reason(self, capsys):
         """halted 但未知 reason -> 静默返回。"""
-        screener._default_progress_callback("init", {"halted": True, "reason": "unknown"})
+        screener._default_progress_callback(
+            "init", {"halted": True, "reason": "unknown"}
+        )
         out = capsys.readouterr().out
         assert out == ""
 
@@ -470,7 +476,9 @@ class TestRunMain:
     def test_json_output(self, capsys):
         """JSON 模式输出 JSON。"""
         rows = [{"code": "sh600000", "name": "甲"}]
-        with patch("screener.run_screening", return_value={"halted": False, "rows": rows}):
+        with patch(
+            "screener.run_screening", return_value={"halted": False, "rows": rows}
+        ):
             screener._run_main(self._args(json=True))
         out = capsys.readouterr().out
         parsed = json.loads(out)
@@ -479,7 +487,9 @@ class TestRunMain:
     def test_brief_output(self, capsys):
         """非 JSON 非 full -> render_brief。"""
         rows = [_make_row()]
-        with patch("screener.run_screening", return_value={"halted": False, "rows": rows}):
+        with patch(
+            "screener.run_screening", return_value={"halted": False, "rows": rows}
+        ):
             screener._run_main(self._args())
         out = capsys.readouterr().out
         assert "sh600000" in out
@@ -487,7 +497,9 @@ class TestRunMain:
     def test_full_output(self, capsys):
         """full 模式 -> render。"""
         rows = [_make_row()]
-        with patch("screener.run_screening", return_value={"halted": False, "rows": rows}):
+        with patch(
+            "screener.run_screening", return_value={"halted": False, "rows": rows}
+        ):
             screener._run_main(self._args(full=True))
         out = capsys.readouterr().out
         assert "sh600000" in out
@@ -495,7 +507,9 @@ class TestRunMain:
     def test_full_market_title(self, capsys):
         """full_market + sector -> 标题含板块名。"""
         rows = [_make_row()]
-        with patch("screener.run_screening", return_value={"halted": False, "rows": rows}):
+        with patch(
+            "screener.run_screening", return_value={"halted": False, "rows": rows}
+        ):
             screener._run_main(self._args(full_market=True, sector="创业板"))
         out = capsys.readouterr().out
         assert "全市场筛选" in out
@@ -504,7 +518,9 @@ class TestRunMain:
     def test_full_market_no_sector_title(self, capsys):
         """full_market 无 sector -> 标题全市场筛选。"""
         rows = [_make_row()]
-        with patch("screener.run_screening", return_value={"halted": False, "rows": rows}):
+        with patch(
+            "screener.run_screening", return_value={"halted": False, "rows": rows}
+        ):
             screener._run_main(self._args(full_market=True))
         out = capsys.readouterr().out
         assert "全市场筛选" in out

@@ -38,7 +38,9 @@ def _make_index_bars(n=100, base=4000.0):
     bars = []
     for i in range(n):
         close = base + i * 5
-        bars.append(_make_bar(f"2024-01-{i+1:02d}" if i < 99 else f"2024-04-{i-98:02d}", close))
+        bars.append(
+            _make_bar(f"2024-01-{i+1:02d}" if i < 99 else f"2024-04-{i-98:02d}", close)
+        )
     return bars
 
 
@@ -50,7 +52,9 @@ class TestClassifyRegimeFromIndex:
         from backtest.engine import _classify_regime_from_index
 
         index_bars = _make_index_bars(100)
-        regime, extreme_drop = _classify_regime_from_index(index_bars, index_bars[-1].day)
+        regime, extreme_drop = _classify_regime_from_index(
+            index_bars, index_bars[-1].day
+        )
         # 应返回有效 RegimeState
         assert isinstance(regime, RegimeState)
         assert isinstance(extreme_drop, bool)

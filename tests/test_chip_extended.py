@@ -139,13 +139,17 @@ class TestRenderHolders:
     def test_with_data(self, capsys):
         data = [
             SimpleNamespace(
-                end_date="2026-06-30", holder_num=50000,
-                holder_num_change=-1000, avg_amount=2000,
+                end_date="2026-06-30",
+                holder_num=50000,
+                holder_num_change=-1000,
+                avg_amount=2000,
                 concentration=0.6,
             ),
             SimpleNamespace(
-                end_date="2026-03-31", holder_num=51000,
-                holder_num_change=500, avg_amount=1950,
+                end_date="2026-03-31",
+                holder_num=51000,
+                holder_num_change=500,
+                avg_amount=1950,
                 concentration=0.55,
             ),
         ]
@@ -169,14 +173,24 @@ class TestRenderTopHolders:
     def test_with_data(self, capsys):
         data = [
             SimpleNamespace(
-                rank=1, holder_name="股东A" * 5, holder_type="机构",
-                hold_num=1000.0, hold_ratio=5.0, change_type="+",
-                change=100.0, is_institution=True,
+                rank=1,
+                holder_name="股东A" * 5,
+                holder_type="机构",
+                hold_num=1000.0,
+                hold_ratio=5.0,
+                change_type="+",
+                change=100.0,
+                is_institution=True,
             ),
             SimpleNamespace(
-                rank=2, holder_name="股东B", holder_type="个人",
-                hold_num=500.0, hold_ratio=2.5, change_type="-",
-                change=-50.0, is_institution=False,
+                rank=2,
+                holder_name="股东B",
+                holder_type="个人",
+                hold_num=500.0,
+                hold_ratio=2.5,
+                change_type="-",
+                change=-50.0,
+                is_institution=False,
             ),
         ]
         chip.render_top_holders(data)
@@ -187,9 +201,14 @@ class TestRenderTopHolders:
     def test_long_name_truncated(self, capsys):
         data = [
             SimpleNamespace(
-                rank=1, holder_name="A" * 50, holder_type="机构",
-                hold_num=1000.0, hold_ratio=5.0, change_type="+",
-                change=100.0, is_institution=True,
+                rank=1,
+                holder_name="A" * 50,
+                holder_type="机构",
+                hold_num=1000.0,
+                hold_ratio=5.0,
+                change_type="+",
+                change=100.0,
+                is_institution=True,
             ),
         ]
         chip.render_top_holders(data)
@@ -200,9 +219,14 @@ class TestRenderTopHolders:
     def test_no_change(self, capsys):
         data = [
             SimpleNamespace(
-                rank=1, holder_name="股东A", holder_type="个人",
-                hold_num=1000.0, hold_ratio=5.0, change_type="不变",
-                change=0, is_institution=False,
+                rank=1,
+                holder_name="股东A",
+                holder_type="个人",
+                hold_num=1000.0,
+                hold_ratio=5.0,
+                change_type="不变",
+                change=0,
+                is_institution=False,
             ),
         ]
         chip.render_top_holders(data)
@@ -213,9 +237,14 @@ class TestRenderTopHolders:
     def test_institution_stats(self, capsys):
         data = [
             SimpleNamespace(
-                rank=1, holder_name="机构1", holder_type="机构",
-                hold_num=1000.0, hold_ratio=5.0, change_type="+",
-                change=100.0, is_institution=True,
+                rank=1,
+                holder_name="机构1",
+                holder_type="机构",
+                hold_num=1000.0,
+                hold_ratio=5.0,
+                change_type="+",
+                change=100.0,
+                is_institution=True,
             ),
         ]
         chip.render_top_holders(data)
@@ -240,11 +269,14 @@ class TestMain:
 
     def test_with_stock_code(self, capsys, monkeypatch):
         # 拦截所有数据获取
-        with patch("chip.render_margin"), patch("chip.render_holders"), \
-             patch("chip.render_top_holders"), \
-             patch("data.chip.get_margin", return_value=[]), \
-             patch("data.chip.get_holders", return_value=[]), \
-             patch("data.chip.get_top_holders", return_value=[]):
+        with (
+            patch("chip.render_margin"),
+            patch("chip.render_holders"),
+            patch("chip.render_top_holders"),
+            patch("data.chip.get_margin", return_value=[]),
+            patch("data.chip.get_holders", return_value=[]),
+            patch("data.chip.get_top_holders", return_value=[]),
+        ):
             try:
                 monkeypatch.setattr(sys, "argv", ["chip.py", "sh600519"])
                 chip.main()
@@ -254,11 +286,14 @@ class TestMain:
         assert captured is not None
 
     def test_json_flag(self, capsys, monkeypatch):
-        with patch("chip.render_margin"), patch("chip.render_holders"), \
-             patch("chip.render_top_holders"), \
-             patch("data.chip.get_margin", return_value=[]), \
-             patch("data.chip.get_holders", return_value=[]), \
-             patch("data.chip.get_top_holders", return_value=[]):
+        with (
+            patch("chip.render_margin"),
+            patch("chip.render_holders"),
+            patch("chip.render_top_holders"),
+            patch("data.chip.get_margin", return_value=[]),
+            patch("data.chip.get_holders", return_value=[]),
+            patch("data.chip.get_top_holders", return_value=[]),
+        ):
             try:
                 monkeypatch.setattr(sys, "argv", ["chip.py", "sh600519", "-j"])
                 chip.main()
@@ -268,10 +303,12 @@ class TestMain:
         assert captured is not None
 
     def test_margin_only(self, capsys, monkeypatch):
-        with patch("chip.render_margin"), \
-             patch("data.chip.get_margin", return_value=[]), \
-             patch("data.chip.get_holders", return_value=[]), \
-             patch("data.chip.get_top_holders", return_value=[]):
+        with (
+            patch("chip.render_margin"),
+            patch("data.chip.get_margin", return_value=[]),
+            patch("data.chip.get_holders", return_value=[]),
+            patch("data.chip.get_top_holders", return_value=[]),
+        ):
             try:
                 monkeypatch.setattr(sys, "argv", ["chip.py", "sh600519", "--margin"])
                 chip.main()
@@ -279,10 +316,12 @@ class TestMain:
                 pass
 
     def test_holders_only(self, capsys, monkeypatch):
-        with patch("chip.render_holders"), \
-             patch("data.chip.get_margin", return_value=[]), \
-             patch("data.chip.get_holders", return_value=[]), \
-             patch("data.chip.get_top_holders", return_value=[]):
+        with (
+            patch("chip.render_holders"),
+            patch("data.chip.get_margin", return_value=[]),
+            patch("data.chip.get_holders", return_value=[]),
+            patch("data.chip.get_top_holders", return_value=[]),
+        ):
             try:
                 monkeypatch.setattr(sys, "argv", ["chip.py", "sh600519", "--holders"])
                 chip.main()
@@ -290,12 +329,16 @@ class TestMain:
                 pass
 
     def test_top_holders_only(self, capsys, monkeypatch):
-        with patch("chip.render_top_holders"), \
-             patch("data.chip.get_margin", return_value=[]), \
-             patch("data.chip.get_holders", return_value=[]), \
-             patch("data.chip.get_top_holders", return_value=[]):
+        with (
+            patch("chip.render_top_holders"),
+            patch("data.chip.get_margin", return_value=[]),
+            patch("data.chip.get_holders", return_value=[]),
+            patch("data.chip.get_top_holders", return_value=[]),
+        ):
             try:
-                monkeypatch.setattr(sys, "argv", ["chip.py", "sh600519", "--top-holders"])
+                monkeypatch.setattr(
+                    sys, "argv", ["chip.py", "sh600519", "--top-holders"]
+                )
                 chip.main()
             except SystemExit:
                 pass

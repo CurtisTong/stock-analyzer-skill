@@ -33,7 +33,12 @@ class TestLaoyatouGuards:
 
     def test_ma60_too_short_returns_empty(self):
         closes = [10.0] * 70
-        mas = {"ma5": [1.0] * 70, "ma10": [1.0] * 70, "ma20": [1.0] * 70, "ma60": [1.0] * 15}
+        mas = {
+            "ma5": [1.0] * 70,
+            "ma10": [1.0] * 70,
+            "ma20": [1.0] * 70,
+            "ma60": [1.0] * 15,
+        }
         assert detect_laoyatou(_records(70), closes, [100] * 70, mas) == []
 
 

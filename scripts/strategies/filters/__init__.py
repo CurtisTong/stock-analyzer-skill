@@ -62,9 +62,7 @@ def _adaptive_config() -> dict:
     return merged
 
 
-def adaptive_amount_threshold(
-    board: str, market_avg_amount_yuan: float = 0
-) -> float:
+def adaptive_amount_threshold(board: str, market_avg_amount_yuan: float = 0) -> float:
     """计算板块自适应最低成交额阈值（元）。
 
     Args:
@@ -91,9 +89,7 @@ def adaptive_amount_threshold(
     return max(floor_yuan, min(dynamic, ceiling_yuan))
 
 
-def adaptive_cap_threshold(
-    board: str, market_median_cap: float = 0
-) -> float:
+def adaptive_cap_threshold(board: str, market_median_cap: float = 0) -> float:
     """计算板块自适应最低市值阈值（亿元）。
 
     Args:

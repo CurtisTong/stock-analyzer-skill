@@ -252,11 +252,7 @@ def apply_portfolio_constraints(
         max_per_sector = len(rows)
 
     # (#9) 行业偏离约束：候选池 >= 20 且启用时生效
-    benchmark_active = (
-        use_benchmark_align
-        and benchmark_weights
-        and len(rows) >= 20
-    )
+    benchmark_active = use_benchmark_align and benchmark_weights and len(rows) >= 20
     # 基准行业权重归一化（确保和为 1.0）
     if benchmark_active:
         total_bw = sum(benchmark_weights.values())

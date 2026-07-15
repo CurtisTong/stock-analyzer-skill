@@ -80,7 +80,11 @@ def detect_laoyatou(records, closes, volumes, mas):
             k20 = k_ma60 + ma20_offset
             if k20 >= 0 and k5 < len(ma5) and k20 < len(ma20):
                 # 跳过未填充的 MA 值
-                if math.isnan(ma5[k5]) or math.isnan(ma10[k10]) or math.isnan(ma20[k20]):
+                if (
+                    math.isnan(ma5[k5])
+                    or math.isnan(ma10[k10])
+                    or math.isnan(ma20[k20])
+                ):
                     continue
                 if ma5[k5] > ma10[k10] > ma20[k20]:
                     neck_days += 1

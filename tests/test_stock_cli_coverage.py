@@ -270,9 +270,15 @@ class TestMain:
         with patch("sys.argv", argv):
             with patch("stock.StockAnalysisService") as MockSvc:
                 MockSvc.return_value.analyze.return_value = result
-                with patch("backtest.metrics.run_backtest", return_value={
-                    "win_rate_pct": 60, "total_return_pct": 15, "sharpe_ratio": 1.5, "max_drawdown_pct": -10,
-                }):
+                with patch(
+                    "backtest.metrics.run_backtest",
+                    return_value={
+                        "win_rate_pct": 60,
+                        "total_return_pct": 15,
+                        "sharpe_ratio": 1.5,
+                        "max_drawdown_pct": -10,
+                    },
+                ):
                     with patch("builtins.print") as m_print:
                         stock.main()
         output = m_print.call_args[0][0]
@@ -284,7 +290,9 @@ class TestMain:
         with patch("sys.argv", argv):
             with patch("stock.StockAnalysisService") as MockSvc:
                 MockSvc.return_value.analyze.return_value = result
-                with patch("backtest.metrics.run_backtest", side_effect=RuntimeError("err")):
+                with patch(
+                    "backtest.metrics.run_backtest", side_effect=RuntimeError("err")
+                ):
                     with patch("builtins.print") as m_print:
                         stock.main()
         output = m_print.call_args[0][0]

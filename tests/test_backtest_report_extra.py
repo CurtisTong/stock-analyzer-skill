@@ -85,12 +85,25 @@ class TestCalculateAdvancedStats:
         assert stats["loss_count"] == 1
 
     def test_consecutive_wins(self):
-        trades = [_make_trade(1), _make_trade(2), _make_trade(3), _make_trade(-1), _make_trade(4)]
+        trades = [
+            _make_trade(1),
+            _make_trade(2),
+            _make_trade(3),
+            _make_trade(-1),
+            _make_trade(4),
+        ]
         stats = calculate_advanced_stats(trades)
         assert stats["max_consecutive_wins"] == 3
 
     def test_consecutive_losses(self):
-        trades = [_make_trade(-1), _make_trade(-2), _make_trade(1), _make_trade(-3), _make_trade(-4), _make_trade(-5)]
+        trades = [
+            _make_trade(-1),
+            _make_trade(-2),
+            _make_trade(1),
+            _make_trade(-3),
+            _make_trade(-4),
+            _make_trade(-5),
+        ]
         stats = calculate_advanced_stats(trades)
         assert stats["max_consecutive_losses"] == 3
 
@@ -111,11 +124,21 @@ class TestCalculateAdvancedStats:
         trades = [_make_trade(5), _make_trade(-2)]
         stats = calculate_advanced_stats(trades)
         expected_keys = {
-            "total_trades", "win_count", "loss_count", "win_rate",
-            "total_return", "avg_return", "avg_win", "avg_loss",
-            "max_win", "max_loss", "profit_factor",
-            "max_consecutive_wins", "max_consecutive_losses",
-            "sharpe_ratio", "max_drawdown",
+            "total_trades",
+            "win_count",
+            "loss_count",
+            "win_rate",
+            "total_return",
+            "avg_return",
+            "avg_win",
+            "avg_loss",
+            "max_win",
+            "max_loss",
+            "profit_factor",
+            "max_consecutive_wins",
+            "max_consecutive_losses",
+            "sharpe_ratio",
+            "max_drawdown",
         }
         assert expected_keys.issubset(stats.keys())
 
@@ -235,14 +258,20 @@ class TestGenerateTradeTimeline:
 class TestGenerateBacktestReport:
     def test_no_trades_report(self):
         """无交易信号 -> 提示。"""
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=[]):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=[]
+        ):
             out = generate_backtest_report([], "测试股")
         assert "未产生交易信号" in out
 
     def test_full_report(self):
         trades = [_make_trade(5), _make_trade(-2), _make_trade(8)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "策略回测报告" in out
         assert "测试股" in out
         assert "核心指标" in out
@@ -252,53 +281,83 @@ class TestGenerateBacktestReport:
     def test_high_win_rate_summary(self):
         """胜率>=60 -> 良好评语。"""
         trades = [_make_trade(5), _make_trade(3), _make_trade(8), _make_trade(-1)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "良好" in out
 
     def test_low_win_rate_summary(self):
         """胜率<50 -> 较差评语。"""
         trades = [_make_trade(5), _make_trade(-2), _make_trade(-8), _make_trade(-1)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "较差" in out
 
     def test_medium_win_rate_summary(self):
         """胜率 50-60 -> 一般评语。"""
         trades = [_make_trade(5), _make_trade(3), _make_trade(-2), _make_trade(-1)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "一般" in out
 
     def test_positive_avg_return(self):
         trades = [_make_trade(5), _make_trade(3)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "平均收益为正" in out
 
     def test_negative_avg_return(self):
         trades = [_make_trade(-5), _make_trade(-3)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "平均收益为负" in out
 
     def test_good_profit_factor(self):
         """盈亏比>1.5 -> 良好。"""
         trades = [_make_trade(15), _make_trade(-5)]  # PF=3
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "盈亏比良好" in out
 
     def test_low_profit_factor(self):
         """盈亏比<=1.5 -> 偏低。"""
         trades = [_make_trade(5), _make_trade(-4)]  # PF=1.25
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "盈亏比偏低" in out
 
     def test_custom_parameters_in_report(self):
         trades = [_make_trade(5)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
             out = generate_backtest_report(
                 [{"day": "1", "close": 10, "volume": 100}],
                 "测试股",
@@ -316,8 +375,12 @@ class TestGenerateBacktestReport:
     def test_overfit_warning_present(self):
         """过拟合警示必须存在。"""
         trades = [_make_trade(5)]
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
-            out = generate_backtest_report([{"day": "1", "close": 10, "volume": 100}], "测试股")
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
+            out = generate_backtest_report(
+                [{"day": "1", "close": 10, "volume": 100}], "测试股"
+            )
         assert "外样本验证" in out
         assert "不构成实盘依据" in out
 
@@ -331,7 +394,9 @@ class TestGenerateComparisonReport:
     def test_single_stock(self):
         trades = [_make_trade(5), _make_trade(-2)]
         stocks_data = {"股票A": [{"day": "1", "close": 10, "volume": 100}]}
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
             out = generate_comparison_report(stocks_data)
         assert "多股票策略对比报告" in out
         assert "股票A" in out
@@ -345,7 +410,10 @@ class TestGenerateComparisonReport:
             "股票A": [{"day": "1", "close": 10, "volume": 100}],
             "股票B": [{"day": "1", "close": 20, "volume": 200}],
         }
-        with patch("strategies.patterns.backtest_report.backtest_strategy", side_effect=[trades_a, trades_b]):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy",
+            side_effect=[trades_a, trades_b],
+        ):
             out = generate_comparison_report(stocks_data)
         assert "股票A" in out
         assert "股票B" in out
@@ -356,7 +424,9 @@ class TestGenerateComparisonReport:
     def test_overfit_warning_in_comparison(self):
         trades = [_make_trade(5)]
         stocks_data = {"股票A": [{"day": "1", "close": 10, "volume": 100}]}
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
             out = generate_comparison_report(stocks_data)
         assert "外样本验证" in out
 
@@ -364,7 +434,9 @@ class TestGenerateComparisonReport:
         """平均胜率>=60 -> 良好评语。"""
         trades = [_make_trade(10), _make_trade(8), _make_trade(-1)]  # 66.7%
         stocks_data = {"股票A": [{"day": "1", "close": 10, "volume": 100}]}
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
             out = generate_comparison_report(stocks_data)
         assert "表现良好" in out
 
@@ -372,7 +444,9 @@ class TestGenerateComparisonReport:
         """平均胜率<60 -> 一般评语。"""
         trades = [_make_trade(10), _make_trade(-5), _make_trade(-3)]  # 33%
         stocks_data = {"股票A": [{"day": "1", "close": 10, "volume": 100}]}
-        with patch("strategies.patterns.backtest_report.backtest_strategy", return_value=trades):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy", return_value=trades
+        ):
             out = generate_comparison_report(stocks_data)
         assert "表现一般" in out
 
@@ -383,7 +457,10 @@ class TestGenerateComparisonReport:
             "股票A": [{"day": "1", "close": 10, "volume": 100}],
             "股票B": [{"day": "1", "close": 20, "volume": 200}],
         }
-        with patch("strategies.patterns.backtest_report.backtest_strategy", side_effect=[trades, trades]):
+        with patch(
+            "strategies.patterns.backtest_report.backtest_strategy",
+            side_effect=[trades, trades],
+        ):
             out = generate_comparison_report(stocks_data)
         assert "多股票策略对比报告" in out
 
@@ -398,7 +475,9 @@ class TestLoadKlineData:
         import json
 
         path = tmp_path / "kline.json"
-        path.write_text(json.dumps([{"day": "2024-01-01", "close": 10}]), encoding="utf-8")
+        path.write_text(
+            json.dumps([{"day": "2024-01-01", "close": 10}]), encoding="utf-8"
+        )
         data = load_kline_data(str(path))
         assert data[0]["close"] == 10
 

@@ -16,31 +16,37 @@ class TestScoreConcentration:
     def test_heavy_concentration(self):
         """大幅集中（<-15%）-> 80 分。"""
         from strategies.factors.chip import _score_concentration
+
         assert _score_concentration(-20) == 80.0
 
     def test_moderate_concentration(self):
         """中度集中（-15% ~ -10%）-> 70 分。"""
         from strategies.factors.chip import _score_concentration
+
         assert _score_concentration(-12) == 70.0
 
     def test_light_concentration(self):
         """轻度集中（-10% ~ -5%）-> 60 分。"""
         from strategies.factors.chip import _score_concentration
+
         assert _score_concentration(-7) == 60.0
 
     def test_normal(self):
         """正常范围（-2% ~ 2%）-> 50 分。"""
         from strategies.factors.chip import _score_concentration
+
         assert _score_concentration(0) == 50.0
 
     def test_light_dispersion(self):
         """轻度分散（2% ~ 5%）-> 45 分。"""
         from strategies.factors.chip import _score_concentration
+
         assert _score_concentration(3) == 45.0
 
     def test_heavy_dispersion(self):
         """大幅分散（>=15%）-> 20 分。"""
         from strategies.factors.chip import _score_concentration
+
         assert _score_concentration(20) == 20.0
 
 
@@ -51,38 +57,60 @@ class TestScoreMarginTrend:
         """无融资数据返回 0。"""
         with patch("strategies.factors.chip._get_margin_data", return_value=[]):
             from strategies.factors.chip import _score_margin_trend
+
             assert _score_margin_trend("sh600519") == 0
 
     def test_insufficient_data(self):
         """数据不足 3 天返回 0。"""
         mock1 = MagicMock(rzjme=100)
         mock2 = MagicMock(rzjme=200)
-        with patch("strategies.factors.chip._get_margin_data", return_value=[mock1, mock2]):
+        with patch(
+            "strategies.factors.chip._get_margin_data", return_value=[mock1, mock2]
+        ):
             from strategies.factors.chip import _score_margin_trend
+
             assert _score_margin_trend("sh600519") == 0
 
     def test_continuous_buy(self):
         """4/5 天净买入 -> +15。"""
-        margins = [MagicMock(rzjme=100), MagicMock(rzjme=200), MagicMock(rzjme=50),
-                    MagicMock(rzjme=80), MagicMock(rzjme=-10)]
+        margins = [
+            MagicMock(rzjme=100),
+            MagicMock(rzjme=200),
+            MagicMock(rzjme=50),
+            MagicMock(rzjme=80),
+            MagicMock(rzjme=-10),
+        ]
         with patch("strategies.factors.chip._get_margin_data", return_value=margins):
             from strategies.factors.chip import _score_margin_trend
+
             assert _score_margin_trend("sh600519") == 15
 
     def test_continuous_sell(self):
         """1/5 天净买入 -> -15。"""
-        margins = [MagicMock(rzjme=-100), MagicMock(rzjme=-200), MagicMock(rzjme=-50),
-                    MagicMock(rzjme=-80), MagicMock(rzjme=10)]
+        margins = [
+            MagicMock(rzjme=-100),
+            MagicMock(rzjme=-200),
+            MagicMock(rzjme=-50),
+            MagicMock(rzjme=-80),
+            MagicMock(rzjme=10),
+        ]
         with patch("strategies.factors.chip._get_margin_data", return_value=margins):
             from strategies.factors.chip import _score_margin_trend
+
             assert _score_margin_trend("sh600519") == -15
 
     def test_net_positive(self):
         """2-3/5 天净买入但累计为正 -> +8。"""
-        margins = [MagicMock(rzjme=500), MagicMock(rzjme=-100), MagicMock(rzjme=300),
-                    MagicMock(rzjme=-50), MagicMock(rzjme=200)]
+        margins = [
+            MagicMock(rzjme=500),
+            MagicMock(rzjme=-100),
+            MagicMock(rzjme=300),
+            MagicMock(rzjme=-50),
+            MagicMock(rzjme=200),
+        ]
         with patch("strategies.factors.chip._get_margin_data", return_value=margins):
             from strategies.factors.chip import _score_margin_trend
+
             assert _score_margin_trend("sh600519") == 8
 
 
@@ -92,6 +120,7 @@ class TestScoreInstitutionChange:
     def test_no_data(self):
         with patch("strategies.factors.chip._get_top_holders", return_value=[]):
             from strategies.factors.chip import _score_institution_change
+
             assert _score_institution_change("sh600519") == 0
 
     def test_net_buy(self):
@@ -102,6 +131,7 @@ class TestScoreInstitutionChange:
         ]
         with patch("strategies.factors.chip._get_top_holders", return_value=holders):
             from strategies.factors.chip import _score_institution_change
+
             assert _score_institution_change("sh600519") == 10
 
     def test_net_sell(self):
@@ -112,6 +142,7 @@ class TestScoreInstitutionChange:
         ]
         with patch("strategies.factors.chip._get_top_holders", return_value=holders):
             from strategies.factors.chip import _score_institution_change
+
             assert _score_institution_change("sh600519") == -10
 
     def test_balanced(self):
@@ -122,6 +153,7 @@ class TestScoreInstitutionChange:
         ]
         with patch("strategies.factors.chip._get_top_holders", return_value=holders):
             from strategies.factors.chip import _score_institution_change
+
             assert _score_institution_change("sh600519") == 0
 
 
@@ -131,16 +163,19 @@ class TestScoreNorthboundFlow:
     def test_no_data(self):
         with patch("data.flow.get_northbound_flow", return_value=[]):
             from strategies.factors.chip import _score_northbound_flow
+
             assert _score_northbound_flow("sh600519") == 0
 
     def test_exception_returns_zero(self):
         with patch("data.flow.get_northbound_flow", side_effect=Exception("fail")):
             from strategies.factors.chip import _score_northbound_flow
+
             assert _score_northbound_flow("sh600519") == 0
 
     def test_insufficient_data(self):
         with patch("data.flow.get_northbound_flow", return_value=[{"net_buy": 100}]):
             from strategies.factors.chip import _score_northbound_flow
+
             assert _score_northbound_flow("sh600519") == 0
 
     def test_all_positive_5d(self):
@@ -148,6 +183,7 @@ class TestScoreNorthboundFlow:
         flow = [{"net_buy": 100}] * 20
         with patch("data.flow.get_northbound_flow", return_value=flow):
             from strategies.factors.chip import _score_northbound_flow
+
             result = _score_northbound_flow("sh600519")
             assert result >= 5.0
 
@@ -156,6 +192,7 @@ class TestScoreNorthboundFlow:
         flow = [{"net_buy": -100}] * 20
         with patch("data.flow.get_northbound_flow", return_value=flow):
             from strategies.factors.chip import _score_northbound_flow
+
             result = _score_northbound_flow("sh600519")
             assert result <= 0
 
@@ -166,6 +203,7 @@ class TestChipScoreStatic:
     def test_no_data_returns_neutral(self):
         with patch("strategies.factors.chip._get_cached_holders", return_value=[]):
             from strategies.factors.chip import chip_score_static
+
             assert chip_score_static("sh600519") == 50.0
 
     def test_with_concentration_data(self):
@@ -176,6 +214,7 @@ class TestChipScoreStatic:
         ]
         with patch("strategies.factors.chip._get_cached_holders", return_value=holders):
             from strategies.factors.chip import chip_score_static
+
             score = chip_score_static("sh600519")
             # 平滑后中位数 -13.35 -> [-15,-10) -> 70 分
             assert score == 70.0
@@ -188,6 +227,7 @@ class TestChipScoreStatic:
         ]
         with patch("strategies.factors.chip._get_cached_holders", return_value=holders):
             from strategies.factors.chip import chip_score_static
+
             score = chip_score_static("sh600519")
             # 两期均大幅集中，平滑后仍 < -15 -> 80 分
             assert score == 80.0
@@ -197,4 +237,5 @@ class TestChipScoreStatic:
         holders = [MagicMock(holder_num_change=-5.0)]
         with patch("strategies.factors.chip._get_cached_holders", return_value=holders):
             from strategies.factors.chip import chip_score_static
+
             assert chip_score_static("sh600519") == 50.0

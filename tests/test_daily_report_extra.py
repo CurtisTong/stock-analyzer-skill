@@ -45,7 +45,18 @@ class TestGetPm:
         """成功初始化时缓存 PortfolioManager 实例。"""
         portfolio_file = tmp_path / "portfolio.json"
         portfolio_file.write_text(
-            json.dumps({"positions": [{"code": "sh600000", "name": "测试", "quantity": 100, "cost": 10}]}),
+            json.dumps(
+                {
+                    "positions": [
+                        {
+                            "code": "sh600000",
+                            "name": "测试",
+                            "quantity": 100,
+                            "cost": 10,
+                        }
+                    ]
+                }
+            ),
             encoding="utf-8",
         )
         gen = DailyReportGenerator(portfolio_path=str(portfolio_file))
@@ -173,7 +184,14 @@ class TestGenerate:
         portfolio_file = tmp_path / "portfolio.json"
         portfolio_file.write_text(
             json.dumps(
-                [{"code": "sh600000", "name": "测试股", "shares": 100, "cost_price": 10.0}]
+                [
+                    {
+                        "code": "sh600000",
+                        "name": "测试股",
+                        "shares": 100,
+                        "cost_price": 10.0,
+                    }
+                ]
             ),
             encoding="utf-8",
         )
@@ -193,7 +211,16 @@ class TestGenerate:
         portfolio_file = tmp_path / "portfolio.json"
         portfolio_file.write_text(
             json.dumps(
-                {"positions": [{"code": "sh600001", "name": "蓝筹股", "quantity": 200, "cost": 20.0}]}
+                {
+                    "positions": [
+                        {
+                            "code": "sh600001",
+                            "name": "蓝筹股",
+                            "quantity": 200,
+                            "cost": 20.0,
+                        }
+                    ]
+                }
             ),
             encoding="utf-8",
         )
@@ -219,7 +246,9 @@ class TestGenerate:
         """cost=0 时不抛 ZeroDivisionError。"""
         portfolio_file = tmp_path / "portfolio.json"
         portfolio_file.write_text(
-            json.dumps([{"code": "sh600000", "name": "零成本", "shares": 100, "cost_price": 0}]),
+            json.dumps(
+                [{"code": "sh600000", "name": "零成本", "shares": 100, "cost_price": 0}]
+            ),
             encoding="utf-8",
         )
         gen = DailyReportGenerator(portfolio_path=str(portfolio_file))
@@ -235,7 +264,9 @@ class TestGenerate:
         """行情缺失 price -> 当作 0。"""
         portfolio_file = tmp_path / "portfolio.json"
         portfolio_file.write_text(
-            json.dumps([{"code": "sh600000", "name": "测试", "shares": 100, "cost_price": 10}]),
+            json.dumps(
+                [{"code": "sh600000", "name": "测试", "shares": 100, "cost_price": 10}]
+            ),
             encoding="utf-8",
         )
         gen = DailyReportGenerator(portfolio_path=str(portfolio_file))
@@ -275,7 +306,9 @@ class TestFetchQuotes:
         """http_get 异常 -> 返回 price=0 兜底。"""
         gen = DailyReportGenerator()
         portfolio = [{"code": "sh600000"}]
-        with patch("portfolio.daily_report.http_get", side_effect=Exception("network error")):
+        with patch(
+            "portfolio.daily_report.http_get", side_effect=Exception("network error")
+        ):
             result = gen._fetch_quotes(portfolio)
         assert "sh600000" in result
         assert result["sh600000"]["price"] == 0
@@ -374,7 +407,9 @@ class TestFormatReport:
             stock_details=[self._stock(name=long_name)],
         )
         # 个股表现表中名称截断（表格行），但今日关注段用全名
-        table_section = out.split("个股表现")[1].split("今日关注")[0] if "个股表现" in out else ""
+        table_section = (
+            out.split("个股表现")[1].split("今日关注")[0] if "个股表现" in out else ""
+        )
         assert long_name not in table_section  # 表格中不出现全名
         assert long_name[:6] in table_section  # 截断名出现
 
@@ -476,8 +511,14 @@ class TestSendBarkSuccess:
     def test_bark_with_server_key_config(self, capsys):
         """有 server+key 配置 -> 构造 URL 并发送。"""
         gen = DailyReportGenerator()
-        with patch("config.loader.ConfigLoader.get", side_effect=["https://bark.example.com", "abc123"]):
-            with patch("monitor.channels.base.validate_webhook_url", return_value="https://bark.example.com/abc123"):
+        with patch(
+            "config.loader.ConfigLoader.get",
+            side_effect=["https://bark.example.com", "abc123"],
+        ):
+            with patch(
+                "monitor.channels.base.validate_webhook_url",
+                return_value="https://bark.example.com/abc123",
+            ):
                 with patch("urllib.request.urlopen") as mock_urlopen:
                     gen._send_bark("report content")
         # urlopen 被调用
@@ -499,7 +540,10 @@ class TestSendBarkSuccess:
             return default
 
         with patch("config.loader.ConfigLoader.get", side_effect=mock_get):
-            with patch("monitor.channels.base.validate_webhook_url", return_value="https://bark.example.com/old"):
+            with patch(
+                "monitor.channels.base.validate_webhook_url",
+                return_value="https://bark.example.com/old",
+            ):
                 with patch("urllib.request.urlopen"):
                     gen._send_bark("report")
         # 不应出现"未配置"
@@ -509,9 +553,17 @@ class TestSendBarkSuccess:
     def test_bark_send_exception_handled(self, capsys):
         """urlopen 异常被捕获。"""
         gen = DailyReportGenerator()
-        with patch("config.loader.ConfigLoader.get", side_effect=["https://bark.example.com", "abc123"]):
-            with patch("monitor.channels.base.validate_webhook_url", return_value="https://bark.example.com/abc123"):
-                with patch("urllib.request.urlopen", side_effect=Exception("network error")):
+        with patch(
+            "config.loader.ConfigLoader.get",
+            side_effect=["https://bark.example.com", "abc123"],
+        ):
+            with patch(
+                "monitor.channels.base.validate_webhook_url",
+                return_value="https://bark.example.com/abc123",
+            ):
+                with patch(
+                    "urllib.request.urlopen", side_effect=Exception("network error")
+                ):
                     gen._send_bark("report")
         out = capsys.readouterr().out
         assert "发送 Bark 通知失败" in out
@@ -526,7 +578,9 @@ class TestMainCLI:
     def test_main_prints_report(self, capsys):
         """无参数 -> 打印报告。"""
         with patch.object(sys, "argv", ["daily_report.py"]):
-            with patch.object(DailyReportGenerator, "generate", return_value="日报内容"):
+            with patch.object(
+                DailyReportGenerator, "generate", return_value="日报内容"
+            ):
                 from portfolio import daily_report
 
                 daily_report.main()
@@ -537,7 +591,9 @@ class TestMainCLI:
         """--output -> 写入文件。"""
         out_file = tmp_path / "report.txt"
         with patch.object(sys, "argv", ["daily_report.py", "--output", str(out_file)]):
-            with patch.object(DailyReportGenerator, "generate", return_value="日报内容"):
+            with patch.object(
+                DailyReportGenerator, "generate", return_value="日报内容"
+            ):
                 from portfolio import daily_report
 
                 daily_report.main()
@@ -548,8 +604,12 @@ class TestMainCLI:
     def test_main_with_channel(self, capsys):
         """--channel -> 调用 send_notification。"""
         with patch.object(sys, "argv", ["daily_report.py", "--channel", "wechat"]):
-            with patch.object(DailyReportGenerator, "generate", return_value="日报内容"):
-                with patch.object(DailyReportGenerator, "send_notification") as mock_send:
+            with patch.object(
+                DailyReportGenerator, "generate", return_value="日报内容"
+            ):
+                with patch.object(
+                    DailyReportGenerator, "send_notification"
+                ) as mock_send:
                     from portfolio import daily_report
 
                     daily_report.main()

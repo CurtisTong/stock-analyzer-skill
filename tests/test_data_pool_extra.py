@@ -35,15 +35,19 @@ class TestSaveAllMarketStocks:
     def test_save(self, tmp_path):
         stocks = {"消费": ["sh600519"]}
         target = tmp_path / "all_stocks.json"
-        with patch.object(pool_mod, "ALL_STOCKS_FILE", str(target)), \
-             patch("common.atomic_write_json") as mock_write:
+        with (
+            patch.object(pool_mod, "ALL_STOCKS_FILE", str(target)),
+            patch("common.atomic_write_json") as mock_write,
+        ):
             pool_mod.save_all_market_stocks(stocks)
             assert mock_write.called
 
 
 class TestFetchAllMarketStocks:
     def test_returns_dict(self):
-        with patch.object(pool_mod, "_get_filter"), \
-             patch.object(pool_mod, "fetch_multiple_boards", return_value=[]):
+        with (
+            patch.object(pool_mod, "_get_filter"),
+            patch.object(pool_mod, "fetch_multiple_boards", return_value=[]),
+        ):
             result = pool_mod.fetch_all_market_stocks()
             assert isinstance(result, dict)
