@@ -1,7 +1,7 @@
 ---
 name: learn
 description: 投资学习助手，提供系统化学习路径。触发词：什么是 PE/ROE/MACD/KDJ/K线、怎么看 K 线、均线怎么用、估值方法、技术分析入门、什么是缠论、新手学投资、怎么学投资、了解基础概念、投资策略、风险管理。
-version: 1.5.0
+version: 1.15.0
 model: glm-5.2
 ---
 

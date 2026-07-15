@@ -1,6 +1,6 @@
 {
   "name": "stock-analyzer-skill",
-  "version": "1.5.0",
+  "version": "1.15.0",
   "description": "A 股分析 skill 包，包含 13 个 skill（9 核心 + 4 变体）：stock / market / sector / portfolio / screener / monitor / backtest / research / stock-help + stock-technical / portfolio-web / portfolio-natural / learn",
   "scripts": {
     "test": "./tests/smoke_test.sh",
