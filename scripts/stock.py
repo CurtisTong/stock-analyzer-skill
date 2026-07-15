@@ -114,6 +114,19 @@ def render_text(result: dict) -> str:
         if s.get("sell_signals"):
             lines.append(f"   ⚠️ 卖出信号: {'; '.join(s['sell_signals'][:3])}")
 
+    # 6. 回测附加（--with-backtest）
+    if "backtest" in result:
+        bt = result["backtest"]
+        lines.append("\n📊 近 60 日回测")
+        lines.append(
+            f"   胜率 {bt.get('win_rate', 0) or 0:.1f}%  "
+            f"累计收益 {bt.get('total_return', 0) or 0:+.2f}%  "
+            f"夏普 {bt.get('sharpe', 0) or 0:.2f}"
+        )
+        lines.append(f"   最大回撤 {bt.get('max_drawdown', 0) or 0:.2f}%")
+    elif "backtest_error" in result:
+        lines.append(f"\n⚠ 回测失败: {str(result['backtest_error'])[:100]}")
+
     # 统一 footer：数据时间戳 + 数据源（按 12 个 skill 共享约定）。
     data_time = result.get("data_time") or now_str()
     sources = result.get("data_sources") or ["行情", "财务", "K线"]

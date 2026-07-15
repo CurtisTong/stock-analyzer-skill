@@ -52,7 +52,7 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         [
             (
                 r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")',
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             )
         ],
     ),
@@ -62,7 +62,7 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         [
             (
                 r'(?m)^(?P<prefix>\s*"version"\s*:\s*")[^"]+(?P<suffix>")',
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             )
         ],
     ),
@@ -70,13 +70,13 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
     (
         "skills/*/SKILL.md",
         "skills/**/SKILL.md",
-        [(r"(?m)^(?P<prefix>version:\s*)" + _VER, r"{prefix}{version}")],
+        [(r"(?m)^(?P<prefix>version:\s*)" + _VER, r"\g<prefix>{version}")],
     ),
     # methodology.md frontmatter
     (
         "methodology.md",
         "methodology.md",
-        [(r"(?m)^(?P<prefix>version:\s*)" + _VER, r"{prefix}{version}")],
+        [(r"(?m)^(?P<prefix>version:\s*)" + _VER, r"\g<prefix>{version}")],
     ),
     # pyproject.toml
     (
@@ -85,7 +85,7 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         [
             (
                 r'(?m)^(?P<prefix>version\s*=\s*")[^"]+(?P<suffix>")',
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             )
         ],
     ),
@@ -98,7 +98,7 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
                 r"(?P<prefix>版本：v)"
                 + _VER
                 + r"(?P<suffix>\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             )
         ],
     ),
@@ -109,11 +109,11 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         [
             (
                 r"(?P<prefix>version-)" + _VER + r"(?P<suffix>-)",
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             ),
             (
                 r"(?P<prefix>\*\*v)" + _VER + r"(?P<suffix>\*\*)",
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             ),
         ],
     ),
@@ -124,7 +124,7 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         [
             (
                 r'(?P<prefix>DEFAULT_VERSION\s*=\s*")[^"]+(?P<suffix>")',
-                r"{prefix}{version}{suffix}",
+                r"\g<prefix>{version}\g<suffix>",
             )
         ],
     ),
