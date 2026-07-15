@@ -99,7 +99,7 @@
 | 多空分歧大时   | `/stock debate`             | 8 人专家圆桌（5+3）         |
 | 估值分歧时     | `/research financial`       | 财务建模、预测、场景分析       |
 | 重大投资决策   | `/research report`          | 深度研究、尽调、多维度评估     |
-| 验证策略有效性 | `/backtest --all`           | 比较 5 种策略的历史表现        |
+| 验证策略有效性 | `/backtest --all`           | 比较 6 种策略的历史表现        |
 | 盘中实时盯盘   | `/monitor start`            | 持仓异动、价格预警推送         |
 | 批量选股       | `/screener --sector <板块>` | 指定板块内多因子筛选           |
 

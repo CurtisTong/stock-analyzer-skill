@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。`/technical` 已合并至 `/stock technical`，`/stock-init` 已合并至 `/screener init`，`/financial-analyst` 和 `/investment-researcher` 已合并至 `/research`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 26 个 fetcher 模块（33 类）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。`/technical` 已合并至 `/stock technical`，`/stock-init` 已合并至 `/screener init`，`/financial-analyst` 和 `/investment-researcher` 已合并至 `/research`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
 
 ## 常用命令
 
@@ -60,8 +60,8 @@ scripts/
 ├── common/       # 基础设施层（HTTP、编码、字段映射、BaseFetcher、CircuitBreaker）
 ├── config/       # 外部化配置（YAML）— scoring/data_source/limits/industry_thresholds
 ├── data/         # 数据类型（Quote, KlineBar, FinanceRecord）+ 磁盘缓存
-├── fetchers/     # 多数据源 Fetcher（26 个模块 × 7 数据域，优先级故障转移）
-├── strategies/   # 筛选策略系统（5 策略 × 5 因子维度 + 模式策略）
+├── fetchers/     # 多数据源 Fetcher（27 个模块 × 7 数据域，优先级故障转移）
+├── strategies/   # 筛选策略系统（6 策略 × 6 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 实时监控
 ├── portfolio/    # 持仓管理
@@ -92,9 +92,9 @@ scripts/
 | `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/*.py`                                 | Web 服务 :8765                         |
 | `/portfolio-web`     | Web 录入服务（HTTP API）                     | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/portfolio-natural` | 自然语言 → 命令映射（NL → API）              | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
-| `/screener`          | 5 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |
+| `/screener`          | 6 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |
 | `/monitor`           | 盘中异动 + 策略关键点位 + 多通道推送         | `scripts/monitor.py` + `scripts/monitor/alert_engine.py`                              |                                        |
-| `/backtest`          | 策略历史回测（11 项指标 + 5 策略对比）       | `scripts/backtest.py` + `scripts/strategy_performance.py`                             |                                        |
+| `/backtest`          | 策略历史回测（11 项指标 + 6 策略对比）       | `scripts/backtest.py` + `scripts/strategy_performance.py`                             |                                        |
 | `/research`          | 财务建模 / 排雷 / DCF / 全维度研究报告       | `scripts/stock.py --with-backtest` + `scripts/announcements.py` + `scripts/events.py` |                                        |
 | `/learn`             | 学习助手（PE/ROE/MACD/K 线/缠论/新手入门）   | 无脚本调用                                                                            | 纯教学                                 |
 | `/stock-help`        | 帮助索引（场景入口 + skill 一句话表）        | 无脚本调用                                                                            | meta 索引（f4b3ad7 由 `/help` 重命名） |

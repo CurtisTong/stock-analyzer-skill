@@ -113,7 +113,7 @@
 - **数据采集**：`python3 scripts/quote.py sh600519 -j` 获取 JSON 数据
 - **策略开发**：修改 `scripts/strategies/` 中的权重和因子
 - **批量筛选**：`/screener --full-market --strategy balanced --top 20`
-- **回测验证**：`/backtest --all` 对比 5 种策略
+- **回测验证**：`/backtest --all` 对比 6 种策略
 
 ### 痛点
 

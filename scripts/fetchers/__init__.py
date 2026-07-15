@@ -2,16 +2,16 @@
 数据源集合：自动发现并加载可用的数据源。
 依赖包未安装时自动跳过对应数据源。
 
-v1.3.2 起按数据域分组（7 个数据域 × 26 个 fetcher 模块 / 33 个 fetcher 类），
+v1.3.2 起按数据域分组（7 个数据域 × 27 个 fetcher 模块 / 35 个 fetcher 类），
 便于扩展时定位代码。子目录化后通过 __init__.py re-export 屏蔽 import 路径变更。
 
 数据域分块：
   quote   - 实时行情        （10 个模块：tencent/eastmoney/sina/xueqiu/ths/efinance/akshare/tushare/pytdx/yfinance）
   kline   - K 线            （9 个模块：sina/eastmoney/tencent/efinance/akshare/tushare/baostock/pytdx/yfinance）
   finance - 财务            （2 个模块：eastmoney/akshare）
-  flow    - 资金流向        （1 个模块：eastmoney，2 个 fetcher 类）
+  flow    - 资金流向        （2 个模块：eastmoney/sina，3 个 fetcher 类）
   lhb     - 龙虎榜          （1 个模块：eastmoney，2 个 fetcher 类）
-  event   - 事件日历        （1 个模块：eastmoney，5 个 fetcher 类）
+  event   - 事件日历        （2 个模块：eastmoney/performance_forecast，6 个 fetcher 类）
   chip    - 融资融券/股东   （1 个模块：eastmoney，3 个 fetcher 类）
   _common - 内部辅助        （1 个模块：pytdx_pool，非 fetcher）
 """

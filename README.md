@@ -16,7 +16,7 @@
 
 > 装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析 + 8 人活跃专家圆桌（含 16 份专家人设）辩论。
 
-**五层分析框架** · **16 份专家人设（8 active）** · **26 个数据源故障转移** · **零依赖开箱即用**
+**五层分析框架** · **16 份专家人设（8 active）** · **27 个数据源故障转移** · **零依赖开箱即用**
 
 [![Version](https://img.shields.io/badge/version-1.15.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
@@ -129,7 +129,7 @@
 
 ### 🔁 多源故障转移
 
-**26 个 fetcher 模块（33 类）**<br>
+**27 个 fetcher 模块（35 类）**<br>
 腾讯 · 东财 · 新浪<br>
 雪球 · 同花顺 · 通达信<br>
 AkShare · efinance · yfinance<br>
@@ -180,7 +180,7 @@ npm install -g stock-analyzer-skill
 $ python3 scripts/init_pool.py --default                       # 1. 初始化股票池
 $ python3 scripts/screener.py --strategy balanced --top 5    # 2. 选股
 $ python3 scripts/stock.py sh600519 quick                    # 3. 单股快评
-$ python3 scripts/backtest.py --all --benchmark sh000300     # 4. 5 策略回测对比
+$ python3 scripts/backtest.py --all --benchmark sh000300     # 4. 6 策略回测对比
 $ python3 scripts/backtest.py --optimize --strategy growth_momentum  # 5. 权重优化
 $ python3 scripts/strategy_performance.py record --days 30   # 6. 月度校准
 $ python3 scripts/strategy_performance.py compare            # 7. 跨策略对比
@@ -570,7 +570,7 @@ scripts/
 ├── common/        # 基础设施（HTTP、缓存、熔断器、异常体系）
 ├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
-├── fetchers/      # 26 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
+├── fetchers/      # 27 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
 ├── strategies/    # 6 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 实时监控 + 多通道通知

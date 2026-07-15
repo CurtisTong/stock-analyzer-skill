@@ -24,7 +24,7 @@ disable-model-invocation: false
 | 你的目标                        | 命令                   | 会得到什么                                        |
 | ------------------------------- | ---------------------- | ------------------------------------------------- |
 | 📊 看今天大盘涨跌               | `/market quick`        | 三大指数 + 板块 Top3 + 一句话策略                 |
-| 🔍 找几只值得买的股票           | `/screener`            | 5 策略 × 5 因子筛选 → 候选池 + 跟踪清单           |
+| 🔍 找几只值得买的股票           | `/screener`            | 6 策略 × 6 因子筛选 → 候选池 + 跟踪清单           |
 | 🎤 听 8 位 active 专家圆桌（16 份人设中 8 active = 5 长线 + 3 短线）辩论一只股票 | `/stock <代码> debate` | 8 active（5 长 + 3 短）投票 + 最终方向 + 仓位 |
 
 ### 进阶（组合管理）
@@ -73,7 +73,7 @@ disable-model-invocation: false
 | `/market`    | `[full\|quick\|intraday]`                        | 大盘复盘（指数/板块/风格/资金）       |
 | `/sector`    | `<板块> [overview\|compare\|stock]`              | 板块全景 / 标的对比 / 板块内筛选      |
 | `/portfolio` | `[health\|rebalance\|compare\|web]`              | 持仓健康 / 调仓 / 模拟盘 / Web 录入   |
-| `/screener`  | `[--sector 板块] [--strategy 策略]`              | 5 策略 × 5 因子批量选股 + 股票池 init |
+| `/screener`  | `[--sector 板块] [--strategy 策略]`              | 6 策略 × 6 因子批量选股 + 股票池 init |
 | `/research`  | `[financial\|report] <任务>`                     | 财务建模 / 全维度研究报告             |
 | `/backtest`  | `[--strategy 策略] [--all]`                      | 策略历史胜率 + 收益 + 夏普 + 回撤     |
 | `/monitor`   | `[scan\|levels\|check\|--cache]`                 | 盘中异动 + 价格预警 + 推送            |

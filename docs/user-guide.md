@@ -271,7 +271,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 命令格式：`/screener [--sector 板块] [--strategy 策略]`
 
-### 5 种策略
+### 6 种策略
 
 | 策略            | 市场环境          | 说明     |
 | --------------- | ----------------- | -------- |
@@ -355,7 +355,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 ```text
 /backtest                            # 默认均衡精选，60 天回测
 /backtest --strategy quality_value   # 质量价值策略
-/backtest --all                      # 比较所有 5 种策略
+/backtest --all                      # 比较所有 6 种策略
 /backtest --days 120                 # 回测 120 天
 /backtest --codes 600519,000858      # 指定股票池
 ```
