@@ -285,7 +285,7 @@ def _calculate_composite_score(
 
     # 估值数据注入（反追涨杀跌）
     if quote_dict:
-        from strategies.factors.common import pe_percentile
+        from strategies.factors.score_utils import pe_percentile
         from strategies.factors.valuation import valuation_score
 
         pe = to_float(quote_dict.get("pe"))

@@ -1,6 +1,6 @@
-"""strategies/factors/common.py 测试。"""
+"""strategies/factors/score_utils.py 测试。"""
 
-from strategies.factors.common import pe_percentile, ScoringContext
+from strategies.factors.score_utils import pe_percentile, ScoringContext
 
 
 def test_pe_percentile_undervalued():

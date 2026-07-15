@@ -50,7 +50,7 @@ def momentum_score(features: dict, quote: dict) -> float:
     if pe > 0:
         pe_pct = to_float(quote.get("pe_percentile", 0))
         if pe_pct <= 0:
-            from strategies.factors.common import pe_percentile
+            from strategies.factors.score_utils import pe_percentile
 
             industry = quote.get("industry", "默认")
             pe_pct = pe_percentile(pe, industry)
