@@ -26,16 +26,20 @@ from .registry import (
     _ensure_loaded,
 )  # noqa: E402
 
-_ensure_loaded()
+# 不在模块顶层调用 _ensure_loaded()：import 时写全局 EXPERT_REGISTRY 会
+# 导致测试间状态污染（首个测试 module 加载后 registry 被填充，后续测试
+# 修改 loader 内部状态会传染）。改为在公共函数首次访问时 lazy 守卫。
 
 
 def get_expert(name: str) -> Optional[ExpertProfile]:
     """按英文短名获取专家档案。"""
+    _ensure_loaded()
     return EXPERT_REGISTRY.get(name)
 
 
 def list_experts(group: Optional[str] = None) -> List[ExpertProfile]:
     """列出专家。group 过滤：None=全部 / "long_term" / "short_term"。"""
+    _ensure_loaded()
     all_experts = list(EXPERT_REGISTRY.values())
     if group is None:
         return all_experts
@@ -68,6 +72,7 @@ def list_active_experts(group: Optional[str] = None) -> List[ExpertProfile]:
 
     新框架默认调用此 API，legacy 8 人需显式 `list_legacy_experts()`。
     """
+    _ensure_loaded()
     all_experts = [p for p in EXPERT_REGISTRY.values() if p.active]
     if group is None:
         return all_experts
@@ -82,6 +87,7 @@ def list_legacy_experts(group: Optional[str] = None) -> List[ExpertProfile]:
     value_anchor/institution）。通过 `--use-legacy-experts` flag 让用户
     显式切回旧圆桌做 A/B 对比。
     """
+    _ensure_loaded()
     all_experts = [p for p in EXPERT_REGISTRY.values() if not p.active]
     if group is None:
         return all_experts

@@ -207,7 +207,14 @@ module.exports = {
 
 ### 5.3 推荐的本地工作流
 
+> **首次 clone 后必须执行一次**：`pip install pre-commit && pre-commit install`
+> 安装 git hook（black 格式化 + ruff 静态检查 + 快速核心测试），后续每次 `git commit` 自动触发。
+> 未安装时本地提交无门禁，只能靠 CI 兜底。
+
 ```bash
+# 0. 首次 clone 后：安装 pre-commit hooks（仅一次）
+pip install pre-commit && pre-commit install
+
 # 1. 拉取最新主干
 git checkout main && git pull --rebase
 

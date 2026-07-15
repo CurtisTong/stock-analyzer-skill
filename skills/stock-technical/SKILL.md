@@ -32,6 +32,7 @@ allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.p
   - 三阴一阳/三阳一阴：量比、跌幅、反弹比例三维评分
   - 老鸭头、美人肩、双针探底、涨停双响炮、底部首板
 - **组合策略**：MA10/MA21 金叉 + 放量 2.5x 突破（71.4% 胜率，+6.39% 平均收益）
+  > ⚠️ **样本内拟合**：基于 5 只股票 × 200 日回测，`oos_validated: false`，未经外样本验证，不构成稳定有效的实盘依据
 
 ## 共享约定
 

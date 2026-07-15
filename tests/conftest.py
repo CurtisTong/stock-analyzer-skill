@@ -27,6 +27,26 @@ def _reload_config_loader():
     yield
 
 
+@pytest.fixture(autouse=True)
+def _reset_expert_registry():
+    """每个测试前重新加载 EXPERT_REGISTRY，确保专家注册表隔离。
+
+    修复顺序污染：experts/__init__.py 已移除顶层 _ensure_loaded()，
+    改为公共函数 lazy 守卫。但部分测试直接 from experts.registry
+    import EXPERT_REGISTRY 读 dict 引用，不触发 lazy 守卫。此处强制
+    每个测试前 clear + reload，保证 dict 内容来自干净的 yaml 加载。
+    """
+    try:
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+
+        EXPERT_REGISTRY.clear()
+        _ensure_loaded()
+    except ImportError:
+        pass
+    yield
+    # teardown 不再 clear：下一个测试的 setup 会 clear + reload
+
+
 def _today_str(offset_days: int = 0) -> str:
     """返回相对今天的 ISO 日期字符串（YYYY-MM-DD）。
 
