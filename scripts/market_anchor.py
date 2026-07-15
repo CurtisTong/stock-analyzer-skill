@@ -25,8 +25,10 @@ import statistics
 from pathlib import Path
 from datetime import datetime
 
-# 确保 scripts/ 在 import 路径
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+# 确保 import 路径：scripts/（供 data / technical 等同级包）+ 项目根（供 experts/ 等顶层包）
+_SCRIPTS_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPTS_DIR))
+sys.path.insert(0, str(_SCRIPTS_DIR.parent))  # 项目根，供 experts/ import
 
 from typing import Any  # mypy: Any 用于 run-time 动态 dict
 

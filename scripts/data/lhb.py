@@ -11,6 +11,11 @@ lhb 域的 2 个 fetcher 返回不同类型数据（明细/席位），不走 ma
 """
 
 import logging
+import sys
+from pathlib import Path
+
+# 直接运行本脚本时补齐 scripts/ 到 import 路径（供 common / fetchers 等同级包）
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import fetch_with_breaker, LazyFetcherRegistry
 

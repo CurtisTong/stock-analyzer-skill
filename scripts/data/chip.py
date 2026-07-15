@@ -11,8 +11,12 @@
 chip 域的 3 个 fetcher（margin/holder/top_holder）返回不同子类型数据，不走 manager 故障转移。
 """
 
+import sys
+from pathlib import Path
 from typing import List
 
+# 直接运行本脚本时补齐 scripts/ 到 import 路径（供 common / fetchers 等同级包）
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from data.types import MarginData, HolderData, TopHolderRecord
 from common import to_float, to_int, fetch_with_breaker, LazyFetcherRegistry
