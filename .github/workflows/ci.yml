@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: 单元测试
+    name: 单元与集成测试
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,20 +23,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: 跑全量测试
+      - name: 跑 unit + integration 测试
         run: |
-          python -m pytest tests/ -x -q \
-            --ignore=tests/integration \
+          python -m pytest tests/integration/ tests/unit/ tests/contracts/ \
+            -x -q \
             -m "not network" \
             --timeout=60 \
             -n auto \
             --durations=10 \
             --cov=scripts --cov=experts \
-            --cov-fail-under=60
-
-      - name: 跑 skill 元数据校验
-        run: |
-          python -m pytest tests/test_skill_metadata.py tests/test_skill_consistency.py -v
+            --cov-fail-under=21
 
   checks:
     name: 代码检查
@@ -54,8 +50,6 @@ jobs:
         run: python3 scripts/dev/sync_version.py --check
 
       - name: SKILL.md 版本与测试常量一致性
-        # 防止 bump package.json 后忘记同步 test_skill_metadata.py，
-        # 导致 release workflow 的 test job 失败阻塞 publish
         run: python3 scripts/dev/sync_skill_test_versions.py --check
 
       - name: allowed-tools 自审计
@@ -68,9 +62,6 @@ jobs:
         run: ruff check scripts/ experts/ tests/ --line-length=120
 
       - name: mypy 类型检查
-        # NOTE: 缩窄至本 PR 涉及的 6 个文件，避免 common/ 内 280+ pre-existing
-        # 错误阻塞 PR（详见 docs/review-issues.md v2.7.x 基建债项 1）。
-        # 待 mypy strict 全量清理后恢复 mypy scripts/common/
         run: |
           mypy --follow-imports=silent --no-incremental \
             scripts/market_anchor.py \

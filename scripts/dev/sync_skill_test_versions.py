@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """CI 启动时同步 SKILL.md 版本到测试文件。
 
-解决问题：开发者 bump 版本后忘记同步 test_skill_metadata.py 的
+解决问题：开发者 bump 版本后忘记同步 test_skill_metadata_sync.py 的
 DEFAULT_VERSION / VERSION_OVERRIDES，导致 release workflow 的 test job 失败、
 publish job 被阻塞。
 
 设计原则：
 - 单一来源：package.json 的 version 字段
 - 自动派生：扫描所有 skills/*/SKILL.md 的 version 字段，构建 VERSION_OVERRIDES
-- 安全：仅修改 test_skill_metadata.py 顶部两行常量，不改其他逻辑
+- 安全：仅修改 test_skill_metadata_sync.py 顶部两行常量，不改其他逻辑
 - 可检：--check 模式仅做一致性检查，CI 中作为门禁
 
 用法：
@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 PKG_ROOT = Path(__file__).resolve().parent.parent.parent
-TEST_FILE = PKG_ROOT / "tests" / "test_skill_metadata.py"
+TEST_FILE = PKG_ROOT / "tests" / "contracts" / "test_skill_metadata_sync.py"
 SKILLS_DIR = PKG_ROOT / "skills"
 
 

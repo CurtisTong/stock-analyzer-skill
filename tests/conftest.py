@@ -1,17 +1,27 @@
-"""
-pytest 全局 fixtures：标准 K 线数据、行情数据、mock 网络请求。
+"""pytest 全局 fixtures。
+
+按 FRAMEWORK.md 规范：
+- autouse fixtures 保证每个测试干净运行
+- 行情/K 线 fixture 委托 tests.helpers.market_data 生成
+- CLI 入口通过 tests.helpers.cli_runner.CliRunner 封装
 """
 
-import json
+from __future__ import annotations
+
 import pytest
-import sys
-from datetime import datetime, timedelta
-from pathlib import Path
 
-# pyproject.toml 已配置 pythonpath = ["scripts"]，无需手动 insert
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+from tests.helpers.market_data import (
+    fenxing_bottom,
+    fenxing_top,
+    generate_sideways,
+    generate_trend,
+    limit_up,
+)
+from tests.helpers.cli_runner import CliRunner
 
-DATA_DIR = Path(__file__).parent / "data"
+# ═══════════════════════════════════════════════════════════════
+# autouse fixtures（隔离副作用）
+# ═══════════════════════════════════════════════════════════════
 
 
 @pytest.fixture(autouse=True)
@@ -22,19 +32,17 @@ def _reload_config_loader():
 
         ConfigLoader.reload()
     except ImportError:
-        # P1-28: 仅跳过模块缺失，其他异常（AttributeError 等）应暴露
         pass
     yield
 
 
 @pytest.fixture(autouse=True)
 def _reset_expert_registry():
-    """每个测试前重新加载 EXPERT_REGISTRY，确保专家注册表隔离。
+    """每个测试前重置 EXPERT_REGISTRY，确保专家注册表隔离。
 
-    修复顺序污染：experts/__init__.py 已移除顶层 _ensure_loaded()，
-    改为公共函数 lazy 守卫。但部分测试直接 from experts.registry
-    import EXPERT_REGISTRY 读 dict 引用，不触发 lazy 守卫。此处强制
-    每个测试前 clear + reload，保证 dict 内容来自干净的 yaml 加载。
+    experts/__init__.py 移除了顶层 _ensure_loaded()，改为 lazy 守卫。
+    部分测试直接 from experts.registry import EXPERT_REGISTRY 读 dict 引用，
+    不触发 lazy 守卫，此处强制每个测试前 clear + reload。
     """
     try:
         from experts.registry import EXPERT_REGISTRY, _ensure_loaded
@@ -47,203 +55,73 @@ def _reset_expert_registry():
     # teardown 不再 clear：下一个测试的 setup 会 clear + reload
 
 
-def _today_str(offset_days: int = 0) -> str:
-    """返回相对今天的 ISO 日期字符串（YYYY-MM-DD）。
-
-    避免硬编码日期导致的 staleness 测试漏洞（参考 d77ded6 修复）。
-    """
-    return (datetime.now() + timedelta(days=offset_days)).strftime("%Y-%m-%d")
-
-
 # ═══════════════════════════════════════════════════════════════
-# Pytest 配置
-# ═══════════════════════════════════════════════════════════════
-
-
-def pytest_configure(config):
-    """Pytest 配置。"""
-    config.addinivalue_line("markers", "slow: 标记为慢速测试")
-    config.addinivalue_line("markers", "network: 标记为需要网络的测试")
-    config.addinivalue_line("markers", "integration: 集成测试")
-    config.addinivalue_line("markers", "e2e: 端到端测试")
-    config.addinivalue_line("markers", "unit: 单元测试")
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--run-network", action="store_true", default=False, help="运行需要网络的测试"
-    )
-
-
-def pytest_collection_modifyitems(config, items):
-    """根据选项跳过网络测试。"""
-    if not config.getoption("--run-network"):
-        skip_network = pytest.mark.skip(reason="需要 --run-network 选项")
-        for item in items:
-            if "network" in item.keywords:
-                item.add_marker(skip_network)
-
-
-# ═══════════════════════════════════════════════════════════════
-# 标准 K 线 fixtures
+# K 线 fixtures（委托 helpers.market_data）
 # ═══════════════════════════════════════════════════════════════
 
 
 @pytest.fixture
 def kline_uptrend():
-    """上升趋势 K 线（20 根），适合测试均线多头排列、MACD 金叉。"""
-    return _generate_trend("up", 20)
+    """20 根上升趋势 K 线。"""
+    return generate_trend("up", 20)
 
 
 @pytest.fixture
 def kline_downtrend():
-    """下降趋势 K 线（20 根），适合测试均线空头排列、MACD 死叉。"""
-    return _generate_trend("down", 20)
+    """20 根下降趋势 K 线。"""
+    return generate_trend("down", 20)
 
 
 @pytest.fixture
 def kline_sideways():
-    """横盘震荡 K 线（30 根），适合测试粘合度、箱体。"""
-    return _generate_sideways(30)
+    """30 根横盘震荡 K 线。"""
+    return generate_sideways(30)
 
 
 @pytest.fixture
 def kline_with_top_fenxing():
-    """含标准顶分型的 K 线序列（5 根）。"""
-    return [
-        {
-            "day": _today_str(-30),
-            "open": 10.0,
-            "high": 10.5,
-            "low": 9.8,
-            "close": 10.3,
-            "volume": 1000,
-        },
-        {
-            "day": _today_str(-29),
-            "open": 10.3,
-            "high": 11.0,
-            "low": 10.2,
-            "close": 10.8,
-            "volume": 1200,
-        },
-        {
-            "day": _today_str(-28),
-            "open": 10.8,
-            "high": 11.5,
-            "low": 10.6,
-            "close": 11.2,
-            "volume": 1500,
-        },
-        {
-            "day": _today_str(-27),
-            "open": 11.2,
-            "high": 11.3,
-            "low": 10.4,
-            "close": 10.5,
-            "volume": 1100,
-        },
-        {
-            "day": _today_str(-26),
-            "open": 10.5,
-            "high": 10.7,
-            "low": 10.0,
-            "close": 10.1,
-            "volume": 900,
-        },
-    ]
+    """5 根标准顶分型。"""
+    return fenxing_top()
 
 
 @pytest.fixture
 def kline_with_bottom_fenxing():
-    """含标准底分型的 K 线序列（5 根）。"""
-    return [
-        {
-            "day": _today_str(-30),
-            "open": 10.0,
-            "high": 10.5,
-            "low": 9.8,
-            "close": 10.1,
-            "volume": 1000,
-        },
-        {
-            "day": _today_str(-29),
-            "open": 10.1,
-            "high": 10.2,
-            "low": 9.3,
-            "close": 9.5,
-            "volume": 1200,
-        },
-        {
-            "day": _today_str(-28),
-            "open": 9.5,
-            "high": 9.6,
-            "low": 9.0,
-            "close": 9.1,
-            "volume": 1500,
-        },
-        {
-            "day": _today_str(-27),
-            "open": 9.1,
-            "high": 10.0,
-            "low": 9.2,
-            "close": 9.9,
-            "volume": 1100,
-        },
-        {
-            "day": _today_str(-26),
-            "open": 9.9,
-            "high": 10.4,
-            "low": 9.8,
-            "close": 10.3,
-            "volume": 900,
-        },
-    ]
+    """5 根标准底分型。"""
+    return fenxing_bottom()
 
 
 @pytest.fixture
 def kline_macd_golden_cross():
-    """MACD 金叉场景 K 线（先跌后涨，30 根）。"""
-    records = _generate_trend("down", 15)
-    records.extend(_generate_trend("up", 15, base_price=8.0))
+    """30 根 MACD 金叉场景（先跌后涨）。"""
+    records = generate_trend("down", 15)
+    records.extend(generate_trend("up", 15, base_price=8.0))
     return records
 
 
 @pytest.fixture
 def kline_macd_death_cross():
-    """MACD 死叉场景 K 线（先涨后跌，30 根）。"""
-    records = _generate_trend("up", 15)
-    records.extend(_generate_trend("down", 15, base_price=15.0))
+    """30 根 MACD 死叉场景（先涨后跌）。"""
+    records = generate_trend("up", 15)
+    records.extend(generate_trend("down", 15, base_price=15.0))
     return records
 
 
 @pytest.fixture
 def kline_limit_up():
-    """含涨停 K 线的数据（A 股特化测试）。"""
-    records = _generate_trend("up", 10)
-    # 涨停 K 线：涨幅 ~10%
-    prev_close = records[-1]["close"]
-    records.append(
-        {
-            "day": _today_str(-1),
-            "open": prev_close,
-            "high": round(prev_close * 1.1, 2),
-            "low": prev_close,
-            "close": round(prev_close * 1.1, 2),
-            "volume": 5000,
-        }
-    )
+    """含涨停 K 线的 A 股特化场景。"""
+    records = generate_trend("up", 10)
+    records.append(limit_up(prev_close=records[-1]["close"]))
     return records
 
 
 # ═══════════════════════════════════════════════════════════════
-# 行情数据 fixtures
+# 行情/财务 fixtures
 # ═══════════════════════════════════════════════════════════════
 
 
 @pytest.fixture
-def sample_quote():
-    """标准行情数据（归一化后：volume=股, amount=元）。"""
+def sample_quote() -> dict:
+    """归一化后行情（volume=股，amount=元）。"""
     return {
         "code": "600519",
         "name": "贵州茅台",
@@ -254,8 +132,8 @@ def sample_quote():
         "change_amt": "10.00",
         "high": "1810.00",
         "low": "1790.00",
-        "volume": "1234500",  # 股（腾讯原值 12345 手 × 100）
-        "amount": "22345670000",  # 元（腾讯原值 2234567 万 × 10000）
+        "volume": "1234500",
+        "amount": "22345670000",
         "turnover": "0.15",
         "pe": "25.6",
         "pb": "8.2",
@@ -265,8 +143,8 @@ def sample_quote():
 
 
 @pytest.fixture
-def sample_finance():
-    """标准财务数据（模拟东财接口返回格式）。"""
+def sample_finance() -> dict:
+    """东财字段名归一化财务。"""
     return {
         "EPSJB": "50.00",
         "ROEJQ": "30.5",
@@ -281,7 +159,7 @@ def sample_finance():
 
 
 @pytest.fixture
-def sample_finance_akshare():
+def sample_finance_akshare() -> dict:
     """akshare 财务数据（中文字段名）。"""
     return {
         "基本每股收益": "50.00",
@@ -293,12 +171,12 @@ def sample_finance_akshare():
         "资产负债率(%)": "18.7",
         "每股净资产": "180.00",
         "每股经营现金流": "55.00",
-        "报告日期": "2025-03-31",
+        "报告日期": "2026-03-31",
     }
 
 
 @pytest.fixture
-def sample_finance_efinance():
+def sample_finance_efinance() -> dict:
     """efinance 财务数据（中文字段名变体）。"""
     return {
         "每股收益": "50.00",
@@ -320,7 +198,11 @@ def sample_finance_efinance():
 
 @pytest.fixture
 def mock_http_get(monkeypatch):
-    """Mock common.http_get，避免真实网络请求。"""
+    """Mock common.http_get，避免真实网络请求。
+
+    注：fetchers 测试优先使用 respx_mock（见 helpers.http_fixtures），
+    此 fixture 仅供旧式 monkeypatch 测试使用。
+    """
 
     def _mock(url, timeout=10):
         return b""
@@ -354,56 +236,83 @@ def mock_fetch_batch(monkeypatch, sample_quote):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 内部工具
+# 新增 fixtures（CLI runner / 时间冻结）
 # ═══════════════════════════════════════════════════════════════
 
 
-def _generate_trend(direction, n, base_price=10.0):
-    """生成趋势 K 线序列。"""
-    records = []
-    price = base_price
-    # 起始日期：今天往前推 n 天（留缓冲避免 staleness）
-    start_date = datetime.now() - timedelta(days=n + 5)
-    for i in range(n):
-        if direction == "up":
-            change = 0.3 + (i % 3) * 0.1
-        else:
-            change = -0.3 - (i % 3) * 0.1
-        open_p = price
-        close_p = round(price + change, 2)
-        high_p = round(max(open_p, close_p) + 0.2, 2)
-        low_p = round(min(open_p, close_p) - 0.2, 2)
-        records.append(
-            {
-                "day": (start_date + timedelta(days=i)).strftime("%Y-%m-%d"),
-                "open": open_p,
-                "high": high_p,
-                "low": low_p,
-                "close": close_p,
-                "volume": 1000 + i * 50,
-            }
-        )
-        price = close_p
-    return records
+@pytest.fixture
+def cli_runner() -> CliRunner:
+    """CLI 子进程执行器（替代散落的 subprocess.run）。"""
+    return CliRunner()
 
 
-def _generate_sideways(n, center=10.0, amplitude=0.5):
-    """生成横盘震荡 K 线序列。"""
-    import math
+@pytest.fixture
+def freeze_time(monkeypatch):
+    """冻结当前时间到固定值。
 
-    records = []
-    start_date = datetime.now() - timedelta(days=n + 5)
-    for i in range(n):
-        offset = amplitude * math.sin(i * 0.5)
-        price = center + offset
-        records.append(
-            {
-                "day": (start_date + timedelta(days=i)).strftime("%Y-%m-%d"),
-                "open": round(price - 0.1, 2),
-                "high": round(price + 0.3, 2),
-                "low": round(price - 0.3, 2),
-                "close": round(price + 0.1, 2),
-                "volume": 1000 + (i % 5) * 100,
-            }
-        )
-    return records
+    用法：
+        def test_x(freeze_time):
+            freeze_time("2026-07-20 10:30:00")
+            ...
+    """
+    from datetime import datetime
+
+    def _freeze(iso: str) -> None:
+        fixed = datetime.fromisoformat(iso)
+        try:
+            from dev import clock
+
+            monkeypatch.setattr(clock, "_now_func", lambda: fixed)
+        except ImportError:
+            pass
+
+    return _freeze
+
+
+# ═══════════════════════════════════════════════════════════════
+# pytest 配置
+# ═══════════════════════════════════════════════════════════════
+
+
+def pytest_configure(config):
+    """注册自定义 marker。"""
+    config.addinivalue_line("markers", "unit: 纯函数/单类单元测试")
+    config.addinivalue_line("markers", "integration: 跨模块集成测试")
+    config.addinivalue_line("markers", "e2e: 端到端 CLI 测试")
+    config.addinivalue_line("markers", "contracts: schema/yaml 合约测试")
+    config.addinivalue_line("markers", "slow: 慢速测试")
+    config.addinivalue_line("markers", "network: 需要真实网络访问")
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--run-network",
+        action="store_true",
+        default=False,
+        help="运行需要网络的测试",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """默认 skip network 测试；按目录自动打 layer marker。"""
+    if not config.getoption("--run-network"):
+        skip_network = pytest.mark.skip(reason="需要 --run-network 选项")
+        for item in items:
+            if "network" in item.keywords:
+                item.add_marker(skip_network)
+
+    # 按目录自动打 layer marker（避免每个文件手写 pytestmark）
+    from pathlib import Path
+
+    auto_markers = {
+        "tests/unit/": "unit",
+        "tests/integration/": "integration",
+        "tests/e2e/": "e2e",
+        "tests/contracts/": "contracts",
+    }
+    for item in items:
+        fspath = str(item.fspath).replace("\\", "/")
+        for prefix, marker in auto_markers.items():
+            if prefix in fspath:
+                item.add_marker(getattr(pytest.mark, marker))
+                break

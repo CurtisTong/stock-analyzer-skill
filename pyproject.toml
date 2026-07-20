@@ -1,6 +1,6 @@
 [project]
 name = "stock-analyzer-skill"
-version = "1.15.0"
+version = "1.16.0"
 description = "A-share stock analyzer Claude Code plugin"
 requires-python = ">=3.11"
 
@@ -19,16 +19,19 @@ pytest-timeout = ">=2.0"
 pytest-cov = ">=4.0"
 hypothesis = ">=6.0"
 pyyaml = ">=6.0"
+respx = ">=0.21"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["scripts"]
+addopts = "-ra --strict-markers"
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "network: marks tests requiring network access (deselect with '-m \"not network\"')",
-    "integration: marks integration tests",
-    "e2e: marks end-to-end tests",
-    "unit: marks unit tests",
+    "unit: 纯函数/单类单元测试",
+    "integration: 跨模块集成测试",
+    "e2e: 端到端 CLI 测试",
+    "contracts: schema/yaml 合约测试",
+    "slow: 慢速测试",
+    "network: 需要真实网络访问（默认 skip）",
 ]
 
 [tool.ruff]
