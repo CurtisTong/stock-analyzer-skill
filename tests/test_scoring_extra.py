@@ -320,26 +320,29 @@ class TestScorePatterns:
 
 
 class TestScoreChan:
+    def _w(self):
+        return _get_stock_type_weights("普通股")
+
     def _adj(self):
         return _market_weight_adjustments("震荡")
 
     def test_invalid_chan(self):
-        s = _score_chan({"valid": False}, self._adj())
+        s = _score_chan({"valid": False}, self._w(), self._adj())
         assert s == 0
 
     def test_buy_point_1(self):
         chan = {"valid": True, "maidian": {"buy_points": [{"type": "一买"}]}}
-        s = _score_chan(chan, self._adj())
+        s = _score_chan(chan, self._w(), self._adj())
         assert s >= 5
 
     def test_buy_point_2(self):
         chan = {"valid": True, "maidian": {"buy_points": [{"type": "二买"}]}}
-        s = _score_chan(chan, self._adj())
+        s = _score_chan(chan, self._w(), self._adj())
         assert s >= 3
 
     def test_buy_point_3(self):
         chan = {"valid": True, "maidian": {"buy_points": [{"type": "三买"}]}}
-        s = _score_chan(chan, self._adj())
+        s = _score_chan(chan, self._w(), self._adj())
         assert s >= 3
 
     def test_bottom_divergence(self):
@@ -348,7 +351,7 @@ class TestScoreChan:
             "maidian": {"buy_points": []},
             "beichi": {"summary": "检测到底背驰"},
         }
-        s = _score_chan(chan, self._adj())
+        s = _score_chan(chan, self._w(), self._adj())
         assert s >= 5
 
     def test_clamped_0_15(self):
@@ -359,8 +362,18 @@ class TestScoreChan:
             },
             "beichi": {"summary": "检测到底背驰"},
         }
-        s = _score_chan(chan, self._adj())
+        s = _score_chan(chan, self._w(), self._adj())
         assert 0 <= s <= 15
+
+    def test_chan_scales_with_type_weight(self):
+        """问题 5: chan 评分应随 type_w["chan"] 缩放。"""
+        chan = {"valid": True, "maidian": {"buy_points": [{"type": "一买"}]}}
+        # 周期股 chan=1.3 vs 题材股 chan=0.5
+        w_cycle = _get_stock_type_weights("周期股")
+        w_theme = _get_stock_type_weights("题材股")
+        s_cycle = _score_chan(chan, w_cycle, self._adj())
+        s_theme = _score_chan(chan, w_theme, self._adj())
+        assert s_cycle > s_theme  # 周期股权重更高，评分更高
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -410,8 +423,8 @@ class TestScoreLocal:
                 ]
             }
         )
-        # 看跌信号，但 clamp 下限 0
-        assert s >= 0
+        # Bug 3 修复：看跌信号现在允许负分（下限 -5），不再被 clamp(0,10) 吞掉
+        assert s < 0
 
     def test_zhangting_shuangxiangpao(self):
         s = _score_local({"patterns": [{"name": "涨停双响炮", "confidence": "中"}]})
@@ -424,7 +437,8 @@ class TestScoreLocal:
 
     def test_clamped_0_10(self):
         s = _score_local({"patterns": [{"name": "老鸭头", "confidence": "高"}]})
-        assert 0 <= s <= 10
+        # Bug 3 修复：local 允许负分，范围 [-5, 10]
+        assert -5 <= s <= 10
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -28,10 +28,16 @@ _SCORE_MAX_DEFAULT = {
     "volume": 20,  # _score_volume: clamp 0-20
     "pattern": 25,  # _score_patterns: 累加多种形态，上限 ~25
     "chan": 15,  # _score_chan: clamp 0-15
-    "local": 10,  # _score_local: clamp 0-10
+    "local": 10,  # _score_local: clamp 0-10（允许负分，见 _SCORE_LOCAL_MIN/MAX）
+    "limit": 15,  # _score_limit: 涨跌停/连板信号，clamp 0-15
     "chip": 10,  # chip 允许负分（下限 -5），归一化时特殊处理
     "valuation": 100,  # 估值因子（PE/PB/PEG/PS），满分 100
 }
+
+# P1: _score_local 允许负分（看跌形态如三阳一阴），归一化按 chip 同口径处理。
+# 原实现 clamp(0,10) 会吞掉负分，导致纯看跌形态对评分无惩罚。
+_SCORE_LOCAL_MIN = -5
+_SCORE_LOCAL_MAX = 10
 
 
 def _get_score_max() -> dict:
@@ -148,11 +154,16 @@ def _get_stock_type_weights(stock_type: str) -> dict:
     cfg = _scoring_config("stock_type_weights") or {}
     if stock_type in cfg:
         row = dict(cfg[stock_type])
-        # 补全缺失的 chip 字段（向后兼容旧 YAML）
-        if "chip" not in row:
-            row["chip"] = _STOCK_TYPE_WEIGHTS_DEFAULT.get(
-                stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
-            ).get("chip", 1.0)
+        # 补全可能缺失的 chip / valuation 字段（向后兼容旧 YAML）。
+        # Bug 2 修复：原仅补 chip，valuation 缺失时 type_w.get("valuation") 返回 None，
+        # 导致 valuation 权重默认 1.0 进分子却不进分母（total_weight），
+        # 评分被异常放大。现与 chip 同等补全。
+        defaults = _STOCK_TYPE_WEIGHTS_DEFAULT.get(
+            stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
+        )
+        for field in ("chip", "valuation"):
+            if field not in row:
+                row[field] = defaults.get(field, 1.0)
         return row
     return _STOCK_TYPE_WEIGHTS_DEFAULT.get(
         stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
@@ -277,8 +288,10 @@ def _score_volume(vol: dict, type_w: dict) -> float:
         vol_base = 3
     vol_score = vol_base * type_w["volume"]
     # 极低量仅在量价中性或看涨时加分（放量下跌时不加分）
+    # Bug 4 修复：加分项需乘 type_w，与基础分保持口径一致，避免对低权重类型
+    # （如蓝筹股 volume=0.8）地量加分相对占比被放大。
     if vr < 0.3 and vp_signal >= 0:
-        vol_score += 3
+        vol_score += 3 * type_w["volume"]
     return clamp(vol_score, 0, 20)
 
 
@@ -298,8 +311,12 @@ def _score_patterns(patterns: list, type_w: dict, adj: dict) -> float:
     )
 
 
-def _score_chan(chan_data: dict, adj: dict) -> float:
-    """缠论加分项（上限 15）。"""
+def _score_chan(chan_data: dict, type_w: dict, adj: dict) -> float:
+    """缠论加分项（上限 15）。
+
+    问题 5 修复：补乘 type_w["chan"]，与其他子评分口径一致，
+    让缠论评分的动态范围随股票类型权重缩放（周期股 chan=1.3 vs 题材股 chan=0.5）。
+    """
     chan_bonus = 0
     if chan_data.get("valid"):
         maidain = chan_data.get("maidian", {})
@@ -315,7 +332,62 @@ def _score_chan(chan_data: dict, adj: dict) -> float:
         beichi = chan_data.get("beichi", {})
         if beichi.get("summary", "").startswith("检测到底背驰"):
             chan_bonus += 8 * adj.get("divergence_bottom", 1.0)
-    return clamp(chan_bonus, 0, 15)
+    chan_score = chan_bonus * type_w.get("chan", 1.0)
+    return clamp(chan_score, 0, 15)
+
+
+def _score_limit(limit_data: dict, type_w: dict, adj: dict) -> float:
+    """涨跌停/连板信号评分（上限 15）。
+
+    Bug 1 修复：原 type_w 含 limit 权重但 raw/normalized 缺 limit 子项，
+    导致权重只进分母不进分子（题材股评分被稀释 16.7%）。
+    本函数将 features["limit_analysis"] 纳入评分，让 limit 真正参与分子。
+
+    评分逻辑：
+    - 连板数越高越强（首板5、二板8、高位板10、妖股12），缩量加速额外加分
+    - 封涨停/翘板为正，封跌停/炸板为负
+    - 趋势跟随市场（牛市）加权，亢奋市场降权（警惕反转）
+    """
+    if not limit_data or not isinstance(limit_data, dict):
+        return 0.0
+
+    limit_bonus = 0.0
+    streak_type = limit_data.get("streak_type", "无连板")
+    board_status = limit_data.get("board_status", "正常交易")
+    streak_volume = limit_data.get("streak_volume", "")
+
+    # 连板加分：连板数越高，趋势延续信号越强
+    if "首板" in streak_type:
+        limit_bonus += 5
+    elif "二板" in streak_type:
+        limit_bonus += 8
+    elif "高位" in streak_type:
+        limit_bonus += 10
+    elif "妖股" in streak_type:
+        limit_bonus += 12  # 高位妖股趋势极强但风险也高
+
+    # 连板量能配合：缩量加速（惜售）加分，放量分歧（换手加大）减分
+    if "缩量加速" in streak_volume:
+        limit_bonus += 3
+    elif "放量分歧" in streak_volume:
+        limit_bonus -= 2
+
+    # 涨跌停状态
+    if "封涨停" in board_status:
+        limit_bonus += 3 * adj.get("breakout", 1.0)
+    elif "翘板" in board_status:  # 跌停打开，反转信号
+        limit_bonus += 2 * adj.get("divergence_bottom", 1.0)
+    elif "封跌停" in board_status:
+        limit_bonus -= 3
+    elif "炸板" in board_status:  # 涨停打开，弱势信号
+        limit_bonus -= 2
+
+    # 亢奋市场对连板降权（警惕高位反转）
+    limit_bonus *= adj.get("breakout", 1.0)
+
+    limit_score = limit_bonus * type_w.get("limit", 1.0)
+    # 允许小幅负分（封跌停/炸板惩罚），但下限 -3 避免过度拖累总分
+    return clamp(limit_score, -3, 15)
 
 
 def _score_local(local_patterns_data: dict) -> float:
@@ -370,7 +442,10 @@ def _score_local(local_patterns_data: dict) -> float:
 
         local_bonus += bonus
 
-    return clamp(local_bonus, 0, 10)
+    # Bug 3 修复：原 clamp(0,10) 会吞掉看跌形态（三阳一阴）的负分，
+    # 导致纯看跌场景对评分无惩罚。现允许负分（下限 _SCORE_LOCAL_MIN=-5），
+    # 归一化时按 chip 同口径 (val - min) / (max - min) * 100 处理。
+    return clamp(local_bonus, _SCORE_LOCAL_MIN, _SCORE_LOCAL_MAX)
 
 
 def _score_chip(chip_data: dict, type_w: dict) -> float:
@@ -460,8 +535,9 @@ def composite_score(
         "rsi": _score_rsi(rsi_data, type_w, vol_signal),
         "volume": _score_volume(vol, type_w),
         "pattern": _score_patterns(patterns, type_w, adj),
-        "chan": _score_chan(features.get("chan_theory") or {}, adj),
+        "chan": _score_chan(features.get("chan_theory") or {}, type_w, adj),
         "local": _score_local(features.get("local_patterns") or {}),
+        "limit": _score_limit(features.get("limit_analysis"), type_w, adj),
         "chip": _score_chip(features.get("chip") or {}, type_w),
         # 估值因子评分（0-100），None 时用中性 50（与下游 max_val=100 兼容）
         "valuation": features.get("valuation_score") or 50,
@@ -486,13 +562,21 @@ def composite_score(
         if continuous_height <= 2 and continuous_height > 0:
             breadth_penalty += 3
 
-    # 归一化各子评分到 [0, 100]，chip 允许负分特殊处理
+    # 归一化各子评分到 [0, 100]
+    # chip / local / limit 允许负分，按 (val - min) / (max - min) * 100 归一化
     normalized = {}
     for key, val in raw.items():
         max_val = _SCORE_MAX[key]
         if key == "chip":
             # chip 范围 [-5, 10]，归一化到 [0, 100]
             normalized[key] = clamp((val + 5) / 15 * 100, 0, 100)
+        elif key == "local":
+            # local 范围 [_SCORE_LOCAL_MIN(-5), _SCORE_LOCAL_MAX(10)]，归一化到 [0, 100]
+            span = _SCORE_LOCAL_MAX - _SCORE_LOCAL_MIN
+            normalized[key] = clamp((val - _SCORE_LOCAL_MIN) / span * 100, 0, 100)
+        elif key == "limit":
+            # limit 范围 [-3, 15]，归一化到 [0, 100]
+            normalized[key] = clamp((val + 3) / 18 * 100, 0, 100)
         else:
             normalized[key] = clamp(val / max_val * 100, 0, 100) if max_val > 0 else 0
 
@@ -568,7 +652,8 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
         turnover = to_float(index_quote.get("turnover"))
 
         # 多日窗口：用近期数据的均值平滑单日噪声
-        if recent_quotes and len(recent_quotes) > 1:
+        has_multi_day = bool(recent_quotes and len(recent_quotes) > 1)
+        if has_multi_day:
             recent_changes = [to_float(q.get("change_pct")) for q in recent_quotes]
             recent_turnovers = [to_float(q.get("turnover")) for q in recent_quotes]
             avg_change = sum(recent_changes) / len(recent_changes)
@@ -582,12 +667,24 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
         # 用多日均值判断趋势
         if avg_change > 1.5:
             state = "牛市"
-            confidence = "高" if avg_change > 2.5 else "中"
-            signals.append(f"持续上涨(均值{avg_change:.1f}%)")
+            if avg_change > 2.5:
+                confidence = "高" if has_multi_day else "中"
+            else:
+                confidence = "中" if has_multi_day else "低"
+            if not has_multi_day:
+                signals.append(f"单日大涨(均值{avg_change:.1f}%,趋势待确认)")
+            else:
+                signals.append(f"持续上涨(均值{avg_change:.1f}%)")
         elif avg_change < -1.5:
             state = "熊市"
-            confidence = "高" if avg_change < -2.5 else "中"
-            signals.append(f"持续下跌(均值{avg_change:.1f}%)")
+            if avg_change < -2.5:
+                confidence = "高" if has_multi_day else "中"
+            else:
+                confidence = "中" if has_multi_day else "低"
+            if not has_multi_day:
+                signals.append(f"单日大跌(均值{avg_change:.1f}%,趋势待确认)")
+            else:
+                signals.append(f"持续下跌(均值{avg_change:.1f}%)")
         elif avg_change > 0.5:
             state = "牛市"
             confidence = "低"
