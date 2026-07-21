@@ -135,7 +135,12 @@ def _analyze(
         if kline:
             result["data_sources"].append("K线")
     try:
-        finance = f_finance.result(timeout=45) if f_finance else None
+        # WP4 (2026-07-21): get_finance 返回 (records, FinanceMeta) tuple
+        finance_result = f_finance.result(timeout=45) if f_finance else None
+        if isinstance(finance_result, tuple) and len(finance_result) == 2:
+            finance, _finance_meta = finance_result
+        else:
+            finance = finance_result or []
     except Exception as e:
         logger.warning("获取财务数据失败 %s: %s", code, e)
         result["data_warnings"].append(
