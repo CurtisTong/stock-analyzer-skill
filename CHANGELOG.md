@@ -28,6 +28,19 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-07-21
+
+### Fixed
+- **technical**: 修正综合评分权重计算
+
+### Changed
+- **tests**: 重构测试框架 - 目录分层 + 规范 + 删除 ~280 旧文件
+
+### Testing
+- **unit**: 新增 experts 类型与 scoring 工具模块单元测试
+- **unit**: 新增 strategies 模块单元测试（registry/score_utils/thresholds）
+- **unit/e2e**: 新增 common 模块单元测试 + CLI 端到端测试
+
 ## [Unreleased] - 2026-07-20
 
 ### Fixed
