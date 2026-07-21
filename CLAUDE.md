@@ -72,11 +72,15 @@ scripts/
 
 ## 关键抽象
 
-- **BaseFetcher / DataFetcherManager** (`scripts/common/__init__.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker
+- **BaseFetcher / DataFetcherManager** (`scripts/common/__init__.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker + RateLimiter
 - **CircuitBreaker** (`scripts/common/__init__.py`): 线程安全熔断器（closed/open/half-open）
+- **RateLimiter** (`scripts/common/rate_limiter.py`, WP5 2026-07-21): per-provider 并发信号量 + 429 指数退避
 - **异常体系** (`scripts/common/exceptions/__init__.py`): `StockAnalyzerError` → `DataError` / `BusinessError`
 - **ConfigLoader** (`scripts/config/loader.py`): YAML 配置加载器，支持点分路径访问和缓存
-- **数据类型** (`scripts/data/types.py`): `Quote`、`KlineBar`、`FinanceRecord` dataclass
+- **board_overrides** (`scripts/config/disclosure.yaml`, WP6 2026-07-21): 按股票代码前缀差异化财报披露 deadline（主板/科创板/北交所）
+- **数据类型** (`scripts/data/types.py`): `Quote`、`KlineBar`、`FinanceRecord`、`FinanceMeta` dataclass
+  - FinanceRecord 数值字段 `Optional[float]=None`（WP2 2026-07-21），区分"未披露"与"真为 0"
+  - FinanceMeta 携带元信息：source/fallback_source/periods/is_degraded/cache_hit
 - **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
 - **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
 - **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）+ `decide.md` 决策整合规则 + `vote_engine.py` 投票整合
