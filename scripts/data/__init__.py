@@ -322,7 +322,12 @@ from data.mappers import FINANCE_FIELD_MAP as _FINANCE_FIELD_MAP  # noqa: F401
 
 
 def _dict_to_finance(d: dict) -> FinanceRecord:
-    """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。"""
+    """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。
+
+    WP2 (2026-07-21): 数值字段在 fetcher 缺数据时返回 None（不再 0.0），
+    区分"未披露/字段映射失败"和"真为 0"。
+    业务层须 None-aware：见 business/、strategies/factors/ 等消费方。
+    """
     to_float, to_int = _get_common_helpers()
     FIELD_MAP = _FINANCE_FIELD_MAP
 
@@ -332,46 +337,61 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
                 return d[k]
         return default
 
-    # 绝对值字段：东财返回"元"，/1e8 转亿元（保留 2 位）
+    def _maybe_float(candidates) -> float | None:
+        """None 透传：缺数据/字段映射失败时返回 None，不再 0.0。
+
+        与 to_float(default=0.0) 的关键区别：None 不会被静默还原为 0.0。
+        """
+        v = _find(candidates)
+        return None if v in (None, "", "-") else to_float(v)
+
+    # 绝对值字段：东财返回"元"，/1e8 转亿元（保留 2 位）；缺数据 → None
     _YI = 1e8
 
-    total_revenue = round(to_float(_find(FIELD_MAP["total_revenue"])) / _YI, 2)
-    parent_net_profit = round(to_float(_find(FIELD_MAP["parent_net_profit"])) / _YI, 2)
-    deducted_net_profit = round(
-        to_float(_find(FIELD_MAP["deducted_net_profit"])) / _YI, 2
-    )
-    total_liability = round(to_float(_find(FIELD_MAP["total_liability"])) / _YI, 2)
-    debt_ratio = to_float(_find(FIELD_MAP["debt_ratio"]))
+    def _yi(candidates) -> float | None:
+        raw = _maybe_float(candidates)
+        return None if raw is None else round(raw / _YI, 2)
+
+    total_revenue = _yi(FIELD_MAP["total_revenue"])
+    parent_net_profit = _yi(FIELD_MAP["parent_net_profit"])
+    deducted_net_profit = _yi(FIELD_MAP["deducted_net_profit"])
+    total_liability = _yi(FIELD_MAP["total_liability"])
+    debt_ratio = _maybe_float(FIELD_MAP["debt_ratio"])
 
     # 计算字段：会计恒等式 资产=负债+权益，无需总股本
-    # total_assets = 负债 / (负债率/100)；net_assets = 总资产 - 负债
-    total_assets = 0.0
-    net_assets = 0.0
-    if total_liability > 0 and debt_ratio > 0:
+    # WP2 边界保护：debt_ratio 缺失/<=0/>100 时不推导，避免除零或负净资产
+    total_assets: float | None = None
+    net_assets: float | None = None
+    if (
+        total_liability is not None
+        and total_liability > 0
+        and debt_ratio is not None
+        and 0 < debt_ratio <= 100
+    ):
         total_assets = round(total_liability / (debt_ratio / 100.0), 2)
         net_assets = round(total_assets - total_liability, 2)
 
     return FinanceRecord(
         report_date=str(_find(FIELD_MAP["report_date"]))[:10],
-        eps=to_float(_find(FIELD_MAP["eps"])),
-        roe=to_float(_find(FIELD_MAP["roe"])),
-        revenue_yoy=to_float(_find(FIELD_MAP["revenue_yoy"])),
-        net_profit_yoy=to_float(_find(FIELD_MAP["net_profit_yoy"])),
-        gross_margin=to_float(_find(FIELD_MAP["gross_margin"])),
-        net_margin=to_float(_find(FIELD_MAP["net_margin"])),
+        eps=_maybe_float(FIELD_MAP["eps"]),
+        roe=_maybe_float(FIELD_MAP["roe"]),
+        revenue_yoy=_maybe_float(FIELD_MAP["revenue_yoy"]),
+        net_profit_yoy=_maybe_float(FIELD_MAP["net_profit_yoy"]),
+        gross_margin=_maybe_float(FIELD_MAP["gross_margin"]),
+        net_margin=_maybe_float(FIELD_MAP["net_margin"]),
         debt_ratio=debt_ratio,
-        bps=to_float(_find(FIELD_MAP["bps"])),
-        ocf_per_share=to_float(_find(FIELD_MAP["ocf_per_share"])),
-        goodwill=to_float(_find(FIELD_MAP["goodwill"])),
-        pledge_ratio=to_float(_find(FIELD_MAP["pledge_ratio"])),
-        goodwill_ratio=to_float(_find(FIELD_MAP["goodwill_ratio"])),
+        bps=_maybe_float(FIELD_MAP["bps"]),
+        ocf_per_share=_maybe_float(FIELD_MAP["ocf_per_share"]),
+        goodwill=_maybe_float(FIELD_MAP["goodwill"]),
+        pledge_ratio=_maybe_float(FIELD_MAP["pledge_ratio"]),
+        goodwill_ratio=_maybe_float(FIELD_MAP["goodwill_ratio"]),
         consecutive_dividend_years=to_int(
             _find(FIELD_MAP["consecutive_dividend_years"])
         ),
-        major_shareholder_reduction=to_float(
-            _find(FIELD_MAP["major_shareholder_reduction"])
+        major_shareholder_reduction=_maybe_float(
+            FIELD_MAP["major_shareholder_reduction"]
         ),
-        violation_penalty=to_float(_find(FIELD_MAP["violation_penalty"])),
+        violation_penalty=_maybe_float(FIELD_MAP["violation_penalty"]),
         audit_opinion=str(_find(FIELD_MAP["audit_opinion"])),
         source=d.get("source", ""),
         fetch_time=d.get("fetch_time") or _now_iso(),
@@ -383,11 +403,31 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         total_assets=total_assets,
         net_assets=net_assets,
         # 偿债能力 + 季度环比（保留 2 位小数，与绝对值精度一致）
-        quick_ratio=round(to_float(_find(FIELD_MAP["quick_ratio"])), 2),
-        current_ratio=round(to_float(_find(FIELD_MAP["current_ratio"])), 2),
-        deducted_np_yoy=round(to_float(_find(FIELD_MAP["deducted_np_yoy"])), 2),
-        revenue_qoq=round(to_float(_find(FIELD_MAP["revenue_qoq"])), 2),
-        profit_qoq=round(to_float(_find(FIELD_MAP["profit_qoq"])), 2),
+        quick_ratio=(
+            None
+            if (v := _maybe_float(FIELD_MAP["quick_ratio"])) is None
+            else round(v, 2)
+        ),
+        current_ratio=(
+            None
+            if (v := _maybe_float(FIELD_MAP["current_ratio"])) is None
+            else round(v, 2)
+        ),
+        deducted_np_yoy=(
+            None
+            if (v := _maybe_float(FIELD_MAP["deducted_np_yoy"])) is None
+            else round(v, 2)
+        ),
+        revenue_qoq=(
+            None
+            if (v := _maybe_float(FIELD_MAP["revenue_qoq"])) is None
+            else round(v, 2)
+        ),
+        profit_qoq=(
+            None
+            if (v := _maybe_float(FIELD_MAP["profit_qoq"])) is None
+            else round(v, 2)
+        ),
     )
 
 

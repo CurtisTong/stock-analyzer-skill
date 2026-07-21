@@ -55,10 +55,15 @@ def render_table(records: list) -> str:
     header = " | ".join(["报告期"] + [label for _, label in fields])
     lines.append(header)
     lines.append("-" * len(header))
+
+    # WP2: None 表示"未披露"——渲染为 "-"（避免 None 字面量）
+    def _fmt(v):
+        return "-" if v is None else str(v)[:8]
+
     for r in records:
         period = r.get("report_date", "?")
-        values = [r.get(key, "-") for key, _ in fields]
-        lines.append(" | ".join([period] + [str(v)[:8] for v in values]))
+        values = [_fmt(r.get(key)) for key, _ in fields]
+        lines.append(" | ".join([period] + values))
     return "\n".join(lines)
 
 

@@ -737,8 +737,11 @@ def build_result_row(ctx: ResultRowContext):
         "change_pct": quote_dict.get("change_pct"),
         "pe": quote_dict.get("pe"),
         "pb": quote_dict.get("pb"),
-        "roe": fin.get("roe", fin.get("ROEJQ", "-")),
-        "profit_growth": fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", "-")),
+        # WP2: roe/net_profit_yoy 缺数据时为 None，UI 渲染会显示 "-"
+        "roe": fin.get("roe") if fin.get("roe") is not None else "-",
+        "profit_growth": (
+            fin.get("net_profit_yoy") if fin.get("net_profit_yoy") is not None else "-"
+        ),
         "ret20": round(features.get("ret20", 0), 1),
         "trend": (
             "上升"

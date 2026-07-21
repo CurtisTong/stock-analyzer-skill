@@ -11,6 +11,7 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     """估值因子评分（行业差异化）。满分 100。"""
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
+    # WP2: 缺数据 → to_float 返回 0.0，max 不会再 TypeError
     growth = max(to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ"))), 0)
 
     # 亏损股评分用到的字段

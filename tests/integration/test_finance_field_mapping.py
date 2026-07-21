@@ -55,16 +55,18 @@ class TestDictToFinanceMapping:
         assert r.revenue_yoy == 12.3
 
     def test_esg_dividend_fields_default_zero(self):
-        """ESG/分红字段缺省时为 0，不应报错（Tier 3 字段保留）。
+        """ESG/分红字段缺省时为 None/0（WP2 None 化后语义变化）。
 
         WP1 后 dividend_yield / fcf / ocf / gross_margin_qoq 等 Tier 2 字段
-        已从 FinanceRecord 删除，本测试仅验证保留字段的 0 默认行为。
+        已从 FinanceRecord 删除。WP2 后数值字段 None 表示"未披露"。
         """
         d = {"eps": 1.0, "roe": 10.0}
         r = _dict_to_finance(d)
+        # WP2: 数值字段 None 表示"未披露"
+        assert r.major_shareholder_reduction is None
+        assert r.violation_penalty is None
+        # int/str 字段保持默认
         assert r.consecutive_dividend_years == 0
-        assert r.major_shareholder_reduction == 0.0
-        assert r.violation_penalty == 0.0
         assert r.audit_opinion == ""
 
     def test_esg_dividend_fields_populated(self):

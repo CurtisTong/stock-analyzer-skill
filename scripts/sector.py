@@ -117,13 +117,19 @@ def print_table(quotes: list, finance: dict):
         f"{'ROE%':>7} {'净利增%':>8} {'换手%':>6}"
     )
     print("-" * 85)
+
+    # WP2: None 表示"未披露"——格式化为 "-"
+    def _f(v, spec):
+        return format(v, spec) if v is not None else "-"
+
     for q in quotes:
         fin = finance.get(q["code"], {})
-        roe = fin.get("roe", 0)
-        np_yoy = fin.get("net_profit_yoy", 0)
+        roe = fin.get("roe")
+        np_yoy = fin.get("net_profit_yoy")
         print(
             f"{q['code']:<10} {q['name']:<10} {q['price']:>8.2f} {q['change_pct']:>7.2f} "
-            f"{q['pe']:>7.1f} {q['pb']:>6.2f} {roe:>7.2f} {np_yoy:>8.2f} {q['turnover']:>6.2f}"
+            f"{q['pe']:>7.1f} {q['pb']:>6.2f} {_f(roe, '>7.2f')} "
+            f"{_f(np_yoy, '>8.2f')} {q['turnover']:>6.2f}"
         )
 
 

@@ -91,14 +91,20 @@ def render_text(result: dict) -> str:
     if "finance" in result:
         f = result["finance"]
         lines.append("\n💰 财务")
+
+        # WP2: None 透传——格式化为 "-"
+        def _f2(v, spec):
+            return format(v, spec) if v is not None else "-"
+
         lines.append(
-            f"   EPS {f.get('eps', 0):.2f}  ROE {f.get('roe', 0):.2f}%  "
-            f"净利同比 {f.get('net_profit_yoy', 0):+.2f}%"
+            f"   EPS {_f2(f.get('eps'), '.2f')}  "
+            f"ROE {_f2(f.get('roe'), '.2f')}%  "
+            f"净利同比 {_f2(f.get('net_profit_yoy'), '+.2f')}%"
         )
         lines.append(
-            f"   营收同比 {f.get('revenue_yoy', 0):+.2f}%  "
-            f"毛利率 {f.get('gross_margin', 0):.2f}%  "
-            f"负债率 {f.get('debt_ratio', 0):.2f}%"
+            f"   营收同比 {_f2(f.get('revenue_yoy'), '+.2f')}%  "
+            f"毛利率 {_f2(f.get('gross_margin'), '.2f')}%  "
+            f"负债率 {_f2(f.get('debt_ratio'), '.2f')}%"
         )
 
     # 5. 综合评分
@@ -180,8 +186,12 @@ def render_brief(result: dict) -> str:
         parts.append(f"MACD:{t.get('macd_signal', 0):+d}")
     fin = result.get("finance", {})
     if fin:
-        parts.append(f"ROE:{fin.get('roe', 0):.1f}%")
-        parts.append(f"净利YoY:{fin.get('net_profit_yoy', 0):+.0f}%")
+
+        def _f_brief(v, spec):
+            return format(v, spec) if v is not None else "-"
+
+        parts.append(f"ROE:{_f_brief(fin.get('roe'), '.1f')}%")
+        parts.append(f"净利YoY:{_f_brief(fin.get('net_profit_yoy'), '+.0f')}%")
     body_lines = []
     if parts:
         body_lines.append(" | ".join(parts))

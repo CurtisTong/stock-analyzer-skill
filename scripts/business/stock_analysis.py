@@ -247,14 +247,18 @@ def _analyze_chan(kline: list) -> dict:
 
 
 def _extract_finance_summary(fin: dict) -> dict:
-    """提取财务摘要。"""
+    """提取财务摘要。
+
+    WP2: 缺数据字段保持 None（不再默认 0），让下游明确感知"未披露"。
+    stock.py 等渲染层有 _f2 / _f_brief 守卫处理 None。
+    """
     return {
-        "eps": fin.get("eps", 0),
-        "roe": fin.get("roe", 0),
-        "net_profit_yoy": fin.get("net_profit_yoy", 0),
-        "revenue_yoy": fin.get("revenue_yoy", 0),
-        "gross_margin": fin.get("gross_margin", 0),
-        "debt_ratio": fin.get("debt_ratio", 0),
+        "eps": fin.get("eps"),
+        "roe": fin.get("roe"),
+        "net_profit_yoy": fin.get("net_profit_yoy"),
+        "revenue_yoy": fin.get("revenue_yoy"),
+        "gross_margin": fin.get("gross_margin"),
+        "debt_ratio": fin.get("debt_ratio"),
     }
 
 
@@ -295,8 +299,9 @@ def _calculate_composite_score(
         # PEG：用净利同比增速（net_profit_yoy）。
         # 注：FinanceRecord 暂无 3 年 CAGR 字段（多期绝对值未采集），
         # 故用单期 yoy 近似；未来补全多期数据后再升级为 3 年 CAGR。
-        growth = to_float(fin.get("net_profit_yoy", 0))
-        peg = (pe / growth) if (pe > 0 and growth > 0) else 0
+        # WP2: net_profit_yoy 可能为 None（缺数据）—— to_float 会安全返回 0.0
+        growth = to_float(fin.get("net_profit_yoy"))
+        peg = (pe / growth) if (pe > 0 and growth is not None and growth > 0) else 0
         features["valuation"] = {
             "pe": pe,
             "pb": pb,
