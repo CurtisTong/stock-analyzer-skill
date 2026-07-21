@@ -103,6 +103,10 @@ _LAZY_IMPORTS = {
     "cache_key_for_stock": ("common.cache", "cache_key_for_stock"),
     # 前缀工具
     "strip_prefix": ("common.utils", "strip_prefix"),
+    # 限流器 (WP5)
+    "get_rate_limiter": ("common.rate_limiter", "get_rate_limiter"),
+    "reset_rate_limiter": ("common.rate_limiter", "reset_rate_limiter"),
+    "RateLimiter": ("common.rate_limiter", "RateLimiter"),
 }
 
 

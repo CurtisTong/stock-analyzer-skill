@@ -277,15 +277,31 @@ class DataFetcherManager:
 
         返回 None 表示所有源都无数据（非失败）。
         仅在异常时触发熔断，None 返回不触发。
+
+        WP5 (2026-07-21):
+        - 接入 RateLimiter：per-provider 并发控制 + 429 退避
+        - 遇 429 时不再立即切源：退避后重试主源一次，仍失败才切
         """
         if not code or not _SAFE_CODE_PATTERN.match(str(code)):
             return None
         self._set_last_error(None)
+
+        # 延迟导入避免循环依赖（fetcher_base → rate_limiter 不存在反向依赖）
+        from common.rate_limiter import get_rate_limiter
+
+        limiter = get_rate_limiter()
+        retried_429: set[str] = set()  # 每 provider 最多重试一次
+
         for fetcher in self.fetchers:
             if not fetcher.is_available():
                 continue
             try:
-                result = fetcher.fetch(code, **kwargs)
+                # WP5: Semaphore 保护 + 退避 sleep
+                limiter.acquire(fetcher.provider)
+                try:
+                    result = fetcher.fetch(code, **kwargs)
+                finally:
+                    limiter.release(fetcher.provider)
                 if result is NOT_HANDLED:
                     continue
                 if result is not None:
@@ -293,10 +309,30 @@ class DataFetcherManager:
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
             except RateLimitError as e:
-                # P0-04: 429 限速不计入熔断失败--限速通常是针对特定 API key
-                # 的限制，其他源未必受限。误熔断会导致可用数据源被跳过。
-                # 仅记录 last_error 并尝试下一个源。
+                # WP5: 429 退避 + 重试主源一次，避免被切到数据更少的次源
                 self._set_last_error(e)
+                if fetcher.provider not in retried_429:
+                    retried_429.add(fetcher.provider)
+                    limiter.release(fetcher.provider, got_429=True)
+                    logger.debug(
+                        "fetcher %s 触发 429，退避后重试主源: %s",
+                        fetcher.name,
+                        e,
+                    )
+                    # 用同 fetcher 重试一次（Semaphore 在 acquire 时会按退避 sleep）
+                    try:
+                        limiter.acquire(fetcher.provider)
+                        try:
+                            result = fetcher.fetch(code, **kwargs)
+                        finally:
+                            limiter.release(fetcher.provider)
+                        if result is not None and result is not NOT_HANDLED:
+                            fetcher.on_success()
+                            return result
+                    except RateLimitError:
+                        pass  # 重试仍 429，标记并继续切源
+                    except Exception:
+                        pass
                 continue
             except HTTPStatusError as e:
                 # P2-H2(common): 4xx 业务错误（如 404 数据不存在）不计入熔断，

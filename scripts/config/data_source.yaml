@@ -186,6 +186,15 @@ circuit_breaker:
   recovery_timeout: 60
   half_open_max: 3
 
+# WP5 (2026-07-21): 全局限流 + 429 退避
+# default_max_concurrent: 每个数据源同时进行的请求数上限
+# backoff_base/cap/window: 429 后 sleep 时长（指数退避，cap 封顶，window 重置窗口）
+rate_limit:
+  default_max_concurrent: 8
+  backoff_base: 1.0
+  backoff_cap: 8.0
+  backoff_window: 30.0
+
 # HTTP 配置
 http:
   user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
