@@ -20,3 +20,31 @@ ashare_disclosure:
   # - "downgrade"：将 EPS/ROE/商誉/质押等硬过滤降级为软警告（默认）
   # - "reject"：直接硬拒绝（更保守，适用于高风险场景）
   stale_action: "downgrade"
+
+  # WP6 (2026-07-21): 板块特定 deadline 覆盖
+  # 按股票代码前缀反推板块，覆盖默认 deadline。
+  # 已知规则（详见 business/finance_freshness.py:80）：
+  # - 主板（SH6/SZ0/SZ3/BJ4）：与默认一致
+  # - 科创板（SH8/SH9）：季报披露时间与主板基本一致，但部分公司可申请延期
+  # - 北交所（BJ8/BJ4）：年报 deadline 可能提前到 4/15
+  # 未知板块代码 → fallback 到默认 periods
+  # 注：当前未启用差异化 deadline，结构预留以便后续按板块精确调整
+  board_overrides:
+    # 沪市主板
+    SH6: {}    # 使用默认
+    # 深市主板
+    SZ0: {}    # 使用默认
+    # 创业板
+    SZ3: {}    # 使用默认
+    # 科创板
+    SH8: {}    # 使用默认
+    SH9: {}    # 使用默认（科创板 CDR）
+    # 北交所
+    BJ4: {}    # 使用默认
+    BJ8: {}    # 使用默认
+    # 格式示例（如未来需启用）：
+    # SH8:
+    #   full_year: { deadline: "04-30" }   # 与默认一致
+    #   Q3: { deadline: "10-30" }            # 比主板早 1 天
+    # BJ4:
+    #   full_year: { deadline: "04-15" }    # 北交所年报更早
