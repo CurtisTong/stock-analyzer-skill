@@ -151,7 +151,9 @@ def cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
 
 
 # 数据格式版本号：当 API 返回字段格式变更时 bump 此值，自动失效旧缓存
-_DATA_FORMAT_VERSION = "v2"
+# v3 (2026-07-21): 财务数据 FinanceRecord Optional[float]=None 化 + 删 7 字段
+#   → 旧缓存以 0.0 写入，新代码读出为 None，可能引发 NoneType 错误
+_DATA_FORMAT_VERSION = "v3"
 
 
 def cache_key(url: str) -> str:

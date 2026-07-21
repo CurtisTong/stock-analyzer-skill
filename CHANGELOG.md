@@ -35,11 +35,39 @@
 
 ### Changed
 - **tests**: 重构测试框架 - 目录分层 + 规范 + 删除 ~280 旧文件
+- **finance**: WP1-WP6 财务分析模块深度改造（6 大工作包）
+  - **WP1** 删除 7 个 100% 零读取字段（revenue_growth_trend_3y/insider_buy_pct/r_and_d_ratio/dividend_yield/fcf/ocf/gross_margin_qoq）
+  - **WP2** FinanceRecord 数值字段 `Optional[float]=None` 化（穿透式）；区分"未披露"与"真为 0"
+  - **WP2** `_dict_to_finance` 边界保护：total_assets/net_assets 在 debt_ratio 缺失或越界时返回 None
+  - **WP3** 新增 `_is_valid_records` 多字段判定（5 核心字段至少 1 个非零即有效）
+  - **WP3** 全零记录不再写 zero_key，让 manager 自然切源重试 akshare
+  - **WP4** `get_finance` 返回 `(records, FinanceMeta)` tuple（破坏性 API 变更）
+  - **WP4** 新增 FinanceMeta dataclass（source/fallback_source/periods/is_degraded/cache_hit 等）
+  - **WP4** akshare 截断检测自动填 `is_periods_truncated=True`
+  - **WP5** 新增 `common/rate_limiter.py` 全局限流器（per-provider Semaphore + 429 指数退避）
+  - **WP5** `DataFetcherManager` 遇 429 退避后重试主源一次，避免静默切到数据更少的 akshare
+  - **WP5** `data_source.yaml` 新增 `rate_limit` 节（default_max_concurrent=8）
+  - **WP6** 财报时效性按板块差异化 deadline（disclosure.yaml 加 board_overrides 节）
+  - **WP6** `_board_for_code` 识别 SH6/SH8/SZ0/SZ3/BJ8（顺序敏感：SH68 优先 SH6）
+  - **WP6** 修复 `_expected_latest_period` today=2025-04-15 错返 Q3 的排序 bug
+  - **缓存版本** v2 → v3（自动失效旧缓存，避免 0.0/None 不兼容）
+- **cache**: `_DATA_FORMAT_VERSION = "v3"`
+
+### Added
+- **test**: `tests/unit/test_finance_validity.py`（8 用例：微利股/盈亏平衡股/全零/多期有效等）
+- **test**: `tests/unit/test_rate_limiter.py`（10 用例：并发/退避/重置/统计）
+- **test**: `tests/unit/test_finance_meta.py`（6 用例：dataclass/tuple/缓存命中/截断）
+- **test**: `tests/unit/test_finance_freshness.py`（15 用例：板块识别/差异化 deadline/bugfix）
 
 ### Testing
 - **unit**: 新增 experts 类型与 scoring 工具模块单元测试
 - **unit**: 新增 strategies 模块单元测试（registry/score_utils/thresholds）
 - **unit/e2e**: 新增 common 模块单元测试 + CLI 端到端测试
+
+### Stats
+- 6 个 commit, 935 个测试通过（896 + 39 新增）, 0 失败
+- 新增 1 个文件（common/rate_limiter.py）
+- 修改 12 个文件（types/data/fetcher_base/business/sector/stock 等）
 
 ## [Unreleased] - 2026-07-20
 
