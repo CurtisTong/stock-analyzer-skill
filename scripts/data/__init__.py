@@ -7,14 +7,16 @@
     quote = get_quote("sh600989")
     quotes = get_quotes(["sh600989", "sz000807"])
     bars = get_kline("sh600989", scale=240, datalen=30)
-    records = get_finance("SH600989")
+    records, meta = get_finance("SH600989")
 """
+
+from __future__ import annotations
 
 import threading
 from typing import Optional
 from datetime import datetime
 
-from .types import Quote, KlineBar, FinanceRecord
+from .types import Quote, KlineBar, FinanceRecord, FinanceMeta
 from .config import get_config
 
 
@@ -186,19 +188,34 @@ def _is_valid_records(records) -> bool:
     return False
 
 
-def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
-    """获取财务数据。
+def get_finance(
+    code: str, use_cache: bool = True, periods: int = 4
+) -> tuple[list, "FinanceMeta"]:
+    """获取财务数据 + 元信息。
 
     Args:
         code: 股票代码（如 SH600989）
         use_cache: 是否使用磁盘缓存
         periods: 返回期数（默认 4 季；full/debate 模式可传 8 季）
 
-    WP3 (2026-07-21) 改造：
-    - 缓存有效性判定从 eps/roe 双字段 → 5 字段（_is_valid_records）
-    - 全零记录**不再写 zero_key**，让 manager 自然切源重试 akshare
-    - 仅在 fetcher 返回空列表（无响应）时写 zero_key 防穿透
+    Returns:
+        (records, meta) 元组
+        - records: list[FinanceRecord]
+        - meta: FinanceMeta
+            - source: 主源名（"eastmoney"/"akshare_finance"）
+            - fallback_source: 降级源名（仅切源场景）
+            - requested_periods / actual_periods: 请求/实际期数
+            - is_periods_truncated: actual < requested → 触发降级告警
+            - is_degraded: 任一字段缺失/降级
+            - degraded_fields: 缺失字段名列表
+            - cache_hit: 缓存命中
+            - fetch_time: ISO 时间戳
+
+    WP3 改造：缓存有效性判定从 2 字段 → 5 字段（_is_valid_records）
+    WP4 改造：返回 (records, meta) tuple，原 list 行为已破坏性变更
     """
+    from data.types import FinanceMeta  # 局部导入避免循环依赖
+
     _load_fetchers()
     cfg = get_config()
     from common import normalize_finance_code
@@ -209,38 +226,70 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
     key = cache.cache_key_for_stock("finance", code, periods=periods)
     zero_key = f"{key}_zero"
 
+    meta = FinanceMeta(
+        requested_periods=periods,
+        actual_periods=0,
+        fetch_time=_now_iso(),
+        cache_hit=False,
+    )
+
     if use_cache:
         cached = cache.get_json(key, cfg.finance_cache_ttl)
         if cached:
             records = [_dict_to_finance(r) for r in cached]
-            # WP3: 多字段判定，避免微利股被误判
             if _is_valid_records(records):
-                return records
+                meta.cache_hit = True
+                meta.actual_periods = len(records)
+                meta.source = records[0].source if records else ""
+                return records, meta
             # 缓存命中但全无效数据：fallback 到 zero_key 短缓存
             zero_cached = cache.get_json(zero_key, 300)  # 5 分钟短缓存
             if zero_cached:
-                return [_dict_to_finance(r) for r in zero_cached]
+                meta.cache_hit = True
+                records = [_dict_to_finance(r) for r in zero_cached]
+                meta.actual_periods = len(records)
+                meta.is_degraded = True
+                meta.degraded_fields = list(_CORE_VALID_FIELDS)
+                return records, meta
 
     result = _finance_manager.fetch(code, periods=periods)
     if not result:
         # P0-4: fetch 返回空（所有源无响应）写 zero_key 防穿透
         if use_cache:
             cache.set_json(zero_key, [])
-        return []
+        meta.is_degraded = True
+        meta.last_error = (
+            str(_finance_manager.last_error)
+            if _finance_manager.last_error
+            else "all sources empty"
+        )
+        return [], meta
 
     records = [_dict_to_finance(r) for r in result]
-
-    # WP3: 多字段判定，无效数据**不写** zero_key，让 manager 切源重试
+    meta.actual_periods = len(records)
+    meta.source = records[0].source if records else ""
     if not _is_valid_records(records):
-        # 保留旧数据返回（不缓存），上层可观察到部分字段但不全
-        return records
+        # 部分字段缺失：标记 degraded 但不缓存（让 manager 切源重试）
+        meta.is_degraded = True
+        for f in _CORE_VALID_FIELDS:
+            if not any(getattr(r, f, None) for r in records):
+                meta.degraded_fields.append(f)
+        return records, meta
+
+    # WP4: 检查是否被截断（actual < requested）
+    if len(records) < periods:
+        meta.is_periods_truncated = True
+        # 推断降级源：akshare 固定返回 4 期，>4 请求时被截断即降级
+        if "akshare" in (meta.source or "").lower():
+            meta.fallback_source = meta.source
+            meta.is_degraded = True
 
     if use_cache and records:
         # 缓存原始 fetcher 输出（元单位），非 to_dict()（亿元），
         # 否则读取时 _dict_to_finance 会再次 /1e8 导致绝对值归零
         cache.set_json(key, result)
 
-    return records
+    return records, meta
 
 
 # ---------- 内部转换函数（使用 common.to_float / common.to_int） ----------

@@ -82,7 +82,8 @@ def fetch_sector_quotes(codes: list) -> list:
 def _fetch_one_finance(code: str) -> tuple:
     """获取单只股票最新财务数据，返回 (code, fin_dict) 或 (code, None)。"""
     fin_code = normalize_finance_code(code)
-    records = get_finance(fin_code)
+    # WP4: 解构 (records, meta) tuple
+    records, _meta = get_finance(fin_code)
     if records:
         latest = records[0]
         return code, {

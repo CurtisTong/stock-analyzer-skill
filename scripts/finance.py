@@ -25,7 +25,7 @@ def fetch(code: str, use_cache: bool = True, periods: int = 4) -> list:
         use_cache: 是否使用磁盘缓存
         periods: 返回期数（默认 4；full/debate 模式调用方传 8）
     """
-    records = get_finance(code, use_cache=use_cache, periods=periods)
+    records, _meta = get_finance(code, use_cache=use_cache, periods=periods)
     return [r.to_dict() for r in records]
 
 

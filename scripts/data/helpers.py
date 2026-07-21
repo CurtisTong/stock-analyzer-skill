@@ -4,6 +4,8 @@
 消除 screener.py、long_term.py、alert_engine.py 等文件中重复的适配代码。
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 
@@ -14,6 +16,7 @@ from common.exceptions import (
     ParseError,
 )
 from data import get_quote, get_quotes, get_kline, get_finance
+from data.types import FinanceMeta
 
 logger = logging.getLogger(__name__)
 
@@ -43,15 +46,35 @@ def fetch_kline_dicts(code: str, scale: int = 240, datalen: int = 120) -> list:
 
 
 def fetch_finance_dicts(code: str) -> list:
-    """获取财务数据，返回 dict 列表。"""
-    records = get_finance(code)
+    """获取财务数据，返回 dict 列表。
+
+    WP4: get_finance 返回 (records, meta) tuple，本函数保持只返回 dict 列表
+    （向后兼容）。若需 meta，使用 fetch_finance_first_with_meta。
+    """
+    records, _meta = get_finance(code)
     return [r.to_dict() for r in records]
 
 
 def fetch_finance_first(code: str) -> dict:
-    """获取财务数据，返回第一条 dict（无数据返回空 dict）。"""
-    records = get_finance(code)
+    """获取财务数据，返回第一条 dict（无数据返回空 dict）。
+
+    WP4: 内部解构 (records, meta) tuple，丢弃 meta，保持返回 dict 的旧 API。
+    """
+    records, _meta = get_finance(code)
     return records[0].to_dict() if records else {}
+
+
+def fetch_finance_first_with_meta(code: str) -> tuple[dict, FinanceMeta]:
+    """获取财务数据 + meta（WP4 新增）。
+
+    Returns:
+        (finance_dict, meta) 元组
+    """
+    records, meta = get_finance(code)
+    finance_dict = records[0].to_dict() if records else {}
+    if not isinstance(meta, FinanceMeta):
+        meta = FinanceMeta()
+    return finance_dict, meta
 
 
 def fetch_stock_bundle(code: str, kline_scale: int = 240, kline_len: int = 120) -> dict:
@@ -107,6 +130,8 @@ def prefetch_finance_all(codes: list) -> dict:
 
     Returns:
         {code: [finance_dict, ...]} 映射
+
+    WP4: 内部解构 get_finance 的 (records, meta) tuple，仅返回 records 列表。
     """
     from concurrent.futures import as_completed
     from common import normalize_finance_code
@@ -114,7 +139,7 @@ def prefetch_finance_all(codes: list) -> dict:
     results = {}
 
     def _fetch_one(code):
-        records = get_finance(normalize_finance_code(code))
+        records, _meta = get_finance(normalize_finance_code(code))
         return code, [r.to_dict() for r in records]
 
     ex = get_shared_executor()

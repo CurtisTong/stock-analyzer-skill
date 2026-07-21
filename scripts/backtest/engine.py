@@ -170,7 +170,8 @@ def simulate_strategy(ctx: SimContext):
     def _fetch_finance(code):
         industry = infer_industry("", code)
         try:
-            fin_records = get_finance(normalize_finance_code(code))
+            # WP4: 解构 (records, meta) tuple
+            fin_records, _meta = get_finance(normalize_finance_code(code))
             fin = fin_records[0].to_dict() if fin_records else {}
         except Exception as e:
             logger.warning("获取财务数据失败 %s: %s", code, e)

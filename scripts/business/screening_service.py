@@ -230,7 +230,8 @@ class ScreeningService:
 
         def fetch_one(code):
             try:
-                records = get_finance(normalize_finance_code(code))
+                # WP4: 解构 (records, meta) tuple
+                records, _meta = get_finance(normalize_finance_code(code))
                 return [r.to_dict() for r in records]
             except Exception as e:
                 logger.warning("获取财务数据失败 %s: %s", code, e)
