@@ -165,6 +165,27 @@ def get_kline(
     return bars
 
 
+# 核心字段集：判定 FinanceRecord 是否"有效数据"（非空 + 至少 1 个非零）。
+# 旧逻辑仅看 eps/roe 两个字段，在 0.01 元/股的微利股或盈亏平衡股上误判。
+# WP3 (2026-07-21): 加入 revenue_yoy / net_profit_yoy / gross_margin 多字段判定。
+_CORE_VALID_FIELDS = ("eps", "roe", "revenue_yoy", "net_profit_yoy", "gross_margin")
+
+
+def _is_valid_records(records) -> bool:
+    """基于多字段判定 FinanceRecord 列表是否"有效数据"。
+
+    WP3: 旧实现 `all(eps==0 and roe==0)` 把微利股/盈亏平衡股误判为"无效数据"，
+    触发 5 分钟 zero_key 短缓存，阻断 akshare 切源。
+    新实现：5 个核心字段中至少 1 个非 None 且非 0 → 视为有效。
+    """
+    for r in records:
+        for f in _CORE_VALID_FIELDS:
+            v = getattr(r, f, None)
+            if v is not None and v != 0:
+                return True
+    return False
+
+
 def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
     """获取财务数据。
 
@@ -172,6 +193,11 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
         code: 股票代码（如 SH600989）
         use_cache: 是否使用磁盘缓存
         periods: 返回期数（默认 4 季；full/debate 模式可传 8 季）
+
+    WP3 (2026-07-21) 改造：
+    - 缓存有效性判定从 eps/roe 双字段 → 5 字段（_is_valid_records）
+    - 全零记录**不再写 zero_key**，让 manager 自然切源重试 akshare
+    - 仅在 fetcher 返回空列表（无响应）时写 zero_key 防穿透
     """
     _load_fetchers()
     cfg = get_config()
@@ -187,31 +213,26 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> list:
         cached = cache.get_json(key, cfg.finance_cache_ttl)
         if cached:
             records = [_dict_to_finance(r) for r in cached]
-            # 校验缓存有效性：至少有一个非零数据点
-            if any(r.eps != 0 or r.roe != 0 for r in records):
+            # WP3: 多字段判定，避免微利股被误判
+            if _is_valid_records(records):
                 return records
-            # 零值缓存：可能是新股无数据或字段映射失败
-            # 使用短 TTL 缓存避免重复网络请求
+            # 缓存命中但全无效数据：fallback 到 zero_key 短缓存
             zero_cached = cache.get_json(zero_key, 300)  # 5 分钟短缓存
             if zero_cached:
                 return [_dict_to_finance(r) for r in zero_cached]
 
     result = _finance_manager.fetch(code, periods=periods)
     if not result:
-        # P0-4: fetch 返回空也写 zero_key，避免对无数据股票的缓存穿透
+        # P0-4: fetch 返回空（所有源无响应）写 zero_key 防穿透
         if use_cache:
             cache.set_json(zero_key, [])
         return []
 
     records = [_dict_to_finance(r) for r in result]
 
-    # 完整性校验：所有记录 eps==0 且 roe==0 可能是字段映射失败或新股无数据
-    # 使用短 TTL 缓存避免重复网络请求
-    if records and all(r.eps == 0 and r.roe == 0 for r in records):
-        if use_cache:
-            # 缓存原始 fetcher 输出（元单位），而非 to_dict()（已转亿元），
-            # 避免 _dict_to_finance 二次转换导致绝对值归零
-            cache.set_json(zero_key, result)
+    # WP3: 多字段判定，无效数据**不写** zero_key，让 manager 切源重试
+    if not _is_valid_records(records):
+        # 保留旧数据返回（不缓存），上层可观察到部分字段但不全
         return records
 
     if use_cache and records:
