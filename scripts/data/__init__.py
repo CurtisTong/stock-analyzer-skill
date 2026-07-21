@@ -341,7 +341,6 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         to_float(_find(FIELD_MAP["deducted_net_profit"])) / _YI, 2
     )
     total_liability = round(to_float(_find(FIELD_MAP["total_liability"])) / _YI, 2)
-    fcf = round(to_float(_find(FIELD_MAP["fcf"])) / _YI, 2)
     debt_ratio = to_float(_find(FIELD_MAP["debt_ratio"]))
 
     # 计算字段：会计恒等式 资产=负债+权益，无需总股本
@@ -366,7 +365,6 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         goodwill=to_float(_find(FIELD_MAP["goodwill"])),
         pledge_ratio=to_float(_find(FIELD_MAP["pledge_ratio"])),
         goodwill_ratio=to_float(_find(FIELD_MAP["goodwill_ratio"])),
-        dividend_yield=to_float(_find(FIELD_MAP["dividend_yield"])),
         consecutive_dividend_years=to_int(
             _find(FIELD_MAP["consecutive_dividend_years"])
         ),
@@ -384,15 +382,12 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         total_liability=total_liability,
         total_assets=total_assets,
         net_assets=net_assets,
-        ocf=0.0,  # 经营现金流绝对值需 ocf_per_share×总股本，由调用方（stock_analysis 层）enrich
-        fcf=fcf,
         # 偿债能力 + 季度环比（保留 2 位小数，与绝对值精度一致）
         quick_ratio=round(to_float(_find(FIELD_MAP["quick_ratio"])), 2),
         current_ratio=round(to_float(_find(FIELD_MAP["current_ratio"])), 2),
         deducted_np_yoy=round(to_float(_find(FIELD_MAP["deducted_np_yoy"])), 2),
         revenue_qoq=round(to_float(_find(FIELD_MAP["revenue_qoq"])), 2),
         profit_qoq=round(to_float(_find(FIELD_MAP["profit_qoq"])), 2),
-        gross_margin_qoq=round(to_float(_find(FIELD_MAP["gross_margin_qoq"])), 2),
     )
 
 

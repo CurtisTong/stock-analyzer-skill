@@ -81,11 +81,6 @@ class FinanceRecord:
     major_shareholder_reduction: float = 0.0  # 大股东减持比例(%)
     violation_penalty: float = 0.0  # 违规处罚金额
     audit_opinion: str = ""  # 审计意见类型
-    dividend_yield: float = 0.0  # 股息率(%)
-    # I18: 成长可持续性 + 管理层量化维度（fetcher 可选填充，默认 0 表示未知）
-    revenue_growth_trend_3y: float = 0.0  # 近 3 年营收 CAGR(%)
-    insider_buy_pct: float = 0.0  # 近期内部人增持比例(%)
-    r_and_d_ratio: float = 0.0  # 研发投入/营收(%)
     # 绝对值字段（亿元；东财返回"元"，mappers 层 /1e8 转亿元）
     total_revenue: float = 0.0  # 营业总收入(亿)
     parent_net_profit: float = 0.0  # 归母净利润(亿)
@@ -93,15 +88,12 @@ class FinanceRecord:
     total_liability: float = 0.0  # 负债总额(亿)
     total_assets: float = 0.0  # 总资产(亿，计算字段=负债/负债率)
     net_assets: float = 0.0  # 净资产(亿，计算字段=bps×股本)
-    ocf: float = 0.0  # 经营现金流净额(亿，计算字段=ocf_per_share×股本)
-    fcf: float = 0.0  # 自由现金流(亿，FCFF)
     # 偿债能力 + 季度环比维度（东财主要指标已返回，原被丢弃）
     quick_ratio: float = 0.0  # 速动比率
     current_ratio: float = 0.0  # 流动比率
     deducted_np_yoy: float = 0.0  # 扣非净利同比(%)
     revenue_qoq: float = 0.0  # 营收季度环比(%)
     profit_qoq: float = 0.0  # 净利季度环比(%)
-    gross_margin_qoq: float = 0.0  # 毛利率环比变动(pp)
 
     def to_dict(self) -> dict:
         return asdict(self)

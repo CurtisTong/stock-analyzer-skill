@@ -61,7 +61,6 @@ FINANCE_FIELD_MAP = {
     "pledge_ratio": ["PLEDGE_RATIO", "质押比例", "股权质押比例", "pledge_ratio"],
     "goodwill_ratio": ["GOODWILL_RATIO", "商誉占比", "商誉/总资产", "goodwill_ratio"],
     # ESG/分红/治理字段
-    "dividend_yield": ["DIVIDENT_YIELD", "股息率", "DY", "dividend_yield"],
     "consecutive_dividend_years": [
         "CONSECUTIVE_DIVIDEND_YEARS",
         "连续分红年数",
@@ -130,10 +129,4 @@ FINANCE_FIELD_MAP = {
     ],
     "revenue_qoq": ["DJD_TOI_QOQ", "营收环比", "营业收入环比", "revenue_qoq"],
     "profit_qoq": ["DJD_DPNP_QOQ", "净利环比", "归母净利润环比", "profit_qoq"],
-    "gross_margin_qoq": [
-        "XSMLL_TB",
-        "毛利率环比",
-        "毛利率同比",
-        "gross_margin_qoq",
-    ],
 }
