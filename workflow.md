@@ -115,7 +115,7 @@
 
 | Skill     | 命令                                               | 功能                                  |
 | --------- | -------------------------------------------------- | ------------------------------------- |
-| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 单股分析，五层框架 + 15人专家圆桌     |
+| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 五层分析 + 16 份专家圆桌              |
 | market    | /market [full\|quick\|intraday]                    | 大盘复盘，指数+板块+风格+资金         |
 | sector    | /sector <板块> [overview\|compare\|stock]          | 板块分析，标的对比+多空博弈           |
 | portfolio | /portfolio [health\|rebalance\|compare]            | 持仓健康检查，涨跌+支撑+风险预警      |

@@ -17,8 +17,8 @@
 | 核心模块 | scripts/（112 .py）、experts/（27 .py + 15 .md + 15 .yaml） |
 | Skills | 13 个（9 核心 + 4 变体） |
 | 测试文件 | 107 个 |
-| 数据源 Fetcher | 28 个模块 × 7 数据域 |
-| 专家人设 | 15 份（9 active + 6 legacy 已合并） |
+| 数据源 Fetcher | 27 个 fetcher × 7 数据域 = 35 类查询 |
+| 专家人设 | 16 份（8 active + 8 legacy 已合并） |
 | 外部运行时依赖 | 零（仅 stdlib + PyYAML） |
 
 ---
@@ -75,7 +75,7 @@ StockAnalyzerError
 | T6 | 🟡 | **fetcher 优先级硬编码在 Python 类中**，而非完全由 `data_source.yaml` 驱动 | `fetchers/quote/*.py` | 已有 `_load_cb_config()` 加载 YAML，但 priority 仍需显式传参 |
 | T7 | 🟢 | **`risk_warning.py` 过于简单**（52 行，3 个函数），与 `macro/gate.py` 职责边界模糊 | [risk_warning.py](scripts/business/risk_warning.py) | 合并到 `strategies/macro/` 或升级为独立风控模块 |
 | T8 | 🟢 | **`chan/beichi.py` 中 `_dif_offset` 赋值后 `noqa: F841` 未使用** | [beichi.py:41](scripts/chan/beichi.py#L41) | 移除或注释说明保留理由 |
-| T9 | 🔴 | **`RateLimitError` 直接向上抛出不换源**：最高优先级源 429 限速时直接 raise，不尝试低优先级源 | [fetcher_base.py:199-201](scripts/common/fetcher_base.py#L199-L201) | `RateLimitError` 也应 `on_failure()` + continue 到下一个源 |
+| T9 | 🔴 | **`RateLimitError` 直接向上抛出不换源**：最高优先级源 429 限速时直接 raise，不尝试低优先级源 | [fetcher_base.py:199-201](scripts/common/fetcher_base.py#L199-L201) | `RateLimitError` 也应 `on_failure()` + continue 到下一个源（~~已被 WP5 替代：429 退避后重试主源一次，仍失败才切源，fetcher_base.py:312-340~~） |
 | T10 | 🔴 | **`analyze_code()` 和 `_analyze_stock()` 重复逻辑**：硬过滤+因子+评分+拐点流程几乎完全相同 | [screening_service.py:325-380 vs 671-732](scripts/business/screening_service.py#L325) | `analyze_code()` 应委托给 `_analyze_stock()`，避免双份逻辑 |
 | T11 | 🟡 | **缓存键缺少数据格式版本前缀**：`data/__init__.py` 用 `f"quote_{code}"` 而非 `cache_key_for_stock()` | [data/__init__.py:90,144,169](scripts/data/__init__.py#L90) | 改用 `cache_key_for_stock()` 生成缓存键，`_DATA_FORMAT_VERSION` 升级时自动失效 |
 | T12 | 🟡 | **`compute_features()` 双份实现**：screening_service 和 stock_analysis 各有独立实现 | [screening_service.py:134-211](scripts/business/screening_service.py#L134) vs [stock_analysis.py:128-156](scripts/business/stock_analysis.py#L128) | 统一使用 `technical.pipeline.compute_indicators()` |

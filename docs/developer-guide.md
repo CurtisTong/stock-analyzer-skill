@@ -65,7 +65,7 @@ stock-analyzer-skill/
 │   │   ├── chip.py                # 资金面数据汇总（v1.3.1）
 │   │   ├── config.py              # 数据配置
 │   │   └── *.json / *.csv         # 静态参考数据
-│   ├── fetchers/                   # 数据获取层（28 个模块 × 7 数据域）
+│   ├── fetchers/                   # 数据获取层（27 个 fetcher × 7 数据域 = 35 类查询，详见 product-architecture.md §2.3）
 │   │   ├── tencent_quote.py       # 腾讯行情
 │   │   ├── eastmoney_quote.py     # 东财行情
 │   │   ├── eastmoney_finance.py   # 东财财务
