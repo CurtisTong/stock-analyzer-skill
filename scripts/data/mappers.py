@@ -14,6 +14,9 @@ FINANCE_FIELD_MAP = {
         "截止日期",
         "report_date",
     ],
+    # 报告期类型：东财 REPORT_TYPE 取值 一季报/中报/三季报/年报
+    # _dict_to_finance 中 _normalize_period_type 归一化为 annual/cumulative/quarterly
+    "period_type": ["REPORT_TYPE", "报告类型", "period_type"],
     "eps": ["EPSJB", "基本每股收益", "每股收益", "eps"],
     "roe": ["ROEJQ", "净资产收益率", "加权净资产收益率", "ROE", "roe"],
     "revenue_yoy": [

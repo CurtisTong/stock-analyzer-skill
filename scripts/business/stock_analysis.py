@@ -251,20 +251,53 @@ def _analyze_chan(kline: list) -> dict:
         return {"error": str(e)}
 
 
+# period_type -> 中文口径标签（2026-07-23 宝丰能源 PE 误算复盘）
+_PERIOD_LABEL_MAP = {
+    "annual": "年报",
+    "cumulative": "累计",
+    "quarterly": "单季",
+}
+
+
+def _eps_caliber_label(period_type: str, report_date: str) -> str:
+    """生成 EPS 口径标签，供渲染层直接显示。
+
+    如 "单季 2026-03-31" / "年报 2025-12-31" / "未知"。
+    渲染层看到 [单季] 即知不可直接做 price/eps 算 PE。
+    """
+    label = _PERIOD_LABEL_MAP.get(period_type, "未知")
+    return f"{label} {report_date}".strip()
+
+
 def _extract_finance_summary(fin: dict) -> dict:
     """提取财务摘要。
 
     WP2: 缺数据字段保持 None（不再默认 0），让下游明确感知"未披露"。
     stock.py 等渲染层有 _f2 / _f_brief 守卫处理 None。
+
+    2026-07-23: 透传 period_type / report_date 并附 eps_caliber 口径标签；
+    单季 EPS 追加年化提示与警告，防下游 LLM 把单季 eps 当全年算 PE（宝丰能源 47 倍误算根因）。
     """
-    return {
+    period_type = fin.get("period_type", "")
+    report_date = fin.get("report_date", "")
+    summary = {
         "eps": fin.get("eps"),
         "roe": fin.get("roe"),
         "net_profit_yoy": fin.get("net_profit_yoy"),
         "revenue_yoy": fin.get("revenue_yoy"),
         "gross_margin": fin.get("gross_margin"),
         "debt_ratio": fin.get("debt_ratio"),
+        # 口径标注（防线3）：下游算 PE 前必看
+        "period_type": period_type,
+        "report_date": report_date,
+        "eps_caliber": _eps_caliber_label(period_type, report_date),
     }
+    # 单季 EPS：追加年化提示与警告，阻止 LLM 直接 price/eps
+    eps = fin.get("eps")
+    if period_type == "quarterly" and eps is not None and eps != 0:
+        summary["eps_annualized_hint"] = round(eps * 4, 2)
+        summary["warning"] = "⚠ 当前 EPS 为单季值，不可直接算 PE；建议配合 TTM 或年化×4"
+    return summary
 
 
 def _calculate_composite_score(
