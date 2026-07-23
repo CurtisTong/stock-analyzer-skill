@@ -34,6 +34,7 @@ scripts/data/expert_calibration.json
 # 运行时数据缓存
 .cache/
 scripts/data/all_stocks.json
+scripts/data/market_snapshot.json
 scripts/data/strategy_performance.json
 
 # pytest 覆盖率报告
