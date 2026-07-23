@@ -28,6 +28,39 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-07-23
+
+### Added
+- **finance**: WP6 财报时效性按板块差异化 deadline (board_overrides)
+- **finance**: WP4 get_finance 返回 (records, meta) tuple + FinanceMeta
+- **common**: WP5 全局 RateLimiter + 429 退避重试主源
+
+### Fixed
+- **data**: FinanceMeta 注释明确 is_stale 为预留位
+- **stock_analysis**: 修复 WP4 tuple 改造在 stock_analysis._analyze 的遗漏
+- **technical**: 修正综合评分权重计算
+
+### Changed
+- **finance**: WP3 全零判定多字段 + 不误写 zero_key
+- **finance**: WP2 FinanceRecord Optional[float]=None 化 (穿透式)
+- **finance**: 删除 7 个死字段 (WP1)
+- **tests**: 重构测试框架 - 目录分层 + 规范 + 删除 ~280 旧文件
+
+### Documentation
+- **workflow**: 同步专家圆桌 15→16 份与 fetcher 28→27
+- **claude**: 同步 CLAUDE.md 反映 WP1-WP6 改造
+- **claude**: 更新模块说明反映 WP1-WP6 改造
+
+### Testing
+- **stock_analysis**: 加 WP4 regression 测试
+- **unit**: 新增 experts 类型与 scoring 工具模块单元测试
+- **unit**: 新增 strategies 模块单元测试（registry/score_utils/thresholds）
+- **unit/e2e**: 新增 common 模块单元测试 + CLI 端到端测试
+
+### Maintenance
+- **repo**: .gitignore 补 market_snapshot.json 运行时缓存
+- **finance**: 缓存版本 bump v2 → v3 + CHANGELOG 完整记录
+
 ## [Unreleased] - 2026-07-21
 
 ### Fixed
