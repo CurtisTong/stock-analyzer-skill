@@ -115,7 +115,10 @@ class FinanceMeta:
     - 期数完整性（实际 vs 请求）
     - 字段缺失降级列表
     - 是否缓存命中
-    - 财报新鲜度（is_stale 配合 finance_freshness）
+
+    注：`is_stale` / `stale_reason` 字段为预留位，当前 `get_finance()` 尚未自动填充；
+    调用方请使用 `scripts.business.finance_freshness.check_finance_freshness()`
+    单独判定（见 WP6 board_overrides 板块差异化披露）。
     """
 
     source: str = ""  # 主源名（"eastmoney"）
@@ -127,8 +130,10 @@ class FinanceMeta:
     degraded_fields: List[str] = field(default_factory=list)  # 缺失字段名列表
     fetch_time: str = ""  # ISO 时间戳
     cache_hit: bool = False  # 缓存命中
-    is_stale: bool = False  # 财报过期（WP6 配合 finance_freshness）
-    stale_reason: str = ""  # 过期原因
+    is_stale: bool = (
+        False  # 预留位：财报过期；当前由 check_finance_freshness() 单独判定
+    )
+    stale_reason: str = ""  # 预留位：过期原因
     last_error: str = ""  # 最后一次异常描述
 
     def to_dict(self) -> dict:
