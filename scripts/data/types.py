@@ -69,6 +69,13 @@ class FinanceRecord:
     """
 
     report_date: str = ""
+    # 报告期类型（2026-07-23 宝丰能源 PE 误算复盘）：
+    #   annual     = 年报（report_date -12-31）
+    #   cumulative = 累计（中报 -06-30 / 三季报 -09-30）
+    #   quarterly  = 单季（一季报 -03-31）
+    #   ""         = 未标注（akshare 不返回 REPORT_TYPE / 旧数据）
+    # 下游算 PE 前必须先看本字段：单季 EPS 不可直接做 price/eps。
+    period_type: str = ""
     # 核心指标（None = 未披露/字段映射失败/数据源不返回）
     eps: Optional[float] = None  # 每股收益
     roe: Optional[float] = None  # ROE(%)

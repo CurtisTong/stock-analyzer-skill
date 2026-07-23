@@ -92,12 +92,15 @@ def render_text(result: dict) -> str:
         f = result["finance"]
         lines.append("\n💰 财务")
 
-        # WP2: None 透传——格式化为 "-"
+        # WP2: None 透传--格式化为 "-"
         def _f2(v, spec):
             return format(v, spec) if v is not None else "-"
 
+        # 口径标注（防线5）：EPS 旁标 [单季/累计/年报 日期]，防 LLM 误算 PE
+        eps_caliber = f.get("eps_caliber", "")
+        caliber_tag = f"  [{eps_caliber}]" if eps_caliber else ""
         lines.append(
-            f"   EPS {_f2(f.get('eps'), '.2f')}  "
+            f"   EPS {_f2(f.get('eps'), '.2f')}{caliber_tag}  "
             f"ROE {_f2(f.get('roe'), '.2f')}%  "
             f"净利同比 {_f2(f.get('net_profit_yoy'), '+.2f')}%"
         )
@@ -106,6 +109,14 @@ def render_text(result: dict) -> str:
             f"毛利率 {_f2(f.get('gross_margin'), '.2f')}%  "
             f"负债率 {_f2(f.get('debt_ratio'), '.2f')}%"
         )
+        # 单季 EPS 追加年化提示行，防止 LLM 直接 price/eps
+        if f.get("eps_annualized_hint") is not None:
+            lines.append(
+                f"   ⚠ 单季EPS年化≈{_f2(f.get('eps_annualized_hint'), '.2f')}  "
+                f"（仅供参考，估值请用TTM/年报口径）"
+            )
+        if "warning" in f:
+            lines.append(f"   {f['warning']}")
 
     # 5. 综合评分
     if "score" in result:
@@ -192,6 +203,10 @@ def render_brief(result: dict) -> str:
 
         parts.append(f"ROE:{_f_brief(fin.get('roe'), '.1f')}%")
         parts.append(f"净利YoY:{_f_brief(fin.get('net_profit_yoy'), '+.0f')}%")
+        # 口径标注（防线5）：brief 紧凑版，提示 LLM 单季 EPS 不可直接算 PE
+        caliber = fin.get("eps_caliber", "")
+        if caliber:
+            parts.append(f"EPS口径:{caliber}")
     body_lines = []
     if parts:
         body_lines.append(" | ".join(parts))

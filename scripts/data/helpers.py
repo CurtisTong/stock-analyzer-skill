@@ -166,3 +166,59 @@ def prefetch_kline_all(codes: list, scale: int = 240, datalen: int = 240) -> dic
         return _get_kline(normalize_quote_code(code), scale=scale, datalen=datalen)
 
     return parallel_fetch_dict(codes, _fetch_one, label="screener:kline")
+
+
+# ---------- 报告期口径工具（2026-07-23 宝丰能源 PE 误算复盘） ----------
+# 单季 EPS 不可直接做 price/eps；累计期不可直接算 PE（需 TTM）。
+# 这两个纯函数供业务层/渲染层在算 PE 前校验口径，避免高估 PE（如 47 倍）。
+
+
+def expected_period_type(report_date: str) -> str:
+    """按 report_date 末尾日期推断预期 period_type（兜底，不替代东财 REPORT_TYPE）。
+
+    优先使用 FinanceRecord.period_type（东财 REPORT_TYPE 归一化值）；
+    仅在 period_type 为空（akshare 不返回）时用本函数兜底推断。
+
+    Args:
+        report_date: 报告期日期，如 "2025-03-31"
+
+    Returns:
+        "annual" / "cumulative" / "quarterly" / ""
+    """
+    if report_date.endswith("-12-31"):
+        return "annual"
+    if report_date.endswith("-03-31"):
+        return "quarterly"
+    if report_date.endswith(("-06-30", "-09-30")):
+        return "cumulative"
+    return ""
+
+
+def compute_pe(price: float, eps, period_type: str) -> dict:
+    """根据 EPS 口径自动选 PE 算法。
+
+    Args:
+        price: 当前股价
+        eps: 每股收益（可能为 None / 0）
+        period_type: "annual" / "cumulative" / "quarterly" / ""
+
+    Returns:
+        {"pe": float|None, "method": str}
+        - annual: 直接 price/eps
+        - quarterly: 单季年化 price/(eps*4)，标记"近似"
+        - cumulative: 不可直接算，返回 None 提示需 TTM
+        - 空/None/0 eps: 返回 None
+    """
+    if eps is None or eps == 0 or price <= 0:
+        return {"pe": None, "method": "数据不足"}
+    if period_type == "annual":
+        return {"pe": round(price / eps, 2), "method": "PE(年报)"}
+    if period_type == "quarterly":
+        annualized = eps * 4
+        return {
+            "pe": round(price / annualized, 2),
+            "method": f"PE(单季×4={annualized:.2f}年化,近似)",
+        }
+    if period_type == "cumulative":
+        return {"pe": None, "method": "累计期不可直接算PE,需配TTM"}
+    return {"pe": None, "method": "口径未知"}

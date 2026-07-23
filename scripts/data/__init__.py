@@ -391,6 +391,28 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
 from data.mappers import FINANCE_FIELD_MAP as _FINANCE_FIELD_MAP  # noqa: F401
 
 
+# 东财 REPORT_TYPE 中文值 -> 标准化英文枚举（2026-07-23 宝丰能源 PE 误算复盘）
+# 一季报 = 单季 Q1；中报/三季报 = 累计 H1/Q3；年报 = 全年
+# 不可用 report_date 末尾日期推断：-06-30 无法区分"累计中报"与"单季 Q2"
+_PERIOD_TYPE_MAP = {
+    "一季报": "quarterly",
+    "中报": "cumulative",
+    "三季报": "cumulative",
+    "年报": "annual",
+}
+
+
+def _normalize_period_type(raw: str) -> str:
+    """东财 REPORT_TYPE 中文值 -> 标准化英文枚举。
+
+    - 一季报 -> quarterly（单季）
+    - 中报/三季报 -> cumulative（累计）
+    - 年报 -> annual（全年）
+    - 空/未知 -> ""（akshare 不返回 REPORT_TYPE，下游用 "" 兜底）
+    """
+    return _PERIOD_TYPE_MAP.get(raw.strip(), "")
+
+
 def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。
 
@@ -443,6 +465,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
 
     return FinanceRecord(
         report_date=str(_find(FIELD_MAP["report_date"]))[:10],
+        period_type=_normalize_period_type(str(_find(FIELD_MAP["period_type"]))),
         eps=_maybe_float(FIELD_MAP["eps"]),
         roe=_maybe_float(FIELD_MAP["roe"]),
         revenue_yoy=_maybe_float(FIELD_MAP["revenue_yoy"]),
