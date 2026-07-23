@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。`/technical` 已合并至 `/stock technical`，`/stock-init` 已合并至 `/screener init`，`/financial-analyst` 和 `/investment-researcher` 已合并至 `/research`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。`/technical` 已合并至 `/stock technical`，`/stock-init` 已合并至 `/screener init`，`/financial-analyst` 和 `/investment-researcher` 已合并至 `/research`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移；财务域经 WP1–WP6 改造（`FinanceRecord` Optional 化、`get_finance` 返回 `(records, FinanceMeta)` tuple、`common/rate_limiter.py` 全局限流、`board_overrides` 板块差异化披露、缓存格式版本 v2 → v3）。
 
 ## 常用命令
 
@@ -42,7 +42,7 @@ python3 scripts/portfolio_web.py --port 8765
 python3 scripts/stock.py sh600989          # 五层分析业务层入口（JSON 友好）
 python3 scripts/chip.py sh600989           # 资金面：融资融券 / 股东户数 / 十大流通
 
-# 辅助脚本（CLAUDE.md 之前未列，补齐 v1.14.2）
+# 辅助脚本（v1.14.2 起补齐；2026-07-21 起 finance 域新增 FinanceMeta + RateLimiter + board_overrides，详见 CHANGELOG Unreleased 段）
 python3 scripts/calibration_sync.py        # 校准数据同步（远程→本地）
 python3 scripts/hot_rank.py --top 20      # 热度榜（活跃 Top N；仅支持 --top/--days，不支持单股查询）
 python3 scripts/market_breadth.py          # 市场宽度分析（涨跌家数/涨停统计）
