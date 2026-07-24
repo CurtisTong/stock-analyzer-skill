@@ -55,7 +55,8 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
         except Exception as e:
             logger.debug("北向资金 %s 失败: %s", type(fetcher).__name__, e)
             continue
-        if not result or "days" not in result:
+        if not result or not result.get("days"):
+            # result 为 None、缺 days 或 days 为空列表（字段缺失/接口变更）均降级到下一源
             continue
         return [
             {

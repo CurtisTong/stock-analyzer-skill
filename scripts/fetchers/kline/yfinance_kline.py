@@ -2,7 +2,7 @@
 
 import logging
 
-from common import BaseFetcher, plain_code
+from common import BaseFetcher, plain_code, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -10,6 +10,12 @@ try:
     import yfinance as yf
 except ImportError:
     yf = None
+
+# yfinance 限流异常（不同版本可能缺失，缺失时置空元组使 except 子句不匹配）
+try:
+    from yfinance.exceptions import YFRateLimitError
+except ImportError:
+    YFRateLimitError = ()
 
 
 US_PREFIX = "us:"
@@ -86,6 +92,12 @@ class YfinanceKlineFetcher(BaseFetcher):
                     }
                 )
             return result if result else None
+        except YFRateLimitError as e:
+            # 转译为项目 RateLimitError，触发 DataFetcherManager 的 429 退避 + 重试主源链路
+            raise RateLimitError(url=f"yfinance:{symbol}", retry_after=60) from e
+        except RateLimitError:
+            # 由 YFRateLimitError 转译而来，直接向上抛
+            raise
         except Exception as e:
             logger.debug("yfinance_kline 获取失败 %s: %s", code, e)
             return None
