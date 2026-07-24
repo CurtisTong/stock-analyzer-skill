@@ -292,6 +292,22 @@ Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SK
 | 🟢 健康 | 在支撑位上方运行 | 持有      |
 | ⭐ 强势 | 板块领涨+放量    | 持有/加仓 |
 
+### 持仓技术分析交叉校验（批量诊断必跑）
+
+> 当对持仓批量做技术分析（如 `/stock technical` 逐只跑 `technical.py`）时，
+> 必须对每只股票的止损位与现价做交叉校验，防止"止损价高于现价"被误读为正常止损。
+> 详见 `../_shared/references/guardrails.md` §四止损位置约束。
+
+逐只核对 `technical.py` 输出的止损位（nearest_support）与现价：
+
+1. 若 `止损价 < 现价`（`breakdown=false`）：正常，按止损位执行风控。
+2. 若 `止损价 ≥ 现价`（`breakdown=true`）：标记为"已破位"，该只**不得输出"持有/观察"**，
+   必须输出"破位减仓/离场"，并在汇总表用 ⚠️ 标记。
+3. 汇总段必须单独列出"已破位标的"清单，不得混入正常持仓建议。
+
+> 校验方式：`technical.py -j` 输出的 `features.breakdown` 布尔字段为权威信号，
+> `features.stop_loss_pct` 为负值即破位。文本报告会自动输出 `⚠️ 破位警示`。
+
 ## Guardrails
 
 - 自动兼容 v1 格式，首次使用时引导用户补充成本价和数量。
