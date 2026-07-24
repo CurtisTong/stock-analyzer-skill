@@ -6,7 +6,7 @@ A 股代码返回 NOT_HANDLED 不干扰现有链路。
 
 import logging
 
-from common import BaseFetcher, NOT_HANDLED
+from common import BaseFetcher, NOT_HANDLED, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,12 @@ try:
     import yfinance as yf
 except ImportError:
     yf = None
+
+# yfinance 限流异常（不同版本可能缺失，缺失时置 Exception 兜底，由通用 except 记录）
+try:
+    from yfinance.exceptions import YFRateLimitError
+except ImportError:
+    YFRateLimitError = ()  # 空元组使 except 子句匹配任何异常为 False，等价于跳过
 
 # 跨市场代码前缀
 US_PREFIX = "us:"
@@ -125,6 +131,12 @@ class YfinanceQuoteFetcher(BaseFetcher):
                 "circulating_cap": "0",
                 "source": "yfinance",
             }
+        except YFRateLimitError as e:
+            # 转译为项目 RateLimitError，触发 DataFetcherManager 的 429 退避 + 重试主源链路
+            raise RateLimitError(url=f"yfinance:{symbol}", retry_after=60) from e
+        except RateLimitError:
+            # 由 YFRateLimitError 转译而来，直接向上抛
+            raise
         except Exception as e:
             logger.debug("yfinance_quote 获取失败 %s: %s", code, e)
             return None
