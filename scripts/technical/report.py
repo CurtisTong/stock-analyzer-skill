@@ -292,15 +292,41 @@ def _render_limit_section(features):
 
 
 def _render_risk_section(features, meta):
-    """渲染风险提示/仓位参考段落。"""
+    """渲染风险提示/仓位参考段落。
+
+    破位检测：若 nearest_support >= 现价，表明股价已跌破该支撑（破位），
+    此时止损位已失效。破位时不输出虚假的"距现价 -X%"，而是显式警示，
+    并说明该支撑已转为阻力，需参考下一档更低支撑或提示无有效下方支撑。
+    """
     sr = features.get("support_resistance", {})
+    supports = sr.get("supports", [])
     lines = []
     lines.append("\n## 仓位参考（技术面）")
     price_num = meta.get("price_num", 0)
     nearest_support = sr.get("nearest_support")
     if nearest_support and price_num > 0:
         stop_pct = round((price_num - nearest_support) / price_num * 100, 1)
-        lines.append(f"  止损位: {nearest_support} (距现价 -{abs(stop_pct)}%)")
+        if stop_pct < 0:
+            # 止损价高于现价 = 已跌破该支撑 = 破位，止损位已失效
+            lines.append(
+                f"  ⚠️ 破位警示: 现价 {price_num} 已跌破支撑 {nearest_support}"
+                f"（支撑在现价上方 {abs(stop_pct)}%，已转为阻力，原止损位失效）"
+            )
+            # 破位时尝试寻找下一档更低支撑作为新止损参考
+            lower_supports = [s for s in supports if s["level"] < price_num]
+            if lower_supports:
+                next_support = max(lower_supports, key=lambda x: x["level"])
+                next_pct = round(
+                    (price_num - next_support["level"]) / price_num * 100, 1
+                )
+                lines.append(
+                    f"  下一支撑(新止损参考): {next_support['level']}"
+                    f"({next_support['source']}) 距现价 -{next_pct}%"
+                )
+            else:
+                lines.append("  下方无有效支撑，建议关注整数关口或前低")
+        else:
+            lines.append(f"  止损位: {nearest_support} (距现价 -{stop_pct}%)")
     nearest_resistance = sr.get("nearest_resistance")
     if nearest_resistance and price_num > 0:
         tp_pct = round((nearest_resistance - price_num) / price_num * 100, 1)

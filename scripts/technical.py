@@ -311,13 +311,15 @@ def main():
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
     }
 
-    # 查找止损位
+    # 查找止损位 + 破位检测
+    # 若 nearest_support >= 现价，表明股价已跌破该支撑（破位），止损位已失效。
+    # 此时 stop_loss_pct 为负值，breakdown=True 供 JSON 输出和下游消费。
     sr = features.get("support_resistance", {})
     nearest_support = sr.get("nearest_support")
     if nearest_support and price_num > 0:
-        features["stop_loss_pct"] = round(
-            (price_num - nearest_support) / price_num * 100, 1
-        )
+        stop_pct = round((price_num - nearest_support) / price_num * 100, 1)
+        features["stop_loss_pct"] = stop_pct
+        features["breakdown"] = nearest_support >= price_num
 
     if args.json:
         feature_keys = {
@@ -333,6 +335,8 @@ def main():
             "breakout",
             "wave",
             "limit_analysis",
+            "stop_loss_pct",
+            "breakdown",
         }
         if args.classify:
             feature_keys.update(
