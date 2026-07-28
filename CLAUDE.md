@@ -42,7 +42,7 @@ python3 scripts/portfolio_web.py --port 8765
 python3 scripts/stock.py sh600989          # 五层分析业务层入口（JSON 友好）
 python3 scripts/chip.py sh600989           # 资金面：融资融券 / 股东户数 / 十大流通
 
-# 辅助脚本（v1.14.2 起补齐；2026-07-21 起 finance 域新增 FinanceMeta + RateLimiter + board_overrides，详见 CHANGELOG Unreleased 段）
+# 辅助脚本（v1.14.2 起补齐；2026-07-21 finance 域 FinanceMeta + RateLimiter + board_overrides；2026-07-28 v1.16.0 silent_fallback + RateLimiter hardening + 11 吞错治理 + PortfolioManager 部分拆分，详见 CHANGELOG v1.16.0 段）
 python3 scripts/calibration_sync.py        # 校准数据同步（远程→本地）
 python3 scripts/hot_rank.py --top 20      # 热度榜（活跃 Top N；仅支持 --top/--days，不支持单股查询）
 python3 scripts/market_breadth.py          # 市场宽度分析（涨跌家数/涨停统计）
@@ -64,7 +64,7 @@ scripts/
 ├── strategies/   # 筛选策略系统（6 策略 × 6 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 实时监控
-├── portfolio/    # 持仓管理
+├── portfolio/    # 持仓管理（v1.16.0 P2-1 部分拆分：analytics + rebalance 是 manager 的子模块入口）
 └── *.py          # 顶层 CLI 脚本（SKILL.md 直接调用的入口）
 ```
 
@@ -74,7 +74,9 @@ scripts/
 
 - **BaseFetcher / DataFetcherManager** (`scripts/common/__init__.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker + RateLimiter
 - **CircuitBreaker** (`scripts/common/__init__.py`): 线程安全熔断器（closed/open/half-open）
-- **RateLimiter** (`scripts/common/rate_limiter.py`, WP5 2026-07-21): per-provider 并发信号量 + 429 指数退避
+- **RateLimiter** (`scripts/common/rate_limiter.py`, WP5 2026-07-21, v1.16.0 hardening): per-provider 并发信号量 + 429 指数退避；新增 `slot()` contextmanager 强制 try/finally 释放信号量（防 P1-1 泄漏），新增 `is_provider_disabled()` 与 `CircuitBreaker` 编排（正交抑制）；模块级 helpers：`rate_limiter_slot()` / `is_provider_disabled()`
+- **silent_fallback** (`scripts/common/exceptions/silent_fallback.py`, v1.16.0): `log_silent_fallback()` 函数 + `@silent_fallback` 装饰器，对 11 处 HIGH/MEDIUM `except Exception:` 加显式 WARNING 日志（用 `extra={silent: True}` 便于 grep）
+- **lint_silent_excepts** (`scripts/dev/lint_silent_excepts.py`, v1.16.0): CI 阻断 lint（默认 advisory，CI 用 `--strict` 启用 exit 1）
 - **异常体系** (`scripts/common/exceptions/__init__.py`): `StockAnalyzerError` → `DataError` / `BusinessError`
 - **ConfigLoader** (`scripts/config/loader.py`): YAML 配置加载器，支持点分路径访问和缓存
 - **board_overrides** (`scripts/config/disclosure.yaml`, WP6 2026-07-21): 按股票代码前缀差异化财报披露 deadline（主板/科创板/北交所）
@@ -93,7 +95,7 @@ scripts/
 | `/stock-technical`   | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） | `scripts/technical.py`                                                                | stock 子模块                           |
 | `/market`            | 大盘快评 / 完整复盘 / 盘中分时               | `scripts/quote.py` + `scripts/kline.py`                                               | 指数/ETF/美股                          |
 | `/sector`            | 板块全景 / 标的对比 / 板块内筛选             | `scripts/sector.py` + `scripts/refresh_pool.py`                                       |                                        |
-| `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/*.py`                                 | Web 服务 :8765                         |
+| `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/manager.py`（facade） + `analytics.py` + `rebalance.py`（v1.16.0 P2-1 拆分） | Web 服务 :8765                         |
 | `/portfolio-web`     | Web 录入服务（HTTP API）                     | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/portfolio-natural` | 自然语言 → 命令映射（NL → API）              | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/screener`          | 6 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |

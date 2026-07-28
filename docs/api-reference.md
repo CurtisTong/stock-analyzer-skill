@@ -336,3 +336,93 @@ python3 scripts/stock.py sh600989 --no-finance  # 加速模式
 
 原因：超过 API 限制
 解决：分批查询，每批<=15 只
+
+---
+
+## v1.16.0 新增模块
+
+### `common/exceptions/silent_fallback.py` — 静默降级治理
+
+解决项目中 `except Exception:` 静默吞错导致业务失败不可观测的问题。提供：
+
+- `log_silent_fallback(location, exception, default_value, fallback_reason, extra_context)` — 直接调用，统一打 `logger.warning(..., extra={silent: True})`
+- `@silent_fallback("...", fallback_reason="...")` — 装饰器，捕获异常返回 `default_value` 并打 WARNING 日志
+
+```python
+from common.exceptions import log_silent_fallback, silent_fallback
+
+# 方式 1：函数调用
+try:
+    result = compute_wacc()
+except Exception as e:
+    log_silent_fallback(
+        location="strategies.factors.dcf.compute_wacc",
+        exception=e,
+        fallback_reason="WACC 输入不可用 → DCF 该标的跳过",
+    )
+    result = None
+
+# 方式 2：装饰器
+@silent_fallback("data.helpers.batch_prefetch", fallback_reason="批量失败 → 整批空")
+def fetch_batch(code):
+    return fetcher(code)
+```
+
+### `common/rate_limiter.py` — WP5 RateLimiter hardening
+
+v1.16.0 在 WP5 基础上新增 contextmanager 与 CircuitBreaker 编排：
+
+- `RateLimiter.slot(provider)` — `@contextmanager` 强制 try/finally 释放信号量（解决 P1-1 信号量泄漏）
+- `RateLimiter.is_provider_disabled(provider)` — 检查 provider 是否处于 429 退避窗口
+- 模块级 `rate_limiter_slot(provider)` 与 `is_provider_disabled(provider)` helpers
+
+```python
+from common.rate_limiter import rate_limiter_slot, is_provider_disabled
+
+# contextmanager 用法
+with rate_limiter_slot("eastmoney"):
+    result = fetcher.fetch(code)
+
+# 切源前判定
+if is_provider_disabled(fetcher.provider):
+    continue  # 跳过退避中的 provider
+```
+
+### `dev/lint_silent_excepts.py` — 静默吞错 lint
+
+CI 阻断脚本，扫描 `scripts/`、`experts/` 下所有 `except Exception` 块，验证是否在作用域内调用 `logger.warning/error/exception` 或 `log_silent_fallback`，否则阻断：
+
+```bash
+python3 scripts/dev/lint_silent_excepts.py            # advisory（默认）
+python3 scripts/dev/lint_silent_excepts.py --strict   # CI blocking (exit 1)
+```
+
+豁免的合理位置（白名单）：
+
+- `scripts/portfolio/_file_utils.py`（atomic write cleanup）
+- `scripts/portfolio/web/app.py`（browser fallback 兜底）
+- `scripts/backtest/cli.py`（可视化失败非阻断）
+- 等共 7 个白名单位置
+
+### `portfolio/analytics.py` + `portfolio/rebalance.py` — god class 部分拆分
+
+v1.16.0 P2-1 第一阶段：将 `PortfolioManager` 的 5 个只读方法抽到子模块：
+
+```python
+from portfolio.analytics import to_dict, summary, risk_summary, attribution_report
+from portfolio.rebalance import advisory_rebalance
+
+# 接受 manager 实例作为唯一参数
+text = summary(manager)  # 与 PortfolioManager.summary() 行为完全一致
+```
+
+`PortfolioManager` 的同名方法保留 thin wrapper 委派：
+
+```python
+class PortfolioManager:
+    def summary(self) -> str:
+        from portfolio.analytics import summary as _summary
+        return _summary(self)
+```
+
+剩余 CRUD/查询/导入导出方法（约 28 个）仍留 `manager.py`，完整拆分留待 v1.17.0。

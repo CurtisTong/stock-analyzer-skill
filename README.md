@@ -583,10 +583,13 @@ scripts/
 | 特性                      | 说明                                      |
 | :------------------------ | :---------------------------------------- |
 | 🪶 **零 Python 外部依赖** | 仅 `urllib` + `json` + `pathlib` + `yaml` |
-| 🔁 **多数据源故障转移**   | 单 API 挂掉自动切下家（集成熔断器）       |
+| 🔁 **多数据源故障转移**   | 单 API 挂掉自动切下家（集成熔断器 + RateLimiter）|
+| 🛡️ **429 限流防护**     | v1.16.0 全局 RateLimiter（per-provider 信号量 + 指数退避；contextmanager 强制 try/finally 防泄漏）|
 | 🏛️ **三层架构**           | API 层 → 业务层 → 数据层，职责清晰易扩展  |
+| 📊 **finance 域 WP1-WP6** | v1.16.0 重构：财报表 `Optional[float]=None` 化、`get_finance` 返 `(records, FinanceMeta)` tuple、主板/科创板/北交所差异化披露 |
 | ⚙️ **配置外部化**         | 行业阈值 / 评分权重 / 数据端点全部 YAML   |
-| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试    |
+| 🔍 **可观测性提升**      | v1.16.0 silent_fallback：14 处 HIGH/MEDIUM 静默吞错加显式 WARNING 日志 |
+| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1017 测试）|
 
 📖 详见 [开发者指南](docs/developer-guide.md) 和 [产品架构](docs/product-architecture.md)。
 
@@ -737,8 +740,8 @@ python3 scripts/dev/sync_skill_test_versions.py --check
 
 # 4. 提交 + 打 tag + push
 git add -A
-git commit -m "chore(release): 同步至 v1.14.1"
-git tag -a v1.14.1 -m "Release v1.14.1"
+git commit -m "release: v1.16.0 — finance 域 WP1-WP6 + 全栈 hardening + skill 验证"
+git tag -a v1.16.0 -m "Release v1.16.0"
 git push origin main --tags
 ```
 

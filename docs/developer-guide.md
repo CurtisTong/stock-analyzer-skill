@@ -44,14 +44,15 @@ stock-analyzer-skill/
 │   ├── common/                     # 基础设施层
 │   │   ├── __init__.py            # BaseFetcher, CircuitBreaker, DataFetcherManager, fetch_with_fallback
 │   │   │                            # __all__ 精简到 41 符号（v2.0.0 Round 11 T3），PEP 562 懒加载
-│   │   ├── fetcher_base.py        # fetch_with_breaker / fetch_with_fallback
+│   │   ├── fetcher_base.py        # fetch_with_breaker / fetch_with_fallback（v1.16.0: 与 is_provider_disabled 编排）
 │   │   ├── http.py                # HTTP 请求封装（except Exception 改具体异常，Round 11 T19）
 │   │   ├── cache.py               # 磁盘缓存（v1.3.2 从 data/cache.py 迁入）
 │   │   ├── validators.py          # 输入验证器
 │   │   ├── utils.py               # 工具函数
 │   │   ├── parsers.py             # 数据解析器
 │   │   ├── metrics.py             # 指标计算
-│   │   └── exceptions/            # 异常类体系
+│   │   ├── rate_limiter.py        # v1.16.0 WP5 + v1.16.0 hardening：slot() contextmanager + is_provider_disabled()
+│   │   └── exceptions/            # 异常类体系（含 v1.16.0 silent_fallback.py 模块）
 │   ├── config/                     # 配置外部化
 │   │   ├── loader.py              # YAML 配置加载器
 │   │   ├── data_source.yaml       # 数据源端点
@@ -117,7 +118,13 @@ stock-analyzer-skill/
 │   │       ├── base.py / bark.py
 │   │       ├── wechat.py          # 企业微信（v1.3.1）
 │   │       └── dingtalk.py        # 钉钉（v1.3.1）
-│   ├── portfolio/                  # 持仓管理
+│   ├── portfolio/                  # 持仓管理（v1.16.0 P2-1 部分拆分：analytics.py + rebalance.py）
+│   │   ├── manager.py              # PortfolioManager facade（v1.16.0: 848→711 LOC，5 个方法 thin wrapper）
+│   │   ├── analytics.py            # to_dict / summary / risk_summary / attribution_report
+│   │   ├── rebalance.py            # advisory_rebalance
+│   │   ├── oplog.py                # OpLog 快照管理（undo 支持）
+│   │   ├── brinson.py              # Brinson 归因
+│   │   └── web/                    # portfolio_web Flask 服务 :8765
 │   ├── quote.py                   # 腾讯实时行情
 │   ├── finance.py                 # 东财财务数据
 │   ├── kline.py                   # 新浪 K线
