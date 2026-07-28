@@ -25,7 +25,15 @@ class SinaNorthboundFlowFetcher(BaseFetcher):
         url = SINA_NORTHBOUND_URL.format(days=days)
         try:
             raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
-        except Exception:
+        except Exception as e:
+            # v1.16.0 P1-2 MEDIUM: 显式记录（应传播至 circuit breaker）
+            from common.exceptions import log_silent_fallback
+
+            log_silent_fallback(
+                location="fetchers.flow.sina_flow.fetch_northbound",
+                exception=e,
+                fallback_reason="北向资金 HTTP 异常 → 返回 None",
+            )
             return None
         try:
             data = json.loads(raw)

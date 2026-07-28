@@ -199,7 +199,16 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list:
             if bars[i - 1].close > 0:
                 returns.append((bars[i].close - bars[i - 1].close) / bars[i - 1].close)
         return returns
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2 HIGH: 基准收益计算失败直接影响回测指标——记录
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="backtest.metrics._calc_benchmark_returns",
+            exception=e,
+            default_value=None,
+            fallback_reason="基准收益数据获取/计算失败，回测指标返回 None",
+        )
         return None
 
 

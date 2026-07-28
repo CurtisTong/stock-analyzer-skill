@@ -229,7 +229,20 @@ def _load_notification_config() -> dict:
             "index_change_threshold": rules.get("index_change", 2.0),
             "northbound_threshold_yi": rules.get("northbound_flow", 50),
         }
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2: 显式记录——配置加载失败时回退硬编码阈值
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="monitor.rules._load_thresholds",
+            exception=e,
+            default_value={
+                "underperform_days": 2,
+                "index_change_threshold": 2.0,
+                "northbound_threshold_yi": 50,
+            },
+            fallback_reason="notification.yaml 加载失败，使用硬编码默认阈值",
+        )
         return {
             "underperform_days": 2,
             "index_change_threshold": 2.0,

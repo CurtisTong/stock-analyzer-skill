@@ -308,4 +308,10 @@ __all__ = [
     "format_error",
     "is_retryable_error",
     "USER_FRIENDLY_MESSAGES",
+    # v1.16.0 Batch 3 新增
+    "log_silent_fallback",
+    "silent_fallback",
 ]
+
+# Re-export 静默降级工具（v1.16.0 Batch 3 P1-2 治理）
+from common.exceptions.silent_fallback import log_silent_fallback, silent_fallback

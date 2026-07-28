@@ -148,7 +148,15 @@ def prefetch_finance_all(codes: list) -> dict:
         try:
             code, data = future.result()
             results[code] = data
-        except Exception:
+        except Exception as e:
+            # v1.16.0 P1-2 HIGH: 整批静默丢弃——记录
+            from common.exceptions import log_silent_fallback
+
+            log_silent_fallback(
+                location="data.helpers.batch_prefetch",
+                exception=e,
+                fallback_reason=f"批量预取单条失败 → 整批置空（code={futures.get(future, '?')}）",
+            )
             results[futures[future]] = []
     return results
 

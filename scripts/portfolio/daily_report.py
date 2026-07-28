@@ -46,7 +46,15 @@ class DailyReportGenerator:
                     self._pm = PortfolioManager(self._portfolio_path)
                 else:
                     self._pm = PortfolioManager()
-            except Exception:
+            except Exception as e:
+                # v1.16.0 P1-2 MEDIUM
+                from common.exceptions import log_silent_fallback
+
+                log_silent_fallback(
+                    location="portfolio.daily_report._load_pm",
+                    exception=e,
+                    fallback_reason="PortfolioManager 对非标准格式会抛异常 → 跳过日报生成",
+                )
                 # PortfolioManager 对非标准格式（如 v1 纯列表）会抛异常，回退 None
                 self._pm = None
         return self._pm

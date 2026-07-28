@@ -12,6 +12,29 @@ requires-python = ">=3.11"
 # 可选依赖模式已隔离影响——未安装 akshare 的环境完全不受影响。
 # 解决时机：等上游 py_mini_racer 发布适配 3.19 的版本后，用户升级即可。
 
+[project.dependencies]
+# 运行时装载从 stdlib + 第三方 4 段独立维度声明。
+# 4 类分类与 data_source.yaml.optional_dependencies 保持一一对应。
+# 下面 4 项是 docs/audit-2026-07-28.md §D-B 推荐的明确运行依赖：
+httpx = ">=0.24"
+requests = ">=2.31"
+urllib3 = ">=2.0"
+typing-extensions = ">=4.0"  # for Python 3.10 compatibility
+
+[project.optional-dependencies.quote]
+yfinance = ">=0.2"
+
+[project.optional-dependencies.china]
+akshare = ">=1.12"
+efinance = ">=0.16"
+tushare = ">=1.4"
+baostock = ">=0.8"
+pytdx = ">=1.64"
+
+[project.optional-dependencies.analysis]
+pandas = ">=2.0"
+numpy = ">=1.24"
+
 [project.optional-dependencies.test]
 pytest = ">=8.0"
 pytest-xdist = ">=3.0"

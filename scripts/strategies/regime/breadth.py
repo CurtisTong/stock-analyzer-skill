@@ -77,7 +77,15 @@ def compute_constituent_breadth(window: int = 20) -> Optional[float]:
             if ma20 is not None and closes[-1] > ma20:
                 above_count += 1
             total += 1
-        except Exception:
+        except Exception as e:
+            # v1.16.0 P1-2 MEDIUM: 单只股票均价计算失败不影响整体
+            from common.exceptions import log_silent_fallback
+
+            log_silent_fallback(
+                location="strategies.regime.breadth.compute_breadth",
+                exception=e,
+                fallback_reason="单股均价计算失败 → 跳过该股继续聚合",
+            )
             continue
 
     if total == 0:

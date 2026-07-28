@@ -668,7 +668,23 @@ function updateCurl() {
   }
   const bodyStr = JSON.stringify(body);
   const tok = TOKEN || "<TOKEN>";
-  $("#curl").innerHTML = '<span class="kw">curl</span> -X POST http://127.0.0.1:8765/api/positions \\\\\n  -H <span class="str">\'Content-Type: application/json\'</span> \\\\\n  -H <span class="str">\'Authorization: Bearer ' + tok + '</span>\' \\\\\n  -d <span class="str">\'' + bodyStr + '\'</span>';
+  // v1.16.0 P2-3: 用 DOM 节点组合替代 innerHTML+token 拼接（防 XSS）
+  // — token 来自 sessionStorage，正常流程由 server 生成的 url-safe base64，
+  //   但 defense-in-depth 避免未来被攻击者通过其他渠道注入。
+  const curlEl = $("#curl");
+  while (curlEl.firstChild) curlEl.removeChild(curlEl.firstChild);
+  const parts = [
+    ["kw", "curl"], ["text", " -X POST http://127.0.0.1:8765/api/positions \\\n  -H "],
+    ["str", "'Content-Type: application/json'"], ["text", " \\\n  -H "],
+    ["str", "'Authorization: Bearer " + tok + "'"], ["text", " \\\n  -d "],
+    ["str", "'" + bodyStr + "'"],
+  ];
+  for (const [cls, txt] of parts) {
+    const span = document.createElement("span");
+    if (cls !== "text") span.className = cls;
+    span.textContent = txt;
+    curlEl.appendChild(span);
+  }
 }
 
 // ── 事件绑定 ──

@@ -365,7 +365,15 @@ def _normalize_quote_code(code: str) -> str:
 
     try:
         return normalize_quote_code(code)
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2 MEDIUM: 显式记录静默降级，便于 grep
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="scripts.data.__init__.normalize_code",
+            exception=e,
+            fallback_reason="股票代码标准化失败 → 返回原始输入",
+        )
         return code
 
 

@@ -120,7 +120,15 @@ def _fetch_main_flow(code: str) -> list:
             days = result.get("days", [])
             if isinstance(days, list):
                 return days
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2 MEDIUM
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="strategies.filters.turning_point.parse_history",
+            exception=e,
+            fallback_reason="拐点历史数据解析失败 → 视为无数据",
+        )
         pass
     return []
 

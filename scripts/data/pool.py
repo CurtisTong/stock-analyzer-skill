@@ -57,11 +57,15 @@ XUANGU_FIELDS = "SECUCODE,SECURITY_CODE,SECURITY_NAME_ABBR,MARKET"
 
 def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
     """获取板块成分股，返回 [{code, name, price, change_pct, amount, turnover, pe, cap}]"""
+    from urllib.parse import urlencode
+
     http_get_cached, _, infer_exchange = _get_common_deps()
-    ut_param = f"&ut={API_TOKEN}" if API_TOKEN else ""
+    # v1.16.0 D-A.2: urlencode API_TOKEN 而不是字符串拼接
+    extra_params = urlencode({"ut": API_TOKEN}) if API_TOKEN else ""
     url = (
-        f"{API_BASE}?pn=1&pz=500&np=1{ut_param}"
+        f"{API_BASE}?pn=1&pz=500&np=1"
         f"&fltt=2&invt=2&fid=f3&fs=b:{bk_code}&fields={FIELDS}"
+        + (f"&{extra_params}" if extra_params else "")
     )
     for attempt in range(max_retries + 1):
         try:

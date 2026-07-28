@@ -287,13 +287,23 @@ class DataFetcherManager:
         self._set_last_error(None)
 
         # 延迟导入避免循环依赖（fetcher_base → rate_limiter 不存在反向依赖）
-        from common.rate_limiter import get_rate_limiter
+        from common.rate_limiter import get_rate_limiter, is_provider_disabled
 
         limiter = get_rate_limiter()
         retried_429: set[str] = set()  # 每 provider 最多重试一次
 
         for fetcher in self.fetchers:
             if not fetcher.is_available():
+                continue
+            # v1.16.0 P1-1.2: 与 RateLimiter 编排——若 provider 当前在
+            # 429 退避窗口内，直接跳过（避免对退避中的源发起新请求，
+            # 让 circuit breaker 与 RateLimiter 形成正交抑制）。
+            if is_provider_disabled(fetcher.provider):
+                logger.debug(
+                    "fetcher %s 当前在 RateLimiter 退避窗口内，跳过: provider=%s",
+                    fetcher.name,
+                    fetcher.provider,
+                )
                 continue
             try:
                 # WP5: Semaphore 保护 + 退避 sleep

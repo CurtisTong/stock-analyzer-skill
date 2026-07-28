@@ -55,6 +55,9 @@ jobs:
       - name: allowed-tools 自审计
         run: python3 scripts/dev/check_allowed_tools.py --ci
 
+      - name: 静默吞错 lint（v1.16.0 P1-2 治理）
+        run: python3 scripts/dev/lint_silent_excepts.py
+
       - name: black 格式检查
         run: black --check scripts/ experts/ tests/
 

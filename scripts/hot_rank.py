@@ -176,7 +176,15 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
         for attempt in range(3):
             try:
                 bars = fetcher.fetch(code, scale=240, datalen=days_back + 2)
-            except Exception:
+            except Exception as e:
+                # v1.16.0 P1-2 MEDIUM: 显式记录静默降级，便于 grep
+                from common.exceptions import log_silent_fallback
+
+                log_silent_fallback(
+                    location="scripts.hot_rank.fetch_kline",
+                    exception=e,
+                    fallback_reason="K线获取连续失败 → bars=None 跳过后续",
+                )
                 bars = None
             if bars:
                 break

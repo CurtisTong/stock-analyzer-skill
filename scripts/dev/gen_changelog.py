@@ -164,7 +164,7 @@ def generate_changelog(commits: list[dict]) -> str:
 
 
 def append_to_changelog(content: str) -> None:
-    """追加到 CHANGELOG.md。"""
+    """追加到 CHANGELOG.md；如已有 [Unreleased] 则就地合并（防堆叠 P0-2）。"""
     changelog_path = PKG_ROOT / "CHANGELOG.md"
     if not changelog_path.exists():
         print("❌ CHANGELOG.md 不存在")
@@ -172,18 +172,56 @@ def append_to_changelog(content: str) -> None:
 
     existing = changelog_path.read_text(encoding="utf-8")
     date_str = datetime.now().strftime("%Y-%m-%d")
-    header = f"\n## [Unreleased] - {date_str}\n\n"
 
-    # 找到第一个 ## [xxx] 行，在其前面插入
-    insert_pos = existing.find("\n## [")
-    if insert_pos == -1:
-        # 没有找到，在文件末尾追加
-        new_content = existing + header + content
+    # 检查是否已有 [Unreleased] 区块（无论日期后缀）
+    import re
+
+    unreleased_match = re.search(
+        r"^(## \[Unreleased\](?: - \d{4}-\d{2}-\d{2})?\s*\n)(.*?)(?=\n## \[|\Z)",
+        existing,
+        re.S | re.M,
+    )
+
+    if unreleased_match:
+        # 已有 [Unreleased]：就地合并（去除首尾空行后拼接，去重完整段落）
+        header_line = unreleased_match.group(1)
+        existing_body = unreleased_match.group(2).strip("\n")
+        new_body = content.strip()
+        # 去重：若 content 中段落已在 existing_body 中，跳过；否则追加
+        existing_paragraphs = {
+            p.strip() for p in existing_body.split("\n\n") if p.strip()
+        }
+        new_paragraphs = [p.strip() for p in new_body.split("\n\n") if p.strip()]
+        merged_paragraphs = list(
+            dict.fromkeys(
+                [p for p in existing_body.split("\n\n") if p.strip()]
+                + [p for p in new_paragraphs if p.strip() not in existing_paragraphs]
+            )
+        )
+        merged_body = "\n\n".join(merged_paragraphs)
+        # 用最新日期作为 header（如果当前已经是带日期的就不再变）
+        new_header = (
+            header_line if " - " in header_line else f"## [Unreleased] - {date_str}\n"
+        )
+        new_section = new_header + "\n" + merged_body + "\n"
+        new_content = (
+            existing[: unreleased_match.start()]
+            + new_section
+            + existing[unreleased_match.end() :]
+        )
     else:
-        new_content = existing[:insert_pos] + header + content + existing[insert_pos:]
+        # 没有 [Unreleased]：在第一个 ## [xxx] 之前插入新区块
+        header = f"\n## [Unreleased] - {date_str}\n\n"
+        insert_pos = existing.find("\n## [")
+        if insert_pos == -1:
+            new_content = existing + header + content
+        else:
+            new_content = (
+                existing[:insert_pos] + header + content + existing[insert_pos:]
+            )
 
     changelog_path.write_text(new_content, encoding="utf-8")
-    print("✅ 已追加到 CHANGELOG.md")
+    print("✅ 已追加到 CHANGELOG.md（合并模式）")
 
 
 def main() -> None:

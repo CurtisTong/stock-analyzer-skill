@@ -367,7 +367,15 @@ class ScreeningService:
             fin_stale, stale_msg = check_finance_freshness(fin)
             if fin_stale:
                 warnings.append(f"{stale_msg}(财务硬过滤降级为警告)")
-        except Exception:
+        except Exception as e:
+            # v1.16.0 P1-2 MEDIUM
+            from common.exceptions import log_silent_fallback
+
+            log_silent_fallback(
+                location="business.screening_service.check_freshness",
+                exception=e,
+                fallback_reason="财务时效校验失败 → 不阻断过滤，但放弃时效保证",
+            )
             pass  # 时效校验失败不阻断过滤
 
         # 退市风险：市值过小（提高阈值，注册制后退市常态化）
@@ -472,7 +480,15 @@ class ScreeningService:
                         reasons.append("一字涨停(无量,无法买入)")
                     else:
                         warnings.append("涨停(有量,可参与)")
-                except Exception:
+                except Exception as e:
+                    # v1.16.0 P1-2 MEDIUM
+                    from common.exceptions import log_silent_fallback
+
+                    log_silent_fallback(
+                        location="business.screening_service.zt_filter",
+                        exception=e,
+                        fallback_reason="zt_pool 不可用 → 回退硬过滤（可能掩盖真实涨跌停）",
+                    )
                     # zt_pool 不可用时回退硬过滤
                     reasons.append("涨跌停限制")
             else:

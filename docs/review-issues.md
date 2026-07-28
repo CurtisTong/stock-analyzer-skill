@@ -248,3 +248,21 @@
 ---
 
 **维护说明**：本清单由 `docs/review-issues.md` 维护；每次完成修复请更新对应行的 ✅/状态，并归档到 CHANGELOG。
+
+---
+
+## Milestone v2.8.0（v1.16.0 深度审计新增 — Round 12）
+
+> 来源：[docs/audit-2026-07-28.md](audit-2026-07-28.md) 完整 19 项问题清单
+> 范围：P0 构建/CI/版本同步（已完成）+ WP5/WP6 测试加固 + 静默吞错治理 + god class 拆分 + 类型注解扩展
+
+| ID | 优先级 | 模块 | 摘要 | 状态 |
+|:---|:---:|:---|:---|:---:|
+| **P2-H6**（NEW）| P2 | strategies | `valuation_score` 中 `total_cap`/`revenue_yoy` 语义混乱 + PS 区间估算未实现（孤儿 TODO） | 📋 待分配 |
+| **P2-P1**（NEW）| P2 | portfolio | `PortfolioManager` 41 方法 god class 拆分（crud/oplog/analytics/rebalance 4 模块 + facade） | 📋 待办（v1.17.0） |
+| **P2-P2**（NEW）| P1 | common | WP5 RateLimiter + WP6 board_overrides 关键路径测试覆盖（contextmanager / circuit breaker 编排 / 4 次 429 全失败恢复） | ✅ v1.16.0 完成（contextmanager + 6 新测试） |
+| **P2-P3**（NEW）| P1 | common | 24 处 `except Exception:` 吞错中 11 处 HIGH/MEDIUM 已加 `log_silent_fallback` 显式日志 | ✅ v1.16.0 完成 |
+| **P2-P4**（NEW）| P2 | web | `templates.py:671` innerHTML+TOKEN 拼接 XSS sink 改为 DOM 节点组合 | ✅ v1.16.0 完成 |
+| **P2-P5**（NEW）| P2 | common | 5 维度补充治理（凭据/.env.example 文档化 + 依赖 lockfile + pre-commit 5 hook + mypy 分阶段扩 strict） | ✅ v1.16.0 完成（pre-commit） / 📋 部分文档化 |
+
+详细证据见 [docs/audit-2026-07-28.md](audit-2026-07-28.md)。

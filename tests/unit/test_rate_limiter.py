@@ -142,3 +142,127 @@ class TestResetAndStats:
         assert s["max_concurrent"] == 8
         assert "eastmoney" in s["backoff_state"]
         assert s["backoff_state"]["eastmoney"]["consecutive_429"] == 2
+
+
+# === v1.16.0 Batch 2 新增测试：contextmanager / circuit breaker 编排 / 鲁棒性 ===
+class TestRateLimiterSlotContextManager:
+    """验证 slot() 上下文管理器的 try/finally 信号量释放行为（P1-1.1 修复）。"""
+
+    def test_slot_releases_on_normal_exit(self):
+        """正常路径：with 块退出后信号量被释放，下一次 acquire() 可立即获得。"""
+        rl = RateLimiter(max_concurrent=1)
+        with rl.slot("eastmoney"):
+            sem = rl._semaphores["eastmoney"]
+            assert sem._value == 0  # 占满
+        # 退出后再 acquire 应能成功
+        sem2 = rl._get_semaphore("eastmoney")
+        assert sem2._value == 1  # 已释放
+
+    def test_slot_releases_on_exception(self):
+        """异常路径：业务代码抛异常后信号量仍被释放（P1-1.1 信号量泄漏修复）。"""
+        rl = RateLimiter(max_concurrent=1)
+        with pytest.raises(RuntimeError):
+            with rl.slot("eastmoney"):
+                raise RuntimeError("业务异常")
+        # 信号量已归还
+        sem = rl._get_semaphore("eastmoney")
+        assert sem._value == 1  # 已释放
+
+    def test_slot_releases_on_keyboard_interrupt(self):
+        """KeyboardInterrupt 路径：模拟 KeyboardInterrupt 后信号量仍被释放。"""
+        rl = RateLimiter(max_concurrent=1)
+        try:
+            with rl.slot("eastmoney"):
+                raise KeyboardInterrupt("Ctrl+C")
+        except KeyboardInterrupt:
+            pass
+        # 信号量已归还——保证后续请求不被卡死
+        sem = rl._get_semaphore("eastmoney")
+        assert sem._value == 1
+
+
+class TestRateLimiterProviderDisabled:
+    """验证 is_provider_disabled() 用作 circuit breaker 旁路信号（P1-1.2 修复）。"""
+
+    def test_disabled_returns_false_when_no_history(self):
+        rl = RateLimiter()
+        assert rl.is_provider_disabled("eastmoney") is False
+
+    def test_disabled_returns_true_within_window(self):
+        rl = RateLimiter(backoff_window=30.0)
+        rl._backoff_state["eastmoney"] = (time.time(), 1)
+        assert rl.is_provider_disabled("eastmoney") is True
+
+    def test_disabled_returns_false_after_window_expires(self):
+        rl = RateLimiter(backoff_window=0.1)
+        rl._backoff_state["eastmoney"] = (time.time() - 1.0, 1)  # 1 秒前
+        assert rl.is_provider_disabled("eastmoney") is False
+
+
+class TestRateLimiterDCLIdempotency:
+    """验证 get_rate_limiter() 双检锁的幂等性。"""
+
+    def test_get_rate_limiter_returns_same_singleton(self):
+        """多次调用返回同一对象。"""
+        from common.rate_limiter import get_rate_limiter, reset_rate_limiter
+
+        reset_rate_limiter()
+        try:
+            a = get_rate_limiter()
+            b = get_rate_limiter()
+            c = get_rate_limiter()
+            assert a is b is c
+        finally:
+            reset_rate_limiter()
+
+    def test_get_rate_limiter_thread_safe(self):
+        """10 个线程并发调 get_rate_limiter()，应共享同一实例。"""
+        from common.rate_limiter import get_rate_limiter, reset_rate_limiter
+        import threading
+
+        reset_rate_limiter()
+        results = []
+        lock = threading.Lock()
+
+        def worker():
+            rl = get_rate_limiter()
+            with lock:
+                results.append(id(rl))
+
+        try:
+            threads = [threading.Thread(target=worker) for _ in range(10)]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+            assert len(set(results)) == 1  # 10 个线程共享同一实例
+        finally:
+            reset_rate_limiter()
+
+
+class TestRateLimiterBackoffCumulative:
+    """验证连续 4 次 429 后退避状态正确累积但不超过 cap。"""
+
+    def test_4_consecutive_429s_backoff_capped(self):
+        rl = RateLimiter(backoff_base=1.0, backoff_cap=4.0, backoff_window=60.0)
+        # 模拟 4 次 429 累积
+        for i in range(1, 5):
+            rl.release("eastmoney", got_429=True)
+        # consecutive 应为 4
+        _, consecutive = rl._backoff_state["eastmoney"]
+        assert consecutive == 4
+        # 计算退避：1*2^3=8 → cap=4
+        backoff = rl._compute_backoff(consecutive)
+        assert backoff == 4.0  # cap 生效
+
+    def test_consecutive_429_resets_after_window(self):
+        rl = RateLimiter(backoff_window=0.1)
+        rl.release("eastmoney", got_429=True)
+        rl.release("eastmoney", got_429=True)
+        _, consecutive = rl._backoff_state["eastmoney"]
+        assert consecutive == 2
+        # 等待窗口过期
+        time.sleep(0.15)
+        rl.release("eastmoney", got_429=True)
+        _, consecutive = rl._backoff_state["eastmoney"]
+        assert consecutive == 1  # 重置

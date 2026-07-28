@@ -156,7 +156,16 @@ def pre_screen_quotes(quotes, args):
         from common.user_profile import get_user_preference
 
         user_blacklist = set(get_user_preference("blacklist") or [])
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2 HIGH: 黑名单配置缺失影响预筛——记录便于用户感知
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="business.universe_loader.load_user_blacklist",
+            exception=e,
+            default_value=set(),
+            fallback_reason="用户黑名单配置不可用，使用空集合（不阻断但失去个人定制过滤）",
+        )
         user_blacklist = set()
 
     # (#1) 获取全市场水位快照（缓存 1 小时，缺失时全 0 -> 回退绝对值）
@@ -167,7 +176,16 @@ def pre_screen_quotes(quotes, args):
         snap = get_market_snapshot()
         market_ref["avg_amount_yuan"] = snap.get("avg_amount_yuan", 0.0)
         market_ref["median_cap"] = snap.get("median_cap", 0.0)
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2 HIGH: 快照失败影响板块权重——记录便于运维定位
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="business.universe_loader.load_market_snapshot",
+            exception=e,
+            default_value=market_ref,
+            fallback_reason="market_snapshot 不可用，回退绝对值（不阻断预筛选）",
+        )
         pass  # 快照不可用时回退绝对值，不阻断预筛选
 
     from strategies.filters import adaptive_amount_threshold, adaptive_cap_threshold
@@ -305,5 +323,14 @@ def load_benchmark_industry_weights() -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data.get("weights", {})
-    except Exception:
+    except Exception as e:
+        # v1.16.0 P1-2 HIGH: 板块权重失效导致再平衡失真——记录
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback(
+            location="business.universe_loader.load_benchmark_industry_weights",
+            exception=e,
+            default_value={},
+            fallback_reason="CSI300 行业权重配置文件解析失败，等权处理",
+        )
         return {}

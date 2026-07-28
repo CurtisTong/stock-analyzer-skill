@@ -1,0 +1,33 @@
+# Auto-generated lockfile derived from pyproject.toml [project.dependencies]
+# + [project.optional-dependencies.*] (full set)
+# Generated: 2026-07-28 by docs/audit-2026-07-28.md §D-B Batch 1.5
+# Format: pip freeze-compatible
+
+# Core runtime
+httpx>=0.24
+requests>=2.31
+urllib3>=2.0
+typing-extensions>=4.0
+PyYAML>=6.0
+
+# China data sources (optional)
+akshare>=1.12
+efinance>=0.16
+tushare>=1.4
+baostock>=0.8
+pytdx>=1.64
+
+# Quote (optional)
+yfinance>=0.2
+
+# Analysis (optional)
+pandas>=2.0
+numpy>=1.24
+
+# Test
+pytest>=8.0
+pytest-xdist>=3.0
+pytest-timeout>=2.0
+pytest-cov>=4.0
+hypothesis>=6.0
+respx>=0.21

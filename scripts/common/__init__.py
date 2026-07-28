@@ -107,6 +107,9 @@ _LAZY_IMPORTS = {
     "get_rate_limiter": ("common.rate_limiter", "get_rate_limiter"),
     "reset_rate_limiter": ("common.rate_limiter", "reset_rate_limiter"),
     "RateLimiter": ("common.rate_limiter", "RateLimiter"),
+    # v1.16.0 新增：contextmanager 形式 + circuit breaker 旁路
+    "rate_limiter_slot": ("common.rate_limiter", "rate_limiter_slot"),
+    "is_provider_disabled": ("common.rate_limiter", "is_provider_disabled"),
 }
 
 

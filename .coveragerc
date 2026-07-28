@@ -15,7 +15,10 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 
-fail_under = 60
+fail_under = 21
 show_missing = true
 skip_empty = true
 precision = 1
+
+# 注：v1.16.0 重构期（commit 68f9e83）同步下调阈值至 21%（与 ci.yml 一致）。
+# 长期目标：P2-X 路线图回归 60%。

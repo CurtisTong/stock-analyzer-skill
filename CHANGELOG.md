@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟡 **当前状态**：v1.15.0（2026-07-09）已发布；[Unreleased] 段含 2026-07-10 市场环境锚定 v2.5.0/v2.5.x/v2.6.0/v2.7.0 四轮扩展（前置锚定 + 5 维度 + P1 行业 beta + P1 组合相关性 + P2 题材轮动 + P2 北向资金），10 大维度全覆盖。
+> 🟡 **当前状态**：v1.16.0（2026-07-28）已发布，包含 finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测 + 38 个 [Unreleased] 区块折叠。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.16.0 | 2026-07-28 | finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测 + 38 个 [Unreleased] 折叠 |
 | 1.15.0 | 2026-07-09 | 多轮审查修复 + 文档同步 + 数据域补齐 |
 | 1.14.2 | 2026-06-29 | 异常分类 + 输出模板统一 + backtest 解耦 + 文档对齐 |
 | 1.14.0 | 2026-06-24 | 回测增强 + 估值模型 + 事件驱动 + 架构重构 |
@@ -28,7 +29,7 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased] - 2026-07-27
+## [Unreleased] - 2026-07-28
 
 ### Added
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
@@ -69,8 +70,6 @@
 - Merge fix/datasource-northbound-yfinance-rate-limit: 北向资金数据源如实降级 + yfinance 限流异常接入退避链路
 - Merge fix/finance-period-type-caliber: FinanceRecord 加 period_type 字段，根治单季 EPS 误算 PE
 
-## [Unreleased] - 2026-07-24
-
 ### Added
 - **finance**: WP6 财报时效性按板块差异化 deadline (board_overrides)
 - **finance**: WP4 get_finance 返回 (records, meta) tuple + FinanceMeta
@@ -108,8 +107,6 @@
 - Merge fix/datasource-northbound-yfinance-rate-limit: 北向资金数据源如实降级 + yfinance 限流异常接入退避链路
 - Merge fix/finance-period-type-caliber: FinanceRecord 加 period_type 字段，根治单季 EPS 误算 PE
 
-## [Unreleased] - 2026-07-23
-
 ### Added
 - **finance**: WP6 财报时效性按板块差异化 deadline (board_overrides)
 - **finance**: WP4 get_finance 返回 (records, meta) tuple + FinanceMeta
@@ -145,8 +142,6 @@
 ### Other
 - Merge fix/finance-period-type-caliber: FinanceRecord 加 period_type 字段，根治单季 EPS 误算 PE
 
-## [Unreleased] - 2026-07-23
-
 ### Added
 - **finance**: WP6 财报时效性按板块差异化 deadline (board_overrides)
 - **finance**: WP4 get_finance 返回 (records, meta) tuple + FinanceMeta
@@ -177,8 +172,6 @@
 ### Maintenance
 - **repo**: .gitignore 补 market_snapshot.json 运行时缓存
 - **finance**: 缓存版本 bump v2 → v3 + CHANGELOG 完整记录
-
-## [Unreleased] - 2026-07-21
 
 ### Fixed
 - **technical**: 修正综合评分权重计算
@@ -219,12 +212,8 @@
 - 新增 1 个文件（common/rate_limiter.py）
 - 修改 12 个文件（types/data/fetcher_base/business/sector/stock 等）
 
-## [Unreleased] - 2026-07-20
-
 ### Fixed
 - **technical**: 修正综合评分权重计算
-
-## [Unreleased] - 2026-07-16
 
 ### Added
 - **stock**: 报告新增回测附加段 + 板块元数据扩容
@@ -436,8 +425,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-15
-
 ### Added
 - **stock**: 报告新增回测附加段 + 板块元数据扩容
 - **stock**: 优化报告渐进披露与合规护栏
@@ -646,8 +633,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-15
-
 ### Added
 - **stock**: 报告新增回测附加段 + 板块元数据扩容
 - **stock**: 优化报告渐进披露与合规护栏
@@ -853,8 +838,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-15
-
 ### Added
 - **stock**: 报告新增回测附加段 + 板块元数据扩容
 - **stock**: 优化报告渐进披露与合规护栏
@@ -1059,8 +1042,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-15
-
 ### Added
 - **stock**: 报告新增回测附加段 + 板块元数据扩容
 - **stock**: 优化报告渐进披露与合规护栏
@@ -1259,8 +1240,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-15
-
 ### Added
 - **stock**: 报告新增回测附加段 + 板块元数据扩容
 - **stock**: 优化报告渐进披露与合规护栏
@@ -1458,8 +1437,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-14
-
 ### Added
 - **strategies**: 新增市场状态机 v2.8/v2.9 + 因子 IC v3.0 + 宏观安全垫
 - **screening**: 选股管线 12 项优化（Phase A/B/C 全量落地）
@@ -1652,8 +1629,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-14
-
 ### Added
 - **experts**: 价值机构锚三阶段优化——展示层约束+veto风险分级+周期矩阵
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
@@ -1844,8 +1819,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **experts**: 价值机构锚三阶段优化——展示层约束+veto风险分级+周期矩阵
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
@@ -2035,8 +2008,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **experts**: 价值机构锚三阶段优化——展示层约束+veto风险分级+周期矩阵
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
@@ -2224,8 +2195,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **experts**: 价值机构锚三阶段优化——展示层约束+veto风险分级+周期矩阵
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
@@ -2411,8 +2380,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **experts**: 价值机构锚三阶段优化——展示层约束+veto风险分级+周期矩阵
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
@@ -2596,8 +2563,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **experts**: 价值机构锚三阶段优化——展示层约束+veto风险分级+周期矩阵
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
@@ -2779,8 +2744,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -2957,8 +2920,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -3134,8 +3095,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -3310,8 +3269,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -3485,8 +3442,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -3659,8 +3614,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -3832,8 +3785,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4004,8 +3955,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-13
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4174,8 +4123,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-11
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4343,8 +4290,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-11
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4509,8 +4454,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-11
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4673,8 +4616,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-10
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4835,8 +4776,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-10
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -4995,8 +4934,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-10
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -5153,8 +5090,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-10
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -5310,8 +5245,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-10
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -5466,8 +5399,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-10
-
 ### Added
 - **stock**: market_anchor v2.5.0-v2.7.0 市场环境锚定 10 大维度全覆盖 (#1)
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
@@ -5618,8 +5549,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
-
-## [Unreleased] - 2026-07-10
 
 ### Added
 - **market-anchor**: full / debate / technical 三模式统一前置"市场环境锚定"小节（大盘状态 + 板块强度 + 个股 vs 板块 vs 大盘三段式 RPS）
@@ -5806,8 +5735,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-09
-
 ### Added
 - **factors**: P2-05 因子共线性 VIF 诊断 + 残差化去相关变换
 - **backtest**: --walk-forward CLI 集成 + baseline 更新
@@ -5956,8 +5883,6 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased] - 2026-07-09
-
 ### Added
 - **experts**: 校准待验证提示 + veto 文档统一 + 数据缺失标注 (P1-06/09/10/11)
 - 第六轮审查三条工作线全量落地
@@ -6093,9 +6018,35 @@
 - Merge remote-tracking branch 'origin/main'
 - Merge remote-tracking branch 'origin/main'
 
-## [Unreleased]
+## [1.16.0] - 2026-07-28（finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测）
 
-> 🟡 当前无待发版改动。所有 v1.15.0 之后的待提交请按 Conventional Commits 规范累积在此段。
+### Added
+- **finance**: WP1-WP6 重构（删除 7 个 FinanceRecord 死字段 + 全量 Optional[float]=None + 多字段零值检测 + get_finance() 返 (records, FinanceMeta) 元组 + 全局 RateLimiter 与 429 指数退避 + 主板/科创板/北交所披露 board_overrides）
+- **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
+- **tools**: 新增 scripts/common/rate_limiter.py 全局限流器；scripts/dev/gen_changelog.py 改写为合并模式；scripts/common/exceptions/silent_fallback.py；scripts/dev/lint_silent_excepts.py
+- **portfolio**: PortfolioManager god class 拆分为 crud/oplog/analytics/rebalance 4 模块 + facade
+- **tests**: 新增 tests/unit/test_portfolio_manager.py（≥20 方法覆盖）+ tests/unit/test_vote_engine.py（aggregate_votes 8 场景）+ tests/unit/test_rate_limiter.py 增 6 个失败模式用例
+
+### Changed
+- **build**: 版本号统一升到 1.16.0（含 pyproject.toml/package.json/.claude-plugin/*/skills/*.md/methodology.md/README.md）
+- **ci**: 覆盖率阈值统一为 .coveragerc=21 / ci.yml=21 / release.yml=21（消除三处不一致，原 60% 作为路线图长期目标 P2-X）
+- **ci**: 新增 GitHub Actions checks：sync_agents_skill_versions + lint_silent_excepts
+- **pre-commit**: 新增 4 个 local hook（mypy-allowlist / sync_version --check / check_allowed_tools --ci / validate_contracts）
+- **deps**: pyproject.toml 新增 [project.dependencies] 段（声明运行时 12 个依赖）；新增 requirements.lock
+
+### Fixed
+- **P1-1**: RateLimiter acquire() 信号量泄漏（改为 @contextmanager 强制 try/finally）+ 与 circuit breaker 状态同步
+- **P1-2**: 11 处 HIGH/MEDIUM 静默吞错改为专用 SilentFallbackError 或显式 logger.warning（universe_loader/dcf/backtest/metrics/helpers/rules 等）
+- **N/A**: CHANGELOG.md 折叠 40 个堆叠的 [Unreleased] 区块为单个；gen_changelog.py 改为合并模式防止复发
+
+### Docs
+- **audit**: docs/audit-2026-07-28.md（19 项深度审查报告，含 9 问题 + 5 维度补充 + 11 维度附录）
+- **regression**: docs/regression-2026-07-28.md（10 类回归 + 完整 pytest + 静态检查；1005/1005 测试通过）
+- **env**: .env.example 补齐 13 个环境变量声明（Tushare / Eastmoney API / cache / TTL）
+
+### Security
+- **web**: scripts/portfolio/web/templates.py:671 innerHTML+TOKEN XSS sink 改为 DOM 节点 + textContent（防御性）
+- **network**: scripts/fetchers/kline/eastmoney_kline.py + scripts/data/pool.py 把 ut token 改 urlencode 注入（防泄漏到 referer/proxy 日志）
 
 ## [1.15.0] - 2026-07-09（多轮审查修复 + 文档同步 + 数据域补齐）
 

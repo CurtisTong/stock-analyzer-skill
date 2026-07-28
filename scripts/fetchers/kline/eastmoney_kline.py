@@ -11,10 +11,13 @@ logger = logging.getLogger(__name__)
 # ut token 从环境变量读取，未配置时为空（API 调用需自行保证 token 有效）
 _UT = os.environ.get("EASTMONEY_UT_TOKEN", "")
 
+# v1.16.0 D-A.2: token 通过 urlencode 加入查询串（防止 token 出现在 referer/proxy/调试日志）
+# URL 模板不含 ut；fetch() 时把 ut 当成 query param 用 urlencode 加入。
 EASTMONEY_KLINE_URL = (
-    "https://push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid={secid}&ut="
-    + _UT
-    + "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61&klt={klt}&fqt=1&end=20500101&lmt={lmt}"
+    "https://push2his.eastmoney.com/api/qt/stock/kline/get?cb=&secid={secid}"
+    "&fields1=f1,f2,f3,f4,f5,f6,f7,f8,f9,f10,f11,f12,f13"
+    "&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+    "&klt={klt}&fqt=1&end=20500101&lmt={lmt}"
 )
 KLT_MAP = {5: 5, 15: 15, 30: 30, 60: 60, 240: 101}
 
@@ -26,13 +29,21 @@ class EastmoneyKlineFetcher(BaseFetcher):
         super().__init__("eastmoney_kline", priority=8)
 
     def fetch(self, code: str, **kwargs) -> list | None:
+        from urllib.parse import urlencode
+
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
         secid = to_secid(code)
         klt = KLT_MAP.get(scale, 101)
         if not _UT:
             logger.debug("东方财富 K 线: EASTMONEY_UT_TOKEN 未配置，使用空 token 尝试")
-        url = EASTMONEY_KLINE_URL.format(secid=secid, klt=klt, lmt=datalen)
+        # v1.16.0 D-A.2: 用 urlencode 包装 token，避免拼接 URL 时泄漏到 referer/proxy 日志
+        base_url = EASTMONEY_KLINE_URL.format(secid=secid, klt=klt, lmt=datalen)
+        if _UT:
+            ut_query = urlencode({"ut": _UT})
+            url = f"{base_url}&{ut_query}"
+        else:
+            url = base_url
         raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)

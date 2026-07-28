@@ -18,7 +18,7 @@
 
 **五层分析框架** · **16 份专家人设（8 active）** · **27 个数据源故障转移** · **零依赖开箱即用**
 
-[![Version](https://img.shields.io/badge/version-1.15.0-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.16.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
@@ -625,6 +625,11 @@ scripts/
 <td><a href="docs/persona.md">用户画像</a></td>
 <td><a href="docs/user_expert.md">用户专家</a> · <a href="docs/visual_expert.md">视觉专家</a></td>
 </tr>
+<tr>
+<td>🔍 <b>项目审计</b>（v1.16.0+）</td>
+<td><a href="docs/audit-2026-07-28.md">19 项问题审计报告</a></td>
+<td><a href="docs/regression-2026-07-28.md">v1.16.0 回归测试报告</a></td>
+</tr>
 </table>
 
 ---
@@ -750,7 +755,7 @@ MIT License © curtis
 
 ---
 
-**v1.15.0** · 2026-07-09 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.16.0** · 2026-07-28 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

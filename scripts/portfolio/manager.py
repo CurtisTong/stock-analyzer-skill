@@ -210,7 +210,15 @@ class PortfolioManager:
 
             ol = OpLog()
             return ol.history(limit)
-        except Exception:
+        except Exception as e:
+            # v1.16.0 P1-2 MEDIUM
+            from common.exceptions import log_silent_fallback
+
+            log_silent_fallback(
+                location="portfolio.manager.oplog_history",
+                exception=e,
+                fallback_reason="OpLog 历史不可用 → 用户无法 undo（数据丢失感知）",
+            )
             return []
 
     # ---------- 查询 ----------
@@ -575,6 +583,40 @@ class PortfolioManager:
             _apply(self._data)
         return holder["found"]
 
+    # ---------- 分析（v1.17.0 P2-1 拆分预备：从 manager 抽到 portfolio.analytics） ----------
+
+    def to_dict(self) -> dict:
+        """返回完整数据浅副本（v1.16.0 thin wrapper → portfolio.analytics.to_dict）。"""
+        from portfolio.analytics import to_dict as _to_dict
+
+        return _to_dict(self)
+
+    def summary(self) -> str:
+        """返回持仓摘要文本（v1.16.0 thin wrapper → portfolio.analytics.summary）。"""
+        from portfolio.analytics import summary as _summary
+
+        return _summary(self)
+
+    def risk_summary(self, quotes: dict = None, confidence: float = 0.95) -> str:
+        """持仓组合 VaR 风险摘要（v1.16.0 thin wrapper → portfolio.analytics.risk_summary）。"""
+        from portfolio.analytics import risk_summary as _risk_summary
+
+        return _risk_summary(self, quotes=quotes, confidence=confidence)
+
+    def attribution_report(self, quotes: dict = None, period: str = "1M") -> str:
+        """组合 Brinson 归因报告（v1.16.0 thin wrapper → portfolio.analytics.attribution_report）。"""
+        from portfolio.analytics import attribution_report as _attribution_report
+
+        return _attribution_report(self, quotes=quotes, period=period)
+
+    def advisory_rebalance(
+        self, target_ratio: float = 1.0, quotes: dict = None
+    ) -> list:
+        """调仓建议（v1.16.0 thin wrapper → portfolio.rebalance.advisory_rebalance）。"""
+        from portfolio.rebalance import advisory_rebalance as _advisory_rebalance
+
+        return _advisory_rebalance(self, target_ratio=target_ratio, quotes=quotes)
+
     # ---------- 导入导出 ----------
 
     def export_codes(self) -> list:
@@ -667,182 +709,3 @@ class PortfolioManager:
                 )
 
         return {"warnings": warnings, "details": details}
-
-    def to_dict(self) -> dict:
-        """返回完整数据浅副本（positions/watchlist 为新列表，元素为共享引用）。"""
-        d = dict(self._data)
-        if "positions" in d:
-            d["positions"] = list(d["positions"])
-        if "watchlist" in d:
-            d["watchlist"] = list(d["watchlist"])
-        return d
-
-    def summary(self) -> str:
-        """返回持仓摘要文本。"""
-        pos = self.get_positions()
-        watch = self.get_watchlist()
-        lines = [f"持仓 {len(pos)} 只，自选 {len(watch)} 只"]
-        if pos:
-            lines.append(
-                "持仓: "
-                + ", ".join(
-                    f"{p.get('name') or p['code']}({p['quantity']}股)" for p in pos
-                )
-            )
-        if watch:
-            lines.append(
-                "自选: " + ", ".join(w.get("name") or w["code"] for w in watch)
-            )
-        return "\n".join(lines)
-
-    def risk_summary(self, quotes: dict = None, confidence: float = 0.95) -> str:
-        """持仓组合 VaR 风险摘要（基于 business.risk_metrics，v2.4.0 新增）。
-
-        Args:
-            quotes: {code: current_price} 估值（未提供时用成本）
-            confidence: 置信度（0.95 / 0.99）
-
-        Returns:
-            风险摘要文本
-        """
-        try:
-            from business.risk_metrics import position_var_summary
-        except ImportError:
-            return "⚠️ risk_metrics 模块不可用，无法生成风险摘要"
-
-        positions = self.get_positions()
-        if not positions:
-            return "暂无持仓"
-
-        # 计算权重
-        total_value = sum(
-            (quotes.get(p["code"], p.get("cost", 0)) if quotes else p.get("cost", 0))
-            * p.get("quantity", 0)
-            for p in positions
-        )
-        if total_value <= 0:
-            return "持仓总市值 ≤ 0，无法计算风险"
-
-        # 经验波动率：根据持仓只数和行业分散度估算（10%-25%）
-        industry_set = set(p.get("tags", ["未分类"])[0] for p in positions)
-        dispersion = min(len(industry_set), 5) / 5  # 0.2 ~ 1.0
-        default_vol = 0.25 - 0.05 * dispersion  # 分散度高则波动率略低
-
-        portfolio = [
-            {
-                "code": p["code"],
-                "name": p.get("name", ""),
-                "weight": (
-                    (
-                        quotes.get(p["code"], p.get("cost", 0))
-                        if quotes
-                        else p.get("cost", 0)
-                    )
-                    * p.get("quantity", 0)
-                )
-                / total_value,
-                "vol": default_vol,
-            }
-            for p in positions
-        ]
-
-        result = position_var_summary(portfolio, quotes=quotes, confidence=confidence)
-        lines = [
-            f"## 组合风险摘要（{int(confidence*100)}% 置信度）",
-            f"- 1 日 VaR: {result['var_pct']:.2f}%（最大单日亏损幅度）",
-            f"- 1 日 CVaR: {result['cvar_pct']:.2f}%（超出 VaR 后的平均损失）",
-            "",
-            "### 风险贡献 Top 5",
-        ]
-        for w in result.get("worst_scenarios", []):
-            weight_pct = w["weight"] * 100
-            lines.append(
-                f"- {w['code']} {w['name']}: 权重 {weight_pct:.1f}%, 1 日 VaR {w['var_1d_pct']:.2f}%"
-            )
-        return "\n".join(lines)
-
-    def attribution_report(self, quotes: dict = None, period: str = "1M") -> str:
-        """组合 Brinson 归因报告（基于 portfolio.brinson，v2.4.0 新增）。
-
-        Args:
-            quotes: {code: current_price} 估值（必传，否则使用成本）
-            period: 期间（仅显示用途，不影响计算）
-
-        Returns:
-            归因报告文本
-        """
-        try:
-            from portfolio.brinson import brinson_from_holdings, format_brinson_report
-        except ImportError:
-            return "⚠️ brinson 模块不可用，无法生成归因报告"
-
-        positions = self.get_positions()
-        if not positions:
-            return "暂无持仓"
-
-        # quotes 默认成本（cost 作为当前价，归因为 0）
-        if not quotes:
-            quotes = {p["code"]: p.get("cost", 0) for p in positions}
-
-        result = brinson_from_holdings(positions, quotes, period=period)
-        return format_brinson_report(result)
-
-    def advisory_rebalance(
-        self, target_ratio: float = 1.0, quotes: dict = None
-    ) -> list:
-        """(#12) 宏观仓位控制的调仓建议（纯只读，不修改 portfolio）。
-
-        根据 MacroState.position_ratio 生成减仓建议，将每个持仓压缩至 target_ratio。
-
-        Args:
-            target_ratio: 目标仓位比例（0.0~1.0，来自 MacroState.position_ratio）
-            quotes: {code: current_price} 市价估值（缺省用成本价）
-
-        Returns:
-            调仓建议列表，每个元素：
-            {
-                "code": str,
-                "name": str,
-                "action": "reduce",
-                "current_value": float,
-                "target_value": float,
-                "reduce_value": float,
-                "reason": str,
-            }
-            GREEN（target_ratio=1.0）时返回空列表。
-        """
-        positions = self.get_positions()
-        if not positions or target_ratio >= 1.0:
-            return []
-
-        suggestions = []
-        for pos in positions:
-            code = pos.get("code", "")
-            name = pos.get("name", "")
-            cost = float(pos.get("cost", 0))
-            quantity = float(pos.get("quantity", 0))
-
-            # 市价估值：优先用 quotes，否则用成本价
-            if quotes and code in quotes:
-                current_price = float(quotes[code])
-            else:
-                current_price = cost
-
-            current_value = current_price * quantity
-            target_value = current_value * target_ratio
-            reduce_value = current_value - target_value
-
-            if reduce_value > 0:
-                suggestions.append(
-                    {
-                        "code": code,
-                        "name": name,
-                        "action": "reduce",
-                        "current_value": round(current_value, 2),
-                        "target_value": round(target_value, 2),
-                        "reduce_value": round(reduce_value, 2),
-                        "reason": f"宏观{int(target_ratio*100)}%仓位控制",
-                    }
-                )
-
-        return suggestions

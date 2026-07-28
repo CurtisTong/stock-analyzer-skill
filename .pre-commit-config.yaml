@@ -56,3 +56,43 @@ repos:
         pass_filenames: false
         types: [python]
         stages: [pre-commit]
+
+      # === v1.16.0 Batch 1.5 新增 4 个 CI 镜像 local hook ===
+      - id: mypy-allowlist
+        name: mypy 类型检查（CI 6 文件白名单）
+        # CI 中跑同 6 个文件，开发时本地镜像
+        # v1.16.0 修复：与 .github/workflows/ci.yml mypy step 完全一致
+        # 必须加 --follow-imports=silent --no-incremental，否则 mypy 会
+        # 把 scripts/macro_indicators.py 既当独立脚本又当 scripts.* 包成员，
+        # 报 "Source file found twice under different module names"。
+        entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/market_anchor.py scripts/sector_etf_strength.py scripts/industry_beta.py scripts/portfolio_correlation.py scripts/macro_indicators.py scripts/strategies/factors/dcf.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+        # 允许失败：本地未必装 mypy
+        require_serial: false
+
+      - id: sync-version
+        name: sync_version 版本一致性检查（CI 镜像）
+        entry: python3 scripts/dev/sync_version.py --check
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+
+      - id: check-allowed-tools
+        name: SKILL.md allowed-tools 路径校验（CI 镜像）
+        entry: python3 scripts/dev/check_allowed_tools.py --ci
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+
+      - id: validate-contracts
+        name: contracts schema 校验（CI 镜像）
+        entry: python3 scripts/dev/validate_contracts.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit] 
