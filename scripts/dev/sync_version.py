@@ -119,8 +119,8 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
     ),
     # 测试文件
     (
-        "tests/test_skill_metadata.py",
-        "tests/test_skill_metadata.py",
+        "tests/contracts/test_skill_metadata_sync.py",
+        "tests/contracts/test_skill_metadata_sync.py",
         [
             (
                 r'(?P<prefix>DEFAULT_VERSION\s*=\s*")[^"]+(?P<suffix>")',

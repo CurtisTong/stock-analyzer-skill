@@ -62,14 +62,16 @@ jobs:
 
       - name: 跑全量测试
         run: |
-          python -m pytest tests/ -x -q \
-            --ignore=tests/integration \
+          python -m pytest tests/integration/ tests/unit/ tests/contracts/ \
+            -x -q \
             -m "not network" \
+            --timeout=60 \
+            -n auto \
             --cov=scripts --cov=experts \
             --cov-fail-under=21
 
       - name: 跑 skill 元数据校验
-        run: python -m pytest tests/test_skill_metadata.py tests/test_skill_consistency.py -v
+        run: python -m pytest tests/contracts/ -v
 
   publish:
     name: 发布到 npm
