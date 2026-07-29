@@ -32,6 +32,7 @@
 ## [Unreleased] - 2026-07-28
 
 
+
 ### Added
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
 - **finance**: WP6 财报时效性按板块差异化 deadline (board_overrides)
@@ -1714,6 +1715,14 @@
 - v1.16.0 — finance 域 WP1-WP6 + 全栈 hardening + skill 验证
 - Merge fix/datasource-northbound-yfinance-rate-limit: 北向资金数据源如实降级 + yfinance 限流异常接入退避链路
 - Merge fix/finance-period-type-caliber: FinanceRecord 加 period_type 字段，根治单季 EPS 误算 PE
+
+### Fixed
+- **ci**: release.yml 测试步骤对齐 v1.16.0 测试框架重构
+- **data**: 北向资金数据源如实降级 + yfinance 限流异常接入退避链路
+- **data**: FinanceRecord 加 period_type 字段，根治单季 EPS 误算 PE
+- **data**: FinanceMeta 注释明确 is_stale 为预留位
+- **stock_analysis**: 修复 WP4 tuple 改造在 stock_analysis._analyze 的遗漏
+- **technical**: 修正综合评分权重计算
 
 ## [1.16.0] - 2026-07-28（finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测）
 
