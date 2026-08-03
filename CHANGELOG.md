@@ -32,6 +32,7 @@
 ## [Unreleased] - 2026-08-03
 
 
+
 ### Added
 - **technical**: 技术分析模块单元测试（tests/unit/test_technical_indicators.py，28 用例覆盖 H1-H3/M1-M5/L1 回归）
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
@@ -1738,6 +1739,16 @@
 - **data**: FinanceMeta 注释明确 is_stale 为预留位
 - **stock_analysis**: 修复 WP4 tuple 改造在 stock_analysis._analyze 的遗漏
 - **technical**: 修正综合评分权重计算
+
+### Fixed
+- **skills**: 清理 skill schema 配置 + git 跟踪遗留 + 路径修正
+- **technical**: 技术模块审查修复 H1-H3/M1-M5/L1-L4 + 单测回归
+
+### Documentation
+- 同步 skill schema 单源化改造到技术全景与架构文档
+
+### Other
+- Merge branch 'fix/skill-schema-cleanup' into main
 
 ## [1.16.0] - 2026-07-28（finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测）
 
