@@ -2,9 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> 版本：v1.16.0 | 更新日期：2026-08-03
+
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。`/technical` 已合并至 `/stock technical`，`/stock-init` 已合并至 `/screener init`，`/financial-analyst` 和 `/investment-researcher` 已合并至 `/research`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移；财务域经 WP1–WP6 改造（`FinanceRecord` Optional 化、`get_finance` 返回 `(records, FinanceMeta)` tuple、`common/rate_limiter.py` 全局限流、`board_overrides` 板块差异化披露、缓存格式版本 v2 → v3）。
+A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
+
+**已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 WP1–WP6 改造（详见「关键抽象」段）。
 
 ## 常用命令
 
@@ -42,7 +46,7 @@ python3 scripts/portfolio_web.py --port 8765
 python3 scripts/stock.py sh600989          # 五层分析业务层入口（JSON 友好）
 python3 scripts/chip.py sh600989           # 资金面：融资融券 / 股东户数 / 十大流通
 
-# 辅助脚本（v1.14.2 起补齐；2026-07-21 finance 域 FinanceMeta + RateLimiter + board_overrides；2026-07-28 v1.16.0 silent_fallback + RateLimiter hardening + 11 吞错治理 + PortfolioManager 部分拆分，详见 CHANGELOG v1.16.0 段）
+# 辅助脚本（变更详见 CHANGELOG）
 python3 scripts/calibration_sync.py        # 校准数据同步（远程→本地）
 python3 scripts/hot_rank.py --top 20      # 热度榜（活跃 Top N；仅支持 --top/--days，不支持单股查询）
 python3 scripts/market_breadth.py          # 市场宽度分析（涨跌家数/涨停统计）
@@ -85,7 +89,7 @@ scripts/
   - FinanceMeta 携带元信息：source/fallback_source/periods/is_degraded/cache_hit
 - **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
 - **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
-- **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）+ `decide.md` 决策整合规则 + `vote_engine.py` 投票整合
+- **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）；人设配置在 `experts/yaml/*.yaml`，由 `registry.py` 注册；`decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 
 ## Skill 索引表（13 个）
 
@@ -130,7 +134,7 @@ scripts/
 
 ## CI 防漂移机制
 
-- **SKILL.md 版本同步**：`scripts/dev/sync_skill_test_versions.py` 扫描所有 `skills/*/SKILL.md` 的 `version:` 字段，自动构建 `VERSION_OVERRIDES` 同步到 `tests/test_skill_metadata.py::EXPECTED_SKILLS`；`--check` 模式作为提交前门禁
+- **SKILL.md 版本同步**：`scripts/dev/sync_skill_test_versions.py` 扫描所有 `skills/*/SKILL.md` 的 `version:` 字段，自动构建 `VERSION_OVERRIDES` 同步到 `tests/contracts/test_skill_metadata_sync.py::EXPECTED_SKILLS`；`--check` 模式作为提交前门禁
 - **pre-commit hook**（`.pre-commit-config.yaml`）：`sync-skill-test-versions`（pre-commit stage）自动同步；`check-skill-test-versions`（pre-commit stage）作为提交前验证
 - **GitHub Action**（`.github/actions/setup-test/action.yml`）：CI 测试 job 在 `pip install` 之后跑 `sync_skill_test_versions.py`，确保 release workflow 的 test job 不会因版本漂移而阻塞 publish
 - **三处版本号同步**：`scripts/dev/sync_version.py` 同步 `pyproject.toml` + `package.json` + README badge，避免发版时手动三处修改
@@ -148,7 +152,7 @@ scripts/
 
 ### Skill 开发
 
-- Skill 定义在 `skills/<name>/SKILL.md`，包含 YAML frontmatter（`name`、`description`）+ markdown 指令
+- Skill 定义在 `skills/<name>/SKILL.md`，包含 YAML frontmatter（`name`、`description` 必填；`version`、`model`、`allowed-tools`、`disable-model-invocation` 可选）+ markdown 指令；详细格式见 `docs/developer-guide.md`
 - 通过符号链接同步到 `.claude/skills/` 和 `.codex/skills/`（均指向 `skills/`）
 - SKILL.md 中的路径不要使用相对 `cd` 命令，Claude Code 从项目根目录运行
 
