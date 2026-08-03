@@ -39,6 +39,14 @@ _SCORE_MAX_DEFAULT = {
 _SCORE_LOCAL_MIN = -5
 _SCORE_LOCAL_MAX = 10
 
+# H2: 可选子评分模块（chan/local/limit/chip）"无信号"（raw == 0）时，
+# 归一化直接给中性 50，而不是 0/16.7/33.3 的地板分。
+# 原实现把"未计算/数据不足/无信号"当作看空信号：
+#   - 三条消费路径（technical.py 完整 / stock_analysis.py 稀疏 / monitor）对同一
+#     股票评分不一致（稀疏路径缺 chan/limit/local/chip 四项 → 永远踩地板分）；
+#   - 全中性股票被系统性压低至"中性(偏空)"（实测 35.9 vs 中性基线约 46.5）。
+_NEUTRAL_KEYS = ("chan", "local", "limit", "chip")
+
 
 def _get_score_max() -> dict:
     """获取子评分上限配置（scoring.yaml 可覆盖，默认 _SCORE_MAX_DEFAULT）。"""
@@ -67,6 +75,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 0.5,
         "chip": 0.8,
         "valuation": 0.3,  # 题材股估值权重低，以情绪/技术为主
+        "local": 1.0,  # L2: 本土战法形态默认等权；题材股可上调、蓝筹可下调
     },
     "蓝筹股": {
         "ma": 1.3,
@@ -80,6 +89,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 0.8,
         "chip": 1.3,
         "valuation": 1.5,  # 蓝筹股估值权重高，PE/PB/股息率是核心
+        "local": 1.0,
     },
     "强成长股": {
         "ma": 0.9,
@@ -93,6 +103,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 0.7,
         "chip": 1.0,
         "valuation": 0.8,  # 成长股用 PEG 而非绝对 PE，权重适中
+        "local": 1.0,
     },
     "周期股": {
         "ma": 0.6,
@@ -106,6 +117,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 1.3,
         "chip": 1.1,
         "valuation": 1.0,  # 周期股用 PB/商品价格，权重中等
+        "local": 1.0,
     },
     "稳成长股": {
         "ma": 1.2,
@@ -119,6 +131,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 0.8,
         "chip": 1.2,
         "valuation": 1.3,  # 稳成长股估值是重要参考
+        "local": 1.0,
     },
     "防御股": {
         "ma": 0.8,
@@ -132,6 +145,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 0.9,
         "chip": 1.0,
         "valuation": 1.4,  # 防御股估值+股息率是核心
+        "local": 1.0,
     },
     "普通股": {
         "ma": 1.0,
@@ -145,6 +159,7 @@ _STOCK_TYPE_WEIGHTS_DEFAULT = {
         "chan": 1.0,
         "chip": 1.0,
         "valuation": 1.0,  # 普通股估值等权
+        "local": 1.0,
     },
 }
 
@@ -154,14 +169,15 @@ def _get_stock_type_weights(stock_type: str) -> dict:
     cfg = _scoring_config("stock_type_weights") or {}
     if stock_type in cfg:
         row = dict(cfg[stock_type])
-        # 补全可能缺失的 chip / valuation 字段（向后兼容旧 YAML）。
+        # 补全可能缺失的 chip / valuation / local 字段（向后兼容旧 YAML）。
         # Bug 2 修复：原仅补 chip，valuation 缺失时 type_w.get("valuation") 返回 None，
         # 导致 valuation 权重默认 1.0 进分子却不进分母（total_weight），
         # 评分被异常放大。现与 chip 同等补全。
+        # L2: local 同样需要回填，避免"分子权重 1.0、分母无 local"的不对称。
         defaults = _STOCK_TYPE_WEIGHTS_DEFAULT.get(
             stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
         )
-        for field in ("chip", "valuation"):
+        for field in ("chip", "valuation", "local"):
             if field not in row:
                 row[field] = defaults.get(field, 1.0)
         return row
@@ -343,10 +359,14 @@ def _score_limit(limit_data: dict, type_w: dict, adj: dict) -> float:
     导致权重只进分母不进分子（题材股评分被稀释 16.7%）。
     本函数将 features["limit_analysis"] 纳入评分，让 limit 真正参与分子。
 
+    M5 修复：封涨停/翘板/封跌停/炸板等状态不再单独乘 adj，adj.breakout
+    仅在末尾应用一次，避免封涨停的 adj 被平方（牛市 3×1.3² vs 3×1.3）。
+
     评分逻辑：
     - 连板数越高越强（首板5、二板8、高位板10、妖股12），缩量加速额外加分
     - 封涨停/翘板为正，封跌停/炸板为负
     - 趋势跟随市场（牛市）加权，亢奋市场降权（警惕反转）
+    - 无连板且正常交易 → raw 0（由 composite_score 归一化为中性 50，H2）
     """
     if not limit_data or not isinstance(limit_data, dict):
         return 0.0
@@ -372,9 +392,9 @@ def _score_limit(limit_data: dict, type_w: dict, adj: dict) -> float:
     elif "放量分歧" in streak_volume:
         limit_bonus -= 2
 
-    # 涨跌停状态
+    # 涨跌停状态（M5：不再单独乘 adj，统一在末尾应用一次）
     if "封涨停" in board_status:
-        limit_bonus += 3 * adj.get("breakout", 1.0)
+        limit_bonus += 3
     elif "翘板" in board_status:  # 跌停打开，反转信号
         limit_bonus += 2 * adj.get("divergence_bottom", 1.0)
     elif "封跌停" in board_status:
@@ -382,7 +402,7 @@ def _score_limit(limit_data: dict, type_w: dict, adj: dict) -> float:
     elif "炸板" in board_status:  # 涨停打开，弱势信号
         limit_bonus -= 2
 
-    # 亢奋市场对连板降权（警惕高位反转）
+    # 亢奋市场对连板降权（警惕高位反转）— 仅应用一次（M5）
     limit_bonus *= adj.get("breakout", 1.0)
 
     limit_score = limit_bonus * type_w.get("limit", 1.0)
@@ -567,7 +587,11 @@ def composite_score(
     normalized = {}
     for key, val in raw.items():
         max_val = _SCORE_MAX[key]
-        if key == "chip":
+        if key in _NEUTRAL_KEYS and val == 0:
+            # H2: 可选模块"无信号"（未计算/数据不足/无信号）→ 中性 50，
+            # 避免缺失被当作看空信号（原 0/16.7/33.3 地板分）。
+            normalized[key] = 50.0
+        elif key == "chip":
             # chip 范围 [-5, 10]，归一化到 [0, 100]
             normalized[key] = clamp((val + 5) / 15 * 100, 0, 100)
         elif key == "local":
@@ -646,7 +670,13 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
     confidence = "低"
     signals = []
 
-    if index_quote and isinstance(index_quote, dict):
+    # M4: 空 dict 或缺失 price 的行情视为无数据（原实现 {} 会走正常分支，
+    # 全 0 值输出"窄幅震荡"而非"大盘数据缺失"，掩盖数据缺失问题）
+    if (
+        index_quote
+        and isinstance(index_quote, dict)
+        and to_float(index_quote.get("price")) > 0
+    ):
         _price = to_float(index_quote.get("price"))
         change_pct = to_float(index_quote.get("change_pct"))
         turnover = to_float(index_quote.get("turnover"))
@@ -702,16 +732,19 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
         elif change_pct < -2:
             signals.append(f"当日大跌{change_pct:.1f}%")
 
-        if avg_turnover > 5:
-            signals.append("高换手率")
-            if state == "牛市":
-                state = "亢奋"
-                signals.append("亢奋信号")
-        elif avg_turnover < 0.5:
-            signals.append("极度缩量")
-            if state in ("熊市", "震荡"):
-                state = "冰点"
-                signals.append("冰点信号")
+        # 换手率信号：仅当有真实数据时判断（M4 相邻修复——
+        # 行情缺少 turnover 字段时值为 0，原实现会误触发"极度缩量/冰点信号"）
+        if avg_turnover > 0:
+            if avg_turnover > 5:
+                signals.append("高换手率")
+                if state == "牛市":
+                    state = "亢奋"
+                    signals.append("亢奋信号")
+            elif avg_turnover < 0.5:
+                signals.append("极度缩量")
+                if state in ("熊市", "震荡"):
+                    state = "冰点"
+                    signals.append("冰点信号")
     else:
         signals.append("大盘数据缺失，默认震荡")
 

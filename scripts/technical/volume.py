@@ -86,11 +86,11 @@ def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: in
     shrink_desc = ""
     if len(volumes) >= shrink_window:
         shrink_days = 0
-        # P1-29: 用绝对索引避免负索引越界（原 range(-1, -min(6,len), -1)
-        # 在 i-1 == -len 时仍访问 volumes[-len-1] 越界）。
-        # 从最后一根向前回溯，最多 shrink_window 根，比较 volumes[k] vs volumes[k-1]。
+        # M1 修复：最多回溯 shrink_window 根（shrink_window 次比较）。
+        # 原实现 range(n-1, max(0, n-shrink_window-1)-1, -1) 产生
+        # shrink_window+1 次比较，可误报"连续6日缩量"（shrink_window=5 时）。
         n = len(volumes)
-        for k in range(n - 1, max(0, n - shrink_window - 1) - 1, -1):
+        for k in range(n - 1, max(0, n - shrink_window) - 1, -1):
             if k - 1 >= 0 and volumes[k] < volumes[k - 1]:
                 shrink_days += 1
             else:

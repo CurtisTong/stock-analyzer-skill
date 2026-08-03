@@ -113,9 +113,13 @@ def _find_swing_points(values, window=5):
 # ═══════════════════════════════════════════════════════════════
 
 
-def _parse_records(records):
-    """将 K 线数据转成数值列表（统一过滤零值，保持数组对齐）。"""
-    # 先过滤掉任一字段为 0 的整条记录，确保所有数组索引对齐
+def filter_records(records):
+    """过滤含零值的 K 线记录，确保 OHLCV 数组对齐（M3）。
+
+    与 _parse_records 使用同一过滤口径（任一字段为 0 的整条记录丢弃），
+    供形态识别/涨跌停/缠论等使用原始 records 的模块复用，
+    避免"指标数组已过滤、形态却用原始数据"导致的 T-0 错位。
+    """
     valid_records = []
     for r in records:
         c = to_float(r.get("close"))
@@ -125,6 +129,13 @@ def _parse_records(records):
         v = to_float(r.get("volume"))
         if c > 0 and o > 0 and h > 0 and lo > 0 and v > 0:
             valid_records.append(r)
+    return valid_records
+
+
+def _parse_records(records):
+    """将 K 线数据转成数值列表（统一过滤零值，保持数组对齐）。"""
+    # 先过滤掉任一字段为 0 的整条记录，确保所有数组索引对齐
+    valid_records = filter_records(records)
 
     closes = [to_float(r.get("close")) for r in valid_records]
     opens = [to_float(r.get("open")) for r in valid_records]

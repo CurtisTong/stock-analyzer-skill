@@ -80,6 +80,7 @@ stock_type_weights:
     chan: 0.5
     chip: 0.8
     valuation: 0.3  # 题材股估值权重低，以情绪/技术为主
+    local: 1.0  # 本土战法形态默认等权（L2：题材股可上调、蓝筹可下调）
 
   蓝筹股:
     ma: 1.3
@@ -93,6 +94,7 @@ stock_type_weights:
     chan: 0.8
     chip: 1.3
     valuation: 1.5  # 蓝筹股估值权重高，PE/PB/股息率是核心
+    local: 1.0
 
   强成长股:
     ma: 0.9
@@ -106,6 +108,7 @@ stock_type_weights:
     chan: 0.7
     chip: 1.0
     valuation: 0.8  # 成长股用 PEG 而非绝对 PE，权重适中
+    local: 1.0
 
   周期股:
     ma: 0.6
@@ -119,6 +122,7 @@ stock_type_weights:
     chan: 1.3
     chip: 1.1
     valuation: 1.0  # 周期股用 PB/商品价格，权重中等
+    local: 1.0
 
   稳成长股:
     ma: 1.2
@@ -132,6 +136,7 @@ stock_type_weights:
     chan: 0.8
     chip: 1.2
     valuation: 1.3  # 稳成长股估值是重要参考
+    local: 1.0
 
   防御股:
     ma: 0.8
@@ -145,6 +150,7 @@ stock_type_weights:
     chan: 0.9
     chip: 1.0
     valuation: 1.4  # 防御股估值+股息率是核心
+    local: 1.0
 
   普通股:
     ma: 1.0
@@ -158,6 +164,7 @@ stock_type_weights:
     chan: 1.0
     chip: 1.0
     valuation: 1.0  # 普通股估值等权
+    local: 1.0
 
 # 专家评分参数
 experts:

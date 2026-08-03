@@ -87,6 +87,10 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
     if all_indicators or "macd" in indicators:
         macd = macd_full(closes) or {}
         result["macd_signal"] = macd.get("signal", 0)
+        # H3: 透传 bar_trend / divergence，供 stock_analysis 的 composite_score
+        # 复用（金叉+红柱放大 15 分 vs 缺 bar_trend 只能拿 10 分）
+        result["macd_bar_trend"] = macd.get("bar_trend", "")
+        result["macd_divergence"] = macd.get("divergence", "")
 
     if all_indicators or "vol_price" in indicators:
         vp = volume_analysis(closes, volumes) or {}

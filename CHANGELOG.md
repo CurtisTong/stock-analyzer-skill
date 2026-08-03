@@ -29,15 +29,30 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased] - 2026-07-28
-
+## [Unreleased] - 2026-08-03
 
 
 ### Added
+- **technical**: 技术分析模块单元测试（tests/unit/test_technical_indicators.py，28 用例覆盖 H1-H3/M1-M5/L1 回归）
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
 - **finance**: WP6 财报时效性按板块差异化 deadline (board_overrides)
 - **finance**: WP4 get_finance 返回 (records, meta) tuple + FinanceMeta
 - **common**: WP5 全局 RateLimiter + 429 退避重试主源
+
+### Fixed
+- **technical**: H1 PE 分位双实现统一——technical.py 路径改用 `strategies.factors.score_utils.pe_percentile` + `valuation_score`（删除重复的 `technical/valuation.py`），修复亏损股 85 vs 50 分歧与估值评分极性反转（昂贵股反而得分更高）
+- **technical**: H2 composite_score 缺失/无信号子评分归一化为中性 50（chan/local/limit/chip 原 0/16.7/33.3 地板分），消除 technical.py 与 stock_analysis.py 两条路径评分不一致，全中性股票从"中性(偏空)"回到"中性"
+- **technical**: H3 stock_analysis.py 的 macd features 补齐 bar_trend（金叉+红柱放大 15 分 vs 仅金叉 10 分），pipeline.compute_indicators 透传 bar_trend/divergence
+- **technical**: M1 volume_analysis 缩量窗口 off-by-one（shrink_window=5 不再误报"连续6日缩量"）
+- **technical**: M2 breakout_check "回踩确认中"分支重构为可达（原实现因含今日收盘恒为 False 不可达），新增"突破维持"状态
+- **technical**: M3 形态/涨跌停/缠论/战法统一使用过滤后 records（`core.filter_records`），与 _parse_records 同口径，消除零值 K 线导致的 T-0 错位
+- **technical**: M4 detect_market_environment 空 dict / 缺 turnover 字段不再误判（原输出"窄幅震荡"掩盖数据缺失，缺 turnover 误触发"冰点信号"）
+- **technical**: M5 _score_limit 涨跌停 adj.breakout 仅应用一次（原封涨停被平方 3×1.3²）
+- **technical**: L2 本土战法 local 权重纳入 type_w 矩阵（7 类股票 × scoring.yaml），补齐"分子有权重、分母无 local"的不对称
+- **technical**: L4 sentiment.py 错误处理统一改用 logger（原 print 到 stderr）
+
+### Changed
+- **technical**: 估值评分方向修正——便宜股评分高于昂贵股（与 stock_analysis.py 同源），technical.py CLI 路径评分更合理
 
 ### Fixed
 - **data**: 北向资金数据源如实降级 + yfinance 限流异常接入退避链路

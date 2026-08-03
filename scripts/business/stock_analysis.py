@@ -215,16 +215,22 @@ def _analyze_technical(kline: list) -> dict:
     from technical import ma_system, kdj_full, bollinger, detect_candle_patterns
 
     indicators = compute_indicators(kline)
-    # 与 screening_service.compute_features 保持一致：过滤 close=0 的无效记录
-    closes = [c for c in indicators.get("closes", []) if c > 0]
-    highs = [b.high for b in kline if b.high > 0]
-    lows = [b.low for b in kline if b.low > 0]
+    # M3 修复：与 technical.pipeline.compute_indicators 同口径过滤（close/volume > 0），
+    # 确保 closes/highs/lows 数组对齐（原实现 highs/lows 未过滤零值记录，
+    # 存在零值 K 线时 KDJ 索引错位；形态识别也使用同一批 valid_kline）
+    valid_kline = [b for b in kline if b.close > 0 and b.volume > 0]
+    closes = [b.close for b in valid_kline]
+    highs = [b.high for b in valid_kline]
+    lows = [b.low for b in valid_kline]
 
     result = {}
     ma = ma_system(closes)
     result["ma"] = ma.get("alignment", "数据不足")
     result["macd_signal"] = indicators.get("macd_signal", 0)
-    result["macd_divergence"] = ""
+    # H3: 透传 bar_trend，供 _calculate_composite_score 的 _score_macd
+    # 识别"金叉+红柱放大"（15 分），与 technical.py 完整路径口径一致
+    result["macd_divergence"] = indicators.get("macd_divergence", "")
+    result["macd_bar_trend"] = indicators.get("macd_bar_trend", "")
 
     kdj = kdj_full(closes, highs, lows) or {}
     result["kdj"] = kdj.get("signal", "")
@@ -234,7 +240,7 @@ def _analyze_technical(kline: list) -> dict:
     result["rsi"] = indicators.get("rsi", 50)
     result["volume_signal"] = indicators.get("vol_price_signal", 0)
 
-    patterns = detect_candle_patterns([b.to_dict() for b in kline])
+    patterns = detect_candle_patterns([b.to_dict() for b in valid_kline])
     result["patterns"] = patterns[:5] if patterns else []
 
     return result
@@ -316,6 +322,9 @@ def _calculate_composite_score(
         "ma_system": {"alignment": tech.get("ma", "数据不足")},
         "macd": {
             "signal": tech.get("macd_signal", 0),
+            # H3: 补齐 bar_trend，与 technical.py 完整路径一致
+            # （金叉+红柱放大 15 分 vs 仅金叉 10 分）
+            "bar_trend": tech.get("macd_bar_trend", ""),
             "divergence": tech.get("macd_divergence", ""),
         },
         "kdj": {"signal": tech.get("kdj", "")},

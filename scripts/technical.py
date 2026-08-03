@@ -30,7 +30,7 @@ from kline import fetch as fetch_kline
 from quote import fetch_batch
 
 # 从 technical 包导入所有公开函数（显式导入，避免通配符污染命名空间）
-from technical.core import _parse_records
+from technical.core import _parse_records, filter_records
 from technical.moving_average import ma_system
 from technical.macd import macd_full
 from technical.kdj import kdj_full
@@ -51,7 +51,6 @@ from technical.scoring import (
     _market_weight_adjustments,
 )
 from technical.report import render_report, render_quick
-from technical.valuation import pe_percentile_score
 from technical.moving_average import incremental_ma
 
 
@@ -81,6 +80,10 @@ def _compute_all(inp: TechnicalInput):
     quote = inp.quote
     args = inp.args
     features = {}
+
+    # M3: 统一过滤零值记录，确保 records（供形态/涨跌停/缠论/战法使用）
+    # 与 _parse_records 解析出的 OHLCV 数组索引对齐
+    records = filter_records(records)
 
     features["ma_system"] = ma_system(closes)
     features["macd"] = macd_full(closes)
@@ -131,11 +134,11 @@ def _compute_all(inp: TechnicalInput):
         }
 
     # 个股分类（需要财务数据）
+    fin_record = None
     if do_classify:
         try:
             from classifier import classify_stock
 
-            fin_record = None
             try:
                 from finance import fetch as fetch_finance
 
@@ -174,20 +177,19 @@ def _compute_all(inp: TechnicalInput):
     # 估值数据（供 signals.py 估值信号使用）
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
-    # PE 行业相对分位 — 有行业阈值时走精确计算，否则用通用阈值
-    pe_low, pe_mid, pe_high = 15, 25, 40
+    # 行业识别：用于 PE 行业相对分位与估值评分
     try:
-        from strategies.thresholds import get_industry_threshold
         from classifier import profile_stock
 
-        profile = profile_stock(quote)
-        industry = profile.get("industry", "默认")
-        pe_low = get_industry_threshold(industry, "pe_undervalued", 15)
-        pe_mid = get_industry_threshold(industry, "pe_reasonable", 25)
-        pe_high = get_industry_threshold(industry, "pe_expensive", 40)
+        industry = profile_stock(quote).get("industry", "默认")
     except Exception as e:
-        logger.debug("PE 行业阈值获取失败，使用默认值: %s", e)
-    pe_pct = pe_percentile_score(pe, pe_low, pe_mid, pe_high)
+        logger.debug("行业识别失败，使用默认行业: %s", e)
+        industry = "默认"
+    # PE 行业相对分位 — 统一实现（strategies.factors.score_utils.pe_percentile，
+    # 与 stock_analysis.py 同源，修复双实现不一致：亏损股 85 vs 50）
+    from strategies.factors.score_utils import pe_percentile
+
+    pe_pct = pe_percentile(pe, industry)
     # PEG
     growth = to_float(quote.get("net_profit_yoy", 0))
     peg = (pe / growth) if (pe > 0 and growth > 0) else 0
@@ -197,8 +199,16 @@ def _compute_all(inp: TechnicalInput):
         "pe_percentile": round(pe_pct, 1),
         "peg": round(peg, 2),
     }
-    # 估值因子评分（供 scoring.py composite_score 使用，与 signals.py 的 pe_percentile 来源统一）
-    features["valuation_score"] = round(pe_pct, 1)
+    # 估值因子评分（供 scoring.py composite_score 使用，与 stock_analysis.py 同源）。
+    # 修复：原实现直接把 pe_pct 当评分，方向与"便宜=高分"相反（昂贵股反而得分更高），
+    # 且与 stock_analysis.py 的 strategies.factors.valuation.valuation_score 不一致。
+    try:
+        from strategies.factors.valuation import valuation_score
+
+        features["valuation_score"] = valuation_score(quote, fin_record or {}, industry)
+    except Exception as e:
+        logger.debug("估值评分失败，使用中性 50: %s", e)
+        features["valuation_score"] = 50
 
     # 市场环境
     if do_classify:

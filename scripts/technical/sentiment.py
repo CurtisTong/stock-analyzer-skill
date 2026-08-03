@@ -16,7 +16,6 @@
 import json
 import logging
 import os
-import sys
 from datetime import datetime
 from urllib.parse import urlencode
 
@@ -94,7 +93,8 @@ class MarketDataFetcher:
                 "broken_limit_rate": broken_rate,
             }
         except Exception as e:
-            print(f"获取涨跌停数据失败: {e}", file=sys.stderr)
+            # L4: 与 _get_limit_down_count 一致使用 logger，而非 print 到 stderr
+            logger.error("获取涨跌停数据失败: %s", e)
             return {
                 "limit_up_count": 0,
                 "limit_down_count": 0,
@@ -155,7 +155,7 @@ class MarketDataFetcher:
 
             return {"margin_balance": 0}
         except Exception as e:
-            print(f"获取两融数据失败: {e}", file=sys.stderr)
+            logger.error("获取两融数据失败: %s", e)
             return {"margin_balance": 0}
 
 

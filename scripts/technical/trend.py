@@ -123,19 +123,27 @@ def breakout_check(closes, highs, volumes, resistance):
     last_vol = volumes[-1]
 
     broke = last > resistance and prev <= resistance
-    if not broke:
-        # 之前突破现在回踩
-        recent_above = all(c > resistance for c in closes[-5:])
-        if recent_above and last < resistance * 1.01:
-            return {"status": "回踩确认中", "resistance": round(resistance, 2)}
-        return {"status": "未突破"}
+    if broke:
+        vol_confirm = last_vol > 1.5 * avg_vol20
+        return {
+            "status": "突破确认(放量)" if vol_confirm else "突破待确认(缩量)",
+            "resistance": round(resistance, 2),
+            "volume_ratio": round(last_vol / avg_vol20, 2) if avg_vol20 > 0 else 0,
+        }
 
-    vol_confirm = last_vol > 1.5 * avg_vol20
-    return {
-        "status": "突破确认(放量)" if vol_confirm else "突破待确认(缩量)",
-        "resistance": round(resistance, 2),
-        "volume_ratio": round(last_vol / avg_vol20, 2) if avg_vol20 > 0 else 0,
-    }
+    # M2 修复：原实现"回踩确认中"分支实际不可达——
+    #   recent_above = all(c > resistance for c in closes[-5:]) 含今日，
+    #   而非 broke 时今日必 <= resistance，该分支恒为 False。
+    # 现按语义重构：
+    #   - 近 5 日（不含今日）曾收于阻力上方 = 此前突破过；
+    #   - 今日回落至阻力 ±1% 内 = 回踩测试支撑；
+    #   - 今日仍收于阻力上方 = 突破后运行维持。
+    previously_above = any(c > resistance for c in closes[-5:-1])
+    if last > resistance:
+        return {"status": "突破维持(回踩未破)", "resistance": round(resistance, 2)}
+    if previously_above and last >= resistance * 0.99:
+        return {"status": "回踩确认中", "resistance": round(resistance, 2)}
+    return {"status": "未突破"}
 
 
 def wave_state(closes, highs, lows):
