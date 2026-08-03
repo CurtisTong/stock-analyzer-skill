@@ -35,8 +35,9 @@ stock-analyzer-skill/
 │   ├── research/SKILL.md
 │   ├── learn/SKILL.md
 │   └── help/SKILL.md
-├── .agents/skills/                 # Codex workspace skill 源
-├── skills/                         # Claude Code skill 源（与 .claude/skills/ 一致）
+├── .claude/skills/                 # Claude Code 项目级 skill 软链（install.sh 创建）
+├── .codex/skills/                  # Codex 项目级 skill 软链（install.sh 创建）
+├── skills/                         # skill 权威源（.claude/skills/ 与 .codex/skills/ 软链到此）
 ├── scripts/                        # 工具脚本（三层架构）
 │   ├── business/                   # 业务逻辑层
 │   │   ├── stock_analysis.py
@@ -356,11 +357,11 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 
 ## Skill 注册机制
 
-### .claude/skills/ vs .agents/skills/
+### .claude/skills/ vs .codex/skills/
 
-- `.claude/skills/`：Claude Code 读取的 skill 源
-- `.agents/skills/`：Codex workspace 读取的 skill 源
-- 两者内容需保持一致
+- `.claude/skills/`：Claude Code 读取的 skill 源（install.sh [1/5] 创建软链）
+- `.codex/skills/`：Codex 读取的 skill 源（install.sh [2/5] 创建软链）
+- 两者均为指向 `skills/` 的符号链接，内容与 `skills/` 一致
 
 ### symlink 机制
 
@@ -420,10 +421,10 @@ class MyCustomQuoteFetcher(BaseFetcher):
 
 ### 添加新技能
 
-1. 创建 `.claude/skills/<name>/SKILL.md`
+1. 创建 `skills/<name>/SKILL.md`
 2. 添加 YAML frontmatter（name、description）
-3. 更新 `install.sh` 添加新的 symlink
-4. 同步到 `.agents/skills/`
+3. 更新 `install.sh` 的 `SKILLS` 数组添加新 skill 名
+4. 运行 `./install.sh` 重新生成 `.claude/skills/` 和 `.codex/skills/` 软链
 
 ```yaml
 ---

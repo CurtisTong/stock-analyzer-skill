@@ -149,7 +149,7 @@ scripts/
 ### Skill 开发
 
 - Skill 定义在 `skills/<name>/SKILL.md`，包含 YAML frontmatter（`name`、`description`）+ markdown 指令
-- 通过符号链接同步到 `.claude/skills/` 和 `.agents/skills/`
+- 通过符号链接同步到 `.claude/skills/` 和 `.codex/skills/`（均指向 `skills/`）
 - SKILL.md 中的路径不要使用相对 `cd` 命令，Claude Code 从项目根目录运行
 
 ### Git

@@ -44,6 +44,7 @@ scripts/data/strategy_performance.json
 # 本地 skill 软链（由 install.sh 创建，不入版本控制）
 .claude/skills/
 .codex/skills/
+.agents/skills/
 docs/superpowers/plans
 # 快照数据目录
 scripts/data/snapshots/

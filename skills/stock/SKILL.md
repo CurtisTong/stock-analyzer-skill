@@ -89,7 +89,7 @@ python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：�
 | 大盘状态 | `regime` / `regime_label_zh` / `regime_confidence` | bull/bear/sideways/panic/euphoria/defensive（来自 `experts/market_detector.py`，与 `decide.md §二` 权重表一致）|
 | 大盘指数 | `index_change_pct` | 沪深 300 当日涨跌幅 |
 | 市场宽度 | `breadth` | 上涨家数 / 下跌家数 / 涨停家数 / 跌停家数 |
-| 板块强度 | `sector_strength.top/bottom` | top3 强势 + bottom3 弱势板块 ETF（来自 `data/sector_etf.csv` 的 13 个 ETF）|
+| 板块强度 | `sector_strength.top/bottom` | top3 强势 + bottom3 弱势板块 ETF（来自 `scripts/data/sector_etf.csv` 的 13 个 ETF）|
 | 个股 RPS | `stock_sector_compare.rps_vs_sector/_index` | 个股 vs 所在板块 ETF vs 大盘三段式对比 |
 | **多时间框架**（v2.5.x 新增）| `multi_timeframe.{ma20,ma60,ma250,ma_alignment,ret_5d_pct,ret_20d_pct,atr_14,vs_ma250_pct}` | 大盘 MA20/60/250 + 5/20 日动量 + ATR14 + 年线偏离度 |
 | **宏观-估值桥**（v2.5.x 新增）| `macro.{treasury_10y_pct,usd_index,usd_cny,vix,gold_usd_oz,brent_oil_usd,wti_oil_usd,lithium_carbonate_cny_t}` | 10Y 国债 / 美元 / 汇率 / VIX / 大宗商品；yfinance 失败 → fixture |
