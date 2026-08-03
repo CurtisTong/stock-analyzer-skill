@@ -24,20 +24,22 @@ stock-analyzer-skill/
 │   ├── vote_engine.py              # 投票引擎
 │   ├── registry.py                 # 专家注册表
 │   └── scoring.py                  # 量化评分
-├── .claude/skills/                 # Claude Code skill 源（13 个：9 核心 + 4 变体）
+├── skills/                         # skill 权威源（13 个：9 核心 + 4 变体）
 │   ├── stock/SKILL.md
+│   ├── stock-technical/SKILL.md
 │   ├── market/SKILL.md
 │   ├── sector/SKILL.md
 │   ├── portfolio/SKILL.md
+│   ├── portfolio-web/SKILL.md
+│   ├── portfolio-natural/SKILL.md
 │   ├── screener/SKILL.md
 │   ├── monitor/SKILL.md
 │   ├── backtest/SKILL.md
 │   ├── research/SKILL.md
 │   ├── learn/SKILL.md
-│   └── help/SKILL.md
-├── .claude/skills/                 # Claude Code 项目级 skill 软链（install.sh 创建）
-├── .codex/skills/                  # Codex 项目级 skill 软链（install.sh 创建）
-├── skills/                         # skill 权威源（.claude/skills/ 与 .codex/skills/ 软链到此）
+│   └── stock-help/SKILL.md
+├── .claude/skills/                 # Claude Code 项目级 skill 软链（-> skills/，install.sh [1/5]）
+├── .codex/skills/                  # Codex 项目级 skill 软链（-> skills/，install.sh [2/5]）
 ├── scripts/                        # 工具脚本（三层架构）
 │   ├── business/                   # 业务逻辑层
 │   │   ├── stock_analysis.py
@@ -365,21 +367,27 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 
 ### symlink 机制
 
-`install.sh` 创建扁平 symlink 到 `~/.claude/skills/`：
+`install.sh` 分两级创建扁平 symlink（共 13 个 skill）：
 
-```bash
-ln -sf ~/Documents/curtis/stock-analyzer-skill/.claude/skills/stock ~/.claude/skills/stock
-ln -sf ~/Documents/curtis/stock-analyzer-skill/.claude/skills/market ~/.claude/skills/market
-# ... 共 13 个 skill（9 核心 + 4 变体）
-```
+- **项目级**（[1/5]、[2/5] 步）：`.claude/skills/<name>` 和 `.codex/skills/<name>` 软链到 `../../skills/<name>`，相对路径，便于仓库内移动。
+- **全局级**（[3/5]、[4/5] 步）：`~/.claude/skills/<name>` 和 `~/.codex/skills/<name>` 软链到项目绝对路径，供全局调用。
 
-### SKILL.md 格式
+三个 skill 目录均已在 `.gitignore` 声明不入版本控制（`.claude/skills/`、`.codex/skills/`、`.agents/skills/`），由 `install.sh` 在本地生成；权威源仅为 `skills/`。
 
-每个 skill 的 `SKILL.md` 包含：
+### SKILL.md frontmatter 格式
 
-- name：技能名称
-- description：触发条件和用途
-- 指令：详细的使用说明
+每个 skill 的 `SKILL.md` 以 YAML frontmatter 开头：
+
+| 字段 | 必填 | 说明 |
+|------|:----:|------|
+| `name` | ✅ | 技能名称，须与目录名一致 |
+| `description` | ✅ | 触发条件和用途，≤ 250 字符 |
+| `version` | - | 与 `package.json` 主版本一致（默认 1.16.0） |
+| `model` | - | `haiku`/`sonnet`/`opus`/`glm-5.2` 之一 |
+| `allowed-tools` | - | 工具白名单，**相对路径**（`./scripts/...`），禁止绝对路径 |
+| `disable-model-invocation` | - | 仅命令式 skill（`backtest`/`stock-help`/`monitor`）设为 `true` |
+
+frontmatter 校验由 `tests/contracts/test_skill_metadata_sync.py`（121 项）和 pre-commit hook `check-skill-allowed-tools` 共同把关。
 
 ## 扩展开发指南
 

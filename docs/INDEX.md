@@ -5,7 +5,7 @@
 > 🆕 新用户 → [quick-start.md](quick-start.md) · 📈 投资者 → [product-architecture.md](product-architecture.md) · 🛠️ 开发者 → [developer-guide.md](developer-guide.md) · 🤝 贡献者 → [CONTRIBUTING.md](../CONTRIBUTING.md)  
 > ⚫ **文档数**：26 份核心指南 + 5 份审查报告 + 9 份规划与历史 + 1 份发版归档 = 41 份
 
-> 适用文档：stock-analyzer-skill v1.15.0
+> 适用文档：stock-analyzer-skill v1.16.0
 > 索引目的：解决 docs/ 目录下"找不到入口"问题
 
 ---
