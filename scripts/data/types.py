@@ -21,6 +21,7 @@ class Quote:
     amount: float = 0.0  # 元（统一单位：腾讯万×10000，东财万×10000，新浪原值）
     turnover: float = 0.0  # %
     pe: float = 0.0
+    pe_type: str = ""  # PE 口径："dynamic"(动态) / "ttm"(滚动) / ""(未知/无PE)
     pb: float = 0.0
     total_cap: float = 0.0  # 亿
     circulating_cap: float = 0.0

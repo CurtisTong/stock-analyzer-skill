@@ -20,12 +20,27 @@ TENCENT_FIELDS = {
     "turnover": 38,  # 换手率%
     "pe": 39,  # PE(动)
     "amplitude": 43,  # 振幅%
-    "total_cap": 44,  # 总市值(亿)
-    "circulating_cap": 45,  # 流通市值(亿)
+    "total_cap": 44,  # 总市值(亿) -> parse_tencent_line 转"元"
+    "circulating_cap": 45,  # 流通市值(亿) -> parse_tencent_line 转"元"
     "pb": 46,  # PB
     "limit_up": 47,  # 涨停价
     "limit_down": 48,  # 跌停价
 }
+
+
+def _yi_to_yuan(raw: str) -> str:
+    """将腾讯行情的"亿"单位字段转换为"元"（×1e8）。
+
+    P1-4: 统一所有 quote fetcher 返回原始"元"值，归一化收口到 data 层
+    _normalize_cap。腾讯字段44/45 原单位为"亿"，此处乘以 1e8 转换。
+    解析失败（空/非数值）时原样返回，避免吞异常。
+    """
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return raw
+    # round 到整元（×1e8 后小数位无意义），避免浮点尾部长串
+    return str(round(v * 1e8))
 
 
 def parse_tencent_line(line: str) -> dict[str, str]:
@@ -50,9 +65,12 @@ def parse_tencent_line(line: str) -> dict[str, str]:
         "amount": parts[TENCENT_FIELDS["amount"]],
         "turnover": parts[TENCENT_FIELDS["turnover"]],
         "pe": parts[TENCENT_FIELDS["pe"]],
+        "pe_type": "dynamic",  # 字段39 为 PE(动)
         "pb": parts[TENCENT_FIELDS["pb"]],
-        "total_cap": parts[TENCENT_FIELDS["total_cap"]],
-        "circulating_cap": parts[TENCENT_FIELDS["circulating_cap"]],
+        # 字段44/45 原单位为"亿"，P1-4 统一所有 fetcher 返回原始"元"，
+        # 故 ×1e8 转换；归一化在 data 层 _normalize_cap 统一 /1e8。
+        "total_cap": _yi_to_yuan(parts[TENCENT_FIELDS["total_cap"]]),
+        "circulating_cap": _yi_to_yuan(parts[TENCENT_FIELDS["circulating_cap"]]),
     }
 
 

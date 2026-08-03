@@ -43,11 +43,12 @@ def _parse_quote(data: dict) -> dict | None:
         "amount": to_float(quote.get("amount")),
         "turnover": to_float(quote.get("turnover_rate")),
         "pe": to_float(quote.get("pe_ttm")),
+        "pe_type": "ttm",  # pe_ttm 为滚动市盈率
         "pb": to_float(quote.get("pb")),
-        "total_cap": round(to_float(quote.get("market_capital")) / 1e8, 2),
-        "circulating_cap": str(
-            round((quote.get("float_market_capital", 0) or 0) / 1e8, 2)
-        ),
+        "total_cap": to_float(
+            quote.get("market_capital")
+        ),  # 原始元值，归一化在 data 层
+        "circulating_cap": to_float(quote.get("float_market_capital")),
         "source": "xueqiu",
     }
 

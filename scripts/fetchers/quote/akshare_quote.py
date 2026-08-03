@@ -107,8 +107,9 @@ class AkshareQuoteFetcher(BaseFetcher):
                 "amount": str(r.get("成交额", 0)),
                 "turnover": str(r.get("换手率", 0)),
                 "pe": str(r.get("市盈率-动态", 0)),
+                "pe_type": "dynamic",  # 市盈率-动态
                 "pb": str(r.get("市净率", 0)),
-                "total_cap": str(r.get("总市值", 0)),
+                "total_cap": str(r.get("总市值", 0)),  # 原始元值，归一化在 data 层
                 "circulating_cap": str(r.get("流通市值", 0)),
                 "source": "akshare",
             }

@@ -17,13 +17,6 @@ def _div100(v):
         return None
 
 
-def _div10000(v):
-    try:
-        return str(round(float(v) / 100000000, 2))
-    except (TypeError, ValueError):
-        return None
-
-
 class EastmoneyQuoteFetcher(BaseFetcher):
     """东方财富行情数据源 (优先级 8)。"""
 
@@ -66,8 +59,11 @@ class EastmoneyQuoteFetcher(BaseFetcher):
             "amount": d.get("f48", 0),
             "turnover": _div100(d.get("f168", 0)),
             "pe": _div100(d.get("f162", 0)),
+            "pe_type": "dynamic",  # f162 为动态市盈率
             "pb": _div100(d.get("f167", 0)),
-            "total_cap": _div10000(d.get("f116", 0)),
-            "circulating_cap": _div10000(d.get("f117", 0)),
+            "total_cap": str(
+                d.get("f116", 0)
+            ),  # 原始元值，归一化在 data 层 _normalize_cap
+            "circulating_cap": str(d.get("f117", 0)),
             "source": "eastmoney",
         }

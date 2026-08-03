@@ -317,6 +317,7 @@ def _dict_to_quote(d: dict) -> Quote:
         amount=_normalize_amount(to_float(d.get("amount")), source),
         turnover=to_float(d.get("turnover")),
         pe=to_float(d.get("pe")),
+        pe_type=d.get("pe_type", ""),
         pb=to_float(d.get("pb")),
         total_cap=_normalize_cap(to_float(d.get("total_cap")), source),
         circulating_cap=_normalize_cap(to_float(d.get("circulating_cap")), source),
@@ -351,12 +352,12 @@ def _normalize_amount(raw_amount: float, source: str) -> float:
 def _normalize_cap(raw_cap: float, source: str) -> float:
     """将 total_cap/circulating_cap 归一化为"亿"。
 
-    efinance/akshare 返回单位为元，需除以 1e8。
-    其他源（东财/腾讯/雪球等）已为亿元单位。
+    所有 fetcher 返回原始元值，统一在此归一化（除以 1e8）。
+    P1-4: 旧实现用 source 区分（efinance/akshare 除以 1e8，其余原值），
+    口径信息分散在 fetcher（预转换）与 data 层（补救）两处，新增数据源易遗漏。
+    现统一收口：所有 fetcher 返回元，本函数无条件 /1e8。
     """
-    if source in ("efinance", "akshare"):
-        return raw_cap / 1e8
-    return raw_cap
+    return raw_cap / 1e8
 
 
 def _normalize_quote_code(code: str) -> str:
