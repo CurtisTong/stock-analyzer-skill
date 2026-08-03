@@ -3,6 +3,12 @@
 import logging
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 from fetchers._common.pytdx_meta import DEFAULT_SERVERS, get_market as _get_market
 from fetchers._common.pytdx_pool import HAS_PYTDX, get_default_pool
 
@@ -26,8 +32,9 @@ class PytdxQuoteFetcher(BaseFetcher):
         market = _get_market(code)
         pool = get_default_pool(DEFAULT_SERVERS)
 
-        api, host, port = pool.get()
+        api = host = port = None
         try:
+            api, host, port = pool.get()
             data = api.get_security_quotes([(market, plain)])
             if not data:
                 return None
@@ -56,8 +63,11 @@ class PytdxQuoteFetcher(BaseFetcher):
                 "circulating_cap": "",
                 "source": "pytdx",
             }
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("pytdx_quote 请求 %s:%s 失败: %s", host, port, e)
             return None
         finally:
-            pool.put(api, host, port)
+            if api is not None:
+                pool.put(api, host, port)

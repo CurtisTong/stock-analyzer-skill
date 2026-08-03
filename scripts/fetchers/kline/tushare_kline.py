@@ -4,6 +4,12 @@ import logging
 import os
 
 from common import BaseFetcher, plain_code, infer_exchange
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 from fetchers._common.tushare_check import check_tushare as _check_tushare
 
 logger = logging.getLogger(__name__)
@@ -31,9 +37,9 @@ class TushareKlineFetcher(BaseFetcher):
             ex = infer_exchange(code)  # "sh"/"sz"/"bj"，按代码段推断而非硬编码
             ts_code = f"{plain}.{ex.upper()}" if ex else f"{plain}.SZ"
 
-            pro = ts.pro_api()
             if scale == 240:
-                df = pro.daily(ts_code=ts_code, limit=datalen)
+                # P0-5: 用 pro_bar 请求前复权数据，与 eastmoney/tencent 口径一致
+                df = ts.pro_bar(ts_code=ts_code, adj="qfq", limit=datalen, freq="D")
             else:
                 # 分钟线需要额外权限
                 return None
@@ -54,11 +60,14 @@ class TushareKlineFetcher(BaseFetcher):
                         "high": str(row.get("high", 0)),
                         "low": str(row.get("low", 0)),
                         "volume": str(row.get("vol", 0)),
+                        "amount": str(row.get("amount", 0)),  # P1-5: 补全成交额（千元）
                         "source": "tushare",
                     }
                 )
             result.reverse()  # tushare 返回倒序
             return result if result else None
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("tushare_kline 获取失败 %s: %s", code, e)
             return None

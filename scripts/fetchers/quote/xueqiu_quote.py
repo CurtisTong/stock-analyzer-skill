@@ -45,7 +45,9 @@ def _parse_quote(data: dict) -> dict | None:
         "pe": to_float(quote.get("pe_ttm")),
         "pb": to_float(quote.get("pb")),
         "total_cap": round(to_float(quote.get("market_capital")) / 1e8, 2),
-        "circulating_cap": 0,
+        "circulating_cap": str(
+            round((quote.get("float_market_capital", 0) or 0) / 1e8, 2)
+        ),
         "source": "xueqiu",
     }
 

@@ -9,6 +9,12 @@ import threading
 
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,14 +31,26 @@ _bs_logged_in = False
 
 
 def _ensure_logged_in():
-    """确保 baostock 已登录（线程安全，仅首次调用执行 login）。"""
+    """确保 baostock 已登录（线程安全，双检锁防止并发重复 login）。
+
+    login 失败时抛 RuntimeError，由调用方捕获（不再静默继续用未登录状态发请求）。
+    """
     global _bs_logged_in
+    # 快速路径：已登录则直接返回（锁外读，GIL 兜底可见性）
     if _bs_logged_in:
         return
     with _bs_login_lock:
-        if not _bs_logged_in:
-            bs.login()
+        if _bs_logged_in:  # 双检锁：防止并发重复 login
+            return
+        try:
+            lg = bs.login()
+            if lg.error_code != "0":
+                raise RuntimeError(f"baostock login 失败: {lg.error_msg}")
             _bs_logged_in = True
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
+        except Exception as e:
+            raise RuntimeError(f"baostock login 异常: {e}") from e
 
 
 def _logout():
@@ -41,6 +59,8 @@ def _logout():
     if _bs_logged_in:
         try:
             bs.logout()
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("baostock logout 失败: %s", e)
         _bs_logged_in = False
@@ -99,6 +119,8 @@ class BaostockKlineFetcher(BaseFetcher):
                         }
                     )
             return result if result else None
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("baostock_kline 获取失败 %s: %s", code, e)
             return None

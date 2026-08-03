@@ -12,16 +12,58 @@ from common import BaseFetcher, http_get, to_float, strip_prefix
 
 logger = logging.getLogger(__name__)
 
+# 单次抓取最大页数（防失控，pageSize=10，理论上限 200 条记录）
+MAX_PAGES = 20
+
 # 业绩预告 API（东财数据中心）
-# RPT_LICO_FN_CPD: 业绩预告明细
+# RPT_LICO_FN_CPD: 业绩预告明细（pageNumber 由分页循环注入）
 FORECAST_URL = (
     "https://datacenter-web.eastmoney.com/api/data/v1/get"
-    "?sortColumns=NOTICE_DATE&sortTypes=-1&pageSize=10&pageNumber=1"
+    "?sortColumns=NOTICE_DATE&sortTypes=-1&pageSize=10&pageNumber={page}"
     "&reportName=RPT_LICO_FN_CPD"
     "&columns=SECURITY_CODE,SECURITY_NAME_ABBR,NOTICE_DATE,REPORT_DATE,"
     "FORECAST_TYPE,PROFIT_MIN,PROFIT_MAX,CHANGE_MIN,CHANGE_MAX,PRE_PROFIT"
     "&filter=(SECURITY_CODE='{code}')"
 )
+
+
+def _fetch_all_pages(build_url, timeout: int, retry: int):
+    """分页抓取东财 datacenter API，累积所有页的 result.data。
+
+    Args:
+        build_url: 接收页码 page(int)、返回完整请求 URL 的回调。
+        timeout / retry: 透传给 http_get。
+
+    Returns:
+        (all_records, truncated): all_records 为累积的原始记录列表；
+        truncated 表示实际总页数超过 MAX_PAGES 而被截断。
+
+    Note:
+        网络/解析等任意异常向上抛出（由调用方统一捕获并降级）；
+        仅 json.JSONDecodeError 会中断循环并保留已累积记录。
+    """
+    all_records = []
+    page = 1
+    total_pages = 1
+    while page <= total_pages and page <= MAX_PAGES:
+        raw = http_get(build_url(page), timeout=timeout, max_retries=retry)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            break
+        if not data or "result" not in data:
+            break
+        result = data["result"] or {}
+        if page == 1:
+            # eastmoney datacenter 返回 result.pages；缺失时默认只取第一页
+            total_pages = result.get("pages", 1) or 1
+        records = result.get("data", []) or []
+        if not records:
+            break
+        all_records.extend(records)
+        page += 1
+    return all_records, total_pages > MAX_PAGES
+
 
 # 预告类型映射（东财编码 -> 中文）
 FORECAST_TYPE_MAP = {
@@ -56,19 +98,22 @@ class PerformanceForecastFetcher(BaseFetcher):
         # 标准化代码（去前缀，东财用纯数字）
         pure_code = strip_prefix(code)
 
-        url = FORECAST_URL.format(code=pure_code)
+        url = FORECAST_URL.format(code=pure_code, page="{page}")
         try:
-            raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
-            data = json.loads(raw)
-        except (json.JSONDecodeError, Exception) as e:
-            logger.debug("业绩预告 JSON 解析失败 %s: %s", code, e)
+            result_data, truncated = _fetch_all_pages(
+                lambda p: url.format(page=p),
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except Exception as e:
+            logger.debug("业绩预告获取失败 %s: %s", code, e)
             return None
 
-        if not data or "result" not in data or not data["result"].get("data"):
+        if not result_data:
             return None
 
         items = []
-        for row in data["result"]["data"]:
+        for row in result_data:
             forecast_type_raw = row.get("FORECAST_TYPE", "")
             forecast_type = FORECAST_TYPE_MAP.get(forecast_type_raw, forecast_type_raw)
 
@@ -91,4 +136,4 @@ class PerformanceForecastFetcher(BaseFetcher):
         if not items:
             return None
 
-        return {"type": "forecast", "items": items}
+        return {"type": "forecast", "items": items, "truncated": truncated}

@@ -1,24 +1,73 @@
 """东方财富事件日历数据源（财报披露、解禁、分红、增减持、违规）。"""
 
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from dev.clock import now
 
 from common import BaseFetcher, http_get, to_float, strip_prefix
+from common.exceptions import (
+    NetworkError,
+    RateLimitError,
+    HTTPStatusError,
+    ParseError,
+)
 
-# 财报披露日历 API
-EARNINGS_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=SECURITY_CODE&sortTypes=1&pageSize=50&pageNumber=1&reportName=RPT_PUBLIC_OP_NEWDATE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,REPORT_DATE,OP_DATE,OP_CHANGE,PREPLAN_DATE&filter=(OP_DATE>='{start_date}')(OP_DATE<='{end_date}')"
+# 单次抓取最大页数（防失控，pageSize=50，理论上限 1000 条记录）
+MAX_PAGES = 20
 
-# 限售解禁日历 API
-LOCKUP_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=FREE_DATE&sortTypes=1&pageSize=50&pageNumber=1&reportName=RPT_LIFT_STAGE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,FREE_DATE,LIFT_NUM,LIFT_MARKET_CAP,NEW_PRICE&filter=(FREE_DATE>='{start_date}')(FREE_DATE<='{end_date}')"
+# 财报披露日历 API（pageNumber 由分页循环注入）
+EARNINGS_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=SECURITY_CODE&sortTypes=1&pageSize=50&pageNumber={page}&reportName=RPT_PUBLIC_OP_NEWDATE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,REPORT_DATE,OP_DATE,OP_CHANGE,PREPLAN_DATE&filter=(OP_DATE>='{start_date}')(OP_DATE<='{end_date}')"
 
-# 分红日历 API
-DIVIDEND_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=EX_DIVIDEND_DATE&sortTypes=1&pageSize=50&pageNumber=1&reportName=RPT_SHAREBONUS_DET&columns=SECURITY_CODE,SECURITY_NAME_ABBR,EX_DIVIDEND_DATE,PRETAX_BONUS_RMB,PLAN_NOTICE_DATE,REG_DATE&filter=(EX_DIVIDEND_DATE>='{start_date}')(EX_DIVIDEND_DATE<='{end_date}')"
+# 限售解禁日历 API（pageNumber 由分页循环注入）
+LOCKUP_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=FREE_DATE&sortTypes=1&pageSize=50&pageNumber={page}&reportName=RPT_LIFT_STAGE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,FREE_DATE,LIFT_NUM,LIFT_MARKET_CAP,NEW_PRICE&filter=(FREE_DATE>='{start_date}')(FREE_DATE<='{end_date}')"
 
-# 大股东增减持 API（东董监高及持股变动）
-SHAREHOLDER_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=END_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_SHARE_HOLDER_INCREASE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,END_DATE,HOLDER_NAME,CHANGE_NUM,CHANGE_RATIO,AVERAGE_PRICE,CHANGE_SHARES_AFTER&filter=(SECURITY_CODE='{code}')"
+# 分红日历 API（pageNumber 由分页循环注入）
+DIVIDEND_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=EX_DIVIDEND_DATE&sortTypes=1&pageSize=50&pageNumber={page}&reportName=RPT_SHAREBONUS_DET&columns=SECURITY_CODE,SECURITY_NAME_ABBR,EX_DIVIDEND_DATE,PRETAX_BONUS_RMB,PLAN_NOTICE_DATE,REG_DATE&filter=(EX_DIVIDEND_DATE>='{start_date}')(EX_DIVIDEND_DATE<='{end_date}')"
 
-# 监管处罚/违规记录 API
-VIOLATION_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=PUNISH_DATE&sortTypes=-1&pageSize=50&pageNumber=1&reportName=RPT_PUNISH_DETAIL&columns=SECURITY_CODE,SECURITY_NAME_ABBR,PUNISH_DATE,PUNISH_CONTENT,PUNISH_REASON,REGULATOR&filter=(SECURITY_CODE='{code}')"
+# 大股东增减持 API（东董监高及持股变动，pageNumber 由分页循环注入）
+SHAREHOLDER_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=END_DATE&sortTypes=-1&pageSize=50&pageNumber={page}&reportName=RPT_SHARE_HOLDER_INCREASE&columns=SECURITY_CODE,SECURITY_NAME_ABBR,END_DATE,HOLDER_NAME,CHANGE_NUM,CHANGE_RATIO,AVERAGE_PRICE,CHANGE_SHARES_AFTER&filter=(SECURITY_CODE='{code}')"
+
+# 监管处罚/违规记录 API（pageNumber 由分页循环注入）
+VIOLATION_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get?sortColumns=PUNISH_DATE&sortTypes=-1&pageSize=50&pageNumber={page}&reportName=RPT_PUNISH_DETAIL&columns=SECURITY_CODE,SECURITY_NAME_ABBR,PUNISH_DATE,PUNISH_CONTENT,PUNISH_REASON,REGULATOR&filter=(SECURITY_CODE='{code}')"
+
+
+def _fetch_all_pages(build_url, timeout: int, retry: int):
+    """分页抓取东财 datacenter API，累积所有页的 result.data。
+
+    Args:
+        build_url: 接收页码 page(int)、返回完整请求 URL 的回调。
+        timeout / retry: 透传给 http_get。
+
+    Returns:
+        (all_records, truncated): all_records 为累积的原始记录列表；
+        truncated 表示实际总页数超过 MAX_PAGES 而被截断。
+
+    Note:
+        网络/限速/HTTP 异常向上抛出（触发熔断），与单页实现保持一致；
+        仅 json.JSONDecodeError 会中断循环并保留已累积记录。
+    """
+    all_records = []
+    page = 1
+    total_pages = 1
+    while page <= total_pages and page <= MAX_PAGES:
+        raw = http_get(build_url(page), timeout=timeout, max_retries=retry)
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError:
+            break
+        if not data or data.get("success") is not True:
+            break
+        result = data.get("result", {}) or {}
+        if page == 1:
+            # eastmoney datacenter 返回 result.pages；缺失时默认只取第一页
+            total_pages = result.get("pages", 1) or 1
+        records = result.get("data", []) or []
+        if not records:
+            break
+        all_records.extend(records)
+        page += 1
+    return all_records, total_pages > MAX_PAGES
 
 
 class EarningsCalendarFetcher(BaseFetcher):
@@ -30,20 +79,20 @@ class EarningsCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取财报披露日历。code 为空时返回近期全部。"""
         days = kwargs.get("days", 30)
-        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = now().strftime("%Y-%m-%d")
 
-        url = EARNINGS_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
+        url = EARNINGS_URL.format(
+            start_date=start_date, end_date=end_date, page="{page}"
+        )
         try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-
-        if not data or data.get("success") is not True:
-            return None
-
-        result_data = data.get("result", {}).get("data", [])
+            result_data, truncated = _fetch_all_pages(
+                lambda p: url.format(page=p),
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise
         if not result_data:
             return None
 
@@ -52,15 +101,15 @@ class EarningsCalendarFetcher(BaseFetcher):
             item = {
                 "code": r.get("SECURITY_CODE", ""),
                 "name": r.get("SECURITY_NAME_ABBR", ""),
-                "report_date": r.get("REPORT_DATE", "")[:10],
-                "disclosure_date": r.get("OP_DATE", "")[:10],
+                "report_date": (r.get("REPORT_DATE") or "")[:10],
+                "disclosure_date": (r.get("OP_DATE") or "")[:10],
                 "change": r.get("OP_CHANGE", ""),
             }
             if code and item["code"] != strip_prefix(code):
                 continue
             items.append(item)
 
-        return {"type": "earnings", "items": items}
+        return {"type": "earnings", "items": items, "truncated": truncated}
 
 
 class LockupCalendarFetcher(BaseFetcher):
@@ -72,20 +121,18 @@ class LockupCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取限售解禁日历。"""
         days = kwargs.get("days", 30)
-        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = now().strftime("%Y-%m-%d")
 
-        url = LOCKUP_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
+        url = LOCKUP_URL.format(start_date=start_date, end_date=end_date, page="{page}")
         try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-
-        if not data or data.get("success") is not True:
-            return None
-
-        result_data = data.get("result", {}).get("data", [])
+            result_data, truncated = _fetch_all_pages(
+                lambda p: url.format(page=p),
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise
         if not result_data:
             return None
 
@@ -94,7 +141,7 @@ class LockupCalendarFetcher(BaseFetcher):
             item = {
                 "code": r.get("SECURITY_CODE", ""),
                 "name": r.get("SECURITY_NAME_ABBR", ""),
-                "free_date": r.get("FREE_DATE", "")[:10],
+                "free_date": (r.get("FREE_DATE") or "")[:10],
                 "lift_num": to_float(r.get("LIFT_NUM", 0)),
                 "lift_market_cap": to_float(r.get("LIFT_MARKET_CAP", 0)),
                 "price": to_float(r.get("NEW_PRICE", 0)),
@@ -103,7 +150,7 @@ class LockupCalendarFetcher(BaseFetcher):
                 continue
             items.append(item)
 
-        return {"type": "lockup", "items": items}
+        return {"type": "lockup", "items": items, "truncated": truncated}
 
 
 class DividendCalendarFetcher(BaseFetcher):
@@ -115,20 +162,20 @@ class DividendCalendarFetcher(BaseFetcher):
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取分红日历。"""
         days = kwargs.get("days", 30)
-        end_date = (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
-        start_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        start_date = now().strftime("%Y-%m-%d")
 
-        url = DIVIDEND_URL.format(start_date=start_date, end_date=end_date)
-        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
+        url = DIVIDEND_URL.format(
+            start_date=start_date, end_date=end_date, page="{page}"
+        )
         try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-
-        if not data or data.get("success") is not True:
-            return None
-
-        result_data = data.get("result", {}).get("data", [])
+            result_data, truncated = _fetch_all_pages(
+                lambda p: url.format(page=p),
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise
         if not result_data:
             return None
 
@@ -137,16 +184,16 @@ class DividendCalendarFetcher(BaseFetcher):
             item = {
                 "code": r.get("SECURITY_CODE", ""),
                 "name": r.get("SECURITY_NAME_ABBR", ""),
-                "ex_date": r.get("EX_DIVIDEND_DATE", "")[:10],
+                "ex_date": (r.get("EX_DIVIDEND_DATE") or "")[:10],
                 "bonus_per_share": to_float(r.get("PRETAX_BONUS_RMB", 0)),
-                "notice_date": r.get("PLAN_NOTICE_DATE", "")[:10],
-                "record_date": r.get("REG_DATE", "")[:10],
+                "notice_date": (r.get("PLAN_NOTICE_DATE") or "")[:10],
+                "record_date": (r.get("REG_DATE") or "")[:10],
             }
             if code and item["code"] != strip_prefix(code):
                 continue
             items.append(item)
 
-        return {"type": "dividend", "items": items}
+        return {"type": "dividend", "items": items, "truncated": truncated}
 
 
 class ShareholderChangeFetcher(BaseFetcher):
@@ -160,17 +207,15 @@ class ShareholderChangeFetcher(BaseFetcher):
         if not code:
             return None
         clean_code = strip_prefix(code)
-        url = SHAREHOLDER_URL.format(code=clean_code)
-        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
+        url = SHAREHOLDER_URL.format(code=clean_code, page="{page}")
         try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-
-        if not data or data.get("success") is not True:
-            return None
-
-        result_data = data.get("result", {}).get("data", [])
+            result_data, truncated = _fetch_all_pages(
+                lambda p: url.format(page=p),
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise
         if not result_data:
             return None
 
@@ -182,7 +227,7 @@ class ShareholderChangeFetcher(BaseFetcher):
                     "code": r.get("SECURITY_CODE", ""),
                     "name": r.get("SECURITY_NAME_ABBR", ""),
                     "holder_name": r.get("HOLDER_NAME", ""),
-                    "end_date": r.get("END_DATE", "")[:10],
+                    "end_date": (r.get("END_DATE") or "")[:10],
                     "change_num": change_num,
                     "change_ratio": to_float(r.get("CHANGE_RATIO", 0)),
                     "avg_price": to_float(r.get("AVERAGE_PRICE", 0)),
@@ -191,7 +236,7 @@ class ShareholderChangeFetcher(BaseFetcher):
                 }
             )
 
-        return {"type": "shareholder", "items": items}
+        return {"type": "shareholder", "items": items, "truncated": truncated}
 
 
 class ViolationFetcher(BaseFetcher):
@@ -205,17 +250,15 @@ class ViolationFetcher(BaseFetcher):
         if not code:
             return None
         clean_code = strip_prefix(code)
-        url = VIOLATION_URL.format(code=clean_code)
-        raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
+        url = VIOLATION_URL.format(code=clean_code, page="{page}")
         try:
-            data = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
-
-        if not data or data.get("success") is not True:
-            return None
-
-        result_data = data.get("result", {}).get("data", [])
+            result_data, truncated = _fetch_all_pages(
+                lambda p: url.format(page=p),
+                timeout=self.timeout,
+                retry=self.retry,
+            )
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise
         if not result_data:
             return None
 
@@ -225,14 +268,14 @@ class ViolationFetcher(BaseFetcher):
                 {
                     "code": r.get("SECURITY_CODE", ""),
                     "name": r.get("SECURITY_NAME_ABBR", ""),
-                    "punish_date": r.get("PUNISH_DATE", "")[:10],
+                    "punish_date": (r.get("PUNISH_DATE") or "")[:10],
                     "content": r.get("PUNISH_CONTENT", ""),
                     "reason": r.get("PUNISH_REASON", ""),
                     "regulator": r.get("REGULATOR", ""),
                 }
             )
 
-        return {"type": "violation", "items": items}
+        return {"type": "violation", "items": items, "truncated": truncated}
 
 
 __all__ = [

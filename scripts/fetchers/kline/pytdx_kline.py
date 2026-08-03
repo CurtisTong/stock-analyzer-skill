@@ -1,8 +1,20 @@
-"""通达信 K 线数据源（需要 pytdx 包）。"""
+"""通达信 K 线数据源（需要 pytdx 包）。
+
+.. note::
+    pytdx 不支持复权，返回不复权数据。除权日 OHLC 会跳变，
+    与前复权源（eastmoney/tencent）混用会导致技术指标错误。
+    因此优先级从 9 降为 2，让支持前复权的源优先命中。
+"""
 
 import logging
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 from fetchers._common.pytdx_meta import DEFAULT_SERVERS, get_market as _get_market
 from fetchers._common.pytdx_pool import HAS_PYTDX, get_default_pool
 
@@ -12,14 +24,13 @@ CATEGORY_MAP = {5: 0, 15: 1, 30: 2, 60: 3, 240: 9}
 
 
 class PytdxKlineFetcher(BaseFetcher):
-    """通达信 K 线数据源 (优先级 9) - 需要安装 pytdx 包。
+    """通达信 K 线数据源 (优先级 2) - 需要安装 pytdx 包。
 
-    pytdx 通过通达信本地服务端口直连，速度快、无限频，是次优选择
-    （最优是 sina=10）。未装 pytdx 包时此 fetcher 不会注册。
+    .. warning:: 不支持复权，返回不复权数据。优先级低于 eastmoney(8)/tencent(5)/sina(3)。
     """
 
     def __init__(self):
-        super().__init__("pytdx_kline", priority=9)
+        super().__init__("pytdx_kline", priority=2)
 
     def fetch(self, code: str, **kwargs) -> list | None:
         if not HAS_PYTDX:
@@ -32,6 +43,7 @@ class PytdxKlineFetcher(BaseFetcher):
         pool = get_default_pool(DEFAULT_SERVERS)
 
         api, host, port = pool.get()
+        success = False
         try:
             data = api.get_security_bars(category, market, plain, 0, datalen)
             if not data:
@@ -49,9 +61,14 @@ class PytdxKlineFetcher(BaseFetcher):
                         "source": "pytdx",
                     }
                 )
+            success = True
             return result if result else None
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("pytdx_kline 请求 %s:%s 失败: %s", host, port, e)
             return None
         finally:
-            pool.put(api, host, port)
+            # P1-10: 异常时连接可能已损坏，不归还连接池避免污染后续请求
+            if success:
+                pool.put(api, host, port)

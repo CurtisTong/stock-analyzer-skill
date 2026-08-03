@@ -3,6 +3,12 @@
 import logging
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +53,8 @@ class EfinanceKlineFetcher(BaseFetcher):
                     }
                 )
             return result if result else None
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("efinance_kline 获取失败 %s: %s", code, e)
             return None

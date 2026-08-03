@@ -20,6 +20,9 @@ class NorthboundFlowFetcher(BaseFetcher):
 
     def __init__(self):
         super().__init__("northbound_flow", priority=5)
+        # 北向资金每日净流入已无公开数据源（见 fetch docstring），
+        # 永久禁用此 fetcher，避免占用熔断器槽位与调度尝试。
+        self.enabled = False
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取北向资金近期数据。code 参数忽略，返回市场整体数据。

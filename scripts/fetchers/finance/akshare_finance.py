@@ -3,6 +3,12 @@
 import logging
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +39,8 @@ class AkshareFinanceFetcher(BaseFetcher):
             for _, row in df.head(4).iterrows():
                 result.append(row.to_dict())
             return result if result else None
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("akshare_finance 获取失败 %s: %s", code, e)
             return None

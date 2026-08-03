@@ -98,7 +98,7 @@ def to_secid(code: str) -> str:
         return f"0.{c[2:]}"
     if c.startswith("bj"):
         return f"0.{c[2:]}"
-    plain = c.lstrip("shszbj")
+    plain = plain_code(c)
     if plain.startswith(("60", "68", "51", "56", "58")):
         return f"1.{plain}"
     return f"0.{plain}"

@@ -15,11 +15,12 @@ try:
 except ImportError:
     yf = None
 
-# yfinance 限流异常（不同版本可能缺失，缺失时置 Exception 兜底，由通用 except 记录）
+# yfinance 限流异常（不同版本可能缺失，缺失时创建临时异常类兜底，
+# 使旧版本 429 仍能被 except YFRateLimitError 捕获并转译为项目 RateLimitError）
 try:
     from yfinance.exceptions import YFRateLimitError
 except ImportError:
-    YFRateLimitError = ()  # 空元组使 except 子句匹配任何异常为 False，等价于跳过
+    YFRateLimitError = type("YFRateLimitError", (Exception,), {})
 
 # 跨市场代码前缀
 US_PREFIX = "us:"

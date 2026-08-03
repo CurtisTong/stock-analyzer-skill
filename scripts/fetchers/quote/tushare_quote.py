@@ -4,6 +4,12 @@ import logging
 import os
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 from fetchers._common.tushare_check import check_tushare as _check_tushare
 
 logger = logging.getLogger(__name__)
@@ -62,6 +68,8 @@ class TushareQuoteFetcher(BaseFetcher):
                 "circulating_cap": "",
                 "source": "tushare",
             }
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("tushare_quote 获取失败 %s: %s", code, e)
             return None

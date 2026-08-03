@@ -5,6 +5,7 @@ import logging
 from datetime import datetime, timedelta
 
 from common import BaseFetcher, http_get, to_float, to_int, strip_prefix
+from common.exceptions import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ class MarginFetcher(BaseFetcher):
                     }
                 )
             except Exception as e:
-                logger.warning(f"MarginFetcher 数据转换异常: {item}, {e}")
+                log_silent_fallback("MarginFetcher.数据转换", e)
                 continue
 
         return result if result else None
@@ -190,7 +191,7 @@ class HolderFetcher(BaseFetcher):
 
                 prev_holder_num = holder_num
             except Exception as e:
-                logger.warning(f"HolderFetcher 数据转换异常: {item}, {e}")
+                log_silent_fallback("HolderFetcher.数据转换", e)
                 continue
 
         return result if result else None
@@ -296,7 +297,7 @@ class TopHolderFetcher(BaseFetcher):
                     }
                 )
             except Exception as e:
-                logger.warning(f"TopHolderFetcher 数据转换异常: {item}, {e}")
+                log_silent_fallback("TopHolderFetcher.数据转换", e)
                 continue
 
         return result if result else None

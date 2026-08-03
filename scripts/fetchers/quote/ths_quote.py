@@ -4,6 +4,12 @@ import logging
 
 
 from common import BaseFetcher, http_get, to_float
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +78,10 @@ def _parse_quote(text: str, code: str) -> dict | None:
             "total_cap": 0,
             "circulating_cap": 0,
             "source": "ths",
+            "is_realtime": False,
         }
+    except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+        raise  # 网络/限速/解析异常向上抛，触发熔断和退避
     except Exception as e:
         logger.debug("ths 解析失败 %s: %s", code, e)
         return None
@@ -104,6 +113,8 @@ class ThsQuoteFetcher(BaseFetcher):
                 # 输出 code 统一为 sh/sz/bj+6位 格式（与其它 fetcher 一致）
                 result["code"] = canonical
             return result
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("ths_quote 获取失败 %s: %s", code, e)
             return None

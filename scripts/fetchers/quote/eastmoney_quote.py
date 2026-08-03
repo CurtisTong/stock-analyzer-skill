@@ -3,7 +3,7 @@
 import json
 import logging
 
-from common import BaseFetcher, http_get, to_secid
+from common import BaseFetcher, http_get, to_secid, ParseError
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +14,14 @@ def _div100(v):
     try:
         return str(round(float(v) / 100, 2))
     except (TypeError, ValueError):
-        return "0"
+        return None
 
 
 def _div10000(v):
     try:
         return str(round(float(v) / 100000000, 2))
     except (TypeError, ValueError):
-        return "0"
+        return None
 
 
 class EastmoneyQuoteFetcher(BaseFetcher):
@@ -36,9 +36,10 @@ class EastmoneyQuoteFetcher(BaseFetcher):
         raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.debug("东方财富行情 JSON 解析失败: %s", code)
-            return None
+        except json.JSONDecodeError as e:
+            raise ParseError(
+                raw, "eastmoney_quote", f"JSON 解析失败: {code} url={url}"
+            ) from e
         if not data or data.get("rc") != 0 or "data" not in data:
             logger.debug("东方财富行情无数据: %s", code)
             return None

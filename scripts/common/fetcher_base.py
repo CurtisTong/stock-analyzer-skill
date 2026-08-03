@@ -146,15 +146,16 @@ class BaseFetcher(ABC):
 
 
 def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
-    """带熔断器保护的 fetch 调用。
+    """带熔断器+限流器保护的 fetch 调用。
 
     用于不走 DataFetcherManager 的数据域（chip/event/flow/lhb，
     返回不同子类型数据故不走 manager 故障转移）。
 
-    - fetcher 不可用（熔断器开启）→ 返回 None
-    - fetch 成功 → 记录成功，返回结果
-    - fetch 返回 None/NOT_HANDLED → 不记录成功/失败（数据不存在，非故障）
-    - fetch 抛异常 → 记录失败，返回 None
+    - fetcher 不可用（熔断器开启）-> 返回 None
+    - provider 在 429 退避窗口内 -> 跳过返回 None
+    - fetch 成功 -> 记录成功，返回结果
+    - fetch 返回 None/NOT_HANDLED -> 不记录成功/失败（数据不存在，非故障）
+    - fetch 抛异常 -> 记录失败，返回 None
 
     Returns:
         fetcher.fetch() 的返回值，或熔断/异常时 None
@@ -165,8 +166,20 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         return None
     if not fetcher.is_available():
         return None
+    # P1-1: 接入 RateLimiter（与 DataFetcherManager.fetch 对齐）
+    from common.rate_limiter import get_rate_limiter, is_provider_disabled
+
+    if is_provider_disabled(fetcher.provider):
+        logger.debug(
+            "fetch_with_breaker %s 在退避窗口内，跳过: provider=%s",
+            fetcher.__class__.__name__,
+            fetcher.provider,
+        )
+        return None
+    limiter = get_rate_limiter()
     try:
-        result = fetcher.fetch(*args, **kwargs)
+        with limiter.slot(fetcher.provider):
+            result = fetcher.fetch(*args, **kwargs)
     except RateLimitError as e:
         # P0-04: 429 限速不计入熔断失败（同 DataFetcher.fetch 逻辑）
         logger.debug(
@@ -205,12 +218,25 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
     if args and not _SAFE_CODE_PATTERN.match(str(args[0])):
         return None
 
+    # P1-1: 接入 RateLimiter（与 DataFetcherManager.fetch 对齐）
+    from common.rate_limiter import get_rate_limiter, is_provider_disabled
+
+    limiter = get_rate_limiter()
+
     sorted_fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
     for fetcher in sorted_fetchers:
         if not fetcher.is_available():
             continue
+        if is_provider_disabled(fetcher.provider):
+            logger.debug(
+                "fetch_with_fallback %s 在退避窗口内，跳过: provider=%s",
+                fetcher.__class__.__name__,
+                fetcher.provider,
+            )
+            continue
         try:
-            result = fetcher.fetch(*args, **kwargs)
+            with limiter.slot(fetcher.provider):
+                result = fetcher.fetch(*args, **kwargs)
         except RateLimitError as e:
             logger.debug(
                 "fetch_with_fallback %s 限速(429): %s", fetcher.__class__.__name__, e
@@ -323,7 +349,7 @@ class DataFetcherManager:
                 self._set_last_error(e)
                 if fetcher.provider not in retried_429:
                     retried_429.add(fetcher.provider)
-                    limiter.release(fetcher.provider, got_429=True)
+                    limiter.mark_429(fetcher.provider)
                     logger.debug(
                         "fetcher %s 触发 429，退避后重试主源: %s",
                         fetcher.name,

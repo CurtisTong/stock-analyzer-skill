@@ -114,22 +114,39 @@ class RateLimiter:
         """释放 provider 的信号量。
 
         若 got_429=True：标记 _backoff_state，触发后续 acquire 的退避。
+
+        .. deprecated::
+            ``got_429=True`` 会同时释放信号量+标记退避，若调用方已通过
+            ``finally`` 释放过信号量会导致双重释放。新代码应分别调用
+            ``release(provider)`` 和 ``mark_429(provider)``。
         """
         sem = self._semaphores.get(provider)
         if sem is not None:
             sem.release()
         if got_429:
-            with self._backoff_lock:
-                state = self._backoff_state.get(provider)
-                if state is None:
+            self._mark_backoff(provider)
+
+    def mark_429(self, provider: str) -> None:
+        """标记 provider 触发 429 退避（不释放信号量）。
+
+        用于 ``DataFetcherManager.fetch`` 的 429 路径：信号量已在 ``finally``
+        中释放，此处只需标记退避状态，避免双重释放。
+        """
+        self._mark_backoff(provider)
+
+    def _mark_backoff(self, provider: str) -> None:
+        """内部：更新 _backoff_state 退避计数。"""
+        with self._backoff_lock:
+            state = self._backoff_state.get(provider)
+            if state is None:
+                self._backoff_state[provider] = (time.time(), 1)
+            else:
+                last_time, consecutive = state
+                # 若距上次第 1 次 429 超过窗口，重置计数
+                if time.time() - last_time > self.backoff_window:
                     self._backoff_state[provider] = (time.time(), 1)
                 else:
-                    last_time, consecutive = state
-                    # 若距上次第 1 次 429 超过窗口，重置计数
-                    if time.time() - last_time > self.backoff_window:
-                        self._backoff_state[provider] = (time.time(), 1)
-                    else:
-                        self._backoff_state[provider] = (time.time(), consecutive + 1)
+                    self._backoff_state[provider] = (time.time(), consecutive + 1)
 
     @contextmanager
     def slot(self, provider: str) -> Iterator[None]:

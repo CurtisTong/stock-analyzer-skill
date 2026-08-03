@@ -5,6 +5,12 @@ import threading
 import time
 
 from common import BaseFetcher, plain_code
+from common.exceptions import (
+    HTTPStatusError,
+    NetworkError,
+    ParseError,
+    RateLimitError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +22,9 @@ except ImportError:
     HAS_AKSHARE = False
 
 # 内存缓存：同一次运行内只拉一次全量行情
-_ak_cache = {"df": None, "ts": 0}
+# _loading 标志用于 double-checked locking：锁内只检查缓存有效性，
+# 锁外做网络 IO，避免全市场拉取（数秒）期间阻塞所有并发线程。
+_ak_cache = {"df": None, "ts": 0, "_loading": False}
 _AK_CACHE_TTL = 60  # 秒
 _ak_cache_lock = threading.Lock()
 
@@ -33,20 +41,44 @@ class AkshareQuoteFetcher(BaseFetcher):
         try:
             plain = plain_code(code)
 
-            # 使用内存缓存避免重复拉取全量数据
+            # P1-2: double-checked locking - 锁内只检查缓存，锁外做网络 IO
+            # 第一个发现缓存过期的线程做加载，其他线程发现 _loading=True 时
+            # 返回 None 让 manager 切到下一源，不在此阻塞等待。
+            need_load = False
             with _ak_cache_lock:
                 now = time.time()
-                if _ak_cache["df"] is None or now - _ak_cache["ts"] > _AK_CACHE_TTL:
-                    df = ak.stock_zh_a_spot_em()
-                    if df is None or df.empty:
-                        return None
-                    # P2-15: 以"代码"为索引，避免每次 fetch O(n) 线性扫描
-                    if "代码" in df.columns:
-                        df = df.set_index("代码")
-                    _ak_cache["df"] = df
-                    _ak_cache["ts"] = now
+                cached_df = _ak_cache["df"]
+                if cached_df is not None and (now - _ak_cache["ts"] < _AK_CACHE_TTL):
+                    df = cached_df
+                elif _ak_cache["_loading"]:
+                    # 其他线程正在锁外加载全量行情，本线程不等待，
+                    # 返回 None 让 manager 切换到下一数据源。
+                    return None
                 else:
-                    df = _ak_cache["df"]
+                    _ak_cache["_loading"] = True
+                    need_load = True
+
+            if need_load:
+                try:
+                    # 锁外网络 IO：拉取全市场行情（数千行，耗时数秒）
+                    df = ak.stock_zh_a_spot_em()
+                except Exception:
+                    # 任何异常（含 NetworkError 等可熔断异常）：清除 loading 标志后
+                    # 向上抛，由外层 except 决定是触发熔断还是记录后返回 None。
+                    with _ak_cache_lock:
+                        _ak_cache["_loading"] = False
+                    raise
+                if df is None or df.empty:
+                    with _ak_cache_lock:
+                        _ak_cache["_loading"] = False
+                    return None
+                # P2-15: 以"代码"为索引，避免每次 fetch O(n) 线性扫描
+                if "代码" in df.columns:
+                    df = df.set_index("代码")
+                with _ak_cache_lock:
+                    _ak_cache["df"] = df
+                    _ak_cache["ts"] = time.time()
+                    _ak_cache["_loading"] = False
 
             # O(1) 索引查找（若未索引化则回退线性扫描）
             if df.index.name == "代码":
@@ -80,6 +112,8 @@ class AkshareQuoteFetcher(BaseFetcher):
                 "circulating_cap": str(r.get("流通市值", 0)),
                 "source": "akshare",
             }
+        except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
+            raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
             logger.debug("akshare_quote 获取失败 %s: %s", code, e)
             return None
