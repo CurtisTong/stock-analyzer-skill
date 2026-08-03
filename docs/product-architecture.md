@@ -61,8 +61,8 @@
 │                     stock-analyzer-skill                        │
 ├─────────────────────────────────────────────────────────────────┤
 │  📡 接口层 (13 Skills)                                           │
-│  ├── .claude/skills/ - Claude Code skill 源                    │
-│  └── .agents/skills/ - Codex workspace skill 源                │
+│  ├── .claude/skills/ - Claude Code skill 源（软链 → skills/）  │
+│  └── .codex/skills/  - Codex skill 源（软链 → skills/）       │
 ├─────────────────────────────────────────────────────────────────┤
 │  🧠 业务层 (scripts/business/)                                  │
 │  ├── stock_analysis.py - 个股分析服务                           │

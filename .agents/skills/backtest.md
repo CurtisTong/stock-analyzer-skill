@@ -1,1 +1,0 @@
-/Users/curtis/Documents/curtis/stock-analyzer-skill/skills/backtest/SKILL.md

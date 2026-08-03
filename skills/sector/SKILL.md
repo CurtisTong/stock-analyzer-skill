@@ -3,7 +3,7 @@ name: sector
 description: 板块分析。触发词：XX板块怎么样、行业分析、板块对比、XX行业谁是龙头、板块轮动、看看半导体/新能源/消费/医药板块、这个板块还能不能买、板块内哪些股票好。用于行业全景/核心标的对比/板块内筛选/轮动配置建议。
 version: 1.16.0
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/*) Read(./data/sector_*) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/*) Read(./scripts/data/sector_*) Read(./skills/_shared/references/*.md)
 ---
 
 # Sector Analysis
@@ -50,7 +50,7 @@ allowed-tools: Bash(python3 scripts/*) Read(./data/sector_*) Read(./skills/_shar
 
 ### Step 1: 获取板块数据
 
-根据板块名称，先查包根目录 `data/sector_stocks.json` 和 `data/sector_etf.csv`，再按 `../_shared/references/script-catalog.md` 获取核心标的行情+财务+K 线。脚本支持 `-j` JSON 排序。
+根据板块名称，先查 `scripts/data/sector_stocks.json` 和 `scripts/data/sector_etf.csv`，再按 `../_shared/references/script-catalog.md` 获取核心标的行情+财务+K 线。脚本支持 `-j` JSON 排序。
 
 ### Step 2: 板块分析框架
 

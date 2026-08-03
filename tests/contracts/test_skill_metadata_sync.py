@@ -1,5 +1,5 @@
 """
-SKILL.md 元数据校验：12 个 skill 的 frontmatter 与结构一致性。
+SKILL.md 元数据校验：13 个 skill 的 frontmatter 与结构一致性。
 
 校验项：
   1. frontmatter 必填字段存在（name、description）
@@ -22,9 +22,9 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
 
-# 期望的 12 个 skill（9 核心 + 3 子模块：stock-technical / portfolio-web / portfolio-natural + learn）
+# 期望的 13 个 skill（9 核心 + 3 子模块：stock-technical / portfolio-web / portfolio-natural + learn）
 # 2026-06-17 删除 4 个 deprecated skill（technical / stock-init / financial-analyst / investment-researcher），
-# 现 9 核心 + 3 子模块 + 1 learn + 1 共享
+# 现 9 核心 + 3 子模块 + 1 learn = 13
 EXPECTED_SKILLS = {
     "stock",
     "market",
@@ -84,7 +84,7 @@ def get_skill_files():
 
 
 def test_all_expected_skills_present():
-    """12 个 skill 都存在。"""
+    """13 个 skill 都存在。"""
     actual = {p.parent.name for p in get_skill_files()}
     missing = EXPECTED_SKILLS - actual
     extra = actual - EXPECTED_SKILLS
