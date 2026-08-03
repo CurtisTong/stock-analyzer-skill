@@ -34,6 +34,7 @@
 
 
 
+
 ### Added
 - **technical**: 技术分析模块单元测试（tests/unit/test_technical_indicators.py，28 用例覆盖 H1-H3/M1-M5/L1 回归）
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
@@ -1752,6 +1753,11 @@
 - Merge branch 'fix/skill-schema-cleanup' into main
 
 ### Documentation
+- 优化 CLAUDE.md 修复过时路径 + 提升信息密度
+- 同步 skill schema 单源化改造到技术全景与架构文档
+
+### Documentation
+- 篡减 methodology.md 聚焦投资方法论（876->364 行，-58%）
 - 优化 CLAUDE.md 修复过时路径 + 提升信息密度
 - 同步 skill schema 单源化改造到技术全景与架构文档
 
