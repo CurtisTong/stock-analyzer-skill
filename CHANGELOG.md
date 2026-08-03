@@ -37,6 +37,7 @@
 
 
 
+
 ### Added
 - **technical**: 技术分析模块单元测试（tests/unit/test_technical_indicators.py，28 用例覆盖 H1-H3/M1-M5/L1 回归）
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
@@ -1773,6 +1774,9 @@
 - **fetchers**: 深度审查修复 27 项问题（5 P0 + 7 P1 + 8 P2）
 - **skills**: 清理 skill schema 配置 + git 跟踪遗留 + 路径修正
 - **technical**: 技术模块审查修复 H1-H3/M1-M5/L1-L4 + 单测回归
+
+### Changed
+- **fetchers**: 修复剩余 4 项 P2（基类抽取 + URL 去重 + cb_cache + 装饰器清理）
 
 ## [1.16.0] - 2026-07-28（finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测）
 
