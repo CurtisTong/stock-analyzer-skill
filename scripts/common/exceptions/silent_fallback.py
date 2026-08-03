@@ -1,13 +1,11 @@
 """静默降级异常与日志工具（v1.16.0 Batch 3 P1-2 治理）。
 
 设计动机：项目历史上有 24 处 ``except Exception:`` 静默吞错，导致业务失败被
-替换为默认值或 ``pass``——上游监控/告警完全失明。本模块提供：
+替换为默认值或 ``pass``--上游监控/告警完全失明。本模块提供：
 
-1. ``SilentFallbackError`` — 显式标记"这是已知降级路径"的专用异常类。
-2. ``log_silent_fallback()`` — 在所有吞错位置统一调用的日志函数，
+1. ``SilentFallbackError`` - 显式标记"这是已知降级路径"的专用异常类。
+2. ``log_silent_fallback()`` - 在所有吞错位置统一调用的日志函数，
    输出 ``logger.warning(..., extra={silent: True})``，便于运营 grep。
-3. ``silent_fallback`` 装饰器 — 一键把"返回 None/默认值"的吞错变成可观测的
-   静默降级，调用方一眼能看出这是有意为之而非 bug。
 
 使用约定：
 - LOW 风险位置（合理兜底：atomic write / browser fallback 等）：保留吞错。
@@ -16,9 +14,8 @@
   由调用方显式决策降级或失败。
 """
 
-import functools
 import logging
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -62,43 +59,6 @@ def log_silent_fallback(
     )
 
 
-def silent_fallback(
-    location: str,
-    fallback_reason: str = "known safe degradation",
-    default_value: Any = None,
-):
-    """装饰器：把吞错位置包成"显式静默降级"。
-
-    用法::
-
-        @silent_fallback("dcf.factor.compute_wacc", fallback_reason="WACC 输入不完整视为不可估值")
-        def compute_wacc(...) -> float | None:
-            ...
-
-    装饰器捕获 ``Exception`` 子类，打 WARNING 日志后返回 ``default_value``。
-    调用方一眼可看出"这是有意降级"，便于 grep 出来全面审视。
-    """
-
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:  # noqa: BLE001
-                log_silent_fallback(
-                    location=location,
-                    exception=e,
-                    default_value=default_value,
-                    fallback_reason=fallback_reason,
-                )
-                return default_value
-
-        return wrapper
-
-    return decorator
-
-
 __all__ = [
     "log_silent_fallback",
-    "silent_fallback",
 ]

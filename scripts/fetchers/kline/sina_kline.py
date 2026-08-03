@@ -16,6 +16,12 @@ from common.exceptions import (
     RateLimitError,
 )
 
+# 新浪 K 线接口（与 quote 的 hq.sinajs.cn 不同，走 quotes_service）。
+# 查询参数：
+#   symbol   股票代码（带交易所前缀，如 sh600989）
+#   scale    K 线周期（分钟）：240=日线, 60=60分钟, 30=30分钟, 5=5分钟...
+#   ma=no    不返回均线数据（本项目自行计算 MA）
+#   datalen  返回 K 线根数（上限约 1023，超出返回空）
 SINA_URL = "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol={symbol}&scale={scale}&ma=no&datalen={datalen}"
 
 

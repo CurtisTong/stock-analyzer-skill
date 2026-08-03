@@ -8,11 +8,14 @@ from common import (
     http_get_with_headers,
     decode_gbk,
     plain_code,
+    SINA_QUOTE_URL,
 )
 
 logger = logging.getLogger(__name__)
 
-SINA_URL = "https://hq.sinajs.cn/list={codes}"
+# 新浪行情 URL 统一在 common.parsers 定义（消除 sina_quote 与 parsers 的重复定义），
+# 此处别名为 SINA_URL 仅为减少 fetch() 内引用长度。
+SINA_URL = SINA_QUOTE_URL
 
 
 class SinaQuoteFetcher(BaseFetcher):

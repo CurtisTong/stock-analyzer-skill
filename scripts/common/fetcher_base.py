@@ -50,8 +50,6 @@ NOT_HANDLED = _NotHandled()
 class BaseFetcher(ABC):
     """数据源抽象基类。"""
 
-    _cb_config_cache: dict[str, int] | None = None  # 类级缓存，避免每次实例化读 YAML
-
     def __init__(self, name: str, priority: int = 0, provider: str | None = None):
         self.name = name
         # P2-19: TODO(v2.0) 强制要求子类显式传 provider
@@ -93,26 +91,30 @@ class BaseFetcher(ABC):
         # 默认值与 http_get 内置默认一致，保证未配置时行为不变。
         self.timeout: int = 10
         self.retry: int = 3
-        self.circuit_breaker = get_circuit_breaker(name, **self._load_cb_config())
+        # P2-9: 熔断器配置改为实例级缓存，避免类级共享导致跨子类/测试串味
+        # （原 _cb_config_cache 类变量在首个子类实例化后被所有子类共享，
+        #  且 conftest 的 _reload_config_loader reload 配置后不会重置该缓存）。
+        self._cb_config = self._load_cb_config()
+        self.circuit_breaker = get_circuit_breaker(name, **self._cb_config)
 
-    @classmethod
-    def _load_cb_config(cls) -> dict[str, int]:
-        """从 data_source.yaml 加载熔断器配置（类级缓存）。"""
-        if cls._cb_config_cache is not None:
-            return cls._cb_config_cache
+    def _load_cb_config(self) -> dict[str, int]:
+        """从 data_source.yaml 加载熔断器配置。
+
+        P2-9: 改为实例方法，每个 fetcher 实例独立读取配置，
+        不再使用类级缓存，避免跨子类污染和测试间串味。
+        """
         try:
             from config.loader import ConfigLoader
 
             cb = ConfigLoader.load("data_source.yaml").get("circuit_breaker", {})
-            cls._cb_config_cache = {
+            return {
                 "failure_threshold": cb.get("failure_threshold", 5),
                 "recovery_timeout": cb.get("recovery_timeout", 60),
                 "half_open_max": cb.get("half_open_max", 3),
             }
         except Exception as e:
             logger.debug("加载熔断器配置失败，使用默认值: %s", e)
-            cls._cb_config_cache = {}
-        return cls._cb_config_cache
+            return {}
 
     @abstractmethod
     def fetch(
