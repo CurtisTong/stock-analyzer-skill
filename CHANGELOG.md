@@ -36,6 +36,7 @@
 
 
 
+
 ### Added
 - **technical**: 技术分析模块单元测试（tests/unit/test_technical_indicators.py，28 用例覆盖 H1-H3/M1-M5/L1 回归）
 - **technical**: 止损位破位检测（breakdown 信号 + 报告层警示）
@@ -1763,6 +1764,12 @@
 - 同步 skill schema 单源化改造到技术全景与架构文档
 
 ### Fixed
+- **fetchers**: 深度审查修复 27 项问题（5 P0 + 7 P1 + 8 P2）
+- **skills**: 清理 skill schema 配置 + git 跟踪遗留 + 路径修正
+- **technical**: 技术模块审查修复 H1-H3/M1-M5/L1-L4 + 单测回归
+
+### Fixed
+- **fetchers**: 修复剩余 3 项 P1（PE 口径 + 单位统一 + 测试覆盖）
 - **fetchers**: 深度审查修复 27 项问题（5 P0 + 7 P1 + 8 P2）
 - **skills**: 清理 skill schema 配置 + git 跟踪遗留 + 路径修正
 - **technical**: 技术模块审查修复 H1-H3/M1-M5/L1-L4 + 单测回归
