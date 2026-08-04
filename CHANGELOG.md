@@ -30,7 +30,7 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased]
+## [Unreleased] - 2026-08-04
 
 ### Removed
 
@@ -43,6 +43,21 @@
 - **package.json**: skill 描述从"13 个 skill（9 核心 + 4 变体）"更新为"12 个 skill（8 核心 + 4 变体）"。
 - **.claude/settings.json**: 移除 `Bash(python3 scripts/monitor/alert_engine.py *)` 与 `Bash(python3 scripts/monitor.py *)` 权限规则（顶层 monitor.py 健康检查不需要 Claude 工具调用）。
 
+### Added
+- **scripts**: 新增题材概念板块数据层 concept.py
+- **monitor**: 新增 VWAP 分时均价线、涨幅减仓与均线止损预警
+- **strategies**: 新增容量票与庄股识别因子
+- **strategies**: 新增断板反包战法与打分加权
+- **technical**: 新增竹节法卖点、均线止跌买点与影线占比统计
+
+### Changed
+- **monitor**: 移除 /monitor CLI skill，监控能力下放 portfolio-web
+
+### Testing
+- **e2e**: skill 数量断言 13 -> 12，补 758b1c2 移除 /monitor 的遗漏
+
+### Maintenance
+- **data**: 刷新宏观快照（10Y 国债 2.45% -> 4.69%）
 
 ## [1.16.1] - 2026-08-03（fetchers 深度审查 P0–P2 + 技术审查回归 + skill schema 清洗 + 测试/文档对齐）
 
