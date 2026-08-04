@@ -46,6 +46,12 @@ loss_years_danger: 3
 stop_loss_pct: -8
 take_profit_pct: 20
 
+# 趋势交易策略阈值
+# 固定涨幅减仓预警台阶（百分点，从成本价算起，每达到一档预警一次）
+gain_reduce_steps: [5, 10, 15, 20, 30]
+# 均线止损线：跌破该均线触发预警（MA20 中线 / MA60 长线生命线）
+ma_stop_loss_line: "MA20"
+
 # 容量票识别阈值
 capacity_stock:
   min_cap: 300        # 最小总市值（亿）

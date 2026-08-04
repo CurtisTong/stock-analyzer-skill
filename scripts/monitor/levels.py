@@ -133,6 +133,17 @@ def compute_key_levels(
         if dist_down < 1 and dist_down >= 0:
             levels["near_limit_down"] = True
 
+    # ── 分时均价线 VWAP（盘中做T核心指标）──
+    # VWAP = Σ成交额 / Σ成交量，用1分钟K线累加
+    intraday = data.get("intraday") or []
+    if intraday:
+        total_amt = sum(to_float(b.get("amount", 0)) for b in intraday)
+        total_vol = sum(to_float(b.get("volume", 0)) for b in intraday)
+        if total_vol > 0:
+            vwap = total_amt / total_vol
+            levels["vwap"] = round(vwap, 3)
+            levels["price_vs_vwap"] = round((price - vwap) / vwap * 100, 2)
+
     result["levels"] = levels
 
     # ── 生成预警 ──

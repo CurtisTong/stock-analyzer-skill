@@ -48,4 +48,10 @@ def _fetch_technical_data(code: str, datalen: int = 120) -> dict:
     # 支撑/阻力位
     result["sr"] = support_resistance(closes, highs, lows, result["ma"])
 
+    # 分时数据（1分钟K线，用于VWAP计算），独立 try/except 不阻断主流程
+    try:
+        result["intraday"] = fetch_kline_dicts(code, scale=1, datalen=240)
+    except Exception:
+        result["intraday"] = []
+
     return result

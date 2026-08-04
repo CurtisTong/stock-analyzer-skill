@@ -167,9 +167,18 @@ def check_and_push(dry_run: bool = False, level: str = "important") -> dict:
                 "pushed": False,
             }
 
-            # P2-H5: 持续性信号（MACD 金叉/死叉、均线突破）当日只推送一次，
+            # P2-H5: 持续性信号当日只推送一次，
             # 避免调度间隔 > 去重窗口（15min）时重复推送（edge-triggered）。
-            _PERSISTENT_SIGNALS = {"macd_golden", "macd_dead", "ma_break"}
+            # gain_reduce 不在此列：涨幅台阶变化时应重新推送，靠 throttle 15min 去重即可。
+            # vwap_deviation 不在此列：偏离是持续状态，靠 throttle 限频。
+            _PERSISTENT_SIGNALS = {
+                "macd_golden",
+                "macd_dead",
+                "ma_break",
+                "ma_stop_loss",
+                "vwap_cross_up",
+                "vwap_cross_down",
+            }
             if alert_type in _PERSISTENT_SIGNALS and not _should_notify_signal(
                 code, alert_type
             ):

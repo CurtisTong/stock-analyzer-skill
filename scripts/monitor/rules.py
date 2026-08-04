@@ -19,10 +19,18 @@ try:
     _STOP_LOSS_PCT = -abs(_raw_stop_loss)  # 确保为负数
     _raw_take_profit = ConfigLoader.get("limits.yaml", "take_profit_pct", 20)
     _TAKE_PROFIT_PCT = abs(_raw_take_profit)  # 确保为正数
+    # 固定涨幅减仓台阶（百分点列表，从成本价算起）
+    _GAIN_REDUCE_STEPS = ConfigLoader.get(
+        "limits.yaml", "gain_reduce_steps", [5, 10, 15, 20, 30]
+    )
+    # 均线止损线（跌破该均线触发预警）
+    _MA_STOP_LOSS_LINE = ConfigLoader.get("limits.yaml", "ma_stop_loss_line", "MA20")
 except (FileNotFoundError, yaml.YAMLError) as e:
     logger.warning("加载止损/止盈配置失败，使用默认值: %s", e)
     _STOP_LOSS_PCT = -8
     _TAKE_PROFIT_PCT = 20
+    _GAIN_REDUCE_STEPS = [5, 10, 15, 20, 30]
+    _MA_STOP_LOSS_LINE = "MA20"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -40,7 +48,12 @@ ALERT_LEVELS = {
     "macd_golden": {"level": "important", "push_type": "technical"},
     "macd_dead": {"level": "important", "push_type": "technical"},
     "ma_break": {"level": "important", "push_type": "technical"},
+    "vwap_cross_up": {"level": "important", "push_type": "break"},
+    "vwap_cross_down": {"level": "important", "push_type": "break"},
+    "vwap_deviation": {"level": "normal", "push_type": "price"},
     "take_profit": {"level": "important", "push_type": "portfolio"},
+    "gain_reduce": {"level": "important", "push_type": "portfolio"},
+    "ma_stop_loss": {"level": "urgent", "push_type": "risk"},
     "support_touch_weak": {"level": "normal", "push_type": "break"},
     # v2.4.0 新增：组合/市场级预警
     "risk_change": {"level": "important", "push_type": "portfolio"},
@@ -168,6 +181,43 @@ def _check_alerts(
             }
         )
 
+    # VWAP 分时均价线（做T信号）
+    # 穿越用"价格刚越过 VWAP 且偏离很小"近似（快照式判断，无跨 tick 状态）
+    vwap = levels.get("vwap")
+    if vwap and vwap > 0:
+        dev = levels.get("price_vs_vwap", (price - vwap) / vwap * 100)
+        # 现价上穿分时均价线（买入信号）：价格在均价上方且偏离<0.5%
+        if price > vwap and 0 <= dev < 0.5:
+            alerts.append(
+                {
+                    "type": "vwap_cross_up",
+                    "level": vwap,
+                    "message": f"上穿分时均价线 {vwap:.2f}（偏离{dev:+.2f}%），做T买入信号",
+                    "urgent": False,
+                }
+            )
+        # 现价下穿分时均价线（卖出信号）
+        elif price < vwap and -0.5 < dev <= 0:
+            alerts.append(
+                {
+                    "type": "vwap_cross_down",
+                    "level": vwap,
+                    "message": f"下穿分时均价线 {vwap:.2f}（偏离{dev:+.2f}%），做T卖出信号",
+                    "urgent": False,
+                }
+            )
+        # 偏离均价线提醒（|偏离|≥2%）
+        if abs(dev) >= 2.0:
+            direction = "高于" if dev > 0 else "低于"
+            alerts.append(
+                {
+                    "type": "vwap_deviation",
+                    "level": vwap,
+                    "message": f"现价{direction}分时均价线 {abs(dev):.1f}%，注意均价回归",
+                    "urgent": abs(dev) >= 3.0,
+                }
+            )
+
     # 涨跌停附近
     if levels.get("near_limit_up"):
         alerts.append(
@@ -207,6 +257,37 @@ def _check_alerts(
                         "urgent": False,
                     }
                 )
+
+            # 固定涨幅减仓预警：只报最高已达成台阶（level 字段记录台阶值）
+            # 当日去重由 notifier 的 throttle 机制处理（gain_reduce 不在 _PERSISTENT_SIGNALS 中）
+            if pnl_pct > 0 and isinstance(_GAIN_REDUCE_STEPS, list):
+                # 从高到低遍历，找到最高已达成台阶
+                for step in sorted(_GAIN_REDUCE_STEPS, reverse=True):
+                    if pnl_pct >= step:
+                        alerts.append(
+                            {
+                                "type": "gain_reduce",
+                                "level": float(step),
+                                "message": f"持仓盈利 {pnl_pct:.1f}%，已达 {step}% 减仓线，可考虑减仓",
+                                "urgent": False,
+                            }
+                        )
+                        break
+
+            # 均线止损预警：跌破关键均线（MA20/MA60），2% 以内才报（避免跌远了重复报）
+            ma_values = levels.get("ma_values", {})
+            ma_line = ma_values.get(_MA_STOP_LOSS_LINE)
+            if ma_line and ma_line > 0:
+                if price < ma_line and price > ma_line * 0.98:
+                    alerts.append(
+                        {
+                            "type": "ma_stop_loss",
+                            "level": ma_line,
+                            "source": _MA_STOP_LOSS_LINE,
+                            "message": f"现价 {price} 跌破 {_MA_STOP_LOSS_LINE}({ma_line:.2f})，触及均线止损线",
+                            "urgent": True,
+                        }
+                    )
 
     return alerts
 
