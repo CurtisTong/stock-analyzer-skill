@@ -265,6 +265,15 @@ def get_finance(
         )
         return [], meta
 
+    # 用 akshare 资产负债表增强存货绝对额（INVENTORY）
+    # 东财主源不返回 INVENTORY，akshare 补充；失败时原样返回不阻断
+    try:
+        from fetchers.finance.akshare_balance import enrich_with_balance_sheet
+
+        result = enrich_with_balance_sheet(result, code, periods=periods)
+    except Exception:
+        pass
+
     records = [_dict_to_finance(r) for r in result]
     meta.actual_periods = len(records)
     meta.source = records[0].source if records else ""
@@ -457,6 +466,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
     parent_net_profit = _yi(FIELD_MAP["parent_net_profit"])
     deducted_net_profit = _yi(FIELD_MAP["deducted_net_profit"])
     total_liability = _yi(FIELD_MAP["total_liability"])
+    inventory = _yi(FIELD_MAP["inventory"])  # 存货（元->亿）
     debt_ratio = _maybe_float(FIELD_MAP["debt_ratio"])
 
     # 计算字段：会计恒等式 资产=负债+权益，无需总股本
@@ -530,6 +540,18 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
             if (v := _maybe_float(FIELD_MAP["profit_qoq"])) is None
             else round(v, 2)
         ),
+        # 存货/营运能力
+        inventory_turnover=(
+            None
+            if (v := _maybe_float(FIELD_MAP["inventory_turnover"])) is None
+            else round(v, 4)
+        ),
+        inventory_days=(
+            None
+            if (v := _maybe_float(FIELD_MAP["inventory_days"])) is None
+            else round(v, 1)
+        ),
+        inventory=inventory,
     )
 
 

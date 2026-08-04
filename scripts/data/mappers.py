@@ -132,4 +132,9 @@ FINANCE_FIELD_MAP = {
     ],
     "revenue_qoq": ["DJD_TOI_QOQ", "营收环比", "营业收入环比", "revenue_qoq"],
     "profit_qoq": ["DJD_DPNP_QOQ", "净利环比", "归母净利润环比", "profit_qoq"],
+    # 存货/营运能力（东财主要指标 ZYZBAjaxNew 已返回，原被丢弃）
+    "inventory_turnover": ["CHZZL", "存货周转率", "inventory_turnover"],
+    "inventory_days": ["CHZZTS", "存货周转天数", "inventory_days"],
+    # 存货绝对额（akshare 资产负债表 fetcher 提供，单位元）
+    "inventory": ["INVENTORY", "存货", "inventory"],
 }

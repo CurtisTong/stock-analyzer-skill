@@ -109,6 +109,11 @@ class FinanceRecord:
     deducted_np_yoy: Optional[float] = None  # 扣非净利同比(%)
     revenue_qoq: Optional[float] = None  # 营收季度环比(%)
     profit_qoq: Optional[float] = None  # 净利季度环比(%)
+    # 存货/营运能力（东财主要指标已返回 CHZZL/CHZZTS，原被丢弃）
+    inventory_turnover: Optional[float] = None  # 存货周转率(次)
+    inventory_days: Optional[float] = None  # 存货周转天数(天)
+    # 存货绝对额（akshare 资产负债表 fetcher 提供，亿元）
+    inventory: Optional[float] = None  # 存货(亿)
 
     def to_dict(self) -> dict:
         return asdict(self)
