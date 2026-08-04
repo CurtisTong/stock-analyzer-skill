@@ -7,6 +7,7 @@
 - 美人肩（meirenjian.py）
 - 双针探底（shuangzhen.py）
 - 涨停双响炮（zhangting.py）
+- 断板反包（duanban.py）
 - 底部首板（dibu_shouban.py）
 - MA + 成交量组合策略（ma_volume_strategy.py）
 - 本土战法顶层编排（detect_all_local_patterns）
@@ -24,6 +25,7 @@ from .laoyatou import detect_laoyatou
 from .meirenjian import detect_meirenjian
 from .shuangzhen import detect_shuangzhen
 from .zhangting import detect_zhangting
+from .duanban import detect_duanban
 from .dibu_shouban import detect_dibu_shouban
 
 __all__ = [
@@ -36,6 +38,7 @@ __all__ = [
     "detect_meirenjian",
     "detect_shuangzhen",
     "detect_zhangting",
+    "detect_duanban",
     "detect_dibu_shouban",
     "detect_all_local_patterns",
 ]
@@ -91,6 +94,9 @@ def detect_all_local_patterns(inp: PatternInput):
 
     # 涨停双响炮
     all_patterns.extend(detect_zhangting(records, closes, volumes, code))
+
+    # 断板反包
+    all_patterns.extend(detect_duanban(records, closes, highs, lows, volumes, code))
 
     # 底部首板
     all_patterns.extend(

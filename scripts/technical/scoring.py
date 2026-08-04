@@ -449,6 +449,15 @@ def _score_local(local_patterns_data: dict) -> float:
             bonus = -5 if vol_ratio >= 1.5 else -3
         elif pname == "涨停双响炮":
             bonus = 7
+        elif pname == "断板反包":
+            # 涨停->断板回调->再涨停反包，强势延续信号
+            bonus = 7
+            # 放量反包加分（量价配合确认有效）
+            if metrics.get("vol_expansion"):
+                bonus += 2
+            # 反包创新高加分（突破确认）
+            if metrics.get("breakout_new_high"):
+                bonus += 1
         elif pname == "底部首板":
             bonus = 6
         elif pname == "双针探底":
