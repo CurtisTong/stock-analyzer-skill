@@ -178,13 +178,73 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     # ── 返回指标建议 ──
     indicator_map = TYPE_INDICATOR_MAP.get(stock_type, TYPE_INDICATOR_MAP["普通股"])
 
-    return {
+    result = {
         "type": stock_type,
         "confidence": confidence,
         "reasons": reasons,
         "priority_indicators": indicator_map["priority"],
         "deprioritized": indicator_map["deprioritized"],
     }
+
+    # ── 附加交易特征标签（不参与分类链，独立特征识别）──
+    # 容量票 + 庄股识别（基于行情+K线，不影响主分类）
+    _code = quote_record.get("code", "") if quote_record else ""
+    _attach_feature_tags(result, quote_record, kline_records, _code)
+
+    return result
+
+
+def _attach_feature_tags(result, quote_record, kline_records, code):
+    """附加容量票/庄股特征标签（容错，失败不影响主分类）。"""
+    if not quote_record or not kline_records:
+        result["capacity"] = None
+        result["dealer"] = None
+        return
+
+    # 从 kline_records 提取价格序列（兼容 KlineBar 对象和 dict）
+    closes, highs, lows, records = [], [], [], []
+    for b in kline_records:
+        if hasattr(b, "close"):
+            # KlineBar 对象
+            c = b.close
+            o = b.open
+            h = b.high
+            low = b.low
+            v = b.volume
+            day = getattr(b, "day", "")
+        else:
+            # dict
+            c = to_float(b.get("close"))
+            o = to_float(b.get("open"))
+            h = to_float(b.get("high"))
+            low = to_float(b.get("low"))
+            v = to_float(b.get("volume"))
+            day = b.get("day", "")
+        if c > 0 and v > 0:
+            closes.append(c)
+            highs.append(h)
+            lows.append(low)
+            records.append(
+                {"day": day, "open": o, "high": h, "low": low, "close": c, "volume": v}
+            )
+
+    # 容量票识别
+    try:
+        from strategies.factors.capacity import detect_capacity_stock
+
+        result["capacity"] = detect_capacity_stock(quote_record, closes, highs, lows)
+    except Exception:
+        result["capacity"] = None
+
+    # 庄股识别（需要网络请求 compute_beta，容错处理）
+    try:
+        from strategies.factors.dealer import detect_dealer_stock
+
+        result["dealer"] = detect_dealer_stock(
+            code, quote_record, records, closes, highs, lows
+        )
+    except Exception:
+        result["dealer"] = None
 
 
 # ── 行业推断 ──
