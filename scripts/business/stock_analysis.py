@@ -213,6 +213,8 @@ def _analyze_technical(kline: list) -> dict:
     """技术分析（接收 KlineBar 对象列表）。"""
     from technical.pipeline import compute_indicators
     from technical import ma_system, kdj_full, bollinger, detect_candle_patterns
+    from technical.bamboo import bamboo_node
+    from technical.ma_stop import ma_stop_buy
 
     indicators = compute_indicators(kline)
     # M3 修复：与 technical.pipeline.compute_indicators 同口径过滤（close/volume > 0），
@@ -242,6 +244,10 @@ def _analyze_technical(kline: list) -> dict:
 
     patterns = detect_candle_patterns([b.to_dict() for b in valid_kline])
     result["patterns"] = patterns[:5] if patterns else []
+
+    # 竹节法卖点 + 均线止跌买点（与 technical.py 完整路径口径一致）
+    result["bamboo"] = bamboo_node(highs, lows, closes) or {}
+    result["ma_stop_buy"] = ma_stop_buy(closes, highs, lows, ma) or {}
 
     return result
 
@@ -332,6 +338,8 @@ def _calculate_composite_score(
         "rsi": {"rsi": tech.get("rsi", 50)},
         "volume": {"volume_price_signal": tech.get("volume_signal", 0)},
         "patterns": tech.get("patterns", []),
+        "bamboo": tech.get("bamboo") or {},
+        "ma_stop_buy": tech.get("ma_stop_buy") or {},
     }
 
     # 估值数据注入（反追涨杀跌）

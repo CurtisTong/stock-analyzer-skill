@@ -45,6 +45,8 @@ from technical.trend import (
     wave_state,
 )
 from technical.astock import limit_analysis
+from technical.bamboo import bamboo_node
+from technical.ma_stop import ma_stop_buy
 from technical.scoring import (
     composite_score,
     detect_market_environment,
@@ -102,6 +104,10 @@ def _compute_all(inp: TechnicalInput):
     )
     features["wave"] = wave_state(closes, highs, lows)
     features["limit_analysis"] = limit_analysis(records, board, quote)
+    features["bamboo"] = bamboo_node(highs, lows, closes) or {}
+    features["ma_stop_buy"] = (
+        ma_stop_buy(closes, highs, lows, features["ma_system"]) or {}
+    )
 
     # ── 可选增强模块（--classify 时启用）──
     do_classify = args and getattr(args, "classify", False)
@@ -345,6 +351,8 @@ def main():
             "breakout",
             "wave",
             "limit_analysis",
+            "bamboo",
+            "ma_stop_buy",
             "stop_loss_pct",
             "breakdown",
         }

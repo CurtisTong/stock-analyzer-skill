@@ -123,6 +123,10 @@ def _generate_signals(features, market_breadth=None):
     # 连续缩量信号（作手新一建议）
     if shrink_signal == 1 and "连续缩量" in shrink_desc:
         buy.append("连续缩量(抛压减轻)")
+    # 均线止跌买点（第二类买点：不再新低+站上5日线 / 回踩20日线不破）
+    ma_stop = features.get("ma_stop_buy") or {}
+    if ma_stop.get("signal") == 1:
+        buy.append(f"均线止跌({ma_stop.get('type')})")
 
     # 趋势警告：当存在出货信号时，超卖信号不可靠
     if is_downtrend and (
@@ -184,6 +188,12 @@ def _generate_signals(features, market_breadth=None):
         sell.append(f"RSI超买({rsi_data.get('rsi')})")
     if vol_vp == -1 and "出货" in vol_price:
         sell.append("放量下跌(主力出货)")
+    # 竹节法卖点（最高价未新高->减仓 / 最低价创新低->清仓）
+    bamboo = features.get("bamboo") or {}
+    if bamboo.get("signal", 0) == -2:
+        sell.append("竹节转势(清仓信号)")
+    elif bamboo.get("signal", 0) == -1:
+        sell.append("竹节走弱(减仓信号)")
 
     # P1-16: 结构化信号（与字符串信号并行输出，供程序化消费）
     # 消费者可逐步从字符串子串判断迁移到结构化字段
@@ -203,6 +213,9 @@ def _generate_signals(features, market_breadth=None):
         "volume_inflow": vol_vp == 1 and "放量上涨" in vol_price,
         "volume_outflow": vol_vp == -1 and "出货" in vol_price,
         "is_downtrend": is_downtrend,
+        "ma_stop_buy": (features.get("ma_stop_buy") or {}).get("signal", 0) == 1,
+        "bamboo_weak": (features.get("bamboo") or {}).get("signal", 0) == -1,
+        "bamboo_reversal": (features.get("bamboo") or {}).get("signal", 0) == -2,
     }
 
     return buy, sell, structured
