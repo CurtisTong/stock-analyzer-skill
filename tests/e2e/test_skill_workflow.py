@@ -62,12 +62,12 @@ def test_script_help_exit_zero(script):
 
 
 def test_skill_count_matches():
-    """确认 skill 目录数量 = 13（不含 _shared）。"""
+    """确认 skill 目录数量 = 12（不含 _shared）。"""
     skills_dir = PROJECT_ROOT / "skills"
     skill_dirs = [d for d in skills_dir.iterdir() if d.is_dir() and d.name != "_shared"]
     assert (
-        len(skill_dirs) == 13
-    ), f"期望 13 个 skill，实际 {len(skill_dirs)}: {[d.name for d in skill_dirs]}"
+        len(skill_dirs) == 12
+    ), f"期望 12 个 skill，实际 {len(skill_dirs)}: {[d.name for d in skill_dirs]}"
 
 
 # ═══════════════════════════════════════════════════════════════
