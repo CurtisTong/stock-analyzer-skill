@@ -113,7 +113,7 @@ register_factor(
     "cyclical",
     compute_fn=cyclical_score,
     phase=1,
-    args_style="fin_quote_features_industry",
+    args_style="fin_quote_features_industry_code",
     label="周期",
     default_weight=0.0,  # 默认 0，策略按需配置权重
 )

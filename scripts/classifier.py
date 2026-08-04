@@ -406,8 +406,26 @@ def infer_industry(name: str, code: str = "", fetcher_industry: str = "") -> str
             "水泥",
             "稀土",
             "锂",
+            "宝钢",
+            "鞍钢",
+            "首钢",
+            "马钢",
+            "化学",
+            "聚氨酯",
+            "钛白",
         ]
     ):
+        # 周期细分子类：先按主营金属/品种细分，无法细分则回退粗类"周期"。
+        # 原先一律返回"周期"，导致 _INDUSTRY_RAW_MATERIAL 仅命中"周期"->rebar，
+        # 铝企（云铝股份）误用螺纹钢价做成本代理。细分后铝/铜/钢/化工可各自映射原料。
+        if any(kw in name for kw in ["铝"]):
+            return "铝"
+        if any(kw in name for kw in ["铜"]):
+            return "铜"
+        if any(kw in name for kw in ["钢铁", "钢", "宝钢", "鞍钢", "首钢", "马钢"]):
+            return "钢铁"
+        if any(kw in name for kw in ["化工", "化学", "化纤", "聚氨酯", "钛白"]):
+            return "基础化工"
         return "周期"
     # 制造
     if any(

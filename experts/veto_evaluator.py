@@ -249,7 +249,8 @@ def _check_cycle_position(stock_data: dict) -> ConditionResult:
         quote = _get_quote(stock_data)
         # 行业推断：优先用 stock_data["industry"]，否则默认
         industry = stock_data.get("industry", "默认")
-        position = get_cycle_position(fin, quote, industry)
+        code = stock_data.get("code", "")
+        position = get_cycle_position(fin, quote, industry, code)
     except Exception as e:
         logger.debug("周期位置评估失败: %s", e)
         return ConditionResult(evaluable=False, detail=f"周期评估失败: {e}")

@@ -1,0 +1,22 @@
+{
+  "_note": "周期股主营产品映射（兜底）。infer_industry 名字关键词匹配为主路径，本表为补充：名字无法判断品种时按 code 查此表。value 为 macro_indicators 中的 material_key（aluminum/copper/rebar/polyethylene/polypropylene/coal/lithium）。手工维护，新增周期股时按需补充。",
+  "sz000807": "aluminum",
+  "sh601600": "aluminum",
+  "sh601877": "aluminum",
+  "sh600219": "aluminum",
+  "sh000877": "aluminum",
+  "sh600362": "copper",
+  "sh600259": "copper",
+  "sh601899": "copper",
+  "sh600547": "copper",
+  "sh600019": "rebar",
+  "sh600010": "rebar",
+  "sh000709": "rebar",
+  "sh600585": "coal",
+  "sh601225": "coal",
+  "sh601088": "coal",
+  "sh600989": "coal",
+  "sh600803": "polyethylene",
+  "sh600309": "polyethylene",
+  "sh002493": "polypropylene"
+}

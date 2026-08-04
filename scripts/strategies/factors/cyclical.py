@@ -9,37 +9,45 @@
 返回 0-100 分（越高=周期位置越安全/越偏底部）。
 
 数据源：
-- macro_indicators.fetch_coal/polyethylene/rebar 等（fixture-only）
+- macro_indicators.fetch_aluminum/copper/rebar/... 等（akshare 实时 + fixture 兜底，含近 1 年分位）
 - industry_thresholds.json 周期行业阈值
 - 财务数据的多期 ROE 趋势（如有）
+- scripts/data/product_mapping.json 主营产品映射（兜底，按 code 查）
 """
 
+import json
 import logging
+from pathlib import Path
 
 from common import to_float, clamp
 from strategies.thresholds import get_industry_threshold
 
 logger = logging.getLogger(__name__)
 
-
-# 周期类行业集合（industry_thresholds.json 中有周期性标注的行业）
+# 周期类行业集合（含细分桶：铝/铜/钢铁/基础化工，由 infer_industry 细分产出）
 _CYCLICAL_INDUSTRIES = {
     "周期",
     "能源",
     "钢铁",
     "基础化工",
     "有色金属",
+    "铝",
+    "铜",
     "农林牧渔",
     "建筑材料",
 }
 
 # 行业 -> 主要原料映射（用于成本维度）
+# 细分桶（铝/铜/钢铁/基础化工）由 infer_industry v2.5.x 细分产出；
+# 粗类"有色金属"/"周期"为回退（历史兼容，名字无法细分时命中）
 _INDUSTRY_RAW_MATERIAL = {
     "钢铁": "rebar",
     "基础化工": "polyethylene",
     "能源": "coal",
     "有色金属": "copper",
     "周期": "rebar",  # 默认用螺纹钢
+    "铝": "aluminum",
+    "铜": "copper",
 }
 
 # 原料 -> fetcher 函数名映射（延迟导入避免循环依赖）
@@ -50,7 +58,44 @@ _RAW_MATERIAL_FETCHERS = {
     "rebar": "fetch_rebar",
     "copper": "fetch_copper",
     "aluminum": "fetch_aluminum",
+    "lithium": "fetch_lithium",
 }
+
+# 成本维度分位阈值（近 1 年价格分位）
+_COST_PCT_HIGH = 80  # >=80 分位 -> 原料高位（周期顶部信号）
+_COST_PCT_LOW = 20  # <=20 分位 -> 原料低位（周期底部信号）
+
+# per-stock 主营产品映射（兜底）
+_PRODUCT_MAPPING_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "product_mapping.json"
+)
+_PRODUCT_MAPPING: dict | None = None
+
+
+def _load_product_mapping() -> dict:
+    """加载 product_mapping.json（缓存）。失败返回空 dict。"""
+    global _PRODUCT_MAPPING
+    if _PRODUCT_MAPPING is not None:
+        return _PRODUCT_MAPPING
+    try:
+        with open(_PRODUCT_MAPPING_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        # 过滤掉 _note 等非映射字段
+        _PRODUCT_MAPPING = {k: v for k, v in data.items() if not k.startswith("_")}
+    except Exception as e:
+        logger.debug("加载 product_mapping.json 失败: %s", e)
+        _PRODUCT_MAPPING = {}
+    return _PRODUCT_MAPPING
+
+
+def _resolve_material(industry: str, code: str = "") -> str | None:
+    """解析原料品种：优先 product_mapping.json（按 code），无则按 industry 映射。"""
+    code_norm = code.lower().strip() if code else ""
+    if code_norm:
+        mapped = _load_product_mapping().get(code_norm)
+        if mapped:
+            return mapped
+    return _INDUSTRY_RAW_MATERIAL.get(industry)
 
 
 def _is_cyclical(industry: str) -> bool:
@@ -167,13 +212,16 @@ def _supply_dimension(fin: dict, industry: str) -> dict:
     return {"position": "mid", "evaluable": True, "detail": "ROE趋势中性"}
 
 
-def _cost_dimension(industry: str) -> dict:
-    """成本维度：主要原料价格走势。
+def _cost_dimension(industry: str, code: str = "") -> dict:
+    """成本维度：主要原料价格走势 + 历史分位。
 
-    使用 macro_indicators 获取原料价格（fixture-only）。
-    无历史序列时无法判断分位，返回中性。
+    优先按 code 查 product_mapping.json，无则按 industry 映射原料品种。
+    利用 macro_indicators 返回的近 1 年分位（percentile）判断原料价格位置：
+      - 高分位（>=80）-> 原料高位，周期顶部信号
+      - 低分位（<=20）-> 原料低位，周期底部信号
+    无分位时返回中性（数据存在但无法定位）。
     """
-    material_key = _INDUSTRY_RAW_MATERIAL.get(industry)
+    material_key = _resolve_material(industry, code)
     if not material_key:
         return {"position": "mid", "evaluable": False, "detail": "无原料映射"}
 
@@ -185,12 +233,35 @@ def _cost_dimension(industry: str) -> dict:
             "detail": f"{material_key}价格缺失",
         }
 
-    # fixture-only 模式下无历史序列，无法判断分位
-    # 但价格存在即说明数据可用，返回中性（Phase 3 后续可扩展历史序列）
+    value = price_data.get("value", "N/A")
+    pct = price_data.get("percentile")
+    src = price_data.get("source", "")
+
+    # 无分位：价格可用但无法定位周期位置
+    if pct is None:
+        return {
+            "position": "mid",
+            "evaluable": True,
+            "detail": f"{material_key}={value}(无分位,{src})",
+        }
+
+    # 有分位：产出 high/low 信号
+    if pct >= _COST_PCT_HIGH:
+        return {
+            "position": "high",
+            "evaluable": True,
+            "detail": f"{material_key}={value} 分位{pct:.0f}%(原料高位/周期顶部)",
+        }
+    if pct <= _COST_PCT_LOW:
+        return {
+            "position": "low",
+            "evaluable": True,
+            "detail": f"{material_key}={value} 分位{pct:.0f}%(原料低位/周期底部)",
+        }
     return {
         "position": "mid",
         "evaluable": True,
-        "detail": f"{material_key}={price_data.get('value', 'N/A')}(无历史分位)",
+        "detail": f"{material_key}={value} 分位{pct:.0f}%(中性,{src})",
     }
 
 
@@ -199,7 +270,9 @@ def _cost_dimension(industry: str) -> dict:
 # ═══════════════════════════════════════════════════════════════
 
 
-def cyclical_score(fin: dict, quote: dict, features: dict, industry: str) -> float:
+def cyclical_score(
+    fin: dict, quote: dict, features: dict, industry: str, code: str = ""
+) -> float:
     """周期因子评分（三维度周期位置矩阵）。
 
     Args:
@@ -207,6 +280,7 @@ def cyclical_score(fin: dict, quote: dict, features: dict, industry: str) -> flo
         quote: 行情数据 dict（含 pe/pb）
         features: K线特征 dict（未使用，保持接口一致）
         industry: 行业类型
+        code: 股票代码（用于 product_mapping.json 兜底查主营产品）
 
     Returns:
         0-100 分。越高=周期位置越安全（偏底部），越低=周期顶部风险高。
@@ -218,7 +292,7 @@ def cyclical_score(fin: dict, quote: dict, features: dict, industry: str) -> flo
     # 三维度评估
     price_dim = _price_dimension(fin, quote, industry)
     supply_dim = _supply_dimension(fin, industry)
-    cost_dim = _cost_dimension(industry)
+    cost_dim = _cost_dimension(industry, code)
 
     # 统计高位信号数（仅可评估维度）
     evaluable_dims = [d for d in [price_dim, supply_dim, cost_dim] if d["evaluable"]]
@@ -255,8 +329,11 @@ def cyclical_score(fin: dict, quote: dict, features: dict, industry: str) -> flo
     return clamp(base_score)
 
 
-def get_cycle_position(fin: dict, quote: dict, industry: str) -> str:
+def get_cycle_position(fin: dict, quote: dict, industry: str, code: str = "") -> str:
     """获取周期位置标签（供 veto_evaluator 和 DCF 情景使用）。
+
+    Args:
+        code: 股票代码（用于 product_mapping.json 兜底查主营产品）
 
     Returns:
         "high"（周期顶部）/ "mid"（中性）/ "low"（周期底部）/ "unknown"
@@ -266,7 +343,7 @@ def get_cycle_position(fin: dict, quote: dict, industry: str) -> str:
 
     price_dim = _price_dimension(fin, quote, industry)
     supply_dim = _supply_dimension(fin, industry)
-    cost_dim = _cost_dimension(industry)
+    cost_dim = _cost_dimension(industry, code)
 
     evaluable_dims = [d for d in [price_dim, supply_dim, cost_dim] if d["evaluable"]]
     if not evaluable_dims:

@@ -962,7 +962,8 @@ class TestInferIndustry:
         assert infer_industry("万科地产") == "地产"
 
     def test_cycle_industry(self):
-        assert infer_industry("宝钢钢铁") == "周期"
+        # 周期细分子类：钢企归"钢铁"桶（v2.5.x 起 infer_industry 对周期股细分铝/铜/钢/化工）
+        assert infer_industry("宝钢钢铁") == "钢铁"
 
     def test_manufacturing_industry(self):
         assert infer_industry("比亚迪汽车制造") == "制造"

@@ -48,6 +48,9 @@ class ArgsStyle(str, Enum):
     FIN_QUOTE_FEATURES_INDUSTRY = (
         "fin_quote_features_industry"  # (fin, quote, features, industry)
     )
+    FIN_QUOTE_FEATURES_INDUSTRY_CODE = (
+        "fin_quote_features_industry_code"  # (fin, quote, features, industry, code)
+    )
 
 
 class FactorDescriptor:
@@ -182,6 +185,14 @@ def _build_kwargs(
         return {"code": code}
     if style == ArgsStyle.FIN_QUOTE_FEATURES_INDUSTRY:
         return {"fin": fin, "quote": quote, "features": features, "industry": industry}
+    if style == ArgsStyle.FIN_QUOTE_FEATURES_INDUSTRY_CODE:
+        return {
+            "fin": fin,
+            "quote": quote,
+            "features": features,
+            "industry": industry,
+            "code": code,
+        }
     return {}
 
 
