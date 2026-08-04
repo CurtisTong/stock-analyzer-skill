@@ -40,7 +40,6 @@ disable-model-invocation: false
 
 | 你的目标                      | 命令       | 会得到什么                           |
 | ----------------------------- | ---------- | ------------------------------------ |
-| 📡 盘中盯盘（异动/预警/推送） | `/monitor` | 持仓异动 + 价格预警 + Bark/企微/钉钉 |
 | 📚 学投资基础（PE/ROE/MACD）  | `/learn`   | 系统化学习路径，从概念到策略         |
 
 ## 🚀 第一次使用
@@ -63,9 +62,9 @@ disable-model-invocation: false
 4. **选几只股票**：`/screener` → 了解多因子选股
 5. **学投资知识**：`/learn` → 系统化学习路径
 
-## 13 个 Skill 一句话速查
+## 12 个 Skill 一句话速查
 
-### 核心 9 个
+### 核心 8 个
 
 | Skill        | 命令                                             | 用途                                  |
 | ------------ | ------------------------------------------------ | ------------------------------------- |
@@ -76,7 +75,6 @@ disable-model-invocation: false
 | `/screener`  | `[--sector 板块] [--strategy 策略]`              | 6 策略 × 6 因子批量选股 + 股票池 init |
 | `/research`  | `[financial\|report] <任务>`                     | 财务建模 / 全维度研究报告             |
 | `/backtest`  | `[--strategy 策略] [--all]`                      | 策略历史胜率 + 收益 + 夏普 + 回撤     |
-| `/monitor`   | `[scan\|levels\|check\|--cache]`                 | 盘中异动 + 价格预警 + 推送            |
 | `/learn`     | `[basics\|valuation\|technical\|strategy\|risk]` | 系统化投资学习路径                    |
 
 ### 变体 4 个
@@ -131,7 +129,7 @@ disable-model-invocation: false
 
 ## 共享约定
 
-- 13 个 skill = 9 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
+- 12 个 skill = 8 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
 - 所有分析仅供参考，不构成投资建议
 - 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（28 个，熔断器自动故障转移）
 
@@ -144,7 +142,6 @@ disable-model-invocation: false
 | `/sector`          | `overview`（默认）/ `compare` / `stock`                                   | compare=标的横向对比；stock=板块内个股深挖                             |
 | `/portfolio`       | `health`（默认）/ `rebalance` / `compare` / `web`                         | rebalance=按 workflow 联动；web=本地录入服务                           |
 | `/screener`        | `--strategy` 6 选 1 / `init` 子命令                                       | balanced / quality_value / growth_momentum / defensive / turning_point / ma_volume_momentum |
-| `/monitor`         | `start` / `stop` / `status` / `scan` / `levels` / `check`                 | scan/levels/check=关键点位；check 支持 `--dry-run`                     |
 | `/backtest`        | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark`           | --all=6 策略横评；--benchmark=对比基准指数                             |
 | `/research`        | `financial <任务>` / `report <任务>`                                      | financial=财务建模；report=全维度研究报告                              |
 | `/learn`           | `basics` / `valuation` / `technical` / `strategy` / `risk`                | 5 个 Level 主题                                                        |

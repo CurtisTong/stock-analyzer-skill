@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 13 个 skill（9 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/monitor`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
 
 **已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 WP1–WP6 改造（详见「关键抽象」段）。
 
@@ -34,9 +34,7 @@ python3 scripts/chan.py sh600989
 python3 scripts/classifier.py sh600989
 python3 scripts/backtest.py sh600989
 python3 scripts/strategies/patterns/ma_volume_strategy.py sh600989  # MA+成交量组合策略
-python3 scripts/monitor/strategy_signals.py sh600989 sh600519       # 策略信号监控
-python3 scripts/monitor.py
-python3 scripts/monitor/alert_engine.py scan/levels/check/briefing
+python3 scripts/monitor.py                                         # 数据源健康检查 + 缓存管理
 python3 scripts/init_pool.py
 python3 scripts/init_pool.py --default  # 离线模式
 python3 scripts/refresh_pool.py
@@ -103,7 +101,6 @@ scripts/
 | `/portfolio-web`     | Web 录入服务（HTTP API）                     | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/portfolio-natural` | 自然语言 → 命令映射（NL → API）              | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/screener`          | 6 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |
-| `/monitor`           | 盘中异动 + 策略关键点位 + 多通道推送         | `scripts/monitor.py` + `scripts/monitor/alert_engine.py`                              |                                        |
 | `/backtest`          | 策略历史回测（11 项指标 + 6 策略对比）       | `scripts/backtest.py` + `scripts/strategy_performance.py`                             |                                        |
 | `/research`          | 财务建模 / 排雷 / DCF / 全维度研究报告       | `scripts/stock.py --with-backtest` + `scripts/announcements.py` + `scripts/events.py` |                                        |
 | `/learn`             | 学习助手（PE/ROE/MACD/K 线/缠论/新手入门）   | 无脚本调用                                                                            | 纯教学                                 |
@@ -159,7 +156,7 @@ scripts/
 ### Git
 
 - Commit: Conventional Commits，中文主题（≤50 字），动词开头，无尾句号
-- Scope 值: `stock`, `market`, `sector`, `portfolio`, `screener`, `monitor`, `backtest`, `research`, `technical`, `experts`, `scripts`, `data`, `docs`, `ci`, `deps`
+- Scope 值: `stock`, `market`, `sector`, `portfolio`, `screener`, `backtest`, `research`, `technical`, `experts`, `scripts`, `data`, `docs`, `ci`, `deps`
 - 分支: `<type>/<short-desc>`（小写英文 + 连字符），如 `feat/stock-debate-mode`
 - 版本: SemVer
 

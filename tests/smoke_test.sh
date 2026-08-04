@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 端到端冒烟测试：7 个脚本 + 3 个 API 端点 + 13 个 skill + symlink + portfolio_web Bearer
+# 端到端冒烟测试：7 个脚本 + 3 个 API 端点 + 12 个 skill + symlink + portfolio_web Bearer
 set -e
 
 PKG_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -138,8 +138,8 @@ else
   ko "hot_rank.py --top 5 异常: $output"
 fi
 
-echo "==> 4. 13 个本地 skill 定义"
-for s in stock market sector portfolio screener monitor backtest stock-help learn research portfolio-natural portfolio-web stock-technical; do
+echo "==> 4. 12 个本地 skill 定义"
+for s in stock market sector portfolio screener backtest stock-help learn research portfolio-natural portfolio-web stock-technical; do
   # skills/ 是源代码，.claude/skills/ 是 install.sh 创建的项目级 symlink
   if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ] && grep -q "^---$" "$PKG_ROOT/skills/$s/SKILL.md"; then
     ok "skills/$s 含 frontmatter"
@@ -156,21 +156,21 @@ done
 echo "==> 4.1 SKILL.md 版本一致性（package.json 主版本）"
 EXPECTED_VERSION=$(cd "$PKG_ROOT" && node -p "require('./package.json').version")
 VERSION_COUNT=0
-for s in stock market sector portfolio screener monitor backtest stock-help learn portfolio-natural portfolio-web research stock-technical; do
+for s in stock market sector portfolio screener backtest stock-help learn portfolio-natural portfolio-web research stock-technical; do
   if [ -f "$PKG_ROOT/skills/$s/SKILL.md" ]; then
     if grep -q "^version: $EXPECTED_VERSION" "$PKG_ROOT/skills/$s/SKILL.md"; then
       VERSION_COUNT=$((VERSION_COUNT+1))
     fi
   fi
 done
-if [ $VERSION_COUNT -eq 13 ]; then
-  ok "13 个 SKILL.md 版本一致（全部 v$EXPECTED_VERSION）"
+if [ $VERSION_COUNT -eq 12 ]; then
+  ok "12 个 SKILL.md 版本一致（全部 v$EXPECTED_VERSION）"
 else
-  ko "版本不一致: 仅 $VERSION_COUNT/13 (期望 v$EXPECTED_VERSION)"
+  ko "版本不一致: 仅 $VERSION_COUNT/12 (期望 v$EXPECTED_VERSION)"
 fi
 
 echo "==> 5. symlink 已注册（未安装时可失败）"
-for s in stock market sector portfolio screener monitor backtest stock-help learn research; do
+for s in stock market sector portfolio screener backtest stock-help learn research; do
   if [ -L "$GLOBAL_NS/$s" ] && [ -e "$GLOBAL_NS/$s" ]; then
     ok "$s 链接有效"
   else
@@ -179,7 +179,7 @@ for s in stock market sector portfolio screener monitor backtest stock-help lear
 done
 
 echo "==> 6. SKILL.md 内容含核心说明"
-for s in stock market sector portfolio screener monitor backtest stock-help learn research; do
+for s in stock market sector portfolio screener backtest stock-help learn research; do
   if grep -qE "Usage|使用方式|scripts/" "$CLAUDE_SKILLS/$s/SKILL.md"; then
     ok "$s/SKILL.md 含 Usage/使用方式"
   else

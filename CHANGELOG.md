@@ -30,6 +30,19 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased]
+
+### Removed
+
+- **monitor skill**: 移除 `/monitor` CLI skill。监控能力已迁移至 `/portfolio-web`（`/api/monitor` HTTP 端点 + 后台守护线程）。保留的内部模块（`scripts/monitor/channels/`、`manager.py`、`levels.py`、`notifier.py`、`rules.py`）继续供 portfolio-web 复用，外部行为完全兼容。数据源健康检查保留为 `python3 scripts/monitor.py --cache/--sources/--cleanup`（顶层工具，不属于 skill）。SKILL.md 数量 13 → 12。
+
+### Changed
+
+- **tests**: `tests/contracts/test_skill_metadata_sync.py::EXPECTED_SKILLS` 移除 `monitor`，`tests/smoke_test.sh` 与 `tests/integration/test_install.sh` 的 skill 列表同步从 13 → 12。
+- **docs**: `CLAUDE.md`、`README.md`、`skills/_shared/references/{script-catalog,alert-thresholds}.md`、`skills/_shared/contracts/README.md`、`skills/{market,stock-help}/SKILL.md`、`skills/stock-help/references/skill-catalog.md`、`skills/portfolio/SKILL.md` 移除 `/monitor` 引用并改写相关文案，指向 `/portfolio-web`。
+- **package.json**: skill 描述从"13 个 skill（9 核心 + 4 变体）"更新为"12 个 skill（8 核心 + 4 变体）"。
+- **.claude/settings.json**: 移除 `Bash(python3 scripts/monitor/alert_engine.py *)` 与 `Bash(python3 scripts/monitor.py *)` 权限规则（顶层 monitor.py 健康检查不需要 Claude 工具调用）。
+
 
 ## [1.16.1] - 2026-08-03（fetchers 深度审查 P0–P2 + 技术审查回归 + skill schema 清洗 + 测试/文档对齐）
 

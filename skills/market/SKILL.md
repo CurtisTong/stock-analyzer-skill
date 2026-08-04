@@ -3,7 +3,7 @@ name: market
 description: 大盘复盘。触发词：今天大盘怎么样、市场今天如何、行情怎么样、今天涨跌、大盘分析、市场复盘、今日行情、美股昨晚怎么样。用于市场快评/完整复盘/盘中分时、指数/板块ETF/风格轮动/资金偏好判断、美股收盘参考。
 version: 1.16.1
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/monitor/alert_engine.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
 ---
 
 # Market Review
@@ -21,7 +21,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - `intraday`：分时复盘，大盘+关键标的5分钟走势分析
 - `briefing`：盘前简报（市场面部分），一键输出 A 股指数+隔夜美股+北向资金，并调用 `alert_engine.py briefing` 拼接持仓盈亏+关键预警
 
-> **职责边界（P1-25 去重）**：`market` 负责市场面（指数/资金/板块/风格），`monitor` 负责持仓面（盈亏/关键价位/风控）。`briefing` 命令由 `alert_engine.py` 统一组装两市数据，但 `market` skill 本身只展开市场面段落，持仓面段落见 `../monitor/SKILL.md`。
+> **职责边界（P1-25 去重）**：`market` 负责市场面（指数/资金/板块/风格），`portfolio-web` 负责持仓面（盈亏/关键价位/风控 + 后台监控推送）。`briefing` 命令的市场面段落由 `market` skill 展开，持仓面段落见 `../portfolio-web/SKILL.md`。
 
 ## 共享约定
 

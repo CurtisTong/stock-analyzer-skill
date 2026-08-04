@@ -283,7 +283,7 @@ Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SK
 
 ### 风险预警规则
 
-> 权威阈值表：`../_shared/references/alert-thresholds.md`（与 `monitor` 共享）。
+> 权威阈值表：`../_shared/references/alert-thresholds.md`（与 `portfolio-web` 后台监控共享）。
 
 | 预警    | 条件             | 操作建议  |
 | ------- | ---------------- | --------- |

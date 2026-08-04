@@ -22,9 +22,10 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 SKILLS_DIR = PROJECT_ROOT / "skills"
 
-# 期望的 13 个 skill（9 核心 + 3 子模块：stock-technical / portfolio-web / portfolio-natural + learn）
+# 期望的 12 个 skill（8 核心 + 3 子模块：stock-technical / portfolio-web / portfolio-natural + learn）
 # 2026-06-17 删除 4 个 deprecated skill（technical / stock-init / financial-analyst / investment-researcher），
-# 现 9 核心 + 3 子模块 + 1 learn = 13
+# 现 8 核心 + 3 子模块 + 1 learn = 12
+# 2026-08-04 移除 /monitor CLI skill（功能下沉到 /portfolio-web /api/monitor）
 EXPECTED_SKILLS = {
     "stock",
     "market",
@@ -34,7 +35,6 @@ EXPECTED_SKILLS = {
     "portfolio-natural",
     "screener",
     "stock-technical",
-    "monitor",
     "backtest",
     "stock-help",
     "learn",
@@ -42,7 +42,7 @@ EXPECTED_SKILLS = {
 }
 
 # 命令式 skill：允许 disable-model-invocation 且 description 可短
-COMMAND_LIKE_SKILLS = {"backtest", "stock-help", "monitor"}
+COMMAND_LIKE_SKILLS = {"backtest", "stock-help"}
 
 # 推荐的 model 值
 ALLOWED_MODELS = {"haiku", "sonnet", "opus", "glm-5.2"}

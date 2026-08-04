@@ -479,7 +479,7 @@ flowchart LR
 
 ## 📋 13 个 Skill 速查
 
-> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合 / monitor 监控 / backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
+> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合（含 Web 后台监控）/ backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
 
 | 类别        | Skill                                                  | 命令                                             | 一句话价值                                   |
 | :---------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------- |
@@ -491,7 +491,7 @@ flowchart LR
 | 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance\|compare]`        | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比    |
 | 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md)         | `/portfolio web [--port 8765]`                   | Web 录入服务（HTTP API :8765）               |
 | 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                                 | NL → 命令映射（我买了/减仓/破位止损）        |
-| 📡 **监控** | [monitor](skills/monitor/SKILL.md)                     | `/monitor [scan\|levels\|check]`                 | 盘中异动 + 策略关键点位 + Bark/企微/钉钉推送 |
+| 📡 **监控** | [portfolio-web](skills/portfolio-web/SKILL.md)               | `/portfolio web` + `--no-monitor` 关闭            | Web 录入 + 后台策略监控 + Bark/企微/钉钉推送 |
 | 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                   | `/backtest [--strategy 策略] [--all]`            | 策略历史回测，含卡玛比率/盈亏比/夏普         |
 | 🔬 **研究** | [research](skills/research/SKILL.md)                   | `/research [financial\|report] <任务>`           | 深度研究：财务建模 / 排雷 / DCF / 估值       |
 | 📚 **学习** | [learn](skills/learn/SKILL.md)                         | `/learn <概念>`                                  | 学习助手：PE/ROE/MACD/K 线/缠论/新手入门     |

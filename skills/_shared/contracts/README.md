@@ -10,7 +10,7 @@
 | `stock.schema.json` | 个股五层分析完整输出 | `/stock full` / `/stock debate` | `/portfolio` / `/research` |
 | `market.schema.json` | 大盘复盘输出 | `/market` | `/portfolio` / `/research` |
 | `sector.schema.json` | 板块分析输出 | `/sector` | `/portfolio` / `/research` |
-| `portfolio.schema.json` | 持仓健康/调仓输出 | `/portfolio` | `/monitor` |
+| `portfolio.schema.json` | 持仓健康/调仓输出 | `/portfolio` | `/portfolio-web` |
 | `debate.schema.json` | 8 人专家圆桌输出（5 长线 + 3 短线） | `/stock debate` | `/portfolio` |
 
 ## 使用方式

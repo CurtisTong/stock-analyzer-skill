@@ -22,7 +22,6 @@
 | `python3 scripts/macro_indicators.py` | 宏观指标获取模块（v2.5.x 新增） | -j |
 | `python3 scripts/market_anchor.py` | 市场环境锚定编排器（v2.5.0 新增） | -j |
 | `python3 scripts/market_breadth.py` | 市场宽度分析脚本 | — |
-| `python3 scripts/monitor.py` | 数据源健康检查和缓存监控 | — |
 | `python3 scripts/multi_stock_backtest.py` | 外样本多股票回测 + 基准对比（PR-G：解决 71.4% CLAIM 单股过拟合问题） | — |
 | `python3 scripts/perf_bench.py` | 性能压测脚本：测量 screener / backtest 端到端耗时 | — |
 | `python3 scripts/portfolio_correlation.py` | 组合相关性矩阵（v2.6.0 新增） | -j |

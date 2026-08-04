@@ -84,14 +84,6 @@
 /backtest --codes 600519,000858  # 指定股票池
 ```
 
-## 8. 盘中监控 - `/monitor`
-
-```text
-/monitor              # 查看监控状态
-/monitor start        # 启动监控
-/monitor stop         # 停止监控
-```
-
 ## 进阶场景对照
 
 | 场景           | 推荐 skill                  | 说明                           |
@@ -100,7 +92,6 @@
 | 估值分歧时     | `/research financial`       | 财务建模、预测、场景分析       |
 | 重大投资决策   | `/research report`          | 深度研究、尽调、多维度评估     |
 | 验证策略有效性 | `/backtest --all`           | 比较 6 种策略的历史表现        |
-| 盘中实时盯盘   | `/monitor start`            | 持仓异动、价格预警推送         |
 | 批量选股       | `/screener --sector <板块>` | 指定板块内多因子筛选           |
 
 ### Skill 边界
@@ -115,7 +106,7 @@
 
 1. `/market quick` — 了解隔夜消息和市场预期
 2. `/portfolio health` — 检查持仓健康状态
-3. `/monitor start` — 启动盘中监控
+3. `/portfolio web` — 启动 Web 录入 + 后台监控（替代原 `/monitor`）
 
 ### 盘后（收盘后）
 
