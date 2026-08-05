@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> 版本：v1.17.0 | 更新日期：2026-08-05
+> 版本：v1.19.0 | 更新日期：2026-08-05
 
 ## 项目概述
 

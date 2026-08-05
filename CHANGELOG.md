@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.18.0（2026-08-05）已发布，市场分析降级可观测性 + 来源追踪：涨跌停/token 降级时改用涨跌比定性、`_degraded` 标记透传、宏观字段加 `*_source` 输出与 `[fixture]` 渲染标注、`/market` SKILL.md 4 段硬约束。
+> 🟢 **当前状态**：v1.19.0（2026-08-05）已发布，数据源可观测性收口：五层分析 `data_sources` 透传真实源名、monitor 新增 akshare 探活与 baostock IP 风险面板、修复缓存命中双重归一化、kline 四源修复。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.19.0 | 2026-08-05 | 数据源可观测性收口：五层分析 `data_sources` 透传真实源名、akshare 接口探活 + baostock IP 风险面板、跨源一致性校验脚本、缓存双重归一化修复、kline 四源修复 |
 | 1.18.0 | 2026-08-05 | 市场分析降级可观测性 + 来源追踪：涨跌停降级改用涨跌比定性、`_degraded` 标记透传、宏观字段 `*_source` 与 `[fixture]` 渲染标注、`/market` SKILL.md 4 段硬约束 |
 | 1.17.0 | 2026-08-05 | 移除 `/monitor` CLI skill + 新增题材概念数据层 + FinanceRecord 存货字段 + 多种战法因子 + VWAP 监控 + 周期股期货修复 |
 | 1.16.1 | 2026-08-03 | fetchers 深度审查 P0–P2 修复 27+3+4 项 + technical H/M/L 回归 + skill schema 清洗 + 测试/文档对齐 |
@@ -31,6 +32,56 @@
 | 1.12.0 | 2026-06-17 | V2 量化策略平台 + V2.1 维护（合并历史 tag） |
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
+
+## [1.19.0] - 2026-08-05（数据源可观测性收口：真实源名透传 + akshare 探活 + 跨源校验 + 缓存/kline 修复）
+
+### Added
+
+- **monitor**: 新增 akshare 接口探活 `scripts/fetchers/_common/akshare_probe.py`。akshare 作为公开数据源爬虫聚合层，版本更新可能变更列名（如"日期" → "交易日"），探活用指定股票做轻量调用校验 DataFrame 预期列，结果带 TTL=10 分钟缓存，失败仅标 degraded 不阻断调用方 `284c774`
+- **dev**: 新增离线跨源一致性校验 `scripts/dev/cross_validate_sources.py`。绕过 `DataFetcherManager` 路由，独立调用 baostock / 腾讯 / 东财三源 `fetch()`，按日对齐 close / amount 输出差异率与分类（close 阈值 0.5% 对应前复权因子动态范围，amount 应 100% 一致）。⚠️ 脚本发起真实请求，不要高频运行 `284c774`
+- **monitor**: `health_check()` 与 `print_health_report()` 新增两段面板——🔬 akshare 接口探活（按 domain 显示 ok/疑似变动）、🔒 baostock IP 限流风险（连续失败计数 + 疑似封禁建议）`284c774`
+- **docs**: 新增 `docs/data-source-license.md` 数据源商用边界标注，区分协议类型（BSD-3/MIT/Apache 2.0 商用安全 vs 腾讯/新浪/东财个人非商用或协议不明）并按 🟢/🟡/🔴 三级风险分级。⚠️ 数据源协议可能变更，使用前需查最新版协议原文 `c44d48f`
+
+### Changed
+
+- **business**: 五层分析 `result["data_sources"]` 从哑标签（"行情"/"K线"/"财务"）升级为带方括号标注的真实源名（"行情[tencent]"/"K线[sina]"/"财务[eastmoney]"），便于追溯数据质量问题时直接定位出数的源；各域取自 `Quote.source` / 最后一根 `KlineBar.source` / 首条 `FinanceRecord.source`，缺值时退回原哑标签，向下兼容 `0f78052`
+- **fetchers**: `base_fetcher` 新增 `max_datalen` 实例属性，由 `DataFetcherManager` 从 yaml `max_datalen` 字段注入，kline 域各源据此钳位 `0c922c7`
+- **config**: `data_source.yaml` baostock 段补充 IP 封禁说明与分批初始化建议（多进程不支持 spawn 子进程继承 login 态）`0c922c7`
+
+### Fixed
+
+- **cache**: 修复 `get_quote` / `get_kline` 缓存命中时双重归一化 bug（V3 → V4 bump）。缓存改存 fetcher 原始 dict 而非已归一化的 `to_dict()`，避免命中后再走 `_dict_to_quote` / `_dict_to_kline_bar` 使 volume/amount/cap 被二次 ×100 / ×10000 / ÷1e8（实测 total_cap 1696.94 亿 → 1.7e-5 亿）；`cache_key` 同步修复为版本号始终编入 key，确保无 params 的 quote 缓存在 bump 版本后自动失效 `510daf2`
+- **common**: `normalize_volume` 增加 `code` 参数——腾讯 ifzq 对科创板（688/689）返回 volume 单位是股而非手，主板/创业板仍是手（2026-08-05 实测确认）；归一化入口收敛至 `_dict_to_quote` / `_dict_to_kline_bar`，保持公共入口单一真相源 `510daf2`
+- **kline**: 四档数据源修复合集——akshare 列名容错、baostock BSE（北交所）路由 + IP 退避、tencent URL 改 https（避免运营商劫持）且 `datalen` 钳位 640（ifzq 实测上限，超出会被静默截断）`0c922c7`
+
+### Testing
+
+- 新增 `test_baostock_kline_bse.py` 覆盖 BSE 路由；`test_p1_improvements.py` 覆盖 tencent 钳位 / akshare 列名容错 / baostock IP 退避 `0c922c7`
+- `test_common_utils` 新增 tencent 科创板不归一、主板仍 ×100、其它源不受 `code` 影响三个用例 `510daf2`
+- `test_screening_service` 改用 `startswith` 前缀匹配并验证 `[tencent]` 出现；`_make_kline` / `_make_finance` 工厂新增 `source` 参数 `0f78052`
+
+### Maintenance
+
+- **data**: 刷新宏观快照（USDCNY 6.7468 → 6.7466、USD Index 99.82 → 99.84、GOLD 4159.7 → 4204.6 USD/oz、BRENT 78.74 → 78.64、WTI 74.79 → 74.87）`c44d48f`
+
+## [1.18.0] - 2026-08-05（市场分析降级可观测性 + 宏观来源追踪）
+
+### Added
+
+- **market**: akshare 涨跌停优先源与公开 ut token fallback + 连板高度透传 `e9dd113`
+- **market-anchor**: 渲染层新增降级提示，宏观字段输出 `*_source` 标注后缀（fixture 数据渲染为 `[fixture]`）`163b05d`
+
+### Changed
+
+- **market**: 数据源降级标记 `_degraded` 逐层透传；涨跌停统计失败时不再输出失真的 `limit_up=0`，改用涨跌比做定性描述 `3c0c429`
+
+### Documentation
+
+- **market**: `skills/market/SKILL.md` 新增降级、时间戳、持仓完整性、风格判断 4 段硬约束 `d06198e`
+
+### Maintenance
+
+- **data**: 刷新宏观快照（10Y 国债 4.69% → 4.63%，锂电 95000 → 139380 元/吨）`bf4a835`
 
 ## [1.17.0] - 2026-08-05（移除 `/monitor` skill + 数据层/战法因子扩容 + VWAP 监控 + 周期股期货修复）
 
