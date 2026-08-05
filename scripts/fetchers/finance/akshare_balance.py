@@ -20,6 +20,7 @@ try:
     HAS_AKSHARE = True
 except ImportError:
     HAS_AKSHARE = False
+    ak = None  # 显式置 None，便于测试 monkeypatch 模块属性
 
 
 def enrich_with_balance_sheet(records, code, periods=4):
