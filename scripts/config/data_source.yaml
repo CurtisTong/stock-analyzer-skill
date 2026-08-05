@@ -120,6 +120,11 @@ kline_sources:
     enabled: true
     timeout: 30
     max_datalen: 500
+    # P1-1: baostock 匿名登录按 IP 限流，触发后封 IP（几小时到 24 小时恢复）。
+    # 不支持 multiprocessing（spawn 子进程无法继承 login 态），只能单进程顺序执行。
+    # 全市场初始化建议分批：50 只一批、批次间隔 10 分钟。
+    # fetcher 内置连续失败退避（3 次后 sleep 60s），health 报告标注 IP 封禁风险。
+    # 参考: https://zhuanlan.zhihu.com/p/2067944129309446823
 
   yfinance:
     priority: 2

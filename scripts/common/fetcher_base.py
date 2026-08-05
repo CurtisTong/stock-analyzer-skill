@@ -91,6 +91,9 @@ class BaseFetcher(ABC):
         # 默认值与 http_get 内置默认一致，保证未配置时行为不变。
         self.timeout: int = 10
         self.retry: int = 3
+        # P1-2: 最大数据长度上限（kline 域用），从 data_source.yaml 的 max_datalen 读取。
+        # 各源接口对返回行数有上限（如腾讯 ifzq 固定最多 640 日），fetcher 据此钳位。
+        self.max_datalen: int | None = None
         # P2-9: 熔断器配置改为实例级缓存，避免类级共享导致跨子类/测试串味
         # （原 _cb_config_cache 类变量在首个子类实例化后被所有子类共享，
         #  且 conftest 的 _reload_config_loader reload 配置后不会重置该缓存）。
@@ -297,6 +300,9 @@ class DataFetcherManager:
                     fetcher.timeout = int(cfg["timeout"])
                 if "retry" in cfg:
                     fetcher.retry = int(cfg["retry"])
+                # P1-2: 读取 max_datalen（kline 域各源返回行数上限）
+                if "max_datalen" in cfg:
+                    fetcher.max_datalen = int(cfg["max_datalen"])
 
     def fetch(
         self, code: str, **kwargs: object
