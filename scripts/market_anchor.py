@@ -126,6 +126,8 @@ def _fetch_breadth() -> dict | None:
             "advance_ratio": round(advance_ratio, 3),
             "new_high_low_ratio": 1.0,  # 缺省 1.0（detect_market_state 会按中位处理）
             "margin_ratio": 0,  # 缺省 0
+            "_degraded": breadth.get("_degraded", False),
+            "_degraded_reason": breadth.get("_degraded_reason"),
         }
     except Exception as e:
         print(f"[market_anchor] 市场宽度拉取失败: {e}", file=sys.stderr)
@@ -768,6 +770,19 @@ def _md_regime_emoji(regime: str) -> str:
     }.get(regime, "❓")
 
 
+def _source_tag(section: dict, field: str) -> str:
+    """返回 macro/leverage 段某字段的来源标注后缀。
+
+    仅在非实时来源（fixture / fixture(stale)）时返回可见标记；
+    yfinance / eastmoney 等实时来源返回空串，避免渲染噪音。
+    """
+    src = section.get(f"{field}_source")
+    if not src or src == "yfinance":
+        return ""
+    # fixture / fixture(stale) / 其他兜底 -> 标注
+    return f"  [{src}]"
+
+
 def to_markdown(payload: dict) -> str:
     """生成"市场环境锚定"小节的 Markdown 输出。"""
     lines = []
@@ -792,9 +807,16 @@ def to_markdown(payload: dict) -> str:
         lines.append(
             f"🌐 **市场宽度**: 上涨 {b.get('up_count', 0)} 家 / 下跌 {b.get('down_count', 0)} 家"
         )
-        lines.append(
-            f"        涨停 {b.get('limit_up_count', 0)} 家 / 跌停 {b.get('limit_down_count', 0)} 家"
-        )
+        if b.get("_degraded"):
+            lines.append(
+                "        ⚠️ 涨跌停数据降级"
+                f"（{b.get('_degraded_reason', '原因未知')}）"
+                "，情绪状态按涨跌比定性"
+            )
+        else:
+            lines.append(
+                f"        涨停 {b.get('limit_up_count', 0)} 家 / 跌停 {b.get('limit_down_count', 0)} 家"
+            )
     else:
         lines.append("🌐 **市场宽度**: ⚠️ 数据缺失")
 
@@ -883,19 +905,24 @@ def to_markdown(payload: dict) -> str:
             brent = macro.get("brent_oil_usd")
             lithium = macro.get("lithium_carbonate_cny_t")
             if tnx is not None:
-                lines.append(f"- 10Y 美债: {tnx}%")
+                lines.append(
+                    f"- 10Y 美债: {tnx}%{_source_tag(macro, 'treasury_10y_pct')}"
+                )
             if usdx is not None:
-                lines.append(f"- 美元指数: {usdx}")
+                lines.append(f"- 美元指数: {usdx}{_source_tag(macro, 'usd_index')}")
             if cny is not None:
-                lines.append(f"- USDCNH: {cny}")
+                lines.append(f"- USDCNH: {cny}{_source_tag(macro, 'usd_cny')}")
             if vix is not None:
-                lines.append(f"- VIX: {vix}")
+                lines.append(f"- VIX: {vix}{_source_tag(macro, 'vix')}")
             if gold is not None:
-                lines.append(f"- 黄金(oz): ${gold}")
+                lines.append(f"- 黄金(oz): ${gold}{_source_tag(macro, 'gold_usd_oz')}")
             if brent is not None:
-                lines.append(f"- 布伦特: ${brent}")
+                lines.append(f"- 布伦特: ${brent}{_source_tag(macro, 'brent_oil_usd')}")
             if lithium is not None:
-                lines.append(f"- 碳酸锂: ¥{lithium}/吨")
+                lines.append(
+                    f"- 碳酸锂: ¥{lithium}/吨"
+                    f"{_source_tag(macro, 'lithium_carbonate_cny_t')}"
+                )
         if leverage:
             mg = leverage.get("margin_balance_total_yi")
             mg_chg = leverage.get("margin_change_5d_pct")
