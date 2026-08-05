@@ -32,6 +32,19 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-08-05
+
+### Added
+- **business**: 五层分析 data_sources 透传真实数据源名
+- **monitor**: p1 健康度集成（akshare 探活 + baostock IP 风险 + 跨源校验脚本）
+
+### Fixed
+- **kline**: akshare 列名容错 + baostock BSE 路由 + IP 退避 + tencent https/640 钳位
+- **cache**: 修复 get_quote/get_kline 缓存命中时双重归一化 bug
+
+### Maintenance
+- **data**: 刷新宏观快照 + 新增数据源商用协议标注文档
+
 ## [1.17.0] - 2026-08-05（移除 `/monitor` skill + 数据层/战法因子扩容 + VWAP 监控 + 周期股期货修复）
 
 ### Added
