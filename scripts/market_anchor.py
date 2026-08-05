@@ -122,6 +122,8 @@ def _fetch_breadth() -> dict | None:
             "down_count": down,
             "limit_up_count": breadth.get("limit_up_count", 0),
             "limit_down_count": breadth.get("limit_down_count", 0),
+            "continuous_limit_height": breadth.get("continuous_limit_height", 0),
+            "broken_limit_rate": breadth.get("broken_limit_rate", 0),
             "up_ratio": breadth.get("up_ratio", 0),
             "advance_ratio": round(advance_ratio, 3),
             "new_high_low_ratio": 1.0,  # 缺省 1.0（detect_market_state 会按中位处理）

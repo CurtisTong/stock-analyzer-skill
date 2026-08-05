@@ -44,8 +44,16 @@ def _http_get_json(url: str, params: dict | None = None) -> dict:
 class MarketDataFetcher:
     """市场数据获取器。"""
 
+    # akshare 内置的东财公开 ut（与 akshare.stock_zt_pool_em 同源，无需用户配置）
+    _PUBLIC_UT = "7eea3edcaed734bea9cbfc24409ed989"
+
     def get_limit_data(self) -> dict:
         """获取涨跌停数据。
+
+        数据源优先级：akshare > 东财 push2ex API > 降级
+        - akshare：内置公开 ut，字段丰富，不依赖用户配置
+        - 东财 API：用户自定义 ut 或公开 ut + 完整参数
+        - 降级：返回全 0 + _degraded 标记
 
         Returns:
             {
@@ -55,70 +63,120 @@ class MarketDataFetcher:
                 "broken_limit_rate": float, # 炸板率
             }
         """
-        if not _EASTMONEY_UT:
-            logger.warning("EASTMONEY_UT_TOKEN 未配置，跳过涨跌停数据获取")
-            return {
-                "limit_up_count": 0,
-                "limit_down_count": 0,
-                "continuous_limit_height": 0,
-                "broken_limit_rate": 0,
-                "_degraded": True,
-                "_degraded_reason": "EASTMONEY_UT_TOKEN 未配置",
-            }
+        # 优先尝试 akshare
+        result = self._get_limit_data_akshare()
+        if result is not None:
+            return result
+
+        # 回退到东财 API
+        result = self._get_limit_data_eastmoney()
+        if result is not None:
+            return result
+
+        # 全部失败 -> 降级
+        logger.warning("akshare 与东财 API 均失败，涨跌停数据降级")
+        return {
+            "limit_up_count": 0,
+            "limit_down_count": 0,
+            "continuous_limit_height": 0,
+            "broken_limit_rate": 0,
+            "_degraded": True,
+            "_degraded_reason": "akshare 与东财 API 均获取失败",
+        }
+
+    def _get_limit_data_akshare(self) -> dict | None:
+        """通过 akshare 获取涨停/跌停数据。成功返回 dict，失败返回 None。"""
         try:
-            # 使用东方财富接口获取涨停数据
+            import akshare as ak
+
+            today = datetime.now().strftime("%Y%m%d")
+            # 涨停池
+            df_zt = ak.stock_zt_pool_em(date=today)
+            limit_up_count = len(df_zt) if df_zt is not None else 0
+
+            # 连板高度
+            continuous_height = 0
+            if limit_up_count > 0 and "连板数" in df_zt.columns:
+                continuous_height = int(df_zt["连板数"].max())
+
+            # 炸板率
+            broken_rate = 0.0
+            if limit_up_count > 0 and "炸板次数" in df_zt.columns:
+                broken_count = (df_zt["炸板次数"] > 0).sum()
+                broken_rate = round((broken_count / limit_up_count) * 100, 1)
+
+            # 跌停池：akshare 无直接跌停池函数，用东财 API 补充
+            limit_down_count = self._get_limit_down_count_eastmoney()
+
+            logger.info(
+                "akshare 涨停数据: %d 家涨停, 连板高度 %d, 炸板率 %.1f%%",
+                limit_up_count,
+                continuous_height,
+                broken_rate,
+            )
+            return {
+                "limit_up_count": limit_up_count,
+                "limit_down_count": limit_down_count,
+                "continuous_limit_height": continuous_height,
+                "broken_limit_rate": broken_rate,
+            }
+        except ImportError:
+            logger.debug("akshare 未安装，回退到东财 API")
+            return None
+        except Exception as e:
+            logger.warning("akshare 获取涨停数据失败: %s", e)
+            return None
+
+    def _get_limit_data_eastmoney(self) -> dict | None:
+        """通过东财 push2ex API 获取涨停数据。成功返回 dict，失败返回 None。"""
+        ut = _EASTMONEY_UT or self._PUBLIC_UT
+        try:
+            today = datetime.now().strftime("%Y%m%d")
             url = "https://push2ex.eastmoney.com/getTopicZTPool"
             params = {
-                "ut": _EASTMONEY_UT,
+                "ut": ut,
                 "dpt": "wz.ztzt",
-                "date": datetime.now().strftime("%Y%m%d"),
+                "Pageindex": "0",
+                "pagesize": "10000",
+                "sort": "fbt:asc",
+                "date": today,
             }
             data = _http_get_json(url, params=params)
 
-            pool = data.get("data", {}).get("pool", [])
+            pool = data.get("data", {}).get("pool", []) if data.get("data") else []
+            if not pool:
+                logger.warning("东财 API 涨停池为空（rc=%s）", data.get("rc"))
+                return None
+
             limit_up_count = len(pool)
-
-            # 计算连板高度
-            continuous_height = 0
-            for item in pool:
-                height = item.get("lbc", 0)  # 连板数
-                if height > continuous_height:
-                    continuous_height = height
-
-            # 计算炸板率（复用已获取的 pool 数据，避免重复请求同一接口）
+            continuous_height = max((item.get("lbc", 0) for item in pool), default=0)
             broken_rate = self._calc_broken_rate(pool)
 
             return {
                 "limit_up_count": limit_up_count,
-                "limit_down_count": self._get_limit_down_count(),
+                "limit_down_count": self._get_limit_down_count_eastmoney(),
                 "continuous_limit_height": continuous_height,
                 "broken_limit_rate": broken_rate,
             }
         except Exception as e:
-            # L4: 与 _get_limit_down_count 一致使用 logger，而非 print 到 stderr
-            logger.error("获取涨跌停数据失败: %s", e)
-            return {
-                "limit_up_count": 0,
-                "limit_down_count": 0,
-                "continuous_limit_height": 0,
-                "broken_limit_rate": 0,
-                "_degraded": True,
-                "_degraded_reason": f"涨跌停接口异常: {e}",
-            }
+            logger.warning("东财 API 获取涨停数据失败: %s", e)
+            return None
 
-    def _get_limit_down_count(self) -> int:
-        """获取跌停家数。"""
-        if not _EASTMONEY_UT:
-            return 0
+    def _get_limit_down_count_eastmoney(self) -> int:
+        """通过东财 push2ex API 获取跌停家数。"""
+        ut = _EASTMONEY_UT or self._PUBLIC_UT
         try:
             url = "https://push2ex.eastmoney.com/getTopicDTPool"
             params = {
-                "ut": _EASTMONEY_UT,
+                "ut": ut,
                 "dpt": "wz.ztzt",
+                "Pageindex": "0",
+                "pagesize": "10000",
+                "sort": "fbt:asc",
                 "date": datetime.now().strftime("%Y%m%d"),
             }
             data = _http_get_json(url, params=params)
-            pool = data.get("data", {}).get("pool", [])
+            pool = data.get("data", {}).get("pool", []) if data.get("data") else []
             return len(pool)
         except Exception as e:
             logger.debug("获取跌停家数失败: %s", e)
