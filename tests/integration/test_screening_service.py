@@ -339,18 +339,21 @@ def _make_index_quote():
     return Quote(code="sh000001", name="上证指数", price=3000.0, change_pct=0.5)
 
 
-def _make_kline(n=60, last_day="2026-07-09"):
+def _make_kline(n=60, last_day="2026-07-09", source="sina"):
     """构造模拟 KlineBar 列表。"""
     from data.types import KlineBar
 
-    return [KlineBar(day=last_day, close=1800.0 + i, volume=10000) for i in range(n)]
+    return [
+        KlineBar(day=last_day, close=1800.0 + i, volume=10000, source=source)
+        for i in range(n)
+    ]
 
 
-def _make_finance():
+def _make_finance(source="eastmoney"):
     """构造模拟 FinanceRecord 列表。"""
     from data.types import FinanceRecord
 
-    return [FinanceRecord(eps=50.0, roe=30.0, net_profit_yoy=20.0)]
+    return [FinanceRecord(eps=50.0, roe=30.0, net_profit_yoy=20.0, source=source)]
 
 
 class TestAnalyzeDataMetadata:
@@ -388,9 +391,12 @@ class TestAnalyzeDataMetadata:
         ):
             result = svc.analyze("sh600519")
 
-        assert "行情" in result["data_sources"]
-        assert "K线" in result["data_sources"]
-        assert "财务" in result["data_sources"]
+        # P2-1: data_sources 现在带真实源名（如 行情[tencent]），用前缀匹配
+        assert any(s.startswith("行情") for s in result["data_sources"])
+        assert any(s.startswith("K线") for s in result["data_sources"])
+        assert any(s.startswith("财务") for s in result["data_sources"])
+        # 验证源名已透传
+        assert any("[tencent]" in s for s in result["data_sources"])
         assert result["data_failed"] == []
         assert result["data_time"] == "2026-07-09T15:00:00"
 

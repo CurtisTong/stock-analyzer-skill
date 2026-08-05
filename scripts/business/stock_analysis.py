@@ -121,7 +121,9 @@ def _analyze(
         quote = None
     else:
         if quote:
-            result["data_sources"].append("行情")
+            # P2-1: 透传真实数据源名（如 行情[tencent]），便于追溯数据质量问题
+            src = getattr(quote, "source", "")
+            result["data_sources"].append(f"行情[{src}]" if src else "行情")
     try:
         kline = f_kline.result(timeout=30)
     except Exception as e:
@@ -133,7 +135,9 @@ def _analyze(
         kline = None
     else:
         if kline:
-            result["data_sources"].append("K线")
+            # P2-1: 取最后一根 bar 的 source 代表整条 K 线数据来源
+            src = getattr(kline[-1], "source", "") if kline else ""
+            result["data_sources"].append(f"K线[{src}]" if src else "K线")
     try:
         # WP4 (2026-07-21): get_finance 返回 (records, FinanceMeta) tuple
         finance_result = f_finance.result(timeout=45) if f_finance else None
@@ -150,7 +154,9 @@ def _analyze(
         finance = None
     else:
         if finance:
-            result["data_sources"].append("财务")
+            # P2-1: 透传财务数据源名
+            src = getattr(finance[0], "source", "") if finance else ""
+            result["data_sources"].append(f"财务[{src}]" if src else "财务")
     # 大盘指数行情（P1-17: 不再用个股 quote 当指数 quote）
     index_quote = None
     try:
