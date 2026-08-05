@@ -132,9 +132,29 @@ def get_data_source_summary() -> dict:
 
 def health_check() -> dict:
     """执行完整健康检查。"""
+    # akshare 接口变动探活（P1-4）
+    akshare_health: dict = {}
+    try:
+        from fetchers._common.akshare_probe import get_akshare_health
+
+        akshare_health = get_akshare_health()
+    except Exception as e:
+        akshare_health = {"error": str(e)}
+
+    # baostock IP 封禁风险（P1-1）
+    baostock_ip_risk: dict = {}
+    try:
+        from fetchers.kline.baostock_kline import get_baostock_ip_risk
+
+        baostock_ip_risk = get_baostock_ip_risk()
+    except Exception as e:
+        baostock_ip_risk = {"error": str(e)}
+
     return {
         "timestamp": datetime.now().isoformat(),
         "fetcher_health": get_fetcher_health(),
+        "akshare_probe": akshare_health,
+        "baostock_ip_risk": baostock_ip_risk,
         "cache_stats": get_cache_stats(),
         "data_source_summary": get_data_source_summary(),
     }
@@ -174,6 +194,29 @@ def print_health_report():
                 print(
                     f"  {state_icon} {s['name']:<20} {status:<10} 失败:{s.get('failure_count', 0)}"
                 )
+
+    # akshare 接口探活（P1-4）
+    akshare_probe = report.get("akshare_probe", {})
+    if akshare_probe and "error" not in akshare_probe:
+        print("\n🔬 akshare 接口探活:")
+        print("-" * 40)
+        for domain, info in akshare_probe.items():
+            icon = "✅" if info.get("ok") else "⚠️"
+            tag = "" if info.get("ok") else "（接口疑似变动）"
+            print(f"  {icon} {domain:<10} {info.get('message', '')}{tag}")
+    elif akshare_probe.get("error"):
+        print(f"\n🔬 akshare 探活失败: {akshare_probe['error']}")
+
+    # baostock IP 封禁风险（P1-1）
+    ip_risk = report.get("baostock_ip_risk", {})
+    if ip_risk and "error" not in ip_risk:
+        print("\n🔒 baostock IP 限流风险:")
+        print("-" * 40)
+        suspected = ip_risk.get("ip_ban_suspected", False)
+        count = ip_risk.get("consecutive_failures", 0)
+        icon = "⚠️" if suspected else "✅"
+        msg = "疑似 IP 封禁，建议换网络/热点" if suspected else "正常"
+        print(f"  {icon} 连续失败 {count} 次 - {msg}")
 
     # 缓存状态
     print("\n💾 缓存状态:")
