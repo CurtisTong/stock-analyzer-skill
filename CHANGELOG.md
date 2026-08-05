@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟡 **当前状态**：v1.16.1（2026-08-03）已发布，包含 fetchers 深度审查 P0–P2 修复（27 + 3 + 4 项）+ technical H/M/L 审查回归 + skill schema 清洗。
+> 🟢 **当前状态**：v1.17.0（2026-08-05）已发布，移除 `/monitor` CLI skill + 新增题材概念数据层/FinanceRecord 存货字段/多种战法因子 + VWAP 监控与周期股期货修复。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.17.0 | 2026-08-05 | 移除 `/monitor` CLI skill + 新增题材概念数据层 + FinanceRecord 存货字段 + 多种战法因子 + VWAP 监控 + 周期股期货修复 |
 | 1.16.1 | 2026-08-03 | fetchers 深度审查 P0–P2 修复 27+3+4 项 + technical H/M/L 回归 + skill schema 清洗 + 测试/文档对齐 |
 | 1.16.0 | 2026-07-28 | finance 域 WP1-WP6 重构 + tests 框架重构 + 止损破位检测 + 38 个 [Unreleased] 折叠 |
 | 1.15.0 | 2026-07-09 | 多轮审查修复 + 文档同步 + 数据域补齐 |
@@ -30,34 +31,36 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased] - 2026-08-04
+## [1.17.0] - 2026-08-05（移除 `/monitor` skill + 数据层/战法因子扩容 + VWAP 监控 + 周期股期货修复）
 
-### Removed
+### Added
 
-- **monitor skill**: 移除 `/monitor` CLI skill。监控能力已迁移至 `/portfolio-web`（`/api/monitor` HTTP 端点 + 后台守护线程）。保留的内部模块（`scripts/monitor/channels/`、`manager.py`、`levels.py`、`notifier.py`、`rules.py`）继续供 portfolio-web 复用，外部行为完全兼容。数据源健康检查保留为 `python3 scripts/monitor.py --cache/--sources/--cleanup`（顶层工具，不属于 skill）。SKILL.md 数量 13 → 12。
+- **scripts**: 新增题材概念板块数据层 `scripts/concept.py`（`ce331f9`）
+- **data**: `FinanceRecord` 新增存货字段（周转率/天数/绝对额）`bcd00c0`
+- **monitor**: 新增 VWAP 分时均价线、涨幅减仓与均线止损预警 `1a19e34`
+- **strategies**: 新增容量票与庄股识别因子 `730f13c`
+- **strategies**: 新增断板反包战法与打分加权 `e55a42d`
+- **technical**: 新增竹节法卖点、均线止跌买点与影线占比统计 `2c88f61`
 
 ### Changed
 
+- **monitor**: 移除 `/monitor` CLI skill，监控能力下放 `/portfolio-web`（`/api/monitor` HTTP 端点 + 后台守护线程）。保留的内部模块（`scripts/monitor/channels/`、`manager.py`、`levels.py`、`notifier.py`、`rules.py`）继续供 portfolio-web 复用，外部行为完全兼容。数据源健康检查保留为 `python3 scripts/monitor.py --cache/--sources/--cleanup`（顶层工具，不属于 skill）。SKILL.md 数量 13 → 12。`758b1c2`
 - **tests**: `tests/contracts/test_skill_metadata_sync.py::EXPECTED_SKILLS` 移除 `monitor`，`tests/smoke_test.sh` 与 `tests/integration/test_install.sh` 的 skill 列表同步从 13 → 12。
 - **docs**: `CLAUDE.md`、`README.md`、`skills/_shared/references/{script-catalog,alert-thresholds}.md`、`skills/_shared/contracts/README.md`、`skills/{market,stock-help}/SKILL.md`、`skills/stock-help/references/skill-catalog.md`、`skills/portfolio/SKILL.md` 移除 `/monitor` 引用并改写相关文案，指向 `/portfolio-web`。
 - **package.json**: skill 描述从"13 个 skill（9 核心 + 4 变体）"更新为"12 个 skill（8 核心 + 4 变体）"。
 - **.claude/settings.json**: 移除 `Bash(python3 scripts/monitor/alert_engine.py *)` 与 `Bash(python3 scripts/monitor.py *)` 权限规则（顶层 monitor.py 健康检查不需要 Claude 工具调用）。
 
-### Added
-- **scripts**: 新增题材概念板块数据层 concept.py
-- **monitor**: 新增 VWAP 分时均价线、涨幅减仓与均线止损预警
-- **strategies**: 新增容量票与庄股识别因子
-- **strategies**: 新增断板反包战法与打分加权
-- **technical**: 新增竹节法卖点、均线止跌买点与影线占比统计
+### Fixed
 
-### Changed
-- **monitor**: 移除 /monitor CLI skill，监控能力下放 portfolio-web
+- **factors**: 修复周期股期货数据前置获取 + TTL 全局短路 `b49b2cc`
 
 ### Testing
-- **e2e**: skill 数量断言 13 -> 12，补 758b1c2 移除 /monitor 的遗漏
+
+- **e2e**: skill 数量断言 13 → 12，补 `758b1c2` 移除 `/monitor` 的遗漏 `237bad7`
 
 ### Maintenance
-- **data**: 刷新宏观快照（10Y 国债 2.45% -> 4.69%）
+
+- **data**: 刷新宏观快照（10Y 国债 2.45% → 4.69%）`4767f7a`
 
 ## [1.16.1] - 2026-08-03（fetchers 深度审查 P0–P2 + 技术审查回归 + skill schema 清洗 + 测试/文档对齐）
 
