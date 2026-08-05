@@ -33,7 +33,10 @@ def _load_sector_stocks() -> dict:
 
 
 def find_sector_by_code(code: str, data: dict) -> list:
-    """根据股票代码查找所属板块名称列表。"""
+    """根据股票代码查找所属板块名称列表。
+
+    先查静态 sector_stocks.json 映射，未命中时尝试基于代码前缀的行业推断兜底。
+    """
     code_lower = code.lower()
     sectors = []
     for name, stocks in data.items():
@@ -41,7 +44,53 @@ def find_sector_by_code(code: str, data: dict) -> list:
             continue
         if isinstance(stocks, list) and code_lower in [s.lower() for s in stocks]:
             sectors.append(name)
+
+    # #3: 静态映射未命中时的行业推断兜底
+    if not sectors and code_lower:
+        sectors = _infer_sector_by_code(code_lower)
+
     return sectors
+
+
+# A 股代码段 -> 板块行业推断映射（覆盖 sector_stocks.json 白名单外的标的）
+_CODE_SECTOR_HINTS = {
+    # 科技/半导体
+    "688": "科技",
+    "300": "科技",
+    # 消费/白酒/医药
+    "600519": "消费",
+    "000858": "消费",
+    # 金融
+    "6013": "金融",
+    "6016": "金融",
+    "6019": "金融",
+    "600036": "金融",
+    # 周期/资源/新能源
+    "6010": "周期",
+    "6018": "周期",
+    "600989": "周期",
+    # 新能源/锂电
+    "002466": "新能源",
+    "002192": "新能源",
+    "300750": "新能源",
+}
+
+
+def _infer_sector_by_code(code: str) -> list:
+    """基于股票代码前缀推断行业板块（兜底，覆盖白名单外的标的）。"""
+    code = code.lstrip("shzbj")
+    # 精确匹配
+    for prefix, sector in _CODE_SECTOR_HINTS.items():
+        if code.startswith(prefix):
+            return [sector]
+    # 通用前缀规则
+    if code.startswith("688"):
+        return ["科技"]
+    elif code.startswith("300"):
+        return ["科技"]
+    elif code.startswith("601"):
+        return ["金融"]
+    return []
 
 
 def get_sector_stocks(sector_name: str, data: dict) -> list:

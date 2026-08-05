@@ -59,6 +59,21 @@ class KlineBar:
     def to_dict(self) -> dict:
         return asdict(self)
 
+    def get(self, key: str, default=None):
+        """#9: dict 兼容方法，支持 b.get('close') 语法访问 dataclass 字段。
+
+        同时支持 day -> date 别名（部分代码用 'date' 键名）。
+        """
+        if key == "date":
+            return self.day
+        return getattr(self, key, default)
+
+    def __getitem__(self, key: str):
+        """#9: dict 兼容方法，支持 b['close'] 语法。"""
+        if key == "date":
+            return self.day
+        return getattr(self, key)
+
 
 @dataclass
 class FinanceRecord:

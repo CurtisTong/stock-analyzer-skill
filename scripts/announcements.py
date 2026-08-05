@@ -8,6 +8,11 @@
 """
 
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import sys
 import json
 import argparse
 from datetime import datetime, timedelta

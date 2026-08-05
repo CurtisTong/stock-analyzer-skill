@@ -37,6 +37,10 @@ def get_expert(name: str) -> Optional[ExpertProfile]:
     return EXPERT_REGISTRY.get(name)
 
 
+# #7: 向后兼容别名（文档/外部调用方可能用 get_expert_profile）
+get_expert_profile = get_expert
+
+
 def list_experts(group: Optional[str] = None) -> List[ExpertProfile]:
     """列出专家。group 过滤：None=全部 / "long_term" / "short_term"。"""
     _ensure_loaded()

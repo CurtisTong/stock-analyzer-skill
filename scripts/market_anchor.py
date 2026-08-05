@@ -1076,6 +1076,13 @@ def to_markdown(payload: dict) -> str:
 
 
 def main():
+    # #12: JSON 模式下静默 yfinance/第三方库的 stderr 日志，避免混入 JSON 输出
+    import logging as _logging
+
+    _logging.getLogger("yfinance").setLevel(_logging.CRITICAL)
+    _logging.getLogger("urllib3").setLevel(_logging.CRITICAL)
+    _logging.getLogger("peewee").setLevel(_logging.CRITICAL)
+
     parser = argparse.ArgumentParser(description="市场环境锚定编排器")
     parser.add_argument("stock_code", nargs="?", help="股票代码（如 sh600519），可选")
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")

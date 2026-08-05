@@ -10,6 +10,11 @@ A 股多因子选股器。
   screener.py --full-market --sector 创业板 --top 5   # 全市场创业板
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import argparse
 import json
 

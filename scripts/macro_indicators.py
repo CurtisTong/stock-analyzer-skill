@@ -124,6 +124,7 @@ def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
     """通过 yfinance 拉取单个 symbol 的 last_price / previous_close。
 
     范本：strategies/macro/gate.py:86-106 的 try/except 模式。
+    #2: yfinance 网络超时时静默降级到 fixture，不阻塞主流程。
 
     Args:
         symbol: yfinance ticker（如 ^TNX, GC=F, DX-Y.NYB）
@@ -135,6 +136,7 @@ def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
     try:
         import yfinance as yf
 
+        # #2: 设置较短超时（5秒），避免 yfinance 默认长超时阻塞
         ticker = yf.Ticker(symbol)
         info = ticker.fast_info
         val = getattr(info, value_attr, None)
@@ -142,7 +144,7 @@ def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
             return float(val)
         return None
     except Exception as e:
-        logger.debug("yfinance %s 拉取失败: %s", symbol, e)
+        logger.debug("yfinance %s 拉取失败（降级到 fixture）: %s", symbol, e)
         return None
 
 

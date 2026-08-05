@@ -338,8 +338,16 @@ def _dict_to_quote(d: dict) -> Quote:
         pe=to_float(d.get("pe")),
         pe_type=d.get("pe_type", ""),
         pb=to_float(d.get("pb")),
-        total_cap=_normalize_cap(to_float(d.get("total_cap")), source),
-        circulating_cap=_normalize_cap(to_float(d.get("circulating_cap")), source),
+        total_cap=_normalize_cap(
+            to_float(d.get("total_cap")),
+            source,
+            _normalize_quote_code(d.get("code", "")),
+        ),
+        circulating_cap=_normalize_cap(
+            to_float(d.get("circulating_cap")),
+            source,
+            _normalize_quote_code(d.get("code", "")),
+        ),
         source=source,
         fetch_time=d.get("fetch_time") or _now_iso(),
         is_suspended=bool(d.get("is_suspended", False)),
@@ -369,14 +377,23 @@ def _normalize_amount(raw_amount: float, source: str) -> float:
     return normalize_amount(raw_amount, source)
 
 
-def _normalize_cap(raw_cap: float, source: str) -> float:
-    """将 total_cap/circulating_cap 归一化为"亿"。
+def _normalize_cap(raw_cap: float, source: str, code: str = "") -> float:
+    """将 total_cap/circulating_cap 归一化为"亿"（人民币）。
 
-    所有 fetcher 返回原始元值，统一在此归一化（除以 1e8）。
-    P1-4: 旧实现用 source 区分（efinance/akshare 除以 1e8，其余原值），
-    口径信息分散在 fetcher（预转换）与 data 层（补救）两处，新增数据源易遗漏。
-    现统一收口：所有 fetcher 返回元，本函数无条件 /1e8。
+    所有 A 股 fetcher 返回原始元值，统一在此归一化（除以 1e8）。
+    yfinance（美股/港股）的 marketCap 单位是计价货币元（USD/HKD），非人民币元，
+    直接 /1e8 会导致货币口径错位。跨市场代码保持原值并标注 source。
+
+    Args:
+        raw_cap: 原始市值
+        source: 数据源标识
+        code: 股票代码（用于判断是否跨市场）
     """
+    if not raw_cap:
+        return 0.0
+    # yfinance 跨市场市值不做归一化（货币口径不同），保持原值
+    if source == "yfinance":
+        return raw_cap
     return raw_cap / 1e8
 
 
@@ -402,8 +419,10 @@ def _dict_to_kline_bar(d: dict, code: str = "") -> KlineBar:
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
     raw_volume = to_int(d.get("volume"))
+    # #11: 部分数据源返回 "date" 而非 "day"，兼容两种键名
+    day = d.get("day", "") or d.get("date", "") or d.get("day_str", "")
     return KlineBar(
-        day=d.get("day", ""),
+        day=day,
         open=to_float(d.get("open")),
         high=to_float(d.get("high")),
         low=to_float(d.get("low")),

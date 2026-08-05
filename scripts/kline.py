@@ -9,6 +9,11 @@ K 线数据查询（多数据源自动切换）。
   kline.py --sources                      # 显示可用数据源
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import json
 import argparse
 from common import normalize_quote_code, err, DataError
@@ -113,7 +118,15 @@ def main():
     )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--sources", action="store_true", help="显示可用数据源")
+    # #10: 添加 --days 别名，兼容用户直觉（等价于 datalen 位置参数）
+    parser.add_argument(
+        "--days", type=int, default=None, help="数据条数别名（等价于 datalen）"
+    )
     args = parser.parse_args()
+
+    # --days 覆盖 datalen 位置参数
+    if args.days is not None:
+        args.datalen = args.days
 
     if args.sources:
         from fetchers import get_kline_fetchers

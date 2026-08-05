@@ -10,6 +10,11 @@
   finance.py --sources                      # 显示可用数据源
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import json
 import argparse
 from common import normalize_finance_code, parallel_map, err, DataError

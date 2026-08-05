@@ -523,7 +523,10 @@ def aggregate_votes(
     # active 集真实分布（5 长 + 3 短）切分。
     if expert_results and not any(r.get("group") for r in expert_results):
         try:
-            from experts.registry import EXPERT_REGISTRY
+            from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+
+            # #6-8: 显式触发 lazy 加载，避免直接读空 dict
+            _ensure_loaded()
 
             for r in expert_results:
                 profile = EXPERT_REGISTRY.get(r.get("name", ""))

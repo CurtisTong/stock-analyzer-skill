@@ -10,6 +10,11 @@
   quote.py --sources                      # 显示可用数据源
 """
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
 import json
 import argparse
 from common import (
@@ -59,16 +64,14 @@ def main():
     if not codes:
         err("未提供代码")
 
-    batches = list(batchify(codes, 15))
-    if len(batches) > 1:
-        results = parallel_map(
-            lambda b: fetch_batch(b, use_cache=True), batches, timeout=30
-        )
-        all_records = []
-        for batch in batches:
-            all_records.extend(results.get(batch) or [])
-    else:
-        all_records = fetch_batch(batches[0])
+    # #16: 修复 parallel_map unhashable type: list
+    # parallel_map 要求 item 可哈希，batch（list）不可哈希。
+    # 直接用 get_quotes 一次性并发获取，无需手动分批。
+    from data import get_quotes
+
+    all_records = get_quotes(codes, use_cache=True)
+    if not all_records:
+        all_records = fetch_batch(codes)
 
     if args.json:
         print(json.dumps(all_records, ensure_ascii=False, indent=2))
