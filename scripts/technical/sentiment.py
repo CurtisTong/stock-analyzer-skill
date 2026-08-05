@@ -62,6 +62,8 @@ class MarketDataFetcher:
                 "limit_down_count": 0,
                 "continuous_limit_height": 0,
                 "broken_limit_rate": 0,
+                "_degraded": True,
+                "_degraded_reason": "EASTMONEY_UT_TOKEN 未配置",
             }
         try:
             # 使用东方财富接口获取涨停数据
@@ -100,6 +102,8 @@ class MarketDataFetcher:
                 "limit_down_count": 0,
                 "continuous_limit_height": 0,
                 "broken_limit_rate": 0,
+                "_degraded": True,
+                "_degraded_reason": f"涨跌停接口异常: {e}",
             }
 
     def _get_limit_down_count(self) -> int:

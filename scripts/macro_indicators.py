@@ -721,20 +721,46 @@ def fetch_all() -> dict:
                 if macro["treasury_10y_pct"]
                 else None
             ),
+            "treasury_10y_pct_source": (
+                macro["treasury_10y_pct"]["source"]
+                if macro["treasury_10y_pct"]
+                else None
+            ),
             "usd_index": macro["usd_index"]["value"] if macro["usd_index"] else None,
+            "usd_index_source": (
+                macro["usd_index"]["source"] if macro["usd_index"] else None
+            ),
             "usd_cny": macro["usd_cny"]["value"] if macro["usd_cny"] else None,
+            "usd_cny_source": (
+                macro["usd_cny"]["source"] if macro["usd_cny"] else None
+            ),
             "vix": macro["vix"]["value"] if macro["vix"] else None,
+            "vix_source": macro["vix"]["source"] if macro["vix"] else None,
             "gold_usd_oz": (
                 macro["gold_usd_oz"]["value"] if macro["gold_usd_oz"] else None
+            ),
+            "gold_usd_oz_source": (
+                macro["gold_usd_oz"]["source"] if macro["gold_usd_oz"] else None
             ),
             "brent_oil_usd": (
                 macro["brent_oil_usd"]["value"] if macro["brent_oil_usd"] else None
             ),
+            "brent_oil_usd_source": (
+                macro["brent_oil_usd"]["source"] if macro["brent_oil_usd"] else None
+            ),
             "wti_oil_usd": (
                 macro["wti_oil_usd"]["value"] if macro["wti_oil_usd"] else None
             ),
+            "wti_oil_usd_source": (
+                macro["wti_oil_usd"]["source"] if macro["wti_oil_usd"] else None
+            ),
             "lithium_carbonate_cny_t": (
                 macro["lithium_carbonate_cny_t"]["value"]
+                if macro["lithium_carbonate_cny_t"]
+                else None
+            ),
+            "lithium_carbonate_cny_t_source": (
+                macro["lithium_carbonate_cny_t"]["source"]
                 if macro["lithium_carbonate_cny_t"]
                 else None
             ),
@@ -742,6 +768,11 @@ def fetch_all() -> dict:
         "leverage": {
             "margin_balance_total_yi": (
                 leverage["margin_balance_total"]["value"]
+                if leverage["margin_balance_total"]
+                else None
+            ),
+            "margin_balance_total_yi_source": (
+                leverage["margin_balance_total"]["source"]
                 if leverage["margin_balance_total"]
                 else None
             ),
@@ -755,8 +786,18 @@ def fetch_all() -> dict:
                 if leverage["if_main_basis"]
                 else None
             ),
+            "if_main_basis_pts_source": (
+                leverage["if_main_basis"]["source"]
+                if leverage["if_main_basis"]
+                else None
+            ),
             "ic_main_basis_pts": (
                 leverage["ic_main_basis"]["value"]
+                if leverage["ic_main_basis"]
+                else None
+            ),
+            "ic_main_basis_pts_source": (
+                leverage["ic_main_basis"]["source"]
                 if leverage["ic_main_basis"]
                 else None
             ),
@@ -765,10 +806,20 @@ def fetch_all() -> dict:
                 if leverage["ih_main_basis"]
                 else None
             ),
+            "ih_main_basis_pts_source": (
+                leverage["ih_main_basis"]["source"]
+                if leverage["ih_main_basis"]
+                else None
+            ),
         },
         "valuation_bridge": {
             "erp_sh300_pct": (
                 valuation_bridge["erp_sh300"]["value"]
+                if valuation_bridge["erp_sh300"]
+                else None
+            ),
+            "erp_sh300_pct_source": (
+                valuation_bridge["erp_sh300"]["source"]
                 if valuation_bridge["erp_sh300"]
                 else None
             ),

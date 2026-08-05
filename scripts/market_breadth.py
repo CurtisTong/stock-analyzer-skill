@@ -74,7 +74,7 @@ def get_market_breadth() -> dict:
         # 2. 获取涨跌停数据（从sentiment模块）
         limit_data = get_limit_data()
 
-        return {
+        result = {
             "limit_up_count": limit_data.get("limit_up_count", 0),
             "limit_down_count": limit_data.get("limit_down_count", 0),
             "continuous_limit_height": limit_data.get("continuous_limit_height", 0),
@@ -84,6 +84,13 @@ def get_market_breadth() -> dict:
             "down_count": down_count,
             "up_ratio": round(up_ratio, 2),
         }
+        # 透传降级标记（sentiment.py 在 token 未配置/接口异常时设置）
+        if limit_data.get("_degraded"):
+            result["_degraded"] = True
+            result["_degraded_reason"] = limit_data.get(
+                "_degraded_reason", "涨跌停数据降级"
+            )
+        return result
 
     except Exception as e:
         print(f"获取市场宽度数据失败: {e}", file=sys.stderr)
@@ -114,11 +121,13 @@ def get_limit_data() -> dict:
             "limit_down_count": 0,
             "continuous_limit_height": 0,
             "broken_limit_rate": 0,
+            "_degraded": True,
+            "_degraded_reason": f"get_limit_data 异常: {e}",
         }
 
 
 def _default_result() -> dict:
-    """返回默认结果。"""
+    """返回默认结果（指数 API 异常兜底，标记为降级）。"""
     return {
         "limit_up_count": 0,
         "limit_down_count": 0,
@@ -128,6 +137,8 @@ def _default_result() -> dict:
         "up_count": 0,
         "down_count": 0,
         "up_ratio": 0,
+        "_degraded": True,
+        "_degraded_reason": "市场宽度整体拉取失败（指数 API 异常）",
     }
 
 
@@ -142,6 +153,7 @@ def get_market_state(breadth: dict) -> dict:
             "state": str,           # 市场状态
             "confidence": str,      # 置信度
             "signals": list,        # 信号列表
+            "degraded": bool,       # 涨跌停数据是否降级
         }
     """
     signals = []
@@ -150,6 +162,27 @@ def get_market_state(breadth: dict) -> dict:
     continuous_height = breadth.get("continuous_limit_height", 0)
     broken_rate = breadth.get("broken_limit_rate", 0)
     up_ratio = breadth.get("up_ratio", 0)
+
+    # 涨跌停数据降级时：改用涨跌比定性，state 标记"(宽度)"后缀
+    if breadth.get("_degraded"):
+        reason = breadth.get("_degraded_reason", "涨跌停数据降级")
+        signals.append(f"⚠️ {reason}，按涨跌比定性")
+        if up_ratio > 2:
+            state = "偏强(宽度)"
+            signals.append(f"涨跌比 {up_ratio}，市场普涨，宽度偏强")
+        elif up_ratio < 0.5:
+            state = "偏弱(宽度)"
+            signals.append(f"涨跌比 {up_ratio}，市场普跌，宽度偏弱")
+        else:
+            state = "震荡(宽度)"
+            signals.append(f"涨跌比 {up_ratio}，市场分化")
+        signals.append("⚠️ 涨跌停/连板/炸板率数据降级，情绪状态待确认")
+        return {
+            "state": state,
+            "confidence": "低",
+            "signals": signals,
+            "degraded": True,
+        }
 
     # 涨停家数判断（徐翔建议）
     if limit_up < 20:
@@ -201,6 +234,7 @@ def get_market_state(breadth: dict) -> dict:
         "state": state,
         "confidence": confidence,
         "signals": signals,
+        "degraded": False,
     }
 
 
