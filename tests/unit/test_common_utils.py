@@ -389,7 +389,7 @@ class TestNormalizeVolume:
         ],
     )
     def test_hands_to_shares(self, source):
-        """手 → 股：×100."""
+        """手 -> 股：×100."""
         assert normalize_volume(12345, source) == 1234500
 
     def test_sina_already_shares(self):
@@ -404,6 +404,25 @@ class TestNormalizeVolume:
 
     def test_none_returns_zero(self):
         assert normalize_volume(None, "tencent") == 0
+
+    @pytest.mark.parametrize("code", ["sh688981", "688981", "sh689009"])
+    def test_tencent_kcb_already_shares(self, code):
+        """腾讯科创板(688/689) volume 单位是股而非手，不应×100。
+
+        实测确认（2026-08-05）：腾讯 ifzq 对科创板返回 volume 单位为"股"，
+        主板/创业板为"手"。东财全市场均为"手"。
+        参考: https://zhuanlan.zhihu.com/p/2067944129309446823
+        """
+        assert normalize_volume(12345, "tencent", code) == 12345
+
+    @pytest.mark.parametrize("code", ["sh600519", "sz300750", "sh688981"])
+    def test_tencent_no_code_still_hands(self, code):
+        """东财/其他源即使传 code 仍按手×100（code 特判仅对 tencent 生效）。"""
+        assert normalize_volume(12345, "eastmoney", code) == 1234500
+
+    def test_tencent_main_board_with_code_still_hands(self):
+        """腾讯主板传 code 仍×100。"""
+        assert normalize_volume(12345, "tencent", "sh600519") == 1234500
 
 
 class TestNormalizeAmount:

@@ -189,12 +189,21 @@ def compute_optimal_workers(item_count: int = 0) -> int:
 # 统一规范：volume=股, amount=元, total_cap/circulating_cap=亿
 
 
-def normalize_volume(raw: int | str | None, source: str) -> int:
+def normalize_volume(raw: int | str | None, source: str, code: str = "") -> int:
     """将不同数据源的成交量归一化为股。
-    腾讯/东财/efinance/akshare/tushare/pytdx/ths/xueqiu: 手 → 股 (×100)
+
+    腾讯/东财/efinance/akshare/tushare/pytdx/ths/xueqiu: 手 -> 股 (×100)
     新浪/baostock/yfinance: 股 (原值)
+
+    例外（2026-08-05 实测确认）：腾讯 ifzq 对科创板(688/689)返回的 volume 单位
+    是"股"而非"手"，主板/创业板仍是"手"。东财全市场均为"手"。
+    参考：https://zhuanlan.zhihu.com/p/2067944129309446823
     """
     v = to_int(raw)
+    if source == "tencent" and code:
+        plain = plain_code(code)
+        if plain.startswith(("688", "689")):
+            return v  # 科创板：腾讯返回单位已是"股"
     if source in (
         "tencent",
         "eastmoney",

@@ -152,8 +152,11 @@ def cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
 
 # 数据格式版本号：当 API 返回字段格式变更时 bump 此值，自动失效旧缓存
 # v3 (2026-07-21): 财务数据 FinanceRecord Optional[float]=None 化 + 删 7 字段
-#   → 旧缓存以 0.0 写入，新代码读出为 None，可能引发 NoneType 错误
-_DATA_FORMAT_VERSION = "v3"
+#   -> 旧缓存以 0.0 写入，新代码读出为 None，可能引发 NoneType 错误
+# v4 (2026-08-05): get_quote/get_kline 缓存内容从 to_dict()（已归一化）改为
+#   fetcher 原始 dict（未归一化），修复缓存命中时双重归一化 bug
+#   （total_cap 1696.94 亿 -> 1.7e-5 亿 / amount 1.72e9 元 -> 1.72e13 元）
+_DATA_FORMAT_VERSION = "v4"
 
 
 def cache_key(url: str) -> str:
@@ -165,13 +168,15 @@ def cache_key(url: str) -> str:
 def cache_key_for_stock(prefix: str, code: str, **params: object) -> str:
     """生成股票相关的缓存键，支持按代码清除。
     格式: {prefix}_{code}_{param_hash}
+
+    版本号始终编入 key（即使无 params），确保 bump _DATA_FORMAT_VERSION 时
+    无 params 的缓存（如 quote）也能自动失效。无 params 时用纯版本哈希，
+    保持 key 可读性且仍含 code 段以支持按代码清除。
     """
     param_str = "_".join(f"{k}={v}" for k, v in sorted(params.items()))
     versioned = f"{_DATA_FORMAT_VERSION}:{param_str}"
-    param_hash = (
-        hashlib.sha256(versioned.encode()).hexdigest()[:16] if param_str else ""
-    )
-    return f"{prefix}_{code}_{param_hash}".rstrip("_")
+    param_hash = hashlib.sha256(versioned.encode()).hexdigest()[:16]
+    return f"{prefix}_{code}_{param_hash}"
 
 
 # ---------- 别名：带 cache_ 前缀的导出名（与 common.__init__.py 公开符号一致） ----------

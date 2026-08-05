@@ -95,6 +95,10 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
 
         cached = cache.get_json(key, get_quote_cache_ttl())
         if cached:
+            # 缓存的是 fetcher 原始 dict（未归一化），走 _dict_to_quote 统一归一化。
+            # 若缓存 to_dict()（已归一化）再读回会双重归一化：total_cap 1696.94 亿
+            # -> /1e8 -> 1.7e-5 亿，amount 1.72e9 元 -> ×10000 -> 1.72e13 元。
+            # 见 get_finance() 同款模式（缓存 result 而非 to_dict()）。
             return _dict_to_quote(cached)
 
     result = _quote_manager.fetch(code)
@@ -104,7 +108,9 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     quote = _dict_to_quote(result)
 
     if use_cache and quote.has_basic_data():
-        cache.set_json(key, quote.to_dict())
+        # 缓存 fetcher 原始 dict（未归一化），读取时由 _dict_to_quote 单次归一化，
+        # 避免 to_dict() 已归一化值被二次 ×100/×10000/÷1e8。
+        cache.set_json(key, result)
 
     return quote
 
@@ -153,16 +159,19 @@ def get_kline(
     if use_cache:
         cached = cache.get_json(key, cache_ttl)
         if cached:
-            return [_dict_to_kline_bar(bar) for bar in cached]
+            # 缓存的是 fetcher 原始 dict（未归一化），走 _dict_to_kline_bar 统一归一化。
+            # 同 get_quote()：缓存 to_dict() 会致缓存命中时双重归一化。
+            return [_dict_to_kline_bar(bar, code) for bar in cached]
 
     records = _kline_manager.fetch(code, scale=scale, datalen=datalen)
     if not records:
         return []
 
-    bars = [_dict_to_kline_bar(r) for r in records]
+    bars = [_dict_to_kline_bar(r, code) for r in records]
 
     if use_cache and bars:
-        cache.set_json(key, [b.to_dict() for b in bars])
+        # 缓存 fetcher 原始 records（未归一化），读取时单次归一化。
+        cache.set_json(key, records)
 
     return bars
 
@@ -312,8 +321,9 @@ def _dict_to_quote(d: dict) -> Quote:
     """
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
+    quote_code = d.get("code", "")
     return Quote(
-        code=_normalize_quote_code(d.get("code", "")),
+        code=_normalize_quote_code(quote_code),
         name=d.get("name", ""),
         price=to_float(d.get("price")),
         prev_close=to_float(d.get("prev_close")),
@@ -322,7 +332,7 @@ def _dict_to_quote(d: dict) -> Quote:
         low=to_float(d.get("low")),
         change_pct=to_float(d.get("change_pct")),
         change_amt=to_float(d.get("change_amt")),
-        volume=_normalize_volume(to_int(d.get("volume")), source),
+        volume=_normalize_volume(to_int(d.get("volume")), source, quote_code),
         amount=_normalize_amount(to_float(d.get("amount")), source),
         turnover=to_float(d.get("turnover")),
         pe=to_float(d.get("pe")),
@@ -338,14 +348,15 @@ def _dict_to_quote(d: dict) -> Quote:
     )
 
 
-def _normalize_volume(raw_volume: int, source: str) -> int:
+def _normalize_volume(raw_volume: int, source: str, code: str = "") -> int:
     """将 volume 统一归一化为"股"。
 
     委托给 common.normalize_volume，保持单一真相源。
+    code 用于腾讯科创板(688/689)的单位特判。
     """
     from common import normalize_volume
 
-    return normalize_volume(raw_volume, source)
+    return normalize_volume(raw_volume, source, code)
 
 
 def _normalize_amount(raw_amount: float, source: str) -> float:
@@ -387,7 +398,7 @@ def _normalize_quote_code(code: str) -> str:
         return code
 
 
-def _dict_to_kline_bar(d: dict) -> KlineBar:
+def _dict_to_kline_bar(d: dict, code: str = "") -> KlineBar:
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
     raw_volume = to_int(d.get("volume"))
@@ -397,7 +408,7 @@ def _dict_to_kline_bar(d: dict) -> KlineBar:
         high=to_float(d.get("high")),
         low=to_float(d.get("low")),
         close=to_float(d.get("close")),
-        volume=_normalize_volume(raw_volume, source),
+        volume=_normalize_volume(raw_volume, source, code),
         amount=_normalize_amount(to_float(d.get("amount")), source),
         pct_chg=to_float(d.get("pct_chg")),
         source=source,
