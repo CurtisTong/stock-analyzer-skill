@@ -34,6 +34,7 @@
 
 ## [Unreleased] - 2026-08-05
 
+
 ### Added
 - **business**: 五层分析 data_sources 透传真实数据源名
 - **monitor**: p1 健康度集成（akshare 探活 + baostock IP 风险 + 跨源校验脚本）
@@ -44,6 +45,18 @@
 
 ### Maintenance
 - **data**: 刷新宏观快照 + 新增数据源商用协议标注文档
+
+### Fixed
+- 修复 18 项数据源/导入/API/格式 Bug
+- **kline**: akshare 列名容错 + baostock BSE 路由 + IP 退避 + tencent https/640 钳位
+- **cache**: 修复 get_quote/get_kline 缓存命中时双重归一化 bug
+
+### Maintenance
+- bump version to 1.19.0
+- **data**: 刷新宏观快照 + 新增数据源商用协议标注文档
+
+### Other
+- Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
 
 ## [1.17.0] - 2026-08-05（移除 `/monitor` skill + 数据层/战法因子扩容 + VWAP 监控 + 周期股期货修复）
 
