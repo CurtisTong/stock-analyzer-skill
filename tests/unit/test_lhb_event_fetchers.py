@@ -547,7 +547,12 @@ class TestPerformanceForecastFetcher:
         assert called == []
 
     def test_normal_parse_with_type_mapping(self, monkeypatch):
-        """正常解析 + FORECAST_TYPE 映射（预增 -> increase）。"""
+        """正常解析 + FORECASTTYPE 映射（预增 -> increase）。
+
+        字段名与东财 RPT_PUBLIC_OP_PREDICT 实际返回一致：
+        FORECASTTYPE / FORECASTL / FORECASTT / INCREASEL / INCREASET / YEAREARLIER
+        （非早期猜测的 FORECAST_TYPE / PROFIT_MIN / PROFIT_MAX）。
+        """
         import fetchers.event.performance_forecast as mod
 
         payload = {
@@ -557,14 +562,19 @@ class TestPerformanceForecastFetcher:
                     {
                         "SECURITY_CODE": "600519",
                         "SECURITY_NAME_ABBR": "贵州茅台",
-                        "NOTICE_DATE": "2026-08-01",
-                        "REPORT_DATE": "2026-06-30",
-                        "FORECAST_TYPE": "预增",
-                        "PROFIT_MIN": "1000000",
-                        "PROFIT_MAX": "1500000",
-                        "CHANGE_MIN": "10",
-                        "CHANGE_MAX": "20",
-                        "PRE_PROFIT": "900000",
+                        "NOTICE_DATE": "2026-08-01 00:00:00",
+                        "REPORTDATE": "2026-06-30 00:00:00",
+                        "FORECASTTYPE": "预增",
+                        "FORECASTL": "1000000",
+                        "FORECASTT": "1500000",
+                        "INCREASEL": "10",
+                        "INCREASET": "20",
+                        "INCREASEJZ": "15",
+                        "FORECASTJZ": "1250000",
+                        "YEAREARLIER": "900000",
+                        "FORECASTCONTENT": "预计归母净利润盈利",
+                        "CHANGEREASONDSCRPT": "业绩增长",
+                        "ISLATEST": "T",
                     }
                 ],
             }
@@ -582,12 +592,20 @@ class TestPerformanceForecastFetcher:
         assert item["profit_max"] == 1500000.0
         assert item["change_min"] == 10.0
         assert item["change_max"] == 20.0
+        assert item["change_midpoint"] == 15.0
+        assert item["forecast_midpoint"] == 1250000.0
         assert item["pre_profit"] == 900000.0
+        assert item["content"] == "预计归母净利润盈利"
+        assert item["reason"] == "业绩增长"
+        assert item["is_latest"] is True
+        # notice_date / report_date 截断为日期
+        assert item["notice_date"] == "2026-08-01"
+        assert item["report_date"] == "2026-06-30"
         # code 保留原始入参（含前缀）
         assert item["code"] == "sh600519"
 
     def test_unknown_forecast_type_keeps_raw(self, monkeypatch):
-        """未知 FORECAST_TYPE -> forecast_type 等于原始值。"""
+        """未知 FORECASTTYPE -> forecast_type 等于原始值。"""
         import fetchers.event.performance_forecast as mod
 
         payload = {
@@ -596,7 +614,7 @@ class TestPerformanceForecastFetcher:
                 "data": [
                     {
                         "SECURITY_CODE": "600519",
-                        "FORECAST_TYPE": "新类型",
+                        "FORECASTTYPE": "新类型",
                     }
                 ],
             }

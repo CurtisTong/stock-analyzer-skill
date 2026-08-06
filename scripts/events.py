@@ -72,9 +72,44 @@ def format_events_text(events: dict) -> str:
             )
         lines.append("")
 
+    if events.get("forecast"):
+        lines.append("📋 业绩预告:")
+        for item in events["forecast"][:3]:  # 最多显示 3 条
+            ftype = item.get("forecast_type_raw", "") or item.get("forecast_type", "")
+            # 利润区间转亿元展示
+            pmin = item.get("profit_min")
+            pmax = item.get("profit_max")
+            cmin = item.get("change_min")
+            cmax = item.get("change_max")
+            profit_str = (
+                f"{pmin / 1e8:.2f}-{pmax / 1e8:.2f}亿"
+                if pmin is not None and pmax is not None
+                else "?"
+            )
+            change_str = (
+                f"{cmin:+.0f}%-{cmax:+.0f}%"
+                if cmin is not None and cmax is not None
+                else "?"
+            )
+            lines.append(
+                f"  {item.get('notice_date', '?')} - {item.get('name', '?')} {ftype} "
+                f"归母 {profit_str} 同比 {change_str}"
+            )
+            content = item.get("content", "")
+            if content:
+                lines.append(f"    {content[:80]}")
+        lines.append("")
+
     has_events = any(
         events.get(k)
-        for k in ["earnings", "lockup", "dividend", "shareholder", "violation"]
+        for k in [
+            "earnings",
+            "lockup",
+            "dividend",
+            "shareholder",
+            "violation",
+            "forecast",
+        ]
     )
     if not has_events:
         lines.append(f"近 {events['query_days']} 日无重大事件")

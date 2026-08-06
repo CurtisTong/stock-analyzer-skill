@@ -87,6 +87,10 @@ def get_events(code: str, days: int = 30) -> dict:
     if result["violation"]:
         nearest = result["violation"][0]
         summary_parts.append(f"⚠️ 违规: {nearest.get('punish_date', '?')}")
+    if result["forecast"]:
+        nearest = result["forecast"][0]
+        ftype = nearest.get("forecast_type_raw", "") or nearest.get("forecast_type", "")
+        summary_parts.append(f"📋 业绩预告({ftype}): {nearest.get('notice_date', '?')}")
 
     if summary_parts:
         result["summary"] = " | ".join(summary_parts)

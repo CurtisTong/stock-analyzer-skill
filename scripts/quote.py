@@ -46,7 +46,14 @@ def main():
     )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--sources", action="store_true", help="显示可用数据源")
+    parser.add_argument(
+        "--debug", action="store_true", help="调试模式：异常时打印完整 traceback"
+    )
     args = parser.parse_args()
+    if args.debug:
+        import os
+
+        os.environ["STOCK_DEBUG"] = "1"
 
     if args.sources:
         from fetchers import get_quote_fetchers

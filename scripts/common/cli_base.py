@@ -17,6 +17,7 @@
 """
 
 import argparse
+import os
 import sys
 from contextlib import contextmanager
 
@@ -39,6 +40,11 @@ def create_parser(description: str, **kwargs) -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-cache", action="store_true", help="禁用缓存，强制实时获取"
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）",
+    )
     return parser
 
 
@@ -47,16 +53,28 @@ def handle_errors():
     """统一错误处理上下文管理器。
 
     捕获异常并输出中文友好消息，替代各脚本的 try/except 模式。
+    当 STOCK_DEBUG 环境变量为 1 时（或 --debug 在 parse 前设置该变量），
+    打印完整 traceback 以便定位根因，而非仅输出通用提示。
     """
+    debug = os.environ.get("STOCK_DEBUG", "") == "1"
     try:
         yield
     except KeyboardInterrupt:
         print("\n⏹ 已中断", file=sys.stderr)
         sys.exit(130)
     except Exception as e:
-        from common.exceptions import format_error
+        if debug:
+            import traceback
 
-        print(f"❌ {format_error(e)}", file=sys.stderr)
+            traceback.print_exc()
+        else:
+            from common.exceptions import format_error
+
+            print(f"❌ {format_error(e)}", file=sys.stderr)
+            print(
+                "  (提示: 加 --debug 或设 STOCK_DEBUG=1 可查看完整 traceback)",
+                file=sys.stderr,
+            )
         sys.exit(1)
 
 
