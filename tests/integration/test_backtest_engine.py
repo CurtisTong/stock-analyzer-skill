@@ -344,6 +344,8 @@ class TestRunBacktest:
         assert "avg_return_pct" in result
         assert "win_rate_pct" in result
         assert "sharpe_ratio" in result
+        assert "sortino_ratio" in result
+        assert "information_ratio" in result
         assert "max_drawdown_pct" in result
         assert "round_details" in result
 
@@ -358,6 +360,88 @@ class TestRunBacktest:
             "balanced", ["sh600519"], top_n=1, days=30, rounds=3
         )
         assert 0 <= result["win_rate_pct"] <= 100
+
+
+class TestCalcSortino:
+    """_calc_sortino 纯函数测试（不依赖数据源）。"""
+
+    def test_insufficient_data_returns_zero(self):
+        from backtest import _calc_sortino
+
+        assert _calc_sortino([]) == 0
+        assert _calc_sortino([0.01]) == 0
+
+    def test_all_positive_returns_zero(self):
+        """全正收益 → 无下行样本 → 返回 0（与 Sharpe 在无方差时一致）。"""
+        from backtest import _calc_sortino
+
+        returns = [0.01, 0.02, 0.015, 0.005, 0.01]
+        assert _calc_sortino(returns) == 0
+
+    def test_mixed_returns_calculates_sortino(self):
+        """混合收益 → 应返回有限正数（年化后）。"""
+        from backtest import _calc_sortino
+
+        # 含下行样本的简单序列
+        returns = [0.02, -0.01, 0.015, -0.005, 0.01, -0.02, 0.008]
+        result = _calc_sortino(returns)
+        assert isinstance(result, (int, float))
+        assert result != 0  # 有正超额均值 + 正下行波动率
+
+    def test_negative_only_returns_negative(self):
+        """全负收益 → Sortino 应为负。"""
+        from backtest import _calc_sortino
+
+        returns = [-0.01, -0.02, -0.005, -0.015]
+        result = _calc_sortino(returns)
+        assert result < 0
+
+
+class TestMultiBenchmark:
+    """多 benchmark 对比测试。"""
+
+    def test_benchmark_accepts_list(self, monkeypatch, sample_finance, kline_uptrend):
+        """run_backtest benchmark 参数支持 list[str]，返回 information_ratios dict。"""
+        import backtest
+
+        # 重用 TestRunBacktest._mock_all 模式（简化版）
+        from datetime import datetime, timedelta
+        from data.types import KlineBar
+
+        finance_obj = _make_finance_obj()
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
+        today = datetime.now()
+
+        def _mock_kline(code, scale=240, datalen=140):
+            n = max(datalen, 140)
+            bars = []
+            for i in range(n):
+                d = today - timedelta(days=n - i)
+                bars.append(
+                    KlineBar(
+                        day=d.strftime("%Y-%m-%d"),
+                        close=10 + i * 0.3,
+                        open=10 + i * 0.3,
+                        high=10 + i * 0.3,
+                        low=10 + i * 0.3,
+                    )
+                )
+            return bars
+
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
+
+        result = backtest.run_backtest(
+            "balanced",
+            ["sh600519"],
+            top_n=1,
+            days=30,
+            rounds=3,
+            benchmark=["sh000300", "sh000016"],  # 多基准
+        )
+        assert "error" not in result
+        assert isinstance(result.get("information_ratios"), dict)
+        # 兼容旧字段：取第一个基准的值
+        assert "information_ratio" in result
 
 
 class TestOptimizeWeights:

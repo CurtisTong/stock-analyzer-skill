@@ -5,6 +5,7 @@
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -19,7 +20,7 @@ def compare_strategies(
     top_n: int = 5,
     days: int = 60,
     rounds: int = 5,
-    benchmark: str = None,
+    benchmark=None,
     scenarios: list = None,
 ):
     """比较所有策略的表现。
@@ -157,6 +158,22 @@ def load_test_universe():
     return sorted(set(all_codes))
 
 
+def _print_report_meta(meta: dict | None):
+    """统一输出报告尾部的时间戳/数据源标记（SKILL 硬约束）。"""
+    if not meta:
+        return
+    ts = meta.get("generated_at", "-")
+    sources = meta.get("data_sources") or ["K线(多源聚合)"]
+    bench_src = meta.get("benchmark_source")
+    is_deg = meta.get("is_degraded", False)
+    parts = [f"📅 报告生成: {ts}", f"🔌 数据源: {', '.join(sources)}"]
+    if bench_src:
+        parts.append(f"基准: {bench_src}")
+    if is_deg:
+        parts.append("⚠️  存在数据降级")
+    print(" | ".join(parts))
+
+
 def main():
     from common.cache import cleanup_tmp_files
 
@@ -179,7 +196,9 @@ def main():
     parser.add_argument("--rounds", type=int, default=5, help="回测轮数")
     parser.add_argument("--codes", help="自定义股票代码（逗号分隔）")
     parser.add_argument(
-        "--benchmark", default=None, help="基准指数代码（如 sh000300 沪深300）"
+        "--benchmark",
+        default=None,
+        help="基准指数代码（如 sh000300 沪深300），多个用逗号分隔（如 sh000300,sh000016）",
     )
     parser.add_argument("--scenarios", action="store_true", help="运行情景分析")
     parser.add_argument(
@@ -212,6 +231,14 @@ def main():
         codes = [normalize_quote_code(c) for c in args.codes.split(",")]
     else:
         codes = load_test_universe()
+
+    # 多基准解析：--benchmark sh000300,sh000016,sz399006
+    benchmarks: list[str] = []
+    if args.benchmark:
+        benchmarks = [
+            normalize_quote_code(b) for b in args.benchmark.split(",") if b.strip()
+        ]
+    benchmark_arg = benchmarks[0] if len(benchmarks) == 1 else (benchmarks or None)
 
     if not codes:
         print("❌ 无可用股票池", file=sys.stderr)
@@ -260,6 +287,15 @@ def main():
             if d.get("errors"):
                 print(f"错误窗口: {len(d['errors'])}")
             print("\n💡 OOS = Out-of-Sample（策略未见过的数据），比全样本回测更可信")
+            _print_report_meta(
+                {
+                    "generated_at": datetime.now().isoformat(timespec="seconds"),
+                    "data_sources": ["K线(多源聚合)"],
+                    "is_degraded": any(
+                        w.get("status") != "ok" for w in wf_result.windows
+                    ),
+                }
+            )
 
     elif args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
@@ -271,6 +307,12 @@ def main():
             print(f"最优夏普: {result['best_sharpe']:.3f}")
             print(f"基准夏普: {result['baseline_sharpe']:.3f}")
             print(f"提升: {result['improvement']:+.3f}")
+            _print_report_meta(
+                {
+                    "generated_at": datetime.now().isoformat(timespec="seconds"),
+                    "data_sources": ["K线(多源聚合)"],
+                }
+            )
 
     elif args.all:
         print(
@@ -289,13 +331,13 @@ def main():
             args.top,
             args.days,
             args.rounds,
-            benchmark=args.benchmark,
+            benchmark=benchmark_arg,
             scenarios=scenarios,
         )
         if args.json:
             print(json.dumps(results, ensure_ascii=False, indent=2))
         else:
-            header = f"{'策略':<18} {'总收益%':>8} {'夏普':>6} {'信息比':>7} {'最大回撤%':>8} {'胜率%':>6}"
+            header = f"{'策略':<18} {'总收益%':>8} {'夏普':>6} {'索提诺':>7} {'信息比':>7} {'最大回撤%':>8} {'胜率%':>6}"
             if scenarios:
                 header += f" {'情景(收%)':>30}"
             print(header)
@@ -307,6 +349,7 @@ def main():
                     line = (
                         f"{name:<18} {report['total_return_pct']:>8.2f} "
                         f"{report['sharpe_ratio']:>6.2f} "
+                        f"{report.get('sortino_ratio', 0):>7.2f} "
                         f"{report.get('information_ratio', 0):>7.2f} "
                         f"{report['max_drawdown_pct']:>8.2f} "
                         f"{report['win_rate_pct']:>6.1f}"
@@ -322,29 +365,35 @@ def main():
                         )
                         line += f" {scenario_str[:30]:>30}"
                     print(line)
-            # 基准对比行
-            if args.benchmark:
-                bench_pct = _fetch_benchmark_return(args.benchmark, args.days)
-                if bench_pct is not None:
-                    print("-" * (len(header) + 10))
-                    print(
-                        f"{'基准 ' + args.benchmark:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>8} {'-':>6}"
-                    )
+            # 基准对比行（多基准每个一行）
+            if benchmarks:
+                print("-" * (len(header) + 10))
+                for bm in benchmarks:
+                    bench_pct = _fetch_benchmark_return(bm, args.days)
+                    if bench_pct is not None:
+                        print(
+                            f"{'基准 ' + bm:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>7} {'-':>8} {'-':>6}"
+                        )
+            # 报告尾行：时间戳 + 数据源
+            any_meta = next(
+                (r.get("meta") for r in results.values() if r.get("meta")), None
+            )
+            _print_report_meta(any_meta)
 
     else:
         print(
             f"\n📈 回测策略: {args.strategy} (top={args.top}, days={args.days}, rounds={args.rounds})",
             flush=True,
         )
-        if args.benchmark:
-            print(f"   基准: {args.benchmark}")
+        if benchmarks:
+            print(f"   基准: {', '.join(benchmarks)}")
         report = run_backtest(
             args.strategy,
             codes,
             args.top,
             args.days,
             args.rounds,
-            benchmark=args.benchmark,
+            benchmark=benchmark_arg,
         )
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
@@ -357,7 +406,12 @@ def main():
             print(f"最小收益: {report['min_return_pct']:.2f}%")
             print(f"胜率: {report['win_rate_pct']:.1f}%")
             print(f"夏普比率: {report['sharpe_ratio']:.2f}")
-            if report.get("information_ratio"):
+            print(f"索提诺比率: {report.get('sortino_ratio', 0):.2f}")
+            info_ratios = report.get("information_ratios") or {}
+            if info_ratios:
+                for bm, ratio in info_ratios.items():
+                    print(f"信息比率({bm}): {ratio:.2f}")
+            elif report.get("information_ratio"):
                 print(f"信息比率: {report['information_ratio']:.2f}")
             print(f"最大回撤: {report['max_drawdown_pct']:.2f}%")
             print(f"盈亏比: {report.get('profit_loss_ratio', 0):.2f}")
@@ -386,6 +440,8 @@ def main():
                 print(render_drawdown_chart(returns, width=50, height=6))
             except Exception:
                 pass  # 可视化失败不影响主流程
+
+            _print_report_meta(report.get("meta"))
 
 
 if __name__ == "__main__":

@@ -169,17 +169,32 @@ def simulate_strategy(ctx: SimContext):
 
     def _fetch_finance(code):
         industry = infer_industry("", code)
+        source = None
+        is_degraded = False
         try:
             # WP4: 解构 (records, meta) tuple
             fin_records, _meta = get_finance(normalize_finance_code(code))
             fin = fin_records[0].to_dict() if fin_records else {}
+            if _meta is not None:
+                source = getattr(_meta, "source", None)
+                is_degraded = getattr(_meta, "is_degraded", False)
         except Exception as e:
             logger.warning("获取财务数据失败 %s: %s", code, e)
             fin = {}
-        return industry, fin
+        return industry, fin, source, is_degraded
 
+    finance_sources = set()
+    finance_degraded = False
     fin_results = parallel_fetch_dict(codes, _fetch_finance, label="backtest:finance")
-    for code, (industry, fin) in fin_results.items():
+    for code, payload in fin_results.items():
+        # 兼容旧签名（无 source/is_degraded）
+        if len(payload) == 2:
+            industry, fin = payload
+        else:
+            industry, fin, src, deg = payload
+            if src:
+                finance_sources.add(src)
+            finance_degraded = finance_degraded or deg
         industry_cache[code] = industry
         fin_cache[code] = fin
 
@@ -327,6 +342,10 @@ def simulate_strategy(ctx: SimContext):
         "total_periods": len(portfolio_returns),
         "holding_days": holding_days,
         "top_n": top_n,
+        "data_sources": (
+            sorted(finance_sources) if finance_sources else ["K线(多源聚合)"]
+        ),
+        "is_degraded": finance_degraded,
     }
 
 

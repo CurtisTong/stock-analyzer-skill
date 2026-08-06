@@ -2,6 +2,8 @@
 回测统计指标计算：夏普比率、最大回撤、卡玛比率、信息比率等。
 """
 
+from datetime import datetime
+
 from .engine import simulate_strategy, SimContext
 
 
@@ -11,7 +13,7 @@ def run_backtest(
     top_n: int = 5,
     days: int = 60,
     rounds: int = 5,
-    benchmark: str = None,
+    benchmark=None,
     weights=None,
 ):
     """
@@ -54,7 +56,23 @@ def run_backtest(
     if total_periods == 0:
         return {"error": "回测失败，无有效数据"}
 
-    benchmark_returns = _fetch_benchmark_returns(benchmark, days) if benchmark else None
+    # 多基准：每个基准独立抓日收益并切分为每期持有期收益（连乘）
+    benchmark_list = (
+        benchmark if isinstance(benchmark, list) else ([benchmark] if benchmark else [])
+    )
+    benchmark_period_returns_map = {}
+    for bm in benchmark_list:
+        bm_ret = _fetch_benchmark_returns(bm, days)
+        if bm_ret and len(bm_ret) > 1 and len(all_returns) > 1:
+            n_bp = len(bm_ret) // max(1, holding_days)
+            bp = []
+            for k in range(n_bp):
+                seg = bm_ret[k * holding_days : (k + 1) * holding_days]
+                cum = 1.0
+                for dr in seg:
+                    cum *= 1 + dr
+                bp.append((cum - 1) * 100)
+            benchmark_period_returns_map[bm] = bp
 
     # 累计收益（各期收益连乘）
     total_return = 1.0
@@ -120,38 +138,30 @@ def run_backtest(
     avg_loss = abs(sum(losing_trades) / len(losing_trades)) if losing_trades else 0
     profit_loss_ratio = round(avg_win / avg_loss, 2) if avg_loss > 0 else 0
 
+    # Sortino 比率 = 年化超额收益 / 下行波动率（仅负收益的 stdev）
+    sortino_ratio = _calc_sortino(all_daily_returns, annual_risk_free)
+
     total_trades = top_n * total_periods
 
-    # 信息比率
+    # 信息比率（多基准：基于 benchmark_period_returns_map 循环计算）
     # P0-12 修复：原实现用 all_daily_returns（多期拼接、不连续）与 benchmark_returns
     # （连续 N 天）按 min_len 前对齐，时间区间错开数周到数月，数值无意义。
     # 改为基于"每期收益 vs 基准同期持有期收益"的超额收益，不依赖日序列时间对齐。
-    information_ratio = 0
-    if benchmark_returns and len(benchmark_returns) > 1 and len(all_returns) > 1:
-        import statistics
+    import statistics
 
-        # 基准按 holding_days 切分为各期持有期收益（连乘）
-        n_bench_periods = len(benchmark_returns) // max(1, holding_days)
-        bench_period_returns = []
-        for k in range(n_bench_periods):
-            seg = benchmark_returns[k * holding_days : (k + 1) * holding_days]
-            cum = 1.0
-            for dr in seg:
-                cum *= 1 + dr
-            bench_period_returns.append((cum - 1) * 100)  # 转百分比
-
-        # 与策略各期收益对齐（取 min 期数），每期都是 holding_days 的持有期收益
-        n_periods = min(len(all_returns), len(bench_period_returns))
+    information_ratios = {}
+    for bm, bp in benchmark_period_returns_map.items():
+        n_periods = min(len(all_returns), len(bp))
         if n_periods > 1:
-            excess = [
-                all_returns[i] - bench_period_returns[i] for i in range(n_periods)
-            ]
+            excess = [all_returns[i] - bp[i] for i in range(n_periods)]
             mean_excess = sum(excess) / len(excess)
             te = statistics.stdev(excess)
             periods_per_year = 252 / holding_days if holding_days > 0 else 0
-            information_ratio = (
+            information_ratios[bm] = (
                 round(mean_excess / te * (periods_per_year**0.5), 2) if te > 0 else 0
             )
+    # 兼容旧字段：取第一个基准（若存在）
+    information_ratio = next(iter(information_ratios.values()), 0)
 
     # 换手率估算
     annual_turnover = (252 / holding_days) * top_n if holding_days > 0 else 0
@@ -169,15 +179,26 @@ def run_backtest(
         "min_return_pct": round(min_return, 2),
         "win_rate_pct": round(win_rate, 1),
         "sharpe_ratio": round(sharpe, 2),
+        "sortino_ratio": sortino_ratio,
         "information_ratio": information_ratio,
+        "information_ratios": information_ratios,
         "max_drawdown_pct": round(max_drawdown * 100, 2),
         "calmar_ratio": calmar_ratio,
         "profit_loss_ratio": profit_loss_ratio,
         "total_trades": total_trades,
         "annual_turnover": round(annual_turnover),
         "win_by_position": win_by_position,
-        "benchmark": benchmark or "none",
+        "benchmark": (
+            benchmark if isinstance(benchmark, list) else (benchmark or "none")
+        ),
+        "benchmark_returns_pct": {},
         "round_details": round_results,
+        "meta": {
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "data_sources": result.get("data_sources", []),
+            "benchmark_source": result.get("benchmark_source"),
+            "is_degraded": result.get("is_degraded", False),
+        },
     }
 
 
@@ -233,3 +254,25 @@ def _calc_win_by_position(round_results: list, holding_days: int) -> dict:
         k: round(v["wins"] / v["total"] * 100, 1) if v["total"] > 0 else 0
         for k, v in positions.items()
     }
+
+
+def _calc_sortino(daily_returns: list, annual_risk_free: float = 0.03) -> float:
+    """计算 Sortino 比率（年化，年化收益 / 下行波动率）。
+
+    与 Sharpe 区别：分母只取负收益的样本标准差（不惩罚上行波动）。
+    当样本不足或无下行样本时返回 0（与 Sharpe 在样本不足时的处理一致）。
+    """
+    if not daily_returns or len(daily_returns) < 2:
+        return 0
+    import statistics
+
+    daily_rf = annual_risk_free / 252
+    excess = [r - daily_rf for r in daily_returns]
+    downside = [r for r in excess if r < 0]
+    if len(downside) < 2:
+        return 0  # 下行样本不足，不强行计算
+    downside_std = statistics.stdev(downside)
+    if downside_std <= 0:
+        return 0
+    mean_excess = sum(excess) / len(excess)
+    return round(mean_excess / downside_std * (252**0.5), 2)

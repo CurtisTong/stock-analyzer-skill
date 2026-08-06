@@ -16,7 +16,12 @@ from .engine import (
     _calc_dividend_score,
     _build_hist_quote,
 )
-from .metrics import run_backtest, _fetch_benchmark_returns, _calc_win_by_position
+from .metrics import (
+    run_backtest,
+    _fetch_benchmark_returns,
+    _calc_win_by_position,
+    _calc_sortino,
+)
 from .cli import compare_strategies, optimize_weights, load_test_universe, main
 from .walk_forward import run_walk_forward, WalkForwardConfig, WalkForwardResult
 
@@ -40,4 +45,5 @@ __all__ = [
     "_build_hist_quote",
     "_fetch_benchmark_returns",
     "_calc_win_by_position",
+    "_calc_sortino",
 ]

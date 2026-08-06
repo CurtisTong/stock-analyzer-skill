@@ -144,20 +144,42 @@ def prefetch_finance_all(codes: list) -> dict:
 
     ex = get_shared_executor()
     futures = {ex.submit(_fetch_one, c): c for c in codes}
-    for future in as_completed(futures):
-        try:
-            code, data = future.result()
-            results[code] = data
-        except Exception as e:
-            # v1.16.0 P1-2 HIGH: 整批静默丢弃——记录
-            from common.exceptions import log_silent_fallback
+    # 整体超时：正常单条 ~0.8s，2550 条 / 12 workers ≈ 3min。
+    # 给 8min 总窗口让正常请求完成；超时未完成的视为卡死，取消并置空。
+    OVERALL_TIMEOUT = 480
+    done_futures = set()
+    try:
+        for future in as_completed(futures, timeout=OVERALL_TIMEOUT):
+            done_futures.add(future)
+            try:
+                code, data = future.result(timeout=5)
+                results[code] = data
+            except Exception as e:
+                # v1.16.0 P1-2 HIGH: 整批静默丢弃--记录
+                from common.exceptions import log_silent_fallback
 
-            log_silent_fallback(
-                location="data.helpers.batch_prefetch",
-                exception=e,
-                fallback_reason=f"批量预取单条失败 → 整批置空（code={futures.get(future, '?')}）",
-            )
-            results[futures[future]] = []
+                log_silent_fallback(
+                    location="data.helpers.batch_prefetch",
+                    exception=e,
+                    fallback_reason=f"批量预取单条失败 -> 整批置空（code={futures.get(future, '?')}）",
+                )
+                results[futures[future]] = []
+    except TimeoutError:
+        # as_completed 超时：剩余未完成的视为卡死（akshare 无超时会永久挂起）
+        from common.exceptions import log_silent_fallback
+
+        stuck = [futures[f] for f in futures if f not in done_futures]
+        log_silent_fallback(
+            location="data.helpers.batch_prefetch",
+            exception=TimeoutError(),
+            fallback_reason=f"批量预取超时（{len(stuck)} 条未完成已置空：{stuck[:5]}...）",
+        )
+
+    # 未完成的 future：取消并置空，防止永久挂起
+    for future, code in futures.items():
+        if code not in results:
+            future.cancel()
+            results[code] = []
     return results
 
 

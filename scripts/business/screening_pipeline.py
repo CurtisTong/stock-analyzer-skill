@@ -192,15 +192,22 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     t_pipeline_start = _time.perf_counter()
     phase_stats = {}
 
-    with ThreadPoolExecutor(max_workers=2) as ex:
-        f_quotes = ex.submit(fetch_batch_dicts, codes)
-        f_finance = ex.submit(prefetch_finance_all, codes)
-        quotes = f_quotes.result()
-
+    # full_market 模式下先取行情并预筛选，再对精简后的候选池抓财务数据，
+    # 避免对 ~5000 只全市场标的逐个抓财务导致长时间挂起（akshare 无超时）。
+    # 非 full_market 模式保持原并行逻辑（池小，并行更快）。
     if args.full_market:
+        quotes = fetch_batch_dicts(codes)
         quotes = pre_screen_quotes(quotes, args)
+        finance_cache = prefetch_finance_all(
+            [normalize_quote_code(q.get("code", "")) for q in quotes if q.get("code")]
+        )
+    else:
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            f_quotes = ex.submit(fetch_batch_dicts, codes)
+            f_finance = ex.submit(prefetch_finance_all, codes)
+            quotes = f_quotes.result()
+        finance_cache = f_finance.result()
 
-    finance_cache = f_finance.result()
     finance_cache = {normalize_quote_code(code): v for code, v in finance_cache.items()}
 
     # 市场状态检测
