@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.18.0（2026-08-05）已发布，市场分析降级可观测性 + 来源追踪：涨跌停/token 降级时改用涨跌比定性、`_degraded` 标记透传、宏观字段加 `*_source` 输出与 `[fixture]` 渲染标注、`/market` SKILL.md 4 段硬约束。
+> 🟢 **当前状态**：v1.19.0（2026-08-05）已发布，数据源降级可观测性 + 来源追踪 + P1 健康度：涨跌停/token 降级改用涨跌比定性、`_degraded` 标记透传、`/market` SKILL.md 4 段硬约束；monitor 新增 akshare 探活 + baostock IP 风险 + 跨源校验脚本；五层分析 data_sources 透传真实数据源名；缓存命中双重归一化修复 + 18 项数据源/导入/API/格式 Bug 修复。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.19.0 | 2026-08-05 | 数据源降级可观测性 + P1 健康度：monitor 新增 akshare 探活 + baostock IP 风险 + 跨源校验；五层分析 data_sources 透传真实数据源名；缓存命中双重归一化修复 + 18 项数据源/导入/API/格式 Bug |
 | 1.18.0 | 2026-08-05 | 市场分析降级可观测性 + 来源追踪：涨跌停降级改用涨跌比定性、`_degraded` 标记透传、宏观字段 `*_source` 与 `[fixture]` 渲染标注、`/market` SKILL.md 4 段硬约束 |
 | 1.17.0 | 2026-08-05 | 移除 `/monitor` CLI skill + 新增题材概念数据层 + FinanceRecord 存货字段 + 多种战法因子 + VWAP 监控 + 周期股期货修复 |
 | 1.16.1 | 2026-08-03 | fetchers 深度审查 P0–P2 修复 27+3+4 项 + technical H/M/L 回归 + skill schema 清洗 + 测试/文档对齐 |
@@ -32,19 +33,11 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased] - 2026-08-05
-
+## [1.19.0] - 2026-08-05（数据源降级可观测性 + P1 健康度 + 五层 data_sources 透传 + 缓存命中 bug 修复 + 18 项 bug 修复）
 
 ### Added
 - **business**: 五层分析 data_sources 透传真实数据源名
 - **monitor**: p1 健康度集成（akshare 探活 + baostock IP 风险 + 跨源校验脚本）
-
-### Fixed
-- **kline**: akshare 列名容错 + baostock BSE 路由 + IP 退避 + tencent https/640 钳位
-- **cache**: 修复 get_quote/get_kline 缓存命中时双重归一化 bug
-
-### Maintenance
-- **data**: 刷新宏观快照 + 新增数据源商用协议标注文档
 
 ### Fixed
 - 修复 18 项数据源/导入/API/格式 Bug
@@ -52,11 +45,8 @@
 - **cache**: 修复 get_quote/get_kline 缓存命中时双重归一化 bug
 
 ### Maintenance
-- bump version to 1.19.0
 - **data**: 刷新宏观快照 + 新增数据源商用协议标注文档
-
-### Other
-- Merge branch 'main' of github.com:CurtisTong/stock-analyzer-skill
+- bump version to 1.19.0
 
 ## [1.17.0] - 2026-08-05（移除 `/monitor` skill + 数据层/战法因子扩容 + VWAP 监控 + 周期股期货修复）
 
