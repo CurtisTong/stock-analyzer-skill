@@ -67,11 +67,9 @@ def main():
     # #16: 修复 parallel_map unhashable type: list
     # parallel_map 要求 item 可哈希，batch（list）不可哈希。
     # 直接用 get_quotes 一次性并发获取，无需手动分批。
-    from data import get_quotes
-
-    all_records = get_quotes(codes, use_cache=True)
-    if not all_records:
-        all_records = fetch_batch(codes)
+    quotes = get_quotes(codes, use_cache=True)
+    # get_quotes 返回 Quote 对象，需归一化为 dict 以兼容 JSON 序列化与表格字段索引
+    all_records = [q.to_dict() for q in quotes] if quotes else fetch_batch(codes)
 
     if args.json:
         print(json.dumps(all_records, ensure_ascii=False, indent=2))
