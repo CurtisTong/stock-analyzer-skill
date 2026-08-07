@@ -41,6 +41,7 @@
 
 
 
+
 ### Added
 - **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
 
@@ -79,6 +80,12 @@
 - 复盘审查修复（13 项）
 - 清理监控模块残留引用 + 补推送链路测试
 - 彻底移除监控模块（保留持仓 CRUD 推送）
+
+### Added
+- **portfolio**: health_report 集成 technical.py（端到端破位判定）
+- **portfolio**: health_report 7 项增强（5 行业 + 5 档 status + 真实 regime + 破位 OR）
+- **portfolio**: health_report() 结构化报告 + 板块分类修复
+- **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
 
 ## [1.19.0] - 2026-08-05（数据源降级可观测性 + P1 健康度 + 五层 data_sources 透传 + 缓存命中 bug 修复 + 18 项 bug 修复）
 
