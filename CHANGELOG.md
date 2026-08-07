@@ -47,6 +47,7 @@
 
 
 
+
 ### Added
 - **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
 
@@ -130,6 +131,16 @@
 - **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
 
 ### Fixed
+- **skills**: P0 修复 — 工作目录与多代码调用陷阱
+- **skills**: 3 项低优先级修复（L1+L2+L3）
+- **skills**: 3 项中优先级修复（M5+M6+M7）
+- 修复指数代码映射错误 + monitor scanner 缺失导致监控/简报不可用
+- 业绩预告API+财务yoy/roe+板块覆盖+CLI调试 5项修复
+- **screener**: 全市场并发抓取 akshare/urllib 代理挂死导致永久卡死
+- **quote**: CLI JSON 输出 Quote 对象未序列化导致崩溃
+
+### Fixed
+- **skills**: P2 修复 — 编码兜底+枚举集中+logger统一+emoji库
 - **skills**: P0 修复 — 工作目录与多代码调用陷阱
 - **skills**: 3 项低优先级修复（L1+L2+L3）
 - **skills**: 3 项中优先级修复（M5+M6+M7）
