@@ -20,6 +20,7 @@ allowed-tools: Bash(python3 scripts/backtest.py *)
 /backtest --strategy growth_momentum         # 成长动量
 /backtest --strategy defensive               # 防守低波
 /backtest --strategy turning_point           # 拐点修复
+/backtest --strategy ma_volume_momentum      # 动量放量
 /backtest --all                              # 比较所有策略
 /backtest --benchmark sh000300               # 对比沪深300基准
 /backtest --benchmark sh000300,sh000016      # 多基准对比（沪深300 + 上证50）

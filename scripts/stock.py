@@ -280,7 +280,10 @@ def main():
                 "max_drawdown": bt.get("max_drawdown_pct"),
             }
         except Exception as e:
+            # M4: --with-backtest 失败时显式标 data_failed，
+            # 让 render_footer 在 SKILL.md 约定的"数据护栏条"中体现降级。
             result["backtest_error"] = str(e)
+            result.setdefault("data_failed", []).append("回测胜率")
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))

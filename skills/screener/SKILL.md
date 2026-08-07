@@ -13,7 +13,7 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 ## Usage
 
 ```text
-/screener [--sector 板块] [--strategy balanced|quality_value|growth_momentum|defensive|turning_point] [--top N]
+/screener [--sector 板块] [--strategy balanced|quality_value|growth_momentum|defensive|turning_point|ma_volume_momentum] [--top N]
 /screener init              # 初始化/刷新股票池（原 /stock-init）
 /screener init force        # 强制重新初始化
 /screener init default      # 使用预置默认数据（离线可用）

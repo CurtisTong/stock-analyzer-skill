@@ -8,6 +8,11 @@ allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.m
 
 # 深度研究
 
+> ⚠️ **NOTE**：本 skill 无独立 Python 入口（`scripts/research.py` 不存在），
+> 由 Claude 通过 `allowed-tools` 委派到 `finance.py` / `quote.py` / `kline.py` /
+> `technical.py` / `market_anchor.py` / `announcements.py` 等脚本组合调用。
+> 直接运行 `python3 scripts/research.py <args>` 会 ModuleNotFoundError。
+
 财务建模 + 全维度投资研究报告。两个子命令覆盖不同深度。
 
 ## Usage
