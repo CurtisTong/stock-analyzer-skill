@@ -42,12 +42,24 @@ def _to_yf_symbol(code: str) -> str:
         digits = symbol.lstrip("0")
         return f"{digits.zfill(4)}.HK"
     plain = plain_code(code).zfill(6)
+    # 00 开头数字段沪深二义（上证指数 000xxx 与深市主板 000xxx 重合）
+    # 回退信任入参前缀，避免把 sh000001（上证指数）误判为深市
     if plain.startswith(("60", "68", "51", "56", "58")):
         return f"{plain}.SS"
-    elif plain.startswith(("00", "30", "15", "16", "18")):
+    if plain.startswith(("30", "15", "16", "18")):
         return f"{plain}.SZ"
-    elif plain.startswith(("43", "83", "87", "88", "92")):
+    if plain.startswith(("43", "83", "87", "88", "92")):
         return f"{plain}.BJ"
+    # 00 开头二义段：回退信任入参前缀
+    if c.startswith("sh"):
+        return f"{plain}.SS"
+    if c.startswith("sz"):
+        return f"{plain}.SZ"
+    if c.startswith("bj"):
+        return f"{plain}.BJ"
+    # 无前缀且二义 -> 默认深市
+    if plain.startswith("00"):
+        return f"{plain}.SZ"
     return code
 
 

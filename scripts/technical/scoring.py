@@ -42,7 +42,7 @@ _SCORE_LOCAL_MAX = 10
 # H2: 可选子评分模块（chan/local/limit/chip）"无信号"（raw == 0）时，
 # 归一化直接给中性 50，而不是 0/16.7/33.3 的地板分。
 # 原实现把"未计算/数据不足/无信号"当作看空信号：
-#   - 三条消费路径（technical.py 完整 / stock_analysis.py 稀疏 / monitor）对同一
+#   - 两条消费路径（technical.py 完整 / stock_analysis.py 稀疏）对同一
 #     股票评分不一致（稀疏路径缺 chan/limit/local/chip 四项 → 永远踩地板分）；
 #   - 全中性股票被系统性压低至"中性(偏空)"（实测 35.9 vs 中性基线约 46.5）。
 _NEUTRAL_KEYS = ("chan", "local", "limit", "chip")

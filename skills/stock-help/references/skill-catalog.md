@@ -106,7 +106,7 @@
 
 1. `/market quick` — 了解隔夜消息和市场预期
 2. `/portfolio health` — 检查持仓健康状态
-3. `/portfolio web` — 启动 Web 录入 + 后台监控（替代原 `/monitor`）
+3. `/portfolio web` — 启动 Web 录入服务（持仓 CRUD + 推送通道）
 
 ### 盘后（收盘后）
 

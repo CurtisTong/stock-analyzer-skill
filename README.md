@@ -490,7 +490,6 @@ flowchart LR
 | 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance\|compare]`        | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比    |
 | 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md)         | `/portfolio web [--port 8765]`                   | Web 录入服务（HTTP API :8765）               |
 | 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                                 | NL → 命令映射（我买了/减仓/破位止损）        |
-| 📡 **监控** | [portfolio-web](skills/portfolio-web/SKILL.md)               | `/portfolio web` + `--no-monitor` 关闭            | Web 录入 + 后台策略监控 + Bark/企微/钉钉推送 |
 | 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                   | `/backtest [--strategy 策略] [--all]`            | 策略历史回测，含卡玛比率/盈亏比/夏普         |
 | 🔬 **研究** | [research](skills/research/SKILL.md)                   | `/research [financial\|report] <任务>`           | 深度研究：财务建模 / 排雷 / DCF / 估值       |
 | 📚 **学习** | [learn](skills/learn/SKILL.md)                         | `/learn <概念>`                                  | 学习助手：PE/ROE/MACD/K 线/缠论/新手入门     |
@@ -572,7 +571,7 @@ scripts/
 ├── fetchers/      # 27 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
 ├── strategies/    # 6 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
-├── monitor/       # 实时监控 + 多通道通知
+├── monitor/       # 消息推送（NotificationManager + 多通道适配器）
 ├── portfolio/     # 持仓管理
 └── *.py           # 顶层 CLI 入口（SKILL.md 直接调用）
 ```

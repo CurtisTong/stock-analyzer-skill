@@ -15,7 +15,6 @@
 | 🌐 某个板块怎么样        | `/sector <板块>`                      | 板块全景 + 标的对比 + 板块内筛选         |
 | 🔬 深度研究一只股票      | `/research <任务>`                    | 财务建模 + 排雷 + DCF + 投资建议         |
 | 🧪 验证选股策略          | `/backtest`                           | 胜率 + 收益 + 夏普 + 回撤 + 基准对比     |
-| 📡 盘中盯盘（异动/预警） | `/monitor`                            | 持仓异动 + 价格预警 + Bark/企微/钉钉     |
 | 📚 学投资基础            | `/learn`                              | PE/ROE/MACD/均线/缠论 系统化学习路径     |
 
 ## 🗺️ 4 个组合使用场景
@@ -87,7 +86,6 @@ stock debate → research financial → research report
 | screener  | `/screener [init\|--sector 板块\|--strategy 策略]`     | 选股策略系统 | 多因子筛选+硬过滤³+候选池         |
 | research  | `/research [financial\|report] <任务>`                 | 深度研究     | 财务建模 / 市场研究 / 尽调 / 估值 |
 | backtest  | `/backtest [--strategy 策略] [--all]`                  | 策略回测     | 历史胜率+收益验证                 |
-| monitor   | `/monitor scan\|levels\|check\|--cache`                | 盘中监控     | 持仓异动+价格预警推送             |
 | help      | `/help`                                                | 使用说明     | 显示所有可用 skills               |
 
 > **术语说明**：
@@ -362,23 +360,16 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 返回：策略胜率、平均收益、最大回撤等统计指标。
 
-## 盘中监控 (/monitor)
-
-健康检查与实时监控，包含两组命令。
+## 数据源健康检查
 
 ```text
-# 健康检查（数据源与缓存）
-/monitor --cache       # 显示缓存状态
-/monitor --sources     # 显示数据源状态
-/monitor --cleanup     # 清理过期缓存
-
-# 实时监控（盘中预警与推送）
-/monitor scan          # 扫描持仓+自选股关键点位
-/monitor levels sh600989  # 查看单股关键点位
-/monitor check         # 盘中检查+推送
+python3 scripts/monitor.py --cache       # 显示缓存状态
+python3 scripts/monitor.py --sources     # 显示数据源状态
+python3 scripts/monitor.py --cleanup     # 清理过期缓存
 ```
 
-支持 Bark、企微、钉钉等推送通知。
+数据源故障转移与缓存管理工具，无持仓推送功能。持仓 CRUD 推送通过
+`/portfolio web --no-notify` 关闭。
 
 ## 完整使用流程（自下而上 / 再平衡 / 研究报告）
 

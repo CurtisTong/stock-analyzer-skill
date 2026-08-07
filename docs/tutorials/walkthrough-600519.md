@@ -276,26 +276,7 @@ ROE: 31.2%（连续 5 年 > 25%）
 # 浏览器自动打开 http://127.0.0.1:8765/
 ```
 
-## 第 10 步：盘中监控（/monitor）
-
-```bash
-/monitor scan
-```
-
-输出示例：
-
-```
-🎯 持仓无异常
-
-持仓扫描:
-| 股票 | 现价 | 涨跌 | 触发条件 |
-| --- | --- |
-| 贵州茅台 | 1,652 | +0.85% | 无触发 |
-
-📊 数据时间戳: 2026-06-15 14:30 | 数据源: 腾讯行情
-```
-
-## 第 11 步：初始化股票池（/stock-init）
+## 第 10 步：初始化股票池（/screener init）
 
 ```bash
 # 默认初始化（~140 只）
@@ -328,11 +309,11 @@ ROE: 31.2%（连续 5 年 > 25%）
 ```
 市场状态 → 板块强弱 → 选股筛选 → 单股分析 → 技术确认 → 财务建模
     ↓           ↓           ↓           ↓           ↓           ↓
-/market    /sector    /screener    /stock     /technical  /financial-analyst
+/market    /sector    /screener    /stock     /technical  /research financial
     ↓           ↓           ↓           ↓           ↓           ↓
-投资研究 → 策略回测 → 持仓管理 → 盘中监控 → 帮助
-    ↓           ↓           ↓           ↓           ↓
-/investment-researcher → /backtest → /portfolio → /monitor → /help
+投资研究 → 策略回测 → 持仓管理 → 帮助
+    ↓           ↓           ↓       ↓
+/research report → /backtest → /portfolio → /stock-help
 ```
 
 ## 常见问题

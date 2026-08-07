@@ -33,7 +33,7 @@ stock-analyzer-skill/
 │   ├── portfolio-web/SKILL.md
 │   ├── portfolio-natural/SKILL.md
 │   ├── screener/SKILL.md
-│   ├── monitor/SKILL.md
+│   ├── portfolio-web/SKILL.md
 │   ├── backtest/SKILL.md
 │   ├── research/SKILL.md
 │   ├── learn/SKILL.md
@@ -114,7 +114,7 @@ stock-analyzer-skill/
 │   │   ├── xianduan.py / zhongshu.py / macd.py
 │   │   ├── beichi.py / maidian.py
 │   │   └── __init__.py
-│   ├── monitor/                    # 实时监控
+│   ├── monitor/                    # 消息推送（NotificationManager + 多通道）
 │   │   ├── health.py              # 健康检查（v1.3.1 支持 --cleanup）
 │   │   ├── manager.py             # 监控管理器
 │   │   └── channels/              # 通知渠道
@@ -385,7 +385,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 | `version` | - | 与 `package.json` 主版本一致（默认 1.16.0） |
 | `model` | - | `haiku`/`sonnet`/`opus`/`glm-5.2` 之一 |
 | `allowed-tools` | - | 工具白名单，**相对路径**（`./scripts/...`），禁止绝对路径 |
-| `disable-model-invocation` | - | 仅命令式 skill（`backtest`/`stock-help`/`monitor`）设为 `true` |
+| `disable-model-invocation` | - | 仅命令式 skill（`backtest`/`stock-help`）设为 `true` |
 
 frontmatter 校验由 `tests/contracts/test_skill_metadata_sync.py`（121 项）和 pre-commit hook `check-skill-allowed-tools` 共同把关。
 
@@ -491,8 +491,8 @@ python3 -m pytest tests/ -x -q --run-network
 ### 健康检查
 
 ```bash
-python3 scripts/monitor/health.py
-python3 scripts/monitor/health.py --json
+python3 scripts/monitor.py
+python3 scripts/monitor.py --json
 ```
 
 ### 回测验证

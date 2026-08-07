@@ -52,12 +52,10 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 | 操作                          | 说明                                                            | 示例                                   |
 | ----------------------------- | --------------------------------------------------------------- | -------------------------------------- |
-| `web`                         | 启动本地 Web 录入服务（127.0.0.1:8765），默认启用后台策略监控   | `/portfolio web`                       |
+| `web`                         | 启动本地 Web 录入服务（127.0.0.1:8765），默认接入已配置的推送通道 | `/portfolio web`                       |
 | `web --port <端口>`           | 指定端口启动                                                    | `/portfolio web --port 9000`           |
 | `web --open`                  | 启动后自动打开浏览器                                            | `/portfolio web --open`                |
 | `web --no-notify`             | 启动时不推送通知（默认自动接入已配置的推送通道）                | `/portfolio web --no-notify`           |
-| `web --no-monitor`            | 禁用后台策略监控                                                | `/portfolio web --no-monitor`          |
-| `web --monitor-interval <秒>` | 监控检查间隔（默认 300 秒）                                     | `/portfolio web --monitor-interval 60` |
 | `web --stop`                  | 停止后台运行的 Web 服务                                         | `/portfolio web --stop`                |
 | `web --status`                | 查看 Web 服务运行状态                                           | `/portfolio web --status`              |
 | `web --virtual`               | 启动虚拟持仓模式（模拟盘），数据存储在 `portfolio_virtual.json` | `/portfolio web --virtual`             |

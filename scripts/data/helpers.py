@@ -1,7 +1,7 @@
 """
 数据获取便捷函数，封装常见的获取+转换模式。
 
-消除 screener.py、long_term.py、alert_engine.py 等文件中重复的适配代码。
+消除 screener.py、long_term.py 等文件中重复的适配代码。
 """
 
 from __future__ import annotations

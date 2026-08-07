@@ -89,9 +89,6 @@ print(f"胜率: {win_rate:.1f}%")
 ```bash
 # 测试单只股票
 python3 scripts/strategies/patterns/ma_volume_strategy.py sh600989
-
-# 监控多只股票
-python3 scripts/monitor/strategy_signals.py sh600989 sh600519 sz300750
 ```
 
 ## 📊 回测数据

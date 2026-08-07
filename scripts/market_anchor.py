@@ -415,7 +415,7 @@ def _fetch_portfolio_correlation(stock_code: str | None) -> dict | None:
 def _fetch_northbound_pricer(days: int = 20) -> dict | None:
     """北向资金边际定价者（N 日累计净流入 + 近 5 日斜率方向）。
 
-    复用 data.get_northbound_flow("", days=N) + briefing.py 算法。
+    复用 data.get_northbound_flow("", days=N) 计算 N 日累计净流入与近 5 日斜率。
     原始单位万元，统一 /1e4 转亿元。
 
     Returns:

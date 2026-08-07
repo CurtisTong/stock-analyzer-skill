@@ -65,7 +65,7 @@ scripts/
 ├── fetchers/     # 多数据源 Fetcher（27 个模块 × 7 数据域，优先级故障转移）
 ├── strategies/   # 筛选策略系统（6 策略 × 6 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
-├── monitor/      # 实时监控
+├── monitor/      # 消息推送（NotificationManager + 多通道适配器）
 ├── portfolio/    # 持仓管理（v1.16.0 P2-1 部分拆分：analytics + rebalance 是 manager 的子模块入口）
 └── *.py          # 顶层 CLI 脚本（SKILL.md 直接调用的入口）
 ```

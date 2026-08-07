@@ -1,5 +1,9 @@
 # stock-analyzer-skill 技术架构优化实施报告
 
+> ⚠️ **历史快照**：本文档为 2026-06-10 实施报告，含 `scripts/monitor/health.py` 等已删除模块的描述，
+> 仅供参考。监控计算链路（`notifier`/`levels`/`rules`/`data_fetch`/`health`/`strategy_signals`）
+> 已在 v1.20.0 移除；`monitor/manager.py` + `channels/` 仍保留作推送通道。
+>
 > 日期：2026-06-10
 > 版本：v1.3.1
 

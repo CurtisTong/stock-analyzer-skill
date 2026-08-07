@@ -1,5 +1,9 @@
 # Skill 全量回归验证报告（2026-07-28）
 
+> ⚠️ **历史快照**：本文档为 2026-07-28 报告，描述当时 13 个 skills + `scripts/monitor/alert_engine.py`。
+> `monitor` skill 与 alert_engine/scanner/briefing 等模块已在 v1.16.0-v1.20.0 陆续移除；
+> 当前 skill 数量为 12 个。监控计算链路（`monitor/notifier.py` 等）已于 v1.20.0 删除。
+>
 > 关联：[docs/audit-2026-07-28.md](audit-2026-07-28.md) · [docs/regression-2026-07-28.md](regression-2026-07-28.md)
 > 范围：13 个 unique skills + 8 个 market/sector 辅助脚本入口
 > 方法：structural smoke test（CLIs `--help` + AST parse + contracts pytest + check_allowed_tools）

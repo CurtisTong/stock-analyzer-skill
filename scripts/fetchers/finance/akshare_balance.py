@@ -74,6 +74,9 @@ def _normalize_symbol(code):
 
     akshare stock_balance_sheet_by_report_em 需要 'SH603501' 格式，
     不接受 'sh603501' 或裸代码 '603501'。
+
+    00 开头数字段沪深二义（上证指数 000xxx 与深市主板 000xxx 重合），
+    回退信任入参前缀，避免把 sh000001（上证指数）误判为深市。
     """
     if not code:
         return code
@@ -84,8 +87,11 @@ def _normalize_symbol(code):
     # 裸代码 -> 推断前缀
     if code.startswith(("60", "68", "51", "56", "58")):
         return "SH" + code
-    if code.startswith(("00", "30", "15", "16", "18")):
+    if code.startswith(("30", "15", "16", "18")):
         return "SZ" + code
     if code.startswith(("43", "83", "87", "88", "92")):
         return "BJ" + code
+    # 00 开头二义段无前缀入参：默认深市（深市主板 000xxx 数量远多于上证指数）
+    if code.startswith("00"):
+        return "SZ" + code
     return code
