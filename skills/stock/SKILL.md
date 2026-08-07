@@ -313,7 +313,19 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
    - 风控官（risk_manager）：Howard Marks 二阶思维 + 风险预算
    - 动量派（momentum_trader）：利弗莫尔关键转折 + 海龟交易法则（v2.2.0）
 
-   **量化基线参考**（可选但推荐）：在 LLM 推理打分前，先运行量化评分获取基线：
+   **量化基线参考**（可选但推荐）：在 LLM 推理打分前，先运行量化评分获取基线。
+
+   一键方式（推荐，自动收集 quote/finance/technical/market_anchor + 跑 8 位专家）：
+
+   ```bash
+   python3 scripts/dev/experts_cli.py <股票代码>                 # 单股全 8 人
+   python3 scripts/dev/experts_cli.py sz002192 sz002335 sz002497  # 多股对比
+   python3 scripts/dev/experts_cli.py <代码> --long               # 仅长线 5 人
+   python3 scripts/dev/experts_cli.py <代码> --short              # 仅短线 3 人
+   python3 scripts/dev/experts_cli.py <代码> -j                   # JSON 输出
+   ```
+
+   手工方式（自行组装 stock_data 后）：
 
    ```bash
    python3 scripts/quote.py <股票代码> -j
@@ -323,6 +335,16 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
    然后在 Python 中调用 `experts.scoring.score_expert_precise()` 获取每位专家的量化评分，
    作为 LLM 推理的参考基线。如果量化分与 LLM 推理分差异 >15 分，需在报告中说明原因。
+
+   **报告模板占位填充规则**：`reports/full-template.md` 第 211-213 行要求保留
+   `[MA20 X.XX] | [MACD DIF X.X] | [KDJ J X]` 等原始数值。这些数值来自 `experts_cli.py -j` 输出的
+   `raw_meta.tech.features.{ma_system,macd,kdj}`（或 `multi_fetch.py technical <代码>`），
+   **不要**用 `--quick`（仅适合终端快扫，无数值字段）。多股分析时统一保留：
+
+   ```bash
+   python3 scripts/dev/multi_fetch.py technical sz002192 sz002335 sz002497
+   # → 每只票完整 JSON：raw_meta.tech.features.ma_system.ma20 等字段
+   ```
 
    **发言规则**（强制约束每位专家的 `reason` 核心理由字段）：
 

@@ -33,6 +33,8 @@
       "Bash(python3 scripts/announcements.py *)",
       "Bash(python3 scripts/classifier.py *)",
       "Bash(python3 scripts/perf_bench.py *)",
+      "Bash(python3 scripts/dev/multi_fetch.py *)",
+      "Bash(python3 scripts/dev/experts_cli.py *)",
       "Bash(python3 -m pytest tests/ *)",
       "Bash(python -m pytest tests/ *)",
       "Bash(.venv/bin/python -m pytest tests/ *)",
