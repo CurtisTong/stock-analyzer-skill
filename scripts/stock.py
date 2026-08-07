@@ -148,8 +148,11 @@ def render_text(result: dict) -> str:
     data_time = result.get("data_time") or now_str()
     sources = result.get("data_sources") or ["行情", "财务", "K线"]
     failed = result.get("data_failed") or []
+    # 错误模式 footer 加 ⚠️ 警示（数据降级）让 SKILL 渲染层立即识别。
+    degraded = bool(failed or result.get("data_warnings"))
     footer = format_footer(
-        data_time=data_time, sources=sources, failed_sources=failed, ttl_sec=900
+        data_time=data_time, sources=sources, failed_sources=failed,
+        ttl_sec=900, degraded=degraded,
     )
     if footer:
         lines.append(footer)

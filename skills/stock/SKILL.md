@@ -3,7 +3,7 @@ name: stock
 description: 单股分析。触发词：帮我看看XX、分析一下XX、XX怎么样、XX能买吗、看看XX的技术面、技术分析XX、XX估值如何、XX基本面、专家讨论XX。用于个股快速/完整五层分析、技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/战法）、估值判断、8人专家圆桌多空辩论（16份人设中 8 active = 5长线+3短线）。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
 version: 1.19.0
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/*) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/stock.py *) Bash(python3 scripts/events.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/calibration.py *) Bash(python3 scripts/calibration_backfill.py *) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
 ---
 
 # Stock Analysis
@@ -126,7 +126,28 @@ python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：�
 
 ### Step 1: 获取数据
 
+> **⚠️ 工作目录**：Claude Code 调用脚本时 `cwd` 已经是**项目根目录**（含 `scripts/`），不需要 `cd` 也不需要 `cd /Users/curtis/.zcode/skills/stock`。SKILL.md 里的 `scripts/xxx.py` 是相对路径，直接 `python3 scripts/xxx.py ...` 即可。
+
 按 `../_shared/references/script-catalog.md` 调用 `quote.py` / `finance.py` / `kline.py` / `announcements.py`。`debate` 模式额外取 5 分钟 K 线（48 根）。
+
+> **⚠️ 多代码批量调用的语法差异**（常见陷阱）：
+>
+> | 脚本 | 正确批量语法 | 错误写法 |
+> |------|--------------|----------|
+> | `quote.py` | `python3 scripts/quote.py sh600519,sh600036 -j` | — |
+> | `finance.py` | `python3 scripts/finance.py -c sh600519,sh600036 -j` | `finance.py sh600519,sh600036 -j` ❌（只取第一个） |
+> | `kline.py` | ❌ **不支持批量**，必须逐个调用 | `kline.py sh600519,sh600036 -j` ❌（空结果） |
+> | `technical.py` | ❌ **不支持批量**，必须逐个调用 | 同上 |
+> | `market_anchor.py` | 逐个调用（每只票单独拿 RPS） | — |
+>
+> **推荐**：三股分析时用 helper 脚本批量取数：
+>
+> ```bash
+> python3 scripts/dev/multi_fetch.py finance sh600519 sh600036 sh000858 -j
+> python3 scripts/dev/multi_fetch.py technical sh600519 sh600036 --quick
+> ```
+>
+> 该 helper 会**自动串行调用并合并为单 JSON dict**，key 为代码（大写）。
 
 `--with-backtest` 模式附加近 60 日回测胜率：
 
