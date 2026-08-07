@@ -553,3 +553,53 @@ class TestBreakdownThresholdLocation:
         assert threshold_pos < status_tags_pos < industry_pos, (
             "BREAKDOWN_THRESHOLD 应在 _STATUS_TAGS/_INDUSTRY_GROUP 之前"
         )
+
+
+# ────────────────────────────────────────────────────────────────
+# H1 集成：auto_technical 自动拉 features.breakdown
+# ────────────────────────────────────────────────────────────────
+
+
+class TestAutoTechnicalIntegration:
+    """H1: health_report 默认 auto_technical=True，自动调 technical.py 拉技术特征。"""
+
+    def test_auto_technical_can_be_disabled(self):
+        """auto_technical=False 时不调 technical.py。"""
+        from unittest.mock import patch
+        pm = PortfolioManager()
+        with patch("portfolio.manager._fetch_technical_features") as mock_fetch:
+            pm.health_report(quotes={}, auto_technical=False)
+            mock_fetch.assert_not_called()
+
+    def test_explicit_technical_features_overrides_auto(self):
+        """显式传 technical_features 时不再调 auto_technical。"""
+        from unittest.mock import patch
+        pm = PortfolioManager()
+        explicit = {"sh600989": {"breakdown": True, "stop_loss_pct": -3.0}}
+        with patch("portfolio.manager._fetch_technical_features") as mock_fetch:
+            report = pm.health_report(quotes={}, technical_features=explicit)
+            mock_fetch.assert_not_called()
+            # 验证显式 features 被使用（没有 quotes 时 price=0 不破位 cost_5pct，但
+            # 显式 features.breakdown=True 应触发破位）
+            pos = next(p for p in report["positions"] if p["code"] == "sh600989")
+            assert pos["breakdown"] is True
+            assert pos["breakdown_reason"] == "support_break"
+
+    def test_fetch_technical_features_loads_module(self):
+        """_fetch_technical_features 成功加载 scripts/technical.py 顶层文件。
+
+        验证 scripts/technical.py 与 scripts/technical/ 包的命名冲突通过
+        importlib.spec_from_file_location 解决。
+        """
+        from portfolio.manager import _fetch_technical_features
+        # 空 positions → 返回空 dict（不抛错）
+        result = _fetch_technical_features([], {})
+        assert result == {}
+
+    def test_fetch_technical_features_skips_failures(self):
+        """_fetch_technical_features 单只失败不中断。"""
+        from portfolio.manager import _fetch_technical_features
+        # 不存在的 code 应被跳过（get_kline 抛错或返回空）
+        positions = [{"code": "sh999999"}]  # 不存在的代码
+        result = _fetch_technical_features(positions, {})
+        assert result == {}  # 全部失败 → 空 dict

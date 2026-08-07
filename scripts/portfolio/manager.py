@@ -99,6 +99,65 @@ def _read_regime_state() -> dict:
     return result
 
 
+def _fetch_technical_features(
+    positions: list, quotes_map: dict, kline_datalen: int = 60
+) -> dict:
+    """批量调用 technical.py 拉取持仓技术特征（H1 集成）。
+
+    返回 {code: {breakdown: bool, stop_loss_pct: float, support: float}}。
+    单只失败不中断整体（按 code 容错）。
+    拉取失败时该 code 不会被加入返回 dict（调用方按 absence 视为"无技术信号"）。
+    """
+    # scripts/technical.py 是顶层模块，scripts/technical/ 是同名包。
+    # Python "包优先于同名模块"，直接 import 会拿到包。必须用 importlib
+    # 显式加载 scripts/technical.py 顶层文件才能拿到 TechnicalInput / _compute_all。
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location(
+    "portfolio_technical_top",
+    Path(__file__).resolve().parent.parent / "technical.py",
+    )
+    tech_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tech_mod)
+    TechnicalInput = tech_mod.TechnicalInput
+    _compute_all = tech_mod._compute_all
+
+    result: dict = {}
+    for p in positions:
+        code = p.get("code", "")
+        if not code:
+            continue
+        try:
+            from data import get_kline
+            bars = get_kline(code, 240, kline_datalen, use_cache=True)
+            if not bars or len(bars) < 20:
+                continue
+            closes = [b["close"] for b in bars]
+            opens = [b["open"] for b in bars]
+            highs = [b["high"] for b in bars]
+            lows = [b["low"] for b in bars]
+            volumes = [b["volume"] for b in bars]
+            quote = quotes_map.get(code, {})
+            inp = TechnicalInput(
+                closes=closes, opens=opens, highs=highs, lows=lows,
+                volumes=volumes, records=bars, board="", quote=quote, args=None,
+            )
+            features = _compute_all(inp)
+            # 与 technical.py:330-338 一致：stop_loss_pct<0 意味着破位
+            stop_loss_pct = features.get("stop_loss_pct", 0) or 0
+            sr = features.get("support_resistance", {}) or {}
+            nearest_support = sr.get("nearest_support")
+            result[code] = {
+                "breakdown": features.get("breakdown", False),
+                "stop_loss_pct": stop_loss_pct,
+                "nearest_support": nearest_support,
+            }
+        except Exception:
+            # 拉取/计算失败按"无信号"处理，不抛错
+            continue
+    return result
+
+
 class PortfolioManager:
     """持仓组合管理器。
 
@@ -725,6 +784,7 @@ class PortfolioManager:
         industry_limit: float = 0.30,
         single_stock_limit: float = 0.20,
         technical_features: Optional[dict] = None,
+        auto_technical: bool = True,
         watch_buy_gap_pct: float = 5.0,
         watch_sell_gap_pct: float = 3.0,
     ) -> dict:
@@ -753,8 +813,11 @@ class PortfolioManager:
                     传 None 或 {} 时进入降级模式（pnl_pct=None + 风险评级标注"行情缺失"）。
             breakdown_threshold: 破位判定阈值（默认 0.95 = 成本 -5%）。
             *_limit: 集中度阈值（默认与 experts/risk_manager.md §四 一致）。
-            technical_features: 可选 {code: features}，与 cost 阈值 OR 判定破位
-                    （SKILL.md:306-307 要求 features.breakdown 是权威信号）。
+            technical_features: 显式传入的 {code: features}，覆盖 auto_technical
+                    （用于测试或缓存复用）。
+            auto_technical: True（默认）自动调 technical.py 拉 60 根日 K 计算
+                    features.breakdown（SKILL.md:306-307 要求的权威信号）。
+                    失败按"无信号"容错，单只异常不影响其他。
             watch_buy_gap_pct: 距目标买点 < 此值 = "接近买点"或"到达买点"（默认 5%）。
             watch_sell_gap_pct: 距目标卖点 < 此值 = "接近止损"或"已破止损"（默认 3%）。
         """
@@ -762,7 +825,13 @@ class PortfolioManager:
         watchlist = self.get_watchlist()
         quotes_map = quotes or {}
         quotes_missing = not quotes_map
-        tech_map = technical_features or {}
+        # H1 集成：自动调 technical.py 拉 features.breakdown
+        # auto_technical=True（默认）时，对每只持仓调 technical 拉 60 根日 K
+        # 算 nearest_support + breakdown；失败按 absence 容错
+        if auto_technical and not technical_features and positions:
+            tech_map = _fetch_technical_features(positions, quotes_map)
+        else:
+            tech_map = technical_features or {}
 
         # 总成本/市值/盈亏
         total_cost = 0.0
