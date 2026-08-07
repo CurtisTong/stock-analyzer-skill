@@ -33,6 +33,20 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-08-07
+
+### Added
+- **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
+
+### Fixed
+- 修复指数代码映射错误 + monitor scanner 缺失导致监控/简报不可用
+- 业绩预告API+财务yoy/roe+板块覆盖+CLI调试 5项修复
+- **screener**: 全市场并发抓取 akshare/urllib 代理挂死导致永久卡死
+- **quote**: CLI JSON 输出 Quote 对象未序列化导致崩溃
+
+### Other
+- Merge fix: 指数代码映射 + monitor scanner 缺失（复盘发现）
+
 ## [1.19.0] - 2026-08-05（数据源降级可观测性 + P1 健康度 + 五层 data_sources 透传 + 缓存命中 bug 修复 + 18 项 bug 修复）
 
 ### Added
