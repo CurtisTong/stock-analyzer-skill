@@ -42,6 +42,7 @@
 
 
 
+
 ### Added
 - **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
 
@@ -82,6 +83,13 @@
 - 彻底移除监控模块（保留持仓 CRUD 推送）
 
 ### Added
+- **portfolio**: health_report 集成 technical.py（端到端破位判定）
+- **portfolio**: health_report 7 项增强（5 行业 + 5 档 status + 真实 regime + 破位 OR）
+- **portfolio**: health_report() 结构化报告 + 板块分类修复
+- **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
+
+### Added
+- **portfolio**: health_report_markdown 渲染层（SKILL 模板标准化）
 - **portfolio**: health_report 集成 technical.py（端到端破位判定）
 - **portfolio**: health_report 7 项增强（5 行业 + 5 档 status + 真实 regime + 破位 OR）
 - **portfolio**: health_report() 结构化报告 + 板块分类修复
