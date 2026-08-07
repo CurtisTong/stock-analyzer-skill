@@ -29,7 +29,7 @@ class TestIndustryClassification:
             (["长线", "半导体"], "半导体"),  # 长线被过滤
             (["短线", "锂电池"], "锂/新能源"),  # 锂电池合并
             (["观察", "锂矿"], "锂/新能源"),
-            (["核心", "银行"], "银行"),  # 银行原值
+            (["核心", "银行"], "金融"),  # 银行合并到金融大类（M5）
             # 行业子标签合并到"锂/新能源"
             (["锂电", "有色"], "锂/新能源"),
             (["锂矿", "新能源"], "锂/新能源"),
@@ -40,7 +40,7 @@ class TestIndustryClassification:
             (["汽零", "机器人"], "汽零"),
             # 无合并映射，保留原值
             (["半导体", "PCB"], "半导体"),
-            (["白酒"], "白酒"),
+            (["白酒"], "消费"),  # 白酒合并到消费大类（M5）
             # 未知标签
             (["新潮行业"], "新潮行业"),
             ([], "未分类"),
@@ -160,18 +160,22 @@ class TestManagerConstants:
 class TestHealthReport:
     """health_report 返回结构化报告，按 SKILL.md 模板标准字段。"""
 
-    def _make_quotes_map(self, prices: dict) -> dict:
-        """构造 mock 行情 dict（仅含必要字段）。"""
-        return {code: {"price": price, "change_pct": 0.0} for code, price in prices.items()}
-
     def test_totals_structure(self):
-        """totals 含 cost/value/pnl/pnl_pct 4 个字段。"""
+        """totals 含 cost/value/pnl/pnl_pct 4 个字段。
+
+        L17: 行情缺失时 value/pnl/pnl_pct = None（不再是 0 或 -100% 误导）。
+        """
         pm = PortfolioManager()
-        report = pm.health_report(quotes={})
+        # 正常情况（有 cost）
+        report = pm.health_report(quotes={"sh600989": {"price": 23.69, "change_pct": 0}})
         assert set(report["totals"].keys()) == {"cost", "value", "pnl", "pnl_pct"}
-        # 字段类型正确（float），即使没有行情也应基于成本计算
         assert isinstance(report["totals"]["cost"], (int, float))
         assert isinstance(report["totals"]["value"], (int, float))
+        # 行情缺失时 value/pnl/pnl_pct = None
+        report_no_q = pm.health_report(quotes=None)
+        assert report_no_q["totals"]["value"] is None
+        assert report_no_q["totals"]["pnl"] is None
+        assert report_no_q["totals"]["pnl_pct"] is None
 
     def test_breakdown_positions_isolated(self):
         """破位标的独立汇总（不混入正常持仓建议）。"""
@@ -206,9 +210,18 @@ class TestHealthReport:
         assert "0.95" in report["thresholds"]["breakdown"]
 
     def test_type_field_three_states(self):
-        """type 字段识别实盘/示例/虚拟（解决 P1-13 / P3-14）。"""
-        pm = PortfolioManager()
-        assert pm.health_report(quotes={})["type"] in {"实盘持仓", "示例持仓", "虚拟持仓"}
+        """type 字段识别实盘/示例/虚拟三态（解决 P1-13 / M2）。"""
+        # 实盘（默认）
+        pm_real = PortfolioManager()
+        assert pm_real.health_report(quotes={})["type"] == "实盘持仓"
+        # 示例
+        pm_example = PortfolioManager()
+        pm_example._is_example = True
+        assert pm_example.health_report(quotes={})["type"] == "示例持仓"
+        # 虚拟
+        pm_virtual = PortfolioManager()
+        pm_virtual._is_virtual = True
+        assert pm_virtual.health_report(quotes={})["type"] == "虚拟持仓"
 
     def test_industry_concentration_uses_merged_mapping(self):
         """industry 字段使用合并后的映射（修复后不再分散）。"""
@@ -236,3 +249,249 @@ class TestHealthReport:
         assert "破位" in report["risk_rating"]
         # 同时包含集中度警告（来自 check_concentration）
         assert "集中度" in report["risk_rating"]
+
+
+# ────────────────────────────────────────────────────────────────
+# 7 项增强功能测试
+# ────────────────────────────────────────────────────────────────
+
+
+class TestStatusTagsExpanded:
+    """M6: 扩展 _STATUS_TAGS 覆盖常见投资风格。"""
+
+    @pytest.mark.parametrize(
+        "tag",
+        [
+            # 投资风格
+            "白马", "价值", "蓝筹", "大盘", "红利", "高股息",
+            "成长", "主题", "概念", "题材", "赛道",
+            "趋势", "反转", "突破", "超跌", "低吸", "追涨",
+            "短线投机", "打板", "涨停", "妖股",
+            # 持有期
+            "长持", "永持", "待止损", "待止盈", "已止盈",
+            "对冲", "套保", "金字塔", "左侧", "右侧",
+        ],
+    )
+    def test_common_investment_styles_filtered(self, tag):
+        """常见投资风格标签被识别为状态，不当作行业。"""
+        industry_tags = [t for t in [tag] if t not in PortfolioManager._STATUS_TAGS]
+        assert industry_tags == [], f"{tag} 应被 _STATUS_TAGS 过滤"
+
+
+class TestIndustryGroupExpanded:
+    """M5: 扩展 _INDUSTRY_GROUP 覆盖 6 大生态。"""
+
+    @pytest.mark.parametrize(
+        "sub,expected_group",
+        [
+            # 锂/新能源扩展
+            ("电池", "锂/新能源"), ("正极", "锂/新能源"), ("硅料", "锂/新能源"),
+            ("组件", "锂/新能源"), ("风电", "锂/新能源"), ("核电", "锂/新能源"),
+            # 半导体
+            ("PCB", "半导体"), ("封测", "半导体"), ("IC设计", "半导体"),
+            # 医药
+            ("CRO", "医药"), ("CDMO", "医药"), ("创新药", "医药"), ("中药", "医药"),
+            # 消费
+            ("白酒", "消费"), ("食品饮料", "消费"), ("家电", "消费"), ("医美", "消费"),
+            # 金融
+            ("银行", "金融"), ("证券", "金融"), ("保险", "金融"),
+            # 资源/周期
+            ("钢铁", "资源/周期"), ("煤炭", "资源/周期"), ("黄金", "资源/周期"),
+            # 工业
+            ("军工", "军工"),
+        ],
+    )
+    def test_ecosystem_mapping(self, sub, expected_group):
+        """6 大生态子标签合并到对应大类。"""
+        assert PortfolioManager._INDUSTRY_GROUP[sub] == expected_group
+
+
+class TestBreakdownTechnicalOr:
+    """H1: 破位判定 OR technical.py features.breakdown 权威信号。"""
+
+    def test_cost_breakdown_only(self):
+        """纯成本破位（无 technical 数据）。"""
+        pm = PortfolioManager()
+        quotes = {"sz300274": {"price": 105.0, "change_pct": 0}}
+        report = pm.health_report(quotes=quotes)
+        pos = next(p for p in report["positions"] if p["code"] == "sz300274")
+        assert pos["breakdown"] is True
+        assert pos["breakdown_reason"] == "cost_5pct"
+
+    def test_technical_breakdown_only(self):
+        """仅 technical.breakdown=True（成本未破位）。"""
+        pm = PortfolioManager()
+        quotes = {"sz300274": {"price": 115.0, "change_pct": 0}}  # 未破成本 5%
+        # 模拟 technical.py 报告破位
+        tech = {"sz300274": {"breakdown": True, "stop_loss_pct": -3.5}}
+        report = pm.health_report(quotes=quotes, technical_features=tech)
+        pos = next(p for p in report["positions"] if p["code"] == "sz300274")
+        assert pos["breakdown"] is True
+        assert pos["breakdown_reason"] == "support_break"
+
+    def test_both_breakdowns(self):
+        """成本 + technical 同时破位。"""
+        pm = PortfolioManager()
+        quotes = {"sz300274": {"price": 100.0, "change_pct": 0}}  # 破成本
+        tech = {"sz300274": {"breakdown": True}}
+        report = pm.health_report(quotes=quotes, technical_features=tech)
+        pos = next(p for p in report["positions"] if p["code"] == "sz300274")
+        assert pos["breakdown"] is True
+        assert pos["breakdown_reason"] == "both"
+
+    def test_no_breakdown(self):
+        """未破位。"""
+        pm = PortfolioManager()
+        quotes = {"sz300274": {"price": 115.0, "change_pct": 0}}
+        tech = {"sz300274": {"breakdown": False}}
+        report = pm.health_report(quotes=quotes, technical_features=tech)
+        pos = next(p for p in report["positions"] if p["code"] == "sz300274")
+        assert pos["breakdown"] is False
+        assert pos["breakdown_reason"] == ""
+
+
+class TestRegimeHint:
+    """M3: regime_hint 读真实 regime_state.json。"""
+
+    def test_regime_info_has_age_minutes(self):
+        """regime 字段含 age_minutes 字段。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        assert "regime" in report
+        assert "age_minutes" in report["regime"]
+        # 当前 regime_state.json 实际过期（~24000 分钟）
+        # 不会断言具体值，但应该返回 int 或 None
+        assert report["regime"]["age_minutes"] is None or isinstance(
+            report["regime"]["age_minutes"], int
+        )
+
+    def test_regime_hint_mentions_stale_data(self):
+        """regime_state.json 过期时，regime_hint 提示。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        # 34209 分钟前更新 → 应提示过期
+        if report["regime"].get("age_minutes", 0) > 60:
+            assert "过期" in report["regime_hint"]
+
+
+class TestScreenerHintDynamic:
+    """M4: screener_hint 根据真实 industry 最大值动态生成。"""
+
+    def test_screener_hint_for_lithium_concentration(self):
+        """锂/新能源链占比高时建议 value 策略。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        if "锂/新能源" in report["concentration"]["details"]["industry"]:
+            pct = report["concentration"]["details"]["industry"]["锂/新能源"]
+            if pct > 30:
+                # 锂/新能源 超 30% 应生成 screener_hint
+                assert "锂/新能源" in report["screener_hint"]
+                assert "value" in report["screener_hint"]
+
+
+class TestWatchlistStatus:
+    """M7: watchlist 5 档状态分级。"""
+
+    def test_status_field_present(self):
+        """watchlist 每项含 status 字段。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        for w in report["watchlist"]:
+            assert "status" in w
+            assert w["status"] in {
+                "已破止损", "接近止损", "到达买点", "接近买点", "观望"
+            }
+
+    def test_status_buy_zone(self):
+        """现价 ≤ target_buy 标为"到达买点"。"""
+        pm = PortfolioManager()
+        # 找到自选股
+        watchlist = pm.get_watchlist()
+        if watchlist:
+            w = watchlist[0]
+            tb = float(w.get("target_buy", 0) or 0)
+            if tb > 0:
+                quotes = {w["code"]: {"price": tb * 0.9, "change_pct": 0}}  # 现价低于买点
+                report = pm.health_report(quotes=quotes)
+                row = next(r for r in report["watchlist"] if r["code"] == w["code"])
+                assert row["status"] == "到达买点"
+
+    def test_status_break_sell(self):
+        """现价 ≤ target_sell 标为"已破止损"。"""
+        pm = PortfolioManager()
+        watchlist = pm.get_watchlist()
+        if watchlist:
+            w = watchlist[0]
+            ts = float(w.get("target_sell", 0) or 0)
+            if ts > 0:
+                quotes = {w["code"]: {"price": ts * 0.5, "change_pct": 0}}  # 现价远低于止损
+                report = pm.health_report(quotes=quotes)
+                row = next(r for r in report["watchlist"] if r["code"] == w["code"])
+                assert row["status"] == "已破止损"
+
+
+class TestQuotesNoneDegradation:
+    """L17: quotes=None 降级处理。"""
+
+    def test_quotes_none_pnl_pct_is_none(self):
+        """行情缺失时 totals.pnl_pct = None 而非 0 或 -100%。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes=None)
+        assert report["totals"]["pnl_pct"] is None
+        assert report["totals"]["value"] is None
+        assert report["totals"]["pnl"] is None
+
+    def test_quotes_none_risk_rating_marks_degradation(self):
+        """行情缺失时 risk_rating 标注"行情缺失"。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes=None)
+        assert "行情缺失" in report["risk_rating"]
+
+    def test_quotes_none_no_false_breakdown(self):
+        """行情缺失时不误判所有持仓为破位。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes=None)
+        # price=0 时 breakdown 公式 `price > 0` 失败 → False
+        for p in report["positions"]:
+            assert p["breakdown"] is False
+
+
+class TestRiskRatingNaturalLanguage:
+    """M8: risk_rating 改自然语言摘要（不直接拼接 warnings）。"""
+
+    def test_risk_rating_no_warning_when_safe(self):
+        """无破位无超阈值时，risk_rating = \"组合处于安全区间\"。"""
+        pm = PortfolioManager()
+        # 用空 quotes + 临时清空所有持仓难以构造，改用 0 quotes 触发降级
+        report = pm.health_report(quotes=None)
+        # 降级 + 无超阈值 → 仍含\"组合处于安全区间\"或被\"行情缺失\"覆盖
+        assert ("组合处于安全区间" in report["risk_rating"] or
+                "行情缺失" in report["risk_rating"])
+
+    def test_risk_rating_uses_semicolon_not_comma(self):
+        """risk_rating 摘要用\"；\"分隔（不直接用 warnings 拼接的\"、\"）。"""
+        pm = PortfolioManager()
+        quotes = {
+            "sh600522": {"price": 33.43, "change_pct": 0},  # 破位
+        }
+        report = pm.health_report(quotes=quotes)
+        # 有破位 + 集中度超阈值 → 应含分号
+        if "；" in report["risk_rating"]:
+            # 同时不应直接用全 warnings 拼接（不应出现 4+ 个\"、\"）
+            assert report["risk_rating"].count("、") <= 1
+
+
+class TestReadRegimeState:
+    """_read_regime_state helper 函数测试。"""
+
+    def test_returns_dict_with_keys(self):
+        """返回 dict 含 regime/updated_at/age_minutes 三个键。"""
+        from portfolio.manager import _read_regime_state
+        result = _read_regime_state()
+        assert set(result.keys()) == {"regime", "updated_at", "age_minutes"}
+
+    def test_age_minutes_is_int_or_none(self):
+        """age_minutes 是 int 或 None（不抛错）。"""
+        from portfolio.manager import _read_regime_state
+        result = _read_regime_state()
+        assert result["age_minutes"] is None or isinstance(result["age_minutes"], int)

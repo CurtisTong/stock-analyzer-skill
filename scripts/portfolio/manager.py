@@ -66,6 +66,39 @@ def _file_mtime(path: Path) -> str:
         return ""
 
 
+def _read_regime_state() -> dict:
+    """读取 scripts/data/regime_state.json，返回 (regime, updated_at, age_minutes)。
+
+    regime_state.json 实际是权重快照，regime 字段可能不存在；
+    age_minutes 用于在 health_report 中判断数据是否过期（> 1h 提示 /market full）。
+    """
+    import json
+    from datetime import datetime, timezone
+    from pathlib import Path
+    # scripts/portfolio/manager.py → scripts/
+    path = Path(__file__).resolve().parent.parent / "data" / "regime_state.json"
+    result = {"regime": None, "updated_at": "", "age_minutes": None}
+    try:
+        if not path.exists():
+            return result
+        data = json.loads(path.read_text(encoding="utf-8"))
+        updated = data.get("updated", "")
+        result["updated_at"] = updated
+        if updated:
+            # 解析 ISO 时间，计算距今分钟数
+            try:
+                ts = datetime.fromisoformat(updated)
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                now = datetime.now(timezone.utc)
+                result["age_minutes"] = int((now - ts).total_seconds() / 60)
+            except ValueError:
+                pass
+    except (OSError, json.JSONDecodeError):
+        pass
+    return result
+
+
 class PortfolioManager:
     """持仓组合管理器。
 
@@ -76,23 +109,64 @@ class PortfolioManager:
     # 状态类标签白名单：tags[0] 是这类时不当作行业，避免
     # 宝丰能源 tags=["T+1待交收","煤化工","能源"] 被错误归类
     _STATUS_TAGS = frozenset({
+        # 持有期/仓位类
         "T+1待交收", "T+1", "长线", "短线", "核心", "卫星",
         "底仓", "波段", "网格", "定投", "观察", "待加仓",
+        "长持", "永持", "待止损", "待止盈", "已止盈", "对冲", "套保",
+        "金字塔", "左侧", "右侧",
+        # 投资风格类
+        "白马", "价值", "蓝筹", "大盘", "红利", "高股息",
+        "成长", "主题", "概念", "题材", "赛道", "科技",
+        "趋势", "反转", "突破", "超跌", "低吸", "追涨",
+        "短线投机", "打板", "涨停", "妖股", "壳资源",
+        # 状态描述类
+        "浮盈", "浮亏", "止损", "止盈",
     })
 
-    # 行业子标签 → 行业大类映射：合并锂电产业链分散标签，
-    # 避免 tags[0]="锂矿/锂业/储能/光伏/新能源/有色" 被分散成多个行业。
+    # 行业子标签 → 行业大类映射：合并分散标签到 6 大生态。
+    # 避免 tags[0]="锂矿/锂业/储能/光伏/新能源/有色" 等被分散成多个行业。
     _INDUSTRY_GROUP = {
-        # 锂/新能源链分散子标签合并到"锂/新能源"大类
+        # ── 锂/新能源链 ─────────────────────────────────
         "锂电": "锂/新能源", "锂矿": "锂/新能源", "锂业": "锂/新能源",
-        "锂电池": "锂/新能源",
-        "新能源": "锂/新能源",  # 泛指归入锂/新能源大类
+        "锂电池": "锂/新能源", "锂材料": "锂/新能源",
+        "电池": "锂/新能源", "动力电池": "锂/新能源", "储能电池": "锂/新能源",
+        "正极": "锂/新能源", "负极": "锂/新能源", "隔膜": "锂/新能源",
+        "电解液": "锂/新能源", "三元": "锂/新能源", "磷酸铁锂": "锂/新能源",
+        "电池片": "锂/新能源", "组件": "锂/新能源", "逆变器": "锂/新能源",
+        "硅料": "锂/新能源", "硅片": "锂/新能源", "HJT": "锂/新能源",
+        "TOPCon": "锂/新能源", "钙钛矿": "锂/新能源", "锂电正极": "锂/新能源",
+        "新能源": "锂/新能源",
         "光伏": "锂/新能源", "储能": "锂/新能源",
         "新能源车": "锂/新能源", "新能源ETF": "锂/新能源",
-        "钴": "锂/新能源", "镍": "锂/新能源",
-        # 其他合并
+        "钴": "锂/新能源", "镍": "锂/新能源", "稀土": "锂/新能源",
+        "有色": "锂/新能源",  # 锂/镍/钴/稀土等同属有色金属，合并到锂/新能源
+        "风电": "锂/新能源", "核电": "锂/新能源", "氢能": "锂/新能源",
+        # ── 半导体生态 ─────────────────────────────────
+        "半导体": "半导体", "PCB": "半导体", "封测": "半导体",
+        "IC设计": "半导体", "晶圆代工": "半导体", "光刻机": "半导体",
+        "EDA": "半导体", "设备": "半导体", "材料": "半导体",
+        # ── 医药生态 ─────────────────────────────────
+        "医药": "医药", "创新药": "医药", "CRO": "医药",
+        "CMO": "医药", "CDMO": "医药", "医疗器械": "医药",
+        "仿制药": "医药", "中药": "医药", "生物制品": "医药",
+        "原料药": "医药",
+        # ── 消费生态 ─────────────────────────────────
+        "白酒": "消费", "食品饮料": "消费", "家电": "消费",
+        "美妆": "消费", "零售": "消费", "餐饮": "消费",
+        "免税": "消费", "医美": "消费", "纺织服装": "消费",
+        "宠物": "消费",
+        # ── 金融生态 ─────────────────────────────────
+        "银行": "金融", "证券": "金融", "保险": "金融",
+        "信托": "金融", "金融科技": "金融", "租赁": "金融",
+        "AMC": "金融",
+        # ── 资源/周期生态 ─────────────────────────────
+        "钢铁": "资源/周期", "煤炭": "资源/周期", "化工": "资源/周期",
+        "建材": "资源/周期", "石油": "资源/周期", "黄金": "资源/周期",
+        "稀土": "资源/周期", "铝": "资源/周期", "铜": "资源/周期",
+        # ── 工业/制造 ─────────────────────────────────
         "海缆": "通信",
         "机器人": "汽零/工业",  # robot → 汽零工业大类
+        "机械": "汽零/工业", "军工": "军工",
     }
 
     def __init__(self, path: Optional[str] = None, virtual: bool = False):
@@ -175,8 +249,18 @@ class PortfolioManager:
 
     @property
     def portfolio_type(self) -> str:
-        """返回持仓类型标签。"""
-        return "虚拟持仓" if self._is_virtual else "实盘持仓"
+        """返回持仓类型标签（三态：实盘/虚拟/示例）。
+
+        优先级：示例 > 虚拟 > 实盘。
+        - 当 portfolio.json 不存在自动回退到 portfolio_example.json 时为"示例"
+        - 显式 virtual=True 启动时为"虚拟"
+        - 否则为"实盘"
+        """
+        if self._is_example:
+            return "示例持仓"
+        if self._is_virtual:
+            return "虚拟持仓"
+        return "实盘持仓"
 
     @property
     def data_path(self) -> str:
@@ -640,38 +724,45 @@ class PortfolioManager:
         top5_limit: float = 0.70,
         industry_limit: float = 0.30,
         single_stock_limit: float = 0.20,
+        technical_features: Optional[dict] = None,
+        watch_buy_gap_pct: float = 5.0,
+        watch_sell_gap_pct: float = 3.0,
     ) -> dict:
         """标准化持仓健康检查报告（按 SKILL.md 模板结构）。
 
         输出结构化 dict，便于 SKILL 渲染与脚本抓取：
             {
-                "as_of": "2026-08-07 10:30",
-                "data_mtime": "2026-08-06 16:15",
-                "type": "实盘/示例/虚拟",
-                "totals": {"cost": ..., "value": ..., "pnl": ..., "pnl_pct": ...},
-                "positions": [...],   # 每只含 breakdown 字段
-                "watchlist": [...],
+                "as_of": "2026-08-07 10:30",         # 行情快照时间
+                "data_mtime": "2026-08-06 16:15",    # 持仓文件 mtime
+                "regime": {regime, updated_at, age_minutes},  # 真实市场 regime
+                "regime_hint": "...",                # 动态生成（基于 age_minutes）
+                "screener_hint": "...",              # 动态生成（基于真实 industry 最大值）
+                "type": "实盘/示例/虚拟",             # 三态
+                "totals": {cost, value, pnl, pnl_pct}, # 行情缺失时 pnl_pct=None
+                "positions": [...],   # 每只含 breakdown + breakdown_reason
+                "watchlist": [...],   # 含 status 字段（5 档分级）
                 "breakdown_positions": [...],   # 已破位独立汇总
-                "concentration": {
-                    "top3_pct": ..., "top5_pct": ...,
-                    "single": {"code": ..., "name": ..., "pct": ...},
-                    "industry": {"锂/新能源": 52.6, ...},
-                },
-                "warnings": [...],  # 集中度超阈值
-                "risk_rating": "...",  # 一句话评级
-                "thresholds": {  # 权威阈值来源（experts/risk_manager.md §四）
-                    "top3": 50, "top5": 70, "industry": 30, "single": 20,
-                },
+                "concentration": {single, top3, top5, industry, warnings},
+                "warnings": [...],  # 集中度超阈值 + 破位警告
+                "risk_rating": "自然语言摘要",        # 不直接拼接 warnings
+                "thresholds": {top3, top5, industry, single, breakdown},
             }
 
         Args:
-            quotes: 实时行情 dict，键为代码（用 get_quotes 拉的 Quote.to_dict()）
-            breakdown_threshold: 破位判定阈值（默认 0.95 = 成本 -5%）
-            *_limit: 集中度阈值（默认与 experts/risk_manager.md §四 一致）
+            quotes: 实时行情 dict，键为代码（用 get_quotes 拉的 Quote.to_dict()）。
+                    传 None 或 {} 时进入降级模式（pnl_pct=None + 风险评级标注"行情缺失"）。
+            breakdown_threshold: 破位判定阈值（默认 0.95 = 成本 -5%）。
+            *_limit: 集中度阈值（默认与 experts/risk_manager.md §四 一致）。
+            technical_features: 可选 {code: features}，与 cost 阈值 OR 判定破位
+                    （SKILL.md:306-307 要求 features.breakdown 是权威信号）。
+            watch_buy_gap_pct: 距目标买点 < 此值 = "接近买点"或"到达买点"（默认 5%）。
+            watch_sell_gap_pct: 距目标卖点 < 此值 = "接近止损"或"已破止损"（默认 3%）。
         """
         positions = self.get_positions()
         watchlist = self.get_watchlist()
         quotes_map = quotes or {}
+        quotes_missing = not quotes_map
+        tech_map = technical_features or {}
 
         # 总成本/市值/盈亏
         total_cost = 0.0
@@ -691,14 +782,31 @@ class PortfolioManager:
             cost_value = cost * qty
             mv = price * qty
             pnl = mv - cost_value
-            pnl_pct = (pnl / cost_value * 100) if cost_value else 0.0
+            # L17 降级处理：行情缺失时 pnl_pct = None
+            pnl_pct = (pnl / cost_value * 100) if (cost_value and price > 0) else (
+                None if (cost_value and not q) else 0.0
+            )
 
             total_cost += cost_value
             total_value += mv
 
-            breakdown = bool(
+            # H1 破位判定：成本阈值 OR technical.breakdown 权威信号
+            cost_breakdown = bool(
                 cost > 0 and price > 0 and price < cost * breakdown_threshold
             )
+            tech_breakdown = bool(
+                tech_map.get(code, {}).get("breakdown", False)
+                if code in tech_map else False
+            )
+            breakdown = cost_breakdown or tech_breakdown
+            if cost_breakdown and tech_breakdown:
+                breakdown_reason = "both"
+            elif cost_breakdown:
+                breakdown_reason = "cost_5pct"
+            elif tech_breakdown:
+                breakdown_reason = "support_break"
+            else:
+                breakdown_reason = ""
 
             row = {
                 "code": code,
@@ -708,19 +816,25 @@ class PortfolioManager:
                 "cost": round(cost, 2),
                 "qty": qty,
                 "change_pct": round(change_pct, 2),
-                "pnl": round(pnl, 0),
-                "pnl_pct": round(pnl_pct, 2),
-                "market_value": round(mv, 0),
+                "pnl": round(pnl, 0) if price > 0 else None,
+                "pnl_pct": round(pnl_pct, 2) if pnl_pct is not None else None,
+                "market_value": round(mv, 0) if price > 0 else None,
                 "breakdown": breakdown,
+                "breakdown_reason": breakdown_reason,
             }
             position_rows.append(row)
             if breakdown:
                 breakdown_positions.append(row)
 
-        total_pnl = total_value - total_cost
-        total_pnl_pct = (total_pnl / total_cost * 100) if total_cost else 0.0
+        # L17 行情缺失时 total_pnl_pct = None
+        if total_cost and total_value > 0:
+            total_pnl = total_value - total_cost
+            total_pnl_pct = (total_pnl / total_cost * 100) if total_pnl else 0.0
+        else:
+            total_pnl = -total_cost if total_cost else 0.0
+            total_pnl_pct = None
 
-        # 自选股（带现价 + 距目标买卖的偏离）
+        # M7 自选股 5 档状态分级
         watch_rows = []
         for w in watchlist:
             code = w.get("code", "")
@@ -729,14 +843,30 @@ class PortfolioManager:
             price = float(q.get("price", 0) or 0) if q else 0.0
             tb = float(w.get("target_buy", 0) or 0)
             ts = float(w.get("target_sell", 0) or 0)
+            gap_to_buy = round((price - tb) / tb * 100, 2) if tb else None
+            gap_to_sell = round((price - ts) / ts * 100, 2) if ts else None
+
+            # 5 档分级（与 SKILL.md:243-250 模板一致）
+            if ts and price > 0 and price <= ts:
+                status = "已破止损"
+            elif ts and gap_to_sell is not None and 0 < gap_to_sell <= watch_sell_gap_pct:
+                status = "接近止损"
+            elif tb and price > 0 and price <= tb:
+                status = "到达买点"
+            elif tb and gap_to_buy is not None and 0 < gap_to_buy <= watch_buy_gap_pct:
+                status = "接近买点"
+            else:
+                status = "观望"
+
             watch_rows.append({
                 "code": code,
                 "name": name,
                 "price": round(price, 2),
                 "target_buy": tb,
                 "target_sell": ts,
-                "gap_to_buy_pct": round((price - tb) / tb * 100, 2) if tb else None,
-                "gap_to_sell_pct": round((price - ts) / ts * 100, 2) if ts else None,
+                "gap_to_buy_pct": gap_to_buy,
+                "gap_to_sell_pct": gap_to_sell,
+                "status": status,
             })
 
         # 集中度（复用 check_concentration 的合并映射逻辑）
@@ -749,7 +879,52 @@ class PortfolioManager:
             single_stock_limit=single_stock_limit,
         )
 
-        # 风险评级：一句话总结
+        # M3 真实 regime 读取
+        regime_info = _read_regime_state()
+        regime_age = regime_info.get("age_minutes")
+        if regime_age is None or regime_age > 60:
+            regime_hint = (
+                f"regime_state.json 数据缺失或过期 {regime_age} 分钟，"
+                f"建议先 /market full 拉取最新市场状态（market_anchor 输出更准）"
+            )
+        else:
+            regime_hint = (
+                f"regime_state.json 更新于 {regime_age} 分钟前，"
+                f"建议先 /market full 拉取最新市场状态"
+            )
+
+        # M4 动态 screener_hint：基于真实 industry 最大值
+        industry_dist = concentration.get("details", {}).get("industry", {})
+        if industry_dist:
+            top_industry = max(industry_dist.items(), key=lambda x: x[1])
+            ind_name, ind_pct = top_industry
+            if ind_pct > industry_limit * 100:
+                # 找对应行业大类推荐的 screener 策略
+                strategy_map = {
+                    "锂/新能源": "value",
+                    "半导体": "growth",
+                    "医药": "quality",
+                    "消费": "dividend",
+                    "金融": "value",
+                    "资源/周期": "mean_reversion",
+                    "通信": "growth",
+                    "煤化工": "value",
+                }
+                strategy = strategy_map.get(ind_name, "quality_value")
+                screener_hint = (
+                    f"⚠️ {ind_name} 占比 {ind_pct:.1f}% > {int(industry_limit*100)}%，"
+                    f"建议 /screener --strategy {strategy} 筛低相关防御板块，"
+                    f"再叠加 /market 强弱板块确认"
+                )
+            else:
+                screener_hint = (
+                    f"组合行业分布合理（最大 {ind_name} {ind_pct:.1f}% ≤ "
+                    f"{int(industry_limit*100)}%），无需强制调仓"
+                )
+        else:
+            screener_hint = "暂无持仓数据，screener 联动待定"
+
+        # M8 risk_rating 改自然语言摘要
         warnings = list(concentration.get("warnings", []))
         if breakdown_positions:
             warnings.insert(
@@ -757,24 +932,37 @@ class PortfolioManager:
                 f"⚠️ {len(breakdown_positions)} 只标的破位："
                 f"{', '.join(r['name'] for r in breakdown_positions)}",
             )
-        risk_rating = "、".join(warnings) if warnings else "组合处于安全区间"
+        if not warnings:
+            risk_rating = "组合处于安全区间"
+        else:
+            # 摘要句：取最重要 2 条 + 破位 + 集中度超限 各保留 1 条
+            breakdown_warning = next((w for w in warnings if "破位" in w), "")
+            conc_warnings = [w for w in warnings if "破位" not in w]
+            top_conc = conc_warnings[0] if conc_warnings else ""
+            parts = []
+            if breakdown_warning:
+                parts.append(breakdown_warning)
+            if top_conc:
+                parts.append(top_conc)
+            if len(conc_warnings) > 1:
+                parts.append(f"等 {len(conc_warnings)} 项集中度超阈值")
+            risk_rating = "；".join(parts) if parts else "组合处于安全区间"
+
+        # L17 行情缺失时降级标注
+        if quotes_missing:
+            risk_rating = f"⚠️ 行情缺失（仅基于成本口径）| {risk_rating}"
 
         return {
             "as_of": quotes_map.get("__as_of__", "") if quotes_map else "",
             "data_mtime": _file_mtime(self._path),
-            "regime_hint": (
-                "regime_state.json 非实时 regime，建议先 /market full 拉取最新市场状态"
-                "（market_anchor 输出更准）"
-            ),
-            "screener_hint": (
-                "⚠️ 锂/新能源链占比 30%+，建议先用 /screener --strategy quality_value "
-                "筛医药/创新药/低相关防御板块，再叠加 /market 强弱板块确认"
-            ),
+            "regime": regime_info,
+            "regime_hint": regime_hint,
+            "screener_hint": screener_hint,
             "totals": {
                 "cost": round(total_cost, 0),
-                "value": round(total_value, 0),
-                "pnl": round(total_pnl, 0),
-                "pnl_pct": round(total_pnl_pct, 2),
+                "value": round(total_value, 0) if not quotes_missing else None,
+                "pnl": round(total_pnl, 0) if not quotes_missing else None,
+                "pnl_pct": round(total_pnl_pct, 2) if total_pnl_pct is not None else None,
             },
             "type": self.portfolio_type,
             "positions": position_rows,
