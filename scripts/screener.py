@@ -371,5 +371,16 @@ def main():
 
 
 if __name__ == "__main__":
+    # 全市场模式下并发抓取大量财务数据，akshare/urllib 无超时会因代理
+    # 连接挂起（CLOSE_WAIT）导致永久卡死。设全局 socket 超时作为安全网：
+    # 单条请求 15s 仍无响应则抛 TimeoutError，由 prefetch 的异常处理置空跳过。
+    import os as _os
+    import socket as _socket
+
+    # 禁用代理：urllib 会读取系统代理（如 localhost:7897 的 Clash），
+    # 代理连接失效时 akshare 请求会挂起。设 NO_PROXY=* 让请求直连。
+    _os.environ["NO_PROXY"] = "*"
+    _os.environ["no_proxy"] = "*"
+    _socket.setdefaulttimeout(15)
     with handle_errors():
         main()

@@ -88,7 +88,14 @@ def main():
         default=4,
         help="返回期数（默认 4 季；full/debate 模式建议 8 季）",
     )
+    parser.add_argument(
+        "--debug", action="store_true", help="调试模式：异常时打印完整 traceback"
+    )
     args = parser.parse_args()
+    if args.debug:
+        import os
+
+        os.environ["STOCK_DEBUG"] = "1"
 
     if args.sources:
         from fetchers import get_finance_fetchers

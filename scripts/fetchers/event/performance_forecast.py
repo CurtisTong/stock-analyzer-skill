@@ -1,12 +1,17 @@
-"""(#10) 业绩预告数据源（东方财富 RPT_LICO_FN_CPD）。
+"""(#10) 业绩预告数据源（东方财富 RPT_PUBLIC_OP_PREDICT）。
 
-提供业绩预告类型（预增/预减/预亏/续盈/续亏/扭亏）和预告利润上下限，
-供事件因子评估"财报雷"风险与超预期机会。
+提供业绩预告类型（预增/预减/预亏/续盈/续亏/扭亏）、预告利润上下限、
+变动幅度上下限及文字说明，供事件因子评估"财报雷"风险与超预期机会。
+
+注意：
+- reportName 必须是 RPT_PUBLIC_OP_PREDICT（业绩预告），非 RPT_LICO_FN_CPD（财务摘要）。
+- filter 中 SECURITY_CODE 值不加引号，加引号会触发 antlr InputMismatchException。
+- 字段名与东财实际返回一致：FORECASTTYPE / FORECASTL / FORECASTT / INCREASEL /
+  INCREASET / YEAREARLIER / FORECASTCONTENT 等（非早期猜测的 FORECAST_TYPE / PROFIT_MIN）。
 """
 
 import json
 import logging
-from datetime import datetime
 
 from common import BaseFetcher, http_get, to_float, strip_prefix
 
@@ -16,14 +21,16 @@ logger = logging.getLogger(__name__)
 MAX_PAGES = 20
 
 # 业绩预告 API（东财数据中心）
-# RPT_LICO_FN_CPD: 业绩预告明细（pageNumber 由分页循环注入）
+# RPT_PUBLIC_OP_PREDICT: 业绩预告明细（pageNumber 由分页循环注入）
+# ⚠️ filter 中 SECURITY_CODE 不加引号（加引号触发 InputMismatchException）
 FORECAST_URL = (
     "https://datacenter-web.eastmoney.com/api/data/v1/get"
     "?sortColumns=NOTICE_DATE&sortTypes=-1&pageSize=10&pageNumber={page}"
-    "&reportName=RPT_LICO_FN_CPD"
-    "&columns=SECURITY_CODE,SECURITY_NAME_ABBR,NOTICE_DATE,REPORT_DATE,"
-    "FORECAST_TYPE,PROFIT_MIN,PROFIT_MAX,CHANGE_MIN,CHANGE_MAX,PRE_PROFIT"
-    "&filter=(SECURITY_CODE='{code}')"
+    "&reportName=RPT_PUBLIC_OP_PREDICT"
+    "&columns=SECURITY_CODE,SECURITY_NAME_ABBR,NOTICE_DATE,REPORTDATE,"
+    "FORECASTTYPE,FORECASTL,FORECASTT,INCREASEL,INCREASET,INCREASEJZ,"
+    "FORECASTJZ,FORECASTQK,YEAREARLIER,FORECASTCONTENT,CHANGEREASONDSCRPT,ISLATEST"
+    "&filter=(SECURITY_CODE={code})"
 )
 
 
@@ -65,7 +72,7 @@ def _fetch_all_pages(build_url, timeout: int, retry: int):
     return all_records, total_pages > MAX_PAGES
 
 
-# 预告类型映射（东财编码 -> 中文）
+# 预告类型映射（东财 FORECASTTYPE 值 -> 英文枚举）
 FORECAST_TYPE_MAP = {
     "预增": "increase",
     "预减": "decrease",
@@ -114,22 +121,34 @@ class PerformanceForecastFetcher(BaseFetcher):
 
         items = []
         for row in result_data:
-            forecast_type_raw = row.get("FORECAST_TYPE", "")
+            forecast_type_raw = row.get("FORECASTTYPE", "") or ""
             forecast_type = FORECAST_TYPE_MAP.get(forecast_type_raw, forecast_type_raw)
+            # FORECASTQK 是东财预提供的英文枚举，缺失时回退到本地映射
+            if not forecast_type:
+                forecast_type = row.get("FORECASTQK", "") or ""
 
             items.append(
                 {
                     "code": code,
                     "name": row.get("SECURITY_NAME_ABBR", ""),
-                    "notice_date": row.get("NOTICE_DATE", ""),
-                    "report_date": row.get("REPORT_DATE", ""),
+                    "notice_date": str(row.get("NOTICE_DATE", ""))[:10],
+                    "report_date": str(row.get("REPORTDATE", ""))[:10],
                     "forecast_type": forecast_type,
                     "forecast_type_raw": forecast_type_raw,
-                    "profit_min": to_float(row.get("PROFIT_MIN")),
-                    "profit_max": to_float(row.get("PROFIT_MAX")),
-                    "change_min": to_float(row.get("CHANGE_MIN")),
-                    "change_max": to_float(row.get("CHANGE_MAX")),
-                    "pre_profit": to_float(row.get("PRE_PROFIT")),
+                    # 预告利润上下限（元）
+                    "profit_min": to_float(row.get("FORECASTL")),
+                    "profit_max": to_float(row.get("FORECASTT")),
+                    # 变动幅度上下限（%）
+                    "change_min": to_float(row.get("INCREASEL")),
+                    "change_max": to_float(row.get("INCREASET")),
+                    "change_midpoint": to_float(row.get("INCREASEJZ")),
+                    "forecast_midpoint": to_float(row.get("FORECASTJZ")),
+                    # 上年同期利润（元）
+                    "pre_profit": to_float(row.get("YEAREARLIER")),
+                    # 文字说明
+                    "content": row.get("FORECASTCONTENT", "") or "",
+                    "reason": row.get("CHANGEREASONDSCRPT", "") or "",
+                    "is_latest": row.get("ISLATEST", "") == "T",
                 }
             )
 

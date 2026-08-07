@@ -46,7 +46,12 @@ def plain_code(code: str) -> str:
 
 
 def infer_exchange(code: str) -> str:
-    """按 A 股代码段推断交易所前缀。如果代码已带前缀则直接使用。
+    """按 A 股代码段推断交易所前缀。
+
+    以 6 位数字代码段为依据推断交易所；但 ``00`` 开头的数字段沪深二义
+    （上证指数 000xxx 与深市主板 000xxx 重合），此时回退信任入参前缀，
+    不强行判定。仅当数字段无二义（60/68/51/56/58->sh，
+    30/15/16/18->sz，43/83/87/88/92->bj）或入参无前缀时才按数字段定。
 
     跨市场代码（us:/hk:）返回空字符串，由调用方按原样保留。
     """
@@ -54,17 +59,21 @@ def infer_exchange(code: str) -> str:
     # 跨市场代码（us:/hk:）不属于 A 股交易所
     if c.startswith(("us:", "hk:")):
         return ""
-    # 如果已带交易所前缀，直接返回
+    plain = plain_code(code)
+    # 无二义数字段：按数字段为权威依据推断交易所
+    if plain.startswith(("60", "68", "51", "56", "58")):
+        return "sh"
+    if plain.startswith(("30", "15", "16", "18")):
+        return "sz"
+    if plain.startswith(("43", "83", "87", "88", "92")):
+        return "bj"
+    # 00 开头数字段沪深二义（上证指数 000xxx 与深市主板 000xxx 重合）
+    # 回退信任入参前缀，避免把 sh000001 误判为深市
     if c.startswith(("sh", "sz", "bj")):
         return c[:2]
-    # 否则按代码段推断
-    c = c.upper()
-    if c.startswith(("60", "68", "51", "56", "58")):
-        return "sh"
-    if c.startswith(("00", "30", "15", "16", "18")):
+    # 无前缀且二义 -> 默认深市（深市主板 000xxx 数量远多于上证指数）
+    if plain.startswith("00"):
         return "sz"
-    if c.startswith(("43", "83", "87", "88", "92")):
-        return "bj"
     return ""
 
 

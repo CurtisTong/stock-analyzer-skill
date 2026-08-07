@@ -1,6 +1,7 @@
 """盘中检查与推送。
 
 从 alert_engine.py 拆分，负责扫描全部标的、过滤预警级别、构造推送内容并调用 NotificationManager。
+scan_all 原位于 scanner.py，该文件在 758b1c2 被删除后无替代实现，此处内联恢复。
 """
 
 import logging
@@ -9,7 +10,7 @@ from datetime import datetime
 
 from common import to_float
 from monitor.rules import ALERT_LEVELS, _LEVEL_META, get_alert_level
-from monitor.scanner import scan_all
+from monitor.levels import compute_key_levels
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,74 @@ _NOTIFIED_TTL_SECONDS = 86400  # 24h 过期清理
 
 _notified_signals: dict = {}
 _notified_lock = threading.Lock()
+
+
+# ── 持仓+自选股扫描（原 scanner.py，758b1c2 删除后内联恢复） ──
+
+_pm = None
+_pm_singleton_lock = threading.Lock()
+
+
+def _get_pm():
+    """获取 PortfolioManager 单例（线程安全）。"""
+    global _pm
+    if _pm is None:
+        with _pm_singleton_lock:
+            if _pm is None:
+                from portfolio import PortfolioManager
+
+                _pm = PortfolioManager()
+    return _pm
+
+
+def scan_all(pm=None) -> list:
+    """扫描持仓+自选股，返回关键点位集合。
+
+    Args:
+        pm: 可选的 PortfolioManager 实例（依赖注入）。None 时使用本模块
+            的 _get_pm() 单例，保持向后兼容。调用方若已有 portfolio/web/utils.py
+            的 _get_pm() 单例，应显式传入以避免双单例问题。
+    """
+    if pm is None:
+        pm = _get_pm()
+    positions = pm.get_positions()
+    watchlist = pm.get_watchlist()
+
+    # 批量预获取行情（减少串行 HTTP 请求）
+    all_codes = [p.get("code", "") for p in positions if p.get("code")]
+    pos_codes = set(all_codes)
+    for w in watchlist:
+        code = w.get("code", "")
+        if code and code not in pos_codes:
+            all_codes.append(code)
+
+    if all_codes:
+        try:
+            from data import get_quotes
+
+            get_quotes(all_codes, use_cache=True)
+        except Exception as e:
+            logger.debug("批量预获取行情失败，将逐股获取: %s", e)
+
+    results = []
+
+    # 持仓
+    for pos in positions:
+        code = pos.get("code", "")
+        if not code:
+            continue
+        r = compute_key_levels(code, position=pos)
+        results.append(r)
+
+    # 自选（去重）
+    for w in watchlist:
+        code = w.get("code", "")
+        if not code or code in pos_codes:
+            continue
+        r = compute_key_levels(code, watch=w)
+        results.append(r)
+
+    return results
 
 
 def _should_notify_signal(code: str, alert_type: str) -> bool:
