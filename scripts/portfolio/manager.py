@@ -1061,6 +1061,150 @@ class PortfolioManager:
             },
         }
 
+    def health_report_markdown(self, report: dict) -> str:
+        """将 health_report() 结构化输出渲染成 SKILL 模板一致的 Markdown。
+
+        对应 skills/portfolio/SKILL.md:223-280 模板：
+        - 标题：📊 我的持仓 (as_of)
+        - 时间戳双行：as_of + data_mtime
+        - 持仓一览表格
+        - 自选股表格
+        - 集中度
+        - 风险评级
+        - 破位独立汇总
+        - 数据护栏条 + 免责声明
+        """
+        lines: list[str] = []
+
+        # 标题 + 双时间戳
+        type_label = report.get("type", "持仓")
+        as_of = report.get("as_of", "")
+        data_mtime = report.get("data_mtime", "")
+        lines.append(f"## 📊 我的{type_label}（{as_of}）")
+        if data_mtime and data_mtime != as_of:
+            lines.append(f"_持仓快照截至 {data_mtime}_")
+        lines.append("")
+
+        # 集中度 + 风险评级（顶部）
+        conc = report.get("concentration", {}).get("details", {})
+        industry = conc.get("industry", {})
+        industry_str = " ".join(
+            f"{k} {v:.1f}%" for k, v in sorted(industry.items(), key=lambda x: -x[1])
+        )
+        if industry_str:
+            lines.append(f"**板块分布**: {industry_str}")
+        thresholds = report.get("thresholds", {})
+        if thresholds:
+            lines.append(
+                f"（集中度阈值：前3大 ≤ {thresholds.get('top3', 50)}% / "
+                f"前5大 ≤ {thresholds.get('top5', 70)}% / "
+                f"单一行业 ≤ {thresholds.get('industry', 30)}% / "
+                f"单标的 ≤ {thresholds.get('single', 20)}%；"
+                f"破位={thresholds.get('breakdown', '成本×0.95')}）"
+            )
+        risk_rating = report.get("risk_rating", "")
+        if risk_rating:
+            lines.append(f"**风险评级**: {risk_rating}")
+        lines.append("")
+
+        # 总成本/市值/盈亏
+        totals = report.get("totals", {})
+        if totals.get("pnl_pct") is not None:
+            lines.append(
+                f"总成本 {totals.get('cost', 0):,.0f} | "
+                f"总市值 {totals.get('value', 0):,.0f} | "
+                f"总盈亏 {totals.get('pnl', 0):+,.0f} "
+                f"({totals.get('pnl_pct', 0):+.2f}%)"
+            )
+        else:
+            # 行情缺失
+            lines.append(
+                f"总成本 {totals.get('cost', 0):,.0f} | "
+                f"总市值 ⚠️ 行情缺失 | 总盈亏 ⚠️ 行情缺失"
+            )
+        lines.append("")
+
+        # 破位独立汇总（如果存在）
+        breakdown = report.get("breakdown_positions", [])
+        if breakdown:
+            lines.append(f"### ⚠️ 已破位标的（{len(breakdown)} 只）")
+            lines.append("")
+            lines.append("| 股票 | 代码 | 现价 | 盈亏% | 破位原因 |")
+            lines.append("|---|---|---|---|---|")
+            for r in breakdown:
+                lines.append(
+                    f"| {r['name']} | {r['code']} | {r['price']} | "
+                    f"{r['pnl_pct']:+.2f}% | {r.get('breakdown_reason', '')} |"
+                )
+            lines.append("")
+
+        # 持仓一览
+        positions = report.get("positions", [])
+        if positions:
+            lines.append("### 持仓一览")
+            lines.append("")
+            lines.append("| 股票 | 现价 | 今日% | 盈亏% | 状态 |")
+            lines.append("|---|---|---|---|---|")
+            for r in positions:
+                status = "⚠️ 破位" if r.get("breakdown") else "🟢 健康"
+                pnl_pct_str = f"{r['pnl_pct']:+.2f}%" if r.get('pnl_pct') is not None else "N/A"
+                change_str = f"{r.get('change_pct', 0):+.2f}%" if r.get('change_pct') is not None else "N/A"
+                lines.append(
+                    f"| {r['name']} | {r['price']} | {change_str} | "
+                    f"{pnl_pct_str} | {status} |"
+                )
+            lines.append("")
+
+        # 自选股
+        watchlist = report.get("watchlist", [])
+        if watchlist:
+            lines.append("### 自选股")
+            lines.append("")
+            lines.append("| 股票 | 现价 | 距买点 | 距卖点 | 状态 |")
+            lines.append("|---|---|---|---|---|")
+            status_emoji = {
+                "已破止损": "🔴",
+                "接近止损": "🟡",
+                "到达买点": "🟢",
+                "接近买点": "🟡",
+                "观望": "⚪",
+            }
+            for w in watchlist:
+                gb = f"{w['gap_to_buy_pct']:+.1f}%" if w.get('gap_to_buy_pct') is not None else "—"
+                gs = f"{w['gap_to_sell_pct']:+.1f}%" if w.get('gap_to_sell_pct') is not None else "—"
+                status = w.get("status", "观望")
+                emoji = status_emoji.get(status, "⚪")
+                lines.append(
+                    f"| {w['name']} | {w['price']} | {gb} | {gs} | "
+                    f"{emoji} {status} |"
+                )
+            lines.append("")
+
+        # 操作建议（来自 hints）
+        regime_hint = report.get("regime_hint", "")
+        screener_hint = report.get("screener_hint", "")
+        if regime_hint or screener_hint:
+            lines.append("### 上下游联动")
+            lines.append("")
+            if regime_hint:
+                lines.append(f"- 📊 **regime**: {regime_hint}")
+            if screener_hint:
+                lines.append(f"- 🔍 **screener**: {screener_hint}")
+            lines.append("")
+
+        # 数据护栏条
+        lines.append("---")
+        regime_age = report.get("regime", {}).get("age_minutes")
+        regime_str = (
+            f"regime_state {regime_age}分钟前" if regime_age is not None
+            else "regime_state 未知"
+        )
+        lines.append(f"📅 行情 {as_of} | 持仓 {data_mtime or 'N/A'} | {regime_str}")
+        lines.append("🔌 数据源：tencent（行情）+ portfolio.json（持仓）")
+        lines.append("📜 免责声明：本工具非证券投资咨询业务持牌机构，输出为数据汇总与个人研判参考，不构成投资建议。")
+
+        return "\n".join(lines)
+
     def risk_summary(self, quotes: dict = None, confidence: float = 0.95) -> str:
         """持仓组合 VaR 风险摘要（v1.16.0 thin wrapper → portfolio.analytics.risk_summary）。"""
         from portfolio.analytics import risk_summary as _risk_summary

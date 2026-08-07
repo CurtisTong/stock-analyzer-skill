@@ -603,3 +603,75 @@ class TestAutoTechnicalIntegration:
         positions = [{"code": "sh999999"}]  # 不存在的代码
         result = _fetch_technical_features(positions, {})
         assert result == {}  # 全部失败 → 空 dict
+
+
+# ────────────────────────────────────────────────────────────────
+# health_report_markdown：渲染层
+# ────────────────────────────────────────────────────────────────
+
+
+class TestHealthReportMarkdown:
+    """健康报告 Markdown 渲染（SKILL 模板标准化）。"""
+
+    def test_markdown_contains_required_sections(self):
+        """Markdown 包含 SKILL 模板必备章节。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        md = pm.health_report_markdown(report)
+        # 必备章节
+        assert "## 📊" in md, "缺标题"
+        assert "持仓" in md
+        assert "板块分布" in md
+        assert "集中度阈值" in md
+        assert "风险评级" in md
+        assert "总成本" in md
+        assert "数据源" in md
+        assert "免责声明" in md
+
+    def test_markdown_breakdown_section(self):
+        """有破位标的时显示独立汇总段。"""
+        pm = PortfolioManager()
+        quotes = {"sh600522": {"price": 33.0, "change_pct": 0}}
+        report = pm.health_report(quotes=quotes)
+        md = pm.health_report_markdown(report)
+        if report["breakdown_positions"]:
+            assert "### ⚠️ 已破位标的" in md
+            assert "破位原因" in md
+
+    def test_markdown_watchlist_with_status_emoji(self):
+        """自选股状态有 emoji。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        md = pm.health_report_markdown(report)
+        if report["watchlist"]:
+            # 至少 1 个状态 emoji 出现
+            for emoji in ["🔴", "🟡", "🟢", "⚪"]:
+                if emoji in md:
+                    return
+            assert False, "watchlist 状态 emoji 缺失"
+
+    def test_markdown_degradation_when_quotes_none(self):
+        """quotes=None 时 Markdown 含\"行情缺失\"标注。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes=None)
+        md = pm.health_report_markdown(report)
+        assert "⚠️ 行情缺失" in md
+
+    def test_markdown_includes_threshold_citation(self):
+        """Markdown 显式引用 experts/risk_manager.md §四 阈值。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        md = pm.health_report_markdown(report)
+        # 集中度阈值数字必须出现
+        assert "前3大 ≤ 50%" in md
+        assert "前5大 ≤ 70%" in md
+        assert "单一行业 ≤ 30%" in md
+        assert "单标的 ≤ 20%" in md
+
+    def test_markdown_includes_screener_hint(self):
+        """screener_hint 出现在上下游联动段。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        md = pm.health_report_markdown(report)
+        if "锂/新能源" in report.get("screener_hint", ""):
+            assert "/screener" in md
