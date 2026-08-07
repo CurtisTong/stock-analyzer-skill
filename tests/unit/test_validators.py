@@ -99,16 +99,24 @@ class TestNormalizeCodeExchange:
             ("430047", "bj430047"),
             ("510500", "sh510500"),  # 上证 ETF
             ("159915", "sz159915"),  # 深证 ETF
+            # 上交所指数保留 sh 前缀（00 开头二义段回退信任入参前缀）
+            ("sh000001", "sh000001"),
+            ("sh000300", "sh000300"),
+            ("sh000905", "sh000905"),
         ],
     )
     def test_exchange_by_digits(self, raw, expected):
         assert normalize_code(raw) == expected
 
-    def test_always_corrections_wrong_prefix(self):
-        """即使传错前缀也按数字段校正。"""
-        # sh001330 应校正为 sz001330（深证）
-        assert normalize_code("sh001330") == "sz001330"
-        # sz600519 应校正为 sh600519（上证）
+    def test_ambiguous_prefix_trusted(self):
+        """00 开头二义段（上证指数/深市主板重合）回退信任入参前缀。
+
+        无二义数字段仍按数字段纠正错误前缀。
+        """
+        # 00 开头二义段：入参前缀保留，不再强行纠错
+        assert normalize_code("sh001330") == "sh001330"
+        assert normalize_code("sz001330") == "sz001330"
+        # 60 开头无二义：仍按数字段纠正错误前缀
         assert normalize_code("sz600519") == "sh600519"
 
 

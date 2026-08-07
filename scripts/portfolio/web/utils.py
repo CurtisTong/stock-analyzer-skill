@@ -271,9 +271,9 @@ def _monitor_loop():
     import importlib
 
     try:
-        alert_engine = importlib.import_module("monitor.alert_engine")
+        notifier = importlib.import_module("monitor.notifier")
     except ImportError:
-        print("  ⚠ 监控模块加载失败（monitor.alert_engine）", flush=True)
+        print("  ⚠ 监控模块加载失败（monitor.notifier）", flush=True)
         return
 
     print(f"  📡 后台监控已启动（每 {_monitor_interval} 秒检查一次）", flush=True)
@@ -281,7 +281,7 @@ def _monitor_loop():
     while not _monitor_stop_event.is_set():
         try:
             if _is_trading_hours():
-                result = alert_engine.check_and_push(dry_run=not _notify_enabled)
+                result = notifier.check_and_push(dry_run=not _notify_enabled)
                 _monitor_last_result = result
                 alerts = result.get("alerts", 0)
                 pushed = result.get("pushed", 0)
