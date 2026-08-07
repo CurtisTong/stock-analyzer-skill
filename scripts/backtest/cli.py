@@ -398,7 +398,16 @@ def main():
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
         elif "error" in report:
+            # M5: 错误模式仍输出 footer（SKILL.md 硬约束），
+            # 让 SKILL 渲染层和 LLM caller 能看到降级标志。
             print(f"❌ {report['error']}")
+            _print_report_meta(
+                {
+                    "generated_at": datetime.now().isoformat(timespec="seconds"),
+                    "data_sources": ["K线(多源聚合)"],
+                    "is_degraded": True,
+                }
+            )
         else:
             print(f"\n总收益: {report['total_return_pct']:.2f}%")
             print(f"平均收益: {report['avg_return_pct']:.2f}%")

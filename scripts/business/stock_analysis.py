@@ -216,45 +216,56 @@ def _analyze(
 
 
 def _analyze_technical(kline: list) -> dict:
-    """技术分析（接收 KlineBar 对象列表）。"""
+    """技术分析（接收 KlineBar 对象列表）。
+
+    M6: 外层 try/except 兜底。当 K 线刚好 ≥10 根（line 186 阈值）但内部分析
+    模块（ma_system / kdj / boll / bamboo / ma_stop_buy）在数据临界状态
+    下可能抛异常（MA 序列长度不足、KDJ 索引错位等）。整体失败时返回带
+    "_technical_error" 的最小 dict，让 SKILL 渲染层识别为"技术面数据不足"
+    而非崩溃。
+    """
     from technical.pipeline import compute_indicators
     from technical import ma_system, kdj_full, bollinger, detect_candle_patterns
     from technical.bamboo import bamboo_node
     from technical.ma_stop import ma_stop_buy
 
-    indicators = compute_indicators(kline)
-    # M3 修复：与 technical.pipeline.compute_indicators 同口径过滤（close/volume > 0），
-    # 确保 closes/highs/lows 数组对齐（原实现 highs/lows 未过滤零值记录，
-    # 存在零值 K 线时 KDJ 索引错位；形态识别也使用同一批 valid_kline）
-    valid_kline = [b for b in kline if b.close > 0 and b.volume > 0]
-    closes = [b.close for b in valid_kline]
-    highs = [b.high for b in valid_kline]
-    lows = [b.low for b in valid_kline]
-
     result = {}
-    ma = ma_system(closes)
-    result["ma"] = ma.get("alignment", "数据不足")
-    result["macd_signal"] = indicators.get("macd_signal", 0)
-    # H3: 透传 bar_trend，供 _calculate_composite_score 的 _score_macd
-    # 识别"金叉+红柱放大"（15 分），与 technical.py 完整路径口径一致
-    result["macd_divergence"] = indicators.get("macd_divergence", "")
-    result["macd_bar_trend"] = indicators.get("macd_bar_trend", "")
+    try:
+        indicators = compute_indicators(kline)
+        # M3 修复：与 technical.pipeline.compute_indicators 同口径过滤（close/volume > 0），
+        # 确保 closes/highs/lows 数组对齐（原实现 highs/lows 未过滤零值记录，
+        # 存在零值 K 线时 KDJ 索引错位；形态识别也使用同一批 valid_kline）
+        valid_kline = [b for b in kline if b.close > 0 and b.volume > 0]
+        closes = [b.close for b in valid_kline]
+        highs = [b.high for b in valid_kline]
+        lows = [b.low for b in valid_kline]
 
-    kdj = kdj_full(closes, highs, lows) or {}
-    result["kdj"] = kdj.get("signal", "")
+        ma = ma_system(closes)
+        result["ma"] = ma.get("alignment", "数据不足")
+        result["macd_signal"] = indicators.get("macd_signal", 0)
+        # H3: 透传 bar_trend，供 _calculate_composite_score 的 _score_macd
+        # 识别"金叉+红柱放大"（15 分），与 technical.py 完整路径口径一致
+        result["macd_divergence"] = indicators.get("macd_divergence", "")
+        result["macd_bar_trend"] = indicators.get("macd_bar_trend", "")
 
-    boll = bollinger(closes)
-    result["boll_position"] = boll.get("position", 0.5)
-    result["rsi"] = indicators.get("rsi", 50)
-    result["volume_signal"] = indicators.get("vol_price_signal", 0)
+        kdj = kdj_full(closes, highs, lows) or {}
+        result["kdj"] = kdj.get("signal", "")
 
-    patterns = detect_candle_patterns([b.to_dict() for b in valid_kline])
-    result["patterns"] = patterns[:5] if patterns else []
+        boll = bollinger(closes)
+        result["boll_position"] = boll.get("position", 0.5)
+        result["rsi"] = indicators.get("rsi", 50)
+        result["volume_signal"] = indicators.get("vol_price_signal", 0)
 
-    # 竹节法卖点 + 均线止跌买点（与 technical.py 完整路径口径一致）
-    result["bamboo"] = bamboo_node(highs, lows, closes) or {}
-    result["ma_stop_buy"] = ma_stop_buy(closes, highs, lows, ma) or {}
+        patterns = detect_candle_patterns([b.to_dict() for b in valid_kline])
+        result["patterns"] = patterns[:5] if patterns else []
 
+        # 竹节法卖点 + 均线止跌买点（与 technical.py 完整路径口径一致）
+        result["bamboo"] = bamboo_node(highs, lows, closes) or {}
+        result["ma_stop_buy"] = ma_stop_buy(closes, highs, lows, ma) or {}
+    except Exception as e:
+        # K 线临界状态（≥10 根但内部分析失败）兜底：返回最小 dict
+        # 调用方可识别 _technical_error 字段并降级渲染
+        return {"_technical_error": str(e), "ma": "数据不足", "patterns": []}
     return result
 
 
