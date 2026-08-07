@@ -126,8 +126,17 @@ class NotificationManager:
         nm.send("标题", "内容")
     """
 
-    def __init__(self, config: Optional[dict] = None):
-        self._channels: list[NotificationChannel] = []
+    def __init__(
+        self,
+        config: Optional[dict] = None,
+        channels: Optional[list[NotificationChannel]] = None,
+    ):
+        """
+        Args:
+            config: 配置字典（默认从 notification.yaml 加载）
+            channels: 直接注入的通道列表（用于测试；提供时跳过 _setup_channels）
+        """
+        self._channels: list[NotificationChannel] = list(channels) if channels else []
         self._config = config or self._load_config()
         # 实例属性：避免多实例共享全局变量（测试隔离 + 多租户场景）
         self._log_max_size = _LOG_MAX_SIZE
@@ -143,7 +152,8 @@ class NotificationManager:
         self._last_throttle_gc: float = 0  # 上次清理 throttle_log 的时间戳
         self._lock = threading.Lock()
         self._log_write_count = 0  # 写入计数器，用于批量检查轮转
-        self._setup_channels()
+        if not channels:
+            self._setup_channels()
 
     def _load_config(self) -> dict:
         """加载通知配置。"""

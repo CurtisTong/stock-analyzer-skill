@@ -12,9 +12,7 @@
 from __future__ import annotations
 
 import threading
-import time
-from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -42,22 +40,20 @@ class _FakeChannel:
 
 
 def _make_nm(channels: list | None = None) -> "NotificationManager":
-    """构造 NotificationManager 注入 fake channels，绕过配置文件加载。"""
+    """构造 NotificationManager 注入 fake channels。
+
+    使用 channels= 注入参数（NotificationManager.__init__ v1.20+ 支持），
+    走完整 __init__，避免 __new__ 绕过导致与生产行为不一致。
+    """
     from monitor.manager import NotificationManager
 
-    nm = NotificationManager.__new__(NotificationManager)
-    nm._channels = channels or []
-    nm._config = {
-        "throttle": {"dedup_window": 15, "daily_limit": 20},
-        "quiet_hours": {"enabled": False},
-    }
-    nm._lock = threading.Lock()
-    nm._throttle_log = {}
-    nm._daily_count = 0
-    nm._daily_date = datetime.now().strftime("%Y-%m-%d")
-    nm._last_throttle_gc = time.time()
-    nm._log_write_count = 0
-    return nm
+    return NotificationManager(
+        config={
+            "throttle": {"dedup_window": 15, "daily_limit": 20},
+            "quiet_hours": {"enabled": False},
+        },
+        channels=channels or [],
+    )
 
 
 # ────────────────────────────────────────────────────────────────
@@ -213,15 +209,11 @@ class TestChannelRegistry:
         """注册通道后 get_active_channels 返回名称列表。"""
         from monitor.manager import NotificationManager
 
-        nm = NotificationManager.__new__(NotificationManager)
-        nm._channels = []
-        nm._config = {"throttle": {}, "quiet_hours": {}}
-        nm._lock = threading.Lock()
-        nm._throttle_log = {}
-        nm._daily_count = 0
-        nm._daily_date = datetime.now().strftime("%Y-%m-%d")
-        nm._last_throttle_gc = time.time()
-        nm._log_write_count = 0
+        # 注入空 channels 列表（不读 yaml）后手动注册
+        nm = NotificationManager(
+            config={"throttle": {}, "quiet_hours": {}},
+            channels=[],
+        )
 
         assert nm.get_active_channels() == []
         nm.register_channel(_FakeChannel(name="bark"))

@@ -43,3 +43,21 @@ allowed-tools: Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http:/
 - 并发写入冲突时使用锁机制（详见 `scripts/portfolio/manager.py`）
 - `--virtual` 模式数据存 `portfolio_virtual.json`，不污染主仓
 - 删除前必须二次确认（DELETE 返回 405）
+
+## 推送通知配置
+
+Web 服务在持仓 CRUD（加仓/减仓/清仓等）时会通过 `NotificationManager` 异步推送通知。
+配置位于 `scripts/config/notification.yaml`，支持 4 个通道：
+
+| 通道 | 启用方式 | 必填字段 |
+|------|---------|---------|
+| Bark | `bark.enabled: true` | `bark.key`（Bark 推送 Key，iOS 设备上 Bark App 获取） |
+| 企业微信 | `wechat_work.enabled: true` | `wechat_work.key`（群机器人 Webhook Key） |
+| 钉钉 | `dingtalk.enabled: true` | `dingtalk.token` + `dingtalk.secret`（加签模式） |
+| 自定义 Webhook | `webhook.enabled: true` | `webhook.url`（HTTPS 强校验，拒绝私有 IP 防 SSRF） |
+
+未配置任何通道时，`/portfolio web` 启动时会输出 `⚠ 未配置通道`，但服务正常运行。
+`--no-notify` 参数完全跳过通知推送（不读 yaml、不实例化 manager）。
+
+频率控制：`throttle.dedup_window`（默认 15 分钟）+ `throttle.daily_limit`（默认 20 条/天）。
+紧急消息（`urgent=True`）绕过每日上限但仍受去重窗口限制。

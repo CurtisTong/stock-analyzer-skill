@@ -39,7 +39,7 @@
 - [🎬 效果一览](#-效果一览)
 - [👥 16 份专家人设（招牌功能）](#-16-份专家人设招牌功能)
 - [🗺️ 5 个典型场景](#-5-个典型场景)
-- [📋 13 个 Skill 速查](#-13-个-skill-速查)
+- [📋 12 个 Skill 速查](#-12-个-skill-速查)
 - [📦 安装方式](#-安装方式)
 - [🏗️ 项目架构](#-项目架构)
 - [📖 文档导航](#-文档导航)
@@ -197,7 +197,7 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 | ------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
 | 🎮 **模拟盘（虚拟持仓）** | `/portfolio add sh600989 1000 18.50 --virtual` 或 `portfolio_web.py --virtual` | 零风险练习交易策略，虚拟/实盘数据完全隔离            |
 | 📅 **事件日历**           | `python3 scripts/events.py sh600519`                                           | 财报披露、限售解禁、分红一目了然，避免踩雷           |
-| 📋 **统一输出模板**       | 13 个 skill 自动生效——首行结论 + 尾行数据源 + 时间戳                           | 格式一致可复盘，每次输出都带数据来源和时间           |
+| 📋 **统一输出模板**       | 12 个 skill 自动生效——首行结论 + 尾行数据源 + 时间戳                           | 格式一致可复盘，每次输出都带数据来源和时间           |
 | 🔄 **校准数据同步**       | `python3 scripts/calibration_sync.py --auto`（依赖 gh CLI）                    | 跨设备同步专家校准数据，GitHub Gist 双向同步         |
 | 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示每位专家历史胜率，可信度透明         |
 | 📊 **回测胜率附加**       | `/stock sh600519 --with-backtest`                                              | 分析报告附加近 60 日回测（胜率/收益/夏普/回撤）      |
@@ -472,13 +472,13 @@ flowchart LR
 **适合**：每日开盘前 30 分钟做情绪判断的投资者
 **产出**：美股收盘 + VIX + 对 A 股传导路径的预判，避免隔夜黑天鹅被闷杀
 
-> 💡 13 个 skill 完整衔接流程见 [`workflow.md`](workflow.md)。
+> 💡 12 个 skill 完整衔接流程见 [`workflow.md`](workflow.md)。
 
 ---
 
-## 📋 13 个 Skill 速查
+## 📋 12 个 Skill 速查
 
-> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合（含 Web 后台监控）/ backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
+> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合（含 Web 录入 + 推送通道）/ backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
 
 | 类别        | Skill                                                  | 命令                                             | 一句话价值                                   |
 | :---------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------- |
@@ -554,7 +554,7 @@ cd stock-analyzer-skill
 ### ✅ 验证安装
 
 ```bash
-claude skills list | grep stock     # 看到 13 个 skill 即成功
+claude skills list | grep stock     # 看到 12 个 skill 即成功
 /stock-help                          # 在 Claude Code 内查看命令清单
 ```
 

@@ -89,7 +89,7 @@ scripts/
 - **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
 - **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）；人设配置在 `experts/yaml/*.yaml`，由 `registry.py` 注册；`decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 
-## Skill 索引表（13 个）
+## Skill 索引表（12 个）
 
 | Skill                | 触发场景                                     | 主入口脚本                                                                            | 备注                                   |
 | :------------------- | :------------------------------------------- | :------------------------------------------------------------------------------------ | :------------------------------------- |

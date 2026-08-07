@@ -111,5 +111,5 @@ class YfinanceKlineFetcher(BaseFetcher):
             # 由 YFRateLimitError 转译而来，直接向上抛
             raise
         except Exception as e:
-            logger.debug("yfinance_kline 获取失败 %s: %s", code, e)
+            logger.warning("yfinance_kline 获取失败 %s: %s", code, e)
             return None

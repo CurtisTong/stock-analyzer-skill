@@ -1,5 +1,7 @@
 # 全模块代码审查报告（2026-07-02）
 
+> ⚠️ **历史快照**：本文档为 2026-07-02 审查报告，含 `monitor` skill / `scripts/monitor/{alert_engine,scanner,briefing,rules,levels,health,strategy_signals,data_fetch,notifier}.py` 等已删除模块的描述。监控计算链路已在 v1.20.0 (`a8246c2`) 彻底移除；`monitor/manager.py` + `channels/` 保留作持仓 CRUD 推送链路。
+>
 > 技术专家团队对 13 个模块（~3 万行 Python）逐个深度审查的汇总。
 > 共发现 **Critical 14 / High 35 / Medium 41 / Low 30+** 项问题。
 > 每个模块由独立 code-reviewer agent 审查，覆盖正确性、健壮性、性能、安全、架构、可维护性六维。

@@ -1,5 +1,7 @@
 # 项目架构深度审查报告（2026-07-07）
 
+> ⚠️ **历史快照说明**：本报告为 2026-07-07 时点审查，含 `monitor` skill / `scripts/monitor/{alert_engine,scanner,briefing,rules,levels,health,strategy_signals,data_fetch,notifier}.py` 等已删除模块的描述。监控计算链路已在 v1.20.0 (`a8246c2`) 彻底移除；`monitor/manager.py` + `channels/` 保留作持仓 CRUD 推送链路。
+>
 > 三方专家联合审查：技术架构师 + 投资专家 + 产品经理
 >
 > ⚠️ **历史快照说明**：本报告为 2026-07-07 时点审查，当时 active 专家为 9 人（6 长线 + 3 短线）。

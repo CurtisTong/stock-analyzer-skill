@@ -65,7 +65,7 @@ def enrich_with_balance_sheet(records, code, periods=4):
 
         return records
     except Exception as e:
-        logger.debug("akshare 资产负债表增强失败 %s: %s", code, e)
+        logger.warning("akshare 资产负债表增强失败 %s: %s", code, e)
         return records  # 失败原样返回，不阻断主流程
 
 
