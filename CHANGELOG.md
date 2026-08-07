@@ -36,6 +36,7 @@
 ## [Unreleased] - 2026-08-07
 
 
+
 ### Added
 - **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
 
@@ -49,6 +50,10 @@
 - Merge fix: 指数代码映射 + monitor scanner 缺失（复盘发现）
 
 ### Maintenance
+- 彻底移除监控模块（保留持仓 CRUD 推送）
+
+### Maintenance
+- 清理监控模块残留引用 + 补推送链路测试
 - 彻底移除监控模块（保留持仓 CRUD 推送）
 
 ## [1.19.0] - 2026-08-05（数据源降级可观测性 + P1 健康度 + 五层 data_sources 透传 + 缓存命中 bug 修复 + 18 项 bug 修复）
