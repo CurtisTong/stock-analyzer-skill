@@ -495,3 +495,61 @@ class TestReadRegimeState:
         from portfolio.manager import _read_regime_state
         result = _read_regime_state()
         assert result["age_minutes"] is None or isinstance(result["age_minutes"], int)
+
+
+# ────────────────────────────────────────────────────────────────
+# L10: as_of 兜底
+# ────────────────────────────────────────────────────────────────
+
+
+class TestAsOfFallback:
+    """L10: as_of 字段兜底（__as_of__ 哨兵键 → datetime.now()）。"""
+
+    def test_explicit_as_of_used_when_provided(self):
+        """上游传 __as_of__ 时优先使用。"""
+        from datetime import datetime
+        pm = PortfolioManager()
+        ts = "2026-08-07T10:30:00"
+        quotes = {"__as_of__": ts}
+        report = pm.health_report(quotes=quotes)
+        assert report["as_of"] == ts
+
+    def test_as_of_never_empty(self):
+        """as_of 永不返回空字符串（L17 降级时也应有时戳）。"""
+        pm = PortfolioManager()
+        # 不传 quotes
+        report = pm.health_report(quotes=None)
+        assert report["as_of"]  # 非空字符串
+
+    def test_as_of_format_matches_template(self):
+        """as_of 格式 YYYY-MM-DD HH:MM:SS（兼容 SKILL 模板）。"""
+        import re
+        pm = PortfolioManager()
+        report = pm.health_report(quotes=None)
+        assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", report["as_of"])
+
+
+# ────────────────────────────────────────────────────────────────
+# L14: BREAKDOWN_THRESHOLD 排版位置
+# ────────────────────────────────────────────────────────────────
+
+
+class TestBreakdownThresholdLocation:
+    """L14: BREAKDOWN_THRESHOLD 已移到类顶部常量区块。"""
+
+    def test_constant_accessible(self):
+        """BREAKDOWN_THRESHOLD 是公开类常量，默认 0.95。"""
+        assert PortfolioManager.BREAKDOWN_THRESHOLD == 0.95
+
+    def test_constant_in_top_block(self):
+        """BREAKDOWN_THRESHOLD 位置在 _STATUS_TAGS 之前（顶部常量区块）。"""
+        # 检查源码位置
+        import inspect
+        src = inspect.getsource(PortfolioManager)
+        threshold_pos = src.find("BREAKDOWN_THRESHOLD =")
+        status_tags_pos = src.find("_STATUS_TAGS =")
+        industry_pos = src.find("_INDUSTRY_GROUP =")
+        assert threshold_pos > 0
+        assert threshold_pos < status_tags_pos < industry_pos, (
+            "BREAKDOWN_THRESHOLD 应在 _STATUS_TAGS/_INDUSTRY_GROUP 之前"
+        )

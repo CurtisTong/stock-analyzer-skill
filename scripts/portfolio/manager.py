@@ -106,6 +106,10 @@ class PortfolioManager:
     支持虚拟持仓：virtual=True 时使用 portfolio_virtual.json（模拟盘）。
     """
 
+    # 破位判定阈值：成本 × 0.95 = 成本 -5%
+    # （SKILL.md guardrails §四 + experts/risk_manager.md §四）
+    BREAKDOWN_THRESHOLD = 0.95
+
     # 状态类标签白名单：tags[0] 是这类时不当作行业，避免
     # 宝丰能源 tags=["T+1待交收","煤化工","能源"] 被错误归类
     _STATUS_TAGS = frozenset({
@@ -712,10 +716,6 @@ class PortfolioManager:
 
         return _summary(self)
 
-    # ── 破位判定阈值 ──────────────────────────────────────────
-    # 成本 -5% 视为破位（SKILL.md guardrails §四 + experts/risk_manager.md §四）
-    BREAKDOWN_THRESHOLD = 0.95
-
     def health_report(
         self,
         quotes: Optional[dict] = None,
@@ -732,7 +732,7 @@ class PortfolioManager:
 
         输出结构化 dict，便于 SKILL 渲染与脚本抓取：
             {
-                "as_of": "2026-08-07 10:30",         # 行情快照时间
+                "as_of": "2026-08-07 10:30",         # 行情快照/调用时间（自动兜底）
                 "data_mtime": "2026-08-06 16:15",    # 持仓文件 mtime
                 "regime": {regime, updated_at, age_minutes},  # 真实市场 regime
                 "regime_hint": "...",                # 动态生成（基于 age_minutes）
@@ -952,8 +952,20 @@ class PortfolioManager:
         if quotes_missing:
             risk_rating = f"⚠️ 行情缺失（仅基于成本口径）| {risk_rating}"
 
+        # L10: as_of 用 datetime.now() 兜底，保证 SKILL 模板的
+        # "📊 我的持仓 (YYYY-MM-DD HH:MM)" 时间戳位始终有值。
+        # 优先用 quotes_map["__as_of__"] 哨兵键（上游可显式传入行情快照时间），
+        # 其次用调用时刻（本地时间），最后用文件 mtime。
+        from datetime import datetime
+        explicit_as_of = quotes_map.get("__as_of__") if quotes_map else None
+        if explicit_as_of:
+            as_of = explicit_as_of
+        else:
+            fallback_mtime = _file_mtime(self._path)
+            as_of = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if not fallback_mtime else fallback_mtime
+
         return {
-            "as_of": quotes_map.get("__as_of__", "") if quotes_map else "",
+            "as_of": as_of,
             "data_mtime": _file_mtime(self._path),
             "regime": regime_info,
             "regime_hint": regime_hint,

@@ -220,6 +220,19 @@ Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SK
 
 ## Output Format
 
+### 双时间戳约定（health_report 返回 as_of + data_mtime）
+
+| 字段 | 含义 | 来源 | 用途 |
+|------|------|------|------|
+| `as_of` | 行情快照/调用时间 | `quotes_map["__as_of__"]` 哨兵键 → `datetime.now()` 兜底 | SKILL 标题时间戳"📊 我的持仓 (YYYY-MM-DD HH:MM)" |
+| `data_mtime` | portfolio.json 最后写入时间 | `Path.stat().st_mtime` | 数据新鲜度判断；与行情时间错位时提示"持仓快照 16:15 / 行情 10:30" |
+
+典型显示：
+```
+📊 我的持仓 (2026-08-07 10:30)        ← as_of（行情快照）
+持仓快照截至 2026-08-06 16:15          ← data_mtime（持仓文件 mtime）
+```
+
 ### 持仓一览（默认输出）
 
 ```
