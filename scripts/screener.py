@@ -156,6 +156,7 @@ def render_brief(rows, strategy, top, title=None):
 
     label = title or get_strategy(strategy)["label"]
     top_rows = accepted[:top]
+    total = len(accepted) + len(rejected)
 
     # 一句话结论
     if not top_rows:
@@ -167,8 +168,9 @@ def render_brief(rows, strategy, top, title=None):
         print("  3. 市场休市无数据 → 交易时段重试")
         return
     best = top_rows[0]
+    # P2-26: 增加过滤统计，让用户清楚硬过滤路径（避免"请求 top10 却只输出 5"疑问）
     print(
-        f"策略 {label} | 入选 {len(accepted)} 剔除 {len(rejected)} | "
+        f"策略 {label} | 总输入 {total} → 入选 {len(accepted)} (取 Top {top}) → 硬过滤剔除 {len(rejected)} | "
         f"首选 {best['code']} {best['name']} (评分 {best['score']})"
     )
 
@@ -274,6 +276,12 @@ def _build_parser():
     )
     parser.add_argument("-j", "--json", action="store_true")
     parser.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="静默模式：禁用进度条输出（仅保留最终结果）",
+    )
+    parser.add_argument(
         "--full",
         action="store_true",
         help="完整模式：16 列因子详情（默认为精简模式）",
@@ -336,8 +344,9 @@ def _default_progress_callback(event, payload):
 
 def _run_main(args):
     """main() 核心逻辑（瘦身后：callback + 调用 run_screening + 输出分发）。"""
-    # JSON 模式使用静默 callback，避免进度输出混入 JSON
-    callback = _default_progress_callback if not args.json else (lambda e, p: None)
+    # JSON 模式或 --quiet 模式下使用静默 callback，避免进度输出混入 JSON/最终结果
+    silent = args.json or getattr(args, "quiet", False)
+    callback = _default_progress_callback if not silent else (lambda e, p: None)
     result = run_screening(args, progress_callback=callback)
 
     if result["halted"]:

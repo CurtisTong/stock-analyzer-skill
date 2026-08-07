@@ -1,5 +1,71 @@
 """字段映射与解析：腾讯/新浪/东财数据格式解析。"""
 
+import logging
+import re
+
+logger = logging.getLogger(__name__)
+
+# ---------- 名称乱码修复（P2-26 修复：腾讯接口部分股票名 GBK 字节
+# 被 decode_gbk 当 UTF-8 静默接受，输出 'ǢǢʳƷ' 形式乱码）----------
+
+# GBK 双字节字符的典型"乱码"模式：UTF-8 视角下，GBK 字节落在 CJK 扩展
+# 区后会产生带重音的拉丁字母（Ǣ ǣ ʳ Ʒ 等）。这是腾讯部分股票名称的常见乱码特征。
+_GARBLED_NAME_RE = re.compile(r"[ǢǣʳƷˊˋˍ˙̛̖̗̘̙̜̝̞̟̠̣̤̥̦̩̪̫̬̭̮̯̰̱̲̳̹̺̻̼͎̀́̂̃̄̅̆̇̈̉̊̋̌̍̎̏̐̑̒̓̔̽̾̿̀́͂̂̃̄̅̆̇̈̉͊͋͌̍̕̚͏͓͔͕͖͙͚͐͑͒͗͛͘͜͟͢͝͞͠͡҉ͣͤͥͦͧͨͩͪͫͬͭͮͯ҈҉]+")
+
+# 合法中文字符的 Unicode 范围（用于 sanity check）
+_CJK_RE = re.compile(r"[\u4e00-\u9fff]")
+
+
+def _looks_garbled(name: str) -> bool:
+    """检测名称是否呈现腾讯 GBK→UTF-8 静默替换的典型乱码。
+
+    判定条件（任一满足即可）：
+    1. 含 `_GARBLED_NAME_RE` 中定义的典型乱码字符。
+    2. 完全不含中文，但含非 ASCII 的拉丁扩展字符（怀疑编码错位）。
+    """
+    if not name:
+        return False
+    if _GARBLED_NAME_RE.search(name):
+        return True
+    has_cjk = bool(_CJK_RE.search(name))
+    has_non_ascii = any(ord(c) > 127 for c in name)
+    if not has_cjk and has_non_ascii:
+        return True
+    return False
+
+
+def repair_tencent_name(name: str) -> str:
+    """修复腾讯行情中因编码错位产生的乱码股票名。
+
+    现象：腾讯接口部分股票名（如 sz002557 洽洽食品）返回 GBK 字节，
+    上层 decode_gbk 因 UTF-8 解码不抛异常而误判为合法 UTF-8，
+    结果输出 'ǢǢʳƷ'。
+
+    修复策略：将乱码字符串回退为 GBK 字节后再以 GBK 解码，
+    验证是否包含中文；包含则采用，否则保留原值。
+    """
+    if not name or not _looks_garbled(name):
+        return name
+    try:
+        # 假设字符串实际是 GBK 字节被当 UTF-8 解释的结果。
+        # 反向操作：UTF-8 编码 → GBK 解码。
+        fixed = name.encode("utf-8", errors="strict").decode("gbk", errors="strict")
+        if _CJK_RE.search(fixed):
+            logger.debug("修复乱码名称: %r → %r", name, fixed)
+            return fixed
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        pass
+    # 兜底：errors='replace'，至少替换乱码字符而不是静默展示
+    try:
+        fixed = name.encode("utf-8", errors="replace").decode("gbk", errors="replace")
+        if fixed and fixed != name:
+            logger.debug("部分修复乱码名称: %r → %r", name, fixed)
+            return fixed
+    except Exception:
+        pass
+    return name
+
+
 # ---------- 腾讯行情字段映射 ----------
 
 # 字段位（按 ~ 分隔，0-based 索引，已剥除 v_sh600989=" 前缀）
@@ -53,7 +119,7 @@ def parse_tencent_line(line: str) -> dict[str, str]:
         return {}
     return {
         "code": parts[TENCENT_FIELDS["code"]],
-        "name": parts[TENCENT_FIELDS["name"]],
+        "name": repair_tencent_name(parts[TENCENT_FIELDS["name"]]),
         "price": parts[TENCENT_FIELDS["price"]],
         "prev_close": parts[TENCENT_FIELDS["prev_close"]],
         "open": parts[TENCENT_FIELDS["open"]],
@@ -99,7 +165,7 @@ def parse_sina_quote_line(line: str) -> dict[str, str]:
 
     return {
         "code": code,
-        "name": fields[0],
+        "name": repair_tencent_name(fields[0]),
         "open": fields[1],
         "prev_close": fields[2],
         "price": fields[3],

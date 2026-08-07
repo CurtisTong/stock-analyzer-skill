@@ -61,7 +61,10 @@ def _file_mtime(path: Path) -> str:
     """返回文件 mtime 的 ISO 字符串（健康检查报告用）。"""
     try:
         from datetime import datetime
-        return datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+
+        return datetime.fromtimestamp(path.stat().st_mtime).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
     except (OSError, FileNotFoundError):
         return ""
 
@@ -75,6 +78,7 @@ def _read_regime_state() -> dict:
     import json
     from datetime import datetime, timezone
     from pathlib import Path
+
     # scripts/portfolio/manager.py → scripts/
     path = Path(__file__).resolve().parent.parent / "data" / "regime_state.json"
     result = {"regime": None, "updated_at": "", "age_minutes": None}
@@ -113,9 +117,10 @@ def _fetch_technical_features(
     # 显式加载 scripts/technical.py 顶层文件才能拿到 TechnicalInput / _compute_all。
     import importlib.util
     from pathlib import Path
+
     spec = importlib.util.spec_from_file_location(
-    "portfolio_technical_top",
-    Path(__file__).resolve().parent.parent / "technical.py",
+        "portfolio_technical_top",
+        Path(__file__).resolve().parent.parent / "technical.py",
     )
     tech_mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tech_mod)
@@ -129,6 +134,7 @@ def _fetch_technical_features(
             continue
         try:
             from data import get_kline
+
             bars = get_kline(code, 240, kline_datalen, use_cache=True)
             if not bars or len(bars) < 20:
                 continue
@@ -139,8 +145,15 @@ def _fetch_technical_features(
             volumes = [b["volume"] for b in bars]
             quote = quotes_map.get(code, {})
             inp = TechnicalInput(
-                closes=closes, opens=opens, highs=highs, lows=lows,
-                volumes=volumes, records=bars, board="", quote=quote, args=None,
+                closes=closes,
+                opens=opens,
+                highs=highs,
+                lows=lows,
+                volumes=volumes,
+                records=bars,
+                board="",
+                quote=quote,
+                args=None,
             )
             features = _compute_all(inp)
             # 与 technical.py:330-338 一致：stop_loss_pct<0 意味着破位
@@ -171,65 +184,157 @@ class PortfolioManager:
 
     # 状态类标签白名单：tags[0] 是这类时不当作行业，避免
     # 宝丰能源 tags=["T+1待交收","煤化工","能源"] 被错误归类
-    _STATUS_TAGS = frozenset({
-        # 持有期/仓位类
-        "T+1待交收", "T+1", "长线", "短线", "核心", "卫星",
-        "底仓", "波段", "网格", "定投", "观察", "待加仓",
-        "长持", "永持", "待止损", "待止盈", "已止盈", "对冲", "套保",
-        "金字塔", "左侧", "右侧",
-        # 投资风格类
-        "白马", "价值", "蓝筹", "大盘", "红利", "高股息",
-        "成长", "主题", "概念", "题材", "赛道", "科技",
-        "趋势", "反转", "突破", "超跌", "低吸", "追涨",
-        "短线投机", "打板", "涨停", "妖股", "壳资源",
-        # 状态描述类
-        "浮盈", "浮亏", "止损", "止盈",
-    })
+    _STATUS_TAGS = frozenset(
+        {
+            # 持有期/仓位类
+            "T+1待交收",
+            "T+1",
+            "长线",
+            "短线",
+            "核心",
+            "卫星",
+            "底仓",
+            "波段",
+            "网格",
+            "定投",
+            "观察",
+            "待加仓",
+            "长持",
+            "永持",
+            "待止损",
+            "待止盈",
+            "已止盈",
+            "对冲",
+            "套保",
+            "金字塔",
+            "左侧",
+            "右侧",
+            # 投资风格类
+            "白马",
+            "价值",
+            "蓝筹",
+            "大盘",
+            "红利",
+            "高股息",
+            "成长",
+            "主题",
+            "概念",
+            "题材",
+            "赛道",
+            "科技",
+            "趋势",
+            "反转",
+            "突破",
+            "超跌",
+            "低吸",
+            "追涨",
+            "短线投机",
+            "打板",
+            "涨停",
+            "妖股",
+            "壳资源",
+            # 状态描述类
+            "浮盈",
+            "浮亏",
+            "止损",
+            "止盈",
+        }
+    )
 
     # 行业子标签 → 行业大类映射：合并分散标签到 6 大生态。
     # 避免 tags[0]="锂矿/锂业/储能/光伏/新能源/有色" 等被分散成多个行业。
     _INDUSTRY_GROUP = {
         # ── 锂/新能源链 ─────────────────────────────────
-        "锂电": "锂/新能源", "锂矿": "锂/新能源", "锂业": "锂/新能源",
-        "锂电池": "锂/新能源", "锂材料": "锂/新能源",
-        "电池": "锂/新能源", "动力电池": "锂/新能源", "储能电池": "锂/新能源",
-        "正极": "锂/新能源", "负极": "锂/新能源", "隔膜": "锂/新能源",
-        "电解液": "锂/新能源", "三元": "锂/新能源", "磷酸铁锂": "锂/新能源",
-        "电池片": "锂/新能源", "组件": "锂/新能源", "逆变器": "锂/新能源",
-        "硅料": "锂/新能源", "硅片": "锂/新能源", "HJT": "锂/新能源",
-        "TOPCon": "锂/新能源", "钙钛矿": "锂/新能源", "锂电正极": "锂/新能源",
+        "锂电": "锂/新能源",
+        "锂矿": "锂/新能源",
+        "锂业": "锂/新能源",
+        "锂电池": "锂/新能源",
+        "锂材料": "锂/新能源",
+        "电池": "锂/新能源",
+        "动力电池": "锂/新能源",
+        "储能电池": "锂/新能源",
+        "正极": "锂/新能源",
+        "负极": "锂/新能源",
+        "隔膜": "锂/新能源",
+        "电解液": "锂/新能源",
+        "三元": "锂/新能源",
+        "磷酸铁锂": "锂/新能源",
+        "电池片": "锂/新能源",
+        "组件": "锂/新能源",
+        "逆变器": "锂/新能源",
+        "硅料": "锂/新能源",
+        "硅片": "锂/新能源",
+        "HJT": "锂/新能源",
+        "TOPCon": "锂/新能源",
+        "钙钛矿": "锂/新能源",
+        "锂电正极": "锂/新能源",
         "新能源": "锂/新能源",
-        "光伏": "锂/新能源", "储能": "锂/新能源",
-        "新能源车": "锂/新能源", "新能源ETF": "锂/新能源",
-        "钴": "锂/新能源", "镍": "锂/新能源", "稀土": "锂/新能源",
+        "光伏": "锂/新能源",
+        "储能": "锂/新能源",
+        "新能源车": "锂/新能源",
+        "新能源ETF": "锂/新能源",
+        "钴": "锂/新能源",
+        "镍": "锂/新能源",
+        "稀土": "锂/新能源",
         "有色": "锂/新能源",  # 锂/镍/钴/稀土等同属有色金属，合并到锂/新能源
-        "风电": "锂/新能源", "核电": "锂/新能源", "氢能": "锂/新能源",
+        "风电": "锂/新能源",
+        "核电": "锂/新能源",
+        "氢能": "锂/新能源",
         # ── 半导体生态 ─────────────────────────────────
-        "半导体": "半导体", "PCB": "半导体", "封测": "半导体",
-        "IC设计": "半导体", "晶圆代工": "半导体", "光刻机": "半导体",
-        "EDA": "半导体", "设备": "半导体", "材料": "半导体",
+        "半导体": "半导体",
+        "PCB": "半导体",
+        "封测": "半导体",
+        "IC设计": "半导体",
+        "晶圆代工": "半导体",
+        "光刻机": "半导体",
+        "EDA": "半导体",
+        "设备": "半导体",
+        "材料": "半导体",
         # ── 医药生态 ─────────────────────────────────
-        "医药": "医药", "创新药": "医药", "CRO": "医药",
-        "CMO": "医药", "CDMO": "医药", "医疗器械": "医药",
-        "仿制药": "医药", "中药": "医药", "生物制品": "医药",
+        "医药": "医药",
+        "创新药": "医药",
+        "CRO": "医药",
+        "CMO": "医药",
+        "CDMO": "医药",
+        "医疗器械": "医药",
+        "仿制药": "医药",
+        "中药": "医药",
+        "生物制品": "医药",
         "原料药": "医药",
         # ── 消费生态 ─────────────────────────────────
-        "白酒": "消费", "食品饮料": "消费", "家电": "消费",
-        "美妆": "消费", "零售": "消费", "餐饮": "消费",
-        "免税": "消费", "医美": "消费", "纺织服装": "消费",
+        "白酒": "消费",
+        "食品饮料": "消费",
+        "家电": "消费",
+        "美妆": "消费",
+        "零售": "消费",
+        "餐饮": "消费",
+        "免税": "消费",
+        "医美": "消费",
+        "纺织服装": "消费",
         "宠物": "消费",
         # ── 金融生态 ─────────────────────────────────
-        "银行": "金融", "证券": "金融", "保险": "金融",
-        "信托": "金融", "金融科技": "金融", "租赁": "金融",
+        "银行": "金融",
+        "证券": "金融",
+        "保险": "金融",
+        "信托": "金融",
+        "金融科技": "金融",
+        "租赁": "金融",
         "AMC": "金融",
         # ── 资源/周期生态 ─────────────────────────────
-        "钢铁": "资源/周期", "煤炭": "资源/周期", "化工": "资源/周期",
-        "建材": "资源/周期", "石油": "资源/周期", "黄金": "资源/周期",
-        "稀土": "资源/周期", "铝": "资源/周期", "铜": "资源/周期",
+        "钢铁": "资源/周期",
+        "煤炭": "资源/周期",
+        "化工": "资源/周期",
+        "建材": "资源/周期",
+        "石油": "资源/周期",
+        "黄金": "资源/周期",
+        "稀土": "资源/周期",
+        "铝": "资源/周期",
+        "铜": "资源/周期",
         # ── 工业/制造 ─────────────────────────────────
         "海缆": "通信",
         "机器人": "汽零/工业",  # robot → 汽零工业大类
-        "机械": "汽零/工业", "军工": "军工",
+        "机械": "汽零/工业",
+        "军工": "军工",
     }
 
     def __init__(self, path: Optional[str] = None, virtual: bool = False):
@@ -413,6 +518,32 @@ class PortfolioManager:
     def get_watchlist(self) -> list:
         """返回全部自选。"""
         return self._data.get("watchlist", [])
+
+    def get_positions_with_pnl(self, price_lookup: Optional[dict] = None) -> list:
+        """返回持仓+盈亏计算结果（P2-26:为 market skill 持仓影响段提供完整数据）。
+
+        Args:
+            price_lookup: {code: price} 字典，若 None 则仅返回持仓基础数据
+                （不含 current_price / pnl_pct / pnl_amount）。
+
+        Returns:
+            list[dict]: 每项包含 code/name/cost/quantity/buy_date/tags/board/industry
+                以及可选字段 current_price / pnl_pct / pnl_amount。
+        """
+        import copy as _copy
+
+        result = []
+        for p in self.get_positions():
+            row = _copy.copy(p)
+            row["cost_total"] = round(p["cost"] * p["quantity"], 2)
+            if price_lookup and p["code"] in price_lookup:
+                price = price_lookup[p["code"]]
+                row["current_price"] = price
+                if p["cost"] > 0:
+                    row["pnl_pct"] = round((price - p["cost"]) / p["cost"] * 100, 2)
+                    row["pnl_amount"] = round((price - p["cost"]) * p["quantity"], 2)
+            result.append(row)
+        return result
 
     def _find_position(self, code: str) -> Optional[dict]:
         """按代码查找持仓（内部引用，用于修改）。"""
@@ -852,8 +983,10 @@ class PortfolioManager:
             mv = price * qty
             pnl = mv - cost_value
             # L17 降级处理：行情缺失时 pnl_pct = None
-            pnl_pct = (pnl / cost_value * 100) if (cost_value and price > 0) else (
-                None if (cost_value and not q) else 0.0
+            pnl_pct = (
+                (pnl / cost_value * 100)
+                if (cost_value and price > 0)
+                else (None if (cost_value and not q) else 0.0)
             )
 
             total_cost += cost_value
@@ -865,7 +998,8 @@ class PortfolioManager:
             )
             tech_breakdown = bool(
                 tech_map.get(code, {}).get("breakdown", False)
-                if code in tech_map else False
+                if code in tech_map
+                else False
             )
             breakdown = cost_breakdown or tech_breakdown
             if cost_breakdown and tech_breakdown:
@@ -918,7 +1052,9 @@ class PortfolioManager:
             # 5 档分级（与 SKILL.md:243-250 模板一致）
             if ts and price > 0 and price <= ts:
                 status = "已破止损"
-            elif ts and gap_to_sell is not None and 0 < gap_to_sell <= watch_sell_gap_pct:
+            elif (
+                ts and gap_to_sell is not None and 0 < gap_to_sell <= watch_sell_gap_pct
+            ):
                 status = "接近止损"
             elif tb and price > 0 and price <= tb:
                 status = "到达买点"
@@ -927,20 +1063,26 @@ class PortfolioManager:
             else:
                 status = "观望"
 
-            watch_rows.append({
-                "code": code,
-                "name": name,
-                "price": round(price, 2),
-                "target_buy": tb,
-                "target_sell": ts,
-                "gap_to_buy_pct": gap_to_buy,
-                "gap_to_sell_pct": gap_to_sell,
-                "status": status,
-            })
+            watch_rows.append(
+                {
+                    "code": code,
+                    "name": name,
+                    "price": round(price, 2),
+                    "target_buy": tb,
+                    "target_sell": ts,
+                    "gap_to_buy_pct": gap_to_buy,
+                    "gap_to_sell_pct": gap_to_sell,
+                    "status": status,
+                }
+            )
 
         # 集中度（复用 check_concentration 的合并映射逻辑）
         # check_concentration 接受 code -> price 映射，需要从 quote_dict 提取
-        price_map = {code: q.get("price", 0) for code, q in quotes_map.items() if code != "__as_of__"}
+        price_map = {
+            code: q.get("price", 0)
+            for code, q in quotes_map.items()
+            if code != "__as_of__"
+        }
         concentration = self.check_concentration(
             quotes=price_map,
             top3_limit=top3_limit,
@@ -1026,12 +1168,17 @@ class PortfolioManager:
         # 优先用 quotes_map["__as_of__"] 哨兵键（上游可显式传入行情快照时间），
         # 其次用调用时刻（本地时间），最后用文件 mtime。
         from datetime import datetime
+
         explicit_as_of = quotes_map.get("__as_of__") if quotes_map else None
         if explicit_as_of:
             as_of = explicit_as_of
         else:
             fallback_mtime = _file_mtime(self._path)
-            as_of = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if not fallback_mtime else fallback_mtime
+            as_of = (
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if not fallback_mtime
+                else fallback_mtime
+            )
 
         return {
             "as_of": as_of,
@@ -1043,7 +1190,9 @@ class PortfolioManager:
                 "cost": round(total_cost, 0),
                 "value": round(total_value, 0) if not quotes_missing else None,
                 "pnl": round(total_pnl, 0) if not quotes_missing else None,
-                "pnl_pct": round(total_pnl_pct, 2) if total_pnl_pct is not None else None,
+                "pnl_pct": (
+                    round(total_pnl_pct, 2) if total_pnl_pct is not None else None
+                ),
             },
             "type": self.portfolio_type,
             "positions": position_rows,
@@ -1147,8 +1296,14 @@ class PortfolioManager:
             lines.append("|---|---|---|---|---|")
             for r in positions:
                 status = "⚠️ 破位" if r.get("breakdown") else "🟢 健康"
-                pnl_pct_str = f"{r['pnl_pct']:+.2f}%" if r.get('pnl_pct') is not None else "N/A"
-                change_str = f"{r.get('change_pct', 0):+.2f}%" if r.get('change_pct') is not None else "N/A"
+                pnl_pct_str = (
+                    f"{r['pnl_pct']:+.2f}%" if r.get("pnl_pct") is not None else "N/A"
+                )
+                change_str = (
+                    f"{r.get('change_pct', 0):+.2f}%"
+                    if r.get("change_pct") is not None
+                    else "N/A"
+                )
                 lines.append(
                     f"| {r['name']} | {r['price']} | {change_str} | "
                     f"{pnl_pct_str} | {status} |"
@@ -1170,8 +1325,16 @@ class PortfolioManager:
                 "观望": "⚪",
             }
             for w in watchlist:
-                gb = f"{w['gap_to_buy_pct']:+.1f}%" if w.get('gap_to_buy_pct') is not None else "—"
-                gs = f"{w['gap_to_sell_pct']:+.1f}%" if w.get('gap_to_sell_pct') is not None else "—"
+                gb = (
+                    f"{w['gap_to_buy_pct']:+.1f}%"
+                    if w.get("gap_to_buy_pct") is not None
+                    else "—"
+                )
+                gs = (
+                    f"{w['gap_to_sell_pct']:+.1f}%"
+                    if w.get("gap_to_sell_pct") is not None
+                    else "—"
+                )
                 status = w.get("status", "观望")
                 emoji = status_emoji.get(status, "⚪")
                 lines.append(
@@ -1196,12 +1359,15 @@ class PortfolioManager:
         lines.append("---")
         regime_age = report.get("regime", {}).get("age_minutes")
         regime_str = (
-            f"regime_state {regime_age}分钟前" if regime_age is not None
+            f"regime_state {regime_age}分钟前"
+            if regime_age is not None
             else "regime_state 未知"
         )
         lines.append(f"📅 行情 {as_of} | 持仓 {data_mtime or 'N/A'} | {regime_str}")
         lines.append("🔌 数据源：tencent（行情）+ portfolio.json（持仓）")
-        lines.append("📜 免责声明：本工具非证券投资咨询业务持牌机构，输出为数据汇总与个人研判参考，不构成投资建议。")
+        lines.append(
+            "📜 免责声明：本工具非证券投资咨询业务持牌机构，输出为数据汇总与个人研判参考，不构成投资建议。"
+        )
 
         return "\n".join(lines)
 

@@ -318,13 +318,18 @@ def _dict_to_quote(d: dict) -> Quote:
 
     volume/amount 归一化在此统一进行（单一真相源）：各 quote fetcher 保留
     数据源原始单位（手/万元/元等），不自行归一化，避免与此处重复相乘。
+
+    P2-26: name 字段统一调用 repair_tencent_name() 容错编码错位（GBK→UTF-8
+    静默替换导致的乱码）。此层为最后兜底，任何 fetcher 返回的乱码均会被修正。
     """
+    from common.parsers import repair_tencent_name  # 延迟导入避免循环依赖
+
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
     quote_code = d.get("code", "")
     return Quote(
         code=_normalize_quote_code(quote_code),
-        name=d.get("name", ""),
+        name=repair_tencent_name(d.get("name", "")),
         price=to_float(d.get("price")),
         prev_close=to_float(d.get("prev_close")),
         open=to_float(d.get("open")),

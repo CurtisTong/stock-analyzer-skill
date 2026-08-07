@@ -22,6 +22,24 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from common.http import http_get
 
 
+# ---------- 市场宽度状态枚举（P2-26 新增）----------
+# 集中所有市场宽度状态常量,避免散落字符串
+STATE_ICE = "冰点"  # 极度恐慌
+STATE_RETREAT = "退潮"  # 亏钱效应强
+STATE_RALLY = "主升"  # 赚钱效应强
+STATE_OSCILLATE = "震荡"  # 中性
+
+# 数据降级时使用(涨跌比定性)
+STATE_BIAS_STRONG = "偏强(宽度)"
+STATE_BIAS_WEAK = "偏弱(宽度)"
+STATE_BIAS_NEUTRAL = "震荡(宽度)"
+
+# 置信度
+CONFIDENCE_HIGH = "高"
+CONFIDENCE_MID = "中"
+CONFIDENCE_LOW = "低"
+
+
 def get_market_breadth() -> dict:
     """获取市场宽度数据。
 
@@ -168,18 +186,18 @@ def get_market_state(breadth: dict) -> dict:
         reason = breadth.get("_degraded_reason", "涨跌停数据降级")
         signals.append(f"⚠️ {reason}，按涨跌比定性")
         if up_ratio > 2:
-            state = "偏强(宽度)"
+            state = STATE_BIAS_STRONG
             signals.append(f"涨跌比 {up_ratio}，市场普涨，宽度偏强")
         elif up_ratio < 0.5:
-            state = "偏弱(宽度)"
+            state = STATE_BIAS_WEAK
             signals.append(f"涨跌比 {up_ratio}，市场普跌，宽度偏弱")
         else:
-            state = "震荡(宽度)"
+            state = STATE_BIAS_NEUTRAL
             signals.append(f"涨跌比 {up_ratio}，市场分化")
         signals.append("⚠️ 涨跌停/连板/炸板率数据降级，情绪状态待确认")
         return {
             "state": state,
-            "confidence": "低",
+            "confidence": CONFIDENCE_LOW,
             "signals": signals,
             "degraded": True,
         }
@@ -187,22 +205,22 @@ def get_market_state(breadth: dict) -> dict:
     # 涨停家数判断（徐翔建议）
     if limit_up < 20:
         signals.append(f"涨停家数仅{limit_up}家，市场赚钱效应弱（退潮期信号）")
-        state = "退潮"
+        state = STATE_RETREAT
     elif limit_up > 80:
         signals.append(f"涨停家数{limit_up}家，市场赚钱效应强（主升期信号）")
-        state = "主升"
+        state = STATE_RALLY
     else:
         signals.append(f"涨停家数{limit_up}家，市场情绪中性")
-        state = "震荡"
+        state = STATE_OSCILLATE
 
     # 跌停家数判断（养家建议）
     if limit_down > 50:
         signals.append(f"跌停家数{limit_down}家，市场极度恐慌（冰点期信号）")
-        state = "冰点"
+        state = STATE_ICE
     elif limit_down > 30:
         signals.append(f"跌停家数{limit_down}家，市场亏钱效应强（退潮期信号）")
-        if state == "震荡":
-            state = "退潮"
+        if state == STATE_OSCILLATE:
+            state = STATE_RETREAT
 
     # 连板高度判断（赵老哥建议）
     if continuous_height >= 5:
@@ -223,12 +241,12 @@ def get_market_state(breadth: dict) -> dict:
         signals.append(f"涨跌比{up_ratio}，市场分化")
 
     # 综合判断
-    if state == "冰点":
-        confidence = "高"
-    elif state in ("退潮", "主升"):
-        confidence = "中"
+    if state == STATE_ICE:
+        confidence = CONFIDENCE_HIGH
+    elif state in (STATE_RETREAT, STATE_RALLY):
+        confidence = CONFIDENCE_MID
     else:
-        confidence = "低"
+        confidence = CONFIDENCE_LOW
 
     return {
         "state": state,

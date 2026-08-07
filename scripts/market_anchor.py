@@ -48,6 +48,11 @@ from macro_indicators import (
 from industry_beta import compute_beta, select_index_by_size  # noqa: E402
 from portfolio_correlation import compute_full_portfolio_correlation  # noqa: E402
 
+# P2-26: 统一使用 logger 而非 print(stderr),与其他模块一致
+import logging as _logging
+
+logger = _logging.getLogger(__name__)
+
 # ═══════════════════════════════════════════════════════════════
 # 数据采集：大盘 + 宽度 + 板块
 # ═══════════════════════════════════════════════════════════════
@@ -76,7 +81,7 @@ def _fetch_index_snapshot(index_code: str = "sh000300") -> dict | None:
             "pe_percentile": 50,  # 缺省中位数
         }
     except Exception as e:
-        print(f"[market_anchor] 大盘拉取失败: {e}", file=sys.stderr)
+        logger.warning("大盘拉取失败: %s", e)
         return None
 
 
@@ -99,7 +104,7 @@ def _fetch_index_kline(index_code: str = "sh000300", datalen: int = 30) -> dict 
             "ma20": round(ma20, 2),
         }
     except Exception as e:
-        print(f"[market_anchor] 大盘 K 线拉取失败: {e}", file=sys.stderr)
+        logger.warning("大盘 K 线拉取失败: %s", e)
         return None
 
 
@@ -132,7 +137,7 @@ def _fetch_breadth() -> dict | None:
             "_degraded_reason": breadth.get("_degraded_reason"),
         }
     except Exception as e:
-        print(f"[market_anchor] 市场宽度拉取失败: {e}", file=sys.stderr)
+        logger.warning("市场宽度拉取失败: %s", e)
         return None
 
 
@@ -214,7 +219,7 @@ def _compute_multi_timeframe(index_code: str = "sh000300") -> dict | None:
             "data_quality": {"degraded_fields": degraded},
         }
     except Exception as e:
-        print(f"[market_anchor] 多时间框架计算失败: {e}", file=sys.stderr)
+        logger.warning("多时间框架计算失败: %s", e)
         return {"data_quality": {"degraded_fields": ["multi_timeframe"]}}
 
 
@@ -229,7 +234,7 @@ def _fetch_macro_anchor() -> dict | None:
     try:
         return fetch_macro_all()
     except Exception as e:
-        print(f"[market_anchor] 宏观拉取失败: {e}", file=sys.stderr)
+        logger.warning("宏观拉取失败: %s", e)
         return {
             "macro": {},
             "leverage": {},
@@ -286,7 +291,7 @@ def _fetch_liquidity_volatility(
         else:
             degraded.append("liquidity.index_kline")
     except Exception as e:
-        print(f"[market_anchor] 大盘波动率计算失败: {e}", file=sys.stderr)
+        logger.warning("大盘波动率计算失败: %s", e)
         degraded.append("liquidity.index")
 
     # 个股 20 日均成交额 + 流动性比率（仅在 stock_code 提供时）
@@ -341,7 +346,7 @@ def _fetch_liquidity_volatility(
             else:
                 degraded.append("liquidity.stock_kline")
         except Exception as e:
-            print(f"[market_anchor] 个股流动性计算失败: {e}", file=sys.stderr)
+            logger.warning("个股流动性计算失败: %s", e)
             degraded.append("liquidity.stock")
 
     out["data_quality"]["degraded_fields"] = degraded
@@ -360,7 +365,7 @@ def _fetch_emotion_phase(breadth: dict | None) -> str | None:
         result = market_breadth.get_market_state(breadth)
         return result.get("state", "unknown")
     except Exception as e:
-        print(f"[market_anchor] 情绪周期判定失败: {e}", file=sys.stderr)
+        logger.warning("情绪周期判定失败: %s", e)
         return None
 
 
@@ -389,7 +394,7 @@ def _fetch_industry_beta(stock_code: str | None) -> dict | None:
             "index_selection": "dynamic(市值驱动)",
         }
     except Exception as e:
-        print(f"[market_anchor] beta 计算失败: {e}", file=sys.stderr)
+        logger.warning("beta 计算失败: %s", e)
         return {"data_quality": {"degraded_fields": ["industry_beta"]}}
 
 
@@ -403,7 +408,7 @@ def _fetch_portfolio_correlation(stock_code: str | None) -> dict | None:
     try:
         return compute_full_portfolio_correlation(stock_code=stock_code, window=60)
     except Exception as e:
-        print(f"[market_anchor] 组合相关性失败: {e}", file=sys.stderr)
+        logger.warning("组合相关性失败: %s", e)
         return {"data_quality": {"degraded_fields": ["portfolio_correlation"]}}
 
 
@@ -504,7 +509,7 @@ def _fetch_northbound_pricer(days: int = 20) -> dict | None:
             "data_quality": {"degraded_fields": degraded},
         }
     except Exception as e:
-        print(f"[market_anchor] 北向资金拉取失败: {e}", file=sys.stderr)
+        logger.warning("北向资金拉取失败: %s", e)
         return {
             "days": days,
             "total_net_yi": None,
@@ -532,7 +537,7 @@ def _fetch_sector_rotation(window: int = 5) -> dict | None:
     try:
         return sector_etf_strength.compute_rotation_strength(window=window)
     except Exception as e:
-        print(f"[market_anchor] 题材轮动计算失败: {e}", file=sys.stderr)
+        logger.warning("题材轮动计算失败: %s", e)
         return {"data_quality": {"degraded_fields": ["sector_rotation"]}}
 
 
@@ -592,7 +597,7 @@ def analyze(
         # 缺数据时强制 confidence=low（不冒泡）
         confidence = "high" if not degraded else "low"
     except Exception as e:
-        print(f"[market_anchor] detect_market_state 失败: {e}", file=sys.stderr)
+        logger.warning("detect_market_state 失败: %s", e)
         regime_result = {
             "state": "防御型",
             "long_weight": 0.65,
@@ -623,7 +628,7 @@ def analyze(
                 fetch_index=False,  # 已在大盘里拉过，避免重复
             )
         except Exception as e:
-            print(f"[market_anchor] 板块拉取失败: {e}", file=sys.stderr)
+            logger.warning("板块拉取失败: %s", e)
             degraded.append("sector")
 
     # 5. v2.5.x 新增：多时间框架动量
@@ -898,6 +903,26 @@ def to_markdown(payload: dict) -> str:
     if macro or leverage or val_bridge:
         lines.append("")
         lines.append("### 🌐 宏观-估值桥 / 杠杆-反身性")
+        # P2-26 修复：在段首显式标注非实时字段占比，避免脚注式 [fixture] 标记被忽略
+        if macro:
+            fixture_fields = [
+                f
+                for f in [
+                    "treasury_10y_pct",
+                    "usd_index",
+                    "usd_cny",
+                    "vix",
+                    "gold_usd_oz",
+                    "brent_oil_usd",
+                    "lithium_carbonate_cny_t",
+                ]
+                if macro.get(f"{f}_source") in ("fixture", "fixture(stale)")
+            ]
+            if fixture_fields:
+                lines.append(
+                    f"⚠️ **本段含 {len(fixture_fields)} 个非实时字段** "
+                    f"(仅作占位参考): {', '.join(fixture_fields)}"
+                )
         if macro:
             tnx = macro.get("treasury_10y_pct")
             usdx = macro.get("usd_index")
