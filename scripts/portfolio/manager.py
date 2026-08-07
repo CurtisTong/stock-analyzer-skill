@@ -57,12 +57,43 @@ def _atomic_read(path: Path) -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _file_mtime(path: Path) -> str:
+    """返回文件 mtime 的 ISO 字符串（健康检查报告用）。"""
+    try:
+        from datetime import datetime
+        return datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+    except (OSError, FileNotFoundError):
+        return ""
+
+
 class PortfolioManager:
     """持仓组合管理器。
 
     支持并发写入：通过文件锁机制防止多进程同时修改导致数据覆盖。
     支持虚拟持仓：virtual=True 时使用 portfolio_virtual.json（模拟盘）。
     """
+
+    # 状态类标签白名单：tags[0] 是这类时不当作行业，避免
+    # 宝丰能源 tags=["T+1待交收","煤化工","能源"] 被错误归类
+    _STATUS_TAGS = frozenset({
+        "T+1待交收", "T+1", "长线", "短线", "核心", "卫星",
+        "底仓", "波段", "网格", "定投", "观察", "待加仓",
+    })
+
+    # 行业子标签 → 行业大类映射：合并锂电产业链分散标签，
+    # 避免 tags[0]="锂矿/锂业/储能/光伏/新能源/有色" 被分散成多个行业。
+    _INDUSTRY_GROUP = {
+        # 锂/新能源链分散子标签合并到"锂/新能源"大类
+        "锂电": "锂/新能源", "锂矿": "锂/新能源", "锂业": "锂/新能源",
+        "锂电池": "锂/新能源",
+        "新能源": "锂/新能源",  # 泛指归入锂/新能源大类
+        "光伏": "锂/新能源", "储能": "锂/新能源",
+        "新能源车": "锂/新能源", "新能源ETF": "锂/新能源",
+        "钴": "锂/新能源", "镍": "锂/新能源",
+        # 其他合并
+        "海缆": "通信",
+        "机器人": "汽零/工业",  # robot → 汽零工业大类
+    }
 
     def __init__(self, path: Optional[str] = None, virtual: bool = False):
         if path:
@@ -597,6 +628,170 @@ class PortfolioManager:
 
         return _summary(self)
 
+    # ── 破位判定阈值 ──────────────────────────────────────────
+    # 成本 -5% 视为破位（SKILL.md guardrails §四 + experts/risk_manager.md §四）
+    BREAKDOWN_THRESHOLD = 0.95
+
+    def health_report(
+        self,
+        quotes: Optional[dict] = None,
+        breakdown_threshold: float = BREAKDOWN_THRESHOLD,
+        top3_limit: float = 0.50,
+        top5_limit: float = 0.70,
+        industry_limit: float = 0.30,
+        single_stock_limit: float = 0.20,
+    ) -> dict:
+        """标准化持仓健康检查报告（按 SKILL.md 模板结构）。
+
+        输出结构化 dict，便于 SKILL 渲染与脚本抓取：
+            {
+                "as_of": "2026-08-07 10:30",
+                "data_mtime": "2026-08-06 16:15",
+                "type": "实盘/示例/虚拟",
+                "totals": {"cost": ..., "value": ..., "pnl": ..., "pnl_pct": ...},
+                "positions": [...],   # 每只含 breakdown 字段
+                "watchlist": [...],
+                "breakdown_positions": [...],   # 已破位独立汇总
+                "concentration": {
+                    "top3_pct": ..., "top5_pct": ...,
+                    "single": {"code": ..., "name": ..., "pct": ...},
+                    "industry": {"锂/新能源": 52.6, ...},
+                },
+                "warnings": [...],  # 集中度超阈值
+                "risk_rating": "...",  # 一句话评级
+                "thresholds": {  # 权威阈值来源（experts/risk_manager.md §四）
+                    "top3": 50, "top5": 70, "industry": 30, "single": 20,
+                },
+            }
+
+        Args:
+            quotes: 实时行情 dict，键为代码（用 get_quotes 拉的 Quote.to_dict()）
+            breakdown_threshold: 破位判定阈值（默认 0.95 = 成本 -5%）
+            *_limit: 集中度阈值（默认与 experts/risk_manager.md §四 一致）
+        """
+        positions = self.get_positions()
+        watchlist = self.get_watchlist()
+        quotes_map = quotes or {}
+
+        # 总成本/市值/盈亏
+        total_cost = 0.0
+        total_value = 0.0
+        breakdown_positions = []
+        position_rows = []
+
+        for p in positions:
+            code = p.get("code", "")
+            name = p.get("name", code)
+            cost = float(p.get("cost", 0) or 0)
+            qty = int(p.get("quantity", 0) or 0)
+            q = quotes_map.get(code, {})
+            price = float(q.get("price", 0) or 0) if q else 0.0
+            change_pct = float(q.get("change_pct", 0) or 0) if q else 0.0
+
+            cost_value = cost * qty
+            mv = price * qty
+            pnl = mv - cost_value
+            pnl_pct = (pnl / cost_value * 100) if cost_value else 0.0
+
+            total_cost += cost_value
+            total_value += mv
+
+            breakdown = bool(
+                cost > 0 and price > 0 and price < cost * breakdown_threshold
+            )
+
+            row = {
+                "code": code,
+                "name": name,
+                "tags": p.get("tags", []),
+                "price": round(price, 2),
+                "cost": round(cost, 2),
+                "qty": qty,
+                "change_pct": round(change_pct, 2),
+                "pnl": round(pnl, 0),
+                "pnl_pct": round(pnl_pct, 2),
+                "market_value": round(mv, 0),
+                "breakdown": breakdown,
+            }
+            position_rows.append(row)
+            if breakdown:
+                breakdown_positions.append(row)
+
+        total_pnl = total_value - total_cost
+        total_pnl_pct = (total_pnl / total_cost * 100) if total_cost else 0.0
+
+        # 自选股（带现价 + 距目标买卖的偏离）
+        watch_rows = []
+        for w in watchlist:
+            code = w.get("code", "")
+            name = w.get("name", code)
+            q = quotes_map.get(code, {})
+            price = float(q.get("price", 0) or 0) if q else 0.0
+            tb = float(w.get("target_buy", 0) or 0)
+            ts = float(w.get("target_sell", 0) or 0)
+            watch_rows.append({
+                "code": code,
+                "name": name,
+                "price": round(price, 2),
+                "target_buy": tb,
+                "target_sell": ts,
+                "gap_to_buy_pct": round((price - tb) / tb * 100, 2) if tb else None,
+                "gap_to_sell_pct": round((price - ts) / ts * 100, 2) if ts else None,
+            })
+
+        # 集中度（复用 check_concentration 的合并映射逻辑）
+        # check_concentration 接受 code -> price 映射，需要从 quote_dict 提取
+        price_map = {code: q.get("price", 0) for code, q in quotes_map.items() if code != "__as_of__"}
+        concentration = self.check_concentration(
+            quotes=price_map,
+            top3_limit=top3_limit,
+            industry_limit=industry_limit,
+            single_stock_limit=single_stock_limit,
+        )
+
+        # 风险评级：一句话总结
+        warnings = list(concentration.get("warnings", []))
+        if breakdown_positions:
+            warnings.insert(
+                0,
+                f"⚠️ {len(breakdown_positions)} 只标的破位："
+                f"{', '.join(r['name'] for r in breakdown_positions)}",
+            )
+        risk_rating = "、".join(warnings) if warnings else "组合处于安全区间"
+
+        return {
+            "as_of": quotes_map.get("__as_of__", "") if quotes_map else "",
+            "data_mtime": _file_mtime(self._path),
+            "regime_hint": (
+                "regime_state.json 非实时 regime，建议先 /market full 拉取最新市场状态"
+                "（market_anchor 输出更准）"
+            ),
+            "screener_hint": (
+                "⚠️ 锂/新能源链占比 30%+，建议先用 /screener --strategy quality_value "
+                "筛医药/创新药/低相关防御板块，再叠加 /market 强弱板块确认"
+            ),
+            "totals": {
+                "cost": round(total_cost, 0),
+                "value": round(total_value, 0),
+                "pnl": round(total_pnl, 0),
+                "pnl_pct": round(total_pnl_pct, 2),
+            },
+            "type": self.portfolio_type,
+            "positions": position_rows,
+            "watchlist": watch_rows,
+            "breakdown_positions": breakdown_positions,
+            "concentration": concentration,
+            "warnings": warnings,
+            "risk_rating": risk_rating,
+            "thresholds": {
+                "top3": int(top3_limit * 100),
+                "top5": int(top5_limit * 100),
+                "industry": int(industry_limit * 100),
+                "single": int(single_stock_limit * 100),
+                "breakdown": f"成本×{breakdown_threshold:.2f}",
+            },
+        }
+
     def risk_summary(self, quotes: dict = None, confidence: float = 0.95) -> str:
         """持仓组合 VaR 风险摘要（v1.16.0 thin wrapper → portfolio.analytics.risk_summary）。"""
         from portfolio.analytics import risk_summary as _risk_summary
@@ -693,9 +888,17 @@ class PortfolioManager:
         # 行业集中度
         industry_values = {}
         for p in positions:
-            # 从 tags 中提取行业标签
+            # 从 tags 中提取行业标签：先过滤状态类标签，
+            # 再尝试合并到行业大类（如"锂电/锂矿/锂业" → "锂/新能源"）。
             tags = p.get("tags", [])
-            industry = tags[0] if tags else "未分类"
+            industry_tags = [t for t in tags if t not in self._STATUS_TAGS]
+            if industry_tags:
+                raw = industry_tags[0]
+                industry = self._INDUSTRY_GROUP.get(raw, raw)
+            elif tags:
+                industry = tags[0]  # 全部是状态标签时的兜底
+            else:
+                industry = "未分类"
             value = _value(p)
             industry_values[industry] = industry_values.get(industry, 0) + value
 
