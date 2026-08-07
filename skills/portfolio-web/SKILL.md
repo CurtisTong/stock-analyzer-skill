@@ -17,7 +17,6 @@ allowed-tools: Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http:/
 /portfolio-web --port 9000                 # 指定端口
 /portfolio-web --open                      # 启动后自动打开浏览器
 /portfolio-web --no-notify                 # 启动时不推送通知
-/portfolio-web --no-monitor                # 禁用后台策略监控
 /portfolio-web --virtual                   # 启动虚拟持仓模式（portfolio_virtual.json）
 /portfolio-web --stop                      # 停止后台运行的 Web 服务
 /portfolio-web --status                    # 查看 Web 服务运行状态
@@ -34,7 +33,7 @@ allowed-tools: Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http:/
 ## Instructions
 
 使用中文输出。Web 服务依赖 `scripts/data/portfolio.json` 中的持仓数据。
-启动后默认启用后台策略监控（`--no-monitor` 关闭）。同时只允许一个实例占用端口（`lsof -i:8765`）。
+同时只允许一个实例占用端口（`lsof -i:8765`）。
 
 输出遵循统一模板：首行为服务状态，尾行为端口 + 数据时间戳。详见 `../_shared/references/output-template.md`。
 

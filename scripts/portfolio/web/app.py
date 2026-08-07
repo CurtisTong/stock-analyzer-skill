@@ -38,11 +38,7 @@ from .utils import (
     _format_notify,
     _get_notifier,
     _get_pm,
-    _is_trading_hours,
     _log_lock,
-    _monitor_interval,
-    _monitor_last_result,
-    _monitor_loop,
     _notify_async,
     _notify_enabled,
     _ok,
@@ -59,8 +55,6 @@ VERSION = "2.0.0"
 
 # 模块级状态
 _data_file = None
-_monitor_enabled = False
-_monitor_thread = None
 _virtual_mode = False
 
 # 跨域白名单：只接受 127.0.0.1 / localhost 来源的请求（防 CSRF / 跨站攻击）
@@ -221,8 +215,6 @@ class Handler(BaseHTTPRequestHandler):
                 self._serve_health()
             elif path == "/api/positions":
                 self._serve_list()
-            elif path == "/api/monitor":
-                self._serve_monitor()
             elif path == "/api/trades":
                 self._serve_trades()
             elif path.startswith("/api/positions/"):
@@ -248,7 +240,6 @@ class Handler(BaseHTTPRequestHandler):
             "/",
             "/api/health",
             "/api/positions",
-            "/api/monitor",
             "/favicon.ico",
         ) or path.startswith("/api/positions/"):
             self._write(HTTPStatus.OK, b"", "application/json; charset=utf-8")
@@ -335,12 +326,6 @@ class Handler(BaseHTTPRequestHandler):
             "notify": {
                 "enabled": _notify_enabled,
                 "channels": nm.get_active_channels() if nm else [],
-            },
-            "monitor": {
-                "enabled": _monitor_enabled,
-                "interval": _monitor_interval,
-                "trading_hours": _is_trading_hours(),
-                "last_alerts": (_monitor_last_result or {}).get("alerts", 0),
             },
         }
         self._write_json(HTTPStatus.OK, payload)
@@ -472,19 +457,6 @@ class Handler(BaseHTTPRequestHandler):
         data = {"position": pos, "watch": watch}
         self._write_json(HTTPStatus.OK, _ok(data))
 
-    def _serve_monitor(self):
-        """监控状态。"""
-        payload = {
-            "ok": True,
-            "data": {
-                "enabled": _monitor_enabled,
-                "interval": _monitor_interval,
-                "trading_hours": _is_trading_hours(),
-                "last_result": _monitor_last_result,
-            },
-        }
-        self._write_json(HTTPStatus.OK, payload)
-
     def _serve_trades(self):
         """交易日志接口。"""
         try:
@@ -533,7 +505,6 @@ def make_server(
 
 def main():
     """主入口。"""
-    global _monitor_enabled, _monitor_thread, _monitor_interval
 
     parser = argparse.ArgumentParser(
         description="持仓录入 Web 服务（仅本机，零依赖 stdlib http.server）",
@@ -561,15 +532,6 @@ def main():
     )
     parser.add_argument(
         "--no-notify", dest="notify", action="store_false", help="禁用持仓变更推送"
-    )
-    parser.add_argument(
-        "--monitor", action="store_true", default=True, help="启用后台监控（默认开启）"
-    )
-    parser.add_argument(
-        "--no-monitor", dest="monitor", action="store_false", help="禁用后台监控"
-    )
-    parser.add_argument(
-        "--monitor-interval", type=int, default=300, help="监控检查间隔秒数（默认 300）"
     )
     parser.add_argument(
         "--allow-public-bind",
@@ -649,14 +611,6 @@ def main():
             )
     else:
         print("  通知推送: ❌ 已禁用", flush=True)
-
-    if args.monitor:
-        _monitor_enabled = True
-        _monitor_interval = args.monitor_interval
-        _monitor_thread = threading.Thread(target=_monitor_loop, daemon=True)
-        _monitor_thread.start()
-    else:
-        print("  后台监控: ❌ 已禁用", flush=True)
 
     print("  停止: Ctrl-C", flush=True)
 

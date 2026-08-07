@@ -78,7 +78,10 @@ def analyze_code(
     if kline_cache is not None and quote_code in kline_cache:
         kline_bars = kline_cache[quote_code]
     else:
-        kline_bars = None
+        # Phase 1：无预拉 K 线时传空列表（而非 None），避免 compute_features
+        # 触发逐只 get_kline 网络请求导致全市场模式卡死。空列表 -> 技术指标为
+        # 默认值，Phase 2 会为 Top N 重新拉 K 线精排。
+        kline_bars = []
 
     filters = {
         "min_amount": args.min_amount,
@@ -194,13 +197,22 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
     # full_market 模式下先取行情并预筛选，再对精简后的候选池抓财务数据，
     # 避免对 ~5000 只全市场标的逐个抓财务导致长时间挂起（akshare 无超时）。
+    # 进一步：预筛选后按成交额降序取 Top N 抓财务（高流动性标的优先），
+    # 因为低成交额标的几乎不可能入选，且大量并发财务请求会压垮系统代理。
     # 非 full_market 模式保持原并行逻辑（池小，并行更快）。
     if args.full_market:
         quotes = fetch_batch_dicts(codes)
         quotes = pre_screen_quotes(quotes, args)
-        finance_cache = prefetch_finance_all(
-            [normalize_quote_code(q.get("code", "")) for q in quotes if q.get("code")]
+        # 按成交额降序，仅对 Top 500 抓财务数据
+        _fm_quotes_sorted = sorted(
+            quotes, key=lambda q: float(q.get("amount", 0) or 0), reverse=True
         )
+        _fm_fin_codes = [
+            normalize_quote_code(q.get("code", ""))
+            for q in _fm_quotes_sorted[:500]
+            if q.get("code")
+        ]
+        finance_cache = prefetch_finance_all(_fm_fin_codes)
     else:
         with ThreadPoolExecutor(max_workers=2) as ex:
             f_quotes = ex.submit(fetch_batch_dicts, codes)

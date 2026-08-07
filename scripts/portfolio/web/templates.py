@@ -304,17 +304,6 @@ INDEX_HTML_TEMPLATE = """<!doctype html>
     </div>
   </div>
 
-  <!-- 策略监控 -->
-  <div class="panel">
-    <div class="panel-header">
-      <h2>📡 策略监控</h2>
-      <span class="badge" id="monitor-status">检查中…</span>
-    </div>
-    <div class="panel-body" id="monitor-alerts" aria-live="polite">
-      <div class="empty">加载中…</div>
-    </div>
-  </div>
-
   <!-- 交易日志 -->
   <div class="panel">
     <div class="panel-header">
@@ -617,42 +606,6 @@ async function loadTrades() {
   }
 }
 
-// ── 加载监控状态 ──
-async function loadMonitor() {
-  try {
-    const r = await fetch("/api/monitor", {headers: AUTH});
-    if (r.status === 401) return;
-    const j = await r.json();
-    if (!j.ok) return;
-    const d = j.data;
-    const statusEl = $("#monitor-status");
-    const alertsEl = $("#monitor-alerts");
-    if (d.enabled) {
-      statusEl.textContent = d.trading_hours ? "🟢 盘中监控中" : "⏸ 非交易时段";
-      statusEl.style.color = d.trading_hours ? "var(--success)" : "var(--text-muted)";
-    } else {
-      statusEl.textContent = "❌ 已禁用";
-      statusEl.style.color = "var(--error)";
-    }
-    const lr = d.last_result;
-    if (!lr || !lr.details || !lr.details.length) {
-      alertsEl.innerHTML = '<div class="empty">暂无预警（等待首次扫描…）</div>';
-      return;
-    }
-    const typeMap = {support_touch:"支撑触及",resistance_touch:"压力触及",target_buy:"到目标买",target_sell:"到目标卖",macd_golden:"MACD金叉",macd_dead:"MACD死叉",ma_break:"均线突破",near_limit:"涨跌停近",stop_loss:"止损",take_profit:"止盈"};
-    let h = '<table><tr><th>标的</th><th>类型</th><th>预警</th><th>价格</th><th>状态</th></tr>';
-    for (const a of lr.details) {
-      const icon = a.pushed ? "✅" : "⏭️";
-      h += '<tr><td data-label="标的"><span class="code-tag">'+escapeHTML(a.code)+'</span> '+escapeHTML(a.name||"")+'</td><td data-label="类型">'+escapeHTML(typeMap[a.type]||a.type)+'</td><td data-label="预警">'+escapeHTML(a.message)+'</td><td data-label="价格">'+escapeHTML(a.price)+'</td><td data-label="状态">'+icon+'</td></tr>';
-    }
-    h += '</table>';
-    h += '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted)">扫描: '+lr.scanned+' | 预警: '+lr.alerts+' | 推送: '+lr.pushed+' · '+lr.timestamp+'</div>';
-    alertsEl.innerHTML = h;
-  } catch (e) {
-    // 静默失败
-  }
-}
-
 // ── 动态 Webhook cURL ──
 function updateCurl() {
   const a = $("#action").value;
@@ -762,7 +715,7 @@ $("#entry").addEventListener("submit", async (e) => {
 $("#clear-btn").addEventListener("click", resetForm);
 
 // 刷新按钮
-$("#refresh").addEventListener("click", () => { loadList(); loadMonitor(); loadTrades(); });
+$("#refresh").addEventListener("click", () => { loadList(); loadTrades(); });
 
 // 复制 cURL
 $("#copy").addEventListener("click", async () => {
@@ -781,7 +734,6 @@ document.addEventListener("keydown", (e) => {
 
 // ── 初始化加载 ──
 loadList();
-loadMonitor();
 loadTrades();
 </script>
 </body>

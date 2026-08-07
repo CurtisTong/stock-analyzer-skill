@@ -13,15 +13,14 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 ## Usage
 
 ```text
-/market [范围: full|quick|intraday|briefing]
+/market [范围: full|quick|intraday]
 ```
 
 - `quick`（默认）：3分钟快评，涨跌+最强最弱板块+一句话结论
 - `full`：完整复盘，指数+板块+风格+持仓影响+明日预判
 - `intraday`：分时复盘，大盘+关键标的5分钟走势分析
-- `briefing`：盘前简报（市场面部分），一键输出 A 股指数+隔夜美股+北向资金，并调用 `alert_engine.py briefing` 拼接持仓盈亏+关键预警
 
-> **职责边界（P1-25 去重）**：`market` 负责市场面（指数/资金/板块/风格），`portfolio-web` 负责持仓面（盈亏/关键价位/风控 + 后台监控推送）。`briefing` 命令的市场面段落由 `market` skill 展开，持仓面段落见 `../portfolio-web/SKILL.md`。
+> **职责边界（P1-25 去重）**：`market` 负责市场面（指数/资金/板块/风格），`portfolio-web` 负责持仓面（盈亏/关键价位/风控 + 推送）。
 
 ## 共享约定
 
@@ -124,7 +123,7 @@ pip install pytdx
 - 不要虚构成交额、融资余额等脚本无法直接提供的数据；如用户需要，说明当前工具未覆盖或另行查询。北向资金每日净流入因 2024 年监管限制已从公开数据源下线（东财/新浪均返回空），`get_northbound_flow` 当前返回空列表，盘前/复盘中不要引用北向资金净流入数据，如需可手动查东财成交额作为活跃度参考。
 - 若市场休市，明确说明行情数据可能是上一交易日。
 - 输出建议按”进攻/均衡/防守”分层，不给无条件满仓或清仓指令。
-- 美股/港股参考依赖 `yfinance` 包；未安装时 `quote.py` 返回 `NOT_HANDLED`，`market full`/`briefing` 应**自动跳过跨市场段落**而不是失败——遇到该情况需在输出中说明跨市场参考未启用（yfinance 未安装），不要硬塞假数据。
+- 美股/港股参考依赖 `yfinance` 包；未安装时 `quote.py` 返回 `NOT_HANDLED`，`market full` 应**自动跳过跨市场段落**而不是失败——遇到该情况需在输出中说明跨市场参考未启用（yfinance 未安装），不要硬塞假数据。
 
 ### 数据降级硬约束
 

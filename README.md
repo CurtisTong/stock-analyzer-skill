@@ -201,7 +201,6 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 | 🔄 **校准数据同步**       | `python3 scripts/calibration_sync.py --auto`（依赖 gh CLI）                    | 跨设备同步专家校准数据，GitHub Gist 双向同步         |
 | 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示每位专家历史胜率，可信度透明         |
 | 📊 **回测胜率附加**       | `/stock sh600519 --with-backtest`                                              | 分析报告附加近 60 日回测（胜率/收益/夏普/回撤）      |
-| 📝 **结构化 JSON 日志**   | `monitor --log-json` / `monitor --sources`                                     | 监控输出机器可解析，数据源健康度矩阵一目了然         |
 | 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 13 skill 串联实战        |
 | 🛡️ **自审计 CI**          | 提交 PR 自动运行                                                               | SKILL.md 与 settings.json 一致性自动检查，阻断不一致 |
 | 🎯 **场景化帮助**         | `/stock-help`                                                                  | 5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块） |

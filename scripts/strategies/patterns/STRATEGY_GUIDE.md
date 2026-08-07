@@ -94,34 +94,11 @@ print(f"胜率: {win_rate:.1f}%")
 print(f"平均收益: {avg_return:.2f}%")
 ```
 
-### 3. 监控扫描
-
-```python
-from monitor.strategy_signals import scan_stock_pool, format_signal_report
-
-# 股票池
-stock_pool = ["sh600989", "sh600519", "sz300750"]
-
-# 获取数据
-kline_data_dict = {}
-for code in stock_pool:
-    kline_data_dict[code] = fetch_kline(code, 240, 250)
-
-# 扫描信号
-signals = scan_stock_pool(stock_pool, kline_data_dict)
-
-# 输出报告
-print(format_signal_report(signals))
-```
-
-### 4. 命令行测试
+### 3. 命令行测试
 
 ```bash
 # 测试单只股票
 python3 scripts/strategies/patterns/ma_volume_strategy.py sh600989
-
-# 监控多只股票
-python3 scripts/monitor/strategy_signals.py sh600989 sh600519 sz300750
 ```
 
 ---

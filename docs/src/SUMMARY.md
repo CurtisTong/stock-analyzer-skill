@@ -17,7 +17,6 @@
 - [板块分析 (/sector)](./skill-sector.md)
 - [持仓管理 (/portfolio)](./skill-portfolio.md)
 - [选股策略 (/screener)](./skill-screener.md)
-- [盘中监控 (/monitor)](./skill-monitor.md)
 - [策略回测 (/backtest)](./skill-backtest.md)
 - [深度研究 (/research)](./skill-research.md)
 - [投资学习 (/learn)](./skill-learn.md)

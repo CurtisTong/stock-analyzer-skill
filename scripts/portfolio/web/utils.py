@@ -22,11 +22,6 @@ _data_file = None
 _log_lock = threading.Lock()
 _notify_enabled = False
 _nm = None
-_monitor_enabled = False
-_monitor_thread = None
-_monitor_stop_event = threading.Event()
-_monitor_interval = 300
-_monitor_last_result = None
 _token = None
 _virtual_mode = False
 
@@ -256,41 +251,3 @@ def _collect_code_name_map() -> list:
             pass
 
     return [(c, n) for c, n in seen.items()]
-
-
-def _is_trading_hours() -> bool:
-    """检查当前是否在交易时段。"""
-    from data.config import is_trading_hours as _official_is_trading_hours
-
-    return _official_is_trading_hours()
-
-
-def _monitor_loop():
-    """后台监控线程。"""
-    global _monitor_last_result
-    import importlib
-
-    try:
-        notifier = importlib.import_module("monitor.notifier")
-    except ImportError:
-        print("  ⚠ 监控模块加载失败（monitor.notifier）", flush=True)
-        return
-
-    print(f"  📡 后台监控已启动（每 {_monitor_interval} 秒检查一次）", flush=True)
-
-    while not _monitor_stop_event.is_set():
-        try:
-            if _is_trading_hours():
-                result = notifier.check_and_push(dry_run=not _notify_enabled)
-                _monitor_last_result = result
-                alerts = result.get("alerts", 0)
-                pushed = result.get("pushed", 0)
-                if alerts > 0:
-                    ts = result.get("timestamp", "")
-                    print(f"  [{ts}] 预警: {alerts} | 推送: {pushed}", flush=True)
-        except Exception as e:
-            print(f"  ⚠ 监控异常: {e}", flush=True)
-
-        _monitor_stop_event.wait(timeout=_monitor_interval)
-
-    print("  📡 后台监控已停止", flush=True)
