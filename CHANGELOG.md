@@ -34,6 +34,45 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-08-08
+
+### Added
+- **market**: 数据时效三档 + 涨跌停合理性软校验
+- **regime**: 新增 RANGE_CHOPPY 状态 + 高波震荡动量提权
+- **screener**: 三段式漏斗输出 + 板块模式放宽容差
+- **data**: 新增 akshare 行业补全 fetcher + Quote 接入 industry 字段
+- **stock**: 宝丰能源 v2 修复报告 — 板块代理 + DCF + 员工持股解锁量化
+- **skills**: 量化基线 CLI + 报告模板占位修复
+- **portfolio**: health_report_markdown 渲染层（SKILL 模板标准化）
+- **portfolio**: health_report 集成 technical.py（端到端破位判定）
+- **portfolio**: health_report 7 项增强（5 行业 + 5 档 status + 真实 regime + 破位 OR）
+- **portfolio**: health_report() 结构化报告 + 板块分类修复
+- **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
+
+### Fixed
+- **guardrails**: 评分统一脚注 + 报告 RPS 数据去重
+- **stock**: 评级统一为单字母制 (B+ → B) + 风控评分映射说明
+- **stock**: 评级口径合规 + [1/7] 三段式对比完整化
+- **skills**: P2 修复 — 编码兜底+枚举集中+logger统一+emoji库
+- **skills**: P0 修复 — 工作目录与多代码调用陷阱
+- **skills**: 3 项低优先级修复（L1+L2+L3）
+- **skills**: 3 项中优先级修复（M5+M6+M7）
+- 修复指数代码映射错误 + monitor scanner 缺失导致监控/简报不可用
+- 业绩预告API+财务yoy/roe+板块覆盖+CLI调试 5项修复
+- **screener**: 全市场并发抓取 akshare/urllib 代理挂死导致永久卡死
+- **quote**: CLI JSON 输出 Quote 对象未序列化导致崩溃
+
+### Maintenance
+- **release**: v1.20.0 版本号同步 + CHANGELOG 整理 + 数据快照
+- **skills**: 4 skill 复盘 3 项修复
+- **portfolio**: 后续推进 L10/L12/L14/L16（as_of 兜底 + 双时间戳文档化）
+- 复盘审查修复（13 项）
+- 清理监控模块残留引用 + 补推送链路测试
+- 彻底移除监控模块（保留持仓 CRUD 推送）
+
+### Other
+- Merge fix: 指数代码映射 + monitor scanner 缺失（复盘发现）
+
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
 ### Added
