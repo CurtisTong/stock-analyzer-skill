@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.19.0（2026-08-05）已发布，数据源降级可观测性 + 来源追踪 + P1 健康度：涨跌停/token 降级改用涨跌比定性、`_degraded` 标记透传、`/market` SKILL.md 4 段硬约束；monitor 新增 akshare 探活 + baostock IP 风险 + 跨源校验脚本；五层分析 data_sources 透传真实数据源名；缓存命中双重归一化修复 + 18 项数据源/导入/API/格式 Bug 修复。
+> 🟢 **当前状态**：v1.20.0（2026-08-08）已发布，screener/regime/data/market 四大模块协同增强：screener 三段式漏斗 + 板块模式 `--no-board-strict` 放宽容差；regime 新增 `RANGE_CHOPPY` 状态 + 高波震荡动量提权（避免 growth_momentum 失活）；data 新增 akshare 行业补全 fetcher（60 天缓存）；market 锚定数据时效三档 + 涨跌停合理性软校验；research 信号冲突检测强化（规则 3.5）+ 综合评分融合；stock 宝丰能源 v2 修复报告（板块代理 + DCF + 员工持股解锁量化）+ 评级口径合规与脚注。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.20.0 | 2026-08-08 | screener 三段式漏斗 + 板块模式放宽容差 + regime 新增 RANGE_CHOPPY + 高波震荡动量提权 + akshare 行业补全 fetcher + market 数据时效三档 + 涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告 |
 | 1.19.0 | 2026-08-05 | 数据源降级可观测性 + P1 健康度：monitor 新增 akshare 探活 + baostock IP 风险 + 跨源校验；五层分析 data_sources 透传真实数据源名；缓存命中双重归一化修复 + 18 项数据源/导入/API/格式 Bug |
 | 1.18.0 | 2026-08-05 | 市场分析降级可观测性 + 来源追踪：涨跌停降级改用涨跌比定性、`_degraded` 标记透传、宏观字段 `*_source` 与 `[fixture]` 渲染标注、`/market` SKILL.md 4 段硬约束 |
 | 1.17.0 | 2026-08-05 | 移除 `/monitor` CLI skill + 新增题材概念数据层 + FinanceRecord 存货字段 + 多种战法因子 + VWAP 监控 + 周期股期货修复 |
@@ -33,7 +34,34 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased] - 2026-08-07
+## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
+
+### Added
+- **screener**: 三段式漏斗输出（候选池 → 硬过滤 → 显示 Top），让"总输入"反映真实漏斗
+- **screener**: 剔除原因 TOP3 列表（无符合条件时输出诊断方向）
+- **screener**: 板块模式 `--no-board-strict` 放宽容差 0.7×（解决主题池 20 只被砍剩 2 只问题）
+- **regime**: 新增 `RANGE_CHOPPY` 状态（高波震荡）+ `regime_weight_map.yaml` 配置（quality/valuation 1.1，momentum 0.85，volatility 1.1）
+- **data**: 新增 akshare 行业补全 fetcher `scripts/fetchers/industry/akshare_industry.py`（60 天长缓存，失败静默回退空串）
+- **data**: `Quote` 接入 `industry` 字段（异步 akshare 补全 + classifier keyword 兜底）
+- **market**: 市场环境锚定新增数据时效三档（实时 <15min / 延迟 15-60min / 过期 >60min）
+- **market**: 市场宽度新增涨跌停数据合理性软校验（总股票数 / 涨跌停与总数 / 涨跌家数覆盖 / 极端 0 信号 4 维度）
+- **research**: 综合评分融合规则（系统评级+买卖信号+5维度）+ signal_conflict 章节模板
+- **research**: 规则 3.5 信号冲突检测（v1.20.0 新增，防止机械上跳评级）
+- **stock**: 宝丰能源 v2 修复报告 — 板块代理（化工ETF/煤炭ETF）+ DCF + 员工持股解锁量化（25% / 0.067% 总股本 / 不构成显著抛压）
+- **stock**: sector_etf.csv +2 行（化工ETF BK0693 / 煤炭ETF BK0437）解决板块 ETF 覆盖盲区
+- **stock**: sector_etf_strength.py 增加 4 个板块 ETF 代理映射（周期/煤化工/化工/煤炭）
+- **guardrails**: 评分统一脚注（A+/A/B+/B/C 五档制与 A/B/C/D 单字母制关系，6 行映射表 + 两套不可混用）
+- **scripts**: `data/macro_snapshot.json` 更新到 2026-08-08（treasury 4.66 / vix 14.9 / 锂 140000）
+
+### Fixed
+- **stock**: 评级统一为单字母制（B+ → B，3 处；B- → B，4 处）+ 风控评分映射说明
+- **stock**: 报告 [1/7 市场环境锚定] 三段式对比完整化（个股 vs 板块 vs 大盘，RPS 双指标）
+- **stock**: 报告 baofeng-energy-20260808.md 附录 A.3 RPS 数据去重（[1/7] 已呈现的不再重复，节省 9 行）
+- **stock**: 报告行数 625 → 639（+14，三段式对比新增）
+
+### Other
+- 版本号同步：18 处文件更新到 1.20.0（plugin.json + marketplace.json + 13 个 SKILL.md + methodology.md + pyproject.toml + README + docs + tests）
+- research/SKILL.md 版本号字段对齐 1.20.0（frontmatter + 7 处文档引用）
 
 
 
