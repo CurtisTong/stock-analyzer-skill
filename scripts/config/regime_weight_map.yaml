@@ -53,6 +53,20 @@ PANIC:
   event: 1.0
   analyst: 1.0
 
+# 高波震荡（波动率≥25% 触发）：仍偏防御但降低成长压制，
+# 与 RANGE 接近但稍加 volatility；v1.x 改进：momentum 由 0.6 → 0.85，
+# 避免 growth_momentum 在高波震荡中完全失活。
+RANGE_CHOPPY:
+  quality: 1.1
+  valuation: 1.1
+  momentum: 0.85
+  liquidity: 1.0
+  volatility: 1.1
+  dividend: 1.0
+  chip: 1.0
+  event: 1.0
+  analyst: 1.0
+
 # 策略混合规则（#7）：特定 regime 下将当前策略与防御策略按比例混合
 # 例如 BEAR 时 balanced 取 70% + defensive 取 30%（平滑过渡而非全有全无）
 # 仅在配置存在时生效；不配置则仅用 overlay multiplier

@@ -79,9 +79,9 @@ _HARDCODED_MATRIX: Dict[RegimeState, Dict[str, float]] = {
         "analyst": 1.0,
     },
     RegimeState.RANGE_CHOPPY: {
-        "quality": 1.2,  # 高波震荡偏防御
+        "quality": 1.1,  # 高波震荡偏防御但不过度
         "valuation": 1.1,
-        "momentum": 0.6,  # 高波震荡动量降权
+        "momentum": 0.85,  # v1.x: 减少成长股压制（原 0.6），避免 growth_momentum 失效
         "liquidity": 1.0,
         "volatility": 1.1,
         "dividend": 1.0,
