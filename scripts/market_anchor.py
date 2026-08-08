@@ -777,6 +777,38 @@ def _md_regime_emoji(regime: str) -> str:
     }.get(regime, "❓")
 
 
+# v1.x: 数据时效三档阈值（分钟）
+_FRESHNESS_REALTIME_MAX = 15
+_FRESHNESS_DELAYED_MAX = 60
+
+
+def _compute_freshness(payload: dict) -> str:
+    """根据 payload['as_of'] 与当前时间差判定数据时效。
+
+    - <15分钟 → 实时
+    - 15~60分钟 → 延迟
+    - >60分钟   → 过期
+    """
+    import datetime as _dt
+
+    as_of = payload.get("as_of", "")
+    if not as_of:
+        return "未知"
+    try:
+        # 支持 ISO 格式（带/不带时区）
+        ts = _dt.datetime.fromisoformat(as_of.replace("Z", "+00:00"))
+        now = _dt.datetime.now(_dt.timezone.utc) if ts.tzinfo else _dt.datetime.now()
+        diff_min = abs((now - ts).total_seconds()) / 60.0
+    except (ValueError, TypeError):
+        return "未知"
+
+    if diff_min < _FRESHNESS_REALTIME_MAX:
+        return "实时"
+    if diff_min < _FRESHNESS_DELAYED_MAX:
+        return "延迟"
+    return "过期"
+
+
 def _source_tag(section: dict, field: str) -> str:
     """返回 macro/leverage 段某字段的来源标注后缀。
 
@@ -801,8 +833,11 @@ def to_markdown(payload: dict) -> str:
 
     lines.append("## 📊 市场环境锚定")
     lines.append("")
+    # v1.x: 数据时效三档标签（实时/延迟/过期），解决"盘前快照误以为实时"问题
+    freshness = _compute_freshness(payload)
     lines.append(
-        f"{emoji} **市场状态**: {regime_zh} ({conf}) — {payload['regime_reason']}"
+        f"{emoji} **市场状态**: {regime_zh} ({conf}) — {payload['regime_reason']}  "
+        f"`[数据时效:{freshness}]`"
     )
     if idx_chg is not None:
         lines.append(f"📈 **大盘指数**: {payload['index_code']} 当日 {idx_chg:+.2f}%")

@@ -248,12 +248,54 @@ def get_market_state(breadth: dict) -> dict:
     else:
         confidence = CONFIDENCE_LOW
 
+    # v1.x 软警告：涨跌停数据合理性校验。
+    # 仅追加后缀与 warning，不改变 state 与 confidence，避免破坏现有调用方。
+    total_stocks = breadth.get("total_stocks", 0)
+    soft_warning = _soft_validate_limits(
+        limit_up=limit_up,
+        limit_down=limit_down,
+        total_stocks=total_stocks,
+        up_count=breadth.get("up_count", 0),
+        down_count=breadth.get("down_count", 0),
+    )
+    if soft_warning:
+        signals.append(soft_warning)
+        # 仅在震荡状态下追加"(待确认)"后缀，不改变其他状态
+        if state == STATE_OSCILLATE:
+            state = STATE_OSCILLATE + "(待确认)"
+
     return {
         "state": state,
         "confidence": confidence,
         "signals": signals,
         "degraded": False,
     }
+
+
+def _soft_validate_limits(
+    limit_up: int, limit_down: int, total_stocks: int, up_count: int, down_count: int
+) -> str:
+    """软校验涨跌停数据合理性。
+
+    v1.x 改进：解决"涨停74/跌停0"这类数据虽非降级但仍有疑问时无提示的问题。
+    仅返回 warning 字符串，无问题返回空串。
+    """
+    warnings = []
+    # 1. total_stocks 合理性（A 股全市场约 5300 只）
+    if total_stocks and not (4500 <= total_stocks <= 5500):
+        warnings.append(f"⚠️ 总股票数 {total_stocks} 偏离合理区间(4500-5500)")
+    # 2. 涨跌停与总股票一致性
+    if total_stocks and (limit_up + limit_down) > total_stocks:
+        warnings.append(f"⚠️ 涨跌停家数({limit_up+limit_down})超过总股票数")
+    # 3. 涨跌家数合理性（up + down 应近似 total_stocks）
+    if total_stocks and up_count and down_count:
+        ratio = (up_count + down_count) / total_stocks
+        if ratio < 0.5:
+            warnings.append(f"⚠️ 涨跌家数覆盖 {ratio:.1%}，可能含大量停牌/新上市")
+    # 4. 极端 0 信号：跌停=0 且涨停<10 表示数据可能未拉取到
+    if limit_down == 0 and limit_up < 10 and total_stocks > 4500:
+        warnings.append(f"⚠️ 涨停仅 {limit_up}、跌停为 0，涨跌停数据可能不完整")
+    return " | ".join(warnings) if warnings else ""
 
 
 def format_breadth(breadth: dict, market_state: dict) -> str:
