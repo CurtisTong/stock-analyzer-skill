@@ -87,6 +87,8 @@ def analyze_code(
         "min_amount": args.min_amount,
         "min_cap": args.min_cap,
         "exclude_loss": args.exclude_loss,
+        # v1.x: 板块模式（--no-board-strict）放宽容差，主题池不被砍光
+        "board_relax": getattr(args, "board_strict", True) is False,
     }
     ctx = AnalyzeContext(
         code=quote_code,
@@ -116,6 +118,8 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
         "min_amount": args.min_amount,
         "min_cap": args.min_cap,
         "exclude_loss": args.exclude_loss,
+        # v1.x: 板块模式（--no-board-strict）放宽容差
+        "board_relax": getattr(args, "board_strict", True) is False,
     }
     svc = _get_screening_service()
     # P1-19: _hard_filter 返回 (reasons, warnings)；phase1 路径不消费 warnings

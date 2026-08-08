@@ -156,23 +156,29 @@ def render_brief(rows, strategy, top, title=None):
 
     label = title or get_strategy(strategy)["label"]
     top_rows = accepted[:top]
-    total = len(accepted) + len(rejected)
+    # v1.x: 改为原始池大小，让"总输入"反映真实漏斗
+    total = len(rows)
 
     # 一句话结论
     if not top_rows:
-        print(f"策略 {label}: 无符合条件标的（剔除 {len(rejected)} 只）")
+        print(
+            f"策略 {label}: 无符合条件标的（候选池 {total} 只，剔除 {len(rejected)} 只）"
+        )
         print()
         print("可能原因:")
         print("  1. 股票池未初始化 → 运行 /screener init 或 /screener init default")
-        print("  2. 筛选条件过严 → 尝试其他策略（如 balanced）")
+        print("  2. 筛选条件过严 → 尝试其他策略（如 balanced）或加 --board-strict")
         print("  3. 市场休市无数据 → 交易时段重试")
+        # 列出剔除原因TOP3
+        _print_reject_reasons(rejected)
         return
     best = top_rows[0]
-    # P2-26: 增加过滤统计，让用户清楚硬过滤路径（避免"请求 top10 却只输出 5"疑问）
+    # v1.x: 三段式漏斗（候选池 → 硬过滤 → 显示 Top），让"总输入"反映真实漏斗
     print(
-        f"策略 {label} | 总输入 {total} → 入选 {len(accepted)} (取 Top {top}) → 硬过滤剔除 {len(rejected)} | "
-        f"首选 {best['code']} {best['name']} (评分 {best['score']})"
+        f"策略 {label} | 📦 候选池 {total} → 硬过滤后 {len(accepted)} → 显示 Top {len(top_rows)} | "
+        f"硬过滤剔除 {len(rejected)} | 首选 {best['code']} {best['name']} (评分 {best['score']})"
     )
+    _print_reject_reasons(rejected)
 
     # 精简表格（仅核心列）
     header = "排名 | 代码 | 名称 | 总分 | 质量 | 估值 | 动量 | 趋势"
@@ -204,6 +210,89 @@ def render_brief(rows, strategy, top, title=None):
     if watch:
         names = ", ".join(f"{r['name']}" for r in watch[:3])
         print(f"→ 可观望: {names}")
+
+
+def _print_reject_reasons(rejected):
+    """汇总硬过滤剔除原因 TOP3，让用户清楚为什么 N 只被砍掉。
+
+    v1.x 改进：解决"请求 top10 却只输出 2"的用户疑惑。
+    """
+    if not rejected:
+        return
+    from collections import Counter
+
+    counter: Counter = Counter()
+    for r in rejected:
+        # reasons 是 list[str]，每只股票的所有剔除原因
+        for reason in r.get("rejected", []):
+            # 归一化：去掉括号内的阈值差异，保留主因
+            key = reason.split("(")[0].strip()
+            counter[key] += 1
+    top3 = counter.most_common(3)
+    if top3:
+        parts = " | ".join(f"{reason}({n}只)" for reason, n in top3)
+        print(f"剔除原因TOP3: {parts}")
+
+
+def _print_mainline_deviation_warning(rows, args):
+    """主线偏离警告：候选覆盖今日涨幅前 3 板块不足时输出。
+
+    v1.x 改进：解决 2026-08-08 growth_momentum 输出与今日成长主线偏离却无提示的问题。
+    """
+    import sys
+
+    accepted = [r for r in rows if not r.get("rejected")]
+    if not accepted:
+        return
+    try:
+        from quote import get_quotes
+        from sector_etf_strength import SECTOR_ETFS
+    except Exception:
+        return
+
+    # 拉取全部板块 ETF 今日涨跌，按涨幅排序取 top 3
+    try:
+        codes = [etf["code"] for etf in SECTOR_ETFS.values() if "code" in etf]
+        if not codes:
+            return
+        quotes = get_quotes(codes)
+        quotes_sorted = sorted(quotes, key=lambda q: q.change_pct, reverse=True)
+        top3 = quotes_sorted[:3]
+        top3_names = [q.name for q in top3 if q.change_pct > 0]
+        if not top3_names:
+            return
+
+        # 计算候选覆盖：候选股票 industry/board 与 top3 板块名匹配
+        accepted_industries = {r.get("industry", "") for r in accepted} | {
+            r.get("board", "") for r in accepted
+        }
+        # 用板块 ETF name → 行业主题关键词做宽松匹配
+        covered = 0
+        for name in top3_names:
+            for kw in (
+                "医药",
+                "半导体",
+                "新能源",
+                "光伏",
+                "军工",
+                "机器人",
+                "AI",
+                "PCB",
+            ):
+                if kw in name:
+                    if any(kw in ai for ai in accepted_industries):
+                        covered += 1
+                        break
+
+        if top3_names and covered < max(1, len(top3_names) // 2):
+            print(
+                f"⚠️ 主线偏离警告: 候选仅覆盖今日涨幅前{len(top3_names)}板块的 {covered}/{len(top3_names)} "
+                f"({', '.join(top3_names)})，建议加 --sector 或关注主线龙头",
+                file=sys.stderr,
+            )
+    except Exception:
+        # 网络异常不影响主输出
+        return
 
 
 def _build_parser():
@@ -286,6 +375,21 @@ def _build_parser():
         action="store_true",
         help="完整模式：16 列因子详情（默认为精简模式）",
     )
+    # v1.x: 板块模式默认放宽容差，避免主题池 20 只被砍剩 2 只；
+    # 用 --board-strict 显式恢复原阈值（全量过滤）。
+    parser.add_argument(
+        "--board-strict",
+        dest="board_strict",
+        action="store_true",
+        default=False,
+        help="板块模式启用严格硬过滤（默认放宽松；--no-board-strict 等价默认行为）",
+    )
+    parser.add_argument(
+        "--no-board-strict",
+        dest="board_strict",
+        action="store_false",
+        help="板块模式放宽硬过滤（默认行为）",
+    )
     return parser
 
 
@@ -362,6 +466,8 @@ def _run_main(args):
         title = None
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"
+        # v1.x: 在输出前计算主线偏离警告（覆盖今日涨幅前 3 板块不足时提示）
+        _print_mainline_deviation_warning(rows, args)
         if args.full:
             show_chip = not getattr(args, "no_chip", False)
             render(rows, args.strategy, args.top, title=title, show_chip=show_chip)

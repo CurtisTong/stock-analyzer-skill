@@ -438,17 +438,21 @@ class ScreeningService:
         # 板块差异化阈值
         base_min_amount = filters.get("min_amount", 5000)
         base_min_cap = filters.get("min_cap", 40)
+        # v1.x: --no-board-strict 时（板块模式默认）整体放宽容差，
+        # 避免主题池 20 只被硬过滤砍剩 2 只。
+        board_relax = filters.get("board_relax", False)
+        relax = 0.7 if board_relax else 1.0
         board_min_amount = {
             "主板": base_min_amount,
-            "创业板": _limit("min_amount.创业板", int(base_min_amount * 0.7)),
-            "科创板": _limit("min_amount.科创板", int(base_min_amount * 0.7)),
-            "北交所": _limit("min_amount.北交所", int(base_min_amount * 1.5)),
+            "创业板": _limit("min_amount.创业板", int(base_min_amount * 0.7 * relax)),
+            "科创板": _limit("min_amount.科创板", int(base_min_amount * 0.7 * relax)),
+            "北交所": _limit("min_amount.北交所", int(base_min_amount * 1.5 * relax)),
         }
         board_min_cap = {
             "主板": base_min_cap,
-            "创业板": _limit("min_total_cap.创业板", int(base_min_cap * 0.6)),
-            "科创板": _limit("min_total_cap.科创板", int(base_min_cap * 0.6)),
-            "北交所": _limit("min_total_cap.北交所", int(base_min_cap * 0.4)),
+            "创业板": _limit("min_total_cap.创业板", int(base_min_cap * 0.6 * relax)),
+            "科创板": _limit("min_total_cap.科创板", int(base_min_cap * 0.6 * relax)),
+            "北交所": _limit("min_total_cap.北交所", int(base_min_cap * 0.4 * relax)),
         }
         min_amt = board_min_amount.get(bd, base_min_amount)
         min_cap = board_min_cap.get(bd, base_min_cap)
