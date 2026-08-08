@@ -313,6 +313,32 @@ def get_finance(
 # ---------- 内部转换函数（使用 common.to_float / common.to_int） ----------
 
 
+def _resolve_industry(d: dict, quote_code: str) -> str:
+    """从 fetcher 原始 dict 解析 industry 字段。
+
+    优先级：
+    1. fetcher 已直接返回 industry（如未来扩展），直接透传
+    2. 失败/缺失时返回空串，由下游 classifier.infer_industry 走 keyword 推断兜底
+    """
+    industry = d.get("industry", "")
+    if industry:
+        return str(industry)
+    # P2-13 + v1.x 改进：行情 fetcher 均不带 industry，
+    # 异步调用 akshare 行业补全 fetcher（单只 60 天缓存）。
+    # 失败回退空串，不影响主链路。
+    try:
+        from fetchers.industry.akshare_industry import fetch_industry
+
+        normalized = _normalize_quote_code(quote_code)
+        if normalized.startswith(("sh", "sz", "bj")) and len(normalized) > 6:
+            raw_code = normalized[2:]
+        else:
+            raw_code = normalized
+        return fetch_industry(raw_code) or ""
+    except Exception:
+        return ""
+
+
 def _dict_to_quote(d: dict) -> Quote:
     """将 fetcher 返回的原始 dict 转为 Quote。
 
@@ -358,6 +384,7 @@ def _dict_to_quote(d: dict) -> Quote:
         is_suspended=bool(d.get("is_suspended", False)),
         limit_up=to_float(d.get("limit_up")),
         limit_down=to_float(d.get("limit_down")),
+        industry=_resolve_industry(d, quote_code),
     )
 
 
