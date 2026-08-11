@@ -36,6 +36,7 @@
 
 ## [Unreleased] - 2026-08-08
 
+
 ### Added
 - **market**: 数据时效三档 + 涨跌停合理性软校验
 - **regime**: 新增 RANGE_CHOPPY 状态 + 高波震荡动量提权
@@ -72,6 +73,12 @@
 
 ### Other
 - Merge fix: 指数代码映射 + monitor scanner 缺失（复盘发现）
+
+### Added
+- **screener**: 整体任务超时 watchdog + 新增 sector_summary CLI
+
+### Maintenance
+- **data**: 刷新 macro_snapshot.json 数据快照（2026-08-11）
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
