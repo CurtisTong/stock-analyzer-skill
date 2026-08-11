@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.20.0（2026-08-08）已发布，screener/regime/data/market 四大模块协同增强：screener 三段式漏斗 + 板块模式 `--no-board-strict` 放宽容差；regime 新增 `RANGE_CHOPPY` 状态 + 高波震荡动量提权（避免 growth_momentum 失活）；data 新增 akshare 行业补全 fetcher（60 天缓存）；market 锚定数据时效三档 + 涨跌停合理性软校验；research 信号冲突检测强化（规则 3.5）+ 综合评分融合；stock 宝丰能源 v2 修复报告（板块代理 + DCF + 员工持股解锁量化）+ 评级口径合规与脚注。
+> 🟢 **当前状态**：v1.20.1（2026-08-12）已发布，screener 整体任务超时 watchdog + 新增 sector_summary CLI（akshare 同花顺 + 东财 push2 + sector_etf 拼接三级降级）；CI 黑块修复（black 19 文件 / ruff F601+F821 / sector allowed-tools 授权 sector_summary）+ 数据快照刷新。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.20.1 | 2026-08-12 | screener 整体任务超时 watchdog + sector_summary CLI + CI 黑块修复（black 19 文件 / ruff F601+F821 / sector 授权 sector_summary）+ 数据快照 |
 | 1.20.0 | 2026-08-08 | screener 三段式漏斗 + 板块模式放宽容差 + regime 新增 RANGE_CHOPPY + 高波震荡动量提权 + akshare 行业补全 fetcher + market 数据时效三档 + 涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告 |
 | 1.19.0 | 2026-08-05 | 数据源降级可观测性 + P1 健康度：monitor 新增 akshare 探活 + baostock IP 风险 + 跨源校验；五层分析 data_sources 透传真实数据源名；缓存命中双重归一化修复 + 18 项数据源/导入/API/格式 Bug |
 | 1.18.0 | 2026-08-05 | 市场分析降级可观测性 + 来源追踪：涨跌停降级改用涨跌比定性、`_degraded` 标记透传、宏观字段 `*_source` 与 `[fixture]` 渲染标注、`/market` SKILL.md 4 段硬约束 |
@@ -33,6 +34,28 @@
 | 1.12.0 | 2026-06-17 | V2 量化策略平台 + V2.1 维护（合并历史 tag） |
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
+
+## [Unreleased] - 2026-08-12
+
+### Maintenance
+- **release**: v1.20.1 版本号同步 + CI 黑块修复 + 板块授权 + changelog 整理
+
+## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
+
+### Added
+- **screener**: 整体任务超时 watchdog + 新增 sector_summary CLI（akshare 同花顺 + 东财 push2 + sector_etf 拼接三级降级）
+- **sector**: 板块涨跌幅排行榜 v1.20.1（`python3 scripts/sector_summary.py -j --top 30`），覆盖度高于 sector_etf.csv 的 15 个 ETF
+
+### Fixed
+- **ci**: black 19 个文件格式修复（CI 镜像 Python 3.12 下 AST 解析更严）
+- **ci**: ruff F601 重复 dict key 修复（`portfolio/manager.py` 稀土条目去重）
+- **ci**: ruff F821 未定义名称修复（`test_notification_manager.py` 顶部提前 import）
+- **skills**: sector 授权 sector_summary（CI allowed-tools 收紧回归）
+- **docs**: 指数代码映射修复 + monitor scanner 缺失回填
+
+### Maintenance
+- **data**: 刷新 macro_snapshot.json 数据快照（2026-08-11/12）
+- **release**: v1.20.0 → v1.20.1 同步（package.json + plugin.json + marketplace.json + 12 个 SKILL.md + methodology.md + pyproject.toml + README + product-architecture + tests）
 
 ## [Unreleased] - 2026-08-08
 
