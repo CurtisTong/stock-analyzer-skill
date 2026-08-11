@@ -105,3 +105,44 @@
 - 大盘失败 → regime 默认 `defensive`，标注降级原因
 - yfinance 失败 → fixture fallback，时点标注
 - 任一字段失败不阻塞主流程，但不可向下游隐藏失败
+
+## 七、外部 API 数据获取约定（v1.20.1 新增）
+
+> 背景: 本会话复盘发现 WebFetch 解析东财 push2 JSON 时,把 `f3=6.95` 直接解读为"涨跌幅 695%", 实际应除以 100;且 push2 接口在部分网络被风控,反复试错 4 种 URL 格式 + UA 头浪费 ~10min。
+
+**强制约定**:
+
+1. **JSON 响应必须用 `curl | python3 -c "..."` 或 `python3 -c "import requests,json; ..."` 解析**, 不要用 WebFetch
+   - WebFetch 通过 small fast model 解析 JSON, 数值字段映射会出错（百分号单位、f3/f6 缩放等）
+   - WebFetch **仅用于 Markdown / HTML 页面**
+
+2. **涨跌幅字段必须除以 100**
+   - 东财 push2 `f3`: 原始值 6.95 表示 **6.95%**, 需要 `value / 100`
+   - 同花顺 ths 字段已是百分数（如 4.59 表示 4.59%）不需要除
+   - akshare `stock_board_industry_summary_ths` 涨跌幅字段已是百分数
+
+3. **优先调用项目封装好的数据接口, 不要重复造轮子**
+   - 板块涨跌幅 → `scripts/sector_summary.py`（已封装 akshare ths + 东财 fallback）
+   - 行情 → `scripts/quote.py`
+   - 财务 → `scripts/finance.py`
+   - K 线 → `scripts/kline.py`
+
+4. **遇到接口被风控 (HTTP 000 / Empty reply)** 不要反复试错
+   - 立即切换到封装好的备选接口（如 `sector_summary.py --source ths`）
+   - 或调用 `scripts/monitor.py --sources --json` 查看数据源健康度矩阵
+
+## 八、整体任务超时（v1.20.1 新增）
+
+> 背景: screener 在调用 akshare / akshare_balance 时若代理挂起 (CLOSE_WAIT) 会永久卡死, socket 15s 只兜底单次请求, `prefetch_finance_all` 480s 只覆盖财务批量。
+
+**保护机制**:
+
+1. `scripts/common/screener_watchdog.py`: `threading.Timer(deadline, on_timeout)` 启动后台守护线程
+2. `scripts/screener.py` 新增 `--deadline SEC` 参数 (默认 600s) + 环境变量 `STOCK_SCREENER_DEADLINE` 兜底
+3. 超时触发 `ScreenerTimeoutError` → `handle_errors` 捕获 → 输出部分结果 + `exit 2`
+
+**调用约定**:
+
+- 启动后台 screener 任务前应主动告知"预计耗时 60-600s"
+- 任务超时后不要"继续等待", 应立即 `TaskStop` 释放资源
+- 如果数据源持续超时, 先 `python3 scripts/monitor.py --sources --json` 探活

@@ -390,6 +390,13 @@ def _build_parser():
         action="store_false",
         help="板块模式放宽硬过滤（默认行为）",
     )
+    # v1.20.1: 整体任务级超时（watchdog 兜底）
+    parser.add_argument(
+        "--deadline",
+        type=float,
+        default=None,
+        help="整体任务超时秒数（默认 600s，也可由环境变量 STOCK_SCREENER_DEADLINE 设置）",
+    )
     return parser
 
 
@@ -451,14 +458,47 @@ def _run_main(args):
     # JSON 模式或 --quiet 模式下使用静默 callback，避免进度输出混入 JSON/最终结果
     silent = args.json or getattr(args, "quiet", False)
     callback = _default_progress_callback if not silent else (lambda e, p: None)
-    result = run_screening(args, progress_callback=callback)
 
-    if result["halted"]:
+    # v1.20.1: watchdog 整体任务超时（akshare 永久挂起兜底）
+    from common.screener_watchdog import start_watchdog
+    from common.exceptions import ScreenerTimeoutError
+
+    deadline_sec = getattr(args, "deadline", None)
+    wd = start_watchdog(deadline_sec)
+    rows_partial: list = []
+    halted = True  # 默认 halted=True, 成功路径覆盖为 False
+
+    try:
+        with wd:
+            result = run_screening(args, progress_callback=callback)
+        # 任务在 deadline 内完成 → 正常路径
+        halted = bool(result.get("halted", False))
+        rows_partial = result.get("rows") or []
+    except KeyboardInterrupt:
+        # 用户真按了 Ctrl+C
+        print("\n⏹ 已中断", file=sys.stderr)
+        sys.exit(130)
+        return
+    except ScreenerTimeoutError:
+        # 业务主动抛 ScreenerTimeoutError 的兜底分支（极少触发）
+        print(
+            f"\n⚠️ 任务超时（deadline={wd.deadline_sec:.0f}s, "
+            f"elapsed={wd.elapsed_sec:.1f}s），"
+            f"已返回 {len(rows_partial)} 条部分结果。",
+            file=sys.stderr,
+            flush=True,
+        )
+        if args.json:
+            print(json.dumps(rows_partial, ensure_ascii=False, indent=2))
+        sys.exit(2)
+        return  # unreachable but for type-checker
+
+    if halted:
         # 宏观 RED 且非 JSON 模式 → 暂停；JSON 模式仍输出空结果
         if not args.json:
             return
 
-    rows = result["rows"]
+    rows = rows_partial
 
     if args.json:
         print(json.dumps(rows, ensure_ascii=False, indent=2))

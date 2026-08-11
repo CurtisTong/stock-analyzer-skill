@@ -34,6 +34,37 @@ for url in \
   fi
 done
 
+# v1.20.1 新增: 数据源健康度探活（关键域 unhealthy 则阻断后续段）
+echo "==> 2.5. 数据源健康度（probe 探活）"
+probe_output=$(cd "$SCRIPTS" && python3 monitor.py --sources --json 2>/dev/null || echo '{}')
+# 解析 JSON: 至少 quote / kline / finance 三域有一个 ok=true 的 fetcher
+if echo "$probe_output" | python3 -c "
+import sys, json
+try:
+    data = json.loads(sys.stdin.read())
+except Exception:
+    sys.exit(1)
+# data 结构: { 'quote': [{name, available, ...}], 'kline': [...], 'finance': [...] }
+critical_domains = ['quote', 'kline', 'finance']
+healthy = []
+for domain in critical_domains:
+    fetchers = data.get(domain, [])
+    for f in fetchers:
+        if f.get('available'):
+            healthy.append(domain)
+            break
+if not healthy:
+    sys.exit(1)  # 三域全 unhealthy, 阻断
+sys.exit(0)
+" 2>/dev/null; then
+  ok "数据源探活通过（quote/kline/finance 至少 1 域 ok）"
+else
+  ko "数据源探活失败（quote/kline/finance 全 unhealthy），阻断后续段"
+  echo "    提示: 运行 'python3 scripts/monitor.py --sources' 查看详情"
+  echo "    尝试: 运行 'python3 scripts/monitor.py --cleanup' 重置熔断器"
+  exit 1
+fi
+
 echo "==> 3. scripts/ 实际运行"
 cd "$SCRIPTS"
 output=$(python3 quote.py sh600989 2>&1 || true)

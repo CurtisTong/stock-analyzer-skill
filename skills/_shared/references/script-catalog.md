@@ -30,6 +30,7 @@
 | `python3 scripts/refresh_pool.py` | 股票池自动刷新脚本 — 从东财 push2 API 拉取板块成分股 | -j |
 | `python3 scripts/screener.py` | A 股多因子选股器 | -h、-j、-v |
 | `python3 scripts/sector.py` | 板块查询——根据股票代码查找所属板块及板块内标的行情 | -j |
+| `python3 scripts/sector_summary.py` | 板块涨跌幅汇总（**v1.20.1 新增，替代 ETF 拼接的板块榜**） | -j、--source ths\|eastmoney\|auto、--top N、--sector |
 | `python3 scripts/sector_etf_strength.py` | 板块 ETF 横向强度对比 + 个股相对位置（RPS） | -j |
 | `python3 scripts/snapshots.py` | 选股快照系统（review#16） | -j |
 | `python3 scripts/stock.py` | 个股五层分析（v1.3.2 接入 business/StockAnalysisService） | -j |

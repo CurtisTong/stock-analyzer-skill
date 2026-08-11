@@ -52,6 +52,8 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/sector.py *
 
 根据板块名称，先查 `scripts/data/sector_stocks.json` 和 `scripts/data/sector_etf.csv`，再按 `../_shared/references/script-catalog.md` 获取核心标的行情+财务+K 线。脚本支持 `-j` JSON 排序。
 
+**板块涨跌幅排行榜（v1.20.1 新增）**：用 `python3 scripts/sector_summary.py -j --top 30 [--sector 医疗服务]`。数据源优先级:`akshare 同花顺(stock_board_industry_summary_ths)` → `东财 push2` → 降级为 `source: "none"` + `data_quality.degraded_fields: ["source"]`。覆盖度高于 sector_etf.csv 的 15 个 ETF。
+
 ### Step 2: 板块分析框架
 
 **overview模式：**

@@ -63,6 +63,13 @@ def handle_errors():
         print("\n⏹ 已中断", file=sys.stderr)
         sys.exit(130)
     except Exception as e:
+        # v1.20.1: ScreenerTimeoutError 已在 _run_main 内处理(打印 + sys.exit(2)),
+        # 此处仅兜底未被业务捕获的 TimeoutError（一般是 inner socket 15s）。
+        from common.exceptions import ScreenerTimeoutError
+
+        if isinstance(e, ScreenerTimeoutError):
+            print(f"\n⚠️ {e.message}", file=sys.stderr)
+            sys.exit(2)
         if debug:
             import traceback
 

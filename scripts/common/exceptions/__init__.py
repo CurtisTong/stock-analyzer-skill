@@ -171,6 +171,33 @@ class ConfigurationError(StockAnalyzerError):
 
 
 # ═══════════════════════════════════════════════════════════════
+# v1.20.1 新增: 任务级超时（screener watchdog 触发）
+# ═══════════════════════════════════════════════════════════════
+
+
+class ScreenerTimeoutError(StockAnalyzerError):
+    """选股任务整体超时（由 watchdog 线程触发）。
+
+    用于在 akshare / akshare_balance 等数据源无超时机制导致永久挂起时，
+    由 ``screener_watchdog`` 触发软中断。不强行终止子线程，只标记 done_event
+    并抛此异常由 handle_errors 捕获。
+    """
+
+    def __init__(self, deadline_sec: float, elapsed_sec: float, partial_rows: int = 0):
+        self.deadline_sec = deadline_sec
+        self.elapsed_sec = elapsed_sec
+        self.partial_rows = partial_rows
+        super().__init__(
+            f"任务超时（{elapsed_sec:.1f}s > {deadline_sec:.1f}s，已返回 {partial_rows} 条部分结果）",
+            {
+                "deadline_sec": deadline_sec,
+                "elapsed_sec": elapsed_sec,
+                "partial_rows": partial_rows,
+            },
+        )
+
+
+# ═══════════════════════════════════════════════════════════════
 # 辅助函数
 # ═══════════════════════════════════════════════════════════════
 
@@ -305,6 +332,8 @@ __all__ = [
     "StrategyError",
     "InsufficientDataError",
     "ConfigurationError",
+    # v1.20.1 新增
+    "ScreenerTimeoutError",
     "format_error",
     "is_retryable_error",
     "USER_FRIENDLY_MESSAGES",

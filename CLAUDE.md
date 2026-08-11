@@ -8,6 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
 
+**板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
+
+**整体任务超时（v1.20.1 新增）**：screener 现已接入 watchdog 线程,默认 600s deadline（可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,超时后输出部分结果 + exit code 2。
+
 **已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 WP1–WP6 改造（详见「关键抽象」段）。
 
 ## 常用命令

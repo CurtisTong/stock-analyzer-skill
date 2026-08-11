@@ -49,6 +49,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 - 指数：`sh000001,sz399001,sz399006,sh000300,sh000016,sh000905`
 - 板块 ETF：`sh510050,sh510300,sh510500,sh512010,sh512480,sh512690,sh512800,sh513120,sh512660,sh515790,sh515030,sh516160`
+- **板块涨跌幅排行（v1.20.1 推荐）**：`python3 scripts/sector_summary.py -j --top 30`，默认走 akshare 同花顺板块汇总（含净流入/领涨股/上涨家数），东财 push2 备选
 - 美股参考（full 模式）：`quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq` 获取美股主要指数收盘数据
 - `intraday` 模式额外取 5 分钟 K 线（48 根）
 
