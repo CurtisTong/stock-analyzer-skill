@@ -9,6 +9,7 @@ Usage:
 支持的子命令：finance / kline / technical / market_anchor / events
 所有子命令的结果会合并到一个 JSON dict，key 为代码（统一大写）。
 """
+
 from __future__ import annotations
 
 import argparse
@@ -16,7 +17,6 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-
 
 SCRIPT_MAP = {
     "finance": "scripts/finance.py",

@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 import pytest
 
+from monitor.manager import NotificationManager  # noqa: F401  # 供类型注解引用
 
 # ────────────────────────────────────────────────────────────────
 # 辅助：fake channel
@@ -45,8 +46,6 @@ def _make_nm(channels: list | None = None) -> "NotificationManager":
     使用 channels= 注入参数（NotificationManager.__init__ v1.20+ 支持），
     走完整 __init__，避免 __new__ 绕过导致与生产行为不一致。
     """
-    from monitor.manager import NotificationManager
-
     return NotificationManager(
         config={
             "throttle": {"dedup_window": 15, "daily_limit": 20},
@@ -68,7 +67,12 @@ class TestSend:
         """无已注册通道时返回 reason='no_channels'。"""
         nm = _make_nm(channels=[])
         result = nm.send("标题", "内容")
-        assert result == {"sent": 0, "failed": 0, "results": {}, "reason": "no_channels"}
+        assert result == {
+            "sent": 0,
+            "failed": 0,
+            "results": {},
+            "reason": "no_channels",
+        }
 
     def test_quiet_hours_blocks_all(self):
         """静默时段阻止所有发送（即使有通道）。"""
@@ -154,7 +158,9 @@ class TestSendAlert:
                 message="测试消息",
             )
             title = ch.calls[-1]["title"]
-            assert title.startswith(expected_icon), f"{alert_type} 应以 {expected_icon} 开头，实际 {title}"
+            assert title.startswith(
+                expected_icon
+            ), f"{alert_type} 应以 {expected_icon} 开头，实际 {title}"
 
     def test_unknown_alert_type_uses_default_icon(self):
         """未知 alert_type 用默认 📌 icon。"""

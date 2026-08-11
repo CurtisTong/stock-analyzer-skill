@@ -30,7 +30,6 @@ import threading
 import time
 from typing import Optional
 
-
 DEFAULT_DEADLINE_SEC = 600  # 10 分钟
 
 

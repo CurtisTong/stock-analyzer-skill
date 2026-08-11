@@ -21,7 +21,6 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from common.http import http_get
 
-
 # ---------- 市场宽度状态枚举（P2-26 新增）----------
 # 集中所有市场宽度状态常量,避免散落字符串
 STATE_ICE = "冰点"  # 极度恐慌

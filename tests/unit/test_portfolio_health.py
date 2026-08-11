@@ -12,7 +12,6 @@ import pytest
 
 from portfolio import PortfolioManager
 
-
 # ────────────────────────────────────────────────────────────────
 # 板块分类：状态标签白名单 + 行业大类合并
 # ────────────────────────────────────────────────────────────────
@@ -78,9 +77,9 @@ class TestCheckConcentrationMerged:
         industry = result["details"]["industry"]
         # 合并后应有"锂/新能源"大类且占比 >30%
         if "锂/新能源" in industry:
-            assert industry["锂/新能源"] > 30, (
-                f"锂/新能源占比 {industry['锂/新能源']}% 应触发 30% 阈值警告"
-            )
+            assert (
+                industry["锂/新能源"] > 30
+            ), f"锂/新能源占比 {industry['锂/新能源']}% 应触发 30% 阈值警告"
             # 应触发警告
             assert any("锂/新能源" in w for w in result["warnings"])
 
@@ -90,9 +89,7 @@ class TestCheckConcentrationMerged:
         result = pm.check_concentration()
         industry = result["details"]["industry"]
         # T+1 待交收不应作为 industry 键
-        assert "T+1待交收" not in industry, (
-            "宝丰能源被错误归到 T+1待交收 状态标签"
-        )
+        assert "T+1待交收" not in industry, "宝丰能源被错误归到 T+1待交收 状态标签"
 
 
 # ────────────────────────────────────────────────────────────────
@@ -167,7 +164,9 @@ class TestHealthReport:
         """
         pm = PortfolioManager()
         # 正常情况（有 cost）
-        report = pm.health_report(quotes={"sh600989": {"price": 23.69, "change_pct": 0}})
+        report = pm.health_report(
+            quotes={"sh600989": {"price": 23.69, "change_pct": 0}}
+        )
         assert set(report["totals"].keys()) == {"cost", "value", "pnl", "pnl_pct"}
         assert isinstance(report["totals"]["cost"], (int, float))
         assert isinstance(report["totals"]["value"], (int, float))
@@ -230,9 +229,7 @@ class TestHealthReport:
         industry = report["concentration"]["details"]["industry"]
         # 不应再有"锂电/锂矿/锂业"分散键（已合并到"锂/新能源"）
         for dispersed in ["锂电", "锂矿", "锂业"]:
-            assert dispersed not in industry, (
-                f"行业 {dispersed} 未合并，仍分散为独立键"
-            )
+            assert dispersed not in industry, f"行业 {dispersed} 未合并，仍分散为独立键"
         # "锂/新能源" 大类键应存在（组合含相关持仓）
         if any(p.get("tags") for p in pm.get_positions()):
             assert "锂/新能源" in industry
@@ -263,13 +260,38 @@ class TestStatusTagsExpanded:
         "tag",
         [
             # 投资风格
-            "白马", "价值", "蓝筹", "大盘", "红利", "高股息",
-            "成长", "主题", "概念", "题材", "赛道",
-            "趋势", "反转", "突破", "超跌", "低吸", "追涨",
-            "短线投机", "打板", "涨停", "妖股",
+            "白马",
+            "价值",
+            "蓝筹",
+            "大盘",
+            "红利",
+            "高股息",
+            "成长",
+            "主题",
+            "概念",
+            "题材",
+            "赛道",
+            "趋势",
+            "反转",
+            "突破",
+            "超跌",
+            "低吸",
+            "追涨",
+            "短线投机",
+            "打板",
+            "涨停",
+            "妖股",
             # 持有期
-            "长持", "永持", "待止损", "待止盈", "已止盈",
-            "对冲", "套保", "金字塔", "左侧", "右侧",
+            "长持",
+            "永持",
+            "待止损",
+            "待止盈",
+            "已止盈",
+            "对冲",
+            "套保",
+            "金字塔",
+            "左侧",
+            "右侧",
         ],
     )
     def test_common_investment_styles_filtered(self, tag):
@@ -285,18 +307,34 @@ class TestIndustryGroupExpanded:
         "sub,expected_group",
         [
             # 锂/新能源扩展
-            ("电池", "锂/新能源"), ("正极", "锂/新能源"), ("硅料", "锂/新能源"),
-            ("组件", "锂/新能源"), ("风电", "锂/新能源"), ("核电", "锂/新能源"),
+            ("电池", "锂/新能源"),
+            ("正极", "锂/新能源"),
+            ("硅料", "锂/新能源"),
+            ("组件", "锂/新能源"),
+            ("风电", "锂/新能源"),
+            ("核电", "锂/新能源"),
             # 半导体
-            ("PCB", "半导体"), ("封测", "半导体"), ("IC设计", "半导体"),
+            ("PCB", "半导体"),
+            ("封测", "半导体"),
+            ("IC设计", "半导体"),
             # 医药
-            ("CRO", "医药"), ("CDMO", "医药"), ("创新药", "医药"), ("中药", "医药"),
+            ("CRO", "医药"),
+            ("CDMO", "医药"),
+            ("创新药", "医药"),
+            ("中药", "医药"),
             # 消费
-            ("白酒", "消费"), ("食品饮料", "消费"), ("家电", "消费"), ("医美", "消费"),
+            ("白酒", "消费"),
+            ("食品饮料", "消费"),
+            ("家电", "消费"),
+            ("医美", "消费"),
             # 金融
-            ("银行", "金融"), ("证券", "金融"), ("保险", "金融"),
+            ("银行", "金融"),
+            ("证券", "金融"),
+            ("保险", "金融"),
             # 资源/周期
-            ("钢铁", "资源/周期"), ("煤炭", "资源/周期"), ("黄金", "资源/周期"),
+            ("钢铁", "资源/周期"),
+            ("煤炭", "资源/周期"),
+            ("黄金", "资源/周期"),
             # 工业
             ("军工", "军工"),
         ],
@@ -399,7 +437,11 @@ class TestWatchlistStatus:
         for w in report["watchlist"]:
             assert "status" in w
             assert w["status"] in {
-                "已破止损", "接近止损", "到达买点", "接近买点", "观望"
+                "已破止损",
+                "接近止损",
+                "到达买点",
+                "接近买点",
+                "观望",
             }
 
     def test_status_buy_zone(self):
@@ -411,7 +453,9 @@ class TestWatchlistStatus:
             w = watchlist[0]
             tb = float(w.get("target_buy", 0) or 0)
             if tb > 0:
-                quotes = {w["code"]: {"price": tb * 0.9, "change_pct": 0}}  # 现价低于买点
+                quotes = {
+                    w["code"]: {"price": tb * 0.9, "change_pct": 0}
+                }  # 现价低于买点
                 report = pm.health_report(quotes=quotes)
                 row = next(r for r in report["watchlist"] if r["code"] == w["code"])
                 assert row["status"] == "到达买点"
@@ -424,7 +468,9 @@ class TestWatchlistStatus:
             w = watchlist[0]
             ts = float(w.get("target_sell", 0) or 0)
             if ts > 0:
-                quotes = {w["code"]: {"price": ts * 0.5, "change_pct": 0}}  # 现价远低于止损
+                quotes = {
+                    w["code"]: {"price": ts * 0.5, "change_pct": 0}
+                }  # 现价远低于止损
                 report = pm.health_report(quotes=quotes)
                 row = next(r for r in report["watchlist"] if r["code"] == w["code"])
                 assert row["status"] == "已破止损"
@@ -465,8 +511,10 @@ class TestRiskRatingNaturalLanguage:
         # 用空 quotes + 临时清空所有持仓难以构造，改用 0 quotes 触发降级
         report = pm.health_report(quotes=None)
         # 降级 + 无超阈值 → 仍含\"组合处于安全区间\"或被\"行情缺失\"覆盖
-        assert ("组合处于安全区间" in report["risk_rating"] or
-                "行情缺失" in report["risk_rating"])
+        assert (
+            "组合处于安全区间" in report["risk_rating"]
+            or "行情缺失" in report["risk_rating"]
+        )
 
     def test_risk_rating_uses_semicolon_not_comma(self):
         """risk_rating 摘要用\"；\"分隔（不直接用 warnings 拼接的\"、\"）。"""
@@ -487,12 +535,14 @@ class TestReadRegimeState:
     def test_returns_dict_with_keys(self):
         """返回 dict 含 regime/updated_at/age_minutes 三个键。"""
         from portfolio.manager import _read_regime_state
+
         result = _read_regime_state()
         assert set(result.keys()) == {"regime", "updated_at", "age_minutes"}
 
     def test_age_minutes_is_int_or_none(self):
         """age_minutes 是 int 或 None（不抛错）。"""
         from portfolio.manager import _read_regime_state
+
         result = _read_regime_state()
         assert result["age_minutes"] is None or isinstance(result["age_minutes"], int)
 
@@ -508,6 +558,7 @@ class TestAsOfFallback:
     def test_explicit_as_of_used_when_provided(self):
         """上游传 __as_of__ 时优先使用。"""
         from datetime import datetime
+
         pm = PortfolioManager()
         ts = "2026-08-07T10:30:00"
         quotes = {"__as_of__": ts}
@@ -524,6 +575,7 @@ class TestAsOfFallback:
     def test_as_of_format_matches_template(self):
         """as_of 格式 YYYY-MM-DD HH:MM:SS（兼容 SKILL 模板）。"""
         import re
+
         pm = PortfolioManager()
         report = pm.health_report(quotes=None)
         assert re.match(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}", report["as_of"])
@@ -545,14 +597,15 @@ class TestBreakdownThresholdLocation:
         """BREAKDOWN_THRESHOLD 位置在 _STATUS_TAGS 之前（顶部常量区块）。"""
         # 检查源码位置
         import inspect
+
         src = inspect.getsource(PortfolioManager)
         threshold_pos = src.find("BREAKDOWN_THRESHOLD =")
         status_tags_pos = src.find("_STATUS_TAGS =")
         industry_pos = src.find("_INDUSTRY_GROUP =")
         assert threshold_pos > 0
-        assert threshold_pos < status_tags_pos < industry_pos, (
-            "BREAKDOWN_THRESHOLD 应在 _STATUS_TAGS/_INDUSTRY_GROUP 之前"
-        )
+        assert (
+            threshold_pos < status_tags_pos < industry_pos
+        ), "BREAKDOWN_THRESHOLD 应在 _STATUS_TAGS/_INDUSTRY_GROUP 之前"
 
 
 # ────────────────────────────────────────────────────────────────
@@ -566,6 +619,7 @@ class TestAutoTechnicalIntegration:
     def test_auto_technical_can_be_disabled(self):
         """auto_technical=False 时不调 technical.py。"""
         from unittest.mock import patch
+
         pm = PortfolioManager()
         with patch("portfolio.manager._fetch_technical_features") as mock_fetch:
             pm.health_report(quotes={}, auto_technical=False)
@@ -574,6 +628,7 @@ class TestAutoTechnicalIntegration:
     def test_explicit_technical_features_overrides_auto(self):
         """显式传 technical_features 时不再调 auto_technical。"""
         from unittest.mock import patch
+
         pm = PortfolioManager()
         explicit = {"sh600989": {"breakdown": True, "stop_loss_pct": -3.0}}
         with patch("portfolio.manager._fetch_technical_features") as mock_fetch:
@@ -592,6 +647,7 @@ class TestAutoTechnicalIntegration:
         importlib.spec_from_file_location 解决。
         """
         from portfolio.manager import _fetch_technical_features
+
         # 空 positions → 返回空 dict（不抛错）
         result = _fetch_technical_features([], {})
         assert result == {}
@@ -599,6 +655,7 @@ class TestAutoTechnicalIntegration:
     def test_fetch_technical_features_skips_failures(self):
         """_fetch_technical_features 单只失败不中断。"""
         from portfolio.manager import _fetch_technical_features
+
         # 不存在的 code 应被跳过（get_kline 抛错或返回空）
         positions = [{"code": "sh999999"}]  # 不存在的代码
         result = _fetch_technical_features(positions, {})

@@ -13,6 +13,7 @@ Usage:
 - 跨股横向对比表（综合分排名 + 方向分布）
 - 与 debate 模式 LLM 推理分的差异提示（当量化与 LLM 分差异 >15 时）
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,7 +28,6 @@ sys.path.insert(0, str(ROOT))
 
 from experts import list_active_experts  # noqa: E402
 from experts.scoring import score_expert_precise  # noqa: E402
-
 
 TREND_MAP = {
     "多头排列": 1,

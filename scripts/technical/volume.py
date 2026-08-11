@@ -10,7 +10,6 @@ import statistics
 
 from .core import _find_swing_points
 
-
 # ---------- 量价状态枚举（P2-26 新增）----------
 # signal: -1 负面 / 0 中性 / +1 正面
 # 状态码: VP_RISE_VOL=1 放量上涨, VP_FALL_SHRINK=2 缩量下跌,

@@ -470,7 +470,6 @@ def _dict_to_kline_bar(d: dict, code: str = "") -> KlineBar:
 # 财务字段映射表（迁入 data/mappers.py，此处 re-export 保持向后兼容）
 from data.mappers import FINANCE_FIELD_MAP as _FINANCE_FIELD_MAP  # noqa: F401
 
-
 # 东财 REPORT_TYPE 中文值 -> 标准化英文枚举（2026-07-23 宝丰能源 PE 误算复盘）
 # 一季报 = 单季 Q1；中报/三季报 = 累计 H1/Q3；年报 = 全年
 # 不可用 report_date 末尾日期推断：-06-30 无法区分"累计中报"与"单季 Q2"

@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-
 # 标记为 network 测试（CI 默认跳过，仅本地验证用）
 pytestmark = pytest.mark.network
 
@@ -35,14 +34,19 @@ def _run_script(name: str, *args: str, timeout: int = 30) -> dict:
     兼容 stdout 开头有进度消息（emoji 行）的情况：从第一行 \"{\" 开始截取。
     """
     import re
+
     script = Path(__file__).parent.parent.parent / "scripts" / f"{name}.py"
     cmd = [sys.executable, str(script), *args, "-j"]
     result = subprocess.run(
-        cmd, capture_output=True, text=True, timeout=timeout, cwd=str(script.parent.parent)
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=str(script.parent.parent),
     )
     # 从第一个 "{" 或 "[" 开始截取（兼容 backtest 的进度消息前缀）
     match = re.search(r"[\{\[]", result.stdout)
-    json_str = result.stdout[match.start():] if match else result.stdout
+    json_str = result.stdout[match.start() :] if match else result.stdout
     try:
         return json.loads(json_str)
     except (json.JSONDecodeError, ValueError):
@@ -67,9 +71,10 @@ class TestStockIndexCode:
         result = _run_script("stock", "sh000300", "--brief")
         # 指数走 fetchers 实际能拉行情（即使是降级），不应该报错
         assert "_error" not in result, f"指数代码运行失败: {result.get('stderr', '')}"
-        assert result.get("code") in ("sh000300", "sz000300"), (
-            f"code 字段异常: {result.get('code')}"
-        )
+        assert result.get("code") in (
+            "sh000300",
+            "sz000300",
+        ), f"code 字段异常: {result.get('code')}"
 
     def test_sh000001_data_quality(self):
         """上证指数能拉到 name/price 字段。"""
@@ -92,7 +97,9 @@ class TestScreenerIndexCode:
         """指数代码作为自定义 --codes 输入，screener 应不报错返回。"""
         # 注：实际观察 - screener 输出顶层可能是 dict 或 list（取决于 args），
         # 但必须不抛错。本测试验证可正常返回结构化结果。
-        result = _run_script("screener", "--codes", "sh000300", "--top", "5", timeout=60)
+        result = _run_script(
+            "screener", "--codes", "sh000300", "--top", "5", timeout=60
+        )
         if "_error" in result:
             pytest.skip(f"screener 跑指数代码失败: {result['_error']}")
         # 输出可能是 dict（JSON 模式）或 list（依赖 sub-command）
@@ -111,8 +118,16 @@ class TestBacktestIndexCode:
     def test_index_as_benchmark(self):
         """沪深 300 指数可作 --benchmark。"""
         result = _run_script(
-            "backtest", "--strategy", "balanced", "--benchmark", "sh000300",
-            "--codes", "sh600519", "--days", "30", timeout=120,
+            "backtest",
+            "--strategy",
+            "balanced",
+            "--benchmark",
+            "sh000300",
+            "--codes",
+            "sh600519",
+            "--days",
+            "30",
+            timeout=120,
         )
         if "_error" in result:
             pytest.skip(f"backtest 跑失败: {result['_error']}")
@@ -130,10 +145,10 @@ class TestResearchNoScript:
 
     SKILL.md 已加 ⚠️ NOTE 段说明 `python3 scripts/research.py` 会 ModuleNotFoundError。
     """
+
     def test_research_py_does_not_exist(self):
         """scripts/research.py 不存在（确认 SKILL.md NOTE 描述准确）。"""
         script = Path(__file__).parent.parent.parent / "scripts" / "research.py"
         assert not script.exists(), (
-            "research.py 存在但 SKILL.md 声明它不存在，"
-            "需同步更新 NOTE 段"
+            "research.py 存在但 SKILL.md 声明它不存在，" "需同步更新 NOTE 段"
         )

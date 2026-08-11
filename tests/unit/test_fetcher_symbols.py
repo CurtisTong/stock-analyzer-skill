@@ -14,7 +14,6 @@ import pytest
 from fetchers.finance.akshare_balance import _normalize_symbol
 from fetchers.kline.yfinance_kline import _to_yf_symbol
 
-
 # ═══════════════════════════════════════════════════════════════
 # _to_yf_symbol：上交所指数保留 sh 前缀
 # ═══════════════════════════════════════════════════════════════

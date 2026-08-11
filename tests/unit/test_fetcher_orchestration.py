@@ -32,7 +32,6 @@ from common.fetcher_base import (
 )
 from common.exceptions import HTTPStatusError, RateLimitError
 
-
 # ═══════════════════════════════════════════════════════════════
 # 测试隔离 fixture：重置 RateLimiter 单例 + CircuitBreaker 全局字典
 # ═══════════════════════════════════════════════════════════════

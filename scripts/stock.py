@@ -151,8 +151,11 @@ def render_text(result: dict) -> str:
     # 错误模式 footer 加 ⚠️ 警示（数据降级）让 SKILL 渲染层立即识别。
     degraded = bool(failed or result.get("data_warnings"))
     footer = format_footer(
-        data_time=data_time, sources=sources, failed_sources=failed,
-        ttl_sec=900, degraded=degraded,
+        data_time=data_time,
+        sources=sources,
+        failed_sources=failed,
+        ttl_sec=900,
+        degraded=degraded,
     )
     if footer:
         lines.append(footer)
