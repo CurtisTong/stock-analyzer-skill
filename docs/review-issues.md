@@ -96,13 +96,13 @@
 | --- | --- | --- | --- | --- | --- |
 | **P0-01** | skills / 权限 | `.claude/settings.json` 中 `Bash(python3 scripts/**/*.py *)`、`Bash(git commit*)` 等权限过宽 | `.claude/settings.json` | Prompt injection 或误操作可执行任意 scripts、修改文件并提交 | 收紧为显式脚本白名单；限制 Edit/Write 到 `scripts/data/portfolio*.json` 等运行数据 |
 | **P0-02** | business / 输出契约 | `StockAnalysisService.analyze` 未填充 `data_sources` / `data_failed` / `data_time` | `scripts/business/stock_analysis.py`、`scripts/stock.py` | 13 个 skill footer 显示的时间戳和数据源不可信 | 在 quote/kline/finance 成功或失败处记录来源、失败项、数据时间 |
-| **P0-03** | fetcher / 配置 | `data_source.yaml` 的 `timeout` / `retry` 未被 `_apply_source_config` 使用 | `scripts/common/fetcher_base.py`、`scripts/config/data_source.yaml` | 用户改配置无效，数据源调优失效 | `BaseFetcher` 增加 `self.timeout/self.retry`，fetcher 调 `http_get(..., timeout=self.timeout, max_retries=self.retry)` |
-| **P0-04** | fetcher / 熔断 | 429 限速被计入 `on_failure()`，会误触发熔断 | `scripts/common/fetcher_base.py` | 临时限速被当作数据源故障，导致可用数据源被跳过 | 引入独立 `RateLimitTracker`；429 只跳过当前源，不计入熔断失败 |
-| **P0-05** | fetcher / 熔断 | `recovery_timeout=0` 会导致 OPEN/HALF_OPEN 高频抖动 | `scripts/common/circuit_breaker.py` | 配置错误时出现高频重试 | 初始化时校验 `recovery_timeout >= 1`，或设置最小值 |
-| **P0-06** | experts / 三源漂移 | YAML 权重维度名未归一化，存在 `情绪/题材` vs `情绪` 键名漂移 | `experts/yaml_loader.py`、`experts/registry.py` | 投票和维度 breakdown 可能错位 | 加 `weights={normalize_dim(k): v for k, v in weights.items()}` |
-| **P0-07** | experts / 决策文档 | `decide.md` 中"巴菲特否决"规则与代码不一致 | `experts/decide.md`、`experts/vote_engine.py` | LLM 根据文档会得出错误决策预期 | 改为"巴菲特警示：中长期信心 -15，不强制看空" |
+| **P0-03** | fetcher / 配置 | `data_source.yaml` 的 `timeout` / `retry` 未被 `_apply_source_config` 使用 | `scripts/common/fetcher_base.py`、`scripts/config/data_source.yaml` | 用户改配置无效，数据源调优失效 | ✅ 2026-08-12 状态补记（fetcher_base.py:92-93 + `_apply_source_config`:289 已读取 timeout/retry/max_datalen，fetcher 用 self.timeout/self.retry） |
+| **P0-04** | fetcher / 熔断 | 429 限速被计入 `on_failure()`，会误触发熔断 | `scripts/common/fetcher_base.py` | 临时限速被当作数据源故障，导致可用数据源被跳过 | ✅ 2026-08-12 状态补记（fetcher_base.py:189 429 不计入熔断失败，独立跳过当前源） |
+| **P0-05** | fetcher / 熔断 | `recovery_timeout=0` 会导致 OPEN/HALF_OPEN 高频抖动 | `scripts/common/circuit_breaker.py` | 配置错误时出现高频重试 | ✅ 2026-08-12 状态补记（commit 6684080 已修：`__init__` 钳制 `recovery_timeout if > 0 else 1`） |
+| **P0-06** | experts / 三源漂移 | YAML 权重维度名未归一化，存在 `情绪/题材` vs `情绪` 键名漂移 | `experts/yaml_loader.py`、`experts/registry.py` | 投票和维度 breakdown 可能错位 | ✅ 2026-08-12 状态补记（commit 70532e4 已修：yaml_loader.py:90 `normalize_dim` + types.py `DIMENSION_ALIASES` 含情绪/题材→情绪，test_experts_types.py:237-268 覆盖） |
+| **P0-07** | experts / 决策文档 | `decide.md` 中"巴菲特否决"规则与代码不一致 | `experts/decide.md`、`experts/vote_engine.py` | LLM 根据文档会得出错误决策预期 | ✅ 2026-08-12 状态补记（decide.md:87,93 已改为"巴菲特警示：中长期信心-15；短期长线组×0.8"，与代码一致） |
 | **P0-08** | experts / 校准公式 | 校准因子公式在 mean_rate=0.5 时给负校准，反直觉 | `experts/calibration.py`、`experts/decide.md` | 代码与文档一致（非不一致 bug），但 mean_rate=0.5（无信息）时给 -0.5 负惩罚属设计争议 | ~~P0~~ **降级 P2**：改为 `(mean_rate - 0.5) * 2 * (1 - min(cv, 0.5))`，mean_rate=0.5 时归零 |
-| **P0-09** | experts / 投票 | `aggregate_group_votes` 中 `all(s <= 30)` 强烈看空分支永远不可达 | `experts/vote_engine.py` | 极端全空场景被标成普通看空 | 将 `all(s <= 30)` 判断提前到普通 bear 分支之前 |
+| **P0-09** | experts / 投票 | `aggregate_group_votes` 中 `all(s <= 30)` 强烈看空分支永远不可达 | `experts/vote_engine.py` | 极端全空场景被标成普通看空 | ✅ 2026-08-12 状态补记（vote_engine.py:797 `all(s <= 30)` 已提到普通 bear 分支之前，注释标明决定顺序） |
 | **P0-10** | strategies / 回测 | 回测 `quality` 因子使用最新财务快照，存在 lookahead bias | `scripts/backtest/engine.py` | 回测收益系统性高估 | 至少在 README 明示；更优是按财报披露日过滤可见财务数据 |
 | **P0-11** | strategies / 过拟合 | MA+成交量战法胜率来自样本内拟合，无 walk-forward 验证 | `scripts/strategies/patterns/ma_volume_strategy.py`、`scripts/backtest/` | 用户可能误认为战法稳定有效 | 增加 walk-forward 验证，报告 IS/OOS Sharpe 退化比 |
 | **P0-12** | strategies / 因子计算 | `event` / `analyst` 权重为 0 但仍默认计算，可能触发冗余网络请求 | `scripts/strategies/factors/`、`scripts/strategies/registry.py` | 全市场筛选浪费大量 IO | 加 feature flag，默认禁用这两个因子 |
