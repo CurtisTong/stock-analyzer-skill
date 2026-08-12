@@ -8,9 +8,35 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from portfolio import PortfolioManager
+
+# 测试用固定持仓：隔离真实用户 portfolio.json（gitignored，内容随用户变化）
+_POS_300274 = {
+    "code": "sz300274",
+    "name": "阳光电源",
+    "cost": 120.0,
+    "quantity": 100,
+    "buy_date": "2026-07-01",
+    "tags": ["新能源"],
+}
+
+
+def _make_manager(tmp_path, positions):
+    """构造使用临时持仓文件的 PortfolioManager，避免依赖真实用户数据。"""
+    p = tmp_path / "portfolio.json"
+    p.write_text(
+        json.dumps(
+            {"version": 2, "positions": positions, "watchlist": []},
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    return PortfolioManager(path=str(p))
+
 
 # ────────────────────────────────────────────────────────────────
 # 板块分类：状态标签白名单 + 行业大类合并
@@ -69,9 +95,45 @@ class TestIndustryClassification:
 class TestCheckConcentrationMerged:
     """验证修复后 check_concentration 输出真实行业集中度。"""
 
-    def test_industry_concentration_merges_lithium_chain(self):
+    def test_industry_concentration_merges_lithium_chain(self, tmp_path):
         """8 只持仓里 5 只是锂/新能源链，合并后应 >30% 触发警告。"""
-        pm = PortfolioManager()
+        positions = [
+            {
+                "code": f"sz3007{i}",
+                "name": f"锂{i}",
+                "cost": 100.0,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["锂矿"],
+            }
+            for i in range(5)
+        ] + [
+            {
+                "code": "sh600000",
+                "name": "浦发银行",
+                "cost": 100.0,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["银行"],
+            },
+            {
+                "code": "sz000858",
+                "name": "五粮液",
+                "cost": 100.0,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["白酒"],
+            },
+            {
+                "code": "sh600584",
+                "name": "长电科技",
+                "cost": 100.0,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["半导体"],
+            },
+        ]
+        pm = _make_manager(tmp_path, positions)
         result = pm.check_concentration()
 
         industry = result["details"]["industry"]
@@ -347,18 +409,18 @@ class TestIndustryGroupExpanded:
 class TestBreakdownTechnicalOr:
     """H1: 破位判定 OR technical.py features.breakdown 权威信号。"""
 
-    def test_cost_breakdown_only(self):
+    def test_cost_breakdown_only(self, tmp_path):
         """纯成本破位（无 technical 数据）。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         quotes = {"sz300274": {"price": 105.0, "change_pct": 0}}
         report = pm.health_report(quotes=quotes)
         pos = next(p for p in report["positions"] if p["code"] == "sz300274")
         assert pos["breakdown"] is True
         assert pos["breakdown_reason"] == "cost_5pct"
 
-    def test_technical_breakdown_only(self):
+    def test_technical_breakdown_only(self, tmp_path):
         """仅 technical.breakdown=True（成本未破位）。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         quotes = {"sz300274": {"price": 115.0, "change_pct": 0}}  # 未破成本 5%
         # 模拟 technical.py 报告破位
         tech = {"sz300274": {"breakdown": True, "stop_loss_pct": -3.5}}
@@ -367,9 +429,9 @@ class TestBreakdownTechnicalOr:
         assert pos["breakdown"] is True
         assert pos["breakdown_reason"] == "support_break"
 
-    def test_both_breakdowns(self):
+    def test_both_breakdowns(self, tmp_path):
         """成本 + technical 同时破位。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         quotes = {"sz300274": {"price": 100.0, "change_pct": 0}}  # 破成本
         tech = {"sz300274": {"breakdown": True}}
         report = pm.health_report(quotes=quotes, technical_features=tech)
@@ -377,9 +439,9 @@ class TestBreakdownTechnicalOr:
         assert pos["breakdown"] is True
         assert pos["breakdown_reason"] == "both"
 
-    def test_no_breakdown(self):
+    def test_no_breakdown(self, tmp_path):
         """未破位。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         quotes = {"sz300274": {"price": 115.0, "change_pct": 0}}
         tech = {"sz300274": {"breakdown": False}}
         report = pm.health_report(quotes=quotes, technical_features=tech)
