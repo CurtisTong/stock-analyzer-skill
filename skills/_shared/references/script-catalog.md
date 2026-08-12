@@ -1,7 +1,32 @@
 # 脚本目录
 
 > 31 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
-> Claude Code 运行时工作目录即为项目根目录。
+> **Claude Code 运行时工作目录即为项目根目录**（含 `scripts/`），无须 `cd`。
+
+## 多代码批量调用约定（重要）
+
+不同脚本对"批量代码"的语法支持不一致，三股/多股分析时务必按下表选择：
+
+| 脚本 | 批量语法 | 说明 |
+|------|----------|------|
+| `quote.py` | 位置参数：`sh600519,sh600036` | 内部并行；返回 list |
+| `finance.py` | `-c sh600519,sh600036` | **必须用 `-c`**，位置参数只取第一个 |
+| `kline.py` | ❌ **不支持批量** | 必须逐个调用，或用 `xargs`/循环包装 |
+| `announcements.py` | 位置参数：`sh600519,sh600036` | 串行调用后拼接 |
+| `events.py` | 单个代码 | 逐个调用 |
+| `technical.py` | 单个代码 | 逐个调用 |
+| `market_anchor.py` | 单个代码 | 逐个调用（每只票单独拿个股 RPS） |
+
+**常见反模式**：`python3 scripts/finance.py sh600519,sh600036 -j` 会**静默只处理第 1 只**，因为 `nargs="?"` 只取第一个参数。
+
+**批量调用 helper**（推荐）：
+
+```bash
+# finance/kline/technical 批量取数（串行）
+for code in sh600519 sh600036 sh000858; do
+  python3 scripts/finance.py -c "$code" -j
+done
+```
 
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|

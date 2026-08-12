@@ -37,6 +37,26 @@
 
 ## [Unreleased] - 2026-08-12
 
+### Added
+- **docs**: 复盘元复盘问题清单 — [issues/2026-08-12-replay-meta-review.md](docs/issues/2026-08-12-replay-meta-review.md)（11 项 P0-P2，含 P0-01 screener 全市场超时、P0-02 sh/sz 前缀误判、P0-03 macro fixture 标注不全）
+- **screener**: `--exclude-sector-momentum` 自动剔除退潮板块标的 + `sector_momentum_warning` ⚠️ 标记（P1-02，`scripts/sector_momentum.py`）
+- **sector**: 行业 ETF 覆盖扩展 10→17（智能汽车/通信/人工智能/机器人/电力/家电/游戏）+ 盲区映射清零（P1-01a）
+- **sector**: 新增 `scripts/data/stock_sector_map.json` 股票→细分行业映射（219 只 + 30 条行业→ETF 代理），板块归属来源链 stock_sector_map → sector_stocks → 代码段推断（P1-01b）
+- **market**: industry_beta 新增 `interpretation_confidence`（R² 分级，低 R² 报独立行情）（P1-01c）
+- **market**: 组合相关性窗口声明 + 双半窗口稳定性 + 负相关显著性/R² 感知 + `corr_confidence`（P1-04）
+- **market**: 剧烈轮动期（rotation_strength>3）附加保守操作建议（P2-02）
+- **portfolio**: 候选股与持仓行业重叠率 `compute_industry_overlap` + 30% 集中度预警（P2-04）
+
+### Fixed
+- **screener**: watchdog 默认超时 600→1800s（P0-01a）
+- **screener**: full_market 强制走两阶段管线（Phase1 无 K 线粗筛 + Phase2 TopN 精排），解决全市场超时（P0-01b）
+- **data**: `infer_exchange` 002/003 段强制判 sz，修复 sh002920 等误冠前缀导致整链路静默空输出（P0-02）
+- **market**: macro 字段全部追加 `_source` + 渲染 `[fixture]` 标注 + fixture 时结论置信度降级（P0-03 a/b/c）
+- **portfolio**: 成本来源 `cost_source`（screenshot/user_input/calculated）+ oplog 记录 `cost_before/cost_after`（P1-03）
+- **skills**: screener SKILL 增加"用 screener 前先跑 /market、/sector 确认板块状态"提示（P1-02b）
+- **skills**: sector SKILL 回避名单分类——"业绩反转陷阱"标记观察而非回避 + 反转触发条件（P2-01）
+- **market**: 修复 black 26.5.1 在 py3.14 下将 `except (ValueError, TypeError)` 破坏为 py2 语法的回归（`market_anchor.py`）
+
 ### Maintenance
 - **release**: v1.20.1 版本号同步 + CI 黑块修复 + 板块授权 + changelog 整理
 

@@ -63,7 +63,7 @@
 | 入门 | [CONTRIBUTING.md](../CONTRIBUTING.md) | 提交规范 + Commit 格式 |
 | 入门 | [CHANGELOG.md](../CHANGELOG.md) | 变更日志（Keep a Changelog 格式） |
 | 流程 | [skill-consolidation-plan.md](skill-consolidation-plan.md) | skill 整合决策记录 |
-| 流程 | [review-issues.md](review-issues.md) · [review-verification.md](review-verification.md) | 审查问题清单 + 验证记录 |
+| 流程 | [review-issues.md](review-issues.md) · [review-verification.md](review-verification.md) · [issues/2026-08-12-replay-meta-review.md](issues/2026-08-12-replay-meta-review.md) | 审查问题清单 + 验证记录 + 运行期元复盘（11 项 P0-P2） |
 | 流程 | [implementation-plan.md](implementation-plan.md) · [implementation-plan-2026-q3-q4.md](implementation-plan-2026-q3-q4.md) | 实施计划 + Q3/Q4 路线图 |
 
 ### 📐 审查视角（要做评审）
