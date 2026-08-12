@@ -4,7 +4,7 @@
 > **生成日期**：2026-08-12 08:10  
 > **来源**：单次会话内连续执行 market → stock×2 → sector → portfolio → screener 共 5 个 skill 后做的元层面复盘  
 > **规模**：11 个编号问题（3 P0 + 4 P1 + 4 P2）  
-> **修复进度**：P0-01 ✅（a+b）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-04 ✅｜P2-03 待办（默认行为变更，需单独确认）  
+> **修复进度**：P0-01 ✅（a+b）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-03 ✅（共享规范约束，非脚本行为变更）/ P2-04 ✅  
 > **关联文档**：[review-issues.md](../review-issues.md)（75 项深度审阅）· [screener-review.md](../screener-review.md)（选股器专项审查）· [architecture-review-2026-07-07.md](../architecture-review-2026-07-07.md)  
 > **关联 skill**：market / stock / sector / portfolio / screener
 
@@ -258,6 +258,11 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 2. 不要每份都写 4-5 张表
 3. 关键结论（首选 / 回避 / 风险）置顶，详细论证折叠
 
+**✅ 修复记录（2026-08-12）**：方向定为"强化执行约束"（不动脚本默认行为，避免影响所有调用方）。落地到共享规范（stock/market/sector/screener/research 5 份报告 SKILL 均已引用，全局生效）：
+- 第 2 条（表格上限）：`guardrails.md` §四 新增"表格上限"行（单报告 ≤3 张，quick ≤1 张，超出合并或改进度条）；`output-template.md` §六 同步
+- 第 3 条（折叠披露）：`output-template.md` 新增"折叠披露"小节——默认只渲染结论层（30 秒研判 + 决策卡片 + 核心数据表 + 数据护栏），详细论证折叠为"章节标题 + 一句话摘要"，用户要求展开再完整呈现；禁止 5 个并列全量章节平铺（默认至多 3 个）
+- 第 1 条（默认 --brief）维持现状：stock/market 已默认 quick，`--brief` 作为可选组合保留，不做全量代码级默认切换
+
 ---
 
 ### P2-04 持仓占位"组合占组合比例"建议过于密集
@@ -294,7 +299,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 | **P1-04** | 相关性过度乐观 | 窗口声明 + 压力测试 | 1 天 | ✅ 全部落地（a/b/c：window_notice + 双半窗口稳定性 + 显著性）|
 | **P2-01** | 反转陷阱粗糙 | 标记为观察 + 反转触发条件 | 0.5 天 | ✅ 已修复（sector SKILL.md 回避分类表）|
 | **P2-02** | 轮动期与建议错配 | 保守建议优先 | 0.5 天 | ✅ 已修复（market_anchor rotation advice）|
-| **P2-03** | 报告过长 | --brief 默认 + 关键结论置顶 | 1 天 | ⬜ 待办（默认行为变更，需确认）|
+| **P2-03** | 报告过长 | --brief 默认 + 关键结论置顶 | 1 天 | ✅ 已修复（guardrails/output-template 表格上限 + 折叠披露；stock/market 已默认 quick，--brief 保留为可选）|
 | **P2-04** | 持仓占位过密 | 实际总仓位计算 + 行业占比上限 | 0.5 天 | ✅ 行业重叠率已修复（industry_overlap + 30% 硬约束已有）；实际总仓位暂缓 |
 
 ---
