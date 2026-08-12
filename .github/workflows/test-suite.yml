@@ -1,0 +1,40 @@
+name: Test Suite (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: "Python 版本"
+        type: string
+        required: true
+      fail-under:
+        description: "覆盖率门槛"
+        type: string
+        default: "21"
+
+jobs:
+  test:
+    name: 单元与集成测试 (py${{ inputs.python-version }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置测试环境
+        uses: ./.github/actions/setup-test
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: 跑 unit + integration 测试
+        run: |
+          python -m pytest tests/integration/ tests/unit/ tests/contracts/ \
+            -x -q \
+            -m "not network" \
+            --timeout=60 \
+            -n auto \
+            --durations=10 \
+            --cov=scripts --cov=experts \
+            --cov-fail-under=${{ inputs.fail-under }}
+
+      - name: 跑 skill 元数据校验
+        run: python -m pytest tests/contracts/ -v

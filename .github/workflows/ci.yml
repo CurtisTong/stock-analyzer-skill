@@ -9,30 +9,17 @@ on:
 jobs:
   test:
     name: 单元与集成测试
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
       fail-fast: false
 
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 设置测试环境
-        uses: ./.github/actions/setup-test
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: 跑 unit + integration 测试
-        run: |
-          python -m pytest tests/integration/ tests/unit/ tests/contracts/ \
-            -x -q \
-            -m "not network" \
-            --timeout=60 \
-            -n auto \
-            --durations=10 \
-            --cov=scripts --cov=experts \
-            --cov-fail-under=21
+    # P0-13: 测试命令单一来源（.github/workflows/test-suite.yml），
+    # ci 与 release 复用同一套 pytest 参数，避免标准漂移。
+    uses: ./.github/workflows/test-suite.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      fail-under: 21
 
   checks:
     name: 代码检查

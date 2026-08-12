@@ -153,10 +153,12 @@ def test_model_field_valid(skill_path):
         ), f"{skill_path.parent.name}: model={model} 不在 {ALLOWED_MODELS}"
 
 
+# <SYNC-SKILL-VERSIONS:START>
 VERSION_OVERRIDES = {
     # 当前所有 skill 与主版本一致
 }
 DEFAULT_VERSION = "1.20.1"
+# <SYNC-SKILL-VERSIONS:END>
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)

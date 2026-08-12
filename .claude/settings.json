@@ -77,7 +77,15 @@
       "Bash(git push*--no-verify*)",
       "Bash(git commit*--no-verify:*)",
       "Bash(python3 scripts/calibration_sync.py *)",
-      "Bash(python3 scripts/calibration_backfill.py *)"
+      "Bash(python3 scripts/calibration_backfill.py *)",
+      "Edit(~/.claude/**)",
+      "Write(~/.claude/**)",
+      "Edit(secrets/**)",
+      "Write(secrets/**)",
+      "Edit(.env)",
+      "Write(.env)",
+      "Edit(**.env)",
+      "Write(**.env)"
     ],
     "defaultMode": "auto"
   }

@@ -61,10 +61,14 @@ def collect_overrides() -> dict[str, str]:
 
 
 def parse_existing_constants(test_text: str) -> tuple[str, dict[str, str]]:
-    """提取 test_skill_metadata.py 中现有的 DEFAULT_VERSION 和 VERSION_OVERRIDES。"""
+    """提取 test_skill_metadata.py 中现有的 DEFAULT_VERSION 和 VERSION_OVERRIDES。
+
+    P0-15: 优先按显式 sync boundary 锚点提取，避免正则猜结构。
+    """
+    text = _extract_sync_block(test_text)
     m_default = re.search(
         r'^(DEFAULT_VERSION\s*=\s*[\'"])([^\'"]+)([\'"])',
-        test_text,
+        text,
         re.MULTILINE,
     )
     if not m_default:
@@ -73,7 +77,7 @@ def parse_existing_constants(test_text: str) -> tuple[str, dict[str, str]]:
 
     m_overrides = re.search(
         r"^VERSION_OVERRIDES\s*=\s*\{(.*?)\n\}",
-        test_text,
+        text,
         re.MULTILINE | re.DOTALL,
     )
     overrides: dict[str, str] = {}
@@ -87,8 +91,25 @@ def parse_existing_constants(test_text: str) -> tuple[str, dict[str, str]]:
     return default, overrides
 
 
+def _extract_sync_block(test_text: str) -> str:
+    """按 sync boundary 锚点截取常量块；锚点缺失时回退到正则整块。"""
+    m = re.search(
+        r"# <SYNC-SKILL-VERSIONS:START>\n(.*?)# <SYNC-SKILL-VERSIONS:END>",
+        test_text,
+        re.DOTALL,
+    )
+    if m:
+        return m.group(1)
+    m_fallback = re.search(
+        r"^VERSION_OVERRIDES\s*=\s*\{.*?^\}\nDEFAULT_VERSION\s*=\s*[\"'][^\"']+[\"']\n",
+        test_text,
+        re.MULTILINE | re.DOTALL,
+    )
+    return m_fallback.group(0) if m_fallback else test_text
+
+
 def build_new_constants(default: str, overrides: dict[str, str]) -> str:
-    """生成新的常量块。"""
+    """生成新的常量块（不含 boundary 注释，由 sync() 包裹）。"""
     if not overrides:
         return f'VERSION_OVERRIDES = {{\n    # 当前所有 skill 与主版本一致\n}}\nDEFAULT_VERSION = "{default}"\n'
 
@@ -101,23 +122,42 @@ def build_new_constants(default: str, overrides: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
+_SYNC_START = "# <SYNC-SKILL-VERSIONS:START>"
+_SYNC_END = "# <SYNC-SKILL-VERSIONS:END>"
+
+
 def sync() -> int:
-    """执行同步：读 package.json + SKILL.md → 写回 test_skill_metadata.py。"""
+    """执行同步：读 package.json + SKILL.md → 写回 test_skill_metadata.py。
+
+    P0-15: 以显式 boundary 注释为定位锚点；锚点缺失时回退正则（兼容旧文件）。
+    """
     pkg_ver = get_package_version()
     overrides = collect_overrides()
     test_text = TEST_FILE.read_text(encoding="utf-8")
     old_default, old_overrides = parse_existing_constants(test_text)
 
     new_block = build_new_constants(pkg_ver, overrides)
+    anchored = f"{_SYNC_START}\n{new_block}{_SYNC_END}\n"
     pattern = re.compile(
-        r"^VERSION_OVERRIDES\s*=\s*\{.*?^\}\nDEFAULT_VERSION\s*=\s*[\"'][^\"']+[\"']\n",
+        r"# <SYNC-SKILL-VERSIONS:START>\n.*?# <SYNC-SKILL-VERSIONS:END>\n",
         re.MULTILINE | re.DOTALL,
     )
     if not pattern.search(test_text):
-        print("ERROR: 在 test_skill_metadata.py 找不到完整的常量块", file=sys.stderr)
-        return 1
+        # 无边界锚点：回退旧正则（整块 VERSION_OVERRIDES + DEFAULT_VERSION）
+        fallback = re.compile(
+            r"^VERSION_OVERRIDES\s*=\s*\{.*?^\}\nDEFAULT_VERSION\s*=\s*[\"'][^\"']+[\"']\n",
+            re.MULTILINE | re.DOTALL,
+        )
+        if not fallback.search(test_text):
+            print(
+                "ERROR: 在 test_skill_metadata.py 找不到常量块（含 boundary 锚点）",
+                file=sys.stderr,
+            )
+            return 1
+        new_text = fallback.sub(new_block, test_text, count=1)
+    else:
+        new_text = pattern.sub(anchored, test_text, count=1)
 
-    new_text = pattern.sub(new_block, test_text, count=1)
     if new_text == test_text:
         return 0
 

@@ -103,8 +103,8 @@
 | **P0-07** | experts / 决策文档 | `decide.md` 中"巴菲特否决"规则与代码不一致 | `experts/decide.md`、`experts/vote_engine.py` | LLM 根据文档会得出错误决策预期 | ✅ 2026-08-12 状态补记（decide.md:87,93 已改为"巴菲特警示：中长期信心-15；短期长线组×0.8"，与代码一致） |
 | **P0-08** | experts / 校准公式 | 校准因子公式在 mean_rate=0.5 时给负校准，反直觉 | `experts/calibration.py`、`experts/decide.md` | 代码与文档一致（非不一致 bug），但 mean_rate=0.5（无信息）时给 -0.5 负惩罚属设计争议 | ~~P0~~ **降级 P2**：改为 `(mean_rate - 0.5) * 2 * (1 - min(cv, 0.5))`，mean_rate=0.5 时归零 |
 | **P0-09** | experts / 投票 | `aggregate_group_votes` 中 `all(s <= 30)` 强烈看空分支永远不可达 | `experts/vote_engine.py` | 极端全空场景被标成普通看空 | ✅ 2026-08-12 状态补记（vote_engine.py:797 `all(s <= 30)` 已提到普通 bear 分支之前，注释标明决定顺序） |
-| **P0-10** | strategies / 回测 | 回测 `quality` 因子使用最新财务快照，存在 lookahead bias | `scripts/backtest/engine.py` | 回测收益系统性高估 | 至少在 README 明示；更优是按财报披露日过滤可见财务数据 |
-| **P0-11** | strategies / 过拟合 | MA+成交量战法胜率来自样本内拟合，无 walk-forward 验证 | `scripts/strategies/patterns/ma_volume_strategy.py`、`scripts/backtest/` | 用户可能误认为战法稳定有效 | 增加 walk-forward 验证，报告 IS/OOS Sharpe 退化比 |
+| **P0-10** | strategies / 回测 | 回测 `quality` 因子使用最新财务快照，存在 lookahead bias | `scripts/backtest/engine.py` | 回测收益系统性高估 | ✅ Round 10 已修（engine.py:65-68 `_FINANCE_DISCLOSURE_LAG_DAYS=90` 披露延迟过滤，防 lookahead bias；README 明示） |
+| **P0-11** | strategies / 过拟合 | MA+成交量战法胜率来自样本内拟合，无 walk-forward 验证 | `scripts/strategies/patterns/ma_volume_strategy.py`、`scripts/backtest/` | 用户可能误认为战法稳定有效 | ✅ Round 10 已修（scripts/backtest/walk_forward.py OOS 验证框架 + patterns/config.json `oos_validated:false`，报告 IS/OOS 退化比） |
 | **P0-12** | strategies / 因子计算 | `event` / `analyst` 权重为 0 但仍默认计算，可能触发冗余网络请求 | `scripts/strategies/factors/`、`scripts/strategies/registry.py` | 全市场筛选浪费大量 IO | 加 feature flag，默认禁用这两个因子 |
 | **P0-13** | CI / 发布 | `release.yml` 和 `ci.yml` 重复跑全量测试，且 release 标准更宽松 | `.github/workflows/release.yml`、`.github/workflows/ci.yml` | 发布版本可能绕过 CI 覆盖率门槛 | release 复用 CI 结果，或保持相同 pytest 参数 |
 | **P0-14** | CI / CHANGELOG | `changelog.yml` 直接 push main，无并发控制 | `.github/workflows/changelog.yml` | 多 commit 并发时 push 冲突，且自动提交可能绕过 CI | 改 PR 模式，加 `concurrency` 和 rebase retry |
@@ -127,10 +127,10 @@
 | **P1-09** | experts | 单组/双组短线"均分驱动"语义不一致 | `experts/decide.md`、`experts/vote_engine.py` | 文档明确双组短线均分驱动，单组投票驱动 |
 | **P1-10** | experts | 校准 verify 仍需人工触发，无法真正防漂移（record 已自动） | `experts/calibration.py`、`scripts/calibration.py` | record_prediction 已由 run_debate 自动调用（decide.py:87）；verify 自动拉价回调已具备但需人工跑 CLI | verify 增加定时调度/自动到期验证 |
 | **P1-11** | experts | 龙头地位仅近似、龙虎榜未纳入（炸板率已纳入） | `experts/scoring/*` | 炸板率已纳入 chaogu_yangjia.py:46；龙头地位用回撤近似（zhao_laoge.py:7-9 自认缺陷）；龙虎榜全缺失 | 给 zhao_laoge 增加 dragon_tiger 输入；龙头地位接入板块横截面排名 |
-| **P1-12** | technical | 缠论中枢缺少 GG/DD 边界 | `scripts/chan/zhongshu.py` | 增加 `gg=max(high)`、`dd=min(low)` |
+| **P1-12** | technical | 缠论中枢缺少 GG/DD 边界 | `scripts/chan/zhongshu.py` | 增加 `gg=max(high)`、`dd=min(low)`；✅ Round 8 已修（zhongshu.py:29-31 GG=max(high)/DD=min(low)） |
 | **P1-13** | technical | `chan/__init__.py` 声明"线段未使用特征序列"已过时（实际已启用） | `scripts/chan/__init__.py` | `__init__.py:7` 称"未使用特征序列"，但 `xianduan.py:45,89` 默认启用特征序列；其余条目（GG/DD 缺失等）准确 | 更新注释，区分"已修复"和"仍偏离标准"的部分 |
 | **P1-14** | technical | `_find_swing_points` 依赖未来窗口，背离检测含前瞻性 | `scripts/technical/core.py` | 增加 past-only 版本；报告中标注 `lookahead_required` |
-| **P1-15** | technical | `composite_score` 依赖 `_SCORE_MAX` 魔数归一化 | `scripts/technical/scoring.py` | 改 rank-based scoring 或 `_SCORE_TARGET` |
+| **P1-15** | technical | `composite_score` 依赖 `_SCORE_MAX` 魔数归一化 | `scripts/technical/scoring.py` | 改 rank-based scoring 或 `_SCORE_TARGET`；✅ Round 10 已修（scoring.py:22 `_SCORE_MAX_DEFAULT` 模块级常量 + scoring.yaml 可覆盖） |
 | **P1-16** | technical | `signals` 用字符串子串判断金叉/死叉/超买超卖 | `scripts/technical/signals.py` | 改结构化 dict，如 `{"golden_cross": true}` |
 | **P1-17** | business | `_calculate_composite_score` 误传个股 quote 当指数 quote 做市场环境检测 | `scripts/business/stock_analysis.py` | analyze() 传 `index_quote=quote`（个股，:118），detect_market_environment 在个股 quote 上做市场环境判定（:233）；get_quote("sh000001") 成死代码 | 在 analyze() 并行拉取 sh000001 指数行情，显式传入 |
 | **P1-18** | business | 行情/K线/财务统一 30s timeout，不区分数据类型 | `scripts/business/stock_analysis.py` | 行情 15s、K线 25s、财务 45s，或由 fetcher 配置控制 |
@@ -138,14 +138,14 @@
 | **P1-20** | business | `risk_warning.py` 几乎未被 portfolio/monitor 消费 | `scripts/business/risk_warning.py` | 删除或接入 monitor/portfolio 风控链路 |
 | **P1-21** | business | `position_var_summary` 用 `CVaR = VaR * 1.2` 经验常数 | `scripts/business/risk_metrics.py` | 使用历史收益计算 historical VaR / CVaR |
 | **P1-22** | business | ST 过滤在 `universe_loader` 和 `_hard_filter` 双轨实现 | `scripts/business/universe_loader.py`、`scripts/business/screening_service.py` | 统一调用 `data.pool.is_st()` |
-| **P1-23** | skills | `script-catalog.md` 漏列 6 个顶层脚本，缺 CI 校验 | `skills/_shared/references/script-catalog.md` | 漏列 calibration_backfill/sync、market_breadth、multi_stock_backtest、perf_bench、portfolio_web（引用的脚本均存在）；现有测试不校验 catalog 与 scripts/ 双向一致 | 用脚本自动生成 catalog，并加 CI 校验 |
+| **P1-23** | skills | `script-catalog.md` 漏列 6 个顶层脚本，缺 CI 校验 | `skills/_shared/references/script-catalog.md` | 漏列 calibration_backfill/sync、market_breadth、multi_stock_backtest、perf_bench、portfolio_web（引用的脚本均存在）；现有测试不校验 catalog 与 scripts/ 双向一致 | ✅ Round 9 已修（scripts/dev/gen_script_catalog.py 自动生成 + CI 校验） |
 | **P1-24** | skills | `five-layer.md` 与 `stock/SKILL.md` 重复声明评级框架 | `skills/stock/SKILL.md`、`skills/_shared/references/five-layer.md` | 只保留共享文档为权威源 |
 | **P1-25** | skills | `market briefing` 与 `monitor briefing` 定义重叠 | `skills/market/SKILL.md`、`skills/monitor/SKILL.md` | 明确 market=市场面，monitor=持仓面，并互相引用 |
-| **P1-26** | tests | `StockAnalysisService.analyze` 缺测试覆盖 | `tests/test_business.py` | mock quote/kline/finance，覆盖成功、部分失败、全部失败 |
-| **P1-27** | tests | 缺 13 个 skill 真实工作流端到端测试 | `tests/e2e/` | 新增 `test_skill_workflow.py` 参数化跑 13 个 skill 主命令 |
+| **P1-26** | tests | `StockAnalysisService.analyze` 缺测试覆盖 | `tests/test_business.py` | mock quote/kline/finance，覆盖成功、部分失败、全部失败；✅ Round 8 已修（tests/integration/test_stock_analysis_wp4.py 覆盖成功/部分失败/全失败） |
+| **P1-27** | tests | 缺 13 个 skill 真实工作流端到端测试 | `tests/e2e/` | 新增 `test_skill_workflow.py` 参数化跑 13 个 skill 主命令；✅ Round 10 已修（tests/e2e/test_skill_workflow.py 参数化跑 13 skill） |
 | **P1-28** | CI | `tests/conftest.py` autouse fixture 捕获所有异常并 pass | `tests/conftest.py` | 只捕获 `ImportError`，其他异常应暴露 |
 | **P1-29** | CI | pre-commit 的核心 pytest hook 是 `manual`，默认不跑 | `.pre-commit-config.yaml` | 增加 quick test hook 到 pre-commit，完整测试保留 manual |
-| **P1-30** | config | `scoring.yaml` 有 DEPRECATED 死配置，修改不生效 | `scripts/config/scoring.yaml` | 删除或加 `expiry_version` + CI linter |
+| **P1-30** | config | `scoring.yaml` 有 DEPRECATED 死配置，修改不生效 | `scripts/config/scoring.yaml` | 删除或加 `expiry_version` + CI linter；✅ Round 8/9 已修（scoring.yaml DEPRECATED 段清理 + expiry_version 机制） |
 
 ---
 
