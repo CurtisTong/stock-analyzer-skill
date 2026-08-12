@@ -60,9 +60,10 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 4. **兜底**：若短期无法修复，应在 SKILL.md 和 CLI help 明确标注"全市场模式可能超时，建议分批按板块筛选"
 
 **修复记录**：
-- 2026-08-12：**P0-01a 已修复**。`scripts/common/screener_watchdog.py` 默认 deadline 600→1800 秒（`DEFAULT_DEADLINE_SEC`），同步更新 `screener.py --deadline` help 与 `_resolve_deadline` docstring（commit 待填）
+- 2026-08-12：**P0-01a 已修复**。`scripts/common/screener_watchdog.py` 默认 deadline 600→1800 秒（`DEFAULT_DEADLINE_SEC`），同步更新 `screener.py --deadline` help 与 `_resolve_deadline` docstring（commit c84004b）
 - 2026-08-12：**P0-01b 已修复**。根因定位：复现命令**未传 `--two-stage`**，full_market 默认走单阶段路径，对预筛后全部 ~3323 只 `prefetch_kline_all` 拉 K 线（`screening_pipeline.py` 单阶段分支），远超 deadline 而超时。修复：`run_screening` 中 full_market 强制走两阶段管线（`if args.two_stage or args.full_market:`）——Phase1 仅 quote+Top500 财务粗筛不拉 K 线，Phase2 仅 Top N×3 拉 K 线精排。`--two-stage` 本身已生效，无需重写管线
 - P0-01c（本地 K 线缓存）：**已隐含实现，验证完成**。`get_kline()`（`scripts/data/__init__.py`）已接 `common.cache` 磁盘缓存，key = `kline_{code}_{sha256(scale,datalen,格式版本)}`（等价于建议的 `code_scale_datalen`，另含版本号防格式变更污染），日 K TTL 1h、分钟 K 30s、其他周期 6h；screener 的 `prefetch_kline_all`（`scripts/data/helpers.py`）即走 `get_kline`，无需新代码。新增 `tests/unit/test_kline_cache_p001c.py`（3 项：同参二次调用命中缓存 / 参数变化独立缓存 / 批量复用缓存）验证通过。缓存目录为项目根 `.cache/`（非 issue 建议的 `data/cache/kline/`，机制等价且纳入统一 TTL 抖动/原子写/体积上限清理）
+- 2026-08-12：**端到端验证观察（P0-01 后续）**。真实环境跑 `screener.py --full-market --strategy balanced --top 5`：进程 9min 无输出、CPU ~1%、缓存不增长——**复现数据源挂起**，但卡点在**财务批量阶段**（`prefetch_finance_all` 480s 超时窗口后仍未释放），非 K 线拉取（两阶段修复有效：Phase2 仅 Top N×3 拉 K 线）。结论：full_market 依赖 1800s watchdog 兜底仍成立，但用户 30min 无反馈体验差。后续建议（未实施）：screener 增加阶段进度 stderr 输出（Phase1 完成/Phase2 进行中），或按数据源拆分财务批量超时
 
 **关联**：`docs/screener-review.md` 中可能已有相关问题，待对照。
 
@@ -86,7 +87,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 3. **P0-02c**：当代码不存在/为空时，脚本应**显式返回错误码**而非空数组
 
 **修复记录**：
-- 2026-08-12：`infer_exchange()` 增加 `002/003 -> sz` 强制判定，二义范围收窄为 `000`（commit 待填）；`tests/unit/test_common_utils.py` 更新 `SH002335 -> sz` 断言并新增 `sh002920 -> sz002920` 回归用例
+- 2026-08-12：`infer_exchange()` 增加 `002/003 -> sz` 强制判定，二义范围收窄为 `000`（commit a742d2f）；`tests/unit/test_common_utils.py` 更新 `SH002335 -> sz` 断言并新增 `sh002920 -> sz002920` 回归用例
 - 验证：`python3 -m pytest tests/unit/test_common_utils.py` → 144 passed；`normalize_quote_code('sh002920')` → `sz002920`，`normalize_quote_code('sh000001')` → `sh000001` 不受影响
 
 ---
