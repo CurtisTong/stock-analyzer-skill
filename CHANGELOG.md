@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.20.1（2026-08-12）已发布，screener 整体任务超时 watchdog + 新增 sector_summary CLI（akshare 同花顺 + 东财 push2 + sector_etf 拼接三级降级）；CI 黑块修复（black 19 文件 / ruff F601+F821 / sector allowed-tools 授权 sector_summary）+ 数据快照刷新。
+> 🟢 **当前状态**：v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + experts/config/dev 类型清零 + 修复 screener 主线偏离警告静默失效 bug + dcf/cyclical 双命名回归；v1.20.1（2026-08-12）screener 整体任务超时 watchdog + 新增 sector_summary CLI（akshare 同花顺 + 东财 push2 + sector_etf 拼接三级降级）。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.20.2 | 2026-08-13 | mypy 白名单扩至 203 文件（10 目录 + 5 顶层脚本）+ experts/config/dev 类型清零 + 修复 screener 主线偏离警告静默失效 bug + dcf/cyclical 双命名冲突回归修复 |
 | 1.20.1 | 2026-08-12 | screener 整体任务超时 watchdog + sector_summary CLI + CI 黑块修复（black 19 文件 / ruff F601+F821 / sector 授权 sector_summary）+ 数据快照 |
 | 1.20.0 | 2026-08-08 | screener 三段式漏斗 + 板块模式放宽容差 + regime 新增 RANGE_CHOPPY + 高波震荡动量提权 + akshare 行业补全 fetcher + market 数据时效三档 + 涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告 |
 | 1.19.0 | 2026-08-05 | 数据源降级可观测性 + P1 健康度：monitor 新增 akshare 探活 + baostock IP 风险 + 跨源校验；五层分析 data_sources 透传真实数据源名；缓存命中双重归一化修复 + 18 项数据源/导入/API/格式 Bug |
@@ -56,8 +57,11 @@
 - **common**: mypy 21 错误清零（v2.7 #1）——`_connection_pool` 实际存 `tuple[HTTPConnection, float]` 但标注 `list[HTTPConnection]`、`_parse_url` 返回顺序标错、`BaseFetcher.fetch` 返回类型补 `_NotHandled` 哨兵 + 4 处 identity check 改 `isinstance` 窄化、requests 响应 None 守卫、`key: str=None` 补 union、`value: Any`、unused `type: ignore` 与 atexit None 防御清理；**common/ 已纳入 CI + pre-commit mypy 白名单**（26 文件校验通过）
 - **all**: mypy 白名单扩至 78 文件（v2.7 #1 扩展）——fetchers/ 43 + business/ 34 文件 50 错误清零：`from common import` 异常改从 `common.exceptions` 正确源导入、混合 dict 字面量显式 `dict[str, Any]`（stock_analysis/flow/_base_bulk 等）、`_NotHandled` 返回类型补全、`risk_warning` mapping 同名遮蔽拆 `mapping_int/mapping_str`、`is_st` 遮蔽改 `is_st_flag`、`kline_bars: list=None` 补 union、`benchmark_weights: dict|None` + assert 窄化；mypy.ini 为 strategies/refresh_pool 门面模块开 `implicit_reexport`，删除失效 experts section
 - **portfolio/skills/tests**: Review 全量推进——review-issues 主表 44 项全部收敛（P0-01~15 权限/配置/CI/校准公式 + P1-01~30 fetcher 精确匹配与 is_minimal/净吞错/定时自动校准验证/龙虎榜与龙头横截面接入/缠论与 swing points/结构化 signals/市场环境指数行情/时间超时分层/hard filter 分离/historical VaR/ST 单轨/脚本-catalog 等；P2-P1 portfolio 4 模块拆分已 3/4）
+- **all**: mypy 白名单扩至 203 文件（v2.7 #1 收尾，2026-08-13）——扩展 technical/strategies/data/portfolio/monitor/backtest/config/dev 8 目录入 CI + pre-commit mypy 白名单，白名单命令 203 文件零错误；`dcf.py` 改回裸 import（上一轮改 `from scripts import` 引入 `macro_indicators` 双身份冲突使旧 CI 命令回归失败）、`cyclical.py` 改 importlib 延迟加载消解同因冲突；修复顶层 CLI 互引 re-export 下的 attr-defined（mypy.ini 开 quote/screener `implicit_reexport`）；chip/sector result dict 显式标注
 
 ### Fixed
+- **screener**: 修复主线偏离警告静默失效 bug——`_print_mainline_deviation_warning` 引用的 `SECTOR_ETFS`（sector_etf_strength **从未导出**，早已改名 SECTOR_ETF_CSV）被 `except Exception: return` 吞掉导致警告永久不生效，改用 `_load_sector_etfs()`
+- **experts/config/dev**: 类型清零——`scoring/_utils` score float 标注、`vote_engine` 查找字典键 str 窄化、`momentum_trader` `module_from_spec` None 守卫、`calibration` `data.get_kline` 依赖路径、config `loader` value Any、dev `cross_validate_sources` `_NotHandled`/set 类型、`experts_cli` float 防御
 - **screener**: watchdog 默认超时 600→1800s（P0-01a）
 - **screener**: full_market 强制走两阶段管线（Phase1 无 K 线粗筛 + Phase2 TopN 精排），解决全市场超时（P0-01b）
 - **data**: K 线本地磁盘缓存验证（P0-01c）——`get_kline`/`prefetch_kline_all` 已接 common.cache（key 含 code+scale+datalen，日 K 1h TTL），新增 `test_kline_cache_p001c` 3 项验证缓存命中与参数隔离
