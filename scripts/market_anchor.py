@@ -533,9 +533,24 @@ def _interpret_northbound(total_yi: float, slope: str, direction: str) -> str:
 
 
 def _fetch_sector_rotation(window: int = 5) -> dict | None:
-    """题材轮动强度（透出 sector_etf_strength.compute_rotation_strength）。"""
+    """题材轮动强度（透出 sector_etf_strength.compute_rotation_strength）。
+
+    P2-02：剧烈轮动期（strength>3）附加保守操作建议，避免输出与"分层操作
+    建议"错配——主线切换中，分层建议会迅速失效。
+    """
     try:
-        return sector_etf_strength.compute_rotation_strength(window=window)
+        result = sector_etf_strength.compute_rotation_strength(window=window)
+        if result and result.get("rotation_strength") is not None:
+            if result["rotation_strength"] > 3:
+                result["advice"] = (
+                    "剧烈轮动期（主线切换中）：减少新增仓位，优先减仓弱势持仓，"
+                    "等待主线明确后再考虑进攻/分层配置"
+                )
+            else:
+                result["advice"] = (
+                    "轮动强度适中：可维持现有配置，结合板块强弱做均衡布局"
+                )
+        return result
     except Exception as e:
         logger.warning("题材轮动计算失败: %s", e)
         return {"data_quality": {"degraded_fields": ["sector_rotation"]}}
@@ -985,6 +1000,12 @@ def to_markdown(payload: dict) -> str:
                     f"- 碳酸锂: ¥{lithium}/吨"
                     f"{_source_tag(macro, 'lithium_carbonate_cny_t')}"
                 )
+            # P0-03c: 存在 fixture 字段时降级宏观结论置信度，避免把预置数据当实时研判
+            if fixture_fields:
+                lines.append(
+                    f"  ⚠️ 宏观结论置信度降级：{len(fixture_fields)} 个字段为预置/兜底数据，"
+                    "据此得出的宏观判断仅供参考"
+                )
         if leverage:
             mg = leverage.get("margin_balance_total_yi")
             mg_chg = leverage.get("margin_change_5d_pct")
@@ -1042,6 +1063,11 @@ def to_markdown(payload: dict) -> str:
             f"### 📈 行业 beta ({ib.get('stock_code', '')} vs {ib.get('index_code', '')})"
         )
         lines.append(f"- beta: {ib['beta']}（{ib.get('interpretation', '')}）")
+        if ib.get("interpretation_confidence"):
+            lines.append(
+                f"- 解读置信度: {ib['interpretation_confidence']}"
+                "（R² <0.3 时 beta 参考价值有限）"
+            )
         if ib.get("alpha_annual") is not None:
             lines.append(f"- 年化 alpha: {ib['alpha_annual'] * 100:.2f}%")
         if ib.get("r_squared") is not None:
@@ -1074,11 +1100,27 @@ def to_markdown(payload: dict) -> str:
                 for pair in hp[:3]:
                     lines.append(f"  - {pair[0]} <-> {pair[1]}: {pair[2]}")
             lines.append(f"- 解读: {pc.get('interpretation', '')}")
+            st = pc.get("stability")
+            if st:
+                lines.append(
+                    f"- 相关性稳定性: {'稳定' if st.get('stable') else '⚠️ 不稳定'}"
+                    f"（{st.get('sign_flips', 0)}/{st.get('n_pairs', 0)} 对"
+                    "后半段符号翻转，最大变化 "
+                    f"{st.get('max_delta', 'N/A')}）"
+                )
             vp = pc.get("vs_portfolio")
             if vp and vp.get("vs_portfolio_avg_corr") is not None:
                 lines.append(
                     f"- 个股 vs 组合: {vp['vs_portfolio_avg_corr']}（{vp.get('diversification_benefit', '')}）"
                 )
+            if vp.get("corr_confidence"):
+                lines.append(f"- 相关性结论置信度: {vp['corr_confidence']}")
+            ov = pc.get("industry_overlap")
+            if ov and ov.get("message"):
+                lines.append(f"- 行业重叠: {ov['message']}")
+            wnotice = pc.get("window_notice")
+            if wnotice:
+                lines.append(f"- ⚠️ {wnotice}")
 
     # v2.7.0 新增：题材轮动强度
     sr = payload.get("sector_rotation")
@@ -1099,6 +1141,8 @@ def to_markdown(payload: dict) -> str:
             faller_str = ", ".join(f"{f[1]} -{f[2]}" for f in fallers[:3])
             lines.append(f"- 位次下降: {faller_str}")
         lines.append(f"- 解读: {sr.get('interpretation', '')}")
+        if sr.get("advice"):
+            lines.append(f"- 操作建议: {sr['advice']}")
 
     # v2.7.0 新增：北向资金边际定价者
     nb = payload.get("northbound_pricer")

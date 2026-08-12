@@ -159,10 +159,29 @@ def _ols_beta(r_stock: list, r_index: list) -> dict | None:
     }
 
 
-def _interpret_beta(beta: float | None) -> str:
-    """beta 解读。"""
+def _interpret_beta(beta: float | None, r_squared: float | None = None) -> str:
+    """beta 解读（P1-01c：结合 R² 修正，低 R² 时不再武断报防御型）。"""
     if beta is None:
         return "数据不足"
+    # 低 R²：个股与基准相关性弱，beta 数值参考价值有限，优先提示独立行情
+    if r_squared is not None:
+        if r_squared < 0.1:
+            return "与基准低相关（独立行情）：beta 数值参考价值有限"
+        if r_squared < 0.3:
+            prefix = "与基准相关性偏弱，beta 解读适度降级："
+        else:
+            prefix = ""
+        if beta < 0:
+            return prefix + "负 beta：与市场反向（避险/反向 ETF 特征）"
+        if beta < 0.5:
+            return prefix + "超防御型：弹性远小于市场（公用事业/必需消费）"
+        if beta < 0.8:
+            return prefix + "防御型：弹性小于市场"
+        if beta < 1.2:
+            return prefix + "同步型：与市场同向同幅"
+        if beta < 1.5:
+            return prefix + "成长型：弹性大于市场"
+        return prefix + "高弹性：弹性远大于市场（周期/小盘/科技）"
     if beta < 0:
         return "负 beta：与市场反向（避险/反向 ETF 特征）"
     if beta < 0.5:
@@ -174,6 +193,17 @@ def _interpret_beta(beta: float | None) -> str:
     if beta < 1.5:
         return "成长型：弹性大于市场"
     return "高弹性：弹性远大于市场（周期/小盘/科技）"
+
+
+def _r2_confidence(r_squared: float | None) -> str:
+    """基于 R² 的解读置信度（P1-01c）。"""
+    if r_squared is None:
+        return "低"
+    if r_squared >= 0.7:
+        return "高"
+    if r_squared >= 0.3:
+        return "中"
+    return "低"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -236,6 +266,7 @@ def compute_beta(
                 "volatility_pct": None,
                 "n_observations": 0,
                 "interpretation": "K 线缺失",
+                "interpretation_confidence": "低",
                 "data_quality": {"degraded_fields": degraded},
             }
 
@@ -259,6 +290,7 @@ def compute_beta(
                 "volatility_pct": None,
                 "n_observations": len(r_stock),
                 "interpretation": "数据不足（<10 观测值）",
+                "interpretation_confidence": "低",
                 "data_quality": {"degraded_fields": degraded + ["industry_beta.ols"]},
             }
 
@@ -267,7 +299,10 @@ def compute_beta(
             "index_code": index_code,
             "window": window,
             **ols_result,
-            "interpretation": _interpret_beta(ols_result["beta"]),
+            "interpretation": _interpret_beta(
+                ols_result["beta"], ols_result["r_squared"]
+            ),
+            "interpretation_confidence": _r2_confidence(ols_result["r_squared"]),
             "data_quality": {"degraded_fields": degraded},
         }
     except Exception as e:
@@ -283,6 +318,7 @@ def compute_beta(
             "volatility_pct": None,
             "n_observations": 0,
             "interpretation": f"异常: {type(e).__name__}",
+            "interpretation_confidence": "低",
             "data_quality": {"degraded_fields": ["industry_beta"]},
         }
 
@@ -319,6 +355,9 @@ def main():
             f"  Alpha: {result['alpha']} (年化 {result['alpha_annual'] * 100 if result['alpha_annual'] else 'N/A'}%)"
         )
         print(f"  R²: {result['r_squared']}")
+        conf = result.get("interpretation_confidence")
+        if conf:
+            print(f"  解读置信度: {conf}（R² <0.3 时 beta 参考价值有限）")
         print(f"  年化波动率: {result['volatility_pct']}%")
         print(f"  观测值: {result['n_observations']}")
         print(f"  解读: {result['interpretation']}")

@@ -21,9 +21,12 @@
 import json
 import sys
 import argparse
+import logging
 import statistics
 from pathlib import Path
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 # 确保 scripts/ 在 import 路径
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -34,6 +37,60 @@ from sector import _load_sector_stocks, find_sector_by_code  # noqa: E402 复用
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 SECTOR_ETF_CSV = DATA_DIR / "sector_etf.csv"
+STOCK_SECTOR_MAP_JSON = DATA_DIR / "stock_sector_map.json"
+
+
+def _load_stock_sector_map() -> dict:
+    """加载股票→细分行业映射（P1-01b）。
+
+    文件结构：
+      {
+        "stocks": {code: 行业名, ...},       # 细粒度归属
+        "industry_proxy": {行业名: 代理ETF},  # 行业名→ETF（合并进 _SECTOR_TO_ETF_PROXY）
+      }
+    失败返回空 dict。
+    """
+    if not STOCK_SECTOR_MAP_JSON.exists():
+        return {}
+    try:
+        return json.loads(STOCK_SECTOR_MAP_JSON.read_text(encoding="utf-8"))
+    except Exception as e:  # noqa: BLE001 — 数据文件损坏不应阻塞主链路
+        logger.warning("stock_sector_map.json 加载失败: %s", e)
+        return {}
+
+
+# 板块/行业名 → ETF 代理（P1-01a：覆盖机器人/PCB·AI算力/电力/石化/家电等原盲区）
+# 运行时与 stock_sector_map.json 的 industry_proxy 合并（后者可覆盖/新增）
+_SECTOR_TO_ETF_PROXY = {
+    "消费": "sh512690",  # 白酒 ETF（消费核心代理）
+    "医药": "sh512010",  # 医药 ETF
+    "半导体": "sh512480",  # 半导体 ETF
+    "新能源": "sh515030",  # 新能源车 ETF
+    "光伏": "sh515790",  # 光伏 ETF
+    "军工": "sh512660",  # 军工 ETF
+    "科技": "sh512480",  # 科技 → 半导体 ETF（最热细分）
+    "机器人": "sh562500",  # 机器人 ETF（P1-01a 补盲区）
+    "PCB/AI算力": "sh515980",  # AI 算力 → 人工智能 ETF（P1-01a 补盲区）
+    "金融": "sh512800",  # 银行 ETF（金融最大子板块）
+    "资源": "sh518880",  # 黄金 ETF（资源避险代理）
+    "电力": "sz159611",  # 电力 ETF（P1-01a 补盲区）
+    "石化": "sh516020",  # 化工 ETF（石化属化工大类，P1-01a 补盲区）
+    "高股息": "sh510050",  # 上证50 ETF（高股息密集）
+    "家电": "sz159996",  # 家电 ETF（P1-01a 补盲区）
+    # 周期子类（煤化工/化工原料）→ 化工ETF（覆盖原"无对应 ETF"盲区）
+    "周期": "sh516020",  # 化工ETF（煤化工=化工子板块，含煤制烯烃/煤制甲醇）
+    "煤化工": "sh516020",  # 化工ETF（煤化工属化工大类）
+    "化工": "sh516020",  # 化工ETF（直接代理）
+    "煤炭": "sh515220",  # 煤炭ETF（煤化工上游成本代理）
+    # P1-01a 新增细分代理（行业名 → ETF）
+    "智能汽车": "sh515250",
+    "汽车电子": "sh515250",
+    "通信": "sh515880",
+    "通信设备": "sh515880",
+    "人工智能": "sh515980",
+    "游戏": "sh516010",
+    "传媒": "sh516010",
+}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -223,39 +280,29 @@ def build_stock_sector_compare(
         任一字段缺失都标记为 None + degraded。
     """
     # 反查个股所属板块（基于 sector_stocks.json）
-    sector_data = _load_sector_stocks()
-    sectors = find_sector_by_code(stock_code, sector_data) if sector_data else []
+    # 归属来源链：stock_sector_map(stocks) → sector_stocks.json → 代码段推断
+    _stock_sector_map = _load_stock_sector_map()
+    _ssm_stocks = _stock_sector_map.get("stocks", {})
+    _ssm_sector = _ssm_stocks.get(stock_code) if isinstance(_ssm_stocks, dict) else None
+    if _ssm_sector:
+        sectors = [_ssm_sector]
+        sector_source = "stock_sector_map"
+    else:
+        sector_data = _load_sector_stocks()
+        sectors = find_sector_by_code(stock_code, sector_data) if sector_data else []
+        sector_source = "sector_stocks"
 
-    # 把 sector_stocks.json 粗粒度板块名映射到 sector_etf.csv 细粒度 ETF
-    # 显式映射：粗粒度板块由哪个 ETF 代理（解决 "消费" vs "白酒ETF" 不匹配）
-    _SECTOR_TO_ETF_PROXY = {
-        "消费": "sh512690",  # 白酒 ETF（消费核心代理）
-        "医药": "sh512010",  # 医药 ETF
-        "半导体": "sh512480",  # 半导体 ETF
-        "新能源": "sh515030",  # 新能源车 ETF
-        "光伏": "sh515790",  # 光伏 ETF
-        "军工": "sh512660",  # 军工 ETF
-        "科技": "sh512480",  # 科技 → 半导体 ETF（最热细分）
-        "机器人": None,  # 无对应 ETF（覆盖盲区）
-        "PCB/AI算力": None,  # 无对应 ETF（覆盖盲区）
-        "金融": "sh512800",  # 银行 ETF（金融最大子板块）
-        "资源": "sh518880",  # 黄金 ETF（资源避险代理）
-        "电力": None,  # 无对应 ETF（覆盖盲区）
-        "石化": None,  # 无对应 ETF（覆盖盲区）
-        "高股息": "sh510050",  # 上证50 ETF（高股息密集）
-        "家电": None,  # 无对应 ETF（覆盖盲区）
-        # 周期子类（煤化工/化工原料）→ 化工ETF（覆盖原"无对应 ETF"盲区）
-        "周期": "sh516020",  # 化工ETF（煤化工=化工子板块，含煤制烯烃/煤制甲醇）
-        "煤化工": "sh516020",  # 化工ETF（煤化工属化工大类）
-        "化工": "sh516020",  # 化工ETF（直接代理）
-        "煤炭": "sh515220",  # 煤炭ETF（煤化工上游成本代理）
-    }
+    # P1-01b: 合并 stock_sector_map.json 的 industry_proxy（细粒度行业名 → ETF）
+    _industry_proxy = _stock_sector_map.get("industry_proxy", {})
+    proxy_map = dict(_SECTOR_TO_ETF_PROXY)
+    if isinstance(_industry_proxy, dict):
+        proxy_map.update(_industry_proxy)
 
     matched_etf = None
     matched_via = None
     if sectors:
         for sec in sectors:
-            proxy_code = _SECTOR_TO_ETF_PROXY.get(sec)
+            proxy_code = proxy_map.get(sec)
             if proxy_code:
                 for etf in sector_etfs:
                     if etf["code"] == proxy_code and etf.get("data_ok"):
@@ -338,6 +385,7 @@ def build_stock_sector_compare(
     return {
         "stock_code": stock_code,
         "stock_sectors": sectors or None,
+        "sector_source": sector_source,
         "matched_etf": matched_etf["code"] if matched_etf else None,
         "matched_etf_name": matched_etf["name"] if matched_etf else None,
         "stock_change_pct": (
