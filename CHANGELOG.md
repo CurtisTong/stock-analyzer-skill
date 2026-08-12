@@ -51,6 +51,7 @@
 ### Fixed
 - **screener**: watchdog 默认超时 600→1800s（P0-01a）
 - **screener**: full_market 强制走两阶段管线（Phase1 无 K 线粗筛 + Phase2 TopN 精排），解决全市场超时（P0-01b）
+- **data**: K 线本地磁盘缓存验证（P0-01c）——`get_kline`/`prefetch_kline_all` 已接 common.cache（key 含 code+scale+datalen，日 K 1h TTL），新增 `test_kline_cache_p001c` 3 项验证缓存命中与参数隔离
 - **data**: `infer_exchange` 002/003 段强制判 sz，修复 sh002920 等误冠前缀导致整链路静默空输出（P0-02）
 - **market**: macro 字段全部追加 `_source` + 渲染 `[fixture]` 标注 + fixture 时结论置信度降级（P0-03 a/b/c）
 - **portfolio**: 成本来源 `cost_source`（screenshot/user_input/calculated）+ oplog 记录 `cost_before/cost_after`（P1-03）

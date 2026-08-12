@@ -4,7 +4,7 @@
 > **生成日期**：2026-08-12 08:10  
 > **来源**：单次会话内连续执行 market → stock×2 → sector → portfolio → screener 共 5 个 skill 后做的元层面复盘  
 > **规模**：11 个编号问题（3 P0 + 4 P1 + 4 P2）  
-> **修复进度**：P0-01 ✅（a+b）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-03 ✅（共享规范约束，非脚本行为变更）/ P2-04 ✅  
+> **修复进度**：P0-01 ✅（a+b+c）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-03 ✅（共享规范约束，非脚本行为变更）/ P2-04 ✅  
 > **关联文档**：[review-issues.md](../review-issues.md)（75 项深度审阅）· [screener-review.md](../screener-review.md)（选股器专项审查）· [architecture-review-2026-07-07.md](../architecture-review-2026-07-07.md)  
 > **关联 skill**：market / stock / sector / portfolio / screener
 
@@ -62,7 +62,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 **修复记录**：
 - 2026-08-12：**P0-01a 已修复**。`scripts/common/screener_watchdog.py` 默认 deadline 600→1800 秒（`DEFAULT_DEADLINE_SEC`），同步更新 `screener.py --deadline` help 与 `_resolve_deadline` docstring（commit 待填）
 - 2026-08-12：**P0-01b 已修复**。根因定位：复现命令**未传 `--two-stage`**，full_market 默认走单阶段路径，对预筛后全部 ~3323 只 `prefetch_kline_all` 拉 K 线（`screening_pipeline.py` 单阶段分支），远超 deadline 而超时。修复：`run_screening` 中 full_market 强制走两阶段管线（`if args.two_stage or args.full_market:`）——Phase1 仅 quote+Top500 财务粗筛不拉 K 线，Phase2 仅 Top N×3 拉 K 线精排。`--two-stage` 本身已生效，无需重写管线
-- P0-01c（本地 K 线缓存）待办，作为长期优化
+- P0-01c（本地 K 线缓存）：**已隐含实现，验证完成**。`get_kline()`（`scripts/data/__init__.py`）已接 `common.cache` 磁盘缓存，key = `kline_{code}_{sha256(scale,datalen,格式版本)}`（等价于建议的 `code_scale_datalen`，另含版本号防格式变更污染），日 K TTL 1h、分钟 K 30s、其他周期 6h；screener 的 `prefetch_kline_all`（`scripts/data/helpers.py`）即走 `get_kline`，无需新代码。新增 `tests/unit/test_kline_cache_p001c.py`（3 项：同参二次调用命中缓存 / 参数变化独立缓存 / 批量复用缓存）验证通过。缓存目录为项目根 `.cache/`（非 issue 建议的 `data/cache/kline/`，机制等价且纳入统一 TTL 抖动/原子写/体积上限清理）
 
 **关联**：`docs/screener-review.md` 中可能已有相关问题，待对照。
 
@@ -290,7 +290,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 
 | 优先级 | 问题 | 建议动作 | 预计工时 | 状态 |
 |---|---|---|---|---|
-| **P0-01** | screener 全市场超时 | 增大 watchdog + 实现真正两阶段 + K 线缓存 | 2-3 天 | ✅ a+b 已修复（deadline→1800s；full_market 强制两阶段）；c 待办 |
+| **P0-01** | screener 全市场超时 | 增大 watchdog + 实现真正两阶段 + K 线缓存 | 2-3 天 | ✅ a+b+c 全部修复（deadline→1800s；full_market 强制两阶段；K 线缓存已隐含实现并经 test_kline_cache_p001c 验证）|
 | **P0-02** | sh/sz 前缀误判 | quote/kline 内部归一化 + SKILL 警告 | 0.5 天 | ✅ 已修复（infer_exchange 002/003→sz）|
 | **P0-03** | macro fixture 标注不全 | JSON 结构 + 渲染层标记 + 置信度降级 | 1 天 | ✅ 全部落地（a/b 已实现 + c 已修复）|
 | **P1-01** | 板块归属盲区 | 扩展 ETF 表 + stock_sector_map.json + industry_beta 置信度 | 1-2 天 | ✅ 全部落地（a 扩展 ETF + b stock_sector_map.json + c interpretation_confidence）|
