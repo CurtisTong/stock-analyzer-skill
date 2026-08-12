@@ -139,12 +139,12 @@
 | **P1-21** | business | `position_var_summary` 用 `CVaR = VaR * 1.2` 经验常数 | `scripts/business/risk_metrics.py` | 使用历史收益计算 historical VaR / CVaR；✅ 2026-08-12 状态补记（risk_metrics.py:26 historical_var 历史模拟法 + :49 conditional_var，废弃 CVaR=VaR*1.2 经验常数） |
 | **P1-22** | business | ST 过滤在 `universe_loader` 和 `_hard_filter` 双轨实现 | `scripts/business/universe_loader.py`、`scripts/business/screening_service.py` | 统一调用 `data.pool.is_st()`；✅ 2026-08-12 状态补记（universe_loader.py:197-200 与 screening_service.py:386-387 统一 data.pool.is_st，删除双轨 _st_prefixes） |
 | **P1-23** | skills | `script-catalog.md` 漏列 6 个顶层脚本，缺 CI 校验 | `skills/_shared/references/script-catalog.md` | 漏列 calibration_backfill/sync、market_breadth、multi_stock_backtest、perf_bench、portfolio_web（引用的脚本均存在）；现有测试不校验 catalog 与 scripts/ 双向一致 | ✅ Round 9 已修（scripts/dev/gen_script_catalog.py 自动生成 + CI 校验） |
-| **P1-24** | skills | `five-layer.md` 与 `stock/SKILL.md` 重复声明评级框架 | `skills/stock/SKILL.md`、`skills/_shared/references/five-layer.md` | 只保留共享文档为权威源 |
-| **P1-25** | skills | `market briefing` 与 `monitor briefing` 定义重叠 | `skills/market/SKILL.md`、`skills/monitor/SKILL.md` | 明确 market=市场面，monitor=持仓面，并互相引用 |
+| **P1-24** | skills | `five-layer.md` 与 `stock/SKILL.md` 重复声明评级框架 | `skills/stock/SKILL.md`、`skills/_shared/references/five-layer.md` | 只保留共享文档为权威源；✅ 2026-08-12 状态补记（stock/SKILL.md:49 已引用 _shared/references/five-layer.md 为评级权威源，无重复评级表残留） |
+| **P1-25** | skills | `market briefing` 与 `monitor briefing` 定义重叠 | `skills/market/SKILL.md`、`skills/monitor/SKILL.md` | 明确 market=市场面，monitor=持仓面，并互相引用；✅ 2026-08-12 过时项（monitor skill 已于 2026-08-04 移除，功能下沉到 portfolio-web；简述重叠不复存在） |
 | **P1-26** | tests | `StockAnalysisService.analyze` 缺测试覆盖 | `tests/test_business.py` | mock quote/kline/finance，覆盖成功、部分失败、全部失败；✅ Round 8 已修（tests/integration/test_stock_analysis_wp4.py 覆盖成功/部分失败/全失败） |
 | **P1-27** | tests | 缺 13 个 skill 真实工作流端到端测试 | `tests/e2e/` | 新增 `test_skill_workflow.py` 参数化跑 13 个 skill 主命令；✅ Round 10 已修（tests/e2e/test_skill_workflow.py 参数化跑 13 skill） |
-| **P1-28** | CI | `tests/conftest.py` autouse fixture 捕获所有异常并 pass | `tests/conftest.py` | 只捕获 `ImportError`，其他异常应暴露 |
-| **P1-29** | CI | pre-commit 的核心 pytest hook 是 `manual`，默认不跑 | `.pre-commit-config.yaml` | 增加 quick test hook 到 pre-commit，完整测试保留 manual |
+| **P1-28** | CI | `tests/conftest.py` autouse fixture 捕获所有异常并 pass | `tests/conftest.py` | 只捕获 `ImportError`，其他异常应暴露；✅ 2026-08-12 状态补记（conftest.py autouse fixtures 仅捕获 ImportError，其余异常冒泡暴露） |
+| **P1-29** | CI | pre-commit 的核心 pytest hook 是 `manual`，默认不跑 | `.pre-commit-config.yaml` | 增加 quick test hook 到 pre-commit，完整测试保留 manual；✅ 2026-08-12 状态补记（.pre-commit-config.yaml 已有 pytest-quick pre-commit stage，全量保留 manual） |
 | **P1-30** | config | `scoring.yaml` 有 DEPRECATED 死配置，修改不生效 | `scripts/config/scoring.yaml` | 删除或加 `expiry_version` + CI linter；✅ Round 8/9 已修（scoring.yaml DEPRECATED 段清理 + expiry_version 机制） |
 
 ---
