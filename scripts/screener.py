@@ -412,64 +412,114 @@ def _build_parser():
     return parser
 
 
-def _default_progress_callback(event, payload):
-    """默认 callback：把业务事件转 print（保持原 CLI 输出等价）。"""
+def _default_progress_callback(event, payload, *, file=None):
+    """默认 callback：把业务事件转 print（保持原 CLI 输出等价）。
+
+    Args:
+        file: 输出流。JSON 模式下传 sys.stderr，进度不污染 stdout 的 JSON。
+    """
+
+    def _p(*a, **k):
+        k.setdefault("file", file)
+        print(*a, **k)
+
     if event == "init":
         # empty_universe
         if payload.get("halted"):
             reason = payload.get("reason", "")
             if reason == "empty_universe":
-                print("❌ 股票池为空，无法选股。")
-                print()
-                print("请先初始化股票池:")
-                print("  /screener init          # 联网获取最新数据")
-                print("  /screener init default  # 使用预置数据（离线可用）")
+                _p("❌ 股票池为空，无法选股。")
+                _p()
+                _p("请先初始化股票池:")
+                _p("  /screener init          # 联网获取最新数据")
+                _p("  /screener init default  # 使用预置数据（离线可用）")
             elif reason == "macro_red":
-                print("⚠️ 系统性风险，暂停选股", flush=True)
+                _p("⚠️ 系统性风险，暂停选股", flush=True)
             return
         # market_regime
         regime = payload.get("regime")
         if regime:
-            print(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
+            _p(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
             # P2-07: 明确告知用户 overlay 已应用/未应用，避免策略语义被静默改变
             if getattr(payload, "_no_regime", False):
-                print("⚙️ regime overlay 已禁用（使用固定权重）", flush=True)
+                _p("⚙️ regime overlay 已禁用（使用固定权重）", flush=True)
             else:
-                print(
+                _p(
                     f"⚡ 已应用 {regime.label} regime overlay（--no-regime 可禁用）",
                     flush=True,
                 )
         # macro
         macro_msg = payload.get("macro_msg")
         if macro_msg:
-            print(macro_msg, flush=True)
+            _p(macro_msg, flush=True)
+    elif event == "data_prefetch":
+        # P0-01 后续: 数据预取阶段进度提示（quote/finance 是 full_market 慢/卡的主战场）
+        stage = payload.get("stage")
+        if stage == "quote":
+            _p(
+                f"📡 拉取行情 {payload.get('count', '?')} 只（全市场）...",
+                flush=True,
+            )
+        elif stage == "prescreen":
+            _p(
+                f"🔍 行情预筛完成: {payload.get('count', '?')} 只，进入财务阶段",
+                flush=True,
+            )
+        elif stage == "finance":
+            _p(
+                f"📊 拉取财务 Top {payload.get('count', '?')} 只"
+                f"（可能 1-8min；数据源挂起时由 watchdog 兜底）...",
+                flush=True,
+            )
+        elif stage == "parallel":
+            _p(
+                f"📡 并行拉取行情+财务（{payload.get('count', '?')} 只）...",
+                flush=True,
+            )
+        elif stage == "done":
+            _p(
+                f"✅ 数据预取完成 {payload.get('elapsed', 0):.1f}s",
+                flush=True,
+            )
     elif event == "phase1":
-        print(
+        _p(
             f"⚡ Phase 1: {payload['count_in']} 只 → Top {payload['count_out']} 只 "
             f"({payload['elapsed']:.2f}s)",
             flush=True,
         )
     elif event == "phase2":
-        print(
+        _p(
             f"🎯 Phase 2: {payload['count']} 只精排 ({payload['elapsed']:.2f}s)",
             flush=True,
         )
         saved = payload.get("saved_kline", 0)
         if saved:
-            print(
+            _p(
                 f"✅ 两阶段管线完成: {payload['total']:.2f}s "
                 f"(节省 K 线 {saved} 只)",
                 flush=True,
             )
     elif event == "snapshot":
-        print(f"📸 快照已保存: {payload['path']}", flush=True)
+        _p(f"📸 快照已保存: {payload['path']}", flush=True)
 
 
 def _run_main(args):
     """main() 核心逻辑（瘦身后：callback + 调用 run_screening + 输出分发）。"""
-    # JSON 模式或 --quiet 模式下使用静默 callback，避免进度输出混入 JSON/最终结果
-    silent = args.json or getattr(args, "quiet", False)
-    callback = _default_progress_callback if not silent else (lambda e, p: None)
+    # 进度输出策略：--quiet 全静默；JSON 模式进度走 stderr（不污染 stdout 的 JSON）；
+    # 正常模式走 stdout（保持原 CLI 输出等价）
+    quiet = getattr(args, "quiet", False)
+    if quiet:
+
+        def _noop(event, payload):
+            return None
+
+        callback = _noop
+    elif args.json:
+        from functools import partial
+
+        callback = partial(_default_progress_callback, file=sys.stderr)
+    else:
+        callback = _default_progress_callback
 
     # v1.20.1: watchdog 整体任务超时（akshare 永久挂起兜底）
     from common.screener_watchdog import start_watchdog

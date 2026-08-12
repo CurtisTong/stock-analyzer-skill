@@ -205,7 +205,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     Args:
         args: CLI Namespace
         progress_callback: 可选回调，签名 callback(event: str, payload: dict) -> none。
-            事件类型：init / phase1 / phase2 / snapshot
+            事件类型：init / data_prefetch / phase1 / phase2 / snapshot
 
     Returns:
         dict: {rows, regime, macro_state, phase_stats, snapshot_path, halted}
@@ -237,6 +237,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     # 因为低成交额标的几乎不可能入选，且大量并发财务请求会压垮系统代理。
     # 非 full_market 模式保持原并行逻辑（池小，并行更快）。
     if args.full_market:
+        _cb("data_prefetch", {"stage": "quote", "count": len(codes)})
         quotes = fetch_batch_dicts(codes)
         quotes = pre_screen_quotes(quotes, args)
         # 按成交额降序，仅对 Top 500 抓财务数据
@@ -248,13 +249,21 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             for q in _fm_quotes_sorted[:500]
             if q.get("code")
         ]
+        _cb("data_prefetch", {"stage": "prescreen", "count": len(quotes)})
+        _cb("data_prefetch", {"stage": "finance", "count": len(_fm_fin_codes)})
         finance_cache = prefetch_finance_all(_fm_fin_codes)
     else:
+        _cb("data_prefetch", {"stage": "parallel", "count": len(codes)})
         with ThreadPoolExecutor(max_workers=2) as ex:
             f_quotes = ex.submit(fetch_batch_dicts, codes)
             f_finance = ex.submit(prefetch_finance_all, codes)
             quotes = f_quotes.result()
         finance_cache = f_finance.result()
+
+    _cb(
+        "data_prefetch",
+        {"stage": "done", "elapsed": _time.perf_counter() - t_pipeline_start},
+    )
 
     finance_cache = {normalize_quote_code(code): v for code, v in finance_cache.items()}
 
