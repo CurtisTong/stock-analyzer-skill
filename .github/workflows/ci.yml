@@ -69,7 +69,8 @@ jobs:
             scripts/monitor/ \
             scripts/backtest/ \
             scripts/config/ \
-            scripts/dev/
+            scripts/dev/ \
+            scripts/chan/
 
   integration:
     name: 集成测试

@@ -1,5 +1,7 @@
 """背驰检测。"""
 
+from typing import Any
+
 from technical.core import aligned_macd
 from .area import _macd_area  # v1.3.2: was chan/macd.py
 
@@ -38,7 +40,11 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
     dea_series = macd_data["dea_series"]
     _dea_offset = macd_data["dea_offset"]
 
-    result = {"trend_beichi": None, "range_beichi": [], "summary": ""}
+    result: dict[str, Any] = {
+        "trend_beichi": None,
+        "range_beichi": [],
+        "summary": "",
+    }
 
     # ── 趋势背驰：以最后一个中枢为锚点 ──
     # 仅比较"中枢前最后一段"和"中枢后第一段"的 MACD 面积
