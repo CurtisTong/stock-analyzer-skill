@@ -53,6 +53,7 @@
 - **experts**: `_calibration_factor_from_rates` 新公式——(mean_rate-0.5)×2×(1-min(cv,0.5))，mean_rate=0.5（无信息）恒归零（P0-08）
 - **portfolio**: `portfolio/crud.py` 新模块——全部 10 个 CRUD 写操作方法（add/reduce/remove/update/tag/untag + add/remove_watch）及 `_record_trade_log`/`_position_cost` 从 manager 整体搬移，manager 变一行委托 thin wrapper（-297 行），P2-P1 god-class 拆分 4/4 完成
 - **test(circuit-breaker)**: 新增 `tests/unit/test_circuit_breaker.py` 14 项确定性测试——状态机全路径 + strict 恢复守卫 + 半开窗口期节流（配额耗尽拒绝/过期自动续期/`recovery_timeout=0` 拒绝续期）+ 并发下窗口内放行数严格 == half_open_max（v2.7 #2 窗口期逻辑固化）
+- **common**: mypy 21 错误清零（v2.7 #1）——`_connection_pool` 实际存 `tuple[HTTPConnection, float]` 但标注 `list[HTTPConnection]`、`_parse_url` 返回顺序标错、`BaseFetcher.fetch` 返回类型补 `_NotHandled` 哨兵 + 4 处 identity check 改 `isinstance` 窄化、requests 响应 None 守卫、`key: str=None` 补 union、`value: Any`、unused `type: ignore` 与 atexit None 防御清理；**common/ 已纳入 CI + pre-commit mypy 白名单**（26 文件校验通过）
 - **portfolio/skills/tests**: Review 全量推进——review-issues 主表 44 项全部收敛（P0-01~15 权限/配置/CI/校准公式 + P1-01~30 fetcher 精确匹配与 is_minimal/净吞错/定时自动校准验证/龙虎榜与龙头横截面接入/缠论与 swing points/结构化 signals/市场环境指数行情/时间超时分层/hard filter 分离/historical VaR/ST 单轨/脚本-catalog 等；P2-P1 portfolio 4 模块拆分已 3/4）
 
 ### Fixed

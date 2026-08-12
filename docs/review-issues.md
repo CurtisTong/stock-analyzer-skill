@@ -230,7 +230,7 @@
 > 这些问题在 main 分支长期存在（main CI 一直是 fail），非本次 PR（market_anchor v2.5-v2.7）引入。
 > 本次 PR 通过修源码 + 缩窄 CI 检查范围绕过；后续单独立项清理。
 
-1. **mypy strict 错误清理**：common/ 280+ mypy 错误（`disallow_any_generics` 触发大量裸 `dict`/`list`），本次 PR 通过 `--follow-imports=silent` 仅检查 PR 涉及文件绕过。后续需逐文件加 `dict[K, V]` 类型注解。
+1. **mypy strict 错误清理**：common/ 280+ mypy 错误（`disallow_any_generics` 触发大量裸 `dict`/`list`），本次 PR 通过 `--follow-imports=silent` 仅检查 PR 涉及文件绕过。后续需逐文件加 `dict[K, V]` 类型注解。 ✅ 2026-08-12 完成：common/ 21 个 mypy 错误全部清零（20 文件）——`_connection_pool` 实际存 tuple 但标注 `list[HTTPConnection]`、`_parse_url` 返回顺序标错（host/port 互换）、`BaseFetcher.fetch` 返回类型未含 `_NotHandled` 哨兵导致 4 处 identity check non-overlapping（改用 `isinstance` 窄化）、requests 响应 None 守卫、`http_get_cached` 默认参数 `key: str=None` 漏 union、`value: Any` 标注、unused `type: ignore` 清理、atexit 回调 None 防御；**common/ 已纳入 CI + pre-commit mypy 白名单防回归**（26 文件无错）。
 2. **circuit_breaker_concurrency 测试断言放宽~~已放宽~~**：~~50/100 线程并发在 Linux xdist 调度下触发 v1.14.2 attempts 重置分支导致 passed > half_open_max。已放宽断言至 `1 <= passed <= half_open_max * 10`，源码 race 待 P2-round13 改"窗口期"逻辑。~~ ✅ 2026-08-12 窗口期逻辑已固化：新增 `tests/unit/test_circuit_breaker.py` 14 项确定性测试（状态机全路径 + strict 恢复守卫 + 窗口配额耗尽拒绝/过期自动续期/`recovery_timeout=0` 拒绝续期 + 并发下窗口内放行数严格 == half_open_max）。源码 `scripts/common/circuit_breaker.py` 已是窗口期节流模型（fdcb6ba），并发放行由 lock 原子化，无实际 race；测试断言从历史宽松值收紧为精确值。
 3. **black 格式漂移 92 文件**：Round 11 之前 main 分支长期未跑 `black --check`，本次 PR 一次性修复。后续引入 pre-commit hook 防止再漂移。
 4. **coverage 60.2%**：本次 PR 新增 73 个单元测试（从 59.19% 提升至 60.23%）。剩余 39.77% 多为低价值脚本（install/setup/one-off dev tools），后续视 ROI 决定是否补。
