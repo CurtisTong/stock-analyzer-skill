@@ -6,7 +6,9 @@ A 股代码返回 NOT_HANDLED 不干扰现有链路。
 
 import logging
 
-from common import BaseFetcher, NOT_HANDLED, RateLimitError
+from common import BaseFetcher, NOT_HANDLED
+from common.exceptions import RateLimitError
+from common.fetcher_base import _NotHandled
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +66,7 @@ class YfinanceQuoteFetcher(BaseFetcher):
     def __init__(self):
         super().__init__("yfinance_quote", priority=6)
 
-    def fetch(self, code: str, **kwargs) -> dict | None:
+    def fetch(self, code: str, **kwargs) -> dict | None | _NotHandled:
         if yf is None:
             return NOT_HANDLED
         if not _is_cross_market_code(code):

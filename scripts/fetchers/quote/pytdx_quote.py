@@ -1,6 +1,7 @@
 """通达信行情数据源（需要 pytdx 包）。"""
 
 import logging
+from typing import Any
 
 from common import BaseFetcher, plain_code
 from common.exceptions import (
@@ -32,7 +33,9 @@ class PytdxQuoteFetcher(BaseFetcher):
         market = _get_market(code)
         pool = get_default_pool(DEFAULT_SERVERS)
 
-        api = host = port = None
+        api: Any = None
+        host = ""
+        port = 0
         try:
             api, host, port = pool.get()
             data = api.get_security_quotes([(market, plain)])

@@ -12,7 +12,7 @@ v2.4.0 新增。
 
 import math
 import statistics
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 # P1-21: 标准正态分布 PDF，用于参数法 CVaR 计算
 _NORMAL_PDF_CONST = 1.0 / math.sqrt(2.0 * math.pi)
@@ -61,7 +61,7 @@ def conditional_var(returns: List[float], confidence: float = 0.95) -> float:
     return max(0.0, -sum(tail) / len(tail))
 
 
-def max_drawdown(prices: List[float]) -> Dict[str, float]:
+def max_drawdown(prices: List[float]) -> Dict[str, Any]:
     """最大回撤（peak-to-trough）。
 
     Args:

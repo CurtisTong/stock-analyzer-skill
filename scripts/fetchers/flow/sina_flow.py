@@ -4,6 +4,7 @@
 """
 
 import json
+from typing import Any
 
 from common import BaseFetcher, http_get, to_float
 
@@ -42,7 +43,7 @@ class SinaNorthboundFlowFetcher(BaseFetcher):
         if not data or not isinstance(data, list):
             return None
 
-        result = {"type": "northbound", "days": [], "source": "sina"}
+        result: dict[str, Any] = {"type": "northbound", "days": [], "source": "sina"}
         for row in data:
             if not isinstance(row, dict):
                 continue

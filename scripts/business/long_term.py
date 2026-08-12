@@ -141,7 +141,7 @@ class LongTermEvaluator:
             "conclusion": conclusion,
         }
 
-    def _get_quote(self, code: str) -> dict:
+    def _get_quote(self, code: str) -> dict | None:
         """获取行情数据。"""
         try:
             return fetch_quote_dict_or_none(code)

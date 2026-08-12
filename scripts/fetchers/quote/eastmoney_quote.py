@@ -3,7 +3,8 @@
 import json
 import logging
 
-from common import BaseFetcher, http_get, to_secid, ParseError
+from common import BaseFetcher, http_get, to_secid
+from common.exceptions import ParseError
 
 logger = logging.getLogger(__name__)
 

@@ -112,16 +112,16 @@ def volume_price_emoji(state) -> str:
             VP_NEUTRAL,
         )
 
-        mapping = {
+        mapping_int = {
             VP_RISE_VOL: "💪",  # 放量上涨（强势）
             VP_FALL_SHRINK: "🛡️",  # 缩量下跌（防御）
             VP_RISE_SHRINK: "🤔",  # 缩量上涨（警惕）
             VP_FALL_VOL: "☠️",  # 放量下跌（危险）
             VP_NEUTRAL: "➖",  # 中性
         }
-        return mapping.get(state, "❓")
+        return mapping_int.get(state, "❓")
     elif isinstance(state, str):
-        mapping = {
+        mapping_str: dict[str, str] = {
             "放量上涨": "💪",
             "缩量下跌": "🛡️",
             "缩量上涨": "🤔",
@@ -130,5 +130,5 @@ def volume_price_emoji(state) -> str:
             "配合": "💪",
             "背离": "🤔",
         }
-        return mapping.get(state, "❓")
+        return mapping_str.get(state, "❓")
     return "❓"

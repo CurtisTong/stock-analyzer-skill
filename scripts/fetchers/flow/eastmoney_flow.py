@@ -1,6 +1,7 @@
 """东方财富资金流向数据源（北向资金、个股主力净流入）。"""
 
 import json
+from typing import Any
 
 from common import BaseFetcher, http_get, to_secid, to_float
 
@@ -59,7 +60,7 @@ class StockFlowFetcher(BaseFetcher):
         if not klines:
             return None
 
-        result = {"type": "stock_flow", "code": code, "days": []}
+        result: dict[str, Any] = {"type": "stock_flow", "code": code, "days": []}
         for line in klines:
             parts = line.split(",")
             if len(parts) >= 10:

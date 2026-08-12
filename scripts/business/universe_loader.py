@@ -247,7 +247,7 @@ def apply_portfolio_constraints(
     rows: list,
     sector_cap: float = 0.30,
     trend_penalty: float = 0.70,
-    benchmark_weights: dict = None,
+    benchmark_weights: dict | None = None,
     use_benchmark_align: bool = False,
     max_deviation: float = 0.15,
 ) -> list:
@@ -273,6 +273,7 @@ def apply_portfolio_constraints(
     benchmark_active = use_benchmark_align and benchmark_weights and len(rows) >= 20
     # 基准行业权重归一化（确保和为 1.0）
     if benchmark_active:
+        assert benchmark_weights is not None
         total_bw = sum(benchmark_weights.values())
         norm_benchmark = (
             {k: v / total_bw for k, v in benchmark_weights.items()}

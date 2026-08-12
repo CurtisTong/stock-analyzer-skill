@@ -86,7 +86,7 @@ def _analyze(
     # 验证输入
     code = _normalize_code(code)
 
-    result = {
+    result: dict[str, Any] = {
         "code": code,
         "name": "",
         "price": 0,

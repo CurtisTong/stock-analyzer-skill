@@ -65,8 +65,9 @@ repos:
         # 必须加 --follow-imports=silent --no-incremental，否则 mypy 会
         # 把 scripts/macro_indicators.py 既当独立脚本又当 scripts.* 包成员，
         # 报 "Source file found twice under different module names"。
-        # v2.7 #1（2026-08-12）：common/ 已从 280+ 错误清零，纳入白名单防回归
-        entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/market_anchor.py scripts/sector_etf_strength.py scripts/industry_beta.py scripts/portfolio_correlation.py scripts/macro_indicators.py scripts/strategies/factors/dcf.py scripts/common/
+        # v2.7 #1（2026-08-12）：common/ 已清零，随后 fetchers/business 也清零，
+        # 全部纳入白名单防回归
+        entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/market_anchor.py scripts/sector_etf_strength.py scripts/industry_beta.py scripts/portfolio_correlation.py scripts/macro_indicators.py scripts/strategies/factors/dcf.py scripts/common/ scripts/fetchers/ scripts/business/
         language: system
         pass_filenames: false
         types: [python]

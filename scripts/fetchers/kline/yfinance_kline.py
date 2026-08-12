@@ -2,7 +2,8 @@
 
 import logging
 
-from common import BaseFetcher, plain_code, RateLimitError
+from common import BaseFetcher, plain_code
+from common.exceptions import RateLimitError
 
 logger = logging.getLogger(__name__)
 

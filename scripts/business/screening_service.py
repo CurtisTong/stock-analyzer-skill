@@ -94,7 +94,7 @@ class AnalyzeContext:
     fin_records: list
     strategy: str
     filters: dict
-    kline_bars: list = None
+    kline_bars: list | None = None
     phase1: bool = False
     regime: str = "neutral"
     no_chip: bool = False
@@ -388,8 +388,8 @@ class ScreeningService:
         # 避免 startswith(["ST","*ST"]) 漏判 S*ST 等变体。
         from data.pool import is_st
 
-        is_st = is_st(name)
-        if is_st:
+        is_st_flag = is_st(name)
+        if is_st_flag:
             reasons.append("ST风险")
         else:
             # 财务类退市风险预警（2026新增）：营收<1亿+净利润为负+审计意见非标

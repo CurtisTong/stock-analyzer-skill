@@ -10,6 +10,7 @@ import time
 
 
 from common import BaseFetcher, NOT_HANDLED, plain_code
+from common.fetcher_base import _NotHandled
 from common.exceptions import (
     HTTPStatusError,
     NetworkError,
@@ -86,7 +87,7 @@ class BaostockKlineFetcher(BaseFetcher):
     def __init__(self):
         super().__init__("baostock_kline", priority=1)
 
-    def fetch(self, code: str, **kwargs) -> list | None:
+    def fetch(self, code: str, **kwargs) -> list | None | _NotHandled:
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
 

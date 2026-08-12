@@ -23,6 +23,7 @@ fetcher 为工厂缓存单例（fetchers/__init__.py 的 _fetcher_cache），
 import logging
 import threading
 import time
+from typing import Any
 
 from common import BaseFetcher, plain_code
 from common.exceptions import (
@@ -48,7 +49,7 @@ class BaseBulkQuoteFetcher(BaseFetcher):
         super().__init__(name, priority=priority, provider=provider)
         # _loading 标志用于 double-checked locking：锁内只检查缓存有效性，
         # 锁外做网络 IO，避免全市场拉取（数秒）期间阻塞所有并发线程。
-        self._cache = {"df": None, "ts": 0, "_loading": False}
+        self._cache: dict[str, Any] = {"df": None, "ts": 0, "_loading": False}
         self._cache_lock = threading.Lock()
 
     # ---- 子类必须实现的差异部分 ----
