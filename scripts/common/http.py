@@ -68,11 +68,11 @@ MAX_RESPONSE_SIZE = 50 * 1024 * 1024  # 50MB，防止 OOM
 
 # ---------- 连接池（keep-alive 复用） ----------
 
-_connection_pool: dict[str, list[http.client.HTTPConnection]] = {}
+_connection_pool: dict[str, list[tuple[http.client.HTTPConnection, float]]] = {}
 _pool_lock = threading.Lock()
 
 
-def _parse_url(url: str) -> tuple[str, str, int, str, str]:
+def _parse_url(url: str) -> tuple[str, str, str, int, str]:
     """一次性解析 URL，返回 (key, scheme, host, port, path_query)。"""
     parsed = urllib.parse.urlparse(url)
     scheme = parsed.scheme or "https"
@@ -289,13 +289,14 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
         except _requests.RequestException as e:
             # P2-H2(common): 4xx 业务错误转 HTTPStatusError，与 http.client 路径统一，
             # 让 manager 能区分业务错误（不熔断）与网络故障（熔断）
-            if hasattr(e, "response") and hasattr(e.response, "status_code"):
-                status = e.response.status_code
+            resp = e.response
+            if resp is not None and resp.status_code is not None:
+                status = resp.status_code
                 if 400 <= status < 500:
                     raise HTTPStatusError(
                         url,
                         status,
-                        e.response.text[:200] if hasattr(e.response, "text") else "",
+                        (resp.text or "")[:200],
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     # P1-04: fallback 到 stdlib 时 max_retries=1（单次尝试），避免与 requests 路径
@@ -317,13 +318,14 @@ def http_get_with_headers(
             raise
         except _requests.RequestException as e:
             # 4xx 业务错误转 HTTPStatusError（同 http_get）
-            if hasattr(e, "response") and hasattr(e.response, "status_code"):
-                status = e.response.status_code
+            resp = e.response
+            if resp is not None and resp.status_code is not None:
+                status = resp.status_code
                 if 400 <= status < 500:
                     raise HTTPStatusError(
                         url,
                         status,
-                        e.response.text[:200] if hasattr(e.response, "text") else "",
+                        (resp.text or "")[:200],
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
     # P1-04: 同 http_get，fallback max_retries=1 避免超时叠加

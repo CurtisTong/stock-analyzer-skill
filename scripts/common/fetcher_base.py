@@ -122,7 +122,7 @@ class BaseFetcher(ABC):
     @abstractmethod
     def fetch(
         self, code: str, **kwargs: object
-    ) -> dict[str, object] | list[object] | None:
+    ) -> dict[str, object] | list[object] | _NotHandled | None:
         """获取数据。
 
         返回值语义：
@@ -195,7 +195,7 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         logger.debug("fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e)
         fetcher.on_failure()
         return None
-    if result is not None and result is not NOT_HANDLED:
+    if result is not None and not isinstance(result, _NotHandled):
         fetcher.on_success()
     return result
 
@@ -253,7 +253,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
             )
             fetcher.on_failure()
             continue
-        if result is not None and result is not NOT_HANDLED:
+        if result is not None and not isinstance(result, _NotHandled):
             fetcher.on_success()
             return result
     return None
@@ -346,7 +346,7 @@ class DataFetcherManager:
                     result = fetcher.fetch(code, **kwargs)
                 finally:
                     limiter.release(fetcher.provider)
-                if result is NOT_HANDLED:
+                if isinstance(result, _NotHandled):
                     continue
                 if result is not None:
                     fetcher.on_success()
@@ -370,7 +370,7 @@ class DataFetcherManager:
                             result = fetcher.fetch(code, **kwargs)
                         finally:
                             limiter.release(fetcher.provider)
-                        if result is not None and result is not NOT_HANDLED:
+                        if result is not None and not isinstance(result, _NotHandled):
                             fetcher.on_success()
                             return result
                     except RateLimitError:

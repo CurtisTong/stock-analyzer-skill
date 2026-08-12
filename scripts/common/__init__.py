@@ -132,7 +132,7 @@ def __getattr__(name: str):
 
 
 def http_get_cached(
-    url: str, timeout: int = 10, ttl: int = 21600, key: str = None
+    url: str, timeout: int = 10, ttl: int = 21600, key: str | None = None
 ) -> bytes:
     """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。
 

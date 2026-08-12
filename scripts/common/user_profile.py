@@ -103,7 +103,7 @@ def get_user_preference(key: str, default: Any = None) -> Any:
     """
     profile = load_user_profile()
     keys = key.split(".")
-    value = profile
+    value: Any = profile
     for k in keys:
         if isinstance(value, dict):
             value = value.get(k)

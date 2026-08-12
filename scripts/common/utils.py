@@ -300,7 +300,15 @@ def get_shared_executor() -> ThreadPoolExecutor:
             from data.config import get_config
 
             _shared_executor = ThreadPoolExecutor(max_workers=get_config().max_workers)
-            atexit.register(lambda: _shared_executor.shutdown(wait=False))
+            # 防御：测试隔离场景下 _shared_executor 可能被置 None，
+            # 进程退出时 atexit 回调需安全跳过
+            atexit.register(
+                lambda: (
+                    _shared_executor.shutdown(wait=False)
+                    if _shared_executor is not None
+                    else None
+                )
+            )
     return _shared_executor
 
 
@@ -329,7 +337,7 @@ def parallel_map(
     logger = logging.getLogger(__name__)
     results: dict[str, Any] = {}
     ex = get_shared_executor()
-    futures: dict[Future[object], str] = {ex.submit(fn, item): item for item in items}  # type: ignore[arg-type]
+    futures: dict[Future[object], str] = {ex.submit(fn, item): item for item in items}
     try:
         for future in as_completed(futures, timeout=timeout):
             item = futures[future]

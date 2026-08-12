@@ -59,7 +59,8 @@ jobs:
             scripts/industry_beta.py \
             scripts/portfolio_correlation.py \
             scripts/macro_indicators.py \
-            scripts/strategies/factors/dcf.py
+            scripts/strategies/factors/dcf.py \
+            scripts/common/
 
   integration:
     name: 集成测试
