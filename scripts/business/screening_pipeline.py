@@ -167,6 +167,38 @@ def _apply_factor_normalization(rows, strategy, regime=None):
         row["score"] = round(compute_weighted_score(n, strategy, regime=regime), 1)
 
 
+def _apply_sector_momentum(rows: list, exclude: bool) -> list:
+    """P1-02: 板块退潮标记/过滤。
+
+    按行业映射到行业 ETF，板块近 5 日动量 < 阈值时给行加 sector_momentum_warning；
+    exclude=True 时直接剔除退潮板块标的。动量数据不可得时静默返回原列表。
+    """
+    if not rows:
+        return rows
+    from sector_momentum import (
+        SECTOR_WEAK_THRESHOLD,
+        fetch_sector_momentum,
+    )
+
+    mom_map = fetch_sector_momentum(days=5)
+    if not mom_map:
+        return rows
+    kept = []
+    for r in rows:
+        m = mom_map.get(r.get("industry", "默认"))
+        if m:
+            r["sector_momentum_ret_5d"] = m["ret_5d"]
+            if m["ret_5d"] < SECTOR_WEAK_THRESHOLD:
+                r["sector_momentum_warning"] = (
+                    f"{r.get('industry')} 板块退潮"
+                    f"（ETF {m['etf']} 近 5 日 {m['ret_5d']:+.2f}%）"
+                )
+                if exclude:
+                    continue
+        kept.append(r)
+    return kept
+
+
 def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     """选股管线编排（业务层，与 CLI 输出解耦）。
 
@@ -265,7 +297,10 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             print(f"⚠️ 宏观安全垫检查失败: {e}", file=sys.stderr)
             macro_state = None
 
-    if args.two_stage:
+    # v1.21.0 P0-01b: full_market 强制两阶段（Phase1 仅 quote+Top500 财务粗筛，不拉 K 线；
+    # Phase2 仅 Top N×3 拉 K 线精排）。此前 full_market 默认走单阶段路径，会对预筛后
+    # 全部 ~3300 只 prefetch_kline_all 拉 K 线，整体远超 watchdog deadline 而超时。
+    if args.two_stage or args.full_market:
         t_p1 = _time.perf_counter()
         rows_p1 = [
             analyze_code_phase1(q, args, finance_cache, regime=regime) for q in quotes
@@ -334,6 +369,14 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         _cb("phase2", {"count": len(rows), "elapsed": t_total, "total": t_total})
 
     rows.sort(key=lambda r: r["score"], reverse=True)
+
+    # v1.21.0 P1-02: 板块退潮标记/过滤。数据不可得时静默跳过，不阻塞主流程。
+    try:
+        rows = _apply_sector_momentum(
+            rows, getattr(args, "exclude_sector_momentum", False)
+        )
+    except Exception as e:
+        print(f"⚠️ 板块动量检查失败（跳过）: {e}", file=sys.stderr)
 
     if not args.no_constraints:
         rows = apply_portfolio_constraints(rows, sector_cap=args.sector_cap)

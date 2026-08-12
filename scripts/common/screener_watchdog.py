@@ -30,11 +30,13 @@ import threading
 import time
 from typing import Optional
 
-DEFAULT_DEADLINE_SEC = 600  # 10 分钟
+DEFAULT_DEADLINE_SEC = (
+    1800  # 30 分钟（v1.21.0: 600->1800，全市场 3323 只 K 线拉取 10 分钟不够）
+)
 
 
 def _resolve_deadline(arg_value: Optional[float] = None) -> float:
-    """解析 deadline 优先级: 命令参数 > 环境变量 > 默认 600s。"""
+    """解析 deadline 优先级: 命令参数 > 环境变量 > 默认 1800s。"""
     if arg_value is not None and arg_value > 0:
         return float(arg_value)
     env_val = os.environ.get("STOCK_SCREENER_DEADLINE", "").strip()

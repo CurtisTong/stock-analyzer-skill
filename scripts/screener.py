@@ -140,6 +140,9 @@ def render(rows, strategy, top, title=None, show_chip=True):
                 f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
                 f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
             )
+        # P1-02c: 退潮板块高分标的加 ⚠️ 标记
+        if r.get("sector_momentum_warning"):
+            print(f"  ⚠️ {r['sector_momentum_warning']}")
 
     if rejected:
         print()
@@ -195,6 +198,9 @@ def render_brief(rows, strategy, top, title=None):
             f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
             f"{r['momentum']:>5} | {r['trend']}{macd_icon}"
         )
+        # P1-02c: 退潮板块高分标的加 ⚠️ 标记
+        if r.get("sector_momentum_warning"):
+            print(f"  ⚠️ {r['sector_momentum_warning']}")
 
     # 操作建议（基于分数分布的相对分层）
     scores = [r["score"] for r in top_rows]
@@ -391,11 +397,17 @@ def _build_parser():
         help="板块模式放宽硬过滤（默认行为）",
     )
     # v1.20.1: 整体任务级超时（watchdog 兜底）
+    # v1.21.0 P1-02: 板块退潮过滤（个股行业映射到行业 ETF，近 5 日跌幅 >5% 剔除）
+    parser.add_argument(
+        "--exclude-sector-momentum",
+        action="store_true",
+        help="剔除近 5 日板块 ETF 跌幅超阈值（5%%）的退潮板块标的（否则仅加 sector_momentum_warning 标记）",
+    )
     parser.add_argument(
         "--deadline",
         type=float,
         default=None,
-        help="整体任务超时秒数（默认 600s，也可由环境变量 STOCK_SCREENER_DEADLINE 设置）",
+        help="整体任务超时秒数（默认 1800s，也可由环境变量 STOCK_SCREENER_DEADLINE 设置）",
     )
     return parser
 
