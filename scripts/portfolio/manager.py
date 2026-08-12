@@ -451,15 +451,26 @@ class PortfolioManager:
             # 写回（使用 _raw_write，因为已持锁）
             _raw_write(self._path, self._data)
 
-    def _push_oplog(self, op: str, code: str = "") -> None:
+    def _push_oplog(self, op: str, code: str = "", **extra) -> None:
         """操作前推入快照到 OpLog（异常隔离，不影响主操作）。"""
         try:
             from portfolio.oplog import OpLog
 
             ol = OpLog()
-            ol.push(op, code=code, snapshot_before=dict(self._data))
+            ol.push(
+                op, code=code, snapshot_before=dict(self._data), extra=extra or None
+            )
         except Exception as e:
             logger.debug("操作日志记录失败: %s", e)
+
+    def _oplog_backfill(self, op: str, **fields) -> None:
+        """操作完成后回填最近一条 oplog 的 detail 字段（异常隔离）。"""
+        try:
+            from portfolio.oplog import OpLog
+
+            OpLog().update_last(op=op, **fields)
+        except Exception as e:
+            logger.debug("操作日志回填失败: %s", e)
 
     def undo(self) -> Optional[dict]:
         """回滚最近一次操作。
@@ -587,10 +598,18 @@ class PortfolioManager:
         buy_date: str = "",
         tags: list = None,
         auto_save: bool = True,
+        cost_source: str = "user_input",
     ) -> dict:
-        """添加持仓。如果已存在则加仓（加权平均成本）。"""
+        """添加持仓。如果已存在则加仓（加权平均成本）。
+
+        P1-03a: cost_source 记录成本来源（user_input / screenshot / calculated），
+        加仓产生加权平均成本时自动置为 calculated，保留可追溯性。
+        """
         code = normalize_code(code)
-        self._push_oplog("add_position", code=code)
+        cost_before = self._position_cost(code)
+        self._push_oplog(
+            "add_position", code=code, cost_before=cost_before, cost_source=cost_source
+        )
         result_holder = {}
 
         def _apply(data: dict) -> dict:
@@ -611,6 +630,8 @@ class PortfolioManager:
                     new_cost = cost
                 existing["cost"] = round(new_cost, 3)
                 existing["quantity"] = new_qty
+                # 加权平均成本由计算得出，成本来源标记为 calculated
+                existing["cost_source"] = "calculated"
                 if name and not existing.get("name"):
                     existing["name"] = name
                 if buy_date:
@@ -626,6 +647,7 @@ class PortfolioManager:
                     "quantity": quantity,
                     "buy_date": buy_date or _today(),
                     "tags": tags or [],
+                    "cost_source": cost_source,
                 }
                 positions.append(new_pos)
                 result_holder["r"] = new_pos
@@ -635,7 +657,14 @@ class PortfolioManager:
             self.atomic_update(_apply)
         else:
             _apply(self._data)
-        return result_holder["r"]
+        r = result_holder["r"]
+        if r is not None:
+            self._oplog_backfill(
+                "add_position",
+                cost_after=r.get("cost"),
+                cost_source=r.get("cost_source"),
+            )
+        return r
 
     def reduce_position(
         self, code: str, quantity: int, auto_save: bool = True, sell_price: float = None
@@ -753,17 +782,40 @@ class PortfolioManager:
         except Exception as e:
             logger.debug("交易日志记录失败: %s", e)  # 交易日志失败不阻塞持仓操作
 
+    def _position_cost(self, code: str) -> Optional[float]:
+        """返回持仓当前成本价（P1-03 变更对比用），无持仓返回 None。"""
+        code = normalize_code(code)
+        for p in self._data.get("positions", []):
+            if p["code"].lower() == code:
+                return p.get("cost")
+        return None
+
     def update_position(
         self, code: str, auto_save: bool = True, **kwargs
     ) -> Optional[dict]:
-        """更新持仓字段（cost, quantity, name, buy_date, tags）。"""
+        """更新持仓字段（cost, quantity, name, buy_date, tags, cost_source）。
+
+        P1-03a/c: cost 变更时记录 cost_before/cost_after 到 oplog；显式更新 cost
+        时若未提供 cost_source，默认标记为 user_input。
+        """
         code = normalize_code(code)
+        cost_before = self._position_cost(code)
+        if "cost" in kwargs and "cost_source" not in kwargs:
+            kwargs["cost_source"] = "user_input"
+        self._push_oplog("update_position", code=code, cost_before=cost_before)
         holder = {"r": None}
 
         def _apply(data: dict) -> dict:
             for p in data.get("positions", []):
                 if p["code"].lower() == code:
-                    for key in ("cost", "quantity", "name", "buy_date", "tags"):
+                    for key in (
+                        "cost",
+                        "quantity",
+                        "name",
+                        "buy_date",
+                        "tags",
+                        "cost_source",
+                    ):
                         if key in kwargs:
                             p[key] = kwargs[key]
                     holder["r"] = p
@@ -774,7 +826,14 @@ class PortfolioManager:
             self.atomic_update(_apply)
         else:
             _apply(self._data)
-        return holder["r"]
+        r = holder["r"]
+        if r is not None:
+            self._oplog_backfill(
+                "update_position",
+                cost_after=r.get("cost"),
+                cost_source=r.get("cost_source"),
+            )
+        return r
 
     def tag_position(
         self, code: str, *tags: str, auto_save: bool = True

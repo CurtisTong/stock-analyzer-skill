@@ -21,8 +21,9 @@ ALLOWED_ACTIONS = {
     "update_watch",
 }
 
-POSITION_UPDATE_FIELDS = {"cost", "quantity", "name", "buy_date", "tags"}
+POSITION_UPDATE_FIELDS = {"cost", "quantity", "name", "buy_date", "tags", "cost_source"}
 POSITION_REQUIRED = {"add_position": ("code", "cost", "quantity")}
+_COST_SOURCES = ("user_input", "screenshot", "calculated")
 
 
 def dispatch(pm, body: dict) -> dict:
@@ -103,8 +104,23 @@ def _do_add_position(pm, body: dict, code: str) -> dict:
     name = body.get("name", "") or ""
     buy_date = body.get("buy_date", "") or ""
     tags = _to_bool_str_list(body.get("tags")) or []
+    cost_source = body.get("cost_source", "user_input")
+    if cost_source not in _COST_SOURCES:
+        return _err(
+            "invalid_cost_source",
+            400,
+            f"'cost_source' must be one of {sorted(_COST_SOURCES)}",
+        )
 
-    result = pm.add_position(code, name, cost, qty, buy_date=buy_date, tags=tags)
+    result = pm.add_position(
+        code,
+        name,
+        cost,
+        qty,
+        buy_date=buy_date,
+        tags=tags,
+        cost_source=cost_source,
+    )
     return _ok(result)
 
 
@@ -153,6 +169,12 @@ def _do_update_position(pm, body: dict, code: str) -> dict:
         if c is None:
             return _err("invalid_cost", 400, "'cost' must be a number")
         extra["cost"] = c
+    if "cost_source" in extra and extra["cost_source"] not in _COST_SOURCES:
+        return _err(
+            "invalid_cost_source",
+            400,
+            f"'cost_source' must be one of {sorted(_COST_SOURCES)}",
+        )
     if "quantity" in extra:
         q = _parse_int(extra["quantity"])
         if q is None:
@@ -166,9 +188,25 @@ def _do_update_position(pm, body: dict, code: str) -> dict:
             )
         extra["tags"] = tags
 
+    # P1-03b: 成本变更前读取旧成本，用于浮亏影响对比
+    cost_before = None
+    if "cost" in extra:
+        existing = pm.get_position(code)
+        cost_before = existing.get("cost") if existing else None
+
     result = pm.update_position(code, **extra)
+    if result is None:
+        return _err("position_not_found", 404, f"position '{code}' not found")
     warn = ["update_position_replaces_tags"] if "tags" in extra else None
-    return _ok(result, warn=warn)
+    meta = None
+    if "cost" in extra:
+        meta = {
+            "cost_before": cost_before,
+            "cost_after": result.get("cost"),
+            "cost_source": result.get("cost_source"),
+            "hint": "成本变更后浮亏率将随之变化，请复核券商 APP 成本口径",
+        }
+    return _ok(result, warn=warn, meta=meta)
 
 
 def _do_tag_position(pm, body: dict, code: str, untag: bool) -> dict:

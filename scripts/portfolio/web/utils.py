@@ -58,11 +58,13 @@ def _err(msg: str, code: int = 400, detail: str = "") -> dict:
     return {"ok": False, "error": msg, "code": code, "detail": detail}
 
 
-def _ok(data: Any, warn: Optional[list] = None) -> dict:
+def _ok(data: Any, warn: Optional[list] = None, meta: Optional[dict] = None) -> dict:
     """生成成功响应。"""
     payload = {"ok": True, "data": data}
     if warn:
         payload["warn"] = warn
+    if meta:
+        payload["meta"] = meta
     return payload
 
 

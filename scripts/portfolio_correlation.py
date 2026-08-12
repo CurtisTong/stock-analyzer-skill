@@ -44,10 +44,148 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data import get_kline  # noqa: E402 多源数据层
 from industry_beta import _daily_returns  # noqa: E402 复用收益率计算
+from sector_etf_strength import (  # noqa: E402 P2-04 行业重叠复用
+    _load_stock_sector_map,
+    _SECTOR_TO_ETF_PROXY,
+)
+
+# 模块级缓存 stock_sector_map（避免多次 IO）
+_SSM_CACHE: dict = {"data": None}
+
+
+def _get_stock_sector_map() -> dict:
+    """加载股票→行业映射（带模块级缓存）。"""
+    if _SSM_CACHE["data"] is None:
+        _SSM_CACHE["data"] = _load_stock_sector_map()
+    return _SSM_CACHE["data"]
+
+
+def _industry_to_etf_proxy(industry: str) -> str | None:
+    """行业名 → ETF 代理代码（合并 stock_sector_map.industry_proxy 与内置映射）。"""
+    if not industry:
+        return None
+    ssm = _get_stock_sector_map()
+    proxy = ssm.get("industry_proxy", {}).get(industry)
+    if proxy:
+        return proxy
+    return _SECTOR_TO_ETF_PROXY.get(industry)
+
+
+def _industry_of_code(code: str) -> tuple[str | None, str | None]:
+    """股票代码 → (行业名, ETF 代理代码)（基于 stock_sector_map）。"""
+    ssm = _get_stock_sector_map()
+    industry = ssm.get("stocks", {}).get(code)
+    if not industry:
+        return None, None
+    return industry, _industry_to_etf_proxy(industry)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 行业重叠（P2-04：候选股与持仓的行业集中度增量）
+# ═══════════════════════════════════════════════════════════════
+
+
+def compute_industry_overlap(
+    stock_code: str,
+    portfolio_positions: list,
+    industry_limit: float = 0.30,
+) -> dict:
+    """计算候选股与持仓的行业重叠率（P2-04）。
+
+    口径：候选股与各持仓都映射到"行业名 → ETF 代理代码"，用 ETF 代理对齐判断
+    是否同行业（覆盖不同细分同大类的场景，如"汽车电子"与"智能汽车"都映射到
+    智能汽车 ETF）。映射缺失的持仓用 position.industry/tags 名称兜底。
+
+    Args:
+        stock_code: 候选股代码
+        portfolio_positions: 持仓列表（含 code/name/quantity/cost/tags/industry）
+        industry_limit: 行业集中度上限（默认 30%，与 check_concentration 一致）
+
+    Returns:
+        dict:
+          {
+            "stock_code", "stock_industry", "stock_etf_proxy",
+            "overlap_positions": [{code, name, industry, pct}],  # 同行业持仓
+            "overlap_pct": 12.3,     # 重叠行业持仓占组合成本比例 %
+            "overlap_count": 2,
+            "concentration_warning": False,  # 重叠行业占比 > 20% 提示
+            "message": "...",
+          }
+        候选股无法归属行业时返回 stock_industry=None + message 说明。
+    """
+    stock_industry, stock_proxy = _industry_of_code(stock_code)
+
+    # 组合成本总额（分母）
+    total_cost = sum(
+        (p.get("cost") or 0) * (p.get("quantity") or 0) for p in portfolio_positions
+    )
+
+    overlap_positions = []
+    for p in portfolio_positions:
+        code = p.get("code")
+        if not code or code == stock_code:
+            continue
+        ind, proxy = _industry_of_code(code)
+        if not ind or not proxy:
+            # 映射缺失兜底：用录入的 industry/tags 名称比对
+            ind = ind or p.get("industry") or (p.get("tags") or [None])[0]
+            proxy = _industry_to_etf_proxy(ind) if ind else None
+        same = False
+        if stock_proxy and proxy:
+            same = stock_proxy == proxy
+        elif stock_industry and ind:
+            same = stock_industry == ind
+        if not same:
+            continue
+        value = (p.get("cost") or 0) * (p.get("quantity") or 0)
+        pct = (value / total_cost * 100) if total_cost > 0 else 0.0
+        overlap_positions.append(
+            {
+                "code": code,
+                "name": p.get("name") or "",
+                "industry": ind or "未知",
+                "pct": round(pct, 1),
+            }
+        )
+
+    overlap_pct = round(sum(o["pct"] for o in overlap_positions), 1)
+    warning = overlap_pct > industry_limit * 100 * 2 / 3  # >20% 即提示
+    if not stock_industry:
+        message = (
+            f"候选股 {stock_code} 行业归属未知（不在 stock_sector_map），无法判断重叠"
+        )
+    elif not overlap_positions:
+        message = f"候选股行业（{stock_industry}）与现有持仓无重叠，分散性良好"
+    else:
+        names = "、".join(
+            f"{o['name'] or o['code']}({o['pct']}%)" for o in overlap_positions
+        )
+        action = (
+            f"⚠️ 注意：重叠行业占组合 {overlap_pct}%，建议候选股新增仓位不超过 "
+            f"{max(0, round(industry_limit * 100 - overlap_pct, 1))}% 以免触发 30% 硬约束"
+            if warning
+            else f"重叠行业占组合 {overlap_pct}%，仍处 30% 约束内"
+        )
+        message = f"候选股行业（{stock_industry}）与持仓 {len(overlap_positions)} 只重叠：{names}；{action}"
+
+    return {
+        "stock_code": stock_code,
+        "stock_industry": stock_industry,
+        "stock_etf_proxy": stock_proxy,
+        "overlap_positions": overlap_positions,
+        "overlap_pct": overlap_pct,
+        "overlap_count": len(overlap_positions),
+        "concentration_warning": warning,
+        "message": message,
+    }
+
 
 # ═══════════════════════════════════════════════════════════════
 # 相关系数计算
 # ═══════════════════════════════════════════════════════════════
+
+# P1-04a：窗口声明（每次输出相关性都附带，避免用户把历史窗口当长期稳定）
+WINDOW_NOTICE = "相关性基于有限历史窗口，窗口 ≠ 长期稳定，行情切换或极端行情（如熊市）下相关性普遍上升，负相关可能反转，勿据此过度外推"
 
 
 def _pearson_corr(x: list, y: list) -> float | None:
@@ -79,6 +217,85 @@ def _pearson_corr(x: list, y: list) -> float | None:
     elif corr < -1.0:
         corr = -1.0
     return round(corr, 4)
+
+
+def _corr_detailed(x: list, y: list) -> dict | None:
+    """相关系数 + 显著性（P1-04c：低 R² + 负相关 ≠ 真正分散）。
+
+    单变量回归中 R² = corr²；显著性用近似 t 检验（H0: ρ=0）：
+        t = corr * sqrt((n - 2) / (1 - corr²))，|t| > 2 视为显著（α≈0.05）
+
+    Returns:
+        dict: {corr, r_squared, n, t_stat, significant}
+        不可算返回 None。
+    """
+    corr = _pearson_corr(x, y)
+    if corr is None:
+        return None
+    n = min(len(x), len(y))
+    denom = 1 - corr * corr
+    if denom <= 0:
+        t_stat = None  # 完美相关
+        significant = True
+    else:
+        t_stat = corr * (max(n - 2, 1) / denom) ** 0.5
+        significant = t_stat is not None and abs(t_stat) > 2.0
+    return {
+        "corr": corr,
+        "r_squared": round(corr * corr, 4),
+        "n": n,
+        "t_stat": round(t_stat, 3) if t_stat is not None else None,
+        "significant": significant,
+    }
+
+
+def _half_window_stability(valid_codes: list[str], returns_map: dict) -> dict | None:
+    """相关性稳定性（P1-04b：双半窗口对比，不额外拉数据）。
+
+    将收益率序列切成前半段 / 后半段，分别计算每个两两对的相关系数，
+    统计：符号翻转对数（supply 至少一个 |corr| >= 0.3）、最大变化幅度。
+
+    Returns:
+        dict | None:
+          {n_pairs, sign_flips, max_delta, stable}
+        可算对太少返回 None。
+    """
+    flips = 0
+    deltas = []
+    n_pairs = 0
+    for i, ca in enumerate(valid_codes):
+        ra = returns_map.get(ca)
+        if ra is None:
+            continue
+        for cb in valid_codes[i + 1 :]:
+            rb = returns_map.get(cb)
+            if rb is None:
+                continue
+            n = min(len(ra), len(rb))
+            if n < 20:
+                continue
+            half = n // 2
+            c_full = _pearson_corr(ra[:n], rb[:n])
+            c_half = _pearson_corr(ra[half:], rb[half:])
+            if c_full is None or c_half is None:
+                continue
+            n_pairs += 1
+            deltas.append(abs(c_full - c_half))
+            if c_full * c_half < 0 and (abs(c_full) >= 0.3 or abs(c_half) >= 0.3):
+                flips += 1
+
+    if n_pairs == 0:
+        return None
+    max_delta = round(max(deltas), 4)
+    flip_ratio = flips / n_pairs
+    stable = flip_ratio < 0.2 and max_delta < 0.5
+    return {
+        "n_pairs": n_pairs,
+        "sign_flips": flips,
+        "flip_ratio": round(flip_ratio, 4),
+        "max_delta": max_delta,
+        "stable": stable,
+    }
 
 
 def _load_returns(code: str, window: int = 60) -> list | None:
@@ -187,6 +404,8 @@ def compute_correlation_matrix(
         "avg_pairwise_corr": avg_pairwise,
         "high_corr_pairs": high_pairs,
         "interpretation": interpretation,
+        "window_notice": WINDOW_NOTICE,
+        "stability": _half_window_stability(valid_codes, returns_map),
         "data_quality": {"degraded_fields": degraded},
     }
 
@@ -280,25 +499,36 @@ def compute_stock_vs_portfolio(
             "data_quality": {"degraded_fields": degraded},
         }
 
-    # 计算个股 vs 每个持仓的相关性
+    # 计算个股 vs 每个持仓的相关性（含显著性，P1-04c）
     corrs = []
+    significant_neg_pairs = 0
+    neg_pairs = 0
     for code, r_p in portfolio_returns.items():
-        c = _pearson_corr(stock_returns, r_p)
-        if c is not None:
-            corrs.append(c)
+        detail = _corr_detailed(stock_returns, r_p)
+        if detail is None:
+            continue
+        corrs.append(detail["corr"])
+        if detail["corr"] < 0:
+            neg_pairs += 1
+            if detail["significant"]:
+                significant_neg_pairs += 1
 
     if not corrs:
         return {
             "stock_code": stock_code,
             "window": window,
-            "n_portfolio_codes": len(portfolio_codes),
+            "n_portfolio_codes": len(portfolio_returns),
             "vs_portfolio_avg_corr": None,
             "diversification_benefit": "unknown",
+            "window_notice": WINDOW_NOTICE,
             "data_quality": {"degraded_fields": degraded},
         }
 
     avg_corr = round(statistics.mean(corrs), 4)
-    benefit = _interpret_diversification(avg_corr)
+    # 负相关对中显著比例（显著负相关才有分散价值；低 R² 负相关多为噪声）
+    neg_significant_ratio = significant_neg_pairs / neg_pairs if neg_pairs > 0 else 0.0
+    benefit = _interpret_diversification(avg_corr, neg_significant_ratio)
+    corr_confidence = _corr_confidence(avg_corr, neg_significant_ratio)
 
     return {
         "stock_code": stock_code,
@@ -306,17 +536,45 @@ def compute_stock_vs_portfolio(
         "n_portfolio_codes": len(portfolio_returns),
         "vs_portfolio_avg_corr": avg_corr,
         "diversification_benefit": benefit,
+        "negative_pairs": neg_pairs,
+        "significant_negative_pairs": significant_neg_pairs,
+        "neg_significant_ratio": round(neg_significant_ratio, 4),
+        "corr_confidence": corr_confidence,
+        "window_notice": WINDOW_NOTICE,
         "data_quality": {"degraded_fields": degraded},
     }
 
 
-def _interpret_diversification(avg_corr: float) -> str:
-    """分散化收益解读。"""
+def _interpret_diversification(avg_corr: float, neg_significant_ratio: float) -> str:
+    """分散化收益解读（P1-04c：低 R² 负相关 ≠ 真正分散）。"""
     if avg_corr >= 0.7:
         return "低（个股与组合高度相关，加入组合无分散价值）"
     if avg_corr >= 0.4:
         return "中（个股与组合相关性适中，部分分散价值）"
-    return "高（个股与组合低相关，加入组合有显著分散价值）"
+    if avg_corr >= 0:
+        return "中偏弱（弱正相关，分散价值有限）"
+    if avg_corr < -0.3 and neg_significant_ratio >= 0.5:
+        return "高（显著负相关，加入组合有显著分散价值）"
+    if avg_corr < -0.3:
+        return (
+            f"中（负相关较强，但显著性不足（{neg_significant_ratio:.0%} 通过检验），"
+            "负相关可能不稳定）"
+        )
+    return (
+        f"高存疑（负相关但 |corr|<0.3，低 R² 下可能为噪声，"
+        f"仅 {neg_significant_ratio:.0%} 通过显著性检验，分散价值有限）"
+    )
+
+
+def _corr_confidence(avg_corr: float, neg_significant_ratio: float) -> str:
+    """相关性结论置信度（P1-04c）。"""
+    if avg_corr is None:
+        return "低"
+    if avg_corr < 0 and neg_significant_ratio >= 0.5 and abs(avg_corr) >= 0.3:
+        return "高"
+    if abs(avg_corr) >= 0.5:
+        return "中"
+    return "低"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -334,6 +592,18 @@ def get_portfolio_codes() -> list[str]:
         return [p["code"] for p in positions if p.get("code")]
     except Exception as e:
         logger.warning("PortfolioManager.get_positions 失败: %s", e)
+        return []
+
+
+def get_positions_full() -> list:
+    """从 PortfolioManager 拉完整持仓（含 cost/quantity/tags/industry）。失败返回空 list。"""
+    try:
+        from portfolio.manager import PortfolioManager
+
+        pm = PortfolioManager()
+        return pm.get_positions()
+    except Exception as e:
+        logger.warning("PortfolioManager.get_positions(full) 失败: %s", e)
         return []
 
 
@@ -371,6 +641,7 @@ def compute_full_portfolio_correlation(
             "high_corr_pairs": [],
             "vs_portfolio": None,
             "interpretation": "无持仓，跳过组合相关性分析（先在 /portfolio 建仓）",
+            "window_notice": WINDOW_NOTICE,
             "data_quality": {"degraded_fields": []},
         }
 
@@ -387,10 +658,23 @@ def compute_full_portfolio_correlation(
 
     # 个股 vs 组合
     vs_portfolio = None
+    industry_overlap = None
     if stock_code:
         vs_portfolio = compute_stock_vs_portfolio(
             stock_code, portfolio_codes, window=window
         )
+        # P2-04：候选股与持仓的行业重叠率
+        try:
+            industry_overlap = compute_industry_overlap(
+                stock_code,
+                get_positions_full(),
+            )
+        except Exception as e:  # noqa: BLE001 — 行业重叠失败不阻塞主链路
+            logger.debug("compute_industry_overlap 失败: %s", e)
+            industry_overlap = {
+                "stock_code": stock_code,
+                "message": "行业重叠计算失败（数据不足）",
+            }
 
     return {
         "portfolio_empty": False,
@@ -402,10 +686,13 @@ def compute_full_portfolio_correlation(
         "high_corr_pairs": (
             matrix_payload.get("high_corr_pairs") if matrix_payload else []
         ),
+        "stability": matrix_payload.get("stability") if matrix_payload else None,
         "vs_portfolio": vs_portfolio,
+        "industry_overlap": industry_overlap,
         "interpretation": (
             matrix_payload.get("interpretation") if matrix_payload else "无数据"
         ),
+        "window_notice": WINDOW_NOTICE,
         "data_quality": (
             matrix_payload.get("data_quality")
             if matrix_payload
@@ -459,12 +746,29 @@ def main():
             for pair in result["high_corr_pairs"][:5]:
                 print(f"    {pair[0]} <-> {pair[1]}: {pair[2]}")
         print(f"  解读: {result['interpretation']}")
+        st = result.get("stability")
+        if st:
+            print(
+                f"  相关性稳定性: {'稳定' if st['stable'] else '⚠️ 不稳定'} "
+                f"（{st['sign_flips']}/{st['n_pairs']} 对后半段符号翻转，最大变化 {st['max_delta']}）"
+            )
         vp = result.get("vs_portfolio")
         if vp:
             print()
             print(f"  vs_portfolio ({vp['stock_code']}):")
             print(f"    平均相关性: {vp['vs_portfolio_avg_corr']}")
             print(f"    分散化收益: {vp['diversification_benefit']}")
+            if vp.get("corr_confidence"):
+                print(f"    结论置信度: {vp['corr_confidence']}")
+        ov = result.get("industry_overlap")
+        if ov:
+            print()
+            print(f"  行业重叠 ({ov.get('stock_industry') or '未知'}):")
+            print(f"    {ov.get('message', '')}")
+            if ov.get("concentration_warning"):
+                print("    ⚠️ 需控制新增仓位，避免触发行业 30% 硬约束")
+        print()
+        print(f"  ⚠️ 窗口声明: {result.get('window_notice', WINDOW_NOTICE)}")
 
         dq = result.get("data_quality", {}).get("degraded_fields", [])
         if dq:

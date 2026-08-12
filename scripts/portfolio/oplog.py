@@ -69,6 +69,7 @@ class OpLog:
         code: str = "",
         snapshot_before: dict = None,
         auto_save: bool = True,
+        extra: dict = None,
     ) -> dict:
         """记录一次操作。
 
@@ -77,6 +78,7 @@ class OpLog:
             code: 股票代码
             snapshot_before: 操作前的完整 portfolio 数据快照
             auto_save: 是否自动保存
+            extra: 附加 detail 字段（如 cost_before / cost_after，P1-03 可追溯）
 
         Returns:
             新增的操作记录
@@ -87,6 +89,8 @@ class OpLog:
             "code": code,
             "snapshot_before": snapshot_before or {},
         }
+        if extra:
+            entry.update(extra)
 
         if auto_save:
             # 持锁完成「读→改→写」，避免并发 push 丢失记录
@@ -101,6 +105,28 @@ class OpLog:
             if len(self._data["entries"]) > _MAX_HISTORY:
                 self._data["entries"] = self._data["entries"][-_MAX_HISTORY:]
         return entry
+
+    def update_last(self, op: str = None, **fields) -> Optional[dict]:
+        """回填最近一条操作记录的 detail 字段（如操作完成后的 cost_after）。
+
+        Args:
+            op: 若指定，仅当最近一条记录 op 匹配时才回填
+            fields: 要合并进记录的字段
+
+        Returns:
+            更新后的记录；无匹配记录时返回 None
+        """
+        with file_lock(self._path):
+            self._data = self._load()
+            entries = self._data.get("entries", [])
+            if not entries:
+                return None
+            last = entries[-1]
+            if op is not None and last.get("op") != op:
+                return None
+            last.update(fields)
+            raw_write(self._path, self._data)
+            return last
 
     def undo(self) -> Optional[dict]:
         """回滚最近一次操作，返回其 snapshot_before。

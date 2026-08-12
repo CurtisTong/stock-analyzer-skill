@@ -200,3 +200,109 @@ class TestUnknownAction:
         result = dispatch(pm, {"action": "unknown_action"})
         assert isinstance(result, dict)
         assert "error" in result or "ok" in result
+
+
+# ═══════════════════════════════════════════════════════════════
+# P1-03 cost_source 可追溯
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestCostSourceDispatch:
+    """add/update_position 的 cost_source 透传 + cost 变更影响 meta。"""
+
+    def test_add_position_passes_cost_source(self):
+        from portfolio.web.dispatch import dispatch
+
+        pm = MagicMock()
+        pm.add_position.return_value = {"code": "sh600989", "cost": 18.5}
+        result = dispatch(
+            pm,
+            {
+                "action": "add_position",
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "cost": 18.5,
+                "quantity": 1000,
+                "cost_source": "screenshot",
+            },
+        )
+        assert result["ok"] is True
+        kwargs = pm.add_position.call_args
+        assert kwargs.kwargs["cost_source"] == "screenshot"
+
+    def test_add_position_invalid_cost_source(self):
+        from portfolio.web.dispatch import dispatch
+
+        pm = MagicMock()
+        result = dispatch(
+            pm,
+            {
+                "action": "add_position",
+                "code": "sh600989",
+                "cost": 18.5,
+                "quantity": 1000,
+                "cost_source": "guessed",
+            },
+        )
+        assert result["ok"] is False
+        assert result["error"] == "invalid_cost_source"
+
+    def test_update_position_cost_returns_impact_meta(self):
+        from portfolio.web.dispatch import dispatch
+
+        pm = MagicMock()
+        pm.get_position.return_value = {
+            "code": "sh600989",
+            "cost": 18.5,
+            "quantity": 1000,
+        }
+        pm.update_position.return_value = {
+            "code": "sh600989",
+            "cost": 41.93,
+            "cost_source": "user_input",
+        }
+        result = dispatch(
+            pm,
+            {
+                "action": "update_position",
+                "code": "sh600989",
+                "cost": 41.93,
+            },
+        )
+        assert result["ok"] is True
+        assert result["meta"]["cost_before"] == 18.5
+        assert result["meta"]["cost_after"] == 41.93
+        assert "浮亏" in result["meta"]["hint"]
+
+    def test_update_position_passes_cost_source(self):
+        from portfolio.web.dispatch import dispatch
+
+        pm = MagicMock()
+        pm.update_position.return_value = {"code": "sh600989", "cost": 41.93}
+        dispatch(
+            pm,
+            {
+                "action": "update_position",
+                "code": "sh600989",
+                "cost": 41.93,
+                "cost_source": "screenshot",
+            },
+        )
+        kwargs = pm.update_position.call_args
+        assert kwargs.kwargs["cost_source"] == "screenshot"
+
+    def test_update_position_invalid_cost_source(self):
+        from portfolio.web.dispatch import dispatch
+
+        pm = MagicMock()
+        result = dispatch(
+            pm,
+            {
+                "action": "update_position",
+                "code": "sh600989",
+                "cost": 41.93,
+                "cost_source": "weird",
+            },
+        )
+        assert result["ok"] is False
+        assert result["error"] == "invalid_cost_source"
