@@ -59,7 +59,7 @@ def bench_screener(codes: List[str], rounds: int) -> dict:
 
 def bench_backtest(codes: List[str], rounds: int) -> dict:
     """对每只股票跑 backtest.run_backtest，测量耗时。"""
-    from backtest import run_backtest
+    from backtest.metrics import run_backtest
 
     durations = []
     for i in range(rounds):

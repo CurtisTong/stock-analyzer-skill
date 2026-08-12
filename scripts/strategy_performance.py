@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import DATA_DIR, atomic_write_json  # noqa: E402
 from strategies import get_strategy, list_strategies  # noqa: E402
-from backtest import run_backtest, load_test_universe  # noqa: E402
+from backtest.cli import load_test_universe  # noqa: E402
+from backtest.metrics import run_backtest  # noqa: E402
 
 PERFORMANCE_FILE = Path(DATA_DIR) / "strategy_performance.json"
 

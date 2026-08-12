@@ -78,6 +78,19 @@ repos:
         # 允许失败：本地未必装 mypy
         require_serial: false
 
+      # === v2.7 #1 扩展：CLI 层类型检查（与 ci.yml mypy CLI 层 step 一字不差）===
+      # 白名单核心命令检查 6 顶层脚本 + 11 目录；本命令独立检查 22 个顶层 CLI 脚本。
+      # 顶层 technical.py/backtest.py/chan.py 与同名包目录并传会触发 mypy
+      # "Duplicate module named" 双身份冲突，故目录与文件分层两条命令检查。
+      - id: mypy-cli-layer
+        name: mypy CLI 层类型检查（22 个顶层脚本）
+        entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/quote.py scripts/kline.py scripts/finance.py scripts/technical.py scripts/screener.py scripts/stock.py scripts/chip.py scripts/sector.py scripts/monitor.py scripts/sector_summary.py scripts/portfolio_web.py scripts/hot_rank.py scripts/market_breadth.py scripts/perf_bench.py scripts/snapshots.py scripts/multi_stock_backtest.py scripts/strategy_performance.py scripts/calibration.py scripts/calibration_backfill.py scripts/calibration_sync.py scripts/backtest.py scripts/chan.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+        require_serial: false
+
       - id: sync-version
         name: sync_version 版本一致性检查（CI 镜像）
         entry: python3 scripts/dev/sync_version.py --check

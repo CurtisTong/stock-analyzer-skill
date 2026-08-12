@@ -72,6 +72,32 @@ jobs:
             scripts/dev/ \
             scripts/chan/
 
+      - name: mypy CLI 层类型检查
+        run: |
+          mypy --follow-imports=silent --no-incremental \
+            scripts/quote.py \
+            scripts/kline.py \
+            scripts/finance.py \
+            scripts/technical.py \
+            scripts/screener.py \
+            scripts/stock.py \
+            scripts/chip.py \
+            scripts/sector.py \
+            scripts/monitor.py \
+            scripts/sector_summary.py \
+            scripts/portfolio_web.py \
+            scripts/hot_rank.py \
+            scripts/market_breadth.py \
+            scripts/perf_bench.py \
+            scripts/snapshots.py \
+            scripts/multi_stock_backtest.py \
+            scripts/strategy_performance.py \
+            scripts/calibration.py \
+            scripts/calibration_backfill.py \
+            scripts/calibration_sync.py \
+            scripts/backtest.py \
+            scripts/chan.py
+
   integration:
     name: 集成测试
     runs-on: ubuntu-latest
