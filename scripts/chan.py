@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# mypy: disable-error-code="attr-defined"
 """
 缠中说禅理论（缠论）实现。
 包含：K线包含处理 → 分型 → 笔 → 线段 → 中枢 → 买卖点 → 背驰检测。

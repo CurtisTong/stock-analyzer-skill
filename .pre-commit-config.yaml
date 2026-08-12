@@ -59,7 +59,7 @@ repos:
 
       # === v1.16.0 Batch 1.5 新增 4 个 CI 镜像 local hook ===
       - id: mypy-allowlist
-        name: mypy 类型检查（CI 6 文件 + 11 目录白名单）
+        name: mypy 类型检查（CI 6 脚本 + 11 目录白名单）
         # CI 中跑同批文件，开发时本地镜像
         # v1.16.0 修复：与 .github/workflows/ci.yml mypy step 完全一致
         # 必须加 --follow-imports=silent --no-incremental，否则 mypy 会
@@ -68,6 +68,8 @@ repos:
         # v2.7 #1（2026-08-12）：common/ 已清零，随后 fetchers/business 也清零，
         # 2026-08-13 扩展 technical/strategies/data/portfolio/monitor/backtest/config/dev/chan，
         # 全部纳入白名单防回归（白名单命令与 ci.yml 保持一字不差）
+        # 注：顶层 scripts/chan.py 兼容层与 chan/ 包同名（mypy 双身份限制）无法同列白名单，
+        #    由 chan/ 目录扫描覆盖其逻辑
         entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/market_anchor.py scripts/sector_etf_strength.py scripts/industry_beta.py scripts/portfolio_correlation.py scripts/macro_indicators.py scripts/common/ scripts/fetchers/ scripts/business/ scripts/technical/ scripts/strategies/ scripts/data/ scripts/portfolio/ scripts/monitor/ scripts/backtest/ scripts/config/ scripts/dev/ scripts/chan/
         language: system
         pass_filenames: false
