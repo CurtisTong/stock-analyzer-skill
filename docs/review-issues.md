@@ -129,9 +129,9 @@
 | **P1-11** | experts | 龙头地位仅近似、龙虎榜未纳入（炸板率已纳入） | `experts/scoring/*` | 炸板率已纳入 chaogu_yangjia.py:46；龙头地位用回撤近似（zhao_laoge.py:7-9 自认缺陷）；龙虎榜全缺失 | 给 zhao_laoge 增加 dragon_tiger 输入；龙头地位接入板块横截面排名 |
 | **P1-12** | technical | 缠论中枢缺少 GG/DD 边界 | `scripts/chan/zhongshu.py` | 增加 `gg=max(high)`、`dd=min(low)`；✅ Round 8 已修（zhongshu.py:29-31 GG=max(high)/DD=min(low)） |
 | **P1-13** | technical | `chan/__init__.py` 声明"线段未使用特征序列"已过时（实际已启用） | `scripts/chan/__init__.py` | `__init__.py:7` 称"未使用特征序列"，但 `xianduan.py:45,89` 默认启用特征序列；其余条目（GG/DD 缺失等）准确 | 更新注释，区分"已修复"和"仍偏离标准"的部分 |
-| **P1-14** | technical | `_find_swing_points` 依赖未来窗口，背离检测含前瞻性 | `scripts/technical/core.py` | 增加 past-only 版本；报告中标注 `lookahead_required` |
+| **P1-14** | technical | `_find_swing_points` 依赖未来窗口，背离检测含前瞻性 | `scripts/technical/core.py` | 增加 past-only 版本；报告中标注 `lookahead_required`；✅ 2026-08-12 修复（core.py::_find_swing_points 加 confirm 参数：默认 True 保留确认延迟；confirm=False 即时极值 past-only；test_swing_points_p1p14 5 项） |
 | **P1-15** | technical | `composite_score` 依赖 `_SCORE_MAX` 魔数归一化 | `scripts/technical/scoring.py` | 改 rank-based scoring 或 `_SCORE_TARGET`；✅ Round 10 已修（scoring.py:22 `_SCORE_MAX_DEFAULT` 模块级常量 + scoring.yaml 可覆盖） |
-| **P1-16** | technical | `signals` 用字符串子串判断金叉/死叉/超买超卖 | `scripts/technical/signals.py` | 改结构化 dict，如 `{"golden_cross": true}` |
+| **P1-16** | technical | `signals` 用字符串子串判断金叉/死叉/超买超卖 | `scripts/technical/signals.py` | 改结构化 dict，如 `{"golden_cross": true}`；✅ 2026-08-12 状态补记（signals.py::_generate_signals 已返回 structured dict：macd/kdj/boll/rsi/volume 18 项结构化信号，与字符串并行输出） |
 | **P1-17** | business | `_calculate_composite_score` 误传个股 quote 当指数 quote 做市场环境检测 | `scripts/business/stock_analysis.py` | analyze() 传 `index_quote=quote`（个股，:118），detect_market_environment 在个股 quote 上做市场环境判定（:233）；get_quote("sh000001") 成死代码 | 在 analyze() 并行拉取 sh000001 指数行情，显式传入 |
 | **P1-18** | business | 行情/K线/财务统一 30s timeout，不区分数据类型 | `scripts/business/stock_analysis.py` | 行情 15s、K线 25s、财务 45s，或由 fetcher 配置控制 |
 | **P1-19** | business | `_hard_filter` 把 warning 混入 rejected reasons | `scripts/business/screening_service.py` | 返回 `HardFilterResult(reasons, warnings)` |

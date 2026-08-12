@@ -87,23 +87,39 @@ def stddev(values):
     return math.sqrt(sum((x - mean) ** 2 for x in values) / len(values))
 
 
-def _find_swing_points(values, window=5):
+def _find_swing_points(values, window=5, confirm=True):
     """找局部极值点索引列表。用于背离检测。
 
-    P1-14: 本方法需 window 根后续 K 线确认极值（right = values[i+1:i+window+1]），
-    因此最近 window 根 K 线不会被标记为极值点。这是 by-design 的确认延迟
-    （非未来数据泄露），但意味着实时信号有 window 根滞后。
-    改为即时确认会降低精度（误报增加），故保持现有算法。
+    P1-14: 默认 confirm=True 时需 window 根后续 K 线确认极值
+    （right = values[i+1:i+window+1]），因此最近 window 根 K 线不会标记为极值点。
+    这是 by-design 的确认延迟（非未来数据泄露），但实时信号有 window 根滞后。
+
+    confirm=False 为 past-only 版本：仅用左侧窗口确认（即时极值），
+    最近 window 根立即参与判定，供实时盘口即时背离检测，代价是误报略增。
     """
-    if len(values) < 2 * window + 1:
+    if len(values) < window + 1:
         return [], []
     highs, lows = [], []
-    for i in range(window, len(values) - window):
+    for i in range(window, len(values)):
         left = values[i - window : i]
         right = values[i + 1 : i + window + 1]
-        if values[i] >= max(left) and values[i] > max(right):
+        is_high = values[i] >= max(left)
+        is_low = values[i] <= min(left)
+        if confirm:
+            if i >= len(values) - window and len(right) < window:
+                # 右侧窗口不足：等待确认，不标记
+                continue
+            if right and values[i] > max(right):
+                is_high = True
+            else:
+                is_high = False
+            if right and values[i] < min(right):
+                is_low = True
+            else:
+                is_low = False
+        if is_high:
             highs.append(i)
-        if values[i] <= min(left) and values[i] < min(right):
+        if is_low:
             lows.append(i)
     return highs, lows
 
