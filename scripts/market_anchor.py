@@ -40,9 +40,9 @@ import market_breadth  # noqa: E402  get_market_breadth()
 import sector_etf_strength  # noqa: E402  analyze()
 from technical.moving_average import ma_system  # noqa: E402
 from technical.volatility import compute_atr  # noqa: E402  ATR
-from macro_indicators import (
+from macro_indicators import (  # noqa: E402  宏观+杠杆+估值桥（与 scripts/ 其余模块同用裸模块名）
     fetch_all as fetch_macro_all,
-)  # noqa: E402  宏观+杠杆+估值桥
+)
 
 # v2.6.0 新增：行业 beta + 组合相关性
 from industry_beta import compute_beta, select_index_by_size  # noqa: E402

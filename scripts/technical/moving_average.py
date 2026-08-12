@@ -38,7 +38,11 @@ def ma_system(closes):
         result[f"ma{p}"] = round(sma(closes, p), 2) if len(closes) >= p else None
 
     # 排列状态
-    mas = [result[f"ma{p}"] for p in _MA_PERIODS if result[f"ma{p}"] is not None]
+    mas: list[float] = []
+    for p in _MA_PERIODS:
+        v = result.get(f"ma{p}")
+        if v is not None:
+            mas.append(v)
     if len(mas) >= 4:
         if all(
             mas[i] > mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]

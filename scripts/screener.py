@@ -252,13 +252,14 @@ def _print_mainline_deviation_warning(rows, args):
         return
     try:
         from quote import get_quotes
-        from sector_etf_strength import SECTOR_ETFS
+        from sector_etf_strength import _load_sector_etfs
     except Exception:
         return
 
     # 拉取全部板块 ETF 今日涨跌，按涨幅排序取 top 3
     try:
-        codes = [etf["code"] for etf in SECTOR_ETFS.values() if "code" in etf]
+        etfs_meta = _load_sector_etfs()
+        codes = [etf["code"] for etf in etfs_meta if etf.get("code")]
         if not codes:
             return
         quotes = get_quotes(codes)

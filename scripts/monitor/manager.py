@@ -166,7 +166,7 @@ class NotificationManager:
         # Bark
         bark_cfg = channels_cfg.get("bark", {})
         if bark_cfg.get("enabled", False):
-            ch = BarkChannel(
+            ch: NotificationChannel = BarkChannel(
                 server=bark_cfg.get("server", "https://api.day.app"),
                 key=bark_cfg.get("key", ""),
                 group=bark_cfg.get("group", "stock"),

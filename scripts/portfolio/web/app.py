@@ -26,7 +26,7 @@ from datetime import datetime
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 from urllib.parse import parse_qs, urlparse
 
 from .dispatch import dispatch
@@ -192,7 +192,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path == "/":
             qs = parse_qs(urlparse(self.path).query)
-            url_token = (qs.get("token") or [None])[0]
+            token_qs = qs.get("token")
+            url_token = token_qs[0] if token_qs else None
             if url_token and hmac.compare_digest(url_token.strip(), token):
                 return True
         self._write_json(
@@ -557,7 +558,7 @@ def main():
         print(f"提示: 用 `lsof -i:{args.port}` 查看占用进程", file=sys.stderr)
         sys.exit(1)
 
-    bound_host, bound_port = server.server_address
+    bound_host, bound_port = cast("tuple[str, int]", server.server_address)
     token = _ensure_token()
     mode_label = "虚拟持仓（模拟盘）" if args.virtual else "实盘持仓"
     is_public = args.host == "0.0.0.0"

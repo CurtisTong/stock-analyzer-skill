@@ -101,7 +101,7 @@ def run_backtest(
     # all_daily_returns 不足时 sharpe 保持 0（样本不足，不退化到非独立期收益路径）
 
     # 最大回撤
-    max_drawdown = 0
+    max_drawdown = 0.0
     if all_daily_returns:
         cumulative = [1.0]
         for r in all_daily_returns:
@@ -202,7 +202,7 @@ def run_backtest(
     }
 
 
-def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list:
+def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
     """获取基准指数的日收益率序列。"""
     if not benchmark_code:
         return None

@@ -129,7 +129,7 @@ def _score_dividend_yield(yield_pct: float, industry: str) -> float:
         return 0.0
 
 
-def _count_dividend_years(fin: dict):
+def _count_dividend_years(fin: dict | None):
     """估算连续分红年数。返回 0-10 或 None（数据缺失）。
 
     None 表示"数据未采集"，调用方应中性处理（不扣分），
@@ -158,7 +158,7 @@ def _score_continuity(years: int) -> float:
         return -12.0  # 连续不分红扣分
 
 
-def _calc_payout_ratio(fin: dict) -> float:
+def _calc_payout_ratio(fin: dict | None) -> float:
     """计算分红率 = 每股分红 / EPS (0-1)。"""
     if not fin:
         return 0

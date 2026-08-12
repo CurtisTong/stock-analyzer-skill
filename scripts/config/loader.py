@@ -102,7 +102,7 @@ class ConfigLoader:
         config = cls.load(filename)
         keys = key_path.split(".")
 
-        value = config
+        value: Any = config
         for key in keys:
             if isinstance(value, dict):
                 value = value.get(key)

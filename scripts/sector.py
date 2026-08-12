@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data import get_quote, get_finance
 from common import parallel_map, normalize_finance_code
+from typing import Any
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
@@ -232,7 +233,7 @@ def main():
         all_quotes = {q["code"]: q for q in fetch_sector_quotes(all_codes)}
         all_finance = fetch_sector_finance(all_codes)
 
-        result = {
+        result: dict[str, Any] = {
             "code": code,
             "sectors": [],
         }

@@ -20,6 +20,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
+from typing import Any, Optional
 
 # 添加项目根目录到路径
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -34,7 +35,7 @@ class DailyReportGenerator:
 
     def __init__(self, portfolio_path: str = None):
         self._portfolio_path = portfolio_path
-        self._pm = None
+        self._pm: Any = None
 
     def _get_pm(self):
         """惰性初始化 PortfolioManager（通过架构层操作而非直接读写文件）。"""
@@ -157,7 +158,7 @@ class DailyReportGenerator:
 
         return report
 
-    def _parse_quote(self, response: str, code: str) -> dict:
+    def _parse_quote(self, response: str, code: str) -> Optional[dict]:
         """解析腾讯行情数据（统一通过 parse_tencent_line 字段映射）。"""
         rec = parse_tencent_line(response)
         if rec:

@@ -278,7 +278,9 @@ def compute_factor_correlation_matrix(
     """
     names = list(factor_scores.keys())
     n = len(names)
-    matrix = {a: {b: None for b in names} for a in names}
+    matrix: dict[str, dict[str, float | None]] = {
+        a: {b: None for b in names} for a in names
+    }
     for a in names:
         matrix[a][a] = 1.0
 
@@ -315,7 +317,7 @@ def compute_vif(factor_scores: dict) -> dict:
     """
     names = list(factor_scores.keys())
     n_factors = len(names)
-    result = {}
+    result: dict[str, float | None] = {}
 
     for j, target in enumerate(names):
         y = factor_scores.get(target) or []

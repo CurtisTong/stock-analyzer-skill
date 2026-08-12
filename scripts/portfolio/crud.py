@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from common.validators import normalize_code
 from portfolio._file_utils import today as _today
@@ -82,7 +82,7 @@ def add_position(
     manager._push_oplog(
         "add_position", code=code, cost_before=cost_before, cost_source=cost_source
     )
-    result_holder = {}
+    result_holder: dict[str, Any] = {}
 
     def _apply(data: dict) -> dict:
         positions = data.setdefault("positions", [])
@@ -151,7 +151,7 @@ def reduce_position(
         raise ValueError("quantity must be positive")
     code = normalize_code(code)
     manager._push_oplog("reduce_position", code=code)
-    result_holder = {"r": None, "cleared": False, "pos": None}
+    result_holder: dict[str, Any] = {"r": None, "cleared": False, "pos": None}
 
     def _apply(data: dict) -> dict:
         positions = data.get("positions", [])
@@ -211,7 +211,7 @@ def remove_position(
     """清仓（移除持仓）并记录交易日志。"""
     code = normalize_code(code)
     manager._push_oplog("remove_position", code=code)
-    holder = {"found": False, "pos": None}
+    holder: dict[str, Any] = {"found": False, "pos": None}
 
     def _apply(data: dict) -> dict:
         positions = data.get("positions", [])

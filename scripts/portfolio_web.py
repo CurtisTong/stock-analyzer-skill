@@ -26,8 +26,6 @@ from portfolio.web.app import (
     Handler,
     VERSION,
     main,
-    MAX_BODY_BYTES,  # noqa: F401 — re-export for tests
-    _collect_code_name_map,  # noqa: F401 — re-export for tests
 )
 from portfolio.web.utils import (  # noqa: F401 — re-export for tests
     _TOKEN_FILE,
@@ -46,8 +44,6 @@ __all__ = [
     "_token",
     "_ensure_token",
     "ALLOWED_ACTIONS",
-    "MAX_BODY_BYTES",
-    "_collect_code_name_map",
 ]
 
 if __name__ == "__main__":

@@ -109,8 +109,9 @@ def _fetch_raw_material_price(material_key: str):
     if not fetcher_name:
         return None
     try:
-        from scripts import macro_indicators
+        import importlib
 
+        macro_indicators = importlib.import_module("macro_indicators")
         fetcher = getattr(macro_indicators, fetcher_name, None)
         if fetcher:
             return fetcher()

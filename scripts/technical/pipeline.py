@@ -5,6 +5,7 @@
 """
 
 import statistics
+from typing import Any
 
 from common import to_float
 from technical.moving_average import ma_system
@@ -39,9 +40,9 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         }
 
     all_indicators = indicators is None
-    result = {"closes": closes}
+    result: dict[str, Any] = {"closes": closes}
 
-    if all_indicators or "trend" in indicators:
+    if all_indicators or (indicators is not None and "trend" in indicators):
         # 复用 ma_system 的 MA10/MA20，避免重复计算
         ma_info = ma_system(closes)
         ma10 = ma_info.get("ma10")
@@ -68,23 +69,23 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         result["ma10"] = ma10
         result["ma20"] = ma20
 
-    if all_indicators or "ret20" in indicators:
+    if all_indicators or (indicators is not None and "ret20" in indicators):
         base = closes[-21] if len(closes) >= 21 else closes[0]
         result["ret20"] = (closes[-1] / base - 1) * 100 if base else 0
 
-    if all_indicators or "volume" in indicators:
+    if all_indicators or (indicators is not None and "volume" in indicators):
         recent_vol = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else 0
         base_vol = (
             statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol
         )
         result["volume_ratio"] = recent_vol / base_vol if base_vol else 1
 
-    if all_indicators or "rsi" in indicators:
+    if all_indicators or (indicators is not None and "rsi" in indicators):
         rsi_data = rsi_features(closes) or {}
         result["rsi"] = round(rsi_data.get("rsi", 50), 1)
         result["rsi_signal"] = rsi_data.get("signal", 0)
 
-    if all_indicators or "macd" in indicators:
+    if all_indicators or (indicators is not None and "macd" in indicators):
         macd = macd_full(closes) or {}
         result["macd_signal"] = macd.get("signal", 0)
         # H3: 透传 bar_trend / divergence，供 stock_analysis 的 composite_score
@@ -92,13 +93,13 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         result["macd_bar_trend"] = macd.get("bar_trend", "")
         result["macd_divergence"] = macd.get("divergence", "")
 
-    if all_indicators or "vol_price" in indicators:
+    if all_indicators or (indicators is not None and "vol_price" in indicators):
         vp = volume_analysis(closes, volumes) or {}
         result["vol_price_signal"] = vp.get("volume_price_signal", 0)
 
     # (#6) Amihud 非流动性指标：mean(|daily_return| / amount) 近 20 日
     # 高值 = 流动性差（单位成交额引起的价格变动大）
-    if all_indicators or "amihud" in indicators:
+    if all_indicators or (indicators is not None and "amihud" in indicators):
         amounts = [to_float(getattr(b, "amount", 0)) for b in valid_bars]
         result["amihud_illiq"] = _calc_amihud(closes, amounts)
 

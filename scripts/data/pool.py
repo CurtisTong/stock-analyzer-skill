@@ -99,6 +99,7 @@ def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
                 continue
             logger.warning("API 请求失败 (%s): %s", bk_code, e)
             return []
+    return []
 
 
 def fetch_multiple_boards(bk_codes: list[str]) -> list[dict]:
@@ -168,6 +169,7 @@ def _fetch_xuangu_page(
                 e,
             )
             return [], 0
+    return [], 0
 
 
 def fetch_all_market_stocks() -> dict[str, list[str]]:
@@ -296,7 +298,7 @@ def _fetch_push2_market(boards: dict[str, list[str]]) -> None:
 def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
     """保存全市场股票池到 all_stocks.json。"""
     total = sum(len(v) for v in stocks_by_board.values())
-    output = {
+    output: dict[str, object] = {
         "_meta": {
             "updated": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
             "source": "eastmoney_full_market",

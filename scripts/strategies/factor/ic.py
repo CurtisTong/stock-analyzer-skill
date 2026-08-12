@@ -111,6 +111,7 @@ def compute_ic_by_regime(selections: List[dict]) -> Dict[str, Dict[str, float]]:
     ic_by_regime = {}
     regimes = set(s.get("regime") for s in selections if s.get("regime"))
     for regime_val in regimes:
+        assert regime_val is not None
         regime_selections = [s for s in selections if s.get("regime") == regime_val]
         ic_by_regime[regime_val] = compute_all_factor_ic(regime_selections)
     return ic_by_regime

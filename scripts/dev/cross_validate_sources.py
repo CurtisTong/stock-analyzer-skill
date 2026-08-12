@@ -85,6 +85,8 @@ def _fetch_from_source(
 
     if not records:
         return None
+    if not isinstance(records, list):
+        return None
     return {r["day"]: r for r in records if r.get("day")}
 
 
@@ -145,8 +147,8 @@ def validate_stock(code: str, datalen: int, sources: list[str] | None = None) ->
         return result
 
     # 取所有源共有的交易日
-    common_days = set.intersection(*(set(d.keys()) for d in data.values()))
-    common_days = sorted(common_days)
+    common_days_set = set.intersection(*(set(d.keys()) for d in data.values()))
+    common_days = sorted(common_days_set)
     result["common_days"] = len(common_days)
     if not common_days:
         result["error"] = "无共有交易日"

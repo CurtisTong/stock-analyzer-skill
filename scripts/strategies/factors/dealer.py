@@ -89,6 +89,7 @@ def detect_dealer_stock(code, quote, records, closes, highs, lows):
         from industry_beta import compute_beta
 
         beta_result = compute_beta(code, window=60)
+        assert beta_result is not None
         r_squared = beta_result.get("r_squared")
         beta = beta_result.get("beta")
 

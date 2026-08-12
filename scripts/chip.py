@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data.chip import get_margin, get_holders, get_top_holders
 from common import normalize_quote_code
+from typing import Any
 
 
 def format_number(n, unit=""):
@@ -165,7 +166,7 @@ def main():
     # 判断是否显示全部
     show_all = not (args.margin or args.holders or args.top_holders or args.chip)
 
-    result = {}
+    result: dict[str, Any] = {}
 
     # 获取数据
     if args.margin or show_all:

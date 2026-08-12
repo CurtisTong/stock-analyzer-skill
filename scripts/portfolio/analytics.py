@@ -75,7 +75,7 @@ def risk_summary(
         风险摘要文本
     """
     try:
-        from business.risk_metrics import (
+        from business.risk_metrics import (  # type: ignore[attr-defined]
             compute_portfolio_var,
             format_var_report,
         )

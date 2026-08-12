@@ -54,7 +54,8 @@ def kdj_full(closes, highs, lows, n=9, board="主板"):
     # 从 i=0 开始迭代，前 n-1 根仅更新 K/D 冷启动值（不输出），
     # 确保 50 初始值有足够迭代收敛，避免跳过前 n-1 根导致冷启动偏差
     k_series, d_series = [], []
-    k_val, d_val = 50, 50
+    k_val: float = 50
+    d_val: float = 50
     for i in range(len(closes)):
         if i < n - 1:
             # 数据不足 n 根，仅更新 K/D 值用于冷启动

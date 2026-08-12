@@ -569,7 +569,11 @@ def aggregate_votes(
         lw, sw = _HORIZON_WEIGHTS.get(horizon, (0.55, 0.45))
 
     # 一次性构建专家查找字典，避免重复线性搜索
-    expert_by_name = {r.get("name"): r for r in expert_results}
+    expert_by_name: Dict[str, dict] = {}
+    for r in expert_results:
+        name = r.get("name")
+        if isinstance(name, str):
+            expert_by_name[name] = r
     # 通过 _find_expert 查找：旧 8 人输入认 legacy 名，新 9 人输入回退到合并型名
     yangjia = _find_expert(expert_by_name, "chaogu_yangjia")
     buffett = _find_expert(expert_by_name, "buffett")

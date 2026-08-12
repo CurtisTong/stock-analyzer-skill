@@ -1,6 +1,6 @@
 """持仓绩效归因分析：个股贡献、行业贡献、风险指标。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from common import to_float
 
 
@@ -227,7 +227,7 @@ class SectorAttribution:
     contribution: float = 0.0  # 对组合贡献%
     profit_pct: float = 0.0  # 行业收益率%
     position_count: int = 0  # 持仓数量
-    positions: list = None  # 个股明细
+    positions: list = field(default_factory=list)  # 个股明细
 
     def __post_init__(self):
         if self.positions is None:

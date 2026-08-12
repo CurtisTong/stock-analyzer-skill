@@ -154,7 +154,7 @@ def _score_fundamentals(fin: dict) -> float:
     gross_margin = float(fin.get("gross_margin") or fin.get("XSMLL") or 0)
     debt = float(fin.get("debt_ratio") or fin.get("ZCFZL") or 0)
 
-    score = 0
+    score = 0.0
     score += min(100, roe * 5)
     score += min(100, max(0, profit_yoy + 50))
     score += min(100, max(0, revenue_yoy + 50))

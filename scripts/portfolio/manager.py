@@ -19,7 +19,7 @@ v2.4.0：每次修改操作前自动 push 快照到 OpLog，支持 undo 回滚�
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 from common.validators import normalize_code
 
@@ -81,7 +81,7 @@ def _read_regime_state() -> dict:
 
     # scripts/portfolio/manager.py → scripts/
     path = Path(__file__).resolve().parent.parent / "data" / "regime_state.json"
-    result = {"regime": None, "updated_at": "", "age_minutes": None}
+    result: dict[str, Any] = {"regime": None, "updated_at": "", "age_minutes": None}
     try:
         if not path.exists():
             return result
@@ -122,6 +122,7 @@ def _fetch_technical_features(
         "portfolio_technical_top",
         Path(__file__).resolve().parent.parent / "technical.py",
     )
+    assert spec is not None and spec.loader is not None
     tech_mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tech_mod)
     TechnicalInput = tech_mod.TechnicalInput
@@ -434,7 +435,7 @@ class PortfolioManager:
         """返回数据文件路径。"""
         return str(self._path)
 
-    def atomic_update(self, updater: callable) -> None:
+    def atomic_update(self, updater: Callable[[dict], dict]) -> None:
         """原子性地执行数据更新操作。
 
         Args:

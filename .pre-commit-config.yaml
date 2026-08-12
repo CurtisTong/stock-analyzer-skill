@@ -59,15 +59,16 @@ repos:
 
       # === v1.16.0 Batch 1.5 新增 4 个 CI 镜像 local hook ===
       - id: mypy-allowlist
-        name: mypy 类型检查（CI 6 文件 + common/ 白名单）
+        name: mypy 类型检查（CI 6 文件 + 10 目录白名单）
         # CI 中跑同批文件，开发时本地镜像
         # v1.16.0 修复：与 .github/workflows/ci.yml mypy step 完全一致
         # 必须加 --follow-imports=silent --no-incremental，否则 mypy 会
         # 把 scripts/macro_indicators.py 既当独立脚本又当 scripts.* 包成员，
         # 报 "Source file found twice under different module names"。
         # v2.7 #1（2026-08-12）：common/ 已清零，随后 fetchers/business 也清零，
-        # 全部纳入白名单防回归
-        entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/market_anchor.py scripts/sector_etf_strength.py scripts/industry_beta.py scripts/portfolio_correlation.py scripts/macro_indicators.py scripts/strategies/factors/dcf.py scripts/common/ scripts/fetchers/ scripts/business/
+        # 2026-08-13 扩展 technical/strategies/data/portfolio/monitor/backtest/config/dev，
+        # 全部纳入白名单防回归（白名单命令与 ci.yml 保持一字不差）
+        entry: python3 -m mypy --follow-imports=silent --no-incremental scripts/market_anchor.py scripts/sector_etf_strength.py scripts/industry_beta.py scripts/portfolio_correlation.py scripts/macro_indicators.py scripts/common/ scripts/fetchers/ scripts/business/ scripts/technical/ scripts/strategies/ scripts/data/ scripts/portfolio/ scripts/monitor/ scripts/backtest/ scripts/config/ scripts/dev/
         language: system
         pass_filenames: false
         types: [python]

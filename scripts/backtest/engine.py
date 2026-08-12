@@ -101,7 +101,7 @@ class SimContext:
     commission: float = 0.00025
     stamp_tax: float = 0.001
     slippage: float = 0.001
-    weights: dict = None
+    weights: dict | None = None
 
 
 def simulate_strategy(ctx: SimContext):

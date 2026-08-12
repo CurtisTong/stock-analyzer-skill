@@ -18,7 +18,7 @@ from typing import Any, Optional
 _pm = None
 _lock = threading.RLock()
 _server_start = time.time()
-_data_file = None
+_data_file: Optional[str] = None
 _log_lock = threading.Lock()
 _notify_enabled = False
 _nm = None

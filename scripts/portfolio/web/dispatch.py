@@ -226,8 +226,8 @@ def _do_add_watch(pm, body: dict, code: str) -> dict:
 
     target_buy_raw = body.get("target_buy")
     target_sell_raw = body.get("target_sell")
-    target_buy = 0
-    target_sell = 0
+    target_buy: float = 0
+    target_sell: float = 0
     if target_buy_raw is not None:
         if isinstance(target_buy_raw, bool) or not isinstance(
             target_buy_raw, (int, float)

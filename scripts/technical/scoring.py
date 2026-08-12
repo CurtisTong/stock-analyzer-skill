@@ -19,7 +19,7 @@ def _scoring_config(key: str = None, default=None):
 # P1-15: 各子评分函数的理论上限（用于归一化到 [0,100]）。
 # 提取为模块级常量，便于发现和维护。可通过 scoring.yaml 的 score_max 覆盖。
 # 这些值必须与 _score_* 函数的实际满分（clamp 上限）保持同步。
-_SCORE_MAX_DEFAULT = {
+_SCORE_MAX_DEFAULT: dict[str, float] = {
     "ma": 30,  # _score_ma: ma_base(20) × type_w(1.3 蓝筹) × adj(1.4 牛市) ≈ 36 → clamp 30
     "macd": 20,  # _score_macd: clamp(macd_score, 0, 20)
     "kdj": 15,  # _score_kdj: clamp(kdj_score, 0, 15)
@@ -277,7 +277,7 @@ def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
     # 下跌趋势降权：放量下跌时，超卖信号不可靠
     trend_penalty = 0.6 if vol_signal == -1 else 1.0
 
-    rsi_base = 7
+    rsi_base: float = 7
     if rsi < 20:
         rsi_base = 12 * trend_penalty  # 极度超卖（<20），反弹概率最高
     elif 20 <= rsi < 30:
@@ -415,12 +415,12 @@ def _score_local(local_patterns_data: dict) -> float:
 
     v2 优化：三阴一阳使用量化指标（量比、跌幅、反弹比例）动态评分。
     """
-    local_bonus = 0
+    local_bonus: float = 0
     for lp in local_patterns_data.get("patterns", []):
         pname = lp.get("name", "")
         pconf = lp.get("confidence", "中")
         metrics = lp.get("metrics", {})
-        bonus = 0
+        bonus: float = 0
 
         if pname == "老鸭头":
             bonus = 8

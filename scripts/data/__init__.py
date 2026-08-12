@@ -84,6 +84,7 @@ def _reset_fetchers():
 def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     """获取单只股票行情。"""
     _load_fetchers()
+    assert _quote_manager is not None
     get_config()
     from common import normalize_quote_code
 
@@ -102,7 +103,7 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
             return _dict_to_quote(cached)
 
     result = _quote_manager.fetch(code)
-    if result is None:
+    if result is None or not isinstance(result, dict):
         return None
 
     quote = _dict_to_quote(result)
@@ -141,6 +142,7 @@ def get_kline(
         use_cache: 是否使用缓存
     """
     _load_fetchers()
+    assert _kline_manager is not None
     cfg = get_config()
     from common import normalize_quote_code
 
@@ -164,10 +166,10 @@ def get_kline(
             return [_dict_to_kline_bar(bar, code) for bar in cached]
 
     records = _kline_manager.fetch(code, scale=scale, datalen=datalen)
-    if not records:
+    if not records or not isinstance(records, list):
         return []
 
-    bars = [_dict_to_kline_bar(r, code) for r in records]
+    bars = [_dict_to_kline_bar(r, code) for r in records if isinstance(r, dict)]
 
     if use_cache and bars:
         # 缓存 fetcher 原始 records（未归一化），读取时单次归一化。
@@ -226,6 +228,7 @@ def get_finance(
     from data.types import FinanceMeta  # 局部导入避免循环依赖
 
     _load_fetchers()
+    assert _finance_manager is not None
     cfg = get_config()
     from common import normalize_finance_code
 
@@ -262,7 +265,7 @@ def get_finance(
                 return records, meta
 
     result = _finance_manager.fetch(code, periods=periods)
-    if not result:
+    if not result or not isinstance(result, list):
         # P0-4: fetch 返回空（所有源无响应）写 zero_key 防穿透
         if use_cache:
             cache.set_json(zero_key, [])
@@ -283,7 +286,7 @@ def get_finance(
     except Exception:
         pass
 
-    records = [_dict_to_finance(r) for r in result]
+    records = [_dict_to_finance(r) for r in result if isinstance(r, dict)]
     meta.actual_periods = len(records)
     meta.source = records[0].source if records else ""
     if not _is_valid_records(records):

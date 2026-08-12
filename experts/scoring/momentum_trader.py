@@ -70,7 +70,9 @@ def score(stock_data: dict) -> Dict[str, float]:
             pool_path,
             submodule_search_locations=[str(pool_path.parent)],
         )
-        mod = importlib.util.module_from_spec(spec)
+        mod = importlib.util.module_from_spec(spec) if spec else None
+        if mod is None:
+            return False
         sys.modules["data.pool"] = mod
         spec.loader.exec_module(mod)  # type: ignore[union-attr]
         return mod.is_st(name)

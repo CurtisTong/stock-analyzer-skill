@@ -92,7 +92,7 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
     tech = fetch_json(["python3", "scripts/technical.py", code_lower, "-j"])
     raw_meta["tech"] = tech  # 保留完整 JSON，报告引用 raw_meta.tech 填占位
     trend = 0
-    rsi = 50
+    rsi: float = 50
     macd_signal = 0
     if isinstance(tech, dict) and not tech.get("error"):
         features = tech.get("features") or {}
@@ -106,12 +106,15 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
         # RSI：features.rsi.value 或 features.rsi 顶层（取决于脚本版本）
         rsi_data = features.get("rsi", 50)
         if isinstance(rsi_data, dict):
-            rsi = rsi_data.get("value", rsi_data.get("rsi", 50))
+            rsi_val = rsi_data.get("value", rsi_data.get("rsi", 50))
+            rsi = rsi_val if isinstance(rsi_val, (int, float)) else 50
         else:
-            rsi = rsi_data
+            rsi = rsi_data if isinstance(rsi_data, (int, float)) else 50
         # MACD 信号：bar >0 → 1，bar <0 → -1
         macd_data = features.get("macd", {}) or {}
         macd_bar = macd_data.get("macd_bar", 0)
+        if not isinstance(macd_bar, (int, float)):
+            macd_bar = 0
         if macd_bar > 0:
             macd_signal = 1
         elif macd_bar < 0:
