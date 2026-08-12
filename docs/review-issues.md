@@ -116,11 +116,11 @@
 
 | ID | 模块 | 问题 | 位置 | 修复建议 |
 | --- | --- | --- | --- | --- |
-| **P1-01** | fetcher | `TencentQuoteFetcher` 返回第一个非空记录，未按 code 精确匹配 | `scripts/fetchers/quote/tencent_quote.py` | 遍历响应时校验 `v_<code>` 或返回 code 与请求一致 |
-| **P1-02** | fetcher | `ThsQuoteFetcher` 输出字段不完整，缺 PE/PB/市值等 | `scripts/fetchers/quote/ths_quote.py` | 补齐字段占位，或标记 `is_minimal=True` |
-| **P1-03** | fetcher | `_try_import` 吞噬所有异常，掩盖 fetcher 模块 bug | `scripts/fetchers/__init__.py` | 只吞 `ImportError/ModuleNotFoundError`，其他异常打 warning |
-| **P1-04** | fetcher | HTTP requests 失败后 fallback 到 http.client，可能造成超时叠加 | `scripts/common/http.py` | requests 超时直接抛 `NetworkError`，或 fallback 使用更短 timeout |
-| **P1-05** | fetcher | `cache` TTL jitter 使用 Python `hash()`，跨进程不稳定 | `scripts/common/cache.py` | 改用 `hashlib.md5/sha1` 生成稳定 jitter |
+| **P1-01** | fetcher | `TencentQuoteFetcher` 返回第一个非空记录，未按 code 精确匹配 | `scripts/fetchers/quote/tencent_quote.py` | 遍历响应时校验 `v_<code>` 或返回 code 与请求一致；✅ 2026-08-12 状态补记（tencent_quote.py:34-37 已按 plain_code 精确匹配，不匹配跳过） |
+| **P1-02** | fetcher | `ThsQuoteFetcher` 输出字段不完整，缺 PE/PB/市值等 | `scripts/fetchers/quote/ths_quote.py` | 补齐字段占位，或标记 `is_minimal=True`；✅ 2026-08-12 修复（ths_quote.py 加 `is_minimal: True` 标记，下游可识别光 0 估值字段的最小数据源） |
+| **P1-03** | fetcher | `_try_import` 吞噬所有异常，掩盖 fetcher 模块 bug | `scripts/fetchers/__init__.py` | 只吞 `ImportError/ModuleNotFoundError`，其他异常打 warning；✅ 2026-08-12 状态补记（fetchers/__init__.py::_try_import 仅吞 ImportError/AttributeError，其他异常 warning+re-raise） |
+| **P1-04** | fetcher | HTTP requests 失败后 fallback 到 http.client，可能造成超时叠加 | `scripts/common/http.py` | requests 超时直接抛 `NetworkError`，或 fallback 使用更短 timeout；✅ 2026-08-12 状态补记（http.py:303 fallback 到 http.client 时 max_retries=1，避免超时叠加） |
+| **P1-05** | fetcher | `cache` TTL jitter 使用 Python `hash()`，跨进程不稳定 | `scripts/common/cache.py` | 改用 `hashlib.md5/sha1` 生成稳定 jitter；✅ 2026-08-12 状态补记（cache.py:52-54 hashlib.sha256 替代内置 hash()，jitter 跨进程稳定） |
 | **P1-06** | experts | 三套 veto/否决机制混用 | `experts/scoring/_merge.py`、`experts/__init__.py`、`experts/vote_engine.py` | 抽象 `VetoPolicy`，文档说明维度否决/人工否决/巴菲特警示区别 |
 | **P1-07** | experts | `apply_veto` 基本是死代码 | `experts/__init__.py` | 删除，或重构为返回触发项与惩罚后分数 |
 | **P1-08** | experts | 双组投票中长线 4:1 + 短线临界值场景规则不清晰 | `experts/vote_engine.py` | 增加边界测试矩阵，明确 4:1 是否可视为强多数 |

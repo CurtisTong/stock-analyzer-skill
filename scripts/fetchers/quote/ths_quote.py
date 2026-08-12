@@ -79,6 +79,9 @@ def _parse_quote(text: str, code: str) -> dict | None:
             "circulating_cap": 0,
             "source": "ths",
             "is_realtime": False,
+            # P1-02: K 线接口无法提供 PE/PB/市值等估值字段，标记为最小数据源，
+            # 下游可用 quote.get("is_minimal") 识别并避免误用 0 值估值
+            "is_minimal": True,
         }
     except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
         raise  # 网络/限速/解析异常向上抛，触发熔断和退避
