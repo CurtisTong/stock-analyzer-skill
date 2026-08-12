@@ -94,21 +94,21 @@
 
 | ID | 模块 | 问题 | 位置 | 影响 | 修复建议 |
 | --- | --- | --- | --- | --- | --- |
-| **P0-01** | skills / 权限 | `.claude/settings.json` 中 `Bash(python3 scripts/**/*.py *)`、`Bash(git commit*)` 等权限过宽 | `.claude/settings.json` | Prompt injection 或误操作可执行任意 scripts、修改文件并提交 | 收紧为显式脚本白名单；限制 Edit/Write 到 `scripts/data/portfolio*.json` 等运行数据 |
-| **P0-02** | business / 输出契约 | `StockAnalysisService.analyze` 未填充 `data_sources` / `data_failed` / `data_time` | `scripts/business/stock_analysis.py`、`scripts/stock.py` | 13 个 skill footer 显示的时间戳和数据源不可信 | 在 quote/kline/finance 成功或失败处记录来源、失败项、数据时间 |
+| **P0-01** | skills / 权限 | `.claude/settings.json` 中 `Bash(python3 scripts/**/*.py *)`、`Bash(git commit*)` 等权限过宽 | `.claude/settings.json` | Prompt injection 或误操作可执行任意 scripts、修改文件并提交 | 收紧为显式脚本白名单；限制 Edit/Write 到 `scripts/data/portfolio*.json` 等运行数据；✅ 2026-08-12 修复（deny 增加 ~/.claude/**、.env、secrets/** 的 Edit/Write 保护；Bash 脚本白名单已显式化） |
+| **P0-02** | business / 输出契约 | `StockAnalysisService.analyze` 未填充 `data_sources` / `data_failed` / `data_time` | `scripts/business/stock_analysis.py`、`scripts/stock.py` | 13 个 skill footer 显示的时间戳和数据源不可信 | 在 quote/kline/finance 成功或失败处记录来源、失败项、数据时间；✅ 2026-08-12 状态补记（stock_analysis.py:96-98 声明 + :120-173 填充 data_sources/data_failed/data_time） |
 | **P0-03** | fetcher / 配置 | `data_source.yaml` 的 `timeout` / `retry` 未被 `_apply_source_config` 使用 | `scripts/common/fetcher_base.py`、`scripts/config/data_source.yaml` | 用户改配置无效，数据源调优失效 | ✅ 2026-08-12 状态补记（fetcher_base.py:92-93 + `_apply_source_config`:289 已读取 timeout/retry/max_datalen，fetcher 用 self.timeout/self.retry） |
 | **P0-04** | fetcher / 熔断 | 429 限速被计入 `on_failure()`，会误触发熔断 | `scripts/common/fetcher_base.py` | 临时限速被当作数据源故障，导致可用数据源被跳过 | ✅ 2026-08-12 状态补记（fetcher_base.py:189 429 不计入熔断失败，独立跳过当前源） |
 | **P0-05** | fetcher / 熔断 | `recovery_timeout=0` 会导致 OPEN/HALF_OPEN 高频抖动 | `scripts/common/circuit_breaker.py` | 配置错误时出现高频重试 | ✅ 2026-08-12 状态补记（commit 6684080 已修：`__init__` 钳制 `recovery_timeout if > 0 else 1`） |
 | **P0-06** | experts / 三源漂移 | YAML 权重维度名未归一化，存在 `情绪/题材` vs `情绪` 键名漂移 | `experts/yaml_loader.py`、`experts/registry.py` | 投票和维度 breakdown 可能错位 | ✅ 2026-08-12 状态补记（commit 70532e4 已修：yaml_loader.py:90 `normalize_dim` + types.py `DIMENSION_ALIASES` 含情绪/题材→情绪，test_experts_types.py:237-268 覆盖） |
 | **P0-07** | experts / 决策文档 | `decide.md` 中"巴菲特否决"规则与代码不一致 | `experts/decide.md`、`experts/vote_engine.py` | LLM 根据文档会得出错误决策预期 | ✅ 2026-08-12 状态补记（decide.md:87,93 已改为"巴菲特警示：中长期信心-15；短期长线组×0.8"，与代码一致） |
-| **P0-08** | experts / 校准公式 | 校准因子公式在 mean_rate=0.5 时给负校准，反直觉 | `experts/calibration.py`、`experts/decide.md` | 代码与文档一致（非不一致 bug），但 mean_rate=0.5（无信息）时给 -0.5 负惩罚属设计争议 | ~~P0~~ **降级 P2**：改为 `(mean_rate - 0.5) * 2 * (1 - min(cv, 0.5))`，mean_rate=0.5 时归零 |
+| **P0-08** | experts / 校准公式 | 校准因子公式在 mean_rate=0.5 时给负校准，反直觉 | `experts/calibration.py`、`experts/decide.md` | 代码与文档一致（非不一致 bug），但 mean_rate=0.5（无信息）时给 -0.5 负惩罚属设计争议 | ~~P0~~ **降级 P2**：改为 `(mean_rate - 0.5) * 2 * (1 - min(cv, 0.5))`，mean_rate=0.5 时归零；✅ 2026-08-12 修复（calibration.py _calibration_factor_from_rates 新公式 (mean_rate-0.5)×2×(1-min(cv,0.5))，mean_rate=0.5 恒归零；decide.md §六.2 同步；test_calibration_factor 6 项） |
 | **P0-09** | experts / 投票 | `aggregate_group_votes` 中 `all(s <= 30)` 强烈看空分支永远不可达 | `experts/vote_engine.py` | 极端全空场景被标成普通看空 | ✅ 2026-08-12 状态补记（vote_engine.py:797 `all(s <= 30)` 已提到普通 bear 分支之前，注释标明决定顺序） |
 | **P0-10** | strategies / 回测 | 回测 `quality` 因子使用最新财务快照，存在 lookahead bias | `scripts/backtest/engine.py` | 回测收益系统性高估 | ✅ Round 10 已修（engine.py:65-68 `_FINANCE_DISCLOSURE_LAG_DAYS=90` 披露延迟过滤，防 lookahead bias；README 明示） |
 | **P0-11** | strategies / 过拟合 | MA+成交量战法胜率来自样本内拟合，无 walk-forward 验证 | `scripts/strategies/patterns/ma_volume_strategy.py`、`scripts/backtest/` | 用户可能误认为战法稳定有效 | ✅ Round 10 已修（scripts/backtest/walk_forward.py OOS 验证框架 + patterns/config.json `oos_validated:false`，报告 IS/OOS 退化比） |
-| **P0-12** | strategies / 因子计算 | `event` / `analyst` 权重为 0 但仍默认计算，可能触发冗余网络请求 | `scripts/strategies/factors/`、`scripts/strategies/registry.py` | 全市场筛选浪费大量 IO | 加 feature flag，默认禁用这两个因子 |
-| **P0-13** | CI / 发布 | `release.yml` 和 `ci.yml` 重复跑全量测试，且 release 标准更宽松 | `.github/workflows/release.yml`、`.github/workflows/ci.yml` | 发布版本可能绕过 CI 覆盖率门槛 | release 复用 CI 结果，或保持相同 pytest 参数 |
-| **P0-14** | CI / CHANGELOG | `changelog.yml` 直接 push main，无并发控制 | `.github/workflows/changelog.yml` | 多 commit 并发时 push 冲突，且自动提交可能绕过 CI | 改 PR 模式，加 `concurrency` 和 rebase retry |
-| **P0-15** | CI / 版本同步 | `sync_skill_test_versions.py` 用脆弱正则替换常量块 | `scripts/dev/sync_skill_test_versions.py` | 加注释/空行会导致版本同步失败，阻塞 release | 改 AST 解析，或用显式 sync boundary |
+| **P0-12** | strategies / 因子计算 | `event` / `analyst` 权重为 0 但仍默认计算，可能触发冗余网络请求 | `scripts/strategies/factors/`、`scripts/strategies/registry.py` | 全市场筛选浪费大量 IO | 加 feature flag，默认禁用这两个因子；✅ 2026-08-12 状态补记（compute_all_factors 已跳过 0 权重因子；event 灰度 0.05、analyst 0.0 已跳过） |
+| **P0-13** | CI / 发布 | `release.yml` 和 `ci.yml` 重复跑全量测试，且 release 标准更宽松 | `.github/workflows/release.yml`、`.github/workflows/ci.yml` | 发布版本可能绕过 CI 覆盖率门槛 | release 复用 CI 结果，或保持相同 pytest 参数；✅ 2026-08-12 修复（提取 .github/workflows/test-suite.yml reusable workflow，ci.yml/release.yml 共用单一 pytest 参数源） |
+| **P0-14** | CI / CHANGELOG | `changelog.yml` 直接 push main，无并发控制 | `.github/workflows/changelog.yml` | 多 commit 并发时 push 冲突，且自动提交可能绕过 CI | 改 PR 模式，加 `concurrency` 和 rebase retry；✅ 2026-08-12 状态补记（changelog.yml 已有 concurrency 组 + 3 次 push rebase retry） |
+| **P0-15** | CI / 版本同步 | `sync_skill_test_versions.py` 用脆弱正则替换常量块 | `scripts/dev/sync_skill_test_versions.py` | 加注释/空行会导致版本同步失败，阻塞 release | 改 AST 解析，或用显式 sync boundary；✅ 2026-08-12 修复（sync_skill_test_versions.py 改显式 <SYNC-SKILL-VERSIONS:START/END> 锚点替换，缺失回退正则；--check 幂等验证通过） |
 
 ---
 
@@ -125,14 +125,14 @@
 | **P1-07** | experts | `apply_veto` 基本是死代码 | `experts/__init__.py` | 删除，或重构为返回触发项与惩罚后分数；✅ 2026-08-12 状态补记（apply_veto 已删除，decide.md:347 记录） |
 | **P1-08** | experts | 双组投票中长线 4:1 + 短线临界值场景规则不清晰 | `experts/vote_engine.py` | 增加边界测试矩阵，明确 4:1 是否可视为强多数；✅ 2026-08-12 修复（test_vote_engine.py::TestTwoGroupBoundaryMatrix 7 项 4:1 边界矩阵，覆盖长线主导/全面分歧/两极分化/短线临界 60·59·39） |
 | **P1-09** | experts | 单组/双组短线"均分驱动"语义不一致 | `experts/decide.md`、`experts/vote_engine.py` | 文档明确双组短线均分驱动，单组投票驱动；✅ 2026-08-12 状态补记（decide.md §8.2 单组投票驱动 vs 双组短线均分驱动，by-design 已文档化） |
-| **P1-10** | experts | 校准 verify 仍需人工触发，无法真正防漂移（record 已自动） | `experts/calibration.py`、`scripts/calibration.py` | record_prediction 已由 run_debate 自动调用（decide.py:87）；verify 自动拉价回调已具备但需人工跑 CLI | verify 增加定时调度/自动到期验证 |
-| **P1-11** | experts | 龙头地位仅近似、龙虎榜未纳入（炸板率已纳入） | `experts/scoring/*` | 炸板率已纳入 chaogu_yangjia.py:46；龙头地位用回撤近似（zhao_laoge.py:7-9 自认缺陷）；龙虎榜全缺失 | 给 zhao_laoge 增加 dragon_tiger 输入；龙头地位接入板块横截面排名 |
+| **P1-10** | experts | 校准 verify 仍需人工触发，无法真正防漂移（record 已自动） | `experts/calibration.py`、`scripts/calibration.py` | record_prediction 已由 run_debate 自动调用（decide.py:87）；verify 自动拉价回调已具备但需人工跑 CLI | verify 增加定时调度/自动到期验证；✅ 2026-08-12 修复（calibration.py verify --quiet 单行摘要；decide.md §6.5 校准防漂移闭环 + crontab 示例） |
+| **P1-11** | experts | 龙头地位仅近似、龙虎榜未纳入（炸板率已纳入） | `experts/scoring/*` | 炸板率已纳入 chaogu_yangjia.py:46；龙头地位用回撤近似（zhao_laoge.py:7-9 自认缺陷）；龙虎榜全缺失 | 给 zhao_laoge 增加 dragon_tiger 输入；龙头地位接入板块横截面排名；✅ 2026-08-12 修复（zhao_laoge 可选 dragon_tiger 净买卖影响情绪 + sector_rank 板块横截面判定龙头，缺失回退；test_zhao_laoge_p1p11 6 项） |
 | **P1-12** | technical | 缠论中枢缺少 GG/DD 边界 | `scripts/chan/zhongshu.py` | 增加 `gg=max(high)`、`dd=min(low)`；✅ Round 8 已修（zhongshu.py:29-31 GG=max(high)/DD=min(low)） |
-| **P1-13** | technical | `chan/__init__.py` 声明"线段未使用特征序列"已过时（实际已启用） | `scripts/chan/__init__.py` | `__init__.py:7` 称"未使用特征序列"，但 `xianduan.py:45,89` 默认启用特征序列；其余条目（GG/DD 缺失等）准确 | 更新注释，区分"已修复"和"仍偏离标准"的部分 |
+| **P1-13** | technical | `chan/__init__.py` 声明"线段未使用特征序列"已过时（实际已启用） | `scripts/chan/__init__.py` | `__init__.py:7` 称"未使用特征序列"，但 `xianduan.py:45,89` 默认启用特征序列；其余条目（GG/DD 缺失等）准确 | 更新注释，区分"已修复"和"仍偏离标准"的部分；✅ 2026-08-12 状态补记（chan/__init__.py 已更新 P1-13 声明：特征序列启用/GG-DD 已修/索引错位已修） |
 | **P1-14** | technical | `_find_swing_points` 依赖未来窗口，背离检测含前瞻性 | `scripts/technical/core.py` | 增加 past-only 版本；报告中标注 `lookahead_required`；✅ 2026-08-12 修复（core.py::_find_swing_points 加 confirm 参数：默认 True 保留确认延迟；confirm=False 即时极值 past-only；test_swing_points_p1p14 5 项） |
 | **P1-15** | technical | `composite_score` 依赖 `_SCORE_MAX` 魔数归一化 | `scripts/technical/scoring.py` | 改 rank-based scoring 或 `_SCORE_TARGET`；✅ Round 10 已修（scoring.py:22 `_SCORE_MAX_DEFAULT` 模块级常量 + scoring.yaml 可覆盖） |
 | **P1-16** | technical | `signals` 用字符串子串判断金叉/死叉/超买超卖 | `scripts/technical/signals.py` | 改结构化 dict，如 `{"golden_cross": true}`；✅ 2026-08-12 状态补记（signals.py::_generate_signals 已返回 structured dict：macd/kdj/boll/rsi/volume 18 项结构化信号，与字符串并行输出） |
-| **P1-17** | business | `_calculate_composite_score` 误传个股 quote 当指数 quote 做市场环境检测 | `scripts/business/stock_analysis.py` | analyze() 传 `index_quote=quote`（个股，:118），detect_market_environment 在个股 quote 上做市场环境判定（:233）；get_quote("sh000001") 成死代码 | 在 analyze() 并行拉取 sh000001 指数行情，显式传入 |
+| **P1-17** | business | `_calculate_composite_score` 误传个股 quote 当指数 quote 做市场环境检测 | `scripts/business/stock_analysis.py` | analyze() 传 `index_quote=quote`（个股，:118），detect_market_environment 在个股 quote 上做市场环境判定（:233）；get_quote("sh000001") 成死代码 | 在 analyze() 并行拉取 sh000001 指数行情，显式传入；✅ 2026-08-12 状态补记（stock_analysis.py:110-111 并行拉 sh000001 指数，:211 显式传 index_quote，个股误当指数死代码已消除） |
 | **P1-18** | business | 行情/K线/财务统一 30s timeout，不区分数据类型 | `scripts/business/stock_analysis.py` | 行情 15s、K线 25s、财务 45s，或由 fetcher 配置控制；✅ 2026-08-12 状态补记（stock_analysis.py 分层 timeout：行情 15s/K线 30s/财务 45s/指数 15s） |
 | **P1-19** | business | `_hard_filter` 把 warning 混入 rejected reasons | `scripts/business/screening_service.py` | 返回 `HardFilterResult(reasons, warnings)`；✅ 2026-08-12 状态补记（screening_service.py:276-283 _hard_filter 返回 (reasons, warnings) 分离，warning 不再误拒） |
 | **P1-20** | business | `risk_warning.py` 几乎未被 portfolio/monitor 消费 | `scripts/business/risk_warning.py` | 删除或接入 monitor/portfolio 风控链路；✅ 2026-08-12 状态补记（risk_warning.py 已重构为筹码 emoji 工具并被 screener.py:126 消费；宏观风控由 macro/gate.py、量化由 risk_metrics.py 分管） |
@@ -259,7 +259,7 @@
 | ID | 优先级 | 模块 | 摘要 | 状态 |
 |:---|:---:|:---|:---|:---:|
 | **P2-H6**（NEW）| P2 | strategies | `valuation_score` 中 `total_cap`/`revenue_yoy` 语义混乱 + PS 区间估算未实现（孤儿 TODO） | ✅ 2026-08-12 修复（revenue/net_profit 仅用标准化字段移除东财死回退 + PEG 3 年 CAGR 优先 + PS 真实=市值/营收优先近似兜底；test_valuation_p2h6 5 项） |
-| **P2-P1**（NEW）| P2 | portfolio | `PortfolioManager` 41 方法 god class 拆分（crud/oplog/analytics/rebalance 4 模块 + facade） | 📋 待办（v1.17.0） |
+| **P2-P1**（NEW） | P2 | portfolio | `PortfolioManager` 41 方法 god class 拆分（crud/oplog/analytics/rebalance 4 模块 + facade） | 📋 待办（v1.17.0）；🔄 2026-08-12 部分完成（v1.16.0 已拆 3/4：analytics/rebalance thin wrapper + OpLog 接入 manager；crud 拆分留 v1.17.0 专项） |
 | **P2-P2**（NEW）| P1 | common | WP5 RateLimiter + WP6 board_overrides 关键路径测试覆盖（contextmanager / circuit breaker 编排 / 4 次 429 全失败恢复） | ✅ v1.16.0 完成（contextmanager + 6 新测试） |
 | **P2-P3**（NEW）| P1 | common | 24 处 `except Exception:` 吞错中 11 处 HIGH/MEDIUM 已加 `log_silent_fallback` 显式日志 | ✅ v1.16.0 完成 |
 | **P2-P4**（NEW）| P2 | web | `templates.py:671` innerHTML+TOKEN 拼接 XSS sink 改为 DOM 节点组合 | ✅ v1.16.0 完成 |

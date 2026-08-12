@@ -50,6 +50,8 @@
 - **screener**: 数据预取阶段进度输出（`data_prefetch` 事件：行情/预筛/财务/完成）；JSON 模式进度走 stderr 不污染 stdout（P0-01 后续）
 - **portfolio**: 实际组合总仓位 `compute_total_position_ratio`——`portfolio.json` 顶层可选 `total_assets`，成本/市值口径占比 + >90% 仓位过重警告，接入 `health_report`（P2-04 第 1 条）
 - **strategies**: `valuation_score` 语义修复（P2-H6）——revenue/net_profit 仅用标准化字段（移除 TOTALOPERATEREVETZ 等原始键死回退）+ PEG 3 年 CAGR 优先（孤儿 TODO）+ PS 优先真实值（市值/营收）近似兜底
+- **experts**: `_calibration_factor_from_rates` 新公式——(mean_rate-0.5)×2×(1-min(cv,0.5))，mean_rate=0.5（无信息）恒归零（P0-08）
+- **portfolio/skills/tests**: Review 全量推进——review-issues 主表 44 项全部收敛（P0-01~15 权限/配置/CI/校准公式 + P1-01~30 fetcher 精确匹配与 is_minimal/净吞错/定时自动校准验证/龙虎榜与龙头横截面接入/缠论与 swing points/结构化 signals/市场环境指数行情/时间超时分层/hard filter 分离/historical VaR/ST 单轨/脚本-catalog 等；P2-P1 portfolio 4 模块拆分已 3/4）
 
 ### Fixed
 - **screener**: watchdog 默认超时 600→1800s（P0-01a）
