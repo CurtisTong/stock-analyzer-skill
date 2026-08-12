@@ -236,7 +236,7 @@
    - **CI + pre-commit mypy 白名单扩至 78 文件**（common/ + fetchers/ + business/ + 6 顶层脚本）；`strategies`/`refresh_pool` 为门面 re-export 模块，mypy.ini 开启 `implicit_reexport`，删除失效 `[mypy-experts.*]` section（scripts/experts 不存在，专家在仓库根）
 2. **circuit_breaker_concurrency 测试断言放宽~~已放宽~~**：~~50/100 线程并发在 Linux xdist 调度下触发 v1.14.2 attempts 重置分支导致 passed > half_open_max。已放宽断言至 `1 <= passed <= half_open_max * 10`，源码 race 待 P2-round13 改"窗口期"逻辑。~~ ✅ 2026-08-12 窗口期逻辑已固化：新增 `tests/unit/test_circuit_breaker.py` 14 项确定性测试（状态机全路径 + strict 恢复守卫 + 窗口配额耗尽拒绝/过期自动续期/`recovery_timeout=0` 拒绝续期 + 并发下窗口内放行数严格 == half_open_max）。源码 `scripts/common/circuit_breaker.py` 已是窗口期节流模型（fdcb6ba），并发放行由 lock 原子化，无实际 race；测试断言从历史宽松值收紧为精确值。
 3. **black 格式漂移 92 文件**：Round 11 之前 main 分支长期未跑 `black --check`，本次 PR 一次性修复。后续引入 pre-commit hook 防止再漂移。
-4. **coverage 60.2%**：本次 PR 新增 73 个单元测试（从 59.19% 提升至 60.23%）。剩余 39.77% 多为低价值脚本（install/setup/one-off dev tools），后续视 ROI 决定是否补。
+4. **coverage 60.2%**：本次 PR 新增 73 个单元测试（从 59.19% 提升至 60.23%）。剩余 39.77% 多为低价值脚本（install/setup/one-off dev tools），后续视 ROI 决定是否补。 ~~决策保留~~ ✅ 2026-08-12 评估结论：**维持现状不强行补**——unit 全量 `--cov=scripts` 实测 31.8%（20164 语句，覆盖率统计含 scripts/ 全部顶层 CLI 脚本），核心逻辑目录（common/fetchers/business/strategies/data/technical）在本轮 P0/P1/P2-H6/v2.7 修复中已增量补充 34+ 项专项测试；剩余缺口主要是 install/setup/one-off dev 脚本与 CLI 薄壳，ROI 低。若未来以"核心目录 ≥ 80%"为目标再补，需先重构 CLI 为可测函数。
 5. **allowed-tools 自审计**：本次 PR 已加 7 个新 entries + `scripts/dev/check_allowed_tools.py` 自动化校验；后续若新增脚本需同步更新。
 
 ---
