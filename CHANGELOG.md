@@ -38,6 +38,7 @@
 
 ## [Unreleased] - 2026-08-12
 
+
 ### Added
 - **docs**: 复盘元复盘问题清单 — [issues/2026-08-12-replay-meta-review.md](docs/issues/2026-08-12-replay-meta-review.md)（11 项 P0-P2，含 P0-01 screener 全市场超时、P0-02 sh/sz 前缀误判、P0-03 macro fixture 标注不全）
 - **screener**: `--exclude-sector-momentum` 自动剔除退潮板块标的 + `sector_momentum_warning` ⚠️ 标记（P1-02，`scripts/sector_momentum.py`）
@@ -74,6 +75,47 @@
 
 ### Maintenance
 - **release**: v1.20.1 版本号同步 + CI 黑块修复 + 板块授权 + changelog 整理
+
+### Added
+- **portfolio**: 实际组合总仓位 compute_total_position_ratio + health_report 接入（P2-04 第 1 条）
+- **screener**: 数据预取阶段进度输出——JSON 模式走 stderr 不污染 stdout，K 线精排慢/卡可见（P0-01 后续）
+
+### Fixed
+- **types**: chan/ 模块 mypy 清零（beichi result dict 显式标注）并纳入白名单，白名单扩至 212 文件（v2.7 #1）
+- **types**: mypy 白名单扩至 203 文件（10 目录 + 5 顶层）+ experts/config/dev 清零 + 修复 screener SECTOR_ETFS 静默失效与 dcf 双命名回归（v2.7 #1 收尾）
+- **types**: fetchers/business mypy 50 错误清零 + strategies/refresh_pool reexport 配置 + 纳入 CI 白名单（v2.7 #1 扩展）
+- **common**: mypy 21 错误清零（连接池/parse_url 标注、哨兵 isinstance、响应 None 守卫、atexit 防御）+ 纳入 CI/pre-commit 白名单（v2.7 #1）
+- **technical**: P1-14 swing points 加 past-only confirm 模式 + P1-13/16 状态补记
+- **experts**: P1-08 4:1 边界矩阵 + P1-10 verify --quiet + P1-11 zhao_laoge 龙虎榜/龙头排名接入 + 状态补记(P1-06/07/09)
+- **fetchers**: P1-02 ths quote 加 is_minimal 标记 + P1-01/03/04/05 状态补记
+- P0 组推进——校准公式无信息归零(P0-08)、CI 测试单一来源(P0-13)、sync boundary(P0-15)、权限收紧(P0-01)+状态补记(P0-02/12/14)
+- **strategies**: valuation_score——PEG 3 年 CAGR 优先 + PS 真实市值/营收优先，保持双格式兼容（P2-H6）
+- **data**: K 线本地缓存验证——get_kline/prefetch_kline_all 已接 common.cache，新增缓存命中测试（P0-01c）
+- **portfolio**: cost_source 追溯 + 相关性窗口/显著性 + 行业重叠率（P1-03/P1-04/P2-04）
+- **market**: 代码前缀 002/003→sz + macro 来源标注 + beta 置信度 + ETF 覆盖扩展 + 板块归属映射 + 轮动保守建议（P0-02/P0-03/P1-01/P2-02）
+- **screener**: watchdog 超时 1800s + full_market 强制两阶段 + 退潮板块过滤（P0-01/P1-02）
+
+### Changed
+- **portfolio**: PortfolioManager CRUD 方法拆至 portfolio/crud 模块，manager 变 thin wrapper（P2-P1）
+
+### Documentation
+- **changelog**: 记录 chan/ 包纳入 mypy 白名单（212 文件）
+- **changelog**: v2.7 #1 收尾记录——mypy 白名单扩至 203 文件 + screener 主线警告静默失效 bug 修复 + dcf/cyclical 双命名回归
+- **review-issues**: v2.7 #4 coverage 评估记录——低 ROI 维持现状
+- **review-issues**: v2.7 #1 白名单扩展至 78 文件记录 + CHANGELOG 补录
+- **review-issues**: v2.7 #1 标记完成（common/ mypy 21 错误清零 + CI 白名单）+ CHANGELOG 补录
+- **review-issues**: P2-P1 标记完成（crud 拆分 4/4）+ CHANGELOG 补 v2.7 #2 与 crud 条目
+- **review-issues**: 主表全量状态收敛——批量补记 12 项修复标记（6 列行修复脚本 bug）+ CHANGELOG 汇总
+- **review-issues**: P1-24/25/28/29 skills/CI 组状态补记
+- **review-issues**: P1-17/18/19/20/21/22 business 组状态补记（均已验证已修）
+- **review-issues**: 补记 P0-05/06/03/04/07/09 已修复状态（基于代码+gittest 验证）
+- **review**: 补齐修复 commit hash + full_market 端到端验证观察记录
+- **skills**: 报告长度硬约束——表格上限 + 折叠披露（P2-03）
+- **review**: 元复盘问题清单 + CHANGELOG 汇总 + screener/sector SKILL 指引（P1-02b/P2-01）
+
+### Testing
+- **circuit-breaker**: 新增 14 项确定性测试固化半开窗口期节流语义（v2.7 #2）
+- **portfolio**: 健康检查测试注入临时持仓，隔离真实用户 portfolio.json 数据耦合
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
