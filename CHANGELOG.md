@@ -51,6 +51,8 @@
 - **portfolio**: 实际组合总仓位 `compute_total_position_ratio`——`portfolio.json` 顶层可选 `total_assets`，成本/市值口径占比 + >90% 仓位过重警告，接入 `health_report`（P2-04 第 1 条）
 - **strategies**: `valuation_score` 语义修复（P2-H6）——revenue/net_profit 仅用标准化字段（移除 TOTALOPERATEREVETZ 等原始键死回退）+ PEG 3 年 CAGR 优先（孤儿 TODO）+ PS 优先真实值（市值/营收）近似兜底
 - **experts**: `_calibration_factor_from_rates` 新公式——(mean_rate-0.5)×2×(1-min(cv,0.5))，mean_rate=0.5（无信息）恒归零（P0-08）
+- **portfolio**: `portfolio/crud.py` 新模块——全部 10 个 CRUD 写操作方法（add/reduce/remove/update/tag/untag + add/remove_watch）及 `_record_trade_log`/`_position_cost` 从 manager 整体搬移，manager 变一行委托 thin wrapper（-297 行），P2-P1 god-class 拆分 4/4 完成
+- **test(circuit-breaker)**: 新增 `tests/unit/test_circuit_breaker.py` 14 项确定性测试——状态机全路径 + strict 恢复守卫 + 半开窗口期节流（配额耗尽拒绝/过期自动续期/`recovery_timeout=0` 拒绝续期）+ 并发下窗口内放行数严格 == half_open_max（v2.7 #2 窗口期逻辑固化）
 - **portfolio/skills/tests**: Review 全量推进——review-issues 主表 44 项全部收敛（P0-01~15 权限/配置/CI/校准公式 + P1-01~30 fetcher 精确匹配与 is_minimal/净吞错/定时自动校准验证/龙虎榜与龙头横截面接入/缠论与 swing points/结构化 signals/市场环境指数行情/时间超时分层/hard filter 分离/historical VaR/ST 单轨/脚本-catalog 等；P2-P1 portfolio 4 模块拆分已 3/4）
 
 ### Fixed
