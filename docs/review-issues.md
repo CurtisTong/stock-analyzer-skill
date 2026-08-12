@@ -258,7 +258,7 @@
 
 | ID | 优先级 | 模块 | 摘要 | 状态 |
 |:---|:---:|:---|:---|:---:|
-| **P2-H6**（NEW）| P2 | strategies | `valuation_score` 中 `total_cap`/`revenue_yoy` 语义混乱 + PS 区间估算未实现（孤儿 TODO） | 📋 待分配 |
+| **P2-H6**（NEW）| P2 | strategies | `valuation_score` 中 `total_cap`/`revenue_yoy` 语义混乱 + PS 区间估算未实现（孤儿 TODO） | ✅ 2026-08-12 修复（revenue/net_profit 仅用标准化字段移除东财死回退 + PEG 3 年 CAGR 优先 + PS 真实=市值/营收优先近似兜底；test_valuation_p2h6 5 项） |
 | **P2-P1**（NEW）| P2 | portfolio | `PortfolioManager` 41 方法 god class 拆分（crud/oplog/analytics/rebalance 4 模块 + facade） | 📋 待办（v1.17.0） |
 | **P2-P2**（NEW）| P1 | common | WP5 RateLimiter + WP6 board_overrides 关键路径测试覆盖（contextmanager / circuit breaker 编排 / 4 次 429 全失败恢复） | ✅ v1.16.0 完成（contextmanager + 6 新测试） |
 | **P2-P3**（NEW）| P1 | common | 24 处 `except Exception:` 吞错中 11 处 HIGH/MEDIUM 已加 `log_silent_fallback` 显式日志 | ✅ v1.16.0 完成 |

@@ -8,15 +8,30 @@ from strategies.thresholds import get_industry_threshold
 
 
 def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
-    """估值因子评分（行业差异化）。满分 100。"""
+    """估值因子评分（行业差异化）。满分 100。
+
+    兼容两种 fin 格式：FinanceRecord.to_dict()（标准化键 revenue_yoy/net_profit_yoy）
+    或 fetcher 原始东财键（TOTALOPERATEREVETZ/PARENTNETPROFITTZ，双格式回退）。
+    """
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
     # WP2: 缺数据 → to_float 返回 0.0，max 不会再 TypeError
-    growth = max(to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ"))), 0)
+    # P2-H6: 3 年 CAGR 优先，无则用单期净利同比（兼容原始东财键回退）
+    cagr_3y = to_float(fin.get("net_profit_cagr_3y"))
+    growth = max(
+        (
+            cagr_3y
+            if cagr_3y > 0
+            else to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ")))
+        ),
+        0,
+    )
 
     # 亏损股评分用到的字段
-    total_cap = to_float(quote.get("total_cap"))  # 亿
-    revenue_yoy = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ")))
+    total_cap = to_float(quote.get("total_cap"))  # 亿（Quote.to_dict 已归一化）
+    revenue_yoy = to_float(
+        fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ"))
+    )  # 营收同比(%)
 
     # 行业差异化 PE 阈值
     pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)
@@ -51,12 +66,18 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     elif pe > pe_cap:
         # PE 超过极端阈值，PE 评分为 0
         # 高 PE 成长股补充：用 PS（市销率）评分
+        # P2-H6: 优先用真实 PS = 总市值 / 营业总收入（total_cap 与 total_revenue
+        # 均可得），营收缺失时退回 PE × 净利率近似
         if revenue_yoy > 20:
-            # 高增长公司用 PS 估值更合理
-            # PS = 总市值 / 营收（简化：用 PE × 净利率 近似）
-            net_margin = to_float(fin.get("net_margin", fin.get("XSJLL", 0)))
-            if net_margin > 0:
-                ps = pe * net_margin / 100
+            ps = None
+            total_revenue = to_float(fin.get("total_revenue"))  # 亿
+            if total_cap > 0 and total_revenue > 0:
+                ps = total_cap / total_revenue
+            else:
+                net_margin = to_float(fin.get("net_margin", 0))
+                if net_margin > 0:
+                    ps = pe * net_margin / 100
+            if ps is not None:
                 if ps < 3:
                     score += 15  # PS 低估
                 elif ps < 6:
