@@ -555,6 +555,65 @@ class PortfolioManager:
             result.append(row)
         return result
 
+    def compute_total_position_ratio(self, price_lookup: Optional[dict] = None) -> dict:
+        """计算实际组合总仓位（持仓成本/市值 ÷ 总资产）。
+
+        P2-04 第 1 条：先算实际组合总仓位再给建议。总资产来自 portfolio.json
+        顶层 `total_assets`（元）；未配置时返回 None + 提示，不猜测资金上下文。
+
+        Args:
+            price_lookup: {code: 现价} 字典，提供时额外算市值口径占比。
+
+        Returns:
+            {
+                "total_assets": float|None,       # 配置的总资产（元）
+                "position_cost": float,           # 持仓成本合计（元）
+                "position_mv": float|None,        # 持仓市值合计（元，需 price_lookup）
+                "position_ratio": float|None,     # 成本口径占比 %（缺 total_assets→None）
+                "position_ratio_mv": float|None,  # 市值口径占比 %（可选）
+                "warning": str|None,              # 缺 total_assets 或成本占比 >90% 提示
+            }
+        """
+        rows = self.get_positions_with_pnl(price_lookup)
+        position_cost = round(sum(float(p.get("cost_total", 0) or 0) for p in rows), 2)
+        total_assets = self._data.get("total_assets")
+        if not total_assets:
+            return {
+                "total_assets": None,
+                "position_cost": position_cost,
+                "position_mv": None,
+                "position_ratio": None,
+                "position_ratio_mv": None,
+                "warning": "portfolio.json 未配置 total_assets（元），无法计算实际总仓位",
+            }
+        total_assets = float(total_assets)
+        ratio_cost = (
+            round(position_cost / total_assets * 100, 2) if total_assets else 0.0
+        )
+        position_mv = None
+        ratio_mv = None
+        if price_lookup and rows:
+            mv_total = sum(
+                float(p.get("current_price", 0) or 0) * float(p.get("quantity", 0) or 0)
+                for p in rows
+            )
+            if mv_total:
+                position_mv = round(mv_total, 2)
+                ratio_mv = round(mv_total / total_assets * 100, 2)
+        warning = None
+        if ratio_cost > 90:
+            warning = (
+                f"组合成本占总资产 {ratio_cost}%（>90%），仓位过重，建议保留现金缓冲"
+            )
+        return {
+            "total_assets": total_assets,
+            "position_cost": position_cost,
+            "position_mv": position_mv,
+            "position_ratio": ratio_cost,
+            "position_ratio_mv": ratio_mv,
+            "warning": warning,
+        }
+
     def _find_position(self, code: str) -> Optional[dict]:
         """按代码查找持仓（内部引用，用于修改）。"""
         code = normalize_code(code)
@@ -986,6 +1045,8 @@ class PortfolioManager:
                 "regime": {regime, updated_at, age_minutes},  # 真实市场 regime
                 "regime_hint": "...",                # 动态生成（基于 age_minutes）
                 "screener_hint": "...",              # 动态生成（基于真实 industry 最大值）
+                "position_ratio": {total_assets, position_cost, position_mv,
+                                   position_ratio, position_ratio_mv, warning},  # P2-04 实际总仓位
                 "type": "实盘/示例/虚拟",             # 三态
                 "totals": {cost, value, pnl, pnl_pct}, # 行情缺失时 pnl_pct=None
                 "positions": [...],   # 每只含 breakdown + breakdown_reason
@@ -1244,6 +1305,15 @@ class PortfolioManager:
             "regime": regime_info,
             "regime_hint": regime_hint,
             "screener_hint": screener_hint,
+            "position_ratio": self.compute_total_position_ratio(
+                {
+                    code: float(q.get("price", 0) or 0)
+                    for code, q in quotes_map.items()
+                    if isinstance(q, dict) and q.get("price")
+                }
+                if quotes_map
+                else None
+            ),
             "totals": {
                 "cost": round(total_cost, 0),
                 "value": round(total_value, 0) if not quotes_missing else None,

@@ -227,6 +227,19 @@ Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SK
 | `as_of` | 行情快照/调用时间 | `quotes_map["__as_of__"]` 哨兵键 → `datetime.now()` 兜底 | SKILL 标题时间戳"📊 我的持仓 (YYYY-MM-DD HH:MM)" |
 | `data_mtime` | portfolio.json 最后写入时间 | `Path.stat().st_mtime` | 数据新鲜度判断；与行情时间错位时提示"持仓快照 16:15 / 行情 10:30" |
 
+### 实际总仓位（P2-04，可选配置）
+
+`portfolio.json` 顶层可配置 `total_assets`（元，账户总资产），health_report 即输出 `position_ratio`：
+
+| 字段 | 含义 |
+|------|------|
+| `position_ratio` | 持仓成本 ÷ 总资产（%）；未配置 `total_assets` 时为 `None` |
+| `position_ratio_mv` | 持仓市值 ÷ 总资产（%，需行情） |
+| `warning` | 成本占比 >90% 提示"仓位过重"；未配置 `total_assets` 时提示需配置 |
+
+示例：`{"version": 2, "total_assets": 100000, "positions": [...], "watchlist": []}`。
+未配置时不报错，仅提示无法计算实际总仓位。选股报告给出新标的仓位建议时，须结合 `position_ratio` 校验实际组合仓位不超限。
+
 典型显示：
 ```
 📊 我的持仓 (2026-08-07 10:30)        ← as_of（行情快照）

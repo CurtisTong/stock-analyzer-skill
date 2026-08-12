@@ -47,6 +47,8 @@
 - **market**: 剧烈轮动期（rotation_strength>3）附加保守操作建议（P2-02）
 - **portfolio**: 候选股与持仓行业重叠率 `compute_industry_overlap` + 30% 集中度预警（P2-04）
 - **skills**: 报告长度硬约束——`guardrails.md` 新增表格上限（单报告 ≤3 张，quick ≤1 张）+ `output-template.md` 新增折叠披露机制（默认只渲染结论层，详细论证按需展开）（P2-03）
+- **screener**: 数据预取阶段进度输出（`data_prefetch` 事件：行情/预筛/财务/完成）；JSON 模式进度走 stderr 不污染 stdout（P0-01 后续）
+- **portfolio**: 实际组合总仓位 `compute_total_position_ratio`——`portfolio.json` 顶层可选 `total_assets`，成本/市值口径占比 + >90% 仓位过重警告，接入 `health_report`（P2-04 第 1 条）
 
 ### Fixed
 - **screener**: watchdog 默认超时 600→1800s（P0-01a）

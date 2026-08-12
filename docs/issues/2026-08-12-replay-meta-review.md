@@ -4,7 +4,7 @@
 > **生成日期**：2026-08-12 08:10  
 > **来源**：单次会话内连续执行 market → stock×2 → sector → portfolio → screener 共 5 个 skill 后做的元层面复盘  
 > **规模**：11 个编号问题（3 P0 + 4 P1 + 4 P2）  
-> **修复进度**：P0-01 ✅（a+b+c）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-03 ✅（共享规范约束，非脚本行为变更）/ P2-04 ✅  
+> **修复进度**：P0-01 ✅（a+b+c）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-03 ✅（共享规范约束，非脚本行为变更）/ P2-04 ✅（含实际总仓位）  
 > **关联文档**：[review-issues.md](../review-issues.md)（75 项深度审阅）· [screener-review.md](../screener-review.md)（选股器专项审查）· [architecture-review-2026-07-07.md](../architecture-review-2026-07-07.md)  
 > **关联 skill**：market / stock / sector / portfolio / screener
 
@@ -281,7 +281,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 **✅ 修复记录（2026-08-12）**：
 - 第 2 条（行业 30% 硬约束）：已由 `portfolio.manager.check_concentration(industry_limit=0.30)` 覆盖（既有实现）
 - 第 3 条（行业重叠率）：`portfolio_correlation.compute_industry_overlap()` 新增——候选股与各持仓统一映射到"行业名→ETF 代理代码"（复用 P1-01b `stock_sector_map.json` 的 stocks + industry_proxy，ETF 代理对齐判断同行业，覆盖细分同大类场景）；输出重叠持仓列表/重叠行业占组合成本比例 `overlap_pct`；>20% 触发 `concentration_warning` 并提示新增仓位上限（≤30%-overlap_pct）以免触发硬约束；映射缺失用持仓 `industry`/`tags` 名称兜底。接入 `compute_full_portfolio_correlation`（`industry_overlap` 字段）+ CLI + `market_anchor` 渲染
-- 第 1 条（实际总仓位）暂缓：需要总资金/资产上下文，超出本 issue 数据边界，记录为后续增强
+- 第 1 条（实际总仓位）：**已实现（2026-08-12）**。`portfolio.json` 顶层可选 `total_assets`（元，用户账户配置）；`PortfolioManager.compute_total_position_ratio()` 计算持仓成本/市值 ÷ 总资产的占比（成本口径 `position_ratio` + 市值口径 `position_ratio_mv`），成本占比 >90% 触发"仓位过重"警告；未配置 `total_assets` 时返回 None + 提示，不猜测资金上下文。接入 `health_report` 输出 `position_ratio` 字段（所有消费方自动生效）。测试 `tests/unit/test_portfolio_position_ratio_p204.py`（5 项）
 - 测试：`tests/unit/test_industry_overlap_p204.py`（9 项）
 - 验证（sz002920 德赛西威 vs 持仓）：行业"汽车电子"与现有持仓无重叠，分散性良好
 
@@ -301,7 +301,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 | **P2-01** | 反转陷阱粗糙 | 标记为观察 + 反转触发条件 | 0.5 天 | ✅ 已修复（sector SKILL.md 回避分类表）|
 | **P2-02** | 轮动期与建议错配 | 保守建议优先 | 0.5 天 | ✅ 已修复（market_anchor rotation advice）|
 | **P2-03** | 报告过长 | --brief 默认 + 关键结论置顶 | 1 天 | ✅ 已修复（guardrails/output-template 表格上限 + 折叠披露；stock/market 已默认 quick，--brief 保留为可选）|
-| **P2-04** | 持仓占位过密 | 实际总仓位计算 + 行业占比上限 | 0.5 天 | ✅ 行业重叠率已修复（industry_overlap + 30% 硬约束已有）；实际总仓位暂缓 |
+| **P2-04** | 持仓占位过密 | 实际总仓位计算 + 行业占比上限 | 0.5 天 | ✅ 全部修复（industry_overlap + 30% 硬约束 + 实际总仓位 compute_total_position_ratio）|
 
 ---
 
