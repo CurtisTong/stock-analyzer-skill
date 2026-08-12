@@ -127,3 +127,86 @@ class TestAggregateVotesBearish:
         result = aggregate_votes(experts, horizon="medium")
         assert "看空" in result["direction"] or result["direction"] == "中性"
         assert result["confidence"] <= 50
+
+
+def _agg(experts):
+    from experts.vote_engine import aggregate_votes
+
+    return aggregate_votes(experts, horizon="medium")
+
+
+LONG_NAMES = [
+    "value_institution",
+    "lynch",
+    "soros",
+    "sector_specialist",
+    "risk_manager",
+]
+SHORT_NAMES = ["topic_leader", "emotion_tech", "momentum_trader"]
+
+
+def _two_group(high_names, low_names):
+    """构造双组专家：high_names 用 70 分（看多），low_names 用 30 分（看空）。"""
+    experts = [_make_expert(n, 70) for n in high_names]
+    experts += [_make_expert(n, 30) for n in low_names]
+    return experts
+
+
+class TestTwoGroupBoundaryMatrix:
+    """P1-08：长线 4:1 + 短线临界值边界测试矩阵。
+
+    长线 5 人多数阈值 = ceil(5×2/3) = 4；短线 3 人均分驱动（≥60 看多、≤39 看空）。
+    """
+
+    def _short(self, scores):
+        return [_make_expert(n, s) for n, s in zip(SHORT_NAMES, scores, strict=True)]
+
+    def test_long_4_1_bull_with_divergent_short(self):
+        """长线 4:1 看多 + 短线分歧 → 长线主导多（看多 ×0.8）"""
+        experts = _two_group(LONG_NAMES[:4], LONG_NAMES[4:]) + self._short([50, 50, 50])
+        r = _agg(experts)
+        assert r["direction"] == "看多"
+        assert r["position_factor"] == 0.8
+
+    def test_long_4_1_bear_with_divergent_short(self):
+        """长线 4:1 看空 + 短线分歧 → 长线主导空（看空 ×0.0）"""
+        experts = _two_group(LONG_NAMES[:1], LONG_NAMES[1:]) + self._short([50, 50, 50])
+        r = _agg(experts)
+        assert r["direction"] == "看空"
+        assert r["position_factor"] == 0.0
+
+    def test_long_3_2_divergent_full_divergence(self):
+        """长线 3:2（未达 4 多数）+ 短线分歧 → 全面分歧（中性 ×0.0）"""
+        experts = _two_group(LONG_NAMES[:3], LONG_NAMES[3:]) + self._short([50, 50, 50])
+        r = _agg(experts)
+        assert r["direction"] == "中性"
+        assert r["position_factor"] == 0.0
+
+    def test_long_4_1_bull_with_short_avg_60(self):
+        """长线 4:1 看多 + 短线均分恰 60（临界）→ 双一致看多（强烈看多 ×1.0）"""
+        experts = _two_group(LONG_NAMES[:4], LONG_NAMES[4:]) + self._short([62, 62, 56])
+        r = _agg(experts)
+        assert r["direction"] == "强烈看多"
+        assert r["position_factor"] == 1.0
+
+    def test_long_5_0_bull_short_3_0_bear_polarized(self):
+        """长线 5:0 看多 + 短线 3:0 看空 → 两极分化（中性 ×0.0）"""
+        experts = _two_group(LONG_NAMES, []) + self._short([30, 30, 30])
+        r = _agg(experts)
+        assert r["direction"] == "中性"
+        assert r["position_factor"] == 0.0
+
+    def test_long_4_1_bull_with_short_avg_59(self):
+        """长线 4:1 看多 + 短线均分 59（分歧临界下方）→ 长线主导多（看多 ×0.8）"""
+        experts = _two_group(LONG_NAMES[:4], LONG_NAMES[4:]) + self._short([59, 59, 59])
+        r = _agg(experts)
+        assert r["direction"] == "看多"
+        assert r["position_factor"] == 0.8
+
+    def test_long_4_1_bull_with_short_avg_39(self):
+        """长线 4:1 看多 + 短线均分 39（看空临界）→ 非极端分歧，弱信号兜底（中性 ×0.5）"""
+        experts = _two_group(LONG_NAMES[:4], LONG_NAMES[4:]) + self._short([39, 39, 39])
+        r = _agg(experts)
+        # avg = (62 + 39) / 2 = 50.5 → 中性，仓位 0.5
+        assert r["direction"] == "中性"
+        assert r["position_factor"] == 0.5

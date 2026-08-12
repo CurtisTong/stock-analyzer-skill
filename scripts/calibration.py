@@ -65,6 +65,14 @@ def cmd_verify(args):
     result = verify_predictions(
         days=args.days, get_price_fn=price_fn, mark_only=args.no_price
     )
+    # P1-10: --quiet 输出一行摘要，便于 crontab/定时任务直接调用
+    if args.quiet:
+        print(
+            f"verify: verified={result['verified']} "
+            f"updated_experts={result['updated_experts']} "
+            f"skipped={result.get('skipped', 0)}"
+        )
+        return
     print(f"验证完成: {result['verified']} 条记录")
     print(f"更新专家校准: {result['updated_experts']} 位")
     if result.get("skipped"):
@@ -190,6 +198,12 @@ def main():
         "--no-price",
         action="store_true",
         help="仅标记到期不获取价格（无网络环境），不更新专家校准数据",
+    )
+    # P1-10: --quiet 供 crontab/定时任务自动化调用
+    p_verify.add_argument(
+        "--quiet",
+        action="store_true",
+        help="仅输出一行摘要（适合定时任务自动化）",
     )
 
     # report

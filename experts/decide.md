@@ -267,6 +267,19 @@ capped = max(0, min(100, 一致性分))
 
 每次 debate 模式运行后，Claude Code 应将后续验证结果回写到此文件。
 
+### 6.5 校准防漂移闭环（P1-10）
+
+- **自动记录**：debate 模式经 `record_prediction` 自动写入预测记录（含 `verify_after` 到期日）。
+- **自动验证**：`scripts/calibration.py verify` 拉取真实价格回调校验到期的预测并更新校准数据；
+  定时任务建议每日收盘后执行：
+
+  ```bash
+  # crontab 示例（每交易日 15:30 自动验证到期预测，--quiet 仅输出一行摘要）
+  30 15 * * 1-5 cd /path/to/stock-analyzer-skill && python3 scripts/calibration.py verify --quiet
+  ```
+
+  无网络环境可用 `--no-price` 仅标记到期（不更新校准，且不可回滚）。
+
 ---
 
 ## 七、单组模式（长线-only / 短线-only）

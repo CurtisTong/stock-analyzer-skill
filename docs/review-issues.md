@@ -121,10 +121,10 @@
 | **P1-03** | fetcher | `_try_import` 吞噬所有异常，掩盖 fetcher 模块 bug | `scripts/fetchers/__init__.py` | 只吞 `ImportError/ModuleNotFoundError`，其他异常打 warning；✅ 2026-08-12 状态补记（fetchers/__init__.py::_try_import 仅吞 ImportError/AttributeError，其他异常 warning+re-raise） |
 | **P1-04** | fetcher | HTTP requests 失败后 fallback 到 http.client，可能造成超时叠加 | `scripts/common/http.py` | requests 超时直接抛 `NetworkError`，或 fallback 使用更短 timeout；✅ 2026-08-12 状态补记（http.py:303 fallback 到 http.client 时 max_retries=1，避免超时叠加） |
 | **P1-05** | fetcher | `cache` TTL jitter 使用 Python `hash()`，跨进程不稳定 | `scripts/common/cache.py` | 改用 `hashlib.md5/sha1` 生成稳定 jitter；✅ 2026-08-12 状态补记（cache.py:52-54 hashlib.sha256 替代内置 hash()，jitter 跨进程稳定） |
-| **P1-06** | experts | 三套 veto/否决机制混用 | `experts/scoring/_merge.py`、`experts/__init__.py`、`experts/vote_engine.py` | 抽象 `VetoPolicy`，文档说明维度否决/人工否决/巴菲特警示区别 |
-| **P1-07** | experts | `apply_veto` 基本是死代码 | `experts/__init__.py` | 删除，或重构为返回触发项与惩罚后分数 |
-| **P1-08** | experts | 双组投票中长线 4:1 + 短线临界值场景规则不清晰 | `experts/vote_engine.py` | 增加边界测试矩阵，明确 4:1 是否可视为强多数 |
-| **P1-09** | experts | 单组/双组短线"均分驱动"语义不一致 | `experts/decide.md`、`experts/vote_engine.py` | 文档明确双组短线均分驱动，单组投票驱动 |
+| **P1-06** | experts | 三套 veto/否决机制混用 | `experts/scoring/_merge.py`、`experts/__init__.py`、`experts/vote_engine.py` | 抽象 `VetoPolicy`，文档说明维度否决/人工否决/巴菲特警示区别；✅ 2026-08-12 状态补记（decide.md §8.1 三套否决机制表：维度否决/_merge + 人工否决/veto_results + 巴菲特警示，作用域效果已文档化） |
+| **P1-07** | experts | `apply_veto` 基本是死代码 | `experts/__init__.py` | 删除，或重构为返回触发项与惩罚后分数；✅ 2026-08-12 状态补记（apply_veto 已删除，decide.md:347 记录） |
+| **P1-08** | experts | 双组投票中长线 4:1 + 短线临界值场景规则不清晰 | `experts/vote_engine.py` | 增加边界测试矩阵，明确 4:1 是否可视为强多数；✅ 2026-08-12 修复（test_vote_engine.py::TestTwoGroupBoundaryMatrix 7 项 4:1 边界矩阵，覆盖长线主导/全面分歧/两极分化/短线临界 60·59·39） |
+| **P1-09** | experts | 单组/双组短线"均分驱动"语义不一致 | `experts/decide.md`、`experts/vote_engine.py` | 文档明确双组短线均分驱动，单组投票驱动；✅ 2026-08-12 状态补记（decide.md §8.2 单组投票驱动 vs 双组短线均分驱动，by-design 已文档化） |
 | **P1-10** | experts | 校准 verify 仍需人工触发，无法真正防漂移（record 已自动） | `experts/calibration.py`、`scripts/calibration.py` | record_prediction 已由 run_debate 自动调用（decide.py:87）；verify 自动拉价回调已具备但需人工跑 CLI | verify 增加定时调度/自动到期验证 |
 | **P1-11** | experts | 龙头地位仅近似、龙虎榜未纳入（炸板率已纳入） | `experts/scoring/*` | 炸板率已纳入 chaogu_yangjia.py:46；龙头地位用回撤近似（zhao_laoge.py:7-9 自认缺陷）；龙虎榜全缺失 | 给 zhao_laoge 增加 dragon_tiger 输入；龙头地位接入板块横截面排名 |
 | **P1-12** | technical | 缠论中枢缺少 GG/DD 边界 | `scripts/chan/zhongshu.py` | 增加 `gg=max(high)`、`dd=min(low)`；✅ Round 8 已修（zhongshu.py:29-31 GG=max(high)/DD=min(low)） |

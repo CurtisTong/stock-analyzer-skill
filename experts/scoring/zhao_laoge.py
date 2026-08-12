@@ -6,10 +6,13 @@
 
 # P1-11 已知数据缺失（详见 decide.md §八）：
 # 1. 龙头地位：persona 定义为"龙头地位"（稳固->100，被替代->0，跌破20日线->否决），
-#    代码用"回撤至 MA20 深度"近似（>=0->80，>=-8->30，else 10），因龙头地位需板块横截面
+#    代码默认用"回撤至 MA20 深度"近似（>=0->80，>=-8->30，else 10），因龙头地位需板块横截面
 #    排名数据（同题材涨幅排名），当前数据源不提供。回撤深度与龙头强度弱相关。
-# 2. 龙虎榜数据：未接入任何 scoring 模块（data/lhb 模块存在但 experts/scoring/ 无消费），
-#    涨停板资金博弈信号缺失。接入属 P2 范畴。
+#    v2.x 起支持可选输入 stock_data["sector_rank"]（{"rank": int, "total": int} 板块内涨幅排名），
+#    存在时优先用它判定龙头地位；缺失时回退回撤近似。
+# 2. 龙虎榜数据：v2.x 起支持可选输入 stock_data["dragon_tiger"]
+#    （{"net_buy": float 净买入(亿), "count": int 近N日上榜次数}），存在时影响情绪/题材分；
+#    缺失时跳过（涨停板资金博弈信号仍缺失部分场景）。
 """
 
 import statistics
@@ -24,6 +27,9 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline = stock_data.get("kline_features") or {}
     kline_data = stock_data.get("kline_data") or {}
     market = stock_data.get("market_features") or {}
+    # P1-11: 可选增强输入——龙虎榜（资金博弈）与板块横截面排名（龙头地位）
+    dragon_tiger = stock_data.get("dragon_tiger") or {}
+    sector_rank = stock_data.get("sector_rank") or {}
 
     # 基本面：题材容量/政策支持度（zhao_laoge.md §九：国家战略级->100，产业级->60，无题材->0）
     # 优先读 market_features.topic_tier（0=无/1=产业级/2=国家战略级）；
@@ -83,8 +89,32 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         sent = 50
 
+    # P1-11: 龙虎榜资金博弈（可选）——净买入增强题材强度，净卖出压制
+    net_buy = _safe_float(dragon_tiger.get("net_buy"))
+    dt_count = int(dragon_tiger.get("count") or 0)
+    if net_buy > 0:
+        # 净买入上榜：资金真金白银进场，题材强度上调
+        sent = max(sent, 85 if dt_count >= 2 else 75)
+    elif net_buy < 0:
+        # 净卖出上榜：出货信号，题材强度压制
+        sent = min(sent, 35)
+
     # 风险：龙头地位 + 20日均线（渐进式扣分，龙头低吸风格破20日线常是买点）
-    if len(closes) >= 20:
+    # P1-11: 优先用板块横截面排名判定龙头地位；缺失时回退回撤近似
+    rank = int(sector_rank.get("rank") or 0)
+    total = int(sector_rank.get("total") or 0)
+    if total > 0 and 0 < rank <= total:
+        # rank/total 越小越靠前：前 20% 为板块龙头，末 20% 被替代
+        percentile = rank / total
+        if percentile <= 0.2:
+            risk = 90  # 龙头地位稳固
+        elif percentile <= 0.5:
+            risk = 70  # 板块中游
+        elif percentile <= 0.8:
+            risk = 50  # 板块尾部
+        else:
+            risk = 20  # 被替代边缘
+    elif len(closes) >= 20:
         ma20 = statistics.mean(closes[-20:])
         if ma20 > 0:
             pullback_pct = (closes[-1] - ma20) / ma20 * 100
