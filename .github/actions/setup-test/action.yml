@@ -28,7 +28,7 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pyyaml pytest-xdist pytest-timeout pytest-cov hypothesis respx
+        pip install pytest pyyaml pytest-xdist pytest-timeout pytest-cov hypothesis respx pandas numpy
 
     - name: 同步 SKILL.md 版本到测试文件
       shell: bash
@@ -43,6 +43,9 @@ runs:
         # scripts/data/portfolio*.json 在 .gitignore 中，CI 环境 checkout 后不存在，
         # 但 SKILL.md 声明了 Read(./scripts/data/portfolio.json) allowed-tools，
         # check_allowed_tools.py --ci 会校验路径存在性。
+        # v1.20.1+ 改用 tests/fixtures/portfolio_sample.json（带 tags + 多板块的
+        # 真实数据）替代空骨架，避免 manager.check_concentration() 空 positions
+        # 早返 + TestBreakdownTechnicalOr 取不到 sz300274。
         mkdir -p scripts/data
-        [ -f scripts/data/portfolio.json ] || echo '{"version":2,"positions":[],"watchlist":[]}' > scripts/data/portfolio.json
-        [ -f scripts/data/portfolio_virtual.json ] || echo '{"version":2,"positions":[],"watchlist":[]}' > scripts/data/portfolio_virtual.json
+        [ -f scripts/data/portfolio.json ] || cp tests/fixtures/portfolio_sample.json scripts/data/portfolio.json
+        [ -f scripts/data/portfolio_virtual.json ] || cp tests/fixtures/portfolio_sample.json scripts/data/portfolio_virtual.json

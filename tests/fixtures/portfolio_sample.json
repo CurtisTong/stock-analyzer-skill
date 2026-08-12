@@ -1,0 +1,72 @@
+{
+  "_comment": "CI 测试 fixture（不入 .gitignore）：覆盖 5 大板块（资源/通信/科技/锂-新能源/能源）的样例组合，供 setup-test 写入 scripts/data/portfolio.json 使用。本地开发不受影响——setup-test 只在 CI runner 触发。",
+  "version": 2,
+  "note": "v1.20.1+ CI fixture：cost 与 tests/unit/test_portfolio_health.py 的 quotes/breakdown 期望对齐；5 只锂/新能源 + 1 只通信 + 1 只资源 + 1 只能源 = 8 只持仓，'锂/新能源' 大类占比 >30%。",
+  "positions": [
+    {
+      "code": "sh600522",
+      "name": "中天科技",
+      "cost": 35.84,
+      "quantity": 1000,
+      "buy_date": "2025-05-15",
+      "tags": ["通信", "海缆"]
+    },
+    {
+      "code": "sh603799",
+      "name": "华友钴业",
+      "cost": 57.83,
+      "quantity": 600,
+      "buy_date": "2025-04-20",
+      "tags": ["资源", "有色"]
+    },
+    {
+      "code": "sh600989",
+      "name": "宝丰能源",
+      "cost": 22.37,
+      "quantity": 1000,
+      "buy_date": "2025-03-15",
+      "tags": ["能源", "长线"]
+    },
+    {
+      "code": "sz300274",
+      "name": "阳光电源",
+      "cost": 112.43,
+      "quantity": 1000,
+      "buy_date": "2025-04-01",
+      "tags": ["锂/新能源", "新能源"]
+    },
+    {
+      "code": "sz002460",
+      "name": "赣锋锂业",
+      "cost": 66.92,
+      "quantity": 1500,
+      "buy_date": "2025-05-20",
+      "tags": ["锂/新能源", "上游"]
+    },
+    {
+      "code": "sh600905",
+      "name": "三峡能源",
+      "cost": 4.8,
+      "quantity": 10000,
+      "buy_date": "2025-06-10",
+      "tags": ["锂/新能源", "绿电"]
+    },
+    {
+      "code": "sz300750",
+      "name": "宁德时代",
+      "cost": 240.0,
+      "quantity": 200,
+      "buy_date": "2025-03-10",
+      "tags": ["锂/新能源", "电池"]
+    },
+    {
+      "code": "sz002415",
+      "name": "海康威视",
+      "cost": 32.0,
+      "quantity": 500,
+      "buy_date": "2025-03-22",
+      "tags": ["科技"]
+    }
+  ],
+  "watchlist": []
+}
