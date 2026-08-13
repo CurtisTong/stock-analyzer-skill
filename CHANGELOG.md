@@ -36,7 +36,7 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased] - 2026-08-12
+## [1.20.2] - 2026-08-13（mypy 白名单扩至 203 文件 + experts/config/dev 类型清零 + screener 主线偏离警告静默失效 bug 修复 + dcf/cyclical 双命名回归）
 
 
 
@@ -278,6 +278,8 @@
 ### Maintenance
 - **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
 - **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
+
+## [Unreleased]
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 

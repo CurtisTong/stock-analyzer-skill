@@ -4,7 +4,7 @@
 > 🟡 **适用读者**：产品经理 / 投资人 / 二次开发者；纯终端用户可直接看 [quick-start.md](quick-start.md)。  
 > 🔴 **风险提示**：本文档描述产品能力；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
-> 版本：v1.20.1 | 更新日期：2026-08-03
+> 版本：v1.20.2 | 更新日期：2026-08-03
 >
 > **本次重写（v1.16.0）**：finance 域 WP1-WP6 重构完成（删除 7 个死字段 + 全量 Optional[float]=None + 多字段零值检测 + get_finance() 返 (records, FinanceMeta) 元组 + 全局 RateLimiter + 429 退避 + 主板/科创板/北交所披露 board_overrides）；tests 框架重构（589 个 def test_，分 5 层）；止损破位 breakdown 信号新增；skill schema 清理（删除 `.agents/skills/` 陈旧副本、`.claude/.codex` git 跟踪遗留、sector/market 失效路径修正）；近 40 个 [Unreleased] 区块合并。详见 [CHANGELOG.md](../CHANGELOG.md)。
 
