@@ -1,0 +1,22 @@
+# 核心目录覆盖率报告配置（docs/next-tasks.md 任务 B）
+# 缓冲期：仅报告不拦截（fail_under=0），达标 ≥80% 后放开阈值。
+# 用法：
+#   pytest --cov=scripts/common --cov=scripts/fetchers --cov=scripts/data \
+#     --cov=scripts/business --cov=scripts/technical --cov=scripts/portfolio \
+#     --cov=scripts/monitor --cov=scripts/backtest --cov=scripts/strategies \
+#     --cov=scripts/config --cov-report=term tests/unit/
+[run]
+source = scripts
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+
+fail_under = 0
+show_missing = true
+skip_empty = true
+precision = 1

@@ -2,8 +2,6 @@
 source = scripts
 omit =
     # 已废弃或低价值的低覆盖模块
-    scripts/technical/valuation.py
-    scripts/technical/long_term.py
     scripts/technical/sentiment.py
     scripts/technical/report.py
 

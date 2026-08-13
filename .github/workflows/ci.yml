@@ -112,6 +112,20 @@ jobs:
           # 三条 mypy 命令（目录层/CLI 层/experts 层）手工复刻漂移
           python3 scripts/dev/sync_ci_precommit.py --check
 
+      - name: 全仓覆盖率检查（.coveragerc 阈值）
+        run: |
+          # 主配置：全仓 scripts + omit 列表 + fail_under=21（沿用 v1.16.0）
+          pytest --cov=scripts --cov-report=term tests/unit/ | tail -5
+
+      - name: 核心目录覆盖率报告（任务 B，缓冲期仅报告）
+        run: |
+          # docs/next-tasks.md 任务 B：核心 10 目录覆盖 ≥80% 目标。
+          # 缓冲期 .coveragerc-core fail_under=0 仅报告不阻断；达标后放开阈值。
+          pytest --cov=scripts/common --cov=scripts/fetchers --cov=scripts/data \
+            --cov=scripts/business --cov=scripts/technical --cov=scripts/portfolio \
+            --cov=scripts/monitor --cov=scripts/backtest --cov=scripts/strategies \
+            --cov=scripts/config --cov-report=term tests/unit/ | tail -5
+
   integration:
     name: 集成测试
     runs-on: ubuntu-latest
