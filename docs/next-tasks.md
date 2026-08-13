@@ -83,8 +83,9 @@
 - 现状已做到 lint 组全对应（silent-excepts/black/ruff + 2 条 mypy + sync-check hooks 均在）。风险仅在**新增/减少检查文件时两边不同步**。
 
 ### 详细描述
-1. 将"命令文本必须一字不差"升级为**可校验**：新增 `scripts/dev/sync_ci_precommit.py --check`，解析 ci.yml 的 `run:` 与 pre-commit 的 `entry:`，比对 mypy 两命令的文件列表是否一致。
-2. 接入现有 `--check` 提交通道（与 `sync_skill_test_versions.py` 同 slot），CI 与 pre-commit 各挂一条。
+1. ✅ 已完成（2026-08-13）：新增 `scripts/dev/sync_ci_precommit.py --check`，解析 ci.yml 的 `run:` 与 pre-commit 的 `entry:`，抽取 3 条 mypy 命令（目录层/CLI 层/experts 层）的目标路径列表逐条比对；缺失/漂移 exit 1。
+2. CI 新增「CI ↔ pre-commit mypy 白名单同步校验」step，pre-commit 新增同名 hook，双端守护。
+3. 已做故障演练验证：单层缺失、路径漂移均正确 exit 1。
 
 ### 适配场景
 - 任何一次白名单扩围（如任务 A 加 experts/、任务 B 加 --cov），只要手改 ci.yml 就触发。
@@ -148,8 +149,8 @@
 
 | 优先级 | 任务 | 预估成本 | 决策 |
 | --- | --- | --- | --- |
-| P0 | A experts/ mypy 入库 | 0.5h | **推荐立即做**（0 代码改动，29 文件已全绿，只需加 2 条命令） |
-| P1 | D CI↔pre-commit 同步自校验 | 2-4h | 推荐（防漂移，配合 A 一次做） |
+| P0 | A experts/ mypy 入库 | 0.5h | ✅ 已完成（2026-08-13，29 文件全绿 + MYPYPATH 坑已文档化） |
+| P1 | D CI↔pre-commit 同步自校验 | 2-4h | ✅ 已完成（2026-08-13，sync_ci_precommit.py --check 双端挂载） |
 | P1 | B coverage ≥80%（结构性前置） | 分阶段 | 推荐开工时先做可测性改造，coverage 报告先上、拦截缓冲 90 天 |
 | P2 | E 版本同步验收 | 0.5h | 随 D 顺带 |
 | P2 | F 网络域冒烟 | 0.5h | 发版前例行 |
