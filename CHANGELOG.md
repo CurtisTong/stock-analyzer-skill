@@ -45,6 +45,7 @@
 
 
 
+
 ### Added
 - **docs**: 复盘元复盘问题清单 — [issues/2026-08-12-replay-meta-review.md](docs/issues/2026-08-12-replay-meta-review.md)（11 项 P0-P2，含 P0-01 screener 全市场超时、P0-02 sh/sz 前缀误判、P0-03 macro fixture 标注不全）
 - **screener**: `--exclude-sector-momentum` 自动剔除退潮板块标的 + `sector_momentum_warning` ⚠️ 标记（P1-02，`scripts/sector_momentum.py`）
@@ -264,6 +265,19 @@
 - **technical**: 补 62 条评分/信号/涨跌停分支测试（technical 覆盖率 75.1%→89.9%）+ CI 核心目录覆盖率报告（任务 B，缓冲期仅报告）+ 清理 .coveragerc 过期 omit
 - **circuit-breaker**: 新增 14 项确定性测试固化半开窗口期节流语义（v2.7 #2）
 - **portfolio**: 健康检查测试注入临时持仓，隔离真实用户 portfolio.json 数据耦合
+
+### Testing
+- **data**: 补 chip/event/flow/zt/market_snapshot/pool 子域测试
+- **data**: 补 data 域转换函数与 helpers 包装测试
+- **coverage**: 补 common/config/monitor/circuit_breaker/fetcher/validators 边界测试
+- **technical**: 补 technical 剩余模块分支测试并修复 wave_state 下跌浪不可达 bug
+- **technical**: 补 62 条评分/信号/涨跌停分支测试（technical 覆盖率 75.1%→89.9%）+ CI 核心目录覆盖率报告（任务 B，缓冲期仅报告）+ 清理 .coveragerc 过期 omit
+- **circuit-breaker**: 新增 14 项确定性测试固化半开窗口期节流语义（v2.7 #2）
+- **portfolio**: 健康检查测试注入临时持仓，隔离真实用户 portfolio.json 数据耦合
+
+### Maintenance
+- **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
+- **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
