@@ -42,6 +42,7 @@
 
 
 
+
 ### Added
 - **docs**: 复盘元复盘问题清单 — [issues/2026-08-12-replay-meta-review.md](docs/issues/2026-08-12-replay-meta-review.md)（11 项 P0-P2，含 P0-01 screener 全市场超时、P0-02 sh/sz 前缀误判、P0-03 macro fixture 标注不全）
 - **screener**: `--exclude-sector-momentum` 自动剔除退潮板块标的 + `sector_momentum_warning` ⚠️ 标记（P1-02，`scripts/sector_momentum.py`）
@@ -208,6 +209,9 @@
 
 ### CI/CD
 - **types**: 新增 mypy experts 层检查（MYPYPATH=scripts 29 文件全绿，规避根目录 data/ namespace 遮蔽 scripts/data/）——P0-A
+
+### Maintenance
+- **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
