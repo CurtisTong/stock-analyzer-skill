@@ -151,7 +151,7 @@
 | --- | --- | --- | --- |
 | P0 | A experts/ mypy 入库 | 0.5h | ✅ 已完成（2026-08-13，29 文件全绿 + MYPYPATH 坑已文档化） |
 | P1 | D CI↔pre-commit 同步自校验 | 2-4h | ✅ 已完成（2026-08-13，sync_ci_precommit.py --check 双端挂载） |
-| P1 | B coverage ≥80%（结构性前置） | 分阶段 | 推荐开工时先做可测性改造，coverage 报告先上、拦截缓冲 90 天 |
+| P1 | B coverage ≥80%（结构性前置） | 分阶段 | 🚧 进行中（2026-08-13：CI 新增两 coverage step——全仓 .coveragerc 阈值 21% + 核心目录报告；补 technical 62 条测试 75.1%→89.9% 达标；核心 10 目录基线 55.3%） |
 | P2 | E 版本同步验收 | 0.5h | 随 D 顺带 |
 | P2 | F 网络域冒烟 | 0.5h | 发版前例行 |
 | P3 | C lockfile | — | 维持不引入，触发条件见上 |
