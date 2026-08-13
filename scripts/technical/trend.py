@@ -157,12 +157,18 @@ def wave_state(closes, highs, lows):
     if len(ph) >= 2 and len(pl) >= 2:
         recent_ph = sorted(ph[-3:]) if len(ph) >= 3 else sorted(ph)
         recent_pl = sorted(pl[-3:]) if len(pl) >= 3 else sorted(pl)
-        if recent_ph[-1] > recent_ph[0] and recent_pl[-1] > recent_pl[0]:
+        # P1-x: 用摆动点对应的收盘价比较而非索引
+        # 原实现比较摆动点索引，索引恒递增导致下跌浪分支不可达
+        last_ph = c[recent_ph[-1]]
+        first_ph = c[recent_ph[0]]
+        last_pl = c[recent_pl[-1]]
+        first_pl = c[recent_pl[0]]
+        if last_ph > first_ph and last_pl > first_pl:
             return "上升浪(高点抬高+低点抬高)"
-        elif recent_ph[-1] < recent_ph[0] and recent_pl[-1] < recent_pl[0]:
+        elif last_ph < first_ph and last_pl < first_pl:
             return "下跌浪(高点降低+低点降低)"
-        elif recent_ph[-1] > recent_ph[0]:
+        elif last_ph > first_ph:
             return "可能有顶部结构(高点抬高但MACD需确认)"
-        elif recent_pl[-1] > recent_pl[0]:
+        elif last_pl > first_pl:
             return "可能有底部结构(低点抬高)"
     return "盘整"
