@@ -44,6 +44,7 @@
 
 
 
+
 ### Added
 - **docs**: 复盘元复盘问题清单 — [issues/2026-08-12-replay-meta-review.md](docs/issues/2026-08-12-replay-meta-review.md)（11 项 P0-P2，含 P0-01 screener 全市场超时、P0-02 sh/sz 前缀误判、P0-03 macro fixture 标注不全）
 - **screener**: `--exclude-sector-momentum` 自动剔除退潮板块标的 + `sector_momentum_warning` ⚠️ 标记（P1-02，`scripts/sector_momentum.py`）
@@ -237,6 +238,32 @@
 ### CI/CD
 - **types**: 新增 sync_ci_precommit.py——CI↔pre-commit mypy 白名单同步自校验（任务 D，缺失/漂移 exit 1 阻断）
 - **types**: 新增 mypy experts 层检查（MYPYPATH=scripts 29 文件全绿，规避根目录 data/ namespace 遮蔽 scripts/data/）——P0-A
+
+### Documentation
+- **tasks**: 任务 B 进展标记——CI coverage 双 step + technical 89.9% 达标
+- **tasks**: 标记任务 A/D 完成，P0 与 P1-D 收口
+- **tasks**: 新增 docs/next-tasks.md——后续任务详细描述与适配场景（P0 experts/ mypy 入库·0.5h 零改动，基于 2026-08-13 实测 MYPYPATH 根因）
+- **review-issues**: v2.7 #1 记录 CLI 层 mypy 命令（22 脚本）+ P2-P5 .env.example 入库闭环
+- **config**: .env.example 入库（.gitignore 加例外保留真实 .env 忽略）——补全 STOCK_DEBUG/STOCK_SCREENER_DEADLINE，16 个消费 env 变量全部声明，新用户可感知（P2-P5）
+- **review-issues**: v2.7 #1 边界既有结论 + P2-P5 env 补齐闭环 + P0-01 阶段进度闭环记录
+- **changelog**: 记录 chan/ 包纳入 mypy 白名单（212 文件）
+- **changelog**: v2.7 #1 收尾记录——mypy 白名单扩至 203 文件 + screener 主线警告静默失效 bug 修复 + dcf/cyclical 双命名回归
+- **review-issues**: v2.7 #4 coverage 评估记录——低 ROI 维持现状
+- **review-issues**: v2.7 #1 白名单扩展至 78 文件记录 + CHANGELOG 补录
+- **review-issues**: v2.7 #1 标记完成（common/ mypy 21 错误清零 + CI 白名单）+ CHANGELOG 补录
+- **review-issues**: P2-P1 标记完成（crud 拆分 4/4）+ CHANGELOG 补 v2.7 #2 与 crud 条目
+- **review-issues**: 主表全量状态收敛——批量补记 12 项修复标记（6 列行修复脚本 bug）+ CHANGELOG 汇总
+- **review-issues**: P1-24/25/28/29 skills/CI 组状态补记
+- **review-issues**: P1-17/18/19/20/21/22 business 组状态补记（均已验证已修）
+- **review-issues**: 补记 P0-05/06/03/04/07/09 已修复状态（基于代码+gittest 验证）
+- **review**: 补齐修复 commit hash + full_market 端到端验证观察记录
+- **skills**: 报告长度硬约束——表格上限 + 折叠披露（P2-03）
+- **review**: 元复盘问题清单 + CHANGELOG 汇总 + screener/sector SKILL 指引（P1-02b/P2-01）
+
+### Testing
+- **technical**: 补 62 条评分/信号/涨跌停分支测试（technical 覆盖率 75.1%→89.9%）+ CI 核心目录覆盖率报告（任务 B，缓冲期仅报告）+ 清理 .coveragerc 过期 omit
+- **circuit-breaker**: 新增 14 项确定性测试固化半开窗口期节流语义（v2.7 #2）
+- **portfolio**: 健康检查测试注入临时持仓，隔离真实用户 portfolio.json 数据耦合
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
