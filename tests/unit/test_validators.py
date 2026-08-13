@@ -119,6 +119,14 @@ class TestNormalizeCodeExchange:
         # 60 开头无二义：仍按数字段纠正错误前缀
         assert normalize_code("sz600519") == "sh600519"
 
+    def test_ambiguous_bj_prefix_trusted(self):
+        """00 开头二义段 + bj 前缀 → 保留 bj。"""
+        assert normalize_code("bj001330") == "bj001330"
+
+    def test_unknown_digits_default_sh(self):
+        """数字段不在已知板块且非 00 开头 → 默认 sh。"""
+        assert normalize_code("500001") == "sh500001"
+
 
 class TestNormalizeCodeErrors:
     """错误输入应抛 ValidationError。"""

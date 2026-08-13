@@ -495,3 +495,225 @@ class TestFetchWithFallback:
 
         assert fetch_with_fallback([a], "bad code") is None
         assert a.call_count == 0
+
+
+# ═══════════════════════════════════════════════════════════════
+# NOT_HANDLED 序列化 / BaseFetcher provider 推断 / 边缘分支
+# ═══════════════════════════════════════════════════════════════
+
+
+class SequenceFetcher(FakeFetcher):
+    """按动作序列依次执行的 fetcher（用于 429 重试路径）。"""
+
+    def __init__(self, name, priority, actions):
+        super().__init__(name, priority=priority, behavior="data")
+        self.actions = list(actions)
+        self._idx = 0
+
+    def fetch(self, code="", **kwargs):
+        self.call_count += 1
+        act = self.actions[min(self._idx, len(self.actions) - 1)]
+        self._idx += 1
+        if act == "rate":
+            raise RateLimitError("u")
+        if act == "exc":
+            raise RuntimeError("boom")
+        if act == "none":
+            return None
+        return self.payload
+
+
+class TestNotHandledPrimitives:
+    """NOT_HANDLED 哨兵的 pickle / eq / hash 契约。"""
+
+    def test_pickle_roundtrip(self):
+        """pickle 往返返回同一单例（25/35 行：__reduce__ + _get_not_handled）。"""
+        import pickle
+
+        anew = pickle.loads(pickle.dumps(NOT_HANDLED))
+        assert anew is NOT_HANDLED
+
+    def test_eq_and_hash(self):
+        """__eq__ 基于 isinstance，__hash__ 固定字符串（38/41 行）。"""
+        from common.fetcher_base import _NotHandled
+
+        assert NOT_HANDLED == NOT_HANDLED
+        assert NOT_HANDLED == _NotHandled()
+        assert NOT_HANDLED != "NOT_HANDLED"
+        assert NOT_HANDLED != {"a": 1}
+        assert hash(NOT_HANDLED) == hash("_NOT_HANDLED_")
+
+
+class _ProviderFetcher(BaseFetcher):
+    """仅用于测试 provider 显式/隐式推断解析。"""
+
+    def __init__(self, name: str, provider: str | None = None):
+        super().__init__(name, provider=provider)
+
+    def fetch(self, code: str = "", **kwargs):
+        return {"ok": 1}
+
+
+class TestBaseFetcherProvider:
+    """provider 推断三分支：显式 / 下划线 + 已知后缀 / 无下划线。"""
+
+    def test_explicit_provider_wins(self):
+        """provider 显式传入时优先（60 行）。"""
+        f = _ProviderFetcher("odd_name", provider="custom")
+        assert f.provider == "custom"
+
+    def test_underscore_known_suffix_inferred(self):
+        """name 含下划线且末段为已知 provider → 取末段（61-85 行）。"""
+        f = _ProviderFetcher("northbound_flow_eastmoney")
+        assert f.provider == "eastmoney"
+
+    def test_underscore_unknown_suffix_uses_first(self):
+        """末段非已知 provider → 取首段。"""
+        f = _ProviderFetcher("quote_homebrew")
+        assert f.provider == "quote"
+
+    def test_name_without_underscore_uses_name(self):
+        """无下划线的 name → provider = name（87 行）。"""
+        f = _ProviderFetcher("solo")
+        assert f.provider == "solo"
+
+    def test_cb_config_load_exception(self, monkeypatch):
+        """_load_cb_config 异常时回退默认熔断配置（118-120 行）。"""
+        from config.loader import ConfigLoader
+
+        def boom(*a, **k):
+            raise RuntimeError("no data_source.yaml")
+
+        monkeypatch.setattr(ConfigLoader, "load", classmethod(boom))
+        f = _ProviderFetcher("x_eastmoney")
+        assert f.circuit_breaker is not None
+        assert f.circuit_breaker.failure_threshold == 5
+        assert f.circuit_breaker.recovery_timeout == 60
+
+
+# ═══════════════════════════════════════════════════════════════
+# fetch_with_fallback 剩余分支
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestFetchWithFallbackExtras:
+    def test_invalid_code_multi_returns_none(self):
+        """多源 + 非法 code → None（224 行：长度>1 分支的白名单防御）。"""
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="data")
+        b = FakeFetcher("b_tencent", priority=5, behavior="data")
+
+        assert fetch_with_fallback([a, b], "bad code") is None
+        assert a.call_count == 0
+        assert b.call_count == 0
+
+    def test_provider_in_backoff_skipped(self):
+        """provider 在 429 退避窗口内被跳过（236-241 行）。"""
+        from common.rate_limiter import get_rate_limiter
+
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="data")
+        b = FakeFetcher("b_tencent", priority=5, behavior="data")
+        get_rate_limiter().mark_429("eastmoney")
+
+        result = fetch_with_fallback([a, b], "600519")
+
+        assert result == {"src": "b_tencent"}
+        assert a.call_count == 0  # eastmoney 退避中，未被调用
+        assert b.call_count == 1
+
+
+# ═══════════════════════════════════════════════════════════════
+# DataFetcherManager 429 重试成功 / 重试异常 分支
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestDataFetcherManager429Retry:
+    def test_retry_success_stays_on_main_source(self):
+        """429 后重试成功 → 返回主源数据（373-375 行）。"""
+        a = SequenceFetcher("a_eastmoney", priority=10, actions=["rate", "data"])
+        b = FakeFetcher("b_tencent", priority=5, behavior="data")
+        mgr = DataFetcherManager([a, b])
+
+        result = mgr.fetch("600519")
+
+        assert result == {"src": "a_eastmoney"}
+        assert a.call_count == 2
+        assert b.call_count == 0  # 主源重试成功，未切到次源
+
+    def test_retry_generic_exception_falls_to_next(self):
+        """429 重试遇普通异常 → pass 后换源（378 行）。"""
+        a = SequenceFetcher("a_eastmoney", priority=10, actions=["rate", "exc"])
+        b = FakeFetcher("b_tencent", priority=5, behavior="data")
+        mgr = DataFetcherManager([a, b])
+
+        result = mgr.fetch("600519")
+
+        assert result == {"src": "b_tencent"}
+        assert a.call_count == 2
+        assert b.call_count == 1
+
+
+# ═══════════════════════════════════════════════════════════════
+# fetch_with_cache_fallback 全分支
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestDataFetcherManagerCacheFallback:
+    """fetch_with_cache_fallback 的 fetch 命中 / 缓存命中 / 缓存损坏路径。"""
+
+    def test_fetch_hit_returns_result(self):
+        """fetch 成功直接返回（409-410 行）。"""
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="data")
+        mgr = DataFetcherManager([a])
+
+        assert mgr.fetch_with_cache_fallback("600519") == {"src": "a_eastmoney"}
+
+    def test_no_prefix_returns_fallback(self):
+        """无 cache_prefix → 直接返回 fallback（411 行）。"""
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="none")
+        mgr = DataFetcherManager([a])
+
+        assert mgr.fetch_with_cache_fallback("600519", fallback="F") == "F"
+
+    def test_cache_hit_returns_json(self, monkeypatch):
+        """fetch None + 缓存命中 → json.loads 返回值（412-418 行）。"""
+        import common.cache as cache_mod
+
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="none")
+        mgr = DataFetcherManager([a])
+        monkeypatch.setattr(cache_mod, "cache_key_for_stock", lambda *a, **k: "k")
+        monkeypatch.setattr(cache_mod, "get", lambda key, ttl: b'{"v": 1}')
+
+        assert mgr.fetch_with_cache_fallback("600519", cache_prefix="pfx") == {"v": 1}
+
+    def test_cache_miss_returns_fallback(self, monkeypatch):
+        """fetch None + 缓存未命中 → fallback（414 行）。"""
+        import common.cache as cache_mod
+
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="none")
+        mgr = DataFetcherManager([a])
+        monkeypatch.setattr(cache_mod, "cache_key_for_stock", lambda *a, **k: "k")
+        monkeypatch.setattr(cache_mod, "get", lambda key, ttl: None)
+
+        assert (
+            mgr.fetch_with_cache_fallback("600519", cache_prefix="pfx", fallback="F")
+            == "F"
+        )
+
+    def test_cache_corrupt_returns_fallback(self, monkeypatch, caplog):
+        """缓存损坏（非 JSON）→ warning + fallback（419-420 行）。"""
+        import logging
+
+        import common.cache as cache_mod
+
+        a = FakeFetcher("a_eastmoney", priority=10, behavior="none")
+        mgr = DataFetcherManager([a])
+        monkeypatch.setattr(cache_mod, "cache_key_for_stock", lambda *a, **k: "k")
+        monkeypatch.setattr(cache_mod, "get", lambda key, ttl: b"not-json")
+
+        with caplog.at_level(logging.WARNING, logger="common.fetcher_base"):
+            result = mgr.fetch_with_cache_fallback(
+                "600519", cache_prefix="pfx", fallback="F"
+            )
+
+        assert result == "F"
+        assert "缓存数据损坏" in caplog.text

@@ -198,3 +198,21 @@ class TestConcurrentWindow:
         assert cb.can_execute() is True
         assert cb.can_execute() is True
         assert cb.can_execute() is False
+
+
+class TestCanExecuteEdgeBranches:
+    """can_execute 的剩余边界分支（76/77 行）。"""
+
+    def test_half_open_attempts_exhausted_returns_false_before_window(self):
+        """半开配额耗尽且窗口未过期 → False（76 行）。"""
+        cb = CircuitBreaker(
+            "t", failure_threshold=1, recovery_timeout=60, half_open_max=1
+        )
+        assert _enter_half_open(cb) is True  # 进入半开消耗 1 配额
+        assert cb.can_execute() is False  # 耗尽，窗口未过期 → False
+
+    def test_invalid_state_returns_false(self):
+        """state 非法值 → 防御性 False（77 行）。"""
+        cb = CircuitBreaker("t")
+        cb.state = -1  # 非枚举值
+        assert cb.can_execute() is False
