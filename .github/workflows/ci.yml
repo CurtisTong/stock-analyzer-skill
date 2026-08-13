@@ -106,6 +106,12 @@ jobs:
           MYPYPATH=scripts mypy --follow-imports=silent --no-incremental \
             experts/
 
+      - name: CI ↔ pre-commit mypy 白名单同步校验
+        run: |
+          # docs/next-tasks.md 任务 D：防止 ci.yml 与 .pre-commit-config.yaml
+          # 三条 mypy 命令（目录层/CLI 层/experts 层）手工复刻漂移
+          python3 scripts/dev/sync_ci_precommit.py --check
+
   integration:
     name: 集成测试
     runs-on: ubuntu-latest

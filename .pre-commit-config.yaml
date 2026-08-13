@@ -105,6 +105,15 @@ repos:
         stages: [pre-commit]
         require_serial: false
 
+      # === docs/next-tasks.md 任务 D：CI ↔ pre-commit mypy 白名单同步校验 ===
+      - id: sync-ci-precommit
+        name: CI ↔ pre-commit mypy 白名单同步校验
+        entry: python3 scripts/dev/sync_ci_precommit.py --check
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+
       - id: sync-version
         name: sync_version 版本一致性检查（CI 镜像）
         entry: python3 scripts/dev/sync_version.py --check
