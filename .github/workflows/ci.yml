@@ -98,6 +98,14 @@ jobs:
             scripts/backtest.py \
             scripts/chan.py
 
+      - name: mypy experts 层类型检查
+        run: |
+          # 根目录 data/（无 __init__.py 的 namespace 包）会遮蔽 scripts/data/，
+          # 必须 MYPYPATH=scripts 才能正确解析 data/common/config 等
+          #（mypy 只认 MYPYPATH 不认 PYTHONPATH）
+          MYPYPATH=scripts mypy --follow-imports=silent --no-incremental \
+            experts/
+
   integration:
     name: 集成测试
     runs-on: ubuntu-latest

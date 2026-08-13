@@ -91,6 +91,20 @@ repos:
         stages: [pre-commit]
         require_serial: false
 
+      # === v2.7 扩展：experts 层类型检查（与 ci.yml mypy experts 层 step 一字不差）===
+      # experts/ 消费 scripts 的 data/common/config，mypy 只认 MYPYPATH 不认 PYTHONPATH；
+      # 根目录 data/（无 __init__.py 的 namespace 包）会遮蔽 scripts/data/，
+      # 必须 MYPYPATH=scripts 才能正确解析模块（否则 from data import get_kline 误报 attr-defined）。
+      # 独立命令（不与 scripts 目录并传），与 technical.py/chan.py 双身份同治理逻辑。
+      - id: mypy-experts-layer
+        name: mypy experts 层类型检查（29 个源文件）
+        entry: bash -c 'MYPYPATH=scripts python3 -m mypy --follow-imports=silent --no-incremental experts/'
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+        require_serial: false
+
       - id: sync-version
         name: sync_version 版本一致性检查（CI 镜像）
         entry: python3 scripts/dev/sync_version.py --check
