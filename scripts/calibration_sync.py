@@ -86,7 +86,7 @@ def _create_gist(data: dict) -> str | None:
 
     content = json.dumps(data, ensure_ascii=False, indent=2)
 
-    # gh gist create 需要文件路径，用临时文件
+    # gh gist create 需要文件路径作为参数；序列化 JSON 后通过 NamedTemporaryFile 中转
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".json", delete=False, encoding="utf-8"
     ) as f:
