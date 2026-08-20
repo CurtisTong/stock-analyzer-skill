@@ -284,6 +284,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -348,6 +349,28 @@
 - **xu_xiang**: 修正 PE 占位注释为设计选择
 
 ### Documentation
+- **archive**: 归档 grill-me-positioning-2026-08-20 项目定位压力测试报告
+- **skills**: portfolio/portfolio-web/portfolio-natural 三 SKILL.md 互链注释
+- **sync**: 统一 CLAUDE.md/README/产品架构 三处数字不一致
+- **archive**: 归档 review-issues/review-verification/implementation-plan-2026-q3-q4 三份设计文档
+- **sync**: 同步 OOS 状态机到 CLAUDE.md + __init__.py + 运行入口
+- **cleanup**: 重写 10 处 grill-me 报告内联引用为设计意图
+- **methodology**: 新增 strategy-validation.md + 修 README bad link
+- **CLAUDE**: 补充 multi_stock_backtest --update-validation 用法
+- **experts**: 新增 ARCHITECTURE.md 确立独立子系统边界
+- **contributing**: CHANGELOG 粒度规则写入 §4.1
+- **portfolio**: SKILL.md 顶部加 API 契约段
+- **README**: 脱营销措辞，事实化重述
+- **CLAUDE**: watchdog deadline 600→1800 与实际默认同步
+- 重述 4 处 session voice 与 reviewer narration
+- **dev-guide**: 移除 Round 11 T3/T19 内部 session 编号
+- **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
+- **skills**: 修剪 14 处 auditor session voice 泄漏
+
+### Documentation
+- **trim**: CHANGELOG.md 5 处「session voice」元描述重写为字面陈述
+- **trim**: baofeng 报告 5 处「本轮」重写为日期锚定
+- **trim**: experts/scripts 13 处「第六轮审查」重写为版本锚定
 - **archive**: 归档 grill-me-positioning-2026-08-20 项目定位压力测试报告
 - **skills**: portfolio/portfolio-web/portfolio-natural 三 SKILL.md 互链注释
 - **sync**: 统一 CLAUDE.md/README/产品架构 三处数字不一致
