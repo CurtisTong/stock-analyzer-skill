@@ -91,6 +91,7 @@ scripts/
   - FinanceRecord 数值字段 `Optional[float]=None`（WP2 2026-07-21），区分"未披露"与"真为 0"
   - FinanceMeta 携带元信息：source/fallback_source/periods/is_degraded/cache_hit
 - **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
+- **OOS 验证状态机** (`scripts/strategies/oos_validation.py` + `registry.py:STRATEGY_VALIDATION`): 双层架构——registry 默认值（git tracked，立场默认怀疑 in_sample）+ `data/strategy_oos_validation.json` 运行时覆盖。`get_validation(name)` 合并两层；升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0 → oos_verified。`scripts/multi_stock_backtest.py --update-validation` 跑完自动写 JSON。`scripts/screener.py:_emit_json_with_validation` 与 `scripts/backtest/cli.py:_attach_validation` 透传 `_validation_status / _validation_note / win_rate_pct / n_stocks` 到 JSON 输出。20 项单元测试覆盖于 `tests/unit/test_oos_validation.py`。详见 [docs/strategy-validation.md](docs/strategy-validation.md)。
 - **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
 - **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）；人设配置在 `experts/yaml/*.yaml`，由 `registry.py` 注册；`decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 

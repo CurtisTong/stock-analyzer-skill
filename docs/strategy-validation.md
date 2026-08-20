@@ -78,6 +78,45 @@ LLM caller / 用户 → 看到 in_sample 警告
 
 消费方只需读 JSON 输出的 `_validation_status` 字段，**不要**只看顶部数字就下结论。
 
+## 运行入口
+
+### 第一次跑：建立 OOS 基线
+
+```bash
+# 1. 跑 50+ 只股票外样本回测（首次需联网拉 K 线；缓存后离线可用）
+python3 scripts/multi_stock_backtest.py --update-validation
+
+# 2. 查看哪些策略升级到 oos_verified
+python3 -c "
+import sys; sys.path.insert(0, 'scripts')
+from strategies import get_validation
+for s in ['balanced', 'quality_value', 'growth_momentum', 'defensive', 'turning_point', 'ma_volume_momentum']:
+    v = get_validation(s)
+    print(f'  {s}: {v[\"validation_status\"]} ({v[\"validation_note\"][:50]})')"
+```
+
+### 季度复盘：重新跑升级
+
+```bash
+python3 scripts/multi_stock_backtest.py --update-validation  # 覆盖 JSON
+git diff data/strategy_oos_validation.json                    # 复盘胜率漂移
+```
+
+### 单策略查验证状态
+
+```python
+from strategies import get_validation
+print(get_validation("balanced"))
+# {'validation_status': 'oos_verified', 'validation_note': '...',
+#  'win_rate_pct': 58.5, 'n_stocks': 50, 'validated_at': '2026-08-20T10:59:40', ...}
+```
+
+### 回滚：清除 OOS 覆盖
+
+```bash
+rm data/strategy_oos_validation.json   # 所有策略回到 in_sample 默认
+```
+
 ## 关联文档
 
 - `scripts/strategies/registry.py:STRATEGY_VALIDATION` — 默认值（in_sample）
