@@ -46,9 +46,9 @@ stock-analyzer-skill/
 │   │   └── screening_service.py
 │   ├── common/                     # 基础设施层
 │   │   ├── __init__.py            # BaseFetcher, CircuitBreaker, DataFetcherManager, fetch_with_fallback
-│   │   │                            # __all__ 精简到 41 符号（v2.0.0 Round 11 T3），PEP 562 懒加载
+│   │   │                            # __all__ 精简到 41 符号，PEP 562 懒加载
 │   │   ├── fetcher_base.py        # fetch_with_breaker / fetch_with_fallback（v1.16.0: 与 is_provider_disabled 编排）
-│   │   ├── http.py                # HTTP 请求封装（except Exception 改具体异常，Round 11 T19）
+│   │   ├── http.py                # HTTP 请求封装（except Exception 收敛到具体异常类型）
 │   │   ├── cache.py               # 磁盘缓存（v1.3.2 从 data/cache.py 迁入）
 │   │   ├── validators.py          # 输入验证器
 │   │   ├── utils.py               # 工具函数
@@ -286,7 +286,7 @@ class DataFetcherManager:
 
 ### fetch_with_breaker / fetch_with_fallback - 单源/多源故障转移
 
-> v2.0.0 Round 11 新增（`scripts/common/fetcher_base.py`）：
+> v2.0.0 起 BaseFetcher 提供（`scripts/common/fetcher_base.py`）：
 
 ```python
 # scripts/common/fetcher_base.py
