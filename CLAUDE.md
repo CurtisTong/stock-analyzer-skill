@@ -55,6 +55,7 @@ python3 scripts/market_breadth.py          # 市场宽度分析（涨跌家数/�
 python3 scripts/perf_bench.py              # 性能基准测试（fetcher/scoring 耗时）
 python3 scripts/snapshots.py list          # 分析快照管理（缓存历史分析结果）
 python3 scripts/multi_stock_backtest.py    # 多股票批量回测（遍历股票池对比策略）
+python3 scripts/multi_stock_backtest.py --update-validation    # 跑完自动写 data/strategy_oos_validation.json，升级 STRATEGY_VALIDATION 默认 in_sample → oos_verified
 python3 scripts/strategy_performance.py    # 策略表现跟踪（记录/查询历史信号）
 ```
 
