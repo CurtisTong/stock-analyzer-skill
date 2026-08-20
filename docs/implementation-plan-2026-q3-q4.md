@@ -233,11 +233,11 @@ B4(calibration_sync) ──→ B5(胜率卡片) ──→ C3(回测接入) ─�
 | A1-A8（v1.7.1 体验 P0） | ✅ 已完成 | 此前 sprint 已落地 |
 | B1-B7（v1.7.2 工程化） | ✅ 已完成 | 此前 sprint 已落地 |
 | C1, C3, C5, C6, C8（v1.8.0 前置） | ✅ 已完成 | 此前 sprint 已落地 |
-| **C7** README 30s GIF demo | ✅ **本次 Sprint 12 完成** | `scripts/demo.sh` 可重放脚本 + README demo 段 |
+| **C7** README 30s GIF demo | ✅ Sprint 12 完成 | `scripts/demo.sh` 可重放脚本 + README demo 段 |
 | C2, C4, C4b（v1.8.0 主体） | ✅ 已完成 | 此前 sprint 已落地 |
-| D3, D5, D6 | ✅ **本次 Sprint 11/15 完成** | D5 覆盖率 61.8% / D6 yaml 机器可读版 |
-| **C-RC** v1.8.0 发版 | ✅ **本次 Sprint 18 完成** | CHANGELOG + v2.0.0 tag |
-| **D-RC** v1.9.0 发版 | ✅ **本次 Sprint 18 完成** | CHANGELOG v1.8.0 段覆盖 |
+| D3, D5, D6 | ✅ Sprint 11/15 完成 | D5 覆盖率 61.8% / D6 yaml 机器可读版 |
+| **C-RC** v1.8.0 发版 | ✅ Sprint 18 完成 | CHANGELOG + v2.0.0 tag |
+| **D-RC** v1.9.0 发版 | ✅ Sprint 18 完成 | CHANGELOG v1.8.0 段覆盖 |
 
 **整体完成度**：33/33 项 = 100%
 
