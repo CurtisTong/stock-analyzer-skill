@@ -279,7 +279,7 @@
 - **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
 - **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
 
-## [Unreleased]
+## [Unreleased] - 2026-08-20
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
@@ -297,6 +297,15 @@
 ### Maintenance
 - **data**: 刷新 macro_snapshot.json 数据快照（2026-08-11/12）
 - **release**: v1.20.0 → v1.20.1 同步（package.json + plugin.json + marketplace.json + 12 个 SKILL.md + methodology.md + pyproject.toml + README + product-architecture + tests）
+
+### Changed
+- **cleanup**: 修剪 4 处代码层 author-side 泄漏
+
+### Documentation
+- **skills**: 修剪 14 处 auditor session voice 泄漏
+
+### Maintenance
+- **cleanup**: 删除运行时产物 + 收紧 .gitignore
 
 ## [Unreleased] - 2026-08-08
 
