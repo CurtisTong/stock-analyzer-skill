@@ -14,6 +14,32 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 > - Web 服务相关操作（`web` / `--port` / `--open` / `--stop` 等）见 [`/portfolio-web`](../portfolio-web/SKILL.md)
 > - 自然语言触发词典（"我买了 XX" / "减仓" / "清仓" 等口语化映射）见 [`/portfolio-natural`](../portfolio-natural/SKILL.md)
 
+## API 契约（关键不变量）
+
+v1.16.0 起 CRUD 操作拆到 [`scripts/portfolio/crud.py`](../../scripts/portfolio/crud.py)，`PortfolioManager` 仅作 facade。SKILL 内的 `/portfolio` 命令与 Web `/api/positions` 共用同一层契约，**避免上层假设返回类型漂移**。
+
+| 操作 | 函数（`scripts/portfolio/crud.py`） | 入参关键约束 | 返回类型 | 默认值 |
+| --- | --- | --- | --- | --- |
+| 买入/加仓 | `add_position(manager, code, name, cost, quantity, buy_date="", tags=None, auto_save=True, cost_source="user_input")` | `cost > 0`、`quantity > 0`、`code` 自动 normalize | `dict`（含 `code` / `name` / `cost` / `quantity` / `tags`，已存在则加权平均成本） | `cost_source="user_input"`（来自截图自动置 `"screenshot"`；加权平均后自动置 `"calculated"`） |
+| 减仓 | `reduce_position(manager, code, quantity, auto_save=True)` | `quantity > 0` 且 ≤ 当前持仓 | `dict`（减仓后剩余持仓；清空则 `None`） | — |
+| 清仓 | `remove_position(manager, code, auto_save=True)` | — | `bool`（成功移除 True） | — |
+| 更新字段 | `update_position(manager, code, auto_save=True, **fields)` | `fields` 允许 `cost` / `name` / `quantity` / `buy_date` / `tags` | `dict`（更新后持仓） | — |
+| 加自选 | `add_watch(manager, code, name="", note="", auto_save=True)` | `code` 自动 normalize | `dict`（含 `code` / `name` / `note`） | `name` / `note` 默认空串 |
+
+### 读取侧契约
+
+- `manager.get_positions() -> list[dict]`：**返回 list**，每项含 `code` / `name` / `cost` / `quantity` / `tags`
+- `manager.get_watchlist() -> list[dict]`：**返回 list**
+- `manager.get_position(code) -> dict | None`：单只持仓，未找到返回 `None`（**不是空 dict**）
+- `manager.is_virtual() -> bool`：True 表示虚拟仓（`--virtual` 启动）
+
+### 错配历史（避免回归）
+
+- ❌ `manager.add_position` 历史上返回 `dict` 而 `manager.get_positions` 返回 `list`——类型不一致，但符合各操作语义（CRUD 操作返回变更后的实体，读取返回集合）。**不要统一成同一种类型**，会破坏既有调用方。
+- ❌ `cost_source` 历史上硬编码为 `"user_input"`，截图识别路径不写值导致审计丢失——v1.16.0 显式列为入参，加仓产生加权平均成本时自动置 `"calculated"`。
+
+详见 `scripts/portfolio/crud.py` 顶部 docstring 与 `scripts/portfolio/manager.py` facade 注释。
+
 ## Usage
 
 ```text
