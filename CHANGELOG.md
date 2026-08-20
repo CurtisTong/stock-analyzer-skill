@@ -281,6 +281,7 @@
 
 ## [Unreleased] - 2026-08-20
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -306,6 +307,10 @@
 
 ### Maintenance
 - **cleanup**: 删除运行时产物 + 收紧 .gitignore
+
+### Documentation
+- **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
+- **skills**: 修剪 14 处 auditor session voice 泄漏
 
 ## [Unreleased] - 2026-08-08
 
