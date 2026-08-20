@@ -11,8 +11,27 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import normalize_quote_code, DATA_DIR
-from strategies import get_strategy, list_strategies
+from strategies import get_strategy, list_strategies, get_validation
 from .metrics import run_backtest
+
+
+def _attach_validation(report) -> None:
+    """grill-me P0 修复：给回测 JSON 输出挂上策略验证状态。
+
+    避免消费方误把 in_sample 胜率当 out-of-sample 表现。验证元数据从
+    STRATEGY_VALIDATION 读（与 STRATEGIES 权重 dict 分离），不影响业务算法。
+
+    Args:
+        report: run_backtest 返回的 dict，会被原地修改。
+    """
+    if not isinstance(report, dict):
+        return
+    strategy_name = report.get("strategy")
+    if not strategy_name:
+        return
+    val = get_validation(strategy_name)
+    report["_validation_status"] = val["validation_status"]
+    report["_validation_note"] = val["validation_note"]
 
 
 def compare_strategies(
@@ -53,6 +72,7 @@ def compare_strategies(
                     "win_rate_pct": sr.get("win_rate_pct"),
                 }
             report["scenarios"] = scenario_results
+        _attach_validation(report)
         results[strategy_name] = report
     return results
 
@@ -106,7 +126,7 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
                 best_score = score
                 best_weights = test_weights.copy()
 
-    return {
+    result = {
         "strategy": strategy_name,
         "best_weights": {k: round(v, 3) for k, v in best_weights.items()},
         "best_sharpe": round(best_score, 3),
@@ -114,6 +134,8 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
         "improvement": round(best_score - base_score, 3),
         "all_results": results,
     }
+    _attach_validation(result)
+    return result
 
 
 def _fetch_benchmark_return(benchmark_code: str, days: int) -> float | None:
@@ -395,6 +417,7 @@ def main():
             args.rounds,
             benchmark=benchmark_arg,
         )
+        _attach_validation(report)
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2))
         elif "error" in report:
