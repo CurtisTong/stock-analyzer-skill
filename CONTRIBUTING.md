@@ -425,7 +425,7 @@ bash tests/integration/test_install.sh
 - frontmatter 必填字段、name 匹配目录、description 长度与触发句
 - model 复杂度匹配、章节别名兼容
 - SKILL.md 引用的 `scripts/*.py` / `data/*.json` 真实存在（含运行时生成白名单）
-- install.sh 13 个 skill 数组完整性、软链化、清理调用
+- install.sh 12 个 skill 数组完整性、软链化、清理调用
 
 新增 skill 时，把对应名称加入：
 

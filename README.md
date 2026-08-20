@@ -25,7 +25,7 @@
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
-[![Skills](https://img.shields.io/badge/skills-13-8b5cf6?style=flat-square)](#-13-个-skill-速查)
+[![Skills](https://img.shields.io/badge/skills-12-8b5cf6?style=flat-square)](#-12-个-skill-速查)
 
 [🚀 快速开始](#-30-秒上手) · [🎬 看效果](#-效果一览) · [📖 文档导航](#-文档导航) · [💬 常见问题](#-常见问题)
 
