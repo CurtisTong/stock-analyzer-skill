@@ -6,7 +6,7 @@
 
 > 版本：v1.20.2 | 更新日期：2026-08-03
 >
-> **v1.16.0 重构**：finance 域 WP1-WP6 完成（删除 7 个死字段 + 全量 Optional[float]=None + 多字段零值检测 + get_finance() 返 (records, FinanceMeta) 元组 + 全局 RateLimiter + 429 退避 + 主板/科创板/北交所披露 board_overrides）；tests 框架重构（589 个 def test_，分 5 层）；止损破位 breakdown 信号新增；skill schema 清理（删除 `.agents/skills/` 陈旧副本、`.claude/.codex` git 跟踪遗留、sector/market 失效路径修正）；近 40 个 [Unreleased] 区块合并。详见 [CHANGELOG.md](../CHANGELOG.md)。
+> **v1.16.0 重构**：finance 域 WP1-WP6 完成（删除 7 个死字段 + 全量 Optional[float]=None + 多字段零值检测 + get_finance() 返 (records, FinanceMeta) 元组 + 全局 RateLimiter + 429 退避 + 主板/科创板/北交所披露 board_overrides）；tests 框架重构（分 5 层：unit / contracts / integration / e2e / fixtures，v1.20.2 累计 1720 个 def test_）；止损破位 breakdown 信号新增；skill schema 清理（删除 `.agents/skills/` 陈旧副本、`.claude/.codex` git 跟踪遗留、sector/market 失效路径修正）；近 40 个 [Unreleased] 区块合并。详见 [CHANGELOG.md](../CHANGELOG.md)。
 
 ---
 
@@ -48,7 +48,8 @@
 | -------------- | ---------------------------- |
 | **个人投资者** | 选股参考、仓位管理、风险提示 |
 | **量化爱好者** | 策略回测、因子研究           |
-| **理财师**     | 客户持仓分析、投资建议生成   |
+
+> 详细画像（散户 / 投资学习者 / 量化爱好者 三档 + 占比 + 痛点）见 [`docs/persona.md`](./persona.md)。
 
 ---
 
@@ -60,7 +61,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                     stock-analyzer-skill                        │
 ├─────────────────────────────────────────────────────────────────┤
-│  📡 接口层 (13 Skills)                                           │
+│  📡 接口层 (12 Skills)                                           │
 │  ├── .claude/skills/ - Claude Code skill 源（软链 → skills/）  │
 │  └── .codex/skills/  - Codex skill 源（软链 → skills/）       │
 ├─────────────────────────────────────────────────────────────────┤
@@ -97,12 +98,12 @@
 | ------------ | ---------- | ---------- | ------------------------------------------------------------------------------------- |
 | **行情数据** | 10         | 1          | 腾讯、东财、新浪、雪球、同花顺、efinance、akshare、tushare、pytdx、yfinance          |
 | **K线数据**  | 9          | 5+         | 新浪、东财、腾讯、efinance、akshare、baostock、pytdx、tushare、yfinance               |
-| **财务数据** | 2          | 3+         | 东财、akshare                                                                          |
+| **财务数据** | 3          | 3+         | 东财、akshare（akshare_balance / akshare_finance / eastmoney_finance）               |
 | **资金面**   | 1          | 3          | 东财（融资融券 / 股东户数 / 十大流通股东）                                            |
 | **资金流向** | 2          | 2          | 东财（北向资金 / 个股资金流）、新浪                                                    |
 | **龙虎榜**   | 1          | 2          | 东财（明细 / 席位）                                                                    |
 | **事件日历** | 1          | 3          | 东财（财报披露 / 限售解禁 / 分红送转）                                                |
-| **合计**     | **26**     | **33**     | 7 个数据域（quote / kline / finance / chip / flow / lhb / event）                     |
+| **合计**     | **27**     | **33**     | 7 个数据域（quote / kline / finance / chip / flow / lhb / event）                     |
 
 ### 2.4 行业差异化阈值
 
@@ -121,15 +122,18 @@
 
 ### 2.5 选股策略系统（五因子模型）
 
-5 种内置策略（`scripts/strategies/registry.py`）：
+5 种主策略 + 1 模式策略（`scripts/strategies/registry.py`，共 6 种内置策略）：
 
-| 策略            | 市场环境      | 质量 | 估值 | 动量 | 流动性 | 波动率 |
-| --------------- | ------------- | ---- | ---- | ---- | ------ | ------ |
-| balanced        | 震荡/方向不明 | 25%  | 20%  | 20%  | 15%    | 20%    |
-| quality_value   | 价值修复/防守 | 35%  | 30%  | 5%   | 12%    | 18%    |
-| growth_momentum | 进攻行情/主线 | 18%  | 15%  | 35%  | 12%    | 20%    |
-| defensive       | 缩量弱市/避险 | 25%  | 22%  | 8%   | 12%    | 33%    |
-| turning_point   | 超跌修复/拐点 | 18%  | 18%  | 32%  | 14%    | 18%    |
+| 策略                 | 类型 | 市场环境      | 质量 | 估值 | 动量 | 流动性 | 波动率 |
+| -------------------- | ----- | ------------- | ---- | ---- | ---- | ------ | ------ |
+| balanced             | 主策略 | 震荡/方向不明 | 25%  | 20%  | 20%  | 15%    | 20%    |
+| quality_value        | 主策略 | 价值修复/防守 | 35%  | 30%  | 5%   | 12%    | 18%    |
+| growth_momentum      | 主策略 | 进攻行情/主线 | 18%  | 15%  | 35%  | 12%    | 20%    |
+| defensive            | 主策略 | 缩量弱市/避险 | 25%  | 22%  | 8%   | 12%    | 33%    |
+| turning_point        | 主策略 | 超跌修复/拐点 | 18%  | 18%  | 32%  | 14%    | 18%    |
+| ma_volume_momentum   | 模式策略 | MA10/MA21 金叉 + 放量 2.5x（⚠️ 样本内拟合：71.4% 胜率仅基于 5 只股票） | — | — | — | — | — |
+
+> 模式策略权重不参与五因子加权打分，而是按 `scripts/strategies/patterns/ma_volume_strategy.py` 的独立信号触发；详见 §2.5 下方说明与 [docs/strategy-validation.md](./strategy-validation.md)。
 
 ### 2.6 五因子详解
 
@@ -170,7 +174,7 @@
 │  ├── 风险控制 (ST/退市/商誉/质押/涨跌停过滤)                      │
 │  └── 策略回测 (网格搜索优化权重)                                  │
 ├─────────────────────────────────────────────────────────────────┤
-│  📡 接口层 (13 Skills)                                           │
+│  📡 接口层 (12 Skills)                                           │
 │  ├── /stock - 股票分析                                           │
 │  ├── /market - 大盘分析                                          │
 │  ├── /sector - 板块分析                                          │
@@ -232,7 +236,7 @@
 
 ### 4.2 多数据源故障转移
 
-- 7 个行情源、8 个 K 线源、3 个财务源
+- 7 个核心行情源 + 9 个 K 线源（含 pytdx/yfinance 局域网与美股通路）、3 个财务源
 - 按优先级自动切换（BaseFetcher.priority）
 - 缓存降级机制：主数据源失败时返回缓存数据
 
@@ -317,7 +321,7 @@
 | 监控                | 6 类通知规则；策略关键点位；Bark/企微/钉钉三通道                                                                |
 | 回测                | 11 项指标；ASCII 可视化；权重优化；外样本验证                                                                   |
 | 风控                | ST/退市/商誉/质押/涨跌停过滤；集中度 15% 单股 30% 单行业；时间止损；极端预案                                    |
-| 文档/质量           | 13 skill + 4 变体；skill schema 单源化（`.agents/` 副本清理）；mdBook 文档站；CI 自审计；测试 1700+；零外部依赖  |
+| 文档/质量           | 12 skill + 4 变体；skill schema 单源化（`.agents/` 副本清理）；mdBook 文档站；CI 自审计；测试 1700+；零外部依赖  |
 
 ### 6.2 规划中（v1.16.0+）
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> 版本：v1.19.0 | 更新日期：2026-08-05
+> 版本：v1.20.2 | 更新日期：2026-08-13
 
 ## 项目概述
 
@@ -10,7 +10,7 @@ A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变
 
 **板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
 
-**整体任务超时（v1.20.1 新增，v1.21.0 调整为 1800s）**：screener 现已接入 watchdog 线程,默认 1800s deadline（v1.21.0 从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py:545-557` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中,实际极少触发。
+**整体任务超时（v1.20.1 新增；v1.21.0 规划中——调整为 1800s）**：screener 现已接入 watchdog 线程，默认 1800s deadline（[未发布规划 v1.21.0] 从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py:545-557` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中,实际极少触发。
 
 **已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 WP1–WP6 改造（详见「关键抽象」段）。
 

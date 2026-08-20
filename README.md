@@ -577,6 +577,8 @@ scripts/
 ├── monitor/       # 消息推送（NotificationManager + 多通道适配器）
 ├── portfolio/     # 持仓管理
 └── *.py           # 顶层 CLI 入口（SKILL.md 直接调用）
+
+> 完整脚本列表见 [`scripts/`](scripts/) 顶层 30+ 个 CLI 入口（含 chan / chip / events / concept / hot_rank / market_anchor / sector_summary 等未在主架构图展开的辅助脚本）。
 ```
 
 ### 💎 核心特性
@@ -590,7 +592,7 @@ scripts/
 | 📊 **finance 域 WP1-WP6** | v1.16.0 重构：财报表 `Optional[float]=None` 化、`get_finance` 返 `(records, FinanceMeta)` tuple、主板/科创板/北交所差异化披露 |
 | ⚙️ **配置外部化**         | 行业阈值 / 评分权重 / 数据端点全部 YAML   |
 | 🔍 **可观测性提升**      | v1.16.0 silent_fallback：14 处 HIGH/MEDIUM 静默吞错加显式 WARNING 日志 |
-| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1017 测试）|
+| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1720 测试，v1.20.2 实测）|
 
 📖 详见 [开发者指南](docs/developer-guide.md) 和 [产品架构](docs/product-architecture.md)。
 
