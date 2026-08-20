@@ -21,7 +21,7 @@
 > "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
 > 核心 8 命令（quote/kline/finance/technical/stock/portfolio/screener/backtest）只需 stdlib + PyYAML；扩展功能（`/research` DCF、`/screener init full-market`、美股 yfinance、`/market full` 美股参考）按需 `pip install yfinance akshare efinance pytdx`。
 
-[![Version](https://img.shields.io/badge/version-1.20.2-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.21.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
@@ -761,7 +761,7 @@ MIT License © curtis
 
 ---
 
-**v1.20.2** · 2026-07-28 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.21.0** · 2026-07-28 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + experts/config/dev 类型清零 + 修复 screener 主线偏离警告静默失效 bug + dcf/cyclical 双命名回归；v1.20.1（2026-08-12）screener 整体任务超时 watchdog + 新增 sector_summary CLI（akshare 同花顺 + 东财 push2 + sector_etf 拼接三级降级）。
+> 🟢 **当前状态**：v1.21.0（2026-08-20）OOS 验证状态机（双层架构：registry 默认 in_sample + JSON 覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + 修复 screener 主线偏离警告静默失效 bug。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.21.0 | 2026-08-20 | OOS 验证状态机（双层架构：registry 默认 in_sample + `data/strategy_oos_validation.json` 运行时覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档 |
 | 1.20.2 | 2026-08-13 | mypy 白名单扩至 203 文件（10 目录 + 5 顶层脚本）+ experts/config/dev 类型清零 + 修复 screener 主线偏离警告静默失效 bug + dcf/cyclical 双命名冲突回归修复 |
 | 1.20.1 | 2026-08-12 | screener 整体任务超时 watchdog + sector_summary CLI + CI 黑块修复（black 19 文件 / ruff F601+F821 / sector 授权 sector_summary）+ 数据快照 |
 | 1.20.0 | 2026-08-08 | screener 三段式漏斗 + 板块模式放宽容差 + regime 新增 RANGE_CHOPPY + 高波震荡动量提权 + akshare 行业补全 fetcher + market 数据时效三档 + 涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告 |
@@ -279,11 +280,49 @@
 - **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
 - **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
 
-## [Unreleased] - 2026-08-20
+## [1.21.0] - 2026-08-20（OOS 验证状态机 + sync_skill_count 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md + experts-ARCHITECTURE.md）
 
+### Added
+- **strategies**: OOS 验证状态机（双层架构——registry 默认 in_sample + `data/strategy_oos_validation.json` 运行时覆盖层），新文件 `scripts/strategies/oos_validation.py`，registry 内 6 策略的 `STRATEGY_VALIDATION` 映射（commit 28af39e）
+- **strategies**: registry `_attach_validation` 透传验证状态到 screener JSON（commit e2547d7）
+- **backtest/cli**: `_attach_validation` 统一透传 `_validation_status` / `_validation_note` / `win_rate_pct` / `n_stocks`（commit 45e05df）
+- **multi_stock_backtest**: 新增 `--update-validation` 参数——跑完自动写 `data/strategy_oos_validation.json`，升级 STRATEGY_VALIDATION 默认 in_sample → oos_verified（commit 5111ef5）
+- **dev/sync**: `scripts/dev/sync_skill_count.py` 新增——校验 skill 数量在 CLAUDE.md / README.md / docs/product-architecture.md 三处一致（commit f373f68）
+- **expert**: `xu_xiang` PE 占位注释修正为设计选择（commit 1abdcec）
 
+### Tests
+- **strategies**: 加 20 项 OOS 状态机单元测试——`tests/unit/test_oos_validation.py`（commit 29913cf）
 
+### Documentation
+- **methodology**: 新增 `docs/strategy-validation.md`——状态机使用文档（升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0）（commit 364c66c）
+- **experts**: 新增 `experts/ARCHITECTURE.md`——确立独立子系统边界（commit fd2f7fb）
+- **contributing**: CHANGELOG 粒度规则写入 §4.1（commit 45a6c19）
+- **portfolio**: SKILL.md 顶部加 API 契约段（commit 7e02d20）
+- **CLAUDE**: 同步 OOS 状态机到 CLAUDE.md + `__init__.py` + 运行入口（commit 4e491cf）
+- **CLAUDE**: watchdog deadline 600→1800 与实际默认同步（commit 92b47c6）
+- **README**: 脱营销措辞，事实化重述（commit 7fa0fc1）
+- **dev-guide**: 移除 Round 11 T3/T19 内部 session 编号（commit bebe1c9）
 
+### CI/CD
+- **sync**: `sync_skill_count.py` 接入 pre-commit + GitHub Actions 镜像（commit 2da36a4）
+
+### Maintenance
+- **scripts**: 精确化 `calibration_sync.py` 临时文件注释（commit cac7b15）
+- **cleanup**: 删除运行时产物 + 收紧 .gitignore（commit b42df25）
+- **cleanup**: 修剪 4 处代码层 author-side 泄漏（commit 9b3d9b5）
+- **cleanup**: 重写 10 处 grill-me 报告内联引用为设计意图（commit b787756）
+- **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复（commit 454a3f9）
+- **archive**: 归档 review-issues/review-verification/implementation-plan-2026-q3-q4 三份设计文档（commit 3aa4986）
+- **archive**: 归档 grill-me-positioning-2026-08-20 项目定位压力测试报告（commit e40fb06）
+- **skills**: 修剪 14 处 auditor session voice 泄漏（commit 84e1ada）
+- **skills**: 重写 14 处 docstring/skills 中的"第 N 轮审查"措辞为版本锚定（commit 84e1ada）
+- **skills**: portfolio/portfolio-web/portfolio-natural 三 SKILL.md 互链注释（commit 88b7414）
+- **sync**: 统一 CLAUDE.md/README/产品架构 三处数字不一致（commit bb1bdba）
+- **trim**: CHANGELOG.md 5 处「session voice」元描述重写为字面陈述（commit 4e86f93）
+- **trim**: baofeng 报告 5 处「本轮」重写为日期锚定（commit 509644e）
+- **trim**: experts/scripts 13 处「第六轮审查」重写为版本锚定（commit 988fe96）
+
+## [Unreleased]
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
@@ -388,52 +427,6 @@
 - **dev-guide**: 移除 Round 11 T3/T19 内部 session 编号
 - **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
 - **skills**: 修剪 14 处 auditor session voice 泄漏
-
-## [Unreleased] - 2026-08-08
-
-
-### Added
-- **market**: 数据时效三档 + 涨跌停合理性软校验
-- **regime**: 新增 RANGE_CHOPPY 状态 + 高波震荡动量提权
-- **screener**: 三段式漏斗输出 + 板块模式放宽容差
-- **data**: 新增 akshare 行业补全 fetcher + Quote 接入 industry 字段
-- **stock**: 宝丰能源 v2 修复报告 — 板块代理 + DCF + 员工持股解锁量化
-- **skills**: 量化基线 CLI + 报告模板占位修复
-- **portfolio**: health_report_markdown 渲染层（SKILL 模板标准化）
-- **portfolio**: health_report 集成 technical.py（端到端破位判定）
-- **portfolio**: health_report 7 项增强（5 行业 + 5 档 status + 真实 regime + 破位 OR）
-- **portfolio**: health_report() 结构化报告 + 板块分类修复
-- **backtest**: 索提诺落地+多基准对比+报告尾行，akshare防挂死
-
-### Fixed
-- **guardrails**: 评分统一脚注 + 报告 RPS 数据去重
-- **stock**: 评级统一为单字母制 (B+ → B) + 风控评分映射说明
-- **stock**: 评级口径合规 + [1/7] 三段式对比完整化
-- **skills**: P2 修复 — 编码兜底+枚举集中+logger统一+emoji库
-- **skills**: P0 修复 — 工作目录与多代码调用陷阱
-- **skills**: 3 项低优先级修复（L1+L2+L3）
-- **skills**: 3 项中优先级修复（M5+M6+M7）
-- 修复指数代码映射错误 + monitor scanner 缺失导致监控/简报不可用
-- 业绩预告API+财务yoy/roe+板块覆盖+CLI调试 5项修复
-- **screener**: 全市场并发抓取 akshare/urllib 代理挂死导致永久卡死
-- **quote**: CLI JSON 输出 Quote 对象未序列化导致崩溃
-
-### Maintenance
-- **release**: v1.20.0 版本号同步 + CHANGELOG 整理 + 数据快照
-- **skills**: 4 skill 复盘 3 项修复
-- **portfolio**: 后续推进 L10/L12/L14/L16（as_of 兜底 + 双时间戳文档化）
-- 复盘审查修复（13 项）
-- 清理监控模块残留引用 + 补推送链路测试
-- 彻底移除监控模块（保留持仓 CRUD 推送）
-
-### Other
-- Merge fix: 指数代码映射 + monitor scanner 缺失（复盘发现）
-
-### Added
-- **screener**: 整体任务超时 watchdog + 新增 sector_summary CLI
-
-### Maintenance
-- **data**: 刷新 macro_snapshot.json 数据快照（2026-08-11）
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
