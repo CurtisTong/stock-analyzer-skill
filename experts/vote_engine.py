@@ -15,7 +15,7 @@ from experts.scoring import consistency_from_scores
 _BULL_THRESHOLD = 60  # 评分>=60 计为看多
 _BEAR_THRESHOLD = 39  # 评分<=39 计为看空
 
-# 第六轮审查（v2.4.3）：防御市/熊市短线降权配置
+# v2.4.3 引入：防御市/熊市短线降权配置
 # 短线专家在防御市历史准确率仅 20%，需定向压分（绕过权重钳制 [0.3,0.7]）
 _DEFENSIVE_STATES = {"防御型", "熊市"}
 _DEFENSIVE_SCORE_FACTOR_DEFAULT = 0.7
@@ -596,7 +596,7 @@ def aggregate_votes(
 
     # 提取养家情绪得分，判断是否冰点期
     emotion_score = _get_yangjia_emotion_score(yangjia)
-    # 冰点判定语义（v2.4.3 第六轮审查修正）：
+    # 冰点判定语义（v2.4.3 修正）：
     #   原 >=80 混淆了"冰点转折->100"与"主升初期->80"两种相反状态（chaogu_yangjia.md §九）。
     #   主升初期是亢奋行情，不应豁免降权。现改为 >=100，精确匹配养家冰点桶。
     #   yangjia_score < 30 表示综合分被基本面/估值/风险维度拖累到强烈看空；
@@ -628,7 +628,7 @@ def aggregate_votes(
     if buffett_policy["triggered"] and buffett_policy["mode"] == "weight":
         long_avg = _apply_buffett_long_downweight(long_experts)
 
-    # 第六轮审查（v2.4.3）：防御市/熊市短线组分数乘子。
+    # v2.4.3 引入：防御市/熊市短线组分数乘子。
     # 短线专家在防御市历史准确率仅 20%，权重钳制 [0.3,0.7] 不足以压制。
     # 此处对短线组分数施加配置驱动乘子（默认 0.7），定向惩罚短线组，绕过权重钳制。
     # 冰点期不施加（冰点是机会起爆点，短线可能有效）。
@@ -699,7 +699,7 @@ def aggregate_votes(
     all_scores = long_scores + short_scores
     confidence = compute_confidence_index(all_scores, composite, calibration_factor)
 
-    # 第六轮审查（v2.4.3）：分组校准定向惩罚。
+    # v2.4.3 引入：分组校准定向惩罚。
     # 短线组历史准确率低（如 20%）时，其校准因子为强负值，直接压低信心指数。
     # 这是对全局 calibration_factor 的补充--全局因子被长线高准确率稀释，
     # 分组因子能定向反映"这一组专家不可信"。

@@ -173,7 +173,7 @@ def _normalize_expert_scores(expert_scores: Dict[str, float]) -> Dict[str, float
 
 
 def get_kline_return(stock_code: str, start_date: str, end_date: str) -> float:
-    """获取股票在 [start_date, end_date] 区间的收益率%（第六轮审查 v2.4.3 新增）。
+    """获取股票在 [start_date, end_date] 区间的收益率%（v2.4.3 引入）。
 
     作为 verify_predictions 的 get_price_fn 回调实现。基于日线 K 线数据，
     按日期匹配起止日的收盘价计算收益率。匹配不到精确日时取最近的交易日。
@@ -346,7 +346,7 @@ def verify_predictions(
                     "获取 %s 实际收益率失败: %s", pred["stock"], e
                 )
 
-        # 第六轮审查（v2.4.3）修正重验证 bug：
+        # v2.4.3 修正：重验证 bug
         # 原 get_price_fn=None 时仍置 verified=True，导致预测被永久锁死（无结果）。
         # 现仅在以下情况标记 verified：
         #   1. mark_only=True（显式仅标记，无网络环境）
@@ -531,7 +531,7 @@ def get_calibration_report() -> str:
 
 
 def compute_group_calibration(group: str) -> float:
-    """计算指定组的校准因子（第六轮审查 v2.4.3 新增）。
+    """计算指定组的校准因子（v2.4.3 引入）。
 
     与 compute_calibration_factor 相同的公式，但仅用该组 active 专家的校准数据。
     用于定向惩罚低准确率组（如短线组 20%）而非全局平均稀释。

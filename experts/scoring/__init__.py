@@ -318,7 +318,7 @@ def compute_confidence_index(
 
     consistency = consistency_from_scores(expert_scores)
     # 校准因子贡献：calibration_factor ∈ [-1,1]，×10 后贡献 ±10 分（decide.md §6.3）。
-    # 第六轮审查修正：原代码 cal_adjustment * 0.1 使实际贡献仅 ±1 分，与文档承诺的
+    # v2.4.3 修正：原代码 cal_adjustment * 0.1 使实际贡献仅 ±1 分，与文档承诺的
     # ±10 分矛盾，且不足以让低准确率专家组（如短线 20%）实质压低信心。现改为直接
     # 贡献 ±10 分，与 decide.md §6.3 对齐。权重重新分配：一致性 0.40 + 综合分 0.40 +
     # 校准 0.20（其中校准的 0.20 上限 = 10 分，即 calibration_factor × 10）。

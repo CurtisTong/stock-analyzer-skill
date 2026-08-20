@@ -33,7 +33,7 @@ done
 | `python3 scripts/announcements.py` | 东方财富公告 + 研报 | -j |
 | `python3 scripts/backtest.py` | 多因子选股策略回测（thin wrapper） | — |
 | `python3 scripts/calibration.py` | 专家校准数据管理 CLI | -j |
-| `python3 scripts/calibration_backfill.py` | 校准数据回填与管理 CLI（第六轮审查 v2.4.3 新增） | -v |
+| `python3 scripts/calibration_backfill.py` | 校准数据回填与管理 CLI（v2.4.3 引入） | -v |
 | `python3 scripts/calibration_sync.py` | 校准数据 GitHub Gist 双向同步 | — |
 | `python3 scripts/chan.py` | 缠中说禅理论（缠论）实现 | — |
 | `python3 scripts/chip.py` | 资金面分析 CLI 入口 | -j |
