@@ -282,6 +282,7 @@
 ## [Unreleased] - 2026-08-20
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -311,6 +312,39 @@
 ### Documentation
 - **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
 - **skills**: 修剪 14 处 auditor session voice 泄漏
+
+### Documentation
+- **archive**: 归档 review-issues/review-verification/implementation-plan-2026-q3-q4 三份设计文档
+- **sync**: 同步 OOS 状态机到 CLAUDE.md + __init__.py + 运行入口
+- **cleanup**: 重写 10 处 grill-me 报告内联引用为设计意图
+- **methodology**: 新增 strategy-validation.md + 修 README bad link
+- **CLAUDE**: 补充 multi_stock_backtest --update-validation 用法
+- **experts**: 新增 ARCHITECTURE.md 确立独立子系统边界
+- **contributing**: CHANGELOG 粒度规则写入 §4.1
+- **portfolio**: SKILL.md 顶部加 API 契约段
+- **README**: 脱营销措辞，事实化重述
+- **CLAUDE**: watchdog deadline 600→1800 与实际默认同步
+- 重述 4 处 session voice 与 reviewer narration
+- **dev-guide**: 移除 Round 11 T3/T19 内部 session 编号
+- **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
+- **skills**: 修剪 14 处 auditor session voice 泄漏
+
+### Testing
+- **strategies**: 加 20 项 OOS 状态机单元测试
+
+### CI/CD
+- **sync**: sync_skill_count.py 接入 pre-commit + GitHub Actions 镜像
+
+### Maintenance
+- **scripts**: 精确化 calibration_sync.py 临时文件注释
+- **cleanup**: 删除运行时产物 + 收紧 .gitignore
+
+### Other
+- **strategies**: 加 OOS 验证状态机（默认值 + JSON 覆盖层）
+- **sync**: 加 sync_skill_count.py 校验 skill 数量三处一致
+- **backtest/cli**: 加 _attach_validation 统一透传验证状态
+- **strategies/registry**: 加 STRATEGY_VALIDATION + screener 透传
+- **xu_xiang**: 修正 PE 占位注释为设计选择
 
 ## [Unreleased] - 2026-08-08
 
