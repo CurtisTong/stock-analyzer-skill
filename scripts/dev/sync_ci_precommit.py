@@ -2,10 +2,10 @@
 """CI ↔ pre-commit mypy 白名单同步校验工具。
 
 docs/next-tasks.md 任务 D：ci.yml 与 .pre-commit-config.yaml 中 3 条 mypy 白名单
-命令（scripts 目录层 / CLI 层 / experts 层）靠手工复刻保持一致，存在漂移风险。
+命令（scripts 目录层 / CLI 层 / experts 层）重复维护易漂移。
 本工具解析两份文件，抽取每条 mypy 命令的 目标路径列表，逐条比对：
   - --check：仅检查。不一致时打印差异并 exit 1（CI/pre-commit 门禁用）。
-  - 默认：同样只做检查（该工具无需写回——漂移时应手动补齐命令）。
+  - 默认：同样只做检查（该工具无需写回——漂移时需手动补齐命令）。
 
 对应关系（按 step/hook 名称匹配）：
   ci.yml step "mypy 类型检查"        ↔ pre-commit hook "mypy-allowlist"

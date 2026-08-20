@@ -3,14 +3,14 @@
 
 背景:
     market / sector skill 此前只能用 sector_etf.csv 内的 15 个 ETF + quote.py 拼装,
-    覆盖度低且不是真实板块榜。本次会话复盘发现"东财 push2 接口被风控 + WebFetch
-    JSON 解析错误"导致板块分析耗时 +10min。
+    覆盖度低且不是真实板块榜;且 WebFetch 解析 push2 JSON 时会把百分号单位
+    (`f3=6.95`) 错解读为绝对值。
 
 设计:
     优先级 (auto 模式):
       1. akshare 同花顺板块汇总 (stock_board_industry_summary_ths) —— 主路径,
-         字段全(净流入/领涨股/上涨家数等),本会话验证可用
-      2. 东方财富 push2 clist 接口 —— 备选,本次会话被风控,保留兜底
+         字段全(净流入/领涨股/上涨家数等),百分号字段已正确缩放
+      2. 东方财富 push2 clist 接口 —— 备选,部分网络被风控时降级
       3. 失败时 data_quality.degraded_fields 标记 ["source"],不阻断
 
 输出 schema:

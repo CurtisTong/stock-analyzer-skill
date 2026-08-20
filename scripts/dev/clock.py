@@ -25,7 +25,7 @@ def now() -> _dt.datetime:
 
 
 def freeze(target: _dt.datetime) -> None:
-    """冻结时钟（手动模式，调试用）。"""
+    """冻结时钟至指定时间，供测试时间穿越使用。"""
     global _now_func
 
     def _now_func():

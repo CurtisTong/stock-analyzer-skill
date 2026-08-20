@@ -40,7 +40,7 @@ def run_debate(
 ) -> dict:
     """运行完整 debate 流程：校准因子回灌 + 风险分级 + 投票聚合 + 预测落库。
 
-    第六轮审查（v2.4.3）新增的闭环编排器，将原本散落在 SKILL.md 手动步骤中的
+    v2.4.3 引入：闭环编排器，将 SKILL.md 中散落的
     "取校准因子 -> aggregate_votes -> record_prediction" 收敛为单一入口。
 
     v2.5.0 Phase 2：新增 stock_data 参数，自动调用 veto_evaluator 评估
