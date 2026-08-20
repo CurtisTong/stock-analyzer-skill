@@ -611,7 +611,7 @@ scripts/
 </tr>
 <tr>
 <td>📈 <b>投资者</b></td>
-<td><a href="methodology.md">投资方法论</a></td>
+<td><a href="docs/strategy-validation.md">策略验证方法论</a></td>
 <td><a href="experts/README.md">16 份专家档案库（8 active + 8 legacy）</a></td>
 </tr>
 <tr>
