@@ -95,7 +95,7 @@ STRATEGIES: Dict[str, dict] = {
     },
 }
 
-# 策略外样本验证状态（grill-me P0 修复）
+# 策略外样本验证状态。
 # 与 STRATEGIES 权重 dict 分离，避免污染业务算法的因子加权（screening_service.py:614
 # 等位置用 weights.get(k, 0) 做加权和，非 float 字段会触发 TypeError）。
 # 状态值：in_sample | oos_verified | unknown

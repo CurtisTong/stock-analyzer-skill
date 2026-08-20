@@ -42,7 +42,6 @@ runs:
       run: |
         # 修复 README 顶部 badge skills-N 与 #-N-个-skill-速查 锚点
         # 与 skills/ 实际目录数一致（CLAUDE.md 第 9/96 行手工校验）。
-        # grill-me P1 落地。
         python3 scripts/dev/sync_skill_count.py
 
     - name: 创建 .gitignore 占位文件（check_allowed_tools 路径校验用）

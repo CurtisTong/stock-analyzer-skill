@@ -1,6 +1,6 @@
 # Experts 子系统架构
 
-本文档说明 `experts/` 的设计意图、与 skill / scripts 的边界关系，以及可独立运行点。grill-me 审查识别出 experts 处于"既不属于 skills/ 也不属于 scripts/"的灰区，本文确立其作为**独立子系统的地位**与边界约束。
+本文档说明 `experts/` 的设计意图、与 skill / scripts 的边界关系，以及可独立运行点。experts 处于"既不属于 skills/ 也不属于 scripts/"的灰区，本文确立其作为**独立子系统的地位**与边界约束。
 
 ## 定位
 

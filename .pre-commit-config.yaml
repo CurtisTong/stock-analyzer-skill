@@ -59,7 +59,7 @@ repos:
 
       - id: check-skill-count
         name: 检查 skill 数量在 CLAUDE.md / README.md / skills/ 一致
-        # grill-me P1 落地：校验 skills/ 实际目录数 + CLAUDE.md + README.md
+        # 校验 skills/ 实际目录数 + CLAUDE.md + README.md
         # 8 处声称 + 顶部 badge + 锚点全部一致。修复方法：
         #   python3 scripts/dev/sync_skill_count.py
         entry: python3 scripts/dev/sync_skill_count.py --check

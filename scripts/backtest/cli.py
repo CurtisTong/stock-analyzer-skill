@@ -16,10 +16,12 @@ from .metrics import run_backtest
 
 
 def _attach_validation(report) -> None:
-    """grill-me P0 修复：给回测 JSON 输出挂上策略验证状态。
+    """给回测 JSON 输出挂上策略验证状态。
 
-    避免消费方误把 in_sample 胜率当 out-of-sample 表现。验证元数据从
-    STRATEGY_VALIDATION 读（与 STRATEGIES 权重 dict 分离），不影响业务算法。
+    透传 validation_status（in_sample / oos_verified / unknown）和
+    validation_note（提示文本），让消费方区分 in_sample 拟合数字与
+    外样本验证过的实盘表现。元数据从 STRATEGY_VALIDATION 读（与
+    STRATEGIES 权重 dict 分离，避免污染因子加权计算）。
 
     Args:
         report: run_backtest 返回的 dict，会被原地修改。

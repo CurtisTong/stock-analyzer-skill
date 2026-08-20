@@ -95,13 +95,13 @@ def volume_price_features(closes, volumes):
 def _emit_json_with_validation(rows: list, strategy: str) -> None:
     """JSON 模式下打印选股结果，每行 row 透传策略验证状态。
 
-    grill-me P0 修复：避免消费方误把 in_sample 胜率当 out-of-sample 表现。
-    字段以 `_validation_` 前缀避免与业务字段冲突；下游可用
-    `jq '.[]._validation_status'` 直接聚合。
+    每行 row 附加 `_validation_status`（in_sample / oos_verified / unknown）
+    与 `_validation_note`（提示文本），让消费方区分 in_sample 拟合数字与
+    外样本验证过的实盘表现。字段以 `_validation_` 前缀避免与业务字段
+    冲突；下游可用 `jq '.[]._validation_status'` 直接聚合。
 
     验证元数据从 STRATEGY_VALIDATION 读取，不与权重 dict 混合——
-    权重 dict 里的非 float 字段会污染 screening_service 的因子加权计算
-    （见 grill-me 报告 P0 复盘）。
+    权重 dict 里的非 float 字段会污染 screening_service 的因子加权计算。
     """
     from strategies.registry import get_validation  # 函数内延迟导入，避免循环
 

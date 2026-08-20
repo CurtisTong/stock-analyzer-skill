@@ -1,6 +1,6 @@
 # 策略验证方法论
 
-本文档定义 stock-analyzer-skill 项目策略胜率与回测结果的**验证等级**、**升级条件**与**重新校准时机**。grill-me 审查识别出"CLAIM 与证据分离"是项目长期未明示的承诺问题（ma_volume_momentum 71.4% 胜率被当作 CLAIM 宣传，但实际上是 5 只股票样本内拟合），本文确立分层验证体系。
+本文档定义 stock-analyzer-skill 项目策略胜率与回测结果的**验证等级**、**升级条件**与**重新校准时机**。CLAIM 与证据分离是项目长期未明示的承诺问题（ma_volume_momentum 71.4% 胜率被当作 CLAIM 宣传，但实际上是 5 只股票样本内拟合，CLAUDE.md:93 已自爆），本文确立分层验证体系。
 
 > 数据字段映射类（旧 `docs/archive/designs/methodology.md`）已归档——v2.0.0 重构后字段定义不再适用，本文件专注验证逻辑。
 
@@ -88,5 +88,5 @@ LLM caller / 用户 → 看到 in_sample 警告
 
 ## 历史
 
-- 2026-08-20：本文初稿（grill-me 报告 P2 第 3 条落地）
+- 2026-08-20：本文初稿
 - 之前：`docs/archive/designs/methodology.md`（数据字段映射，已归档）

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """CI 启动时校验 skill 数量在 CLAUDE.md / README.md / skills/ 实际目录数一致。
 
-解决问题：grill-me 审查发现的"12 vs 13 skill"数字漂移问题——文档宣称
-的 skill 数量与 skills/ 实际目录数、README badge、CLAUDE.md 描述三者
-不一致，外部读者无法判断项目当前真实状态。
+解决问题：skill 数量数字漂移问题——文档宣称的 skill 数量与
+skills/ 实际目录数、README badge、CLAUDE.md 描述三者不一致，
+外部读者无法判断项目当前真实状态。
 
 校验目标（实际 skill 数 = 12）：
 
 1. skills/ 实际目录数（排除 _shared 这种共享资源目录）
 2. CLAUDE.md 第 9/96 行附近的"12 个 skill"声称
-3. README.md 顶部 badge "skills-13" 与 #12-个-skill-速查 锚点
+3. README.md 顶部 badge "skills-N" 与 #-N-个-skill-速查 锚点
 4. README.md 内部"12 个 skill"声称一致性
 
 设计原则（与 sync_skill_test_versions.py 对齐）：
