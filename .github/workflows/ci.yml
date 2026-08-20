@@ -39,6 +39,9 @@ jobs:
       - name: SKILL.md 版本与测试常量一致性
         run: python3 scripts/dev/sync_skill_test_versions.py --check
 
+      - name: skill 数量三处一致性校验
+        run: python3 scripts/dev/sync_skill_count.py --check
+
       - name: allowed-tools 自审计
         run: python3 scripts/dev/check_allowed_tools.py --ci
 
