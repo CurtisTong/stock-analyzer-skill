@@ -66,7 +66,7 @@
 #### P1-4 · "1007 测试" 与 "1700+" 与 "589" 三个口径同时存在
 - **声明**：README §核心特性行"1017 测试"；产品架构 §6.1 表"测试 1700+"；同文件 §v1.16.0 重构段"589 个 def test_，分 5 层"。
 - **证据**：`grep -rE "def test_" tests/ | wc -l` = **1720**（实测）；README 数字 1017 是过时的（v1.16.0 之前）。
-- **建议**：把 README 的"1017 测试"改成 `1720` 或 `1700+`，删掉产品架构里残留的"589"（v1.16.0 之前的数字，已被本次重构覆盖）。三套数字共存是技术债的可视化。
+- **建议**：把 README 的"1017 测试"改成 `1720` 或 `1700+`，删掉产品架构里残留的"589"（v1.16.0 之前的数字，已被 v1.16.0 重构覆盖）。三套数字共存是技术债的可视化。
 
 #### P1-5 · portfolio-natural vs portfolio-web vs portfolio 三个 skill 共享同一脚本入口
 - **声明**：README §12 skill 速查 把 portfolio / portfolio-web / portfolio-natural 列为三个独立 skill；实际 `allowed-tools` 全部含 `Bash(python3 scripts/portfolio_web.py *)`。
