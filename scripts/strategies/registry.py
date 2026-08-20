@@ -139,12 +139,36 @@ def get_validation(name: str) -> dict:
     Returns:
         dict with keys ``validation_status`` (in_sample|oos_verified|unknown)
         and ``validation_note`` (str). 未知策略返回 unknown 占位。
+
+    状态机：registry 默认值 + data/strategy_oos_validation.json 覆盖层。
+    OOS JSON 由 scripts/multi_stock_backtest.py --update-validation 写入，
+    运行时合并到返回值；删除 JSON 文件即恢复默认 in_sample 状态。
     """
     with _STRATEGIES_LOCK:
-        return STRATEGY_VALIDATION.get(
+        base = STRATEGY_VALIDATION.get(
             name,
             {"validation_status": "unknown", "validation_note": ""},
         )
+    # 函数内延迟导入：避免 strategies/__init__.py 加载时循环
+    from .oos_validation import load_oos_overrides
+
+    overrides = load_oos_overrides()
+    oos = overrides.get(name)
+    if oos:
+        # OOS 覆盖：透传 status / note；额外字段（validated_at / win_rate_pct /
+        # n_stocks）保留以便消费方获取数字
+        return {
+            "validation_status": oos.get(
+                "validation_status", base["validation_status"]
+            ),
+            "validation_note": oos.get("validation_note", base["validation_note"]),
+            **{
+                k: v
+                for k, v in oos.items()
+                if k not in ("validation_status", "validation_note")
+            },
+        }
+    return base
 
 
 # ---------- 策略注册 API ----------

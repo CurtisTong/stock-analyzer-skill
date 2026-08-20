@@ -261,6 +261,12 @@ def main() -> None:
         "--strategies", default="balanced,ma_volume_momentum", help="逗号分隔策略列表"
     )
     parser.add_argument("--output", help="报告输出路径（默认打印到 stdout）")
+    parser.add_argument(
+        "--update-validation",
+        action="store_true",
+        help="跑完后自动把结果写进 data/strategy_oos_validation.json，"
+        "覆盖 STRATEGY_VALIDATION 默认 in_sample 状态",
+    )
     args = parser.parse_args()
 
     codes = load_codes(args.codes)
@@ -312,6 +318,53 @@ def main() -> None:
         print(f"\n📝 报告已写入: {args.output}")
     else:
         print("\n" + report)
+
+    if args.update_validation:
+        _update_validation(strategy_results, n_codes=len(codes))
+
+
+def _update_validation(strategy_results: list[dict], *, n_codes: int) -> None:
+    """把本次回测结果写进 data/strategy_oos_validation.json。
+
+    调用 scripts/strategies/oos_validation 的状态机：
+    - 股票池 ≥ 30 + 胜率 ≥ 50% + 累计收益 > 0 → oos_verified
+    - 否则 → in_sample（保留，但加备注说明原因）
+
+    覆盖 registry 默认 STRATEGY_VALIDATION；删除 JSON 文件可恢复默认。
+    """
+    from strategies.oos_validation import (
+        build_oos_note,
+        evaluate_oos,
+        save_oos_result,
+    )
+
+    print("\n📝 更新 data/strategy_oos_validation.json ...")
+    for r in strategy_results:
+        sname = r.get("strategy")
+        if not sname or "error" in r:
+            continue
+        result = r["result"]
+        win_rate = float(result.get("win_rate_pct", 0) or 0)
+        total_ret = float(result.get("total_return_pct", 0) or 0)
+        sharpe = float(result.get("sharpe_ratio", 0) or 0)
+        max_dd = float(result.get("max_drawdown_pct", 0) or 0)
+
+        status = evaluate_oos(win_rate, n_codes, total_ret)
+        note = build_oos_note(win_rate, n_codes, total_ret)
+        if status == "in_sample":
+            note += "（未达阈值，保持 in_sample）"
+
+        save_oos_result(
+            sname,
+            validation_status=status,
+            validation_note=note,
+            win_rate_pct=win_rate,
+            n_stocks=n_codes,
+            total_return_pct=total_ret,
+            extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
+        )
+        marker = "✅" if status == "oos_verified" else "⚠️ "
+        print(f"   {marker} {sname}: {status} ({win_rate:.1f}% / {n_codes} 只)")
 
 
 if __name__ == "__main__":
