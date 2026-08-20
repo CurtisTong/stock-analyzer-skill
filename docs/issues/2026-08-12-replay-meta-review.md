@@ -12,7 +12,7 @@
 
 ## ⚠️ 与历史 review 的关系
 
-本文档聚焦**单次会话内暴露的运行期问题**，不重复 `review-issues.md` 中已记录的代码层问题（那些是源码审阅发现，已 Round 7-11 修复完成）。新增的 11 项是**使用层 + 集成层 + 流程层**问题，反映"工具能跑 ≠ 跑得好"。
+本文档聚焦 2026-08-12 元复盘期间暴露的**运行期问题**，不重复 `review-issues.md` 中已记录的代码层问题（那些是源码审阅发现，已 Round 7-11 修复完成）。新增的 11 项是**使用层 + 集成层 + 流程层**问题，反映"工具能跑 ≠ 跑得好"。
 
 ---
 
@@ -311,7 +311,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 1. 在本文件对应问题下追加"修复 commit + 验证结果"
 2. 更新 `CHANGELOG.md`（参考已有 Round 7-11 风格）
 3. 跑全量回归测试（pytest 2700+ 项）
-4. 重新执行本次复盘的完整流程（market→stock→sector→portfolio→screener），对比修复前/后
+4. 重新执行 2026-08-12 元复盘的完整流程（market→stock→sector→portfolio→screener），对比修复前/后
 
 ---
 

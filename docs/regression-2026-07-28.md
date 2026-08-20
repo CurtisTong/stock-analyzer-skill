@@ -60,7 +60,7 @@
 | 失败 | 0 |
 | 耗时 | 2.03s |
 
-**意义**：覆盖契约 schema（含 test_skill_metadata_sync.py 的 DEFAULT_VERSION 同步验证）、CLI 命令契约、决策契约等。本轮 Phase 1 把 DEFAULT_VERSION 同步为 1.16.0，所有契约测试在此后通过。
+**意义**：覆盖契约 schema（含 test_skill_metadata_sync.py 的 DEFAULT_VERSION 同步验证）、CLI 命令契约、决策契约等。Phase 1 把 DEFAULT_VERSION 同步为 1.16.0，所有契约测试在此后通过。
 
 ### 回归 4: 新增测试专项
 

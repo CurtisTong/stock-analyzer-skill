@@ -241,7 +241,7 @@ python3 scripts/stock.py <代码> -j
 - 综合建议需要体现分歧（看多 vs 看空），不做单一叙事。
 - 所有投资建议需附带"不构成投资建议"声明。
 
-### 强制流程规则（P2-2026-08-08 复盘后新增，v1.20.0 信号冲突检测强化）
+### 强制流程规则（v1.20.0 新增 — 信号冲突检测强化）
 
 - **9 项基础数据必调**：quote / finance / kline / technical / announcements / **events / market_anchor / sector / stock**。任一缺失则报告置信度自动下调至"低"。
 - **业绩预告必看（带冲突检测）**：`forecast_type=increase` 且 `change_midpoint > 50%` 时**触发评级上跳候选**，但**必须经规则 3.5 信号冲突检测后**才生效。预减规则对称。

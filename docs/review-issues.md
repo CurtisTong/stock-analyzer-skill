@@ -227,10 +227,10 @@
 
 ### Milestone v2.7.x：CI 基建债清理（5 项，pre-existing）
 
-> 这些问题在 main 分支长期存在（main CI 一直是 fail），非本次 PR（market_anchor v2.5-v2.7）引入。
-> 本次 PR 通过修源码 + 缩窄 CI 检查范围绕过；后续单独立项清理。
+> 这些问题在 main 分支长期存在（main CI 一直是 fail），非 v2.5–v2.7（market_anchor）周期引入。
+> v2.5–v2.7 周期通过修源码 + 缩窄 CI 检查范围绕过；后续单独立项清理。
 
-1. **mypy strict 错误清理**：common/ 280+ mypy 错误（`disallow_any_generics` 触发大量裸 `dict`/`list`），本次 PR 通过 `--follow-imports=silent` 仅检查 PR 涉及文件绕过。后续需逐文件加 `dict[K, V]` 类型注解。 ✅ 2026-08-12 完成：**三级清零 + 白名单扩展**——
+1. **mypy strict 错误清理**：common/ 280+ mypy 错误（`disallow_any_generics` 触发大量裸 `dict`/`list`），v2.5–v2.7 周期通过 `--follow-imports=silent` 仅检查 PR 涉及文件绕过。后续需逐文件加 `dict[K, V]` 类型注解。 ✅ 2026-08-12 完成：**三级清零 + 白名单扩展**——
    - common/（20 文件）：21 错误清零——`_connection_pool` 实际存 tuple 但标注 `list[HTTPConnection]`、`_parse_url` 返回顺序标错（host/port 互换）、`BaseFetcher.fetch` 返回类型未含 `_NotHandled` 哨兵导致 4 处 identity check non-overlapping（改用 `isinstance` 窄化）、requests 响应 None 守卫、`http_get_cached` 默认参数 `key: str=None` 漏 union、`value: Any` 标注、unused `type: ignore` 清理、atexit 回调 None 防御
    - fetchers/（43 文件）+ business/（34 文件）：50 错误清零——`from common import RateLimitError/ParseError` 改从 `common.exceptions` 正确源（common.__all__ 已刻意移除）；混合 dict 字面量显式 `dict[str, Any]`（eastmoney_flow/sina_flow/stock_analysis/_base_bulk）；`_NotHandled` 返回类型补全（yfinance_quote/baostock_kline）；pytdx 变量链式初始化拆开；mapping 同名遮蔽（risk_warning）；`is_st = is_st(...)` 遮蔽改 `is_st_flag`；`AnalyzeContext.kline_bars: list=None` 漏 union；`_get_quote -> dict|None`；`max_drawdown -> Dict[str, Any]`；`benchmark_weights: dict|None` + assert 窄化
    - **CI + pre-commit mypy 白名单扩至 78 文件**（common/ + fetchers/ + business/ + 6 顶层脚本）；`strategies`/`refresh_pool` 为门面 re-export 模块，mypy.ini 开启 `implicit_reexport`，删除失效 `[mypy-experts.*]` section（scripts/experts 不存在，专家在仓库根）
@@ -240,9 +240,9 @@
     - ✅ 2026-08-13 全仓覆盖：**新增 CI/pre-commit 第二层 mypy 命令（CLI 层，22 个顶层脚本单独检查）**——与主命令（目录+6 脚本）分层解决双身份冲突，两层合计 **234 文件全绿**。`strategy_performance.py`/`perf_bench.py` 的 `from backtest import run_backtest/load_test_universe` 改从 `backtest.cli`/`backtest.metrics` 子模块精确导入（顶层 backtest.py 文件存在时 mypy 将 backtest 解析为文件导致 attr-defined，运行时原值正确）。
     - ✅ 2026-08-13 P0-01 后续闭环：screener `data_prefetch` 阶段进度（quote/finance stage stderr 输出，JSON 模式走 stderr）已在 `_default_progress_callback`（screener.py:456）实现，issue 的"增加阶段进度"建议落地（v1.20.1 已发布），无开放项。
 2. **circuit_breaker_concurrency 测试断言放宽~~已放宽~~**：~~50/100 线程并发在 Linux xdist 调度下触发 v1.14.2 attempts 重置分支导致 passed > half_open_max。已放宽断言至 `1 <= passed <= half_open_max * 10`，源码 race 待 P2-round13 改"窗口期"逻辑。~~ ✅ 2026-08-12 窗口期逻辑已固化：新增 `tests/unit/test_circuit_breaker.py` 14 项确定性测试（状态机全路径 + strict 恢复守卫 + 窗口配额耗尽拒绝/过期自动续期/`recovery_timeout=0` 拒绝续期 + 并发下窗口内放行数严格 == half_open_max）。源码 `scripts/common/circuit_breaker.py` 已是窗口期节流模型（fdcb6ba），并发放行由 lock 原子化，无实际 race；测试断言从历史宽松值收紧为精确值。
-3. **black 格式漂移 92 文件**：Round 11 之前 main 分支长期未跑 `black --check`，本次 PR 一次性修复。后续引入 pre-commit hook 防止再漂移。
-4. **coverage 60.2%**：本次 PR 新增 73 个单元测试（从 59.19% 提升至 60.23%）。剩余 39.77% 多为低价值脚本（install/setup/one-off dev tools），后续视 ROI 决定是否补。 ~~决策保留~~ ✅ 2026-08-12 评估结论：**维持现状不强行补**——unit 全量 `--cov=scripts` 实测 31.8%（20164 语句，覆盖率统计含 scripts/ 全部顶层 CLI 脚本），核心逻辑目录（common/fetchers/business/strategies/data/technical）在本轮 P0/P1/P2-H6/v2.7 修复中已增量补充 34+ 项专项测试；剩余缺口主要是 install/setup/one-off dev 脚本与 CLI 薄壳，ROI 低。若未来以"核心目录 ≥ 80%"为目标再补，需先重构 CLI 为可测函数。
-5. **allowed-tools 自审计**：本次 PR 已加 7 个新 entries + `scripts/dev/check_allowed_tools.py` 自动化校验；后续若新增脚本需同步更新。
+3. **black 格式漂移 92 文件**：Round 11 之前 main 分支长期未跑 `black --check`，v2.5–v2.7 周期一次性修复。后续引入 pre-commit hook 防止再漂移。
+4. **coverage 60.2%**：v2.5–v2.7 周期新增 73 个单元测试（从 59.19% 提升至 60.23%）。剩余 39.77% 多为低价值脚本（install/setup/one-off dev tools），后续视 ROI 决定是否补。 ✅ 2026-08-12 评估结论：**维持现状不强行补**——unit 全量 `--cov=scripts` 实测 31.8%（20164 语句，覆盖率统计含 scripts/ 全部顶层 CLI 脚本），核心逻辑目录（common/fetchers/business/strategies/data/technical）在 P0/P1/P2-H6/v2.7 修复中已增量补充 34+ 项专项测试；剩余缺口主要是 install/setup/one-off dev 脚本与 CLI 薄壳，ROI 低。若未来以"核心目录 ≥ 80%"为目标再补，需先重构 CLI 为可测函数。
+5. **allowed-tools 自审计**：v2.5–v2.7 周期已加 7 个新 entries + `scripts/dev/check_allowed_tools.py` 自动化校验；后续若新增脚本需同步更新。
 
 ---
 

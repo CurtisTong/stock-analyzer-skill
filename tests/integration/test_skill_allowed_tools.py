@@ -1,7 +1,7 @@
 """allowed-tools 收紧回归保护。
 
-复盘上一轮提交发现 4 个 skill 使用 Bash(python3 scripts/*) 通配，
-本次修复已收紧到显式脚本列表。本测试验证：
+`.claude/settings.json` 的 allowed-tools 已收紧到显式脚本列表（每行
+`Bash(python3 scripts/<name>.py ...)`）。本测试验证：
 1. 没有任何 SKILL.md 仍使用 scripts/* 通配
 2. 每个 skill 的 allowed-tools 与其实际调用的脚本一致
 3. allowed-tools 列表合法（每行是 Bash/Read 前缀的路径模式）
