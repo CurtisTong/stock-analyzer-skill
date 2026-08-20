@@ -151,6 +151,8 @@ else:
     sentiment_score = 20
 
 # 基本面维度：仅排雷
-eps = to_float(quote.get("pe"))  # 这里用PE作为占位，实际不深入分析
+# 徐翔短线框架不做估值深度分析，PE 仅用于过滤"业绩为负/不盈利"的票根，
+# 作为题材龙头策略的反向兜底（PE>0 才进入二板候选池）
+eps = to_float(quote.get("pe"))
 base_score = 60 if eps and eps > 0 else 0
 ```
