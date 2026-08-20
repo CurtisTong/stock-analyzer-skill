@@ -12,11 +12,14 @@
         A N A L Y Z E R   ·   S K I L L
 ```
 
-## 🎯 给会写代码的投资者准备的 A 股分析套件
+## A 股分析 Claude Code 插件
 
-> 装进 Claude Code，对话框里打 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析 + 8 人活跃专家圆桌（含 16 份专家人设）辩论。
+装进 Claude Code 后用 `/stock <代码>` 等 12 个斜杠命令做 A 股分析（基本面/估值/技术面/板块/风险收益比 5 层 + 8 人专家投票）。
 
-**五层分析框架** · **16 份专家人设（8 active）** · **27 个数据源故障转移** · **零依赖开箱即用**
+**8 位活跃专家圆桌** · **27 个 fetcher 模块（35 类）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
+
+> "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
+> 核心 8 命令（quote/kline/finance/technical/stock/portfolio/screener/backtest）只需 stdlib + PyYAML；扩展功能（`/research` DCF、`/screener init full-market`、美股 yfinance、`/market full` 美股参考）按需 `pip install yfinance akshare efinance pytdx`。
 
 [![Version](https://img.shields.io/badge/version-1.20.2-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
@@ -52,11 +55,11 @@
 
 ## ✨ 这是什么？
 
-> 🎯 **一句话**：把它装进 Claude Code，用对话的方式做 A 股投资研究——不写代码、零配置、9 条命令覆盖选股 / 看盘 / 看持仓 / 研究 / 监控 / 回测 / 学习。
+> 装进 Claude Code 后用 12 条 `/xxx` 斜杠命令做 A 股投资研究——选股 / 看盘 / 看持仓 / 研究 / 监控 / 回测 / 学习。
 
-一个把 **A 股专业分析能力** 封装成 9 条 `/xxx` 斜杠命令的 Claude Code 插件包。
+一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的 Claude Code 插件包。
 
-> 💡 不写代码也能用——**说一句 `/stock 贵州茅台`，3 分钟拿到 5 层专业分析**。
+> `/stock <代码>` 跑 5 层分析。具体耗时取决于数据源响应；网络差或 watchdog 超时（默认 1800s）会延后，部分字段可能降级。
 
 <table>
 <tr>
@@ -155,11 +158,11 @@ git clone <repo> && cd stock-analyzer-skill && ./install.sh
 # 2️⃣ 初始化股票池（仅首次；网络差用 default 走预置数据）
 /screener init default
 
-# 3️⃣ 开跑（3 分钟拿到 5 层分析）
+# 3️⃣ 跑单股 5 层分析（耗时取决于数据源响应；网络差时延后）
 /stock sh600519 quick
 ```
 
-> **零配置可用**：内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。
+> 内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。watchdog 默认 1800s；真超时直接退出（stderr 一行告警，无部分结果）。
 
 <details>
 <summary>其他安装方式（npm）</summary>
@@ -408,7 +411,7 @@ PEG &lt; 1
 | 💼 我的持仓怎么样   | `/portfolio`      | 涨跌 + 板块集中度 + 风险预警 + 调仓建议              |
 | 🤔 不知道买什么     | `/screener`       | 6 种策略 × 9 因子筛选 → 10 只候选 + 跟踪清单         |
 
-> 💡 不写代码、零配置可用。30 秒完成 `/screener init` 初始化股票池，3 分钟跑通 `/stock sh600519 quick`。
+> 核心 8 命令不写代码也能用。`/screener init` 初始化股票池，`/stock sh600519 quick` 跑单股 5 层分析。耗时取决于数据源响应。
 
 ---
 
