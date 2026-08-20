@@ -5,7 +5,7 @@
 > **来源**：单次会话内连续执行 market → stock×2 → sector → portfolio → screener 共 5 个 skill 后做的元层面复盘  
 > **规模**：11 个编号问题（3 P0 + 4 P1 + 4 P2）  
 > **修复进度**：P0-01 ✅（a+b+c）/ P0-02 ✅ / P0-03 ✅（a/b/c 全部落地）｜P1-01 ✅ / P1-02 ✅ / P1-03 ✅ / P1-04 ✅（a/b/c 全部落地）｜P2-01 ✅ / P2-02 ✅ / P2-03 ✅（共享规范约束，非脚本行为变更）/ P2-04 ✅（含实际总仓位）  
-> **关联文档**：[review-issues.md](../review-issues.md)（75 项深度审阅）· [screener-review.md](../screener-review.md)（选股器专项审查）· [architecture-review-2026-07-07.md](../architecture-review-2026-07-07.md)  
+> **关联文档**：[review-issues.md](review-issues.md)（75 项深度审阅）· [screener-review.md](screener-review.md)（选股器专项审查）· [architecture-review-2026-07-07.md](architecture-review-2026-07-07.md)  
 > **关联 skill**：market / stock / sector / portfolio / screener
 
 ---

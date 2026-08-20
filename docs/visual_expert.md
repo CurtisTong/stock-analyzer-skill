@@ -117,7 +117,7 @@ flowchart LR
 - ❌ 不改功能逻辑（只调整呈现）
 - ❌ 不引入图片 / 图标三方依赖（项目硬约束"零运行时三方"，所有图都是 ASCII / mermaid / GIF 本地）
 - ❌ 不擅自增加视觉模板（每个新模板都会成为"第三个口子"——让"前两个"也难维护）
-- ❌ 不做重前端（[implementation-plan §"不做清单"](./implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延) 第 4 条："不重写前端"）
+- ❌ 不做重前端（[implementation-plan §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延) 第 4 条："不重写前端"）
 
 ### 4.2 视觉专家**最容易踩**的坑
 
@@ -164,10 +164,10 @@ flowchart LR
 ## 七、引用来源
 
 - 项目历史角色定义见 [CHANGELOG.md §"v1.3.3"](../CHANGELOG.md)：「本包最独特的卖点」+「stock-debate 独立成行 + 🌟 视觉强调」
-- 三方审查背景见 [docs/implementation-plan-2026-q3-q4.md §"概览"](./implementation-plan-2026-q3-q4.md#概览)
+- 三方审查背景见 [implementation-plan-2026-q3-q4.md §"概览"](./archive/designs/implementation-plan-2026-q3-q4.md#概览)
 - 视觉与用户双视角串联使用见 [docs/user_expert.md](./user_expert.md)
 - 输出模板首尾两行见 [methodology.md §四](../methodology.md)
-- 不重写前端约束见 [docs/implementation-plan-2026-q3-q4.md §"不做清单"](./implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
+- 不重写前端约束见 [implementation-plan-2026-q3-q4.md §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
 - WCAG 对比度标准见 [W3C WCAG 2.1 §1.4.3](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html)
 
 ---

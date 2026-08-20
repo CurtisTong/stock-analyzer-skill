@@ -3,7 +3,7 @@
 > 🟢 **一句话**：docs/ 目录下分两层 —— **核心指南**（活跃维护）+ **archive/**（历史归档），按"你是谁 / 你想干啥"两条线分类。
 > 🟡 **只想看一份**？
 > 🆕 新用户 → [quick-start.md](quick-start.md) · 📈 投资者 → [product-architecture.md](product-architecture.md) · 🛠️ 开发者 → [developer-guide.md](developer-guide.md) · 🤝 贡献者 → [CONTRIBUTING.md](../CONTRIBUTING.md)
-> ⚫ **文档数**：11 份核心指南 + 1 份当前规划 + 1 份合规 + 21 份历史归档（designs/reviews/reports/releases） = 34 份
+> ⚫ **文档数**：9 份核心指南 + 1 份合规 + 24 份历史归档（designs/reviews/reports/releases） = 34 份
 > 📦 投资方法论新版见 [../methodology.md](../methodology.md)（已从 docs/ 移到仓库根目录）
 
 > 适用文档：stock-analyzer-skill v1.20.2
@@ -64,8 +64,8 @@
 | 入门 | [CONTRIBUTING.md](../CONTRIBUTING.md) | 提交规范 + Commit 格式 |
 | 入门 | [CHANGELOG.md](../CHANGELOG.md) | 变更日志（Keep a Changelog 格式） |
 | 流程 | [archive/designs/skill-consolidation-plan.md](archive/designs/skill-consolidation-plan.md) | skill 整合决策记录（历史） |
-| 流程 | [review-issues.md](review-issues.md) · [review-verification.md](review-verification.md) | 审查问题清单 + 验证记录 |
-| 流程 | [implementation-plan-2026-q3-q4.md](implementation-plan-2026-q3-q4.md) | Q3/Q4 实施计划（当前） |
+| 流程 | [archive/reviews/review-issues.md](archive/reviews/review-issues.md) · [archive/reviews/review-verification.md](archive/reviews/review-verification.md) | 审查问题清单 + 验证记录（Round 11 收官归档） |
+| 流程 | [archive/designs/implementation-plan-2026-q3-q4.md](archive/designs/implementation-plan-2026-q3-q4.md) | Q3/Q4 实施计划（历史，2026-06-15 ~ 11-01 窗口） |
 
 ### 📐 审查视角（要做评审）
 
@@ -102,8 +102,8 @@
 ### 🏛 阶段 4：维护（持续）
 
 - [CHANGELOG.md](../CHANGELOG.md) — 变更日志
-- [review-issues.md](review-issues.md) — 审查问题清单
-- [implementation-plan-2026-q3-q4.md](implementation-plan-2026-q3-q4.md) — 当前实施计划
+- [archive/reviews/review-issues.md](archive/reviews/review-issues.md) — 审查问题清单（Round 11 收官归档）
+- [archive/designs/implementation-plan-2026-q3-q4.md](archive/designs/implementation-plan-2026-q3-q4.md) — 历史实施计划（33/33 项已完成）
 
 ---
 
@@ -114,8 +114,8 @@
 | 🆕 **新用户**     | [quick-start](quick-start.md) | [user-guide](user-guide.md) | — | — |
 | 📈 **投资者**     | [quick-start](quick-start.md) | [../methodology](../methodology.md) · [product-architecture](product-architecture.md) | — | [CHANGELOG](../CHANGELOG.md) |
 | 🛠️ **二次开发者** | [quick-start](quick-start.md) | [developer-guide](developer-guide.md) | [api-reference](api-reference.md) · [archive/reviews/](archive/reviews/) | [CHANGELOG](../CHANGELOG.md) |
-| 🤝 **贡献者**     | [CONTRIBUTING](../CONTRIBUTING.md) | [review-issues](review-issues.md) | [implementation-plan-2026-q3-q4](implementation-plan-2026-q3-q4.md) | [CHANGELOG](../CHANGELOG.md) |
-| 📐 **审查者**     | [persona](persona.md) | [user_expert](user_expert.md) · [visual_expert](visual_expert.md) | [archive/reviews/](archive/reviews/) | [review-verification](review-verification.md) |
+| 🤝 **贡献者**     | [CONTRIBUTING](../CONTRIBUTING.md) | [review-issues](archive/reviews/review-issues.md) | [implementation-plan-2026-q3-q4](archive/designs/implementation-plan-2026-q3-q4.md) | [CHANGELOG](../CHANGELOG.md) |
+| 📐 **审查者**     | [persona](persona.md) | [user_expert](user_expert.md) · [visual_expert](visual_expert.md) | [archive/reviews/](archive/reviews/) | [review-verification](archive/reviews/review-verification.md) |
 
 ---
 
@@ -134,14 +134,6 @@
 | [persona.md](persona.md) | 审查 | 季度 |
 | [user_expert.md](user_expert.md) | 审查 | 季度 |
 | [visual_expert.md](visual_expert.md) | 审查 | 季度 |
-| [review-issues.md](review-issues.md) | 持续 | 持续 |
-| [review-verification.md](review-verification.md) | 持续 | 持续 |
-
-### 📋 当前规划
-
-| 文档 | 说明 |
-| :--- | :--- |
-| [implementation-plan-2026-q3-q4.md](implementation-plan-2026-q3-q4.md) | Q3/Q4 实施计划（活跃） |
 
 ### 🛡 合规
 
@@ -197,7 +189,7 @@
 > 🟡 **原则**：归档文件**只读**，不重写、不翻译、不删 inbound 链接（CHANGELOG 等历史快照中的旧路径保持原状）。
 > 历史归档本身在 git 历史中保留完整上下文；如需追溯历史责任，参考具体文件。
 
-### 📐 designs/ — 历史设计稿（8 份）
+### 📐 designs/ — 历史设计稿（9 份）
 
 | 文档 | 时期 | 说明 |
 | :--- | :--- | :--- |
@@ -207,10 +199,11 @@
 | [SPRINT_SUMMARY.md](archive/designs/SPRINT_SUMMARY.md) | 2026-06 | Sprint 20-23 收尾总结 |
 | [skill-consolidation-plan.md](archive/designs/skill-consolidation-plan.md) | 2026-06 | skill 13→9 整合决策 |
 | [implementation-plan.md](archive/designs/implementation-plan.md) | 2026 | 旧实施计划（已被 Q3/Q4 取代） |
+| [implementation-plan-2026-q3-q4.md](archive/designs/implementation-plan-2026-q3-q4.md) | 2026-Q3/Q4 | 三方审查整合实施计划（33/33 项已完成归档） |
 | [next-tasks.md](archive/designs/next-tasks.md) | 2026-08 | 后续任务清单 |
 | [methodology.md](archive/designs/methodology.md) | 2026-06 | **旧版投资方法论**（已被仓库根 [../methodology.md](../methodology.md) 取代） |
 
-### 📊 reviews/ — 审查与回归报告（8 份）
+### 📊 reviews/ — 审查与回归报告（10 份）
 
 | 文档 | 时期 | 说明 |
 | :--- | :--- | :--- |
@@ -222,6 +215,8 @@
 | [skill-smoke-2026-07-28.md](archive/reviews/skill-smoke-2026-07-28.md) | 2026-07-28 | skill 冒烟报告 |
 | [screener-review.md](archive/reviews/screener-review.md) | 2026 | 选股模块审查 |
 | [2026-08-12-replay-meta-review.md](archive/reviews/2026-08-12-replay-meta-review.md) | 2026-08-12 | 运行期元复盘（11 项 P0-P2） |
+| [review-issues.md](archive/reviews/review-issues.md) | 2026-Q3 | **75 项深度审阅问题清单（P0×15 + P1×30 + P2×30，Round 11 收官归档）** |
+| [review-verification.md](archive/reviews/review-verification.md) | 2026-Q3 | **逐条源码验证报告（116 项中 100 真实 + 12 部分真实 + 4 不真实/已修复）** |
 
 ### 📈 reports/ — 阶段性报告（2 份）
 

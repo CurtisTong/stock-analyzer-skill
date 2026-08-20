@@ -103,7 +103,7 @@
 
 ### 4.1 用户专家**不**做的事
 
-- ❌ 不重写前端（[implementation-plan §"不做清单"](./implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延) 第 4 条）
+- ❌ 不重写前端（[implementation-plan §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延) 第 4 条）
 - ❌ 不替投资专家下结论（只调整呈现方式，不动打分逻辑）
 - ❌ 不擅自添加商业模式 / 用户画像（只反映 [persona.md](./persona.md) 已定义分层）
 - ❌ 不为了"友好"而引入额外三方依赖（项目硬约束"零运行时三方"）
@@ -129,7 +129,7 @@
 | 投资学习者 | 30%  | 读五层分析、看 8 位专家怎么想  | 不懂术语、缺乏反馈、无处练手       | 教程化、术语解释、模拟盘引导 |
 | 量化爱好者 | 10%  | 调 API、改因子、批量跑回测     | 缺文档、扩展难、性能瓶颈           | JSON / -j / 代码块 / API 链接 |
 
-详细画像与设计启示见 [docs/persona.md](./persona.md)；三类的具体需求映射见 [docs/implementation-plan-2026-q3-q4.md](./implementation-plan-2026-q3-q4.md)（Sprint 7-8 用户研究段）。
+详细画像与设计启示见 [docs/persona.md](./persona.md)；三类的具体需求映射见 [implementation-plan-2026-q3-q4.md](./archive/designs/implementation-plan-2026-q3-q4.md)（Sprint 7-8 用户研究段）。
 
 ## 六、代表场景（v2.2.0 案例）
 
@@ -144,10 +144,10 @@
 ## 七、引用来源
 
 - 项目历史角色定义见 [CHANGELOG.md §"v1.3.3"](../CHANGELOG.md)：「PM / 用户专家 / 产品专家三维优化」
-- 三方审查背景见 [docs/implementation-plan-2026-q3-q4.md §"概览"](./implementation-plan-2026-q3-q4.md#概览)
+- 三方审查背景见 [implementation-plan-2026-q3-q4.md §"概览"](./archive/designs/implementation-plan-2026-q3-q4.md#概览)
 - 用户分层与设计启示见 [docs/persona.md](./persona.md)
 - 教学语言一致性见 [methodology.md §四 输出模板](../methodology.md)
-- 不做清单见 [docs/implementation-plan-2026-q3-q4.md §"不做清单"](./implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
+- 不做清单见 [implementation-plan-2026-q3-q4.md §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
 
 ---
 

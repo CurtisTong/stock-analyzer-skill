@@ -193,4 +193,4 @@
 - 版本：v2.2.0（2026-07-01） 增补"与其他审查视角串联"段，与 `user_expert.md` / `visual_expert.md` 双向引用
 - 数据源：基于 D3 用户访谈 + 5 个高频用户试用实录
 - 关联审查视角：[user_expert.md](./user_expert.md) · [visual_expert.md](./visual_expert.md)
-- 设计约束：[implementation-plan-2026-q3-q4.md §"不做清单"](./implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
+- 设计约束：[implementation-plan-2026-q3-q4.md §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
