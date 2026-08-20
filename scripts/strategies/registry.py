@@ -95,6 +95,57 @@ STRATEGIES: Dict[str, dict] = {
     },
 }
 
+# 策略外样本验证状态（grill-me P0 修复）
+# 与 STRATEGIES 权重 dict 分离，避免污染业务算法的因子加权（screening_service.py:614
+# 等位置用 weights.get(k, 0) 做加权和，非 float 字段会触发 TypeError）。
+# 状态值：in_sample | oos_verified | unknown
+# 在外样本回测完成前默认标 in_sample——立场默认怀疑，避免把拟合数字当实盘表现。
+STRATEGY_VALIDATION: Dict[str, dict] = {
+    "balanced": {
+        "validation_status": "in_sample",
+        "validation_note": "未做外样本回测；建议结合 strategy_performance.py 自校准",
+    },
+    "quality_value": {
+        "validation_status": "in_sample",
+        "validation_note": "未做外样本回测；建议结合 strategy_performance.py 自校准",
+    },
+    "growth_momentum": {
+        "validation_status": "in_sample",
+        "validation_note": "未做外样本回测；建议结合 strategy_performance.py 自校准",
+    },
+    "defensive": {
+        "validation_status": "in_sample",
+        "validation_note": "未做外样本回测；建议结合 strategy_performance.py 自校准",
+    },
+    "turning_point": {
+        "validation_status": "in_sample",
+        "validation_note": "未做外样本回测；建议结合 strategy_performance.py 自校准",
+    },
+    # CLAUDE.md:93 自爆：71.4% 胜率 / +6.39% 平均收益 / 5 只样本均 59.7%
+    # 是样本内拟合，明确标 in_sample 提醒消费方
+    "ma_volume_momentum": {
+        "validation_status": "in_sample",
+        "validation_note": "⚠️ 71.4% 胜率、+6.39% 平均收益为样本内拟合（5 只股票样本），未经外样本验证",
+    },
+}
+
+
+def get_validation(name: str) -> dict:
+    """获取策略的外样本验证状态。
+
+    Args:
+        name: 策略名。
+
+    Returns:
+        dict with keys ``validation_status`` (in_sample|oos_verified|unknown)
+        and ``validation_note`` (str). 未知策略返回 unknown 占位。
+    """
+    with _STRATEGIES_LOCK:
+        return STRATEGY_VALIDATION.get(
+            name,
+            {"validation_status": "unknown", "validation_note": ""},
+        )
+
 
 # ---------- 策略注册 API ----------
 

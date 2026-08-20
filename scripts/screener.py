@@ -92,6 +92,38 @@ def volume_price_features(closes, volumes):
     }
 
 
+def _emit_json_with_validation(rows: list, strategy: str) -> None:
+    """JSON 模式下打印选股结果，每行 row 透传策略验证状态。
+
+    grill-me P0 修复：避免消费方误把 in_sample 胜率当 out-of-sample 表现。
+    字段以 `_validation_` 前缀避免与业务字段冲突；下游可用
+    `jq '.[]._validation_status'` 直接聚合。
+
+    验证元数据从 STRATEGY_VALIDATION 读取，不与权重 dict 混合——
+    权重 dict 里的非 float 字段会污染 screening_service 的因子加权计算
+    （见 grill-me 报告 P0 复盘）。
+    """
+    from strategies.registry import get_validation  # 函数内延迟导入，避免循环
+
+    val = (
+        get_validation(strategy)
+        if strategy
+        else {
+            "validation_status": "unknown",
+            "validation_note": "",
+        }
+    )
+    status = val["validation_status"]
+    note = val["validation_note"]
+    enriched = []
+    for row in rows:
+        if isinstance(row, dict):
+            row["_validation_status"] = status
+            row["_validation_note"] = note
+        enriched.append(row)
+    print(json.dumps(enriched, ensure_ascii=False, indent=2))
+
+
 def render(rows, strategy, top, title=None, show_chip=True):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
@@ -552,7 +584,7 @@ def _run_main(args):
             flush=True,
         )
         if args.json:
-            print(json.dumps(rows_partial, ensure_ascii=False, indent=2))
+            _emit_json_with_validation(rows_partial, args.strategy)
         sys.exit(2)
         return  # unreachable but for type-checker
 
@@ -564,7 +596,7 @@ def _run_main(args):
     rows = rows_partial
 
     if args.json:
-        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        _emit_json_with_validation(rows, args.strategy)
     else:
         title = None
         if args.full_market:
