@@ -10,7 +10,8 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 
 持仓组合管理与健康检查——增删改查 + 实时盈亏 + 板块分布 + 风险监控 + 调仓建议。
 
-> **本 skill 拆分**：
+> 本 skill 是 **持仓 CRUD 主流程**；两个子模块：[`/portfolio-web`](./../portfolio-web/SKILL.md)（HTTP API :8765）与 [`/portfolio-natural`](./../portfolio-natural/SKILL.md)（NL → 命令映射）共享同一 `portfolio_web.py` 入口，非独立进程。
+>
 > - Web 服务相关操作（`web` / `--port` / `--open` / `--stop` 等）见 [`/portfolio-web`](../portfolio-web/SKILL.md)
 > - 自然语言触发词典（"我买了 XX" / "减仓" / "清仓" 等口语化映射）见 [`/portfolio-natural`](../portfolio-natural/SKILL.md)
 

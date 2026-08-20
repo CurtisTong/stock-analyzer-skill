@@ -10,6 +10,8 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/portfolio_w
 
 持仓操作的自然语言触发词典。本文档从 `/portfolio` 拆分，专注于 NL → 命令映射。
 
+> 本 skill 是 `/portfolio` 的 **NL 触发词典**子模块（共享 `scripts/portfolio_web.py` 入口），非独立 CLI 进程；持仓 CRUD 主流程见 [`/portfolio`](./../portfolio/SKILL.md)，Web HTTP API 见 [`/portfolio-web`](./../portfolio-web/SKILL.md)。
+
 ## 口语化触发 → 操作映射
 
 | 自然语言 | 等价命令 |

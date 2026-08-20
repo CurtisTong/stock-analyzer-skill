@@ -10,6 +10,8 @@ allowed-tools: Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http:/
 
 持仓 Web 录入子服务。本文档从 `/portfolio` 拆分，仅覆盖 Web 相关操作。
 
+> 本 skill 是 `/portfolio` 的 **Web HTTP API 子模块**（`scripts/portfolio_web.py` 监听 :8765），非独立 CLI 进程；持仓 CRUD 主流程见 [`/portfolio`](./../portfolio/SKILL.md)，NL → 命令映射见 [`/portfolio-natural`](./../portfolio-natural/SKILL.md)。
+
 ## Usage
 
 ```text
