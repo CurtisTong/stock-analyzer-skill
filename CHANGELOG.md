@@ -322,7 +322,7 @@
 - **trim**: baofeng 报告 5 处「本轮」重写为日期锚定（commit 509644e）
 - **trim**: experts/scripts 13 处「第六轮审查」重写为版本锚定（commit 988fe96）
 
-## [Unreleased]
+## [Unreleased] - 2026-08-20
 
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
@@ -427,6 +427,9 @@
 - **dev-guide**: 移除 Round 11 T3/T19 内部 session 编号
 - **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
 - **skills**: 修剪 14 处 auditor session voice 泄漏
+
+### Fixed
+- **ci**: setup-test action.yml 补装运行时依赖,修复 v1.21.0 release workflow 失败
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
