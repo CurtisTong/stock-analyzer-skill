@@ -28,6 +28,11 @@ runs:
       shell: bash
       run: |
         python -m pip install --upgrade pip
+        # 运行时依赖（pyproject.toml [project.dependencies]）——requests/urllib3/httpx/typing-extensions
+        # 缺这些会让 common.http._HAS_REQUESTS=False，http_get 走 stdlib 真实 HTTP，
+        # 测试 mock _get_session 无效，导致 DNS 解析失败（[Errno -3]）。
+        pip install requests urllib3 httpx typing-extensions
+        # 测试依赖
         pip install pytest pyyaml pytest-xdist pytest-timeout pytest-cov hypothesis respx pandas numpy
 
     - name: 同步 SKILL.md 版本到测试文件
