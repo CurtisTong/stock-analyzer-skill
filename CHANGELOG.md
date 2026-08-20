@@ -305,14 +305,14 @@
 - **cleanup**: 修剪 4 处代码层 author-side 泄漏
 
 ### Documentation
-- **skills**: 修剪 14 处 auditor session voice 泄漏
+- **skills**: 重写 14 处 docstring/skills 中的"第 N 轮审查"措辞为版本锚定
 
 ### Maintenance
 - **cleanup**: 删除运行时产物 + 收紧 .gitignore
 
 ### Documentation
 - **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
-- **skills**: 修剪 14 处 auditor session voice 泄漏
+- **skills**: 重写 14 处 docstring/skills 中的"第 N 轮审查"措辞为版本锚定
 
 ### Documentation
 - **archive**: 归档 review-issues/review-verification/implementation-plan-2026-q3-q4 三份设计文档
@@ -325,10 +325,10 @@
 - **portfolio**: SKILL.md 顶部加 API 契约段
 - **README**: 脱营销措辞，事实化重述
 - **CLAUDE**: watchdog deadline 600→1800 与实际默认同步
-- 重述 4 处 session voice 与 reviewer narration
+- 重写 4 处"本轮审查"/"reviewer narration"措辞为版本锚定
 - **dev-guide**: 移除 Round 11 T3/T19 内部 session 编号
 - **archive**: 分层归档 22 份历史文档 + 清理 docs/methodology.md 重复
-- **skills**: 修剪 14 处 auditor session voice 泄漏
+- **skills**: 重写 14 处 docstring/skills 中的"第 N 轮审查"措辞为版本锚定
 
 ### Testing
 - **strategies**: 加 20 项 OOS 状态机单元测试
