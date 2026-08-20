@@ -3,7 +3,7 @@
 > 版本：v1.15.0 | 生成日期：2026-07-09  
 > 来源：4 个并行深度审阅 + 核心模块亲自核对  
 > 规模：75 个编号问题（15 critical/important P0 + 30 important P1 + 30 nit P2） + 46 项架构审查（25 技术债 T1-T25 + 21 投资逻辑 I1-I21）  
-> 关联文档：[product-architecture.md](product-architecture.md) · [developer-guide.md](developer-guide.md) · [improvement-roadmap.md](improvement-roadmap.md) · [review-verification.md](review-verification.md)（逐条源码验证报告）· [architecture-review-2026-07-07.md](architecture-review-2026-07-07.md)（46 项架构债审查）
+> 关联文档：[product-architecture.md](product-architecture.md) · [developer-guide.md](developer-guide.md) · [archive/reports/improvement-roadmap.md](archive/reports/improvement-roadmap.md) · [review-verification.md](review-verification.md)（逐条源码验证报告）· [archive/reviews/architecture-review-2026-07-07.md](archive/reviews/architecture-review-2026-07-07.md)（46 项架构债审查）
 >
 > **2026-07-09 验证结果**：75 项逐条源码核对，65 项真实、8 项部分真实、2 项不真实（P0-08 降级、P1-10 record 已修复）。详见 [review-verification.md](review-verification.md)。
 >
@@ -12,7 +12,7 @@
 > - **Round 8（P1 全量）**：30 项 P1 已全部修复，分 5 阶段提交（A: fetcher 加固, B: experts 投票校准, C: technical/chan, D: business, E: skills/tests/CI/config），2639 tests passed。
 > - **Round 9（P2 全量）**：28 项真实/部分真实 P2 已全部修复，分 5 阶段提交（A: experts 清理, B: strategies 治理, C: technical/fetcher, D: business/config, E: tests/docs/release），2663 tests passed。高风险架构项（P2-01/05/10/23）采用保守标注方案，留待 v2.0.0。
 > - **Round 10（收尾深化）**：清理 20 个遗留 ruff 错误；P0-10 回测财务前瞻偏差修复（report_date+90天披露延迟过滤）；P0-11 walk-forward 回测框架（OOS 验证）；P1-15 composite_score 去魔数化（_SCORE_MAX 提取为模块级常量+YAML 可配置）；P1-27 13 skill E2E 测试扩展（frontmatter 校验+mock 工作流）。2698 tests passed。
-> - **Round 11（架构债收官 2026-07-10）**：架构审查（[architecture-review-2026-07-07.md](architecture-review-2026-07-07.md)）剩余 9 项 T/I 全部清零，2725 tests passed / ruff 0 errors / 25 skipped（commit `ec4c290` 时点；截至本文件更新时为 2729 passed / 34 skipped）：
+> - **Round 11（架构债收官 2026-07-10）**：架构审查（[archive/reviews/architecture-review-2026-07-07.md](archive/reviews/architecture-review-2026-07-07.md)）剩余 9 项 T/I 全部清零，2725 tests passed / ruff 0 errors / 25 skipped（commit `ec4c290` 时点；截至本文件更新时为 2729 passed / 34 skipped）：
 >   - **T3** `common/__init__.py` `__all__` 76→41（PEP 562 懒加载保留向后兼容）
 >   - **T6** chip/flow/lhb/event 四域优先级从 yaml 驱动（`data_source.yaml` 新增 `flow_sources/lhb_sources/chip_sources/event_sources`）
 >   - **T7** `risk_warning.py` docstring 澄清：仅筹码 emoji，宏观风控在 `macro/gate.py`，量化风控在 `risk_metrics.py`
@@ -28,7 +28,7 @@
 
 ## 架构审查 T/I 跟踪表（46 项 → 9 项收官）
 
-> 来源：[architecture-review-2026-07-07.md](architecture-review-2026-07-07.md)
+> 来源：[archive/reviews/architecture-review-2026-07-07.md](archive/reviews/architecture-review-2026-07-07.md)
 > 状态：2026-07-10 全部清零（Round 11）
 
 | ID | 类型 | 描述 | 状态 | 修复方式 |
@@ -261,7 +261,7 @@
 
 ## Milestone v2.8.0（v1.16.0 深度审计新增 — Round 12）
 
-> 来源：[docs/audit-2026-07-28.md](audit-2026-07-28.md) 完整 19 项问题清单
+> 来源：[archive/reviews/audit-2026-07-28.md](archive/reviews/audit-2026-07-28.md) 完整 19 项问题清单
 > 范围：P0 构建/CI/版本同步（已完成）+ WP5/WP6 测试加固 + 静默吞错治理 + god class 拆分 + 类型注解扩展
 
 | ID | 优先级 | 模块 | 摘要 | 状态 |
@@ -273,4 +273,4 @@
 | **P2-P4**（NEW）| P2 | web | `templates.py:671` innerHTML+TOKEN 拼接 XSS sink 改为 DOM 节点组合 | ✅ v1.16.0 完成 |
 | **P2-P5**（NEW）| P2 | common | 5 维度补充治理（凭据/.env.example 文档化 + 依赖 lockfile + pre-commit 5 hook + mypy 分阶段扩 strict） | ✅ v1.16.0 完成（pre-commit + mypy strict 已再追 212 文件白名单 + 2026-08-13 新增 CLI 层 22 脚本检查）/ ✅ 2026-08-13 .env.example 补全 `STOCK_DEBUG`+`STOCK_SCREENER_DEADLINE`（16 个消费 env 变量全部声明）并**解除 `.gitignore` 排除入库**（`!.env.example` 例外，真实 `.env` 仍忽略；preview 结论修正：示例模板应入库否则新用户不可感知）。lockfile：项目运行时零外部依赖（stdlib + PyYAML），可选依赖运行期自动检测缺失静默跳过，lockfile ROI 低，维持不引入 |
 
-详细证据见 [docs/audit-2026-07-28.md](audit-2026-07-28.md)。
+详细证据见 [archive/reviews/audit-2026-07-28.md](archive/reviews/audit-2026-07-28.md)。

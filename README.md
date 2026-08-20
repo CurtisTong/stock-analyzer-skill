@@ -628,8 +628,8 @@ scripts/
 </tr>
 <tr>
 <td>🔍 <b>项目审计</b>（v1.16.0+）</td>
-<td><a href="docs/audit-2026-07-28.md">19 项问题审计报告</a></td>
-<td><a href="docs/regression-2026-07-28.md">v1.16.0 回归测试报告</a></td>
+<td><a href="docs/archive/reviews/audit-2026-07-28.md">19 项问题审计报告</a></td>
+<td><a href="docs/archive/reviews/regression-2026-07-28.md">v1.16.0 回归测试报告</a></td>
 </tr>
 </table>
 

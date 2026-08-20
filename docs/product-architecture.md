@@ -357,7 +357,7 @@
 
 </details>
 
-> 完整历史变更记录见 [CHANGELOG.md](../../CHANGELOG.md)；规划详情见 [implementation-plan-2026-q3-q4.md](implementation-plan-2026-q3-q4.md)。
+> 完整历史变更记录见 [CHANGELOG.md](../CHANGELOG.md)；规划详情见 [implementation-plan-2026-q3-q4.md](implementation-plan-2026-q3-q4.md)。
 
 ---
 

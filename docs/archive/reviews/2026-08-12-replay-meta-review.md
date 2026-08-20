@@ -65,7 +65,7 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 - P0-01c（本地 K 线缓存）：**已隐含实现，验证完成**。`get_kline()`（`scripts/data/__init__.py`）已接 `common.cache` 磁盘缓存，key = `kline_{code}_{sha256(scale,datalen,格式版本)}`（等价于建议的 `code_scale_datalen`，另含版本号防格式变更污染），日 K TTL 1h、分钟 K 30s、其他周期 6h；screener 的 `prefetch_kline_all`（`scripts/data/helpers.py`）即走 `get_kline`，无需新代码。新增 `tests/unit/test_kline_cache_p001c.py`（3 项：同参二次调用命中缓存 / 参数变化独立缓存 / 批量复用缓存）验证通过。缓存目录为项目根 `.cache/`（非 issue 建议的 `data/cache/kline/`，机制等价且纳入统一 TTL 抖动/原子写/体积上限清理）
 - 2026-08-12：**端到端验证观察（P0-01 后续）**。真实环境跑 `screener.py --full-market --strategy balanced --top 5`：进程 9min 无输出、CPU ~1%、缓存不增长——**复现数据源挂起**，但卡点在**财务批量阶段**（`prefetch_finance_all` 480s 超时窗口后仍未释放），非 K 线拉取（两阶段修复有效：Phase2 仅 Top N×3 拉 K 线）。结论：full_market 依赖 1800s watchdog 兜底仍成立，但用户 30min 无反馈体验差。后续建议（未实施）：screener 增加阶段进度 stderr 输出（Phase1 完成/Phase2 进行中），或按数据源拆分财务批量超时
 
-**关联**：`docs/screener-review.md` 中可能已有相关问题，待对照。
+**关联**：`docs/archive/reviews/screener-review.md` 中可能已有相关问题，待对照。
 
 ---
 
@@ -318,9 +318,9 @@ python3 scripts/screener.py --full-market --strategy growth_momentum --top 15 -j
 ## 📚 关联资源
 
 - **历史问题清单**：`docs/review-issues.md`（75 项，已 Round 7-11 全部修复）
-- **架构审查**：`docs/architecture-review-2026-07-07.md`（46 项 T/I 债，已 Round 11 收官）
-- **screener 专项审查**：`docs/screener-review.md`
-- **改进路线图**：`docs/improvement-roadmap.md`
+- **架构审查**：`docs/archive/reviews/architecture-review-2026-07-07.md`（46 项 T/I 债，已 Round 11 收官）
+- **screener 专项审查**：`docs/archive/reviews/screener-review.md`
+- **改进路线图**：`docs/archive/reports/improvement-roadmap.md`
 
 ---
 
