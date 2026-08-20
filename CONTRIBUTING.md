@@ -156,6 +156,38 @@ Update README
   - 是否需要拆成多个提交
 - 提 PR 前本地 rebase 到 `main`，避免历史分叉。
 
+### 4.1 CHANGELOG 粒度规则
+
+当一个版本切片跨越多个 skill / module 时，CHANGELOG 条目按 **"按作用域一条"** 粒度拆开，禁止将多 skill 改动合并到一行。粒度越细，外部读者越能定位自己的代码是否受影响。
+
+**正例**：
+
+```markdown
+### Added
+- **screener**: 数据预取阶段进度输出（`data_prefetch` 事件：行情/预筛/财务/完成）；JSON 模式进度走 stderr 不污染 stdout（P0-01 后续）
+- **portfolio**: 实际组合总仓位 `compute_total_position_ratio`——`portfolio.json` 顶层可选 `total_assets`，成本/市值口径占比 + >90% 仓位过重警告，接入 `health_report`（P2-04 第 1 条）
+- **strategies**: `valuation_score` 语义修复（P2-H6）——revenue/net_profit 仅用标准化字段 + PEG 3 年 CAGR 优先 + PS 优先真实值兜底
+```
+
+每条用 scope（**screener** / **portfolio** / **strategies**）开头，附 PID 或 commit hash 锚点，便于追溯。
+
+**反例**：
+
+```markdown
+### Fixed
+- **portfolio/skills/tests**: Review 全量推进——review-issues 主表 44 项全部收敛
+```
+
+一个 `**portfolio/skills/tests**` 合并行覆盖 44 项细节，外部读者无法定位自己关心的 skill 是否受影响，必须翻 review-issues.md 才能确认。
+
+**例外**（允许合并行）：
+
+- **依赖升级**：`deps`: bump xxx from 1.0 → 2.0（覆盖范围说明在 PR body）
+- **CI 配置变更**：`.github/`、`pre-commit`、`ruff`/`black`/`mypy` 工具链变更（一行 + PR body 列表）
+- **release 元变更**：版本号同步、CHANGELOG 整理、tag 操作（按 Maintenance 段处理）
+
+当不确定要不要拆时，**默认拆**——粒度过粗的代价（追溯成本）远高于粒度过细的代价（CHANGELOG 长度）。
+
 ---
 
 ## 5. 工具辅助
