@@ -16,7 +16,7 @@ macd_scores:
 
 # 市场环境权重调整
 market_weights:
-  牛市:
+  强势:
     bullish_bias: 1.3
     trend_following: 1.4
     breakout: 1.3
@@ -24,9 +24,9 @@ market_weights:
     buy_point_1: 0.5
     buy_point_3: 1.3
     overbought: 0.8
-    desc: "牛市：趋势跟随加权，底背离/一买降权"
+    desc: "强势：趋势跟随加权，底背离/一买降权"
   
-  熊市:
+  弱势:
     bullish_bias: 1.5
     trend_following: 0.6
     breakout: 0.6
@@ -34,7 +34,7 @@ market_weights:
     buy_point_1: 1.5
     buy_point_3: 0.5
     overbought: 1.3
-    desc: "熊市：反转信号加权，追涨信号降权"
+    desc: "弱势：反转信号加权，追涨信号降权"
   
   震荡:
     bullish_bias: 1.0
