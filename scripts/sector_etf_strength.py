@@ -505,16 +505,14 @@ def compute_rotation_strength(window: int = 5) -> dict | None:
     rotation_strength = round(statistics.mean(abs_deltas), 2) if abs_deltas else 0
     rotation_std = round(statistics.stdev(abs_deltas), 2) if len(abs_deltas) >= 2 else 0
 
-    # 位次上升 / 下降 top 3
-    risers = sorted(rows, key=lambda r: r["rank_delta"])[
-        :3
-    ]  # rank_delta 最小（负最多）= 上升最多
-    fallers = sorted(rows, key=lambda r: r["rank_delta"], reverse=True)[:3]
+    # 位次上升 / 下降 top 3（rank_delta 正=位次上升，负=位次下降）
+    risers = sorted(rows, key=lambda r: r["rank_delta"], reverse=True)[:3]
+    fallers = sorted(rows, key=lambda r: r["rank_delta"])[:3]
     biggest_risers = [
-        [r["code"], r["name"], r["rank_delta"]] for r in risers if r["rank_delta"] < 0
+        [r["code"], r["name"], r["rank_delta"]] for r in risers if r["rank_delta"] > 0
     ]
     biggest_fallers = [
-        [r["code"], r["name"], r["rank_delta"]] for r in fallers if r["rank_delta"] > 0
+        [r["code"], r["name"], r["rank_delta"]] for r in fallers if r["rank_delta"] < 0
     ]
 
     interpretation = _interpret_rotation(

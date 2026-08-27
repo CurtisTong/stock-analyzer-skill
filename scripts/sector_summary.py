@@ -61,9 +61,21 @@ def _normalize_ths_row(rank: int, row) -> dict:
         "lead_change_pct": _to_float(row.get("领涨股-涨跌幅")),
         "turnover_yi": _to_float(row.get("总成交额")),
         "net_inflow_yi": _to_float(row.get("净流入")),
-        "up_count": int(row.get("上涨家数", 0) or 0),
-        "down_count": int(row.get("下跌家数", 0) or 0),
+        "up_count": (
+            int(row.get("上涨家数", 0) or 0) if _finite(row.get("上涨家数")) else 0
+        ),
+        "down_count": (
+            int(row.get("下跌家数", 0) or 0) if _finite(row.get("下跌家数")) else 0
+        ),
     }
+
+
+def _finite(v) -> bool:
+    """数值可用性判断（NaN/None 视为不可用）。"""
+    try:
+        return float(v) == float(v)  # NaN != NaN
+    except (TypeError, ValueError):
+        return False
 
 
 def _normalize_eastmoney_row(rank: int, item: dict) -> dict:
@@ -135,7 +147,7 @@ def fetch_eastmoney_summary(top: int = 30) -> dict:
     with urllib.request.urlopen(req, timeout=DEFAULT_TIMEOUT) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
     data = json.loads(raw)
-    diff = data.get("data", {})
+    diff = data.get("data") or {}
     rows = diff if isinstance(diff, list) else diff.get("diff", [])
     items = [_normalize_eastmoney_row(i + 1, r) for i, r in enumerate(rows[:top])]
     return {
@@ -169,6 +181,8 @@ def fetch_sector_summary(source: str = "auto", top: int = 30) -> dict:
                 socket.timeout,
                 json.JSONDecodeError,
                 OSError,
+                AttributeError,
+                TypeError,
             ) as e:
                 errors["eastmoney"] = f"{type(e).__name__}: {e}"
                 sources_tried.append("eastmoney")

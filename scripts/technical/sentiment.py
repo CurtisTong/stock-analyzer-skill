@@ -93,6 +93,11 @@ class MarketDataFetcher:
             # 涨停池
             df_zt = ak.stock_zt_pool_em(date=today)
             limit_up_count = len(df_zt) if df_zt is not None else 0
+            # 非交易日 akshare 返回空 DataFrame（非异常）：空涨停池视为无数据，
+            # 返回 None 走东财兜底 → 最终降级带 _degraded，避免周末/节假日
+            # 误报"退潮"（原路径全 0 且无降级标记，见 market_breadth 消费方）
+            if limit_up_count == 0:
+                return None
 
             # 连板高度
             continuous_height = 0

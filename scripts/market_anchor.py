@@ -131,8 +131,12 @@ def _fetch_breadth() -> dict | None:
             "broken_limit_rate": breadth.get("broken_limit_rate", 0),
             "up_ratio": breadth.get("up_ratio", 0),
             "advance_ratio": round(advance_ratio, 3),
-            "new_high_low_ratio": 1.0,  # 缺省 1.0（detect_market_state 会按中位处理）
-            "margin_ratio": 0,  # 缺省 0
+            # 新高/新低家数无直接数据源，用涨跌家数比近似（同量纲：>1.5 普涨、
+            # <0.5 普跌、<0.2 极端下跌），修复原硬编码 1.0 导致牛市/熊市/冰点不可达
+            "new_high_low_ratio": (
+                round(up / down, 3) if down > 0 else (2.0 if up > 0 else 1.0)
+            ),
+            "margin_ratio": 0,  # 两融数据未接入，亢奋判定（需 >10）保持不可达（数据降级）
             "_degraded": breadth.get("_degraded", False),
             "_degraded_reason": breadth.get("_degraded_reason"),
         }
@@ -1113,7 +1117,7 @@ def to_markdown(payload: dict) -> str:
                 lines.append(
                     f"- 个股 vs 组合: {vp['vs_portfolio_avg_corr']}（{vp.get('diversification_benefit', '')}）"
                 )
-            if vp.get("corr_confidence"):
+            if vp and vp.get("corr_confidence"):
                 lines.append(f"- 相关性结论置信度: {vp['corr_confidence']}")
             ov = pc.get("industry_overlap")
             if ov and ov.get("message"):
@@ -1134,11 +1138,11 @@ def to_markdown(payload: dict) -> str:
             lines.append(f"- 位次差标准差: {sr['rotation_std']}")
         risers = sr.get("biggest_risers", [])
         if risers:
-            riser_str = ", ".join(f"{r[1]} +{-r[2]}" for r in risers[:3])
+            riser_str = ", ".join(f"{r[1]} +{r[2]}" for r in risers[:3])
             lines.append(f"- 位次上升: {riser_str}")
         fallers = sr.get("biggest_fallers", [])
         if fallers:
-            faller_str = ", ".join(f"{f[1]} -{f[2]}" for f in fallers[:3])
+            faller_str = ", ".join(f"{f[1]} -{-f[2]}" for f in fallers[:3])
             lines.append(f"- 位次下降: {faller_str}")
         lines.append(f"- 解读: {sr.get('interpretation', '')}")
         if sr.get("advice"):

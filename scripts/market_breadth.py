@@ -181,7 +181,8 @@ def get_market_state(breadth: dict) -> dict:
     up_ratio = breadth.get("up_ratio", 0)
 
     # 涨跌停数据降级时：改用涨跌比定性，state 标记"(宽度)"后缀
-    if breadth.get("_degraded"):
+    # 全零且无降级标记（非交易日空数据路径）同样视为降级，避免误报退潮
+    if breadth.get("_degraded") or (limit_up == 0 and limit_down == 0):
         reason = breadth.get("_degraded_reason", "涨跌停数据降级")
         signals.append(f"⚠️ {reason}，按涨跌比定性")
         if up_ratio > 2:

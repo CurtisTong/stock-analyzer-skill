@@ -83,8 +83,10 @@ _CODE_SECTOR_HINTS = {
 def _infer_sector_by_code(code: str) -> list:
     """基于股票代码前缀推断行业板块（兜底，覆盖白名单外的标的）。"""
     code = code.lstrip("shzbj")
-    # 精确匹配
-    for prefix, sector in _CODE_SECTOR_HINTS.items():
+    # 精确匹配：按前缀长度降序，避免 "300" 遮蔽 "300750" 等长前缀
+    for prefix, sector in sorted(
+        _CODE_SECTOR_HINTS.items(), key=lambda kv: len(kv[0]), reverse=True
+    ):
         if code.startswith(prefix):
             return [sector]
     # 通用前缀规则
@@ -94,6 +96,8 @@ def _infer_sector_by_code(code: str) -> list:
         return ["科技"]
     elif code.startswith("601"):
         return ["金融"]
+    elif code.startswith("43") or code.startswith("83") or code.startswith("87"):
+        return ["北交所"]
     return []
 
 
