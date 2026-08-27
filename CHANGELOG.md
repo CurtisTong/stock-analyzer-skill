@@ -321,6 +321,31 @@
   `_MARKET_WEIGHT_ADJUSTMENTS_DEFAULT["强势"/"弱势"]`
 - **technical/pipeline**: `compute_indicators` 过滤口径对齐 `core.filter_records`
   五字段（open/high/low/close/volume 全 > 0），消除两条消费路径 K 线条数不一致
+- **screener**: 新增 `--analyze` / `--analyze-top` 一键深度分析——筛选完成后对
+  Top N 候选逐一执行五层分析（调 scripts/stock.py，单只失败不中断），SKILL 声明恢复
+- **sector_etf_strength + market_anchor**: 轮动位次上升/下降名单方向完全颠倒
+  （rank_delta 正=上升却取负值入 risers）+ 渲染二次取反 → 修正排序与渲染符号；
+  轮动阈值统一 ≥2.5（原 2.5/3/3 三处不一致）
+- **market_anchor**: `new_high_low_ratio` 硬编码 1.0 致牛市/熊市/冰点 regime 分支
+  不可达 → 用涨跌家数比近似；`to_markdown` 的 `vs_portfolio=None` 崩溃 → 守卫
+- **sentiment + market_breadth**: 非交易日 akshare 空涨停池返回全 0 无降级标记 →
+  周末/节假日误报"退潮" → akshare 空池走东财兜底 + breadth 全零视为降级
+- **sector_summary**: 东财 `data=null` 时 AttributeError 击穿降级路径（CLI 崩溃）
+  → 空 dict 守卫 + except 扩展；ths `int(nan)` ValueError → `_finite` 防护
+- **sector**: 代码前缀推断 "300" 遮蔽 "300750"（宁德时代误判科技）→ 按前缀长度
+  降序匹配；支持 bj 前缀（北交所）
+- **sector_momentum**: `ret_5d` 标签在 days≠5 时值与标签错位 → 动态 `ret_{days}d`
+  + days 字段（days=5 时键名不变，下游兼容）
+- **portfolio/manager**: quotes_missing 判定过宽（dict 非空即视为有行情）→ 任一
+  持仓缺报价即缺失；cost=0（未知成本价）行级 pnl/pnl_pct 置 None；停牌（price=0）
+  pnl_pct 置 None（原 0.0 与 pnl=None 矛盾）；watchlist 5 档分级改用原始值比较
+  （5.004% 舍入 5.0 误判边界）；check_concentration 补 top5_limit（前5大≤70%）
+- **portfolio/crud**: add_position 拒绝 cost<0/quantity<=0（cost=0 保留），
+  update_position 同（quantity 仅显式传入时校验）；tag/untag 补 oplog
+- **portfolio/analytics**: risk_summary 改用真实 `position_var_summary`（原 import
+  不存在的函数恒降级）
+- **portfolio/brinson**: BrinsonResult 加 note 字段，占位归因如实标注（组合收益
+  按 0 计原因）
 - **backtest/metrics + cli**: 年化收益率与卡玛比率补全输出——`annualized_return` 此前
   计算但不进返回 dict、`calmar_ratio` 文本模式不渲染（SKILL 声称 11 项指标缺 2 项）；
   现 metrics 加 `annualized_return_pct` 键，cli 文本输出加年化收益率 + 卡玛比率
