@@ -1,6 +1,6 @@
 ---
 name: screener
-description: 选股策略。触发词：推荐几只股票、帮我选股、有什么好股票、筛股票、找便宜的好公司、哪些股票值得买、初始化股票池、刷新股票池。支持6种策略（均衡/质量价值/成长动量/防守低波/拐点修复/动量放量）多因子筛选，含股票池初始化。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
+description: 选股策略。触发词：推荐几只股票、帮我选股、有什么好股票、筛股票、找便宜的好公司、哪些股票值得买、初始化股票池、刷新股票池。支持6种策略（均衡/质量价值/成长动量/防守低波/拐点修复/量价动量）多因子筛选，含股票池初始化。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
 version: 1.21.1
 model: glm-5.2
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/stock.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/init_pool.py *) Bash(python3 scripts/refresh_pool.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Read(./scripts/data/sector_stocks.json) Read(./skills/_shared/references/*.md)
@@ -53,7 +53,6 @@ python3 scripts/stock.py <top2_code>
 python3 scripts/stock.py <top3_code>
 ```
 
-也可在 screener 命令后直接加 `--analyze` 触发自动分析。
 
 ## 共享约定
 
@@ -150,7 +149,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 可选参数：
 
-- `--full-market`：使用全市场股票池（~5000只），而非主题板块池（~140只）。需先运行 `python3 scripts/init_pool.py --full-market` 初始化
+- `--full-market`：使用全市场股票池（~5000只），而非主题板块池（~280只）。需先运行 `python3 scripts/init_pool.py --full-market` 初始化
 - `--full-market --sector 创业板`：全市场模式下只筛选创业板
 - `--min-amount 5000`：主板最低成交额（万元），创业板/科创板自动 ×0.7，北交所 ×1.5
 - `--min-cap 40`：主板最低市值（亿元），创业板/科创板自动 ×0.6，北交所 ×0.4
@@ -171,8 +170,8 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 硬过滤（自动，按板块差异化；阈值为当前值，修改需同步 `scripts/strategies/thresholds.py`）：
 
 - ST 名称前缀匹配
-- 成交额不足（主板 <5000 万，创业板/科创板 <3500 万，北交所 <7500 万）
-- 市值过小（主板 <40 亿，创业板/科创板 <24 亿，北交所 <16 亿）
+- 成交额不足（主板 <5000 万，创业板/科创板 <3000 万，北交所 <1000 万）
+- 市值过小（主板 <40 亿，创业板/科创板 <20 亿，北交所 <10 亿）
 - 涨跌停限制（依板块涨跌停制度自动判断）
 - EPS<=0（需 --exclude-loss 启用）
 
@@ -187,7 +186,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 - 剔除/回避:
 
 ## 分数表
-| 代码 | 名称 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价 |
+| 排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价 |
 
 ## 跟踪条件
 - 买入触发:

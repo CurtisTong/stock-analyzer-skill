@@ -31,7 +31,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 短线交易者可调用龙虎榜查看机构/游资席位净买入：
 
 ```bash
-python3 scripts/data/lhb.py sh600519              # 最近 30 日龙虎榜
+python3 scripts/data/lhb.py sh600519              # 最近 7 日龙虎榜
 python3 scripts/data/lhb.py sh600519 --days 10    # 最近 10 日
 ```
 
@@ -40,7 +40,7 @@ python3 scripts/data/lhb.py sh600519 --days 10    # 最近 10 日
 - 买入/卖出前 5 营业部（机构/游资识别）
 - 关联游资标签（"赵老哥"、"孙哥"、"章盟主"等）
 
-数据源：`scripts/fetchers/lhb/` 多源适配器（东财/同花顺）。
+数据源：`scripts/fetchers/lhb/` 东财适配器。
 
 ## 共享约定
 
@@ -82,14 +82,14 @@ python3 scripts/market_anchor.py <股票代码> -j      # full / debate：全量
 python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：仅大盘 + 宽度
 ```
 
-**输出包含**（v2.5.x 升级后共 19 个字段）：
+**输出包含**（v2.5.x 升级后共 16 个维度）：
 
 | 维度 | 字段 | 说明 |
 |------|------|------|
 | 大盘状态 | `regime` / `regime_label_zh` / `regime_confidence` | bull/bear/sideways/panic/euphoria/defensive（来自 `experts/market_detector.py`，与 `decide.md §二` 权重表一致）|
 | 大盘指数 | `index_change_pct` | 沪深 300 当日涨跌幅 |
 | 市场宽度 | `breadth` | 上涨家数 / 下跌家数 / 涨停家数 / 跌停家数 |
-| 板块强度 | `sector_strength.top/bottom` | top3 强势 + bottom3 弱势板块 ETF（来自 `scripts/data/sector_etf.csv` 的 13 个 ETF）|
+| 板块强度 | `sector_strength.top/bottom` | top3 强势 + bottom3 弱势板块 ETF（来自 `scripts/data/sector_etf.csv` 的 22 个 ETF）|
 | 个股 RPS | `stock_sector_compare.rps_vs_sector/_index` | 个股 vs 所在板块 ETF vs 大盘三段式对比 |
 | **多时间框架**（v2.5.x 新增）| `multi_timeframe.{ma20,ma60,ma250,ma_alignment,ret_5d_pct,ret_20d_pct,atr_14,vs_ma250_pct}` | 大盘 MA20/60/250 + 5/20 日动量 + ATR14 + 年线偏离度 |
 | **宏观-估值桥**（v2.5.x 新增）| `macro.{treasury_10y_pct,usd_index,usd_cny,vix,gold_usd_oz,brent_oil_usd,wti_oil_usd,lithium_carbonate_cny_t}` | 10Y 国债 / 美元 / 汇率 / VIX / 大宗商品；yfinance 失败 → fixture |
@@ -245,7 +245,7 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 - 五层分析
 - 仅3位短线专家（topic_leader/emotion_tech/momentum_trader）
-- 组内投票，≥2/3 多数阈值
+- 短线均分区间驱动（≥60 看多 / ≤39 看空 / 40-59 分歧）
 - 适合短线交易时机判断
 
 ### Step 3.1: 输出格式模板（v2）
@@ -287,7 +287,7 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 | -------------- | ------------- | ------------------------------ | ---------------------- |
 | 全模式（默认） | `debate`      | 8人（长线5 + 短线3）           | 跨组加权，市场环境调权 |
 | 长线模式       | `debate 长线` | 长线5人                        | 组内投票，≥4/5 阈值    |
-| 短线模式       | `debate 短线` | 短线3人                        | 组内投票，≥2/3 阈值    |
+| 短线模式       | `debate 短线` | 短线3人                        | 均分区间驱动（≥60/≤39/40-59）|
 
 > 短线 3 人：题材龙头（topic_leader）、情绪技术复合（emotion_tech）、动量交易（momentum_trader）。
 > 另有 8 份 legacy 档案（巴菲特/段永平/徐翔/赵老哥/养家/作手新一/value_anchor/institution）保留为研究档案，不参与新框架投票。
@@ -395,7 +395,7 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 1. **获取数据**：同全模式步骤1（行情+财务+K线），无需获取大盘数据。
 2. **仅调用对应组专家打分**：长线模式只跑 lynch/soros/value_institution/sector_specialist/risk_manager（5人），短线模式只跑 topic_leader/emotion_tech/momentum_trader（3人）。
-3. **组内投票**：按 decide.md §七 规则——长线组 ≥4/5 看多=看多，≥4/5 看空=看空，2:3=中性；短线组 ≥2/3 看多=看多，≥2/3 看空=看空。
+3. **组内投票**：按 decide.md §七 规则——长线组 ≥4/5 看多=看多，≥4/5 看空=看空，2:3=中性；短线组均分 ≥60=看多，≤39=看空，40-59=分歧（v2.4.2 起，见 decide.md §三）。
 4. **输出**：评分表（仅该组专家）+ 组内方向 + 风险 + 仓位。信心指数基于组内标准差计算。
 
 ### Step 5: 技术分析（technical 模式）
@@ -407,12 +407,12 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 python3 scripts/market_anchor.py <股票代码> --no-sector -j
 
 # 技术分析
-python3 scripts/technical.py sh600989              # 完整报告
+python3 scripts/technical.py sh600989              # 完整报告（不含缠论）
 python3 scripts/technical.py sh600989 --classify   # 含分类+缠论+战法
 python3 scripts/technical.py sh600989 --quick      # 快速摘要
 ```
 
-输出包含：顶部"市场环境锚定"小节（轻量版，无板块强弱）+ 综合评分、均线系统、MACD、KDJ、BOLL、RSI、成交量、K线形态、缠论、A 股本土战法、支撑/阻力位。详见子模块文档。
+输出包含：顶部"市场环境锚定"小节（轻量版，无板块强弱）+ 综合评分、均线系统、MACD、KDJ、BOLL、RSI、成交量、K线形态、A 股本土战法、支撑/阻力位；缠论仅在 `--classify` 时输出。详见子模块文档。
 
 **为什么 technical 也需要大盘锚定**：技术信号在不同 regime 下含义不同——
 

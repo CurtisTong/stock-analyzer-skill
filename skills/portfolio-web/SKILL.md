@@ -17,11 +17,9 @@ allowed-tools: Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http:/
 ```text
 /portfolio-web                             # 启动 Web 服务（默认 127.0.0.1:8765）
 /portfolio-web --port 9000                 # 指定端口
-/portfolio-web --open                      # 启动后自动打开浏览器
+/portfolio-web --no-open                   # 启动后不自动打开浏览器（默认自动打开）
 /portfolio-web --no-notify                 # 启动时不推送通知
 /portfolio-web --virtual                   # 启动虚拟持仓模式（portfolio_virtual.json）
-/portfolio-web --stop                      # 停止后台运行的 Web 服务
-/portfolio-web --status                    # 查看 Web 服务运行状态
 ```
 
 ## API 端点

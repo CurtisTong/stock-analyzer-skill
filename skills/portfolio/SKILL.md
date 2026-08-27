@@ -81,10 +81,8 @@ v1.16.0 起 CRUD 操作拆到 [`scripts/portfolio/crud.py`](../../scripts/portfo
 | ----------------------------- | --------------------------------------------------------------- | -------------------------------------- |
 | `web`                         | 启动本地 Web 录入服务（127.0.0.1:8765），默认接入已配置的推送通道 | `/portfolio web`                       |
 | `web --port <端口>`           | 指定端口启动                                                    | `/portfolio web --port 9000`           |
-| `web --open`                  | 启动后自动打开浏览器                                            | `/portfolio web --open`                |
+| `web --no-open`               | 启动后不自动打开浏览器（默认自动打开）                        | `/portfolio web --no-open`             |
 | `web --no-notify`             | 启动时不推送通知（默认自动接入已配置的推送通道）                | `/portfolio web --no-notify`           |
-| `web --stop`                  | 停止后台运行的 Web 服务                                         | `/portfolio web --stop`                |
-| `web --status`                | 查看 Web 服务运行状态                                           | `/portfolio web --status`              |
 | `web --virtual`               | 启动虚拟持仓模式（模拟盘），数据存储在 `portfolio_virtual.json` | `/portfolio web --virtual`             |
 
 ### 虚拟持仓（模拟盘）
