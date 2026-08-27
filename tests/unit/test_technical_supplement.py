@@ -293,6 +293,17 @@ class TestKdjDunhuaDowngrade:
         score = composite_score(self._features(sig, dunhua=True))
         assert not any("KDJ" in s for s in score["sell_signals"])
 
+    def test_dunhua_suppresses_structured_signals(self):
+        """钝化时结构化 KDJ 信号与字符串信号一致（均为 False）。"""
+        from technical.scoring import composite_score
+
+        score = composite_score(
+            self._features("死叉+超买 [KDJ高位钝化-趋势延续]", dunhua=True)
+        )
+        st = score["structured_signals"]
+        assert not st["kdj_death_cross"]
+        assert not st["kdj_overbought"]
+
     def test_no_dunhua_keeps_sell_signal(self):
         """非钝化超买 → 卖出信号保留（回归）。"""
         from technical.scoring import composite_score

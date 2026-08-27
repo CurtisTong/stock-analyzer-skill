@@ -204,15 +204,17 @@ def _generate_signals(features, market_breadth=None):
 
     # P1-16: 结构化信号（与字符串信号并行输出，供程序化消费）
     # 消费者可逐步从字符串子串判断迁移到结构化字段
+    # 钝化时 KDJ 信号整体暂停参考，结构化字段与字符串信号保持一致
+    kdj_dunhua = bool(kdj.get("钝化"))
     structured = {
         "macd_golden_cross": macd.get("signal") == 1,
         "macd_death_cross": macd.get("signal") == -1,
         "macd_bottom_divergence": divergence == "底背离(看涨)",
         "macd_top_divergence": divergence == "顶背离(看跌)",
-        "kdj_golden_cross": "金叉" in kdj.get("signal", ""),
-        "kdj_death_cross": "死叉" in kdj.get("signal", ""),
-        "kdj_oversold": "超卖" in kdj.get("signal", ""),
-        "kdj_overbought": "超买" in kdj.get("signal", ""),
+        "kdj_golden_cross": not kdj_dunhua and "金叉" in kdj.get("signal", ""),
+        "kdj_death_cross": not kdj_dunhua and "死叉" in kdj.get("signal", ""),
+        "kdj_oversold": not kdj_dunhua and "超卖" in kdj.get("signal", ""),
+        "kdj_overbought": not kdj_dunhua and "超买" in kdj.get("signal", ""),
         "boll_lower_band": boll.get("position", 0.5) < 0.2,
         "boll_upper_band": boll.get("position", 0.5) > 0.8,
         "rsi_oversold": rsi_data.get("rsi", 50) < 35,
