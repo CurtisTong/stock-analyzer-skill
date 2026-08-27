@@ -814,7 +814,11 @@ class PortfolioManager:
         positions = self.get_positions()
         watchlist = self.get_watchlist()
         quotes_map = quotes or {}
-        quotes_missing = not quotes_map
+        # 行情缺失判定：无报价 dict，或任一持仓 code 无对应报价（部分缺失）
+        # 原实现仅判 dict 非空，缺行情持仓按 0 市值计入 totals 造成失真
+        quotes_missing = not quotes_map or any(
+            p.get("code", "") not in quotes_map for p in positions
+        )
         # H1 集成：自动调 technical.py 拉 features.breakdown
         # auto_technical=True（默认）时，对每只持仓调 technical 拉 60 根日 K
         # 算 nearest_support + breakdown；失败按 absence 容错
@@ -842,10 +846,15 @@ class PortfolioManager:
             mv = price * qty
             pnl = mv - cost_value
             # L17 降级处理：行情缺失时 pnl_pct = None
+            # cost=0（未知成本价）时 pnl/pnl_pct 均置 None（guardrail：不计算虚假盈亏）
             pnl_pct = (
                 (pnl / cost_value * 100)
                 if (cost_value and price > 0)
-                else (None if (cost_value and not q) else 0.0)
+                else (
+                    None
+                    if (cost_value and not q)
+                    else (None if cost_value == 0 else 0.0)
+                )
             )
 
             total_cost += cost_value
@@ -878,7 +887,7 @@ class PortfolioManager:
                 "cost": round(cost, 2),
                 "qty": qty,
                 "change_pct": round(change_pct, 2),
-                "pnl": round(pnl, 0) if price > 0 else None,
+                "pnl": round(pnl, 0) if (price > 0 and cost_value > 0) else None,
                 "pnl_pct": round(pnl_pct, 2) if pnl_pct is not None else None,
                 "market_value": round(mv, 0) if price > 0 else None,
                 "breakdown": breakdown,
@@ -907,17 +916,26 @@ class PortfolioManager:
             ts = float(w.get("target_sell", 0) or 0)
             gap_to_buy = round((price - tb) / tb * 100, 2) if tb else None
             gap_to_sell = round((price - ts) / ts * 100, 2) if ts else None
+            # 舍入边界：比较用原始值，展示用舍入值（5.004% 舍入 5.0 不应误判"接近"）
+            raw_gap_to_buy = (price - tb) / tb * 100 if tb else None
+            raw_gap_to_sell = (price - ts) / ts * 100 if ts else None
 
             # 5 档分级（与 SKILL.md:243-250 模板一致）
             if ts and price > 0 and price <= ts:
                 status = "已破止损"
             elif (
-                ts and gap_to_sell is not None and 0 < gap_to_sell <= watch_sell_gap_pct
+                ts
+                and raw_gap_to_sell is not None
+                and 0 < raw_gap_to_sell <= watch_sell_gap_pct
             ):
                 status = "接近止损"
             elif tb and price > 0 and price <= tb:
                 status = "到达买点"
-            elif tb and gap_to_buy is not None and 0 < gap_to_buy <= watch_buy_gap_pct:
+            elif (
+                tb
+                and raw_gap_to_buy is not None
+                and 0 < raw_gap_to_buy <= watch_buy_gap_pct
+            ):
                 status = "接近买点"
             else:
                 status = "观望"
@@ -1269,6 +1287,7 @@ class PortfolioManager:
         self,
         single_stock_limit: float = 0.20,
         top3_limit: float = 0.50,
+        top5_limit: float = 0.70,
         industry_limit: float = 0.30,
         quotes: dict = None,
     ) -> dict:
@@ -1277,12 +1296,13 @@ class PortfolioManager:
         Args:
             single_stock_limit: 单一标的上限（默认 20%）
             top3_limit: 前 3 大持仓上限（默认 50%）
+            top5_limit: 前 5 大持仓上限（默认 70%）
             industry_limit: 单一行业上限（默认 30%）
             quotes: 可选 {code: current_price} 行情映射。提供时按市值（现价×数量）
                 计算集中度，否则回退到成本口径。
 
         Returns:
-            {"warnings": [str], "details": {"single": {...}, "top3": {...}, "industry": {...}}}
+            {"warnings": [str], "details": {"single": {...}, "top3": {...}, "top5": {...}, "industry": {...}}}
         """
         positions = self.get_positions()
         if not positions:
@@ -1330,6 +1350,14 @@ class PortfolioManager:
         if top3_value > top3_limit:
             warnings.append(
                 f"前3大持仓集中度 {top3_value*100:.1f}% > {top3_limit*100:.0f}%"
+            )
+
+        # 前 5 大持仓集中度（SKILL.md guardrail：前5大 ≤ 70%）
+        top5_value = sum(s["pct"] for s in stock_pcts[:5])
+        details["top5"] = {"pct": round(top5_value * 100, 1)}
+        if top5_value > top5_limit:
+            warnings.append(
+                f"前5大持仓集中度 {top5_value*100:.1f}% > {top5_limit*100:.0f}%"
             )
 
         # 行业集中度

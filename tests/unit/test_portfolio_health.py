@@ -219,13 +219,23 @@ class TestManagerConstants:
 class TestHealthReport:
     """health_report 返回结构化报告，按 SKILL.md 模板标准字段。"""
 
-    def test_totals_structure(self):
+    def test_totals_structure(self, tmp_path):
         """totals 含 cost/value/pnl/pnl_pct 4 个字段。
 
         L17: 行情缺失时 value/pnl/pnl_pct = None（不再是 0 或 -100% 误导）。
         """
-        pm = PortfolioManager()
-        # 正常情况（有 cost）
+        positions = [
+            {
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "cost": 22.37,
+                "quantity": 4000,
+                "buy_date": "2026-01-01",
+                "tags": ["煤化工"],
+            },
+        ]
+        pm = _make_manager(tmp_path, positions)
+        # 正常情况（有 cost + 报价）
         report = pm.health_report(
             quotes={"sh600989": {"price": 23.69, "change_pct": 0}}
         )

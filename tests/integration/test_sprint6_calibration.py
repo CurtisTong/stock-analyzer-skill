@@ -78,6 +78,10 @@ class TestMomentumTrendRefinement:
         assert 30 - 15 == 15  # 验证收敛后的差距
 
 
+# v1.21.1: MIN_POOL_SIZE=30 后单股池被拒，测试统一使用 30 只池
+_POOL_30 = [f"sh6000{i:02d}" for i in range(30)]
+
+
 class TestStrategyPerformance:
     """strategy_performance.py 月度校准测试。"""
 
@@ -98,7 +102,7 @@ class TestStrategyPerformance:
 
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
-        record = sp.record_all(days=10, top=3, codes=["sh600519"])
+        record = sp.record_all(days=10, top=3, codes=_POOL_30)
         assert "strategies" in record
         assert "balanced" in record["strategies"]
         assert record["strategies"]["balanced"]["total_return_pct"] == 5.0
@@ -120,8 +124,8 @@ class TestStrategyPerformance:
 
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
-        sp.record_all(days=10, top=3, codes=["sh600519"])
-        sp.record_all(days=10, top=3, codes=["sh600519"])
+        sp.record_all(days=10, top=3, codes=_POOL_30)
+        sp.record_all(days=10, top=3, codes=_POOL_30)
 
         result = sp.report()
         assert "by_month" in result
@@ -147,7 +151,7 @@ class TestStrategyPerformance:
 
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
-        sp.record_all(days=10, top=3, codes=["sh600519"])
+        sp.record_all(days=10, top=3, codes=_POOL_30)
 
         current_month = datetime.now().strftime("%Y-%m")
         result = sp.report(month=current_month)
@@ -208,8 +212,8 @@ class TestStrategyCompare:
 
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
-        sp.record_all(days=10, top=3, codes=["sh600519"])
-        sp.record_all(days=10, top=3, codes=["sh600519"])
+        sp.record_all(days=10, top=3, codes=_POOL_30)
+        sp.record_all(days=10, top=3, codes=_POOL_30)
 
         # 测试 sharpe_ratio 降序
         result = sp.compare(metric="sharpe_ratio")
@@ -240,7 +244,7 @@ class TestStrategyCompare:
 
         monkeypatch.setattr(sp, "run_backtest", mock_run_backtest)
 
-        sp.record_all(days=10, top=3, codes=["sh600519"])
+        sp.record_all(days=10, top=3, codes=_POOL_30)
         result = sp.compare(metric="max_drawdown_pct")
         # defensive (-1.0) 应排在前面（回撤最小）
         assert result["ranking"][0]["strategy"] == "defensive"

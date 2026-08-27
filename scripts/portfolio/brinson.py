@@ -64,6 +64,7 @@ class BrinsonResult:
     total_excess_return: float = 0.0
     portfolio_return: float = 0.0
     benchmark_return: float = 0.0
+    note: str = ""  # 降级/占位数据标注（如缺上期价格时组合收益按 0 计）
 
     def to_dict(self) -> dict:
         return {
@@ -204,7 +205,9 @@ def brinson_from_holdings(
         # Brinson 公式要求"当期收益率"（t-1→t），而非"当前/成本"的累计浮盈。
         # 持仓文件只存成本基准，无上期价数据；此处无法计算真实当期收益，
         # 保守地以 0 兜底（避免累计浮盈污染归因），实际场景应从 K 线传入 period_returns。
+        # 降级标注：报告层提示"组合收益按 0 计"，避免用户误读为真实归因。
         ret = 0.0
+        _no_period_returns = True
         # 用 tags[0] 或 "未分类"
         sector = (p.get("tags") or ["未分类"])[0]
         portfolio_weights[sector] = portfolio_weights.get(sector, 0) + weight
@@ -238,12 +241,18 @@ def brinson_from_holdings(
         benchmark_sector_weights.setdefault(sector, 0)
         benchmark_sector_returns.setdefault(sector, 0.05)
 
-    return brinson_attribution(
+    result = brinson_attribution(
         portfolio_sector_returns=portfolio_returns,
         benchmark_sector_returns=benchmark_sector_returns,
         portfolio_sector_weights=portfolio_weights,
         benchmark_sector_weights=benchmark_sector_weights,
     )
+    # 降级标注：持仓文件无上期价，组合当期收益按 0 计（浮盈未计入归因）
+    result.note = (
+        "组合收益按 0 计（缺上期价格数据，累计浮盈未计入归因）；"
+        "基准行业收益为默认假设（5%），仅供结构参考"
+    )
+    return result
 
 
 def format_brinson_report(result: BrinsonResult) -> str:
@@ -256,6 +265,8 @@ def format_brinson_report(result: BrinsonResult) -> str:
     lines.append("## 📊 Brinson 归因报告")
     lines.append("")
     lines.append(f"组合收益: {s['portfolio_return_pct']:.2f}%")
+    if getattr(result, "note", None):
+        lines.append(f"> ⚠️ {result.note}")
     lines.append(f"基准收益: {s['benchmark_return_pct']:.2f}%")
     lines.append(f"超额收益: {s['excess_return_pct']:+.2f}%")
     lines.append("")

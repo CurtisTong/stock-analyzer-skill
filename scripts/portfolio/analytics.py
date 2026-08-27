@@ -74,14 +74,6 @@ def risk_summary(
     Returns:
         风险摘要文本
     """
-    try:
-        from business.risk_metrics import (  # type: ignore[attr-defined]
-            compute_portfolio_var,
-            format_var_report,
-        )
-    except ImportError:
-        return "⚠️ business.risk_metrics 模块不可用，无法生成风险摘要"
-
     positions = manager.get_positions()
     if not positions:
         return "暂无持仓"
@@ -90,8 +82,46 @@ def risk_summary(
     if not quotes:
         quotes = {p["code"]: p.get("cost", 0) for p in positions}
 
-    result = compute_portfolio_var(positions, quotes, confidence=confidence)
-    return format_var_report(result)
+    # 计算组合权重（市值占比）
+    total_mv = sum(
+        quotes.get(p["code"], p.get("cost", 0)) * p.get("quantity", 0)
+        for p in positions
+    )
+    weighted = []
+    for p in positions:
+        price = quotes.get(p["code"], p.get("cost", 0))
+        mv = price * p.get("quantity", 0)
+        weighted.append(
+            {
+                "code": p["code"],
+                "name": p.get("name", ""),
+                "weight": mv / total_mv if total_mv > 0 else 0.0,
+            }
+        )
+
+    try:
+        from business.risk_metrics import position_var_summary
+
+        result = position_var_summary(weighted, quotes, confidence=confidence)
+        var_pct = result.get("var_pct", 0)
+        cvar_pct = result.get("cvar_pct", 0)
+        worst = result.get("worst_scenarios", [])
+    except ImportError:
+        return "⚠️ business.risk_metrics 模块不可用，无法生成风险摘要"
+
+    lines = [
+        f"组合 VaR（{int(confidence * 100)}% 置信，1 日）: -{var_pct}%",
+        f"组合 CVaR（{int(confidence * 100)}% 置信，1 日）: -{cvar_pct}%",
+    ]
+    if worst:
+        lines.append(
+            "主要风险贡献: "
+            + ", ".join(
+                f"{w['code']}(权重{w['weight']:.0%}, VaR {w['var_1d_pct']}%)"
+                for w in worst[:3]
+            )
+        )
+    return "\n".join(lines)
 
 
 def attribution_report(
