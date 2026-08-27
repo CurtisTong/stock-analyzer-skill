@@ -624,7 +624,8 @@ def _run_main(args):
         sys.exit(130)
         return
     except ScreenerTimeoutError:
-        # 业务主动抛 ScreenerTimeoutError 的兜底分支（极少触发）
+        # 防御性兜底：watchdog 超时实际走 os._exit(2)（阻塞调用无法中断），
+        # 此分支仅在业务代码主动抛 ScreenerTimeoutError 时可达（当前无调用方）
         print(
             f"\n⚠️ 任务超时（deadline={wd.deadline_sec:.0f}s, "
             f"elapsed={wd.elapsed_sec:.1f}s），"

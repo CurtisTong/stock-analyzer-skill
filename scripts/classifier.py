@@ -62,7 +62,7 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
         }
     """
     reasons = []
-    confidence = "高"
+    # confidence 在规则分类前统一初始化为"低"（见下方 ── 规则分类 ──）
 
     # 提取行情特征
     circulating_cap = (

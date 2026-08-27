@@ -302,14 +302,10 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
             return _err("invalid_target_buy", 400, "target_buy must be >= 0")
         extra["target_buy"] = target_buy_raw or 0
     if "target_sell" in extra:
-        if extra["target_sell"] == 0:
-            return _err(
-                "invalid_target_sell",
-                400,
-                "'target_sell=0' is ignored by PortfolioManager; omit to leave unchanged",
-            )
-        # P0-9: 负数校验（与 _do_add_watch 一致）
-        target_sell_raw = _parse_float(extra["target_sell"])
+        # target_sell=0 = 清空目标价（原实现拒绝，导致目标价无法清除）
+        target_sell_raw = (
+            0.0 if extra["target_sell"] == 0 else _parse_float(extra["target_sell"])
+        )
         if target_sell_raw is not None and target_sell_raw < 0:
             return _err("invalid_target_sell", 400, "target_sell must be >= 0")
         extra["target_sell"] = target_sell_raw or 0
@@ -320,10 +316,12 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
     name = extra.get("name", "") or ""
     tb = extra.get("target_buy", 0)
     ts = extra.get("target_sell", 0)
+    update_fields = tuple(k for k in ("target_buy", "target_sell") if k in extra)
     result = pm.add_watch(
         code,
         name=name or existing.get("name", ""),
         target_buy=tb or 0,
         target_sell=ts or 0,
+        _update_fields=update_fields,
     )
     return _ok(result)

@@ -356,10 +356,12 @@ def add_watch(
     target_buy: float = 0,
     target_sell: float = 0,
     auto_save: bool = True,
+    _update_fields: tuple = (),
 ) -> dict:
-    """添加自选股。"""
+    """添加自选股。_update_fields: 显式更新的字段名（update_watch 复用入口用）。"""
     code = normalize_code(code)
-    manager._push_oplog("add_watch", code=code)
+    # update_watch 复用本入口时记录正确的操作名（原恒记 add_watch，undo 语义错位）
+    manager._push_oplog("update_watch" if _update_fields else "add_watch", code=code)
     holder = {}
 
     def _apply(data: dict) -> dict:
@@ -372,9 +374,11 @@ def add_watch(
         if existing:
             if name:
                 existing["name"] = name
-            if target_buy:
+            # 显式传 0 = 清空目标价（update_watch 覆盖式语义；原实现 0 被忽略
+            # 导致目标价一旦设置无法清除）
+            if "target_buy" in _update_fields:
                 existing["target_buy"] = target_buy
-            if target_sell:
+            if "target_sell" in _update_fields:
                 existing["target_sell"] = target_sell
             holder["r"] = existing
         else:

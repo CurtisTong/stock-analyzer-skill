@@ -205,11 +205,11 @@ class TestQualityScore:
         score = quality_score(sample_finance)
         assert 0 <= score <= 100
 
-    def test_empty_finance_low_score(self):
-        # 空财务数据：只有 debt 项贡献 (70-0)/70*12=12，其余为 0
+    def test_empty_finance_neutral_score(self):
+        # P1-1: 空财务数据（抓取失败）→ 中性 50（原 12 分是负债率 0 被当最优的
+        # 误导低分，缺失应中性而非惩罚）
         score = quality_score({})
-        assert score == pytest.approx(12.0)
-        assert score < 20  # 整体仍为低分
+        assert score == pytest.approx(50.0)
 
     def test_high_quality_scores_higher(self, sample_finance):
         high = quality_score(sample_finance)

@@ -103,6 +103,17 @@ _HARDCODED_MATRIX: Dict[RegimeState, Dict[str, float]] = {
 }
 
 # 硬编码策略混合规则（配置缺失时 fallback）
+# 策略 ID ↔ 中文 label（与 strategies/registry.py 的 label 字段同步）
+_STRATEGY_LABELS = {
+    "balanced": "均衡精选",
+    "quality_value": "质量价值",
+    "growth_momentum": "成长动量",
+    "defensive": "防守低波",
+    "turning_point": "拐点修复",
+    "ma_volume_momentum": "量价动量",
+}
+
+
 _HARDCODED_BLEND: Dict[RegimeState, Dict[str, float]] = {
     RegimeState.BEAR: {"balanced": 0.7, "defensive": 0.3},
     RegimeState.PANIC: {"balanced": 0.5, "defensive": 0.5},
@@ -232,10 +243,14 @@ def compute_overlay_weights(
     weights = dict(original_weights)
     blend_rule = blend_rules.get(regime)
     if blend_rule and "label" in original_weights:
-        strategy_name = original_weights.get("label", "")
-        if strategy_name in blend_rule:
+        strategy_name = str(original_weights.get("label", ""))
+        # blend_rule 键是策略 ID（balanced/defensive），而 weights 只带中文 label——
+        # 用 ID→label 反向映射匹配（修复原实现恒不触发，BEAR/PANIC 混合规则死代码）
+        _label_to_id = {v: k for k, v in _STRATEGY_LABELS.items()}
+        match_id = _label_to_id.get(strategy_name, strategy_name)
+        if match_id in blend_rule:
             # 当前策略在混合规则中，按比例混合
-            weights = _blend_strategy_weights(strategy_name, blend_rule, regime)
+            weights = _blend_strategy_weights(match_id, blend_rule, regime)
 
     # 应用基础矩阵 multiplier
     multipliers = dict(matrix.get(regime, {}))

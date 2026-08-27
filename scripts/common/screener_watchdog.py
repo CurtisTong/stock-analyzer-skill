@@ -54,9 +54,9 @@ class WatchdogContext:
     """watchdog 上下文, 用法见模块文档。
 
     v1.20.1 二次修复: 单纯设 done_event 不够, run_screening 是阻塞的同步调用,
-    主线程不会主动检查 done_event。改用 daemon 线程 + KeyboardInterrupt
-    模拟: 超时时 watchdog 向主线程抛 KeyboardInterrupt, run_screening 在
-    后续 socket / fetcher 层级抛出异常时一并清退。
+    主线程不会主动检查 done_event。超时兜底为 os._exit(2)（见 _on_timeout）：
+    在 fetcher 内部循环 / time.sleep 等阻塞调用中, signal handler 与
+    _thread.interrupt_main() 都不可靠打断, os._exit 是唯一确定性终止方式。
     """
 
     def __init__(self, deadline_sec: float):

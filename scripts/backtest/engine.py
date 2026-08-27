@@ -209,6 +209,9 @@ def simulate_strategy(ctx: SimContext):
         industry_cache[code] = industry
         fin_cache[code] = fin
 
+    # P0-2: 指数级 regime 判定数据源（复用 kline_data，缺失时拉取一次）
+    index_bars = _fetch_index_bars_for_backtest(kline_data)
+
     # 滚动窗口回测
     common_start_date = None
     for code, bars in kline_data.items():
@@ -274,8 +277,18 @@ def simulate_strategy(ctx: SimContext):
             # 如需启用，请确保事件数据已预加载到缓存
 
             # 策略权重应用 market regime overlay（Sprint 3 收口）
-            regime = _classify_for_backtest(bars[:i]) if i >= 60 else RegimeState.RANGE
-            effective_weights = compute_overlay_weights(weights, regime)
+            # P0-2 修复：v2.8 的指数级 regime 判定（_fetch_index_bars_for_backtest /
+            # _classify_regime_from_index）此前无调用方，主路径仍用个股 bars 误判
+            # regime。现改为指数 bars + current_day 截断（严格无前瞻）。
+            if i >= 60:
+                regime, extreme_drop = _classify_regime_from_index(
+                    index_bars, bars[i].day
+                )
+            else:
+                regime, extreme_drop = RegimeState.RANGE, False
+            effective_weights = compute_overlay_weights(
+                weights, regime, extreme_drop=extreme_drop
+            )
 
             score = sum(
                 parts.get(k, 0) * effective_weights.get(k, 0)
