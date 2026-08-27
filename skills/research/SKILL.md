@@ -1,7 +1,7 @@
 ---
 name: research
 description: 深度研究。触发词：深度研究一下XX、财务分析XX、排雷XX、DCF估值、写一份研究报告、XX的投资价值分析、对比XX和XX、XX能不能长期持有、XX的盈利质量怎么样。财务建模（DCF/杜邦/排雷）和全维度投资研究报告。
-version: 1.21.0
+version: 1.21.1
 model: glm-5.2
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/announcements.py *) Bash(python3 scripts/events.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/sector.py *) Bash(python3 scripts/concept.py *) Bash(python3 scripts/industry_beta.py *) Bash(python3 scripts/portfolio_correlation.py *) Bash(python3 scripts/stock.py *) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
 ---
