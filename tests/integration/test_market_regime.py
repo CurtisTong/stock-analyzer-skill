@@ -226,3 +226,51 @@ class TestComputeWeightedScoreWithRegime:
             parts, "balanced", regime=RegimeState.PANIC
         )
         assert score_panic < score_normal
+
+
+class TestOverlayBlendLabelMatch:
+    """P1-4: blend_rule 中文 label ↔ 策略 ID 匹配（修复前恒不触发）。"""
+
+    _BALANCED = {
+        "label": "均衡精选",
+        "quality": 0.28,
+        "valuation": 0.22,
+        "momentum": 0.18,
+        "liquidity": 0.12,
+        "volatility": 0.14,
+        "chip": 0.10,
+        "dividend": 0.05,
+        "event": 0.05,
+    }
+
+    def test_blend_math(self):
+        """混合数学：0.7×balanced + 0.3×defensive 的 quality = 0.259。"""
+        from strategies.regime.overlay import _blend_strategy_weights
+
+        blended = _blend_strategy_weights(
+            "balanced", {"balanced": 0.7, "defensive": 0.3}, RegimeState.BEAR
+        )
+        assert abs(blended["quality"] - 0.259) < 0.001
+
+    def test_bear_blend_fires_for_balanced_label(self):
+        """带中文 label 的 balanced 权重在 BEAR 下触发混合（修复前恒不触发）。"""
+        out = compute_overlay_weights(dict(self._BALANCED), RegimeState.BEAR)
+        # 混合（0.7/0.3）与纯 multiplier 结果不同——label 匹配生效
+        no_label = compute_overlay_weights(
+            {k: v for k, v in self._BALANCED.items() if k != "label"},
+            RegimeState.BEAR,
+        )
+        assert out != no_label
+        assert abs(sum(out.values()) - 1.0) < 0.001
+
+    def test_non_blend_strategy_label_no_mix(self):
+        """不在混合规则中的策略（如成长动量）→ 不触发混合（与无 label 等价）。"""
+        weights = dict(self._BALANCED)
+        weights["label"] = "成长动量"
+        out = compute_overlay_weights(weights, RegimeState.BEAR)
+        no_label = compute_overlay_weights(
+            {k: v for k, v in self._BALANCED.items() if k != "label"},
+            RegimeState.BEAR,
+        )
+        assert out == no_label
+        assert abs(sum(out.values()) - 1.0) < 0.001

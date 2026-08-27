@@ -836,3 +836,57 @@ class TestIsLimitOrSuspended:
             ),
         ]
         assert self._is_limit(bars, 1, "sh600001") is True
+
+
+class TestRegimeIndexWiring:
+    """P0-2: 指数级 regime 判定接线（修复前 _classify_regime_from_index 无调用方）。"""
+
+    def test_simulate_uses_index_regime(self, monkeypatch):
+        """simulate_strategy 应调用 _classify_regime_from_index（指数数据源）。"""
+        import backtest
+        from datetime import datetime, timedelta
+
+        finance_obj = _make_finance_obj()
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
+        today = datetime.now()
+        calls = []
+
+        def _mock_kline(code, scale=240, datalen=140):
+            n = max(datalen, 140)
+            bars = []
+            for i in range(n):
+                d = today - timedelta(days=n - i)
+                bars.append(
+                    KlineBar(
+                        day=d.strftime("%Y-%m-%d"),
+                        close=10 + i * 0.3,
+                        open=10 + i * 0.3,
+                        high=10 + i * 0.3,
+                        low=10 + i * 0.3,
+                        volume=1000,
+                    )
+                )
+            return bars
+
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
+
+        # 记录 _classify_regime_from_index 调用（指数数据源接线验证）
+        orig = backtest.engine._classify_regime_from_index
+
+        def spy(index_bars, current_day):
+            calls.append((len(index_bars), current_day))
+            return orig(index_bars, current_day)
+
+        calls = []
+        monkeypatch.setattr(backtest.engine, "_classify_regime_from_index", spy)
+
+        result = backtest.simulate_strategy(
+            backtest.SimContext(
+                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10
+            )
+        )
+        assert "error" not in result
+        # 修复前：主路径用 _classify_for_backtest（个股 bars），此函数零调用
+        assert calls, "指数级 regime 判定应被主路径调用"
+        # 每次调用传入指数 bars（>= 80 根 gate）与当前交易日
+        assert all(n >= 80 for n, _ in calls)

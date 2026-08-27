@@ -138,3 +138,36 @@ class TestPortfolioManagerReload:
         portfolio_mgr.reload()
         positions = portfolio_mgr.get_positions()
         assert len(positions) == 1
+
+
+class TestWatchTargetClear:
+    """P2: update_watch 目标价可清空（原实现 target_buy=0 被拒绝）。"""
+
+    def test_update_watch_clears_target_buy(self, portfolio_mgr):
+        """显式传 target_buy=0 → 清空目标买价。"""
+        portfolio_mgr.add_watch(
+            "sz000001", name="平安银行", target_buy=10.0, target_sell=12.0
+        )
+        # 清空 target_buy（保留 target_sell）
+        portfolio_mgr.add_watch(
+            "sz000001",
+            name="平安银行",
+            target_buy=0,
+            target_sell=12.0,
+            _update_fields=("target_buy",),
+        )
+        w = portfolio_mgr.get_watch("sz000001")
+        assert w["target_buy"] == 0
+        assert w["target_sell"] == 12.0
+
+    def test_update_watch_oplog_name(self, portfolio_mgr):
+        """update_watch 复用 add_watch 入口时 oplog 记 update_watch（非 add_watch）。"""
+        portfolio_mgr.add_watch("sz000001", name="平安银行", target_buy=10.0)
+        portfolio_mgr.add_watch(
+            "sz000001",
+            name="平安银行",
+            target_buy=0,
+            _update_fields=("target_buy",),
+        )
+        history = portfolio_mgr.oplog_history(limit=10)
+        assert any(h.get("op") == "update_watch" for h in history)

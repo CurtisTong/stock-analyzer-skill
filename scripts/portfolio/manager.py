@@ -730,8 +730,9 @@ class PortfolioManager:
         target_buy: float = 0,
         target_sell: float = 0,
         auto_save: bool = True,
+        _update_fields: tuple = (),
     ) -> dict:
-        """添加自选股。"""
+        """添加自选股。_update_fields: 显式更新的字段名（update_watch 复用入口用）。"""
         from portfolio.crud import add_watch as _add_watch
 
         return _add_watch(
@@ -741,6 +742,7 @@ class PortfolioManager:
             target_buy=target_buy,
             target_sell=target_sell,
             auto_save=auto_save,
+            _update_fields=_update_fields,
         )
 
     def remove_watch(self, code: str, auto_save: bool = True) -> bool:

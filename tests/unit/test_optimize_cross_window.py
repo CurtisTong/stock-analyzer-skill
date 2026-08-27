@@ -76,3 +76,34 @@ class TestCrossWindowValidation:
         assert "cross_window_validation" not in result
         assert "robust" not in result
         assert 120 not in calls and 240 not in calls
+
+
+class TestOptimizeFullFactorSet:
+    """P1-3: optimize_weights 全因子网格（原只取 4 键，34% 权重被置零）。"""
+
+    def test_weights_include_all_factors(self, monkeypatch):
+        """传给 run_backtest 的候选权重应含全部 7 因子（含 volatility/chip/dividend）。"""
+        seen = []
+
+        def fake_run_backtest(name, codes, top_n, days, rounds, weights=None):
+            if weights is not None:
+                seen.append(weights)
+            return _report(1.0, 0.2)
+
+        monkeypatch.setattr("backtest.cli.run_backtest", fake_run_backtest)
+        optimize_weights(["sh600519"], STRATEGY, top_n=5, days=60, validate=False)
+        assert seen, "应产生候选权重"
+        all_keys = set().union(*(w.keys() for w in seen))
+        for k in (
+            "quality",
+            "valuation",
+            "momentum",
+            "liquidity",
+            "volatility",
+            "chip",
+            "dividend",
+        ):
+            assert k in all_keys, f"候选权重缺少因子 {k}"
+        # 每个候选权重归一化（和 ≈ 1）
+        for w in seen:
+            assert abs(sum(w.values()) - 1.0) < 0.01

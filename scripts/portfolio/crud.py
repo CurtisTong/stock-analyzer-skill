@@ -374,12 +374,18 @@ def add_watch(
         if existing:
             if name:
                 existing["name"] = name
-            # 显式传 0 = 清空目标价（update_watch 覆盖式语义；原实现 0 被忽略
-            # 导致目标价一旦设置无法清除）
-            if "target_buy" in _update_fields:
-                existing["target_buy"] = target_buy
-            if "target_sell" in _update_fields:
-                existing["target_sell"] = target_sell
+            if _update_fields:
+                # update_watch 覆盖式语义：显式字段全量写入（0 = 清空目标价）
+                if "target_buy" in _update_fields:
+                    existing["target_buy"] = target_buy
+                if "target_sell" in _update_fields:
+                    existing["target_sell"] = target_sell
+            else:
+                # add_watch 常规语义（保持原行为）：非 0 才更新
+                if target_buy:
+                    existing["target_buy"] = target_buy
+                if target_sell:
+                    existing["target_sell"] = target_sell
             holder["r"] = existing
         else:
             new_watch = {
