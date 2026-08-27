@@ -233,19 +233,24 @@ def _score_kdj(kdj: dict, type_w: dict, adj: dict, vol_signal: int = 0) -> float
     # 下跌趋势降权：放量下跌时，超卖信号不可靠
     trend_penalty = 0.5 if vol_signal == -1 else 1.0
 
+    # 钝化降权：钝化时超买/超卖档位信号减半（与报告"钝化中超买超卖暂停参考"一致）
+    dunhua_penalty = 0.5 if kdj.get("钝化") else 1.0
+
     # 按关键词匹配评分（支持组合信号如"金叉+超卖"、"死叉+超买"等）
     if "金叉" in kdj_sig and "超卖" in kdj_sig:
-        kdj_base = kdj_weight * trend_penalty  # 下跌趋势中超卖金叉降权
+        kdj_base = kdj_weight * trend_penalty * dunhua_penalty  # 下跌趋势中超卖金叉降权
     elif "金叉" in kdj_sig:
         kdj_base = kdj_weight * 0.8
     elif "死叉" in kdj_sig and "超买" in kdj_sig:
-        kdj_base = kdj_weight * 0.1
+        kdj_base = kdj_weight * 0.1 * dunhua_penalty
     elif "死叉" in kdj_sig:
         kdj_base = kdj_weight * 0.2
     elif "超卖" in kdj_sig:
-        kdj_base = kdj_weight * 0.6 * trend_penalty  # 下跌趋势中超卖降权
+        kdj_base = (
+            kdj_weight * 0.6 * trend_penalty * dunhua_penalty
+        )  # 下跌趋势中超卖降权
     elif "超买" in kdj_sig:
-        kdj_base = kdj_weight * 0.3
+        kdj_base = kdj_weight * 0.3 * dunhua_penalty
     else:
         kdj_base = kdj_weight * 0.45
     kdj_score = kdj_base * type_w["kdj"]
@@ -267,7 +272,7 @@ def _score_boll(boll: dict, type_w: dict) -> float:
 
 
 def _score_rsi(rsi_data: dict, type_w: dict, vol_signal: int = 0) -> float:
-    """RSI 评分（无独立上限，纳入总分）。
+    """RSI 评分（上限 15，clamp 截断）。
 
     Args:
         vol_signal: 量价信号（-1=放量下跌, 0=中性, 1=放量上涨），用于下跌趋势降权
@@ -659,7 +664,7 @@ def composite_score(
 
 def detect_market_environment(index_quote=None, recent_quotes=None):
     """
-    检测当前市场环境（牛市/熊市/震荡/冰点/亢奋）。
+    检测当前市场环境（强势/弱势/震荡/冰点/亢奋）。
     优先使用大盘数据（涨跌停家数），不可得时用指数技术指标推断。
     支持多日窗口判断，避免单日噪声。
 
@@ -669,7 +674,7 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
 
     Returns:
         {
-            "state": "牛市"|"熊市"|"震荡"|"冰点"|"亢奋",
+            "state": "强势"|"弱势"|"震荡"|"冰点"|"亢奋",
             "confidence": "高"|"中"|"低",
             "signals": [...],
             "weight_adjustments": {...},
@@ -703,9 +708,9 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
             avg_change = change_pct
             avg_turnover = turnover
 
-        # 用多日均值判断趋势
+        # 用多日均值判断趋势（单日涨跌不直接定性牛熊，降级为强势/弱势）
         if avg_change > 1.5:
-            state = "牛市"
+            state = "强势"
             if avg_change > 2.5:
                 confidence = "高" if has_multi_day else "中"
             else:
@@ -715,7 +720,7 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
             else:
                 signals.append(f"持续上涨(均值{avg_change:.1f}%)")
         elif avg_change < -1.5:
-            state = "熊市"
+            state = "弱势"
             if avg_change < -2.5:
                 confidence = "高" if has_multi_day else "中"
             else:
@@ -725,11 +730,11 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
             else:
                 signals.append(f"持续下跌(均值{avg_change:.1f}%)")
         elif avg_change > 0.5:
-            state = "牛市"
+            state = "强势"
             confidence = "低"
             signals.append(f"温和上涨(均值{avg_change:.1f}%)")
         elif avg_change < -0.5:
-            state = "熊市"
+            state = "弱势"
             confidence = "低"
             signals.append(f"温和下跌(均值{avg_change:.1f}%)")
         else:
@@ -746,12 +751,12 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
         if avg_turnover > 0:
             if avg_turnover > 5:
                 signals.append("高换手率")
-                if state == "牛市":
+                if state == "强势":
                     state = "亢奋"
                     signals.append("亢奋信号")
             elif avg_turnover < 0.5:
                 signals.append("极度缩量")
-                if state in ("熊市", "震荡"):
+                if state in ("弱势", "震荡"):
                     state = "冰点"
                     signals.append("冰点信号")
     else:
@@ -787,7 +792,7 @@ _ALIGNMENT_SCORES_DEFAULT = {
 
 
 _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT = {
-    "牛市": {
+    "强势": {
         "bullish_bias": 1.3,
         "trend_following": 1.4,
         "breakout": 1.3,
@@ -795,9 +800,9 @@ _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT = {
         "buy_point_1": 0.5,
         "buy_point_3": 1.3,
         "overbought": 0.8,
-        "desc": "牛市：趋势跟随加权，底背离/一买降权",
+        "desc": "强势：趋势跟随加权，底背离/一买降权",
     },
-    "熊市": {
+    "弱势": {
         "bullish_bias": 1.5,
         "trend_following": 0.6,
         "breakout": 0.6,
@@ -805,7 +810,7 @@ _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT = {
         "buy_point_1": 1.5,
         "buy_point_3": 0.5,
         "overbought": 1.3,
-        "desc": "熊市：反转信号加权，追涨信号降权",
+        "desc": "弱势：反转信号加权，追涨信号降权",
     },
     "震荡": {
         "bullish_bias": 1.0,

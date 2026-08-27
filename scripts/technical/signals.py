@@ -104,8 +104,12 @@ def _generate_signals(features, market_breadth=None):
         buy.append("MACD金叉")
     if divergence == "底背离(看涨)":
         buy.append("MACD底背离")
-    # KDJ超卖金叉：下跌趋势中降级为"待确认"
-    if "金叉" in kdj.get("signal", "") and "超卖" in kdj.get("signal", ""):
+    # KDJ超卖金叉：下跌趋势中降级为"待确认"；钝化时信号暂停参考
+    if (
+        not kdj.get("钝化")
+        and "金叉" in kdj.get("signal", "")
+        and "超卖" in kdj.get("signal", "")
+    ):
         if is_downtrend:
             buy.append("KDJ超卖区金叉(待确认-下跌趋势)")
         else:
@@ -180,7 +184,10 @@ def _generate_signals(features, market_breadth=None):
         sell.append("MACD死叉")
     if divergence == "顶背离(看跌)":
         sell.append("MACD顶背离")
-    if "死叉" in kdj.get("signal", "") or "超买" in kdj.get("signal", ""):
+    # KDJ 死叉/超买：钝化时信号暂停参考（与报告层"钝化中超买超卖暂停"一致）
+    if not kdj.get("钝化") and (
+        "死叉" in kdj.get("signal", "") or "超买" in kdj.get("signal", "")
+    ):
         sell.append(f"KDJ{kdj.get('signal')}")
     if boll.get("position", 0.5) > 0.8:
         sell.append("BOLL触及上轨")

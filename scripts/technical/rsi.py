@@ -4,8 +4,11 @@ RSI 指标（Wilder 平滑方法）。
 """
 
 
-def rsi_features(closes, period=14):
-    """RSI 计算（Wilder 指数平滑，与通达信/同花顺一致）。"""
+def _rsi_wilder(closes, period):
+    """Wilder RSI 单周期计算（与通达信/同花顺 RSI 平滑口径一致）。
+
+    数据不足 period + 1 根时返回 None。
+    """
     if len(closes) < period + 1:
         return None
 
@@ -24,10 +27,24 @@ def rsi_features(closes, period=14):
         avg_loss = (avg_loss * (period - 1) + losses[i]) / period
 
     if avg_loss == 0:
-        rsi = 100
-    else:
-        rs = avg_gain / avg_loss
-        rsi = 100 - 100 / (1 + rs)
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100 - 100 / (1 + rs)
+
+
+def rsi_features(closes, period=14):
+    """RSI 分析：主周期（默认 14）+ 6/12/24 三档参考。
+
+    主键 rsi/signal/zone_desc 基于主周期 period 计算（与历史行为一致），
+    附加 rsi6/rsi12/rsi24 供报告层展示多周期；数据不足的周期返回 None。
+    """
+    rsi = _rsi_wilder(closes, period)
+    if rsi is None:
+        return None
+
+    rsi6 = _rsi_wilder(closes, 6)
+    rsi12 = _rsi_wilder(closes, 12)
+    rsi24 = _rsi_wilder(closes, 24)
 
     signal = 0
     if rsi < 30:
@@ -51,4 +68,11 @@ def rsi_features(closes, period=14):
     else:
         zone_desc = "极度超买"
 
-    return {"rsi": round(rsi, 1), "signal": signal, "zone_desc": zone_desc}
+    return {
+        "rsi": round(rsi, 1),
+        "rsi6": round(rsi6, 1) if rsi6 is not None else None,
+        "rsi12": round(rsi12, 1) if rsi12 is not None else None,
+        "rsi24": round(rsi24, 1) if rsi24 is not None else None,
+        "signal": signal,
+        "zone_desc": zone_desc,
+    }

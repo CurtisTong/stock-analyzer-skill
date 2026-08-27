@@ -24,8 +24,13 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
     Returns:
         指标 dict
     """
-    # 统一过滤：整条记录的 close 和 volume 都 > 0 才保留，确保数组对齐
-    valid_bars = [b for b in kline_bars if b.close > 0 and b.volume > 0]
+    # 统一过滤：与 technical.core.filter_records 同口径（close/open/high/low/volume
+    # 五字段全 > 0 才保留），确保两条消费路径的 K 线条数与数组索引一致
+    valid_bars = [
+        b
+        for b in kline_bars
+        if b.close > 0 and b.open > 0 and b.high > 0 and b.low > 0 and b.volume > 0
+    ]
     closes = [b.close for b in valid_bars]
     volumes = [b.volume for b in valid_bars]
 

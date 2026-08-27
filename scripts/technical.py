@@ -98,9 +98,13 @@ def _compute_all(inp: TechnicalInput):
         closes, highs, lows, features["ma_system"]
     )
     features["box"] = box_detection(highs, lows, closes)
-    nearest_r = features["support_resistance"].get("nearest_resistance")
+    # 突破检测：目标是现价下方最近的摆动高点（"突破前高"），
+    # 而非 nearest_resistance（恒在现价上方，传入会导致突破分支不可达）。
+    breakout_target = features["support_resistance"].get("breakout_target")
     features["breakout"] = (
-        breakout_check(closes, highs, volumes, nearest_r) if nearest_r else {}
+        breakout_check(closes, highs, volumes, breakout_target)
+        if breakout_target
+        else {}
     )
     features["wave"] = wave_state(closes, highs, lows)
     features["limit_analysis"] = limit_analysis(records, board, quote)

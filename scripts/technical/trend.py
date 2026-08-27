@@ -22,12 +22,17 @@ def support_resistance(closes, highs, lows, ma_info):
 
     # 找局部摇摆点
     ph, pl = _find_swing_points(recent_highs, window=3)
-    swing_highs = sorted(
-        set(round(recent_highs[i], 2) for i in ph if recent_highs[i] > last)
-    )
+    all_swing_highs = sorted(set(round(recent_highs[i], 2) for i in ph))
+    swing_highs = [h for h in all_swing_highs if h > last]
     swing_lows = sorted(
         set(round(recent_lows[i], 2) for i in pl if recent_lows[i] < last), reverse=True
     )
+
+    # 突破目标：现价下方最近的摆动高点（供 breakout_check 检测"突破前高"）。
+    # 与 nearest_resistance（现价上方最近阻力，供报告/止盈）区分：
+    # 突破检测需要"已越过"的目标位，阻力位需要"尚未到达"的目标位。
+    below_highs = [h for h in all_swing_highs if h < last]
+    breakout_target = max(below_highs) if below_highs else None
 
     supports = []
     resistances = []
@@ -77,6 +82,8 @@ def support_resistance(closes, highs, lows, ma_info):
         "resistances": resistances[:3],
         "nearest_support": nearest_support,
         "nearest_resistance": nearest_resistance,
+        "recent_swing_highs": all_swing_highs,
+        "breakout_target": breakout_target,
     }
 
 

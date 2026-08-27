@@ -519,7 +519,7 @@ class TestCompositeBroad:
             "valuation_score": 80,
         }
         # 牛/熊/亢奋/冰点 状态均不崩溃且输出字段完整
-        for state in ("牛市", "熊市", "震荡", "冰点", "亢奋"):
+        for state in ("强势", "弱势", "震荡", "冰点", "亢奋"):
             r = composite_score(dict(feat), "普通股", state)
             assert 0 <= r["score"] <= 100
             assert r["grade"] in {
@@ -640,7 +640,7 @@ class TestCompositeBroad:
             },
             "valuation_score": 90,
         }
-        bull = composite_score(dict(feat_bull), "普通股", "牛市")
+        bull = composite_score(dict(feat_bull), "普通股", "强势")
         # 全看多信号叠加应到 70+，接近 80 边界（普通股权重摊薄）
         assert bull["score"] >= 70
         assert bull["grade"] in ("偏多", "偏多(强)", "强烈看多")
@@ -670,7 +670,7 @@ class TestCompositeBroad:
             },
             "valuation_score": 10,
         }
-        bear = composite_score(dict(feat_bear), "普通股", "熊市")
+        bear = composite_score(dict(feat_bear), "普通股", "弱势")
         assert bear["grade"] in ("强烈看空", "中性(偏空)", "偏空", "偏空(强)")
 
 
@@ -701,7 +701,7 @@ class TestDetectMarketEnvironment:
             index_quote={"change_pct": 3.0, "turnover": 2.0, "price": 100},
             recent_quotes=quotes,
         )
-        assert r["state"] == "牛市"
+        assert r["state"] == "强势"
         assert r["confidence"] == "高"  # 多日均值 2.8 > 2.5 → 高
         assert any("持续上涨" in s for s in r["signals"])
 
@@ -714,7 +714,7 @@ class TestDetectMarketEnvironment:
             index_quote={"change_pct": -2.8, "turnover": 2.0, "price": 100},
             recent_quotes=quotes,
         )
-        assert r["state"] == "熊市"
+        assert r["state"] == "弱势"
         assert r["confidence"] == "高"
         assert any("持续下跌" in s for s in r["signals"])
 
@@ -722,20 +722,20 @@ class TestDetectMarketEnvironment:
         r = detect_market_environment(
             index_quote={"change_pct": 1.0, "turnover": 2.0, "price": 100}
         )
-        assert r["state"] == "牛市"
+        assert r["state"] == "强势"
         assert r["confidence"] == "低"
 
         r2 = detect_market_environment(
             index_quote={"change_pct": -0.8, "turnover": 2.0, "price": 100}
         )
-        assert r2["state"] == "熊市"
+        assert r2["state"] == "弱势"
         assert r2["confidence"] == "低"
 
     def test_single_day_big_change_low_conf(self):
         r = detect_market_environment(
             index_quote={"change_pct": 2.6, "turnover": 2.0, "price": 100}
         )
-        assert r["state"] == "牛市"
+        assert r["state"] == "强势"
         assert r["confidence"] == "中"  # 单日>2.5 非多日 → 中
 
     def test_narrow_range(self):
@@ -782,7 +782,7 @@ class TestDetectMarketEnvironment:
             index_quote={"change_pct": 0.6, "turnover": 2.0, "price": 100},
             recent_quotes=[{"change_pct": 0.6, "turnover": 2.0}],
         )
-        assert r["state"] == "牛市"
+        assert r["state"] == "强势"
         assert any("温和上涨" in s for s in r["signals"])
 
 

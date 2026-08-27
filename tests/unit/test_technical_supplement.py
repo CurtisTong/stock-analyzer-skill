@@ -22,6 +22,7 @@ from technical.ma_stop import ma_stop_buy
 from technical.moving_average import incremental_ma, ma_system
 from technical.pipeline import _calc_amihud, compute_indicators
 from technical.rsi import rsi_features
+from technical.scoring import _score_kdj
 from technical.shadow_stats import shadow_ratio_stats
 from technical.trend import (
     box_detection,
@@ -227,6 +228,94 @@ class TestRsi:
         assert out["rsi"] == 100
 
 
+class TestRsiMultiPeriod:
+    """v1.21.1: RSI 6/12/24 三档参考（审查 P0-2 修复）。"""
+
+    def test_multi_period_keys_present(self):
+        """返回 dict 含 rsi6/rsi12/rsi24 键（数据充足时）。"""
+        closes = [10.0 + i * 0.1 for i in range(60)]
+        out = rsi_features(closes)
+        assert out["rsi6"] is not None
+        assert out["rsi12"] is not None
+        assert out["rsi24"] is not None
+        assert all(0 <= out[k] <= 100 for k in ("rsi6", "rsi12", "rsi24"))
+
+    def test_flat_price_all_periods_100(self):
+        """无波动 → 三档均为 100。"""
+        out = rsi_features([5.0] * 30)
+        assert out["rsi6"] == 100
+        assert out["rsi12"] == 100
+        assert out["rsi24"] == 100
+
+    def test_main_period_unchanged(self):
+        """主键 rsi/signal/zone_desc 与单周期行为一致（14 周期）。"""
+        closes = [10.0 - i for i in range(40)]
+        out = rsi_features(closes)
+        assert out["rsi"] == 0.0
+        assert out["signal"] == 1
+        assert out["zone_desc"] == "极度超卖"
+
+    def test_insufficient_data_short_period_none(self):
+        """数据只够 14 周期时，rsi6/rsi12 有值、rsi24 为 None。"""
+        closes = [10.0 + i * 0.1 for i in range(20)]
+        out = rsi_features(closes)
+        assert out["rsi"] is not None
+        assert out["rsi6"] is not None
+        assert out["rsi12"] is not None
+        assert out["rsi24"] is None
+
+
+class TestKdjDunhuaDowngrade:
+    """v1.21.1: KDJ 钝化降权（审查 P1-1 修复）。"""
+
+    @staticmethod
+    def _features(kdj_sig: str, dunhua: bool) -> dict:
+        return {
+            "ma_system": {"alignment": "交叉震荡"},
+            "macd": {},
+            "kdj": {"signal": kdj_sig, "钝化": dunhua},
+            "bollinger": {},
+            "rsi": {},
+            "volume": {},
+            "patterns": [],
+            "chan_theory": None,
+            "local_patterns": {"patterns": []},
+            "limit_analysis": {},
+            "chip": {},
+            "valuation_score": 50,
+        }
+
+    def test_dunhua_suppresses_sell_signal(self):
+        """钝化+超买 → sell_signals 不含 KDJ（报告层"暂停参考"落地）。"""
+        from technical.scoring import composite_score
+
+        sig = "超买区(J=95) [KDJ高位钝化-趋势延续]"
+        score = composite_score(self._features(sig, dunhua=True))
+        assert not any("KDJ" in s for s in score["sell_signals"])
+
+    def test_no_dunhua_keeps_sell_signal(self):
+        """非钝化超买 → 卖出信号保留（回归）。"""
+        from technical.scoring import composite_score
+
+        score = composite_score(self._features("超买区(J=95)", dunhua=False))
+        assert any("KDJ" in s for s in score["sell_signals"])
+
+    def test_dunhua_halves_oversold_score(self):
+        """钝化时超卖档位评分低于非钝化同档。"""
+        type_w = {"kdj": 1.0}
+        adj = {"trend_following": 1.0}
+        base = _score_kdj(
+            {"signal": "超卖区(J=8)", "钝化": False}, type_w, adj, vol_signal=0
+        )
+        dunhua = _score_kdj(
+            {"signal": "超卖区(J=8) [KDJ低位钝化-趋势延续]", "钝化": True},
+            type_w,
+            adj,
+            vol_signal=0,
+        )
+        assert dunhua < base
+
+
 def _rsi_ratio_series(ratio, n=300):
     """交替锯齿波：奇数日涨 ratio、偶数日跌 1，使 RSI 收敛。"""
     closes = [10.0]
@@ -307,8 +396,13 @@ class TestShadowStats:
 
 
 class _Bar:
-    def __init__(self, close, volume=None, amount=None):
+    def __init__(
+        self, close, volume=None, amount=None, open_=None, high=None, low=None
+    ):
         self.close = close
+        self.open = open_ if open_ is not None else close
+        self.high = high if high is not None else close
+        self.low = low if low is not None else close
         self.volume = volume if volume is not None else 1000.0
         self.amount = amount if amount is not None else close * self.volume
 

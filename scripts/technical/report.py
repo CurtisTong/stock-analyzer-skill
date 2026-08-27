@@ -99,7 +99,11 @@ def _render_rsi_section(rsi_data):
     lines.append("\n## RSI")
     zone = rsi_data.get("zone_desc", "")
     rsi_val = rsi_data.get("rsi", 50)
-    lines.append(f"  RSI-{rsi_data.get('period', 14)}: {rsi_val} ({zone})")
+    multi = []
+    for p in (6, 12, 24):
+        v = rsi_data.get(f"rsi{p}")
+        multi.append(f"{p}: {v if v is not None else '-'}")
+    lines.append(f"  RSI-14: {rsi_val} ({zone})   |   {', '.join(multi)}")
     return lines
 
 

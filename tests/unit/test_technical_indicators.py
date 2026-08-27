@@ -29,7 +29,7 @@ from technical.scoring import (
     composite_score,
     detect_market_environment,
 )
-from technical.trend import breakout_check
+from technical.trend import breakout_check, support_resistance
 from technical.volume import volume_analysis
 from tests.helpers.market_data import generate_sideways
 
@@ -156,6 +156,41 @@ class TestBreakoutCheck:
         volumes = [1000] * 24
         r = breakout_check(closes, closes, volumes, 11.5)
         assert r["status"] == "突破待确认(缩量)"
+
+    def test_integration_breakout_confirm(self):
+        """全链路：前高 11.0 → 放量突破，support_resistance 提供 breakout_target。
+
+        锁死"突破确认(放量)"经真实调用链可达（审查 P0-3 修复：
+        原实现用 nearest_resistance（恒在现价上方）导致突破分支不可达）。
+        """
+        closes = (
+            [10.0] * 10
+            + [10.2, 10.4, 10.6, 10.8, 10.5] * 3
+            + [11.0]  # 前高（摆动高点）
+            + [10.3, 10.5, 10.7, 10.4, 10.6] * 4
+            + [11.1, 11.6]  # 最后一根放量突破
+        )
+        highs = [c + 0.15 for c in closes]
+        lows = [c - 0.15 for c in closes]
+        volumes = [800.0] * (len(closes) - 2) + [800.0, 1800.0]
+
+        sr = support_resistance(
+            closes, highs, lows, {"ma_supports": [], "ma_resistances": []}
+        )
+        target = sr.get("breakout_target")
+        assert target is not None  # 现价下方存在摆动高点
+        r = breakout_check(closes, highs, volumes, target)
+        assert r["status"] == "突破确认(放量)"
+
+    def test_integration_no_swing_high_below(self):
+        """无现价下方摆动高点（单调上涨）→ breakout_target 为 None，调用方跳过。"""
+        closes = [10.0 + i * 0.1 for i in range(60)]
+        highs = [c + 0.1 for c in closes]
+        lows = [c - 0.1 for c in closes]
+        sr = support_resistance(
+            closes, highs, lows, {"ma_supports": [], "ma_resistances": []}
+        )
+        assert sr.get("breakout_target") is None
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -345,7 +380,7 @@ class TestMarketEnvironmentMissingData:
         r = detect_market_environment(
             {"price": 3000, "change_pct": 1.8, "turnover": 3.0}
         )
-        assert r["state"] == "牛市"
+        assert r["state"] == "强势"
 
 
 # ═══════════════════════════════════════════════════════════════
