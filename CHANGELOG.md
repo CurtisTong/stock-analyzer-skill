@@ -387,6 +387,9 @@
   20/10 亿）、删除不存在的 `--analyze`、主题池 ~280、分数表 16 列、策略标签统一
   "量价动量"；sector ETF 22
 - **CHANGELOG**: 本版本段
+- **archive**: 归档 superpowers/specs 两个 2026-06 设计文档到 `archive/designs`（improvement-roadmap + skill-workflow-optimization），INDEX.md §7 归档段补 2 行
+- **refactor**: 清理审查编号引用（P#-#/WP# 约 430 处）——scripts/tests/docs/skills/experts 注释与 docstring 中的会话追溯编号，保留事实描述；保留代码标识符与 CHANGELOG 历史快照
+- **cleanup**: 清理 AI 会话痕迹——本机路径引用（SKILL.md 工作目录提示）、过程叙事（test_skill_index_code）、断链软链（docs/src/implementation-plan.md 删除 + methodology.md 修复）、空目录
 
 ## [1.21.0] - 2026-08-20（OOS 验证状态机 + sync_skill_count 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md + experts-ARCHITECTURE.md）
 

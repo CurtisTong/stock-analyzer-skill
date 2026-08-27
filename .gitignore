@@ -34,6 +34,8 @@ scripts/data/portfolio_oplog.json
 
 # 专家校准数据（用户本地运行时产生）
 scripts/data/expert_calibration.json
+# 用户本地维护的股票代码列表（无脚本引用）
+scripts/data/securities_codes.txt
 
 # 运行时数据缓存
 .cache/
