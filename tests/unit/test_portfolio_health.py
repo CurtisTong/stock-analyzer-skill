@@ -819,6 +819,15 @@ class TestHealthReportMarkdown:
             assert "### ⚠️ 已破位标的" in md
             assert "破位原因" in md
 
+    def test_markdown_totals_none_fields(self):
+        """totals 中 cost/value/pnl 为 None 时格式化不崩溃（真实数据缺字段场景）。"""
+        pm = PortfolioManager()
+        report = pm.health_report(quotes={})
+        report["totals"] = {"pnl_pct": 1.0, "cost": None, "value": None, "pnl": None}
+        md = pm.health_report_markdown(report)
+        assert "总成本 0" in md
+        assert "总市值 0" in md
+
     def test_markdown_watchlist_with_status_emoji(self):
         """自选股状态有 emoji。"""
         pm = PortfolioManager()

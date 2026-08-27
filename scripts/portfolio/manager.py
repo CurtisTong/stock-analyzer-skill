@@ -1148,10 +1148,10 @@ class PortfolioManager:
         totals = report.get("totals", {})
         if totals.get("pnl_pct") is not None:
             lines.append(
-                f"总成本 {totals.get('cost', 0):,.0f} | "
-                f"总市值 {totals.get('value', 0):,.0f} | "
-                f"总盈亏 {totals.get('pnl', 0):+,.0f} "
-                f"({totals.get('pnl_pct', 0):+.2f}%)"
+                f"总成本 {totals.get('cost') or 0:,.0f} | "
+                f"总市值 {totals.get('value') or 0:,.0f} | "
+                f"总盈亏 {totals.get('pnl') or 0:+,.0f} "
+                f"({totals.get('pnl_pct') or 0:+.2f}%)"
             )
         else:
             # 行情缺失
