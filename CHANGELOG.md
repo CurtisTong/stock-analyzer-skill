@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.21.1（2026-08-27）策略胜率复盘落地：①双池 OOS 验证门槛（evaluate_multi_pool，55 大票池 + 210 sector 池全部达标才升级）②ATR 自适应止损 + 移动止盈（可选，默认行为不变）③自校准最小池强制（MIN_POOL_SIZE=30 拒绝小池记录）④权重优化跨窗口验证（--validate，60/120/240 三窗口全正才 robust）；v1.21.0（2026-08-20）OOS 验证状态机（双层架构：registry 默认 in_sample + JSON 覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + 修复 screener 主线偏离警告静默失效 bug。
+> 🟢 **当前状态**：v1.21.1（2026-08-27）策略胜率复盘落地：①双池 OOS 验证门槛（evaluate_multi_pool，55 大票池 + 210 sector 池全部达标才升级）②ATR 自适应止损 + 移动止盈（可选，默认行为不变）③自校准最小池强制（MIN_POOL_SIZE=30 拒绝小池记录）④权重优化跨窗口验证（--validate，60/120/240 三窗口全正才 robust）⑤技术模块审查修复（RSI 6/12/24 三档、突破检测集成死代码修复、KDJ 钝化降权、市场环境强势/弱势标签、SKILL.md 声明对齐）；v1.21.0（2026-08-20）OOS 验证状态机（双层架构：registry 默认 in_sample + JSON 覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + 修复 screener 主线偏离警告静默失效 bug。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -281,11 +281,15 @@
 - **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
 - **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
 
-## [1.21.1] - 2026-08-27（策略复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 + 权重优化跨窗口验证）
+## [1.21.1] - 2026-08-27（策略复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 + 权重优化跨窗口验证 + 技术模块审查修复）
 
 > 依据 2026-08-26 深度复盘（`docs/archive/reviews/backtest-philosophy-review-2026-08-26.md`）：
 > 210 池凯利 f 全负 vs 55 池 OOS 全正，单池验证无统计意义；盈亏比 <1 是负期望根源；
 > 442 条自校准记录 441 条在小池上无区分度；60 日单窗口权重优化过拟合。
+>
+> 依据 2026-08-27 技术模块审查（`docs/archive/reviews/technical-module-review-2026-08-27.md`）：
+> SKILL.md 声明与实现 3 处硬冲突（缠论默认/RSI 三周期/guardrail）、突破检测集成
+> 死代码、KDJ 钝化降权未落地、市场环境单日标签过强。
 
 ### Added
 - **strategies/oos_validation**: `evaluate_multi_pool()` 双池联合判定——每个池都满足
@@ -301,16 +305,39 @@
   （ValueError），record 增加 `window_start` 字段
 - **backtest/cli**: `optimize_weights` 跨窗口验证（默认开）——best_weights 过
   60/120/240 三窗口，全正收益才 `robust=True`；CLI 新增 `--validate` / `--no-validate`
+- **technical/rsi**: `rsi_features` 增加 `rsi6`/`rsi12`/`rsi24` 三档参考（主键 rsi/
+  signal/zone_desc 行为不变），report 层渲染多周期——SKILL.md "6/12/24 三周期"声明落地
+
+### Fixed
+- **technical/trend**: 突破检测集成死代码修复——`support_resistance` 新增
+  `recent_swing_highs`/`breakout_target`（现价下方摆动高点），`technical.py` 改传
+  `breakout_target`，"突破确认(放量)"分支经真实调用链可达（原实现传恒在现价上方的
+  `nearest_resistance`，该分支不可达且单测硬编码函数掩盖）
+- **technical/signals + scoring**: KDJ 钝化降权落地——钝化时超买/超卖信号不入
+  buy/sell 列表（报告层"暂停参考"声明对齐），`_score_kdj` 超买/超卖档位乘 0.5
+  降权；金叉/死叉纯趋势信号不受影响
+- **technical/scoring**: `detect_market_environment` 单日涨跌不再直接定性
+  "牛市/熊市"——降级为"强势/弱势"（权重值与默认一致，语义更准确），新增
+  `_MARKET_WEIGHT_ADJUSTMENTS_DEFAULT["强势"/"弱势"]`
+- **technical/pipeline**: `compute_indicators` 过滤口径对齐 `core.filter_records`
+  五字段（open/high/low/close/volume 全 > 0），消除两条消费路径 K 线条数不一致
 
 ### Tests
 - **unit**: 新增 24 项测试——`test_atr_stop.py`（13：ATR 计算/止损触发/移动止盈收盘确认/
   默认行为回归）、`test_strategy_performance_minpool.py`（4）、`test_optimize_cross_window.py`（3）、
   `test_oos_validation.py` 追加 `TestEvaluateMultiPool`（4）
+- **unit**: 技术模块审查修复 10 项——`TestRsiMultiPeriod`（4）、`TestBreakoutCheck`
+  集成用例（2：全链路突破确认 + 无摆动高点跳过）、`TestKdjDunhuaDowngrade`（4：
+  钝化抑制卖出/结构化信号同步/非钝化保留/钝化降权）；市场环境断言更新为强势/弱势
 
 ### Documentation
-- **strategy-validation**: 升级条件改为双池一致（55 大票池 + 210 sector 池），
+- **strategy-validation**: 升级条件改为双池一致（55 大池池 + 210 sector 池），
   记录 2026-08-26 实测证据与自校准最小池规则
 - **analysis**: 复盘报告追加"实施记录"章节（建议 → 落地文件 → 测试数）
+- **stock-technical SKILL**: 声明对齐实现——缠论改为 `--classify` 启用（删除不存在的
+  `--chan`）、RSI 三周期口径、本土战法 7 种（补断板反包）、`--quick` 描述范围、
+  guardrail 改为"不输出买卖建议（仅信号）"、版本号 1.21.0 → 1.21.1
+- **archive/reviews**: 新增技术模块审查报告 `technical-module-review-2026-08-27.md`
 - **CHANGELOG**: 本版本段
 
 ## [1.21.0] - 2026-08-20（OOS 验证状态机 + sync_skill_count 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md + experts-ARCHITECTURE.md）
