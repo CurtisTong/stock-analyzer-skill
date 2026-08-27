@@ -40,7 +40,7 @@ info "项目根目录: $PROJECT_ROOT"
 info "目标版本: $VERSION"
 
 # 检查工作目录是否干净（忽略版本文件变更）
-DIRTY_FILES=$(git status --porcelain | grep -v "package.json\|plugin.json\|marketplace.json\|SKILL.md\|README.md\|test_skill_metadata.py" || true)
+DIRTY_FILES=$(git status --porcelain | grep -v "package.json\|plugin.json\|marketplace.json\|SKILL.md\|README.md\|test_skill_metadata_sync.py" || true)
 if [ -n "$DIRTY_FILES" ]; then
     error "工作目录不干净，请先提交或暂存更改:\n$DIRTY_FILES"
 fi
@@ -91,7 +91,7 @@ fi
 
 # 提交版本更改
 info "提交版本更改..."
-git add package.json .claude-plugin/ skills/ README.md tests/test_skill_metadata.py
+git add package.json .claude-plugin/ skills/ README.md tests/contracts/test_skill_metadata_sync.py
 git commit -m "chore: bump version to $VERSION"
 
 # 创建 tag
