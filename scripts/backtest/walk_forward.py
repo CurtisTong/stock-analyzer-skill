@@ -171,13 +171,15 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             "test_end": test_end,
         }
 
-        # IS（训练段）回测
+        # IS（训练段）回测——评估 [0, train_end)，因子历史含窗口前数据
         is_ctx = SimContext(
             strategy_name=config.strategy_name,
             codes=config.codes,
             top_n=config.top_n,
             holding_days=config.holding_days,
-            total_days=config.train_days,
+            total_days=train_end,
+            eval_start=0,
+            eval_end=train_end,
             atr_stop_multiplier=config.atr_stop_multiplier,
             trailing_stop_pct=config.trailing_stop_pct,
         )
@@ -193,13 +195,16 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             is_total *= 1 + r / 100
         is_total = (is_total - 1) * 100
 
-        # OOS（测试段）回测
+        # OOS（测试段）回测——评估 [train_end, test_end)，因子历史含 train 段
+        # （P0-1 修复：原实现不传窗口边界，OOS 数据被 IS 见过，无样本外意义）
         oos_ctx = SimContext(
             strategy_name=config.strategy_name,
             codes=config.codes,
             top_n=config.top_n,
             holding_days=config.holding_days,
-            total_days=config.test_days,
+            total_days=test_end,
+            eval_start=train_end,
+            eval_end=test_end,
             atr_stop_multiplier=config.atr_stop_multiplier,
             trailing_stop_pct=config.trailing_stop_pct,
         )

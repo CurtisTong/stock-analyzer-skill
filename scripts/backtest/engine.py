@@ -106,6 +106,11 @@ class SimContext:
     # 均为 None 时保持原固定阈值行为（-8% 止损 / +20% 止盈），不改变既有回测结果。
     atr_stop_multiplier: float | None = None  # 止损价 = 入场价 - k×ATR
     trailing_stop_pct: float | None = None  # 移动止盈：最高价回撤 X% 卖出
+    # walk-forward 窗口（P0-1 修复：原实现窗口边界从未传给引擎，OOS 数据被 IS 见过）。
+    # eval_start: 收益评估起点（bars 索引，0=全部）；window_end: 模拟终点（None=全部）。
+    # 因子计算始终用 bars[:i] 全历史（无前瞻），仅评估区间受窗口限制。
+    eval_start: int = 0
+    eval_end: int | None = None
 
 
 def simulate_strategy(ctx: SimContext):
@@ -222,7 +227,11 @@ def simulate_strategy(ctx: SimContext):
         industry = industry_cache.get(code, "manufacturing")
 
         i = min_history
-        while i + holding_days <= len(bars):
+        # eval_end 上限 = len(bars)（datalen 不足时窗口截断，不越界）
+        eval_end = (
+            min(ctx.eval_end, len(bars)) if ctx.eval_end is not None else len(bars)
+        )
+        while i + holding_days <= eval_end:
             if bars[i].day < common_start_date:
                 i += holding_days
                 continue
@@ -289,6 +298,9 @@ def simulate_strategy(ctx: SimContext):
             # 扣除交易成本：佣金(双向) + 印花税(卖出) + 滑点(双向)
             total_cost = commission * 2 + stamp_tax + slippage * 2
             ret -= total_cost
+            if i < ctx.eval_start:
+                i += holding_days
+                continue  # walk-forward：评估区间外的轮次不计入结果
             all_selections.append(
                 {
                     "code": code,
