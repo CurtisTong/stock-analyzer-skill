@@ -1,1 +1,1 @@
-../methodology.md
+../../methodology.md

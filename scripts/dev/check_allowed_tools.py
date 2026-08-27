@@ -92,7 +92,7 @@ def check_path_exists(path_str, skill_dir):
     """检查 Read(...) 路径是否实际存在。
 
     路径格式可能是：
-      //Users/curtis/...  (绝对路径)
+      //<user>/...  (绝对路径)
       ../_shared/...     (相对路径)
     """
     if path_str.startswith("//"):

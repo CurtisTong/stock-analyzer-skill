@@ -126,7 +126,7 @@ python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：�
 
 ### Step 1: 获取数据
 
-> **⚠️ 工作目录**：Claude Code 调用脚本时 `cwd` 已经是**项目根目录**（含 `scripts/`），不需要 `cd` 也不需要 `cd /Users/curtis/.zcode/skills/stock`。SKILL.md 里的 `scripts/xxx.py` 是相对路径，直接 `python3 scripts/xxx.py ...` 即可。
+> **⚠️ 工作目录**：Claude Code 调用脚本时 `cwd` 已经是**项目根目录**（含 `scripts/`），不需要 `cd`。SKILL.md 里的 `scripts/xxx.py` 是相对路径，直接 `python3 scripts/xxx.py ...` 即可。
 
 按 `../_shared/references/script-catalog.md` 调用 `quote.py` / `finance.py` / `kline.py` / `announcements.py`。`debate` 模式额外取 5 分钟 K 线（48 根）。
 
@@ -183,7 +183,7 @@ python3 scripts/events.py sh600989 -j           # JSON 输出
 
 ### Step 2: 五层分析
 
-五层定义与评级阈值详见 `../_shared/references/five-layer.md`（唯一权威源，P1-24 去重）。仅在需要展开方法论或字段含义时读取包根目录 `methodology.md`，避免无关上下文膨胀。
+五层定义与评级阈值详见 `../_shared/references/five-layer.md`（唯一权威源，去重）。仅在需要展开方法论或字段含义时读取包根目录 `methodology.md`，避免无关上下文膨胀。
 
 ### Step 3: 输出结论
 

@@ -1,7 +1,7 @@
 """4 个核心 skill 的指数代码（sh000300 等）端到端覆盖。
 
-回归保护：上一轮修了 infer_exchange / normalize_code / 多个 fetcher 的
-00 段二义回退逻辑，本测试验证：
+回归保护：验证 infer_exchange / normalize_code / 多个 fetcher 对
+00 段二义代码的回退逻辑，测试覆盖：
 - stock: 能拉取指数行情 + K 线，跑完整五层分析
 - screener: 指数代码进入 hard_filter 应优雅剔除（不报错）
 - backtest: 指数可作基准 / 不报错

@@ -3,7 +3,7 @@
 > 🟢 **一句话**：docs/ 目录下分两层 —— **核心指南**（活跃维护）+ **archive/**（历史归档），按"你是谁 / 你想干啥"两条线分类。
 > 🟡 **只想看一份**？
 > 🆕 新用户 → [quick-start.md](quick-start.md) · 📈 投资者 → [product-architecture.md](product-architecture.md) · 🛠️ 开发者 → [developer-guide.md](developer-guide.md) · 🤝 贡献者 → [CONTRIBUTING.md](../CONTRIBUTING.md)
-> ⚫ **文档数**：9 份核心指南 + 1 份合规 + 24 份历史归档（designs/reviews/reports/releases） = 34 份
+> ⚫ **文档数**：9 份核心指南 + 1 份合规 + 26 份历史归档（designs/reviews/reports/releases） = 36 份
 > 📦 投资方法论新版见 [../methodology.md](../methodology.md)（已从 docs/ 移到仓库根目录）
 
 > 适用文档：stock-analyzer-skill v1.20.2
@@ -189,7 +189,7 @@
 > 🟡 **原则**：归档文件**只读**，不重写、不翻译、不删 inbound 链接（CHANGELOG 等历史快照中的旧路径保持原状）。
 > 历史归档本身在 git 历史中保留完整上下文；如需追溯历史责任，参考具体文件。
 
-### 📐 designs/ — 历史设计稿（9 份）
+### 📐 designs/ — 历史设计稿（11 份）
 
 | 文档 | 时期 | 说明 |
 | :--- | :--- | :--- |
@@ -202,6 +202,8 @@
 | [implementation-plan-2026-q3-q4.md](archive/designs/implementation-plan-2026-q3-q4.md) | 2026-Q3/Q4 | 三方审查整合实施计划（33/33 项已完成归档） |
 | [next-tasks.md](archive/designs/next-tasks.md) | 2026-08 | 后续任务清单 |
 | [methodology.md](archive/designs/methodology.md) | 2026-06 | **旧版投资方法论**（已被仓库根 [../methodology.md](../methodology.md) 取代） |
+| [2026-06-05-improvement-roadmap.md](archive/designs/2026-06-05-improvement-roadmap.md) | 2026-06 | 早期改进路线图（多数项已完成） |
+| [2026-06-16-skill-workflow-optimization.md](archive/designs/2026-06-16-skill-workflow-optimization.md) | 2026-06 | Skill 工作流优化施工方案（Phase 1-6 已实施） |
 
 ### 📊 reviews/ — 审查与回归报告（10 份）
 

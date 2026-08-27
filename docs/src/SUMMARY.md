@@ -32,5 +32,4 @@
 # 参考
 
 - [方法论](./methodology.md)
-- [实现计划](./implementation-plan.md)
 - [更新日志](./changelog.md)
