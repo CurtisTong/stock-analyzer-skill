@@ -58,6 +58,7 @@ class TestWalkForwardWindows:
                         open=price,
                         high=price,
                         low=price,
+                        volume=1000,
                     )
                 )
             return bars

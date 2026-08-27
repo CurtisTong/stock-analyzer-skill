@@ -12,7 +12,6 @@ from .engine import (
     SimContext,
     _calc_rsi,
     _calc_daily_returns,
-    _compute_momentum_from_bars,
     _calc_dividend_score,
     _build_hist_quote,
 )
@@ -40,7 +39,6 @@ __all__ = [
     # 内部函数（测试需要）
     "_calc_rsi",
     "_calc_daily_returns",
-    "_compute_momentum_from_bars",
     "_calc_dividend_score",
     "_build_hist_quote",
     "_fetch_benchmark_returns",

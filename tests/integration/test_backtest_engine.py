@@ -27,9 +27,9 @@ def _make_quote_obj(code="sh600519", name="贵州茅台", price=1800.0, **kwargs
 
 
 def _make_kline_bars(prices):
-    """从价格列表构造 KlineBar 列表。"""
+    """从价格列表构造 KlineBar 列表（含 volume，满足 compute_indicators 五字段过滤）。"""
     return [
-        KlineBar(day=f"2025-01-{i+1:02d}", close=p, open=p, high=p, low=p)
+        KlineBar(day=f"2025-01-{i+1:02d}", close=p, open=p, high=p, low=p, volume=1000)
         for i, p in enumerate(prices)
     ]
 
@@ -179,6 +179,7 @@ class TestSimulateStrategy:
                         open=10 + i * 0.3,
                         high=10 + i * 0.3,
                         low=10 + i * 0.3,
+                        volume=1000,
                     )
                 )
             return bars
@@ -242,6 +243,7 @@ class TestSimulateStrategy:
                         open=10 + i * 0.2,
                         high=10 + i * 0.2,
                         low=10 + i * 0.2,
+                        volume=1000,
                     )
                 )
             return bars
@@ -286,6 +288,7 @@ class TestSimulateStrategy:
                         open=10 + i * 0.3,
                         high=10 + i * 0.3,
                         low=10 + i * 0.3,
+                        volume=1000,
                     )
                 )
             return bars
@@ -324,6 +327,7 @@ class TestRunBacktest:
                         open=10 + i * 0.3,
                         high=10 + i * 0.3,
                         low=10 + i * 0.3,
+                        volume=1000,
                     )
                 )
             return bars
@@ -424,6 +428,7 @@ class TestMultiBenchmark:
                         open=10 + i * 0.3,
                         high=10 + i * 0.3,
                         low=10 + i * 0.3,
+                        volume=1000,
                     )
                 )
             return bars
@@ -468,6 +473,7 @@ class TestOptimizeWeights:
                         open=10 + i * 0.3,
                         high=10 + i * 0.3,
                         low=10 + i * 0.3,
+                        volume=1000,
                     )
                 )
             return bars
@@ -551,6 +557,7 @@ class TestCompareStrategies:
                         open=10 + i * 0.3,
                         high=10 + i * 0.3,
                         low=10 + i * 0.3,
+                        volume=1000,
                     )
                 )
             return bars
@@ -675,34 +682,6 @@ class TestCalcDailyReturns:
         # start=1：result[0]=bars[2]相对bars[1]=(11-10)/10；bars[1].close=10 非零
         assert len(result) == 1
         assert abs(result[0] - 0.1) < 0.001
-
-
-class TestComputeMomentum:
-    """动量因子纯计算。"""
-
-    def test_insufficient_data_returns_50(self):
-        """不足 60 根 K 线返回 50（中性）。"""
-        import backtest
-
-        bars = _make_kline_bars([10.0 + i * 0.1 for i in range(30)])
-        assert backtest._compute_momentum_from_bars(bars) == 50.0
-
-    def test_uptrend_high_momentum(self):
-        """上升趋势 → 动量分 > 45（量比因子可能略微拉低总分）。"""
-        import backtest
-
-        bars = _make_kline_bars([10.0 + i * 0.5 for i in range(70)])
-        score = backtest._compute_momentum_from_bars(bars)
-        # 量比默认 1.0（volume=0 → vol_score=50），趋势 + RSI + 价格动量仍应偏高
-        assert score > 45, f"Expected > 45 for uptrend, got {score:.1f}"
-
-    def test_downtrend_low_momentum(self):
-        """下降趋势 -> 动量分 < 50。"""
-        import backtest
-
-        bars = _make_kline_bars([50.0 - i * 0.5 for i in range(70)])
-        score = backtest._compute_momentum_from_bars(bars)
-        assert score < 50, f"Expected < 50 for downtrend, got {score:.1f}"
 
 
 class TestIsLimitOrSuspended:

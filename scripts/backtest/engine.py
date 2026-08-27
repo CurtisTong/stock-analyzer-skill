@@ -19,6 +19,8 @@ from strategies.factors.chip import chip_score_static as _chip_score
 from strategies.factors.quality import quality_score
 from strategies.factors.valuation import valuation_score
 from strategies.factors.liquidity import liquidity_score
+from strategies.factors.momentum import momentum_score
+from technical.pipeline import compute_indicators
 from strategies.regime import compute_overlay_weights, RegimeState
 from strategies.regime.classifier import _classify_for_backtest, classify_regime
 from strategies.regime.detector import compute_signals_from_bars
@@ -244,16 +246,17 @@ def simulate_strategy(ctx: SimContext):
                 i += 1
                 continue
 
-            hist = bars[:i]
-            momentum = _compute_momentum_from_bars(hist)
             # P0-10: 仅使用交易日已披露的财务数据，消除前瞻偏差
             fin = _visible_fin(fin_raw, bars[i].day)
             hist_quote = _build_hist_quote(bars, i, fin, code)
 
+            # P1-2 评分同源化：与 screener 的 compute_all_factors 同一套因子
+            # （原 quality ×0.85 系数仅回测存在；momentum 用自研分桶而非 momentum_score）
+            features = compute_indicators(bars[:i])
             parts = {
-                "quality": quality_score(fin, industry) * 0.85,
+                "quality": quality_score(fin, industry),
                 "valuation": valuation_score(hist_quote, fin, industry),
-                "momentum": momentum,
+                "momentum": momentum_score(features, hist_quote),
                 "liquidity": liquidity_score(hist_quote),
                 "volatility": _volatility_score(bars[:i], industry),
             }
@@ -516,61 +519,8 @@ def _calc_return_with_stop_loss(
     return ret, holding_days, "normal"
 
 
-def _compute_momentum_from_bars(bars) -> float:
-    """从 K 线数据计算动量因子得分（0-100），严格无前瞻。"""
-    if len(bars) < 60:
-        return 50.0
-
-    closes = [b.close for b in bars]
-    volumes = [b.volume for b in bars]
-
-    ma5 = sum(closes[-5:]) / 5
-    ma20 = sum(closes[-20:]) / 20
-    trend_score = 70 if ma5 > ma20 else 30
-
-    rsi_val = _calc_rsi(closes, 14)
-    if rsi_val < 30:
-        rsi_score = 80
-    elif rsi_val < 50:
-        rsi_score = 60
-    elif rsi_val < 70:
-        rsi_score = 40
-    else:
-        rsi_score = 20
-
-    ret20 = (closes[-1] / closes[-20] - 1) if closes[-20] > 0 else 0
-    if ret20 > 0.1:
-        mom_score = 80
-    elif ret20 > 0:
-        mom_score = 60
-    elif ret20 > -0.1:
-        mom_score = 40
-    else:
-        mom_score = 20
-
-    if len(volumes) >= 25:
-        avg_5 = sum(volumes[-5:]) / 5
-        avg_20 = sum(volumes[-25:-5]) / 20 if sum(volumes[-25:-5]) > 0 else 1
-        vol_ratio = avg_5 / avg_20 if avg_20 > 0 else 1
-        vol_score = min(100, max(0, 50 + (vol_ratio - 1) * 50))
-    else:
-        vol_score = 50
-
-    return trend_score * 0.3 + rsi_score * 0.2 + mom_score * 0.3 + vol_score * 0.2
-
-
-def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
-    """计算红利因子得分（回测用，轻量版）。"""
-    try:
-        from strategies.factors.dividend import dividend_score
-
-        return dividend_score(hist_quote, fin, industry)
-    except ImportError:
-        return 0.0
-
-
 def _calc_rsi(closes: list, period: int = 14) -> float:
-    """计算 RSI（Wilder 平滑），无前瞻。"""
+    """计算 RSI（Wilder 平滑），无前瞻。保留为公共工具（测试引用）。"""
     if len(closes) < period + 1:
         return 50.0
     gains = []
@@ -588,6 +538,16 @@ def _calc_rsi(closes: list, period: int = 14) -> float:
         return 100.0
     rs = avg_gain / avg_loss
     return 100 - 100 / (1 + rs)
+
+
+def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
+    """计算红利因子得分（回测用，轻量版）。"""
+    try:
+        from strategies.factors.dividend import dividend_score
+
+        return dividend_score(hist_quote, fin, industry)
+    except ImportError:
+        return 0.0
 
 
 def _is_limit_or_suspended(bars, idx, code=""):
