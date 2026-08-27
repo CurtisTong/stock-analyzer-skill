@@ -321,6 +321,11 @@
   `_MARKET_WEIGHT_ADJUSTMENTS_DEFAULT["强势"/"弱势"]`
 - **technical/pipeline**: `compute_indicators` 过滤口径对齐 `core.filter_records`
   五字段（open/high/low/close/volume 全 > 0），消除两条消费路径 K 线条数不一致
+- **backtest/metrics + cli**: 年化收益率与卡玛比率补全输出——`annualized_return` 此前
+  计算但不进返回 dict、`calmar_ratio` 文本模式不渲染（SKILL 声称 11 项指标缺 2 项）；
+  现 metrics 加 `annualized_return_pct` 键，cli 文本输出加年化收益率 + 卡玛比率
+- **data/lhb**: 新增 CLI 入口（`python3 scripts/data/lhb.py <code> [--days N] [-j]`）——
+  SKILL.md 声明的龙虎榜查询命令此前不存在（纯库模块无 main）
 
 ### Tests
 - **unit**: 新增 24 项测试——`test_atr_stop.py`（13：ATR 计算/止损触发/移动止盈收盘确认/
@@ -338,6 +343,11 @@
   `--chan`）、RSI 三周期口径、本土战法 7 种（补断板反包）、`--quick` 描述范围、
   guardrail 改为"不输出买卖建议（仅信号）"、版本号 1.21.0 → 1.21.1
 - **archive/reviews**: 新增技术模块审查报告 `technical-module-review-2026-08-27.md`
+- **skills 横切对齐（12 个 skill）**: stock 缠论 gating 说明/短线投票均分驱动/字段数
+  16/ETF 22/龙虎榜 7 日与东财源；portfolio 与 portfolio-web 的 `--no-open` 方向修正 +
+  删除不存在的 `--stop/--status`；screener 硬过滤阈值对齐 limits.yaml（3000/1000 万、
+  20/10 亿）、删除不存在的 `--analyze`、主题池 ~280、分数表 16 列、策略标签统一
+  "量价动量"；sector ETF 22
 - **CHANGELOG**: 本版本段
 
 ## [1.21.0] - 2026-08-20（OOS 验证状态机 + sync_skill_count 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md + experts-ARCHITECTURE.md）
