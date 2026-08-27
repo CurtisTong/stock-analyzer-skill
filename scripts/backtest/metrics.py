@@ -15,6 +15,8 @@ def run_backtest(
     rounds: int = 5,
     benchmark=None,
     weights=None,
+    atr_stop_multiplier=None,
+    trailing_stop_pct=None,
 ):
     """
     运行滚动窗口回测。
@@ -30,6 +32,8 @@ def run_backtest(
         rounds: 回测轮数（已弃用，保留兼容性）
         benchmark: 基准指数代码（如 "sh000300" 沪深300），用于信息比率计算
         weights: 可选覆盖权重 dict（透传给 simulate_strategy）。None 时从 STRATEGIES[strategy_name] 读取。
+        atr_stop_multiplier: ATR 自适应止损倍数（None = 固定 -8% 止损）
+        trailing_stop_pct: 移动止盈回撤比例（None = 固定 +20% 止盈）
 
     Returns:
         回测报告 dict
@@ -43,6 +47,8 @@ def run_backtest(
             holding_days=holding_days,
             total_days=days,
             weights=weights,
+            atr_stop_multiplier=atr_stop_multiplier,
+            trailing_stop_pct=trailing_stop_pct,
         )
     )
 

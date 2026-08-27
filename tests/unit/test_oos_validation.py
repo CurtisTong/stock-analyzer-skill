@@ -267,3 +267,45 @@ class TestGetValidationLayering:
         v = get_validation("balanced")
         assert v["validation_status"] == "in_sample"
         assert "未做外样本回测" in v["validation_note"]
+
+
+class TestEvaluateMultiPool:
+    """双池联合判定（2026-08-26 复盘 P0）。"""
+
+    def test_all_pools_pass_returns_verified(self):
+        from strategies.oos_validation import evaluate_multi_pool
+
+        status, note = evaluate_multi_pool(
+            {
+                "default": (60.0, 210, 5.0),
+                "large": (55.0, 55, 3.0),
+            }
+        )
+        assert status == "oos_verified"
+        assert "双池" in note
+
+    def test_one_pool_fails_returns_in_sample(self):
+        from strategies.oos_validation import evaluate_multi_pool
+
+        status, note = evaluate_multi_pool(
+            {
+                "default": (60.0, 210, -5.0),  # 210 池负收益
+                "large": (55.0, 55, 3.0),
+            }
+        )
+        assert status == "in_sample"
+        assert "default" in note  # 点名未达标池
+
+    def test_empty_returns_in_sample(self):
+        from strategies.oos_validation import evaluate_multi_pool
+
+        status, note = evaluate_multi_pool({})
+        assert status == "in_sample"
+        assert "无任何池" in note
+
+    def test_single_pool_still_evaluated(self):
+        """单池也走联合判定（等价于 evaluate_oos）。"""
+        from strategies.oos_validation import evaluate_multi_pool
+
+        status, _ = evaluate_multi_pool({"default": (60.0, 210, 5.0)})
+        assert status == "oos_verified"

@@ -16,7 +16,7 @@ CLI:
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List
 
@@ -29,6 +29,11 @@ from backtest.cli import load_test_universe  # noqa: E402
 from backtest.metrics import run_backtest  # noqa: E402
 
 PERFORMANCE_FILE = Path(DATA_DIR) / "strategy_performance.json"
+
+# 最小股票池门槛。历史自校准记录中 441 条在 ≤3 只小池上运行，
+# 6 策略指标完全相同（胜率 26.6%/收益 -9.79%），小池回测无区分度，
+# 自校准链因此从未真正工作。低于此门槛拒绝记录。
+MIN_POOL_SIZE = 30
 
 
 def _load() -> Dict:
@@ -54,11 +59,21 @@ def record_all(days: int = 60, top: int = 5, codes: List[str] = None) -> Dict:
 
     Returns:
         新增的 record dict
+
+    Raises:
+        ValueError: 股票池小于 MIN_POOL_SIZE（历史 442 条自校准记录中 441 条在
+        ≤3 只小池上跑、策略间无区分度，自校准链因此失效。
+        小池记录直接拒绝，不再写入 strategy_performance.json）。
     """
     if codes is None:
         codes = load_test_universe()
     if not codes:
         return {"error": "无可用股票池"}
+    if len(codes) < MIN_POOL_SIZE:
+        raise ValueError(
+            f"股票池过小（{len(codes)} < {MIN_POOL_SIZE}），拒绝记录："
+            "小池回测策略间无区分度，自校准记录无效"
+        )
 
     now = datetime.now()
     record = {
@@ -68,6 +83,7 @@ def record_all(days: int = 60, top: int = 5, codes: List[str] = None) -> Dict:
         "days": days,
         "top": top,
         "pool_size": len(codes),
+        "window_start": (now - timedelta(days=days)).strftime("%Y-%m-%d"),
         "strategies": {},
     }
 
@@ -251,7 +267,11 @@ def main():
             from common import normalize_quote_code
 
             codes = [normalize_quote_code(c) for c in args.codes.split(",")]
-        record = record_all(days=args.days, top=args.top, codes=codes)
+        try:
+            record = record_all(days=args.days, top=args.top, codes=codes)
+        except ValueError as e:
+            print(f"❌ {e}")
+            return
         if "error" in record:
             print(f"❌ {record['error']}")
             return

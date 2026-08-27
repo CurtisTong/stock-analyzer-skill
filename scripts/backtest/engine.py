@@ -102,6 +102,10 @@ class SimContext:
     stamp_tax: float = 0.001
     slippage: float = 0.001
     weights: dict | None = None
+    # v1.21.1 盈亏比修复：ATR 自适应止损 + 移动止盈。
+    # 均为 None 时保持原固定阈值行为（-8% 止损 / +20% 止盈），不改变既有回测结果。
+    atr_stop_multiplier: float | None = None  # 止损价 = 入场价 - k×ATR
+    trailing_stop_pct: float | None = None  # 移动止盈：最高价回撤 X% 卖出
 
 
 def simulate_strategy(ctx: SimContext):
@@ -140,6 +144,8 @@ def simulate_strategy(ctx: SimContext):
     stamp_tax = ctx.stamp_tax
     slippage = ctx.slippage
     weights = ctx.weights
+    atr_stop_multiplier = ctx.atr_stop_multiplier
+    trailing_stop_pct = ctx.trailing_stop_pct
 
     if weights is None:
         weights = get_strategy(strategy_name)
@@ -268,9 +274,17 @@ def simulate_strategy(ctx: SimContext):
                 if k not in ("label", "two_stage")
             )
 
-            # 止损止盈逻辑：-8% 止损，+20% 止盈
+            # 止损止盈逻辑：默认 -8% 止损 / +20% 止盈；
+            # v1.21.1 起支持 ATR 自适应止损（atr_stop_multiplier）与
+            # 移动止盈（trailing_stop_pct），见 _calc_return_with_stop_loss
             ret, actual_days, exit_reason = _calc_return_with_stop_loss(
-                bars, i, holding_days, stop_loss=-0.08, take_profit=0.20
+                bars,
+                i,
+                holding_days,
+                stop_loss=-0.08,
+                take_profit=0.20,
+                atr_multiplier=atr_stop_multiplier,
+                trailing_pct=trailing_stop_pct,
             )
             # 扣除交易成本：佣金(双向) + 印花税(卖出) + 滑点(双向)
             total_cost = commission * 2 + stamp_tax + slippage * 2
@@ -363,17 +377,65 @@ def _calc_daily_returns(bars, start, holding_days):
     return returns
 
 
+def _calc_atr(bars, period: int = 14) -> float:
+    """计算给定 K 线段的平均真实波幅（ATR）。
+
+    TR = max(high - low, |high - prev_close|, |low - prev_close|)
+    ATR = 最近 period 根 TR 的简单平均。
+
+    Args:
+        bars: K 线列表（需含 high/low/close 字段）
+        period: ATR 周期（默认 14）
+
+    Returns:
+        ATR 值；数据不足时返回 0（调用方回退到固定止损）
+    """
+    if not bars or len(bars) < period + 1:
+        return 0.0
+    trs = []
+    for j in range(len(bars) - period, len(bars)):
+        bar = bars[j]
+        prev_close = bars[j - 1].close if j > 0 else bar.open
+        if prev_close <= 0:
+            continue
+        tr = max(
+            bar.high - bar.low,
+            abs(bar.high - prev_close),
+            abs(bar.low - prev_close),
+        )
+        trs.append(tr)
+    if not trs:
+        return 0.0
+    return sum(trs) / len(trs)
+
+
 def _calc_return_with_stop_loss(
-    bars, start, holding_days, stop_loss=-0.08, take_profit=0.20
+    bars,
+    start,
+    holding_days,
+    stop_loss=-0.08,
+    take_profit=0.20,
+    atr_multiplier=None,
+    trailing_pct=None,
 ):
     """计算带止损止盈的持有期收益。
+
+    三种模式（v1.21.1 起）：
+    1. 默认（atr_multiplier=None 且 trailing_pct=None）：固定阈值，
+       stop_loss=-8% / take_profit=+20%，行为与历史版本完全一致。
+    2. ATR 止损（atr_multiplier=k）：止损价 = 入场价 - k×ATR(14)，
+       波动率归一，高波动股不再被固定 -8% 频繁截断。
+    3. 移动止盈（trailing_pct=x）：持仓期间最高价回撤超过 x% 即卖出，
+       让盈利单跑出趋势，替代固定 +20% 止盈。
 
     Args:
         bars: K 线数据
         start: 起始索引
         holding_days: 持有天数
-        stop_loss: 止损阈值（默认 -8%）
-        take_profit: 止盈阈值（默认 +20%）
+        stop_loss: 固定止损阈值（默认 -8%）
+        take_profit: 固定止盈阈值（默认 +20%）
+        atr_multiplier: ATR 止损倍数（None = 固定止损）
+        trailing_pct: 移动止盈回撤比例（None = 固定止盈）
 
     Returns:
         (return_pct, exit_day, exit_reason)
@@ -382,21 +444,45 @@ def _calc_return_with_stop_loss(
     if entry_price <= 0:
         return 0.0, holding_days, "invalid"
 
+    # ATR 止损：用 start 之前（不含当日）的 K 线计算，严格无前瞻
+    if atr_multiplier is not None:
+        atr = _calc_atr(bars[:start], period=14)
+        if atr > 0:
+            stop_price = entry_price - atr_multiplier * atr
+        else:
+            stop_price = entry_price * (1 + stop_loss)  # ATR 不可用回退固定
+    else:
+        stop_price = entry_price * (1 + stop_loss)
+
     # P1-27: 止损/止盈用日内 low/high 判断是否触及（而非收盘价），
     # 触及后按阈值价成交（保守估计，避免收盘价回升导致乐观偏差）。
     # day=0 为信号日次日（持仓第 1 天），与 entry_price=bars[start].close 对齐。
+    # 移动止盈例外：用收盘价触发（methodology 止损铁律"收盘确认"），
+    # 避免当日冲高后回落立即触发（日内 high 与 low 的顺序不可知）。
+    trailing_peak = entry_price
     for day in range(1, holding_days + 1):
         idx = start + day
         if idx >= len(bars):
             break
         bar = bars[idx]
+        # 移动止盈：更新最高价（收盘确认），回撤超过 trailing_pct 即卖出
+        if trailing_pct is not None:
+            if bar.high > trailing_peak:
+                trailing_peak = bar.high
+            if trailing_peak > entry_price:
+                trail_stop = trailing_peak * (1 - trailing_pct)
+                if bar.close <= trail_stop:
+                    # 按移动止盈价成交（保守估计）
+                    ret = (trail_stop - entry_price) / entry_price
+                    return ret, day, "take_profit"
         # 日内触及止损（最低价跌破止损线）→ 按止损价成交
-        stop_price = entry_price * (1 + stop_loss)
-        take_price = entry_price * (1 + take_profit)
         if bar.low <= stop_price:
             return stop_loss, day, "stop_loss"
-        if bar.high >= take_price:
-            return take_profit, day, "take_profit"
+        # 固定止盈（仅非移动止盈模式）
+        if trailing_pct is None:
+            take_price = entry_price * (1 + take_profit)
+            if bar.high >= take_price:
+                return take_profit, day, "take_profit"
 
     # 未触发止损止盈，持有到期，用末日收盘价
     exit_idx = min(start + holding_days, len(bars) - 1)

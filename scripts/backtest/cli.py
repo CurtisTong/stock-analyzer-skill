@@ -79,13 +79,23 @@ def compare_strategies(
     return results
 
 
-def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int = 60):
+def optimize_weights(
+    codes: list,
+    strategy_name: str,
+    top_n: int = 5,
+    days: int = 60,
+    validate: bool = True,
+):
     """
     简单网格搜索优化策略权重。
 
     在当前权重基础上，对 quality/valuation/momentum/liquidity 各 ±5% 做网格搜索。
     权重通过 run_backtest(weights=...) 参数传入，**不修改全局 STRATEGIES**，
     避免并发场景下的数据竞争（issue: backtest 直接修改全局字典）。
+
+    validate=True 时（默认）：对 best_weights 在 60/120/240 三个窗口做
+    跨窗口验证（单窗口优化会过拟合历史，优化结果必须在多个窗口同时为
+    正收益才可信）。
     """
     base_keys = ["quality", "valuation", "momentum", "liquidity"]
     original_weights = {k: get_strategy(strategy_name)[k] for k in base_keys}
@@ -136,6 +146,23 @@ def optimize_weights(codes: list, strategy_name: str, top_n: int = 5, days: int 
         "improvement": round(best_score - base_score, 3),
         "all_results": results,
     }
+
+    # 跨窗口验证：best_weights 在 60/120/240 日窗口的表现
+    if validate:
+        validation = {}
+        for vdays in (60, 120, 240):
+            vreport = run_backtest(
+                strategy_name, codes, top_n, vdays, 3, weights=best_weights
+            )
+            validation[str(vdays)] = {
+                "total_return_pct": vreport.get("total_return_pct", 0),
+                "sharpe_ratio": vreport.get("sharpe_ratio", 0),
+                "win_rate_pct": vreport.get("win_rate_pct", 0),
+            }
+        robust = all(v["total_return_pct"] > 0 for v in validation.values())
+        result["cross_window_validation"] = validation
+        result["robust"] = robust
+
     _attach_validation(result)
     return result
 
@@ -215,6 +242,18 @@ def main():
     )
     parser.add_argument("--all", action="store_true", help="比较所有策略")
     parser.add_argument("--optimize", action="store_true", help="优化权重")
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        default=True,
+        help="优化后对 best_weights 做 60/120/240 日跨窗口验证（默认开启）",
+    )
+    parser.add_argument(
+        "--no-validate",
+        dest="validate",
+        action="store_false",
+        help="关闭跨窗口验证（不推荐）",
+    )
     parser.add_argument("--top", type=int, default=5, help="每轮买入数量")
     parser.add_argument("--days", type=int, default=60, help="回测天数")
     parser.add_argument("--rounds", type=int, default=5, help="回测轮数")
@@ -323,7 +362,9 @@ def main():
 
     elif args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
-        result = optimize_weights(codes, args.strategy, args.top, args.days)
+        result = optimize_weights(
+            codes, args.strategy, args.top, args.days, validate=args.validate
+        )
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
@@ -331,6 +372,20 @@ def main():
             print(f"最优夏普: {result['best_sharpe']:.3f}")
             print(f"基准夏普: {result['baseline_sharpe']:.3f}")
             print(f"提升: {result['improvement']:+.3f}")
+            if "cross_window_validation" in result:
+                print("\n📐 跨窗口验证（60/120/240 日）:")
+                for vdays, v in result["cross_window_validation"].items():
+                    print(
+                        f"  {vdays}日: 收益 {v['total_return_pct']:+.2f}% "
+                        f"夏普 {v['sharpe_ratio']:.2f} 胜率 {v['win_rate_pct']:.1f}%"
+                    )
+                if result.get("robust"):
+                    print("✅ 优化权重通过跨窗口验证（三窗口均为正收益）")
+                else:
+                    print(
+                        "⚠️  优化权重未通过跨窗口验证（存在负收益窗口），"
+                        "不建议实盘使用——单窗口优化可能过拟合历史"
+                    )
             _print_report_meta(
                 {
                     "generated_at": datetime.now().isoformat(timespec="seconds"),

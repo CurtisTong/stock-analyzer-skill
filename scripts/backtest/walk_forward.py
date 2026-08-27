@@ -55,6 +55,8 @@ class WalkForwardConfig:
     top_n: int = 5
     holding_days: int = 5
     step_days: int = 0  # 0 时自动设为 test_days
+    atr_stop_multiplier: float | None = None  # ATR 止损倍数（None=固定 -8%）
+    trailing_stop_pct: float | None = None  # 移动止盈回撤比例（None=固定 +20%）
 
 
 @dataclass
@@ -176,6 +178,8 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             top_n=config.top_n,
             holding_days=config.holding_days,
             total_days=config.train_days,
+            atr_stop_multiplier=config.atr_stop_multiplier,
+            trailing_stop_pct=config.trailing_stop_pct,
         )
         is_result = simulate_strategy(is_ctx)
         if "error" in is_result:
@@ -196,6 +200,8 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             top_n=config.top_n,
             holding_days=config.holding_days,
             total_days=config.test_days,
+            atr_stop_multiplier=config.atr_stop_multiplier,
+            trailing_stop_pct=config.trailing_stop_pct,
         )
         oos_result = simulate_strategy(oos_ctx)
         if "error" in oos_result:
