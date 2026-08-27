@@ -256,7 +256,11 @@ def update_position(
     code = normalize_code(code)
     if kwargs.get("cost", 0) < 0:
         raise ValueError("cost 不能为负")
-    if kwargs.get("quantity", 0) is not None and kwargs.get("quantity", 0) <= 0:
+    if (
+        "quantity" in kwargs
+        and kwargs["quantity"] is not None
+        and kwargs["quantity"] <= 0
+    ):
         raise ValueError("quantity must be positive")
     cost_before = _position_cost(manager, code)
     if "cost" in kwargs and "cost_source" not in kwargs:
