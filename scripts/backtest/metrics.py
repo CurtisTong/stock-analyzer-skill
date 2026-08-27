@@ -180,6 +180,7 @@ def run_backtest(
         "strategy": strategy_name,
         "rounds": total_periods,
         "total_return_pct": round(total_return, 2),
+        "annualized_return_pct": round(annualized_return, 2),
         "avg_return_pct": round(avg_return, 2),
         "max_return_pct": round(max_return, 2),
         "min_return_pct": round(min_return, 2),

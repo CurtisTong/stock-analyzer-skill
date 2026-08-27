@@ -503,6 +503,7 @@ def main():
             elif report.get("information_ratio"):
                 print(f"信息比率: {report['information_ratio']:.2f}")
             print(f"最大回撤: {report['max_drawdown_pct']:.2f}%")
+            print(f"卡玛比率: {report.get('calmar_ratio', 0):.2f}")
             print(f"盈亏比: {report.get('profit_loss_ratio', 0):.2f}")
             print(f"年化换手: {report.get('annual_turnover', 0)} 次")
             if report.get("win_by_position"):
