@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.21.0（2026-08-20）OOS 验证状态机（双层架构：registry 默认 in_sample + JSON 覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + 修复 screener 主线偏离警告静默失效 bug。
+> 🟢 **当前状态**：v1.21.1（2026-08-27）策略胜率复盘落地：①双池 OOS 验证门槛（evaluate_multi_pool，55 大票池 + 210 sector 池全部达标才升级）②ATR 自适应止损 + 移动止盈（可选，默认行为不变）③自校准最小池强制（MIN_POOL_SIZE=30 拒绝小池记录）④权重优化跨窗口验证（--validate，60/120/240 三窗口全正才 robust）；v1.21.0（2026-08-20）OOS 验证状态机（双层架构：registry 默认 in_sample + JSON 覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + 修复 screener 主线偏离警告静默失效 bug。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.21.1 | 2026-08-27 | 策略复盘落地：双池 OOS 验证门槛（evaluate_multi_pool）+ ATR 止损/移动止盈（可选）+ 自校准最小池 30 + 权重优化跨窗口验证 + 24 个新测试 |
 | 1.21.0 | 2026-08-20 | OOS 验证状态机（双层架构：registry 默认 in_sample + `data/strategy_oos_validation.json` 运行时覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档 |
 | 1.20.2 | 2026-08-13 | mypy 白名单扩至 203 文件（10 目录 + 5 顶层脚本）+ experts/config/dev 类型清零 + 修复 screener 主线偏离警告静默失效 bug + dcf/cyclical 双命名冲突回归修复 |
 | 1.20.1 | 2026-08-12 | screener 整体任务超时 watchdog + sector_summary CLI + CI 黑块修复（black 19 文件 / ruff F601+F821 / sector 授权 sector_summary）+ 数据快照 |
@@ -279,6 +280,38 @@
 ### Maintenance
 - **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
 - **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
+
+## [1.21.1] - 2026-08-27（策略复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 + 权重优化跨窗口验证）
+
+> 依据 2026-08-26 深度复盘（`docs/archive/reviews/backtest-philosophy-review-2026-08-26.md`）：
+> 210 池凯利 f 全负 vs 55 池 OOS 全正，单池验证无统计意义；盈亏比 <1 是负期望根源；
+> 442 条自校准记录 441 条在小池上无区分度；60 日单窗口权重优化过拟合。
+
+### Added
+- **strategies/oos_validation**: `evaluate_multi_pool()` 双池联合判定——每个池都满足
+  `evaluate_oos` 阈值才升级 `oos_verified`，任一池不达标保持 `in_sample` 并点名未达标池；
+  `save_oos_result` 增加 `pool_type` 参数，结果按池累积到 JSON 的 `pools` 嵌套结构
+- **multi_stock_backtest**: 新增 `--pool-type`（default/large）与 `--require-all-pools`
+  参数——双池分别跑后联合判定，防止"选一个对自己有利的池"刷验证
+- **backtest/engine**: `_calc_atr()`（真实波幅均值）+ `_calc_return_with_stop_loss`
+  可选 `atr_multiplier`（ATR 自适应止损，波动率归一）与 `trailing_pct`（移动止盈，
+  收盘确认触发）；`SimContext`/`run_backtest`/`WalkForwardConfig` 全链路透传，
+  **默认 None 保持固定 -8%/+20% 行为不变**
+- **strategy_performance**: `MIN_POOL_SIZE = 30` 最小池强制——小池记录直接拒绝
+  （ValueError），record 增加 `window_start` 字段
+- **backtest/cli**: `optimize_weights` 跨窗口验证（默认开）——best_weights 过
+  60/120/240 三窗口，全正收益才 `robust=True`；CLI 新增 `--validate` / `--no-validate`
+
+### Tests
+- **unit**: 新增 24 项测试——`test_atr_stop.py`（13：ATR 计算/止损触发/移动止盈收盘确认/
+  默认行为回归）、`test_strategy_performance_minpool.py`（4）、`test_optimize_cross_window.py`（3）、
+  `test_oos_validation.py` 追加 `TestEvaluateMultiPool`（4）
+
+### Documentation
+- **strategy-validation**: 升级条件改为双池一致（55 大票池 + 210 sector 池），
+  记录 2026-08-26 实测证据与自校准最小池规则
+- **analysis**: 复盘报告追加"实施记录"章节（建议 → 落地文件 → 测试数）
+- **CHANGELOG**: 本版本段
 
 ## [1.21.0] - 2026-08-20（OOS 验证状态机 + sync_skill_count 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md + experts-ARCHITECTURE.md）
 

@@ -24,6 +24,37 @@ total_return_pct > 0      # 累计收益为正
 
 三条**同时满足**才能从 `in_sample` 升级到 `oos_verified`。任一条不满足即保持 `in_sample`，note 加"未达阈值，保持 in_sample"提示。
 
+### 双池联合判定（v1.21.1）
+
+> ⚠️ **单池 OOS 结论受池构成影响极大，禁止单池升级**。实测：
+> 同一批策略在 55 只跨板块大票池 walk-forward OOS 全部为正（+25.7%~+29.2%），
+> 在 210 只 sector 池上全部为负（-31.7%~-44.5%）。选一个"对自己有利的池"
+> 即可刷出 oos_verified，单池验证无统计意义。
+
+`scripts/strategies/oos_validation.py:evaluate_multi_pool` 要求**每个池**都满足
+`evaluate_oos` 阈值才返回 `oos_verified`，任一池不达标即整体 `in_sample`，
+note 点名未达标池。
+
+```bash
+# 每个池分别跑一次，结果按 pool_type 累积到 JSON 的 pools 嵌套结构
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type default   # 全量 sector 池
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type large     # 跨板块大票池
+# 双池联合判定：全部池达标才升级
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type large --require-all-pools
+```
+
+JSON 结构：
+
+```json
+{"balanced": {
+    "validation_status": "oos_verified",
+    "pools": {
+        "default": {"win_rate_pct": 58.5, "n_stocks": 210, "total_return_pct": 5.2},
+        "large":   {"win_rate_pct": 55.0, "n_stocks": 55,  "total_return_pct": 3.1}
+    }
+}}
+```
+
 ### 默认值与运行时覆盖
 
 ```
@@ -42,11 +73,19 @@ data/strategy_oos_validation.json（git ignored, 运行时）
 
 | 触发 | 必要性 | 操作 |
 | --- | --- | --- |
-| 新策略注册到 registry | 必须 | 首次跑 `multi_stock_backtest --update-validation` 建立基线 |
+| 新策略注册到 registry | 必须 | 首次跑 `multi_stock_backtest --update-validation --pool-type default` + `--pool-type large` 建立双池基线 |
 | 市场环境切换（牛市→熊市 / 震荡→趋势） | 建议 | 每季度跑一次，看 OOS 胜率是否跌破阈值 |
 | 因子权重调整（改 scoring.yaml） | 必须 | 权重变了，验证结果必变 |
 | 单一 fetcher 数据源失效但未触发全局回退 | 建议 | 数据质量变化可能让历史 OOS 数字失真 |
 | 距上次校准 ≥ 90 日 | 建议 | 季度复盘节奏 |
+
+## 自校准链最小池（v1.21.1）
+
+`scripts/strategy_performance.py record` 强制 **MIN_POOL_SIZE = 30**：股票池小于
+30 只直接拒绝记录（CLI 报错），不再产生小池记录。
+
+> 背景：历史 442 条自校准记录中 441 条在 ≤3 只小池上运行，6 策略指标完全相同
+> （胜率 26.6% / 收益 -9.79%），小池回测无区分度，自校准链从未真正工作。
 
 ## CLAIM 与证据分离
 
@@ -127,5 +166,6 @@ rm data/strategy_oos_validation.json   # 所有策略回到 in_sample 默认
 
 ## 历史
 
+- 2026-08-26：双池联合判定 + 自校准最小池，依据 `docs/archive/reviews/backtest-philosophy-review-2026-08-26.md`
 - 2026-08-20：本文初稿
 - 之前：`docs/archive/designs/methodology.md`（数据字段映射，已归档）
