@@ -779,6 +779,20 @@ def aggregate_group_votes(
     scores = [r["score"] for r in expert_results]
     avg = statistics.mean(scores) if scores else 50
 
+    # 空输入守卫：all([]) 恒真会让空组误判"强烈看多+满仓"（实测复现）
+    if not scores:
+        return {
+            "group": group,
+            "avg_score": 50.0,
+            "direction": "中性",
+            "confidence": 50.0,
+            "votes": {"bull": 0, "bear": 0},
+            "position_factor": 0.0,
+            "position": _compute_position("中性", 50.0, 0.0),
+            "expert_results": expert_results,
+            "risk_notes": ["无专家评分数据，方向中性"],
+        }
+
     votes = _count_votes(scores)
     n = len(scores)
     # 动态多数阈值：67% 多数（与双组模式一致）

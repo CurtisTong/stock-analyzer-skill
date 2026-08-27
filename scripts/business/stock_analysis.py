@@ -194,6 +194,11 @@ def _analyze(
 
         if include_technical:
             result["technical"] = _analyze_technical(kline)
+            if result["technical"].get("_technical_error"):
+                # K 线临界（10-59 根）技术面整体失败：标注降级，评分走中性
+                result["data_warnings"].append(
+                    "⚠ 技术面分析失败（K线数据不足），技术评分按中性处理"
+                )
 
         if include_chan and len(kline) >= _MIN_KLINE_DAYS:
             result["chan"] = _analyze_chan([b.to_dict() for b in kline])
@@ -340,6 +345,17 @@ def _calculate_composite_score(
     tech = result.get("technical", {})
     profile = result.get("profile", {})
     fin = result.get("finance", {})
+
+    # 技术面整体失败（K 线 10-59 根临界）：不产出误导性看空评分
+    if tech.get("_technical_error"):
+        return {
+            "score": 50.0,
+            "grade": "中性",
+            "buy_signals": [],
+            "sell_signals": [],
+            "structured_signals": {},
+            "note": f"技术面数据不足，评分按中性处理（{tech.get('_technical_error')}）",
+        }
 
     features = {
         "ma_system": {"alignment": tech.get("ma", "数据不足")},

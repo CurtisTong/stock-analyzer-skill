@@ -147,9 +147,10 @@ def _generate_signals(features, market_breadth=None):
         for sp in maidain.get("sell_points", []):
             sell.append(f"缠论{sp['type']}")
         beichi = chan_data.get("beichi", {})
-        if beichi.get("summary", "").startswith("检测到底背驰"):
-            buy.append("缠论底背驰")
-        elif "顶背驰" in beichi.get("summary", ""):
+        summary = beichi.get("summary", "")
+        if summary.startswith("检测到底背驰") or "盘整背驰" in summary:
+            buy.append("缠论底背驰" + ("(盘整)" if "盘整背驰" in summary else ""))
+        elif "顶背驰" in summary:
             sell.append("缠论顶背驰")
 
     # 本土战法信号

@@ -351,7 +351,9 @@ def _score_chan(chan_data: dict, type_w: dict, adj: dict) -> float:
             elif bpt == "三买":
                 chan_bonus += 8 * adj.get("buy_point_3", 1.0)
         beichi = chan_data.get("beichi", {})
-        if beichi.get("summary", "").startswith("检测到底背驰"):
+        summary = beichi.get("summary", "")
+        # 趋势底背驰 + 盘整背驰（range_beichi）均计入看涨加分（两处消费口径一致）
+        if summary.startswith("检测到底背驰") or "盘整背驰" in summary:
             chan_bonus += 8 * adj.get("divergence_bottom", 1.0)
     chan_score = chan_bonus * type_w.get("chan", 1.0)
     return clamp(chan_score, 0, 15)
