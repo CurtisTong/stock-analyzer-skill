@@ -346,6 +346,19 @@
   不存在的函数恒降级）
 - **portfolio/brinson**: BrinsonResult 加 note 字段，占位归因如实标注（组合收益
   按 0 计原因）
+- **regime/overlay**: blend_rule 键是策略 ID 而 weights 只带中文 label → BEAR/PANIC
+  混合规则恒不触发（死代码）→ ID↔label 映射匹配（实测混合生效）
+- **backtest/cli**: `optimize_weights` 全因子网格（原只取 4 因子，volatility/chip/
+  dividend/event 合计 34% 权重被置零）
+- **backtest/engine**: ① 指数级 regime 判定接线（v2.8 的 `_fetch_index_bars_for_backtest`
+  /`_classify_regime_from_index` 此前无调用方，主路径用个股 bars 误判 regime）——
+  指数 bars + current_day 截断（严格无前瞻）；② P1-2 评分同源化——momentum 改用
+  `factors.momentum.momentum_score`（features 从 technical.pipeline 构造）、删 quality
+  ×0.85 系数、删除自研 `_compute_momentum_from_bars`，回测 6 因子与 screener 同源
+- **factors/quality**: 财务数据缺失（fin={}）时返回中性 50（原负债率 0 被当最优
+  产出误导低分 12）
+- **portfolio**: update_watch 目标价 0 = 清空（原拒绝导致无法清除）+ oplog 记
+  update_watch；classifier 死赋值清理
 - **backtest/metrics + cli**: 年化收益率与卡玛比率补全输出——`annualized_return` 此前
   计算但不进返回 dict、`calmar_ratio` 文本模式不渲染（SKILL 声称 11 项指标缺 2 项）；
   现 metrics 加 `annualized_return_pct` 键，cli 文本输出加年化收益率 + 卡玛比率
