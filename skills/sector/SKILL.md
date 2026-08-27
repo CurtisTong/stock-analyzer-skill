@@ -64,7 +64,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/sector.py *
 | 核心标的 | 5-10只，PE/ROE/增速对比 |
 | 估值水平 | 板块平均PE vs 历史分位  |
 | 近期走势 | 5日/10日涨跌+量能       |
-| 轮动位置 | 启动/主升/高潮/退潮     |
+| 轮动位置 | 启动/主升/高潮/退潮（由 market 模块 `market_anchor` 的轮动强度/位次差提供，sector 单模块不产出） |
 
 **compare模式：**
 

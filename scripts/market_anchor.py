@@ -545,7 +545,8 @@ def _fetch_sector_rotation(window: int = 5) -> dict | None:
     try:
         result = sector_etf_strength.compute_rotation_strength(window=window)
         if result and result.get("rotation_strength") is not None:
-            if result["rotation_strength"] > 3:
+            # 阈值与 _interpret_rotation 的"剧烈轮动"判定（>=2.5）统一
+            if result["rotation_strength"] >= 2.5:
                 result["advice"] = (
                     "剧烈轮动期（主线切换中）：减少新增仓位，优先减仓弱势持仓，"
                     "等待主线明确后再考虑进攻/分层配置"
@@ -1133,7 +1134,7 @@ def to_markdown(payload: dict) -> str:
         lines.append(f"### 🔄 题材轮动强度（{sr.get('window', 5)} 日）")
         strength = sr.get("rotation_strength")
         if strength is not None:
-            lines.append(f"- 轮动强度: {strength}（平均位次差，>3=剧烈）")
+            lines.append(f"- 轮动强度: {strength}（平均位次差，≥2.5=剧烈）")
         if sr.get("rotation_std") is not None:
             lines.append(f"- 位次差标准差: {sr['rotation_std']}")
         risers = sr.get("biggest_risers", [])

@@ -78,6 +78,10 @@ def add_position(
     加仓产生加权平均成本时自动置为 calculated，保留可追溯性。
     """
     code = normalize_code(code)
+    if cost < 0:
+        raise ValueError("cost must be >= 0（0 = 未知成本价）")
+    if quantity <= 0:
+        raise ValueError("quantity must be positive")
     cost_before = _position_cost(manager, code)
     manager._push_oplog(
         "add_position", code=code, cost_before=cost_before, cost_source=cost_source
@@ -250,6 +254,10 @@ def update_position(
     时若未提供 cost_source，默认标记为 user_input。
     """
     code = normalize_code(code)
+    if kwargs.get("cost", 0) < 0:
+        raise ValueError("cost 不能为负")
+    if kwargs.get("quantity", 0) is not None and kwargs.get("quantity", 0) <= 0:
+        raise ValueError("quantity must be positive")
     cost_before = _position_cost(manager, code)
     if "cost" in kwargs and "cost_source" not in kwargs:
         kwargs["cost_source"] = "user_input"
@@ -292,6 +300,7 @@ def tag_position(
 ) -> Optional[dict]:
     """给持仓添加标签。"""
     code = normalize_code(code)
+    manager._push_oplog("tag_position", code=code, tags=list(tags))
     holder = {"r": None}
 
     def _apply(data: dict) -> dict:
@@ -316,6 +325,7 @@ def untag_position(
 ) -> Optional[dict]:
     """移除持仓标签。"""
     code = normalize_code(code)
+    manager._push_oplog("untag_position", code=code, tags=list(tags))
     holder = {"r": None}
 
     def _apply(data: dict) -> dict:

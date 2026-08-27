@@ -853,7 +853,7 @@ class PortfolioManager:
                 else (
                     None
                     if (cost_value and not q)
-                    else (None if cost_value == 0 else 0.0)
+                    else (None if (cost_value == 0 or price == 0) else 0.0)
                 )
             )
 

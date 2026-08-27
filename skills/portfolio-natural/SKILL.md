@@ -27,7 +27,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/portfolio_w
 | "清仓 XX" | `/portfolio remove <code>` |
 | "破位止损 XX" | `/portfolio remove <code>` |
 | "帮我调仓" / "再平衡" | `/portfolio rebalance` |
-| "持仓对比" | `/portfolio compare` |
+| "持仓对比" | `/portfolio compare`（未实现，见 portfolio SKILL） |
 
 完整 CRUD 命令见 [`/portfolio`](../portfolio/SKILL.md)。
 

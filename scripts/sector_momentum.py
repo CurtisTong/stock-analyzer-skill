@@ -62,8 +62,8 @@ def fetch_sector_momentum(days: int = DEFAULT_DAYS) -> dict:
     """拉取所有已映射行业 ETF 的 N 日动量。
 
     Returns:
-        {industry: {"etf": etf_code, "ret_5d": pct}}，模块级缓存避免多策略重复拉取。
-        全部失败时返回空 dict。
+        {industry: {"etf": etf_code, "ret_{days}d": pct, "days": days}}，
+        模块级缓存避免多策略重复拉取。全部失败时返回空 dict。
     """
     with _lock:
         if days in _cache:
@@ -79,7 +79,13 @@ def fetch_sector_momentum(days: int = DEFAULT_DAYS) -> dict:
         if ret is None:
             continue
         for industry in industries:
-            result[industry] = {"etf": etf, "ret_5d": round(ret, 2)}
+            # 标签带 days（修复固定 ret_5d 标签在 days≠5 时的错位）；days=5 时
+            # 键名 ret_5d 不变，下游 screening_pipeline 兼容
+            result[industry] = {
+                "etf": etf,
+                f"ret_{days}d": round(ret, 2),
+                "days": days,
+            }
 
     with _lock:
         _cache[days] = result
