@@ -238,19 +238,36 @@ class TestHealthReport:
         assert report_no_q["totals"]["pnl"] is None
         assert report_no_q["totals"]["pnl_pct"] is None
 
-    def test_breakdown_positions_isolated(self):
+    def test_breakdown_positions_isolated(self, tmp_path):
         """破位标的独立汇总（不混入正常持仓建议）。"""
-        pm = PortfolioManager()
-        # 模拟中天科技（成本 35.84，现价 33.43 = -6.7% 破位）
+        positions = [
+            {
+                "code": "sh600522",
+                "name": "中天科技",
+                "cost": 35.84,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["通信"],
+            },
+            {
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "cost": 22.37,
+                "quantity": 4000,
+                "buy_date": "2026-01-01",
+                "tags": ["煤化工"],
+            },
+        ]
+        pm = _make_manager(tmp_path, positions)
         quotes = {
-            "sh600522": {"price": 33.43, "change_pct": 0.0},
-            "sh600989": {"price": 23.69, "change_pct": 0.0},
+            "sh600522": {"price": 33.43, "change_pct": 0.0},  # -6.7% 破位
+            "sh600989": {"price": 23.69, "change_pct": 0.0},  # 未破位
         }
         report = pm.health_report(quotes=quotes)
         # 中天科技应在 breakdown_positions
         breakdown_codes = [r["code"] for r in report["breakdown_positions"]]
         assert "sh600522" in breakdown_codes
-        # 宝丰能源（成本 22.37、现价 23.69）不在 breakdown
+        # 宝丰能源不在 breakdown
         assert "sh600989" not in breakdown_codes
 
     def test_watchlist_present_even_empty(self):
@@ -284,23 +301,58 @@ class TestHealthReport:
         pm_virtual._is_virtual = True
         assert pm_virtual.health_report(quotes={})["type"] == "虚拟持仓"
 
-    def test_industry_concentration_uses_merged_mapping(self):
+    def test_industry_concentration_uses_merged_mapping(self, tmp_path):
         """industry 字段使用合并后的映射（修复后不再分散）。"""
-        pm = PortfolioManager()
+        positions = [
+            {
+                "code": "sz300274",
+                "name": "阳光电源",
+                "cost": 120.0,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["锂电"],
+            },
+            {
+                "code": "sz002466",
+                "name": "天齐锂业",
+                "cost": 40.0,
+                "quantity": 200,
+                "buy_date": "2026-07-01",
+                "tags": ["锂矿"],
+            },
+        ]
+        pm = _make_manager(tmp_path, positions)
         report = pm.health_report(quotes={})
         industry = report["concentration"]["details"]["industry"]
-        # 不应再有"锂电/锂矿/锂业"分散键（已合并到"锂/新能源"）
+        # 不应再有"锂电/锂矿"分散键（已合并到"锂/新能源"）
         for dispersed in ["锂电", "锂矿", "锂业"]:
             assert dispersed not in industry, f"行业 {dispersed} 未合并，仍分散为独立键"
         # "锂/新能源" 大类键应存在（组合含相关持仓）
-        if any(p.get("tags") for p in pm.get_positions()):
-            assert "锂/新能源" in industry
+        assert "锂/新能源" in industry
 
-    def test_risk_rating_includes_breakdown_and_concentration(self):
+    def test_risk_rating_includes_breakdown_and_concentration(self, tmp_path):
         """risk_rating 聚合破位 + 集中度警告。"""
-        pm = PortfolioManager()
+        positions = [
+            {
+                "code": "sh600522",
+                "name": "中天科技",
+                "cost": 35.84,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["通信"],
+            },
+            {
+                "code": "sh603799",
+                "name": "华友钴业",
+                "cost": 50.0,
+                "quantity": 100,
+                "buy_date": "2026-07-01",
+                "tags": ["锂矿"],
+            },
+        ]
+        pm = _make_manager(tmp_path, positions)
         quotes = {
-            "sh600522": {"price": 33.43, "change_pct": 0.0},
+            "sh600522": {"price": 33.43, "change_pct": 0.0},  # 破位
             "sh603799": {"price": 44.12, "change_pct": 0.0},
         }
         report = pm.health_report(quotes=quotes)
