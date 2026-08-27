@@ -435,6 +435,7 @@
 
 ## [Unreleased] - 2026-08-20
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -541,6 +542,14 @@
 
 ### Fixed
 - **ci**: setup-test action.yml 补装运行时依赖,修复 v1.21.0 release workflow 失败
+
+### Added
+- **backtest**: v1.21.1 双池OOS门槛 + ATR止损/移动止盈 + 自校准最小池 + 权重跨窗口验证
+
+### Documentation
+- **archive**: 归档 backtest-philosophy-review 到 archive/reviews + 清理会话引用
+- **archive**: grill-me-positioning-2026-08-20.md 路径调整到 docs/archive/reviews/
+- **trim**: grill-me 报告 1 处「本次重构」重写为 v1.16.0 版本锚定
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
