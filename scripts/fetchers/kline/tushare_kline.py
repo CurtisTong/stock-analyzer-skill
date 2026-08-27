@@ -38,7 +38,7 @@ class TushareKlineFetcher(BaseFetcher):
             ts_code = f"{plain}.{ex.upper()}" if ex else f"{plain}.SZ"
 
             if scale == 240:
-                # P0-5: 用 pro_bar 请求前复权数据，与 eastmoney/tencent 口径一致
+                # 用 pro_bar 请求前复权数据，与 eastmoney/tencent 口径一致
                 df = ts.pro_bar(ts_code=ts_code, adj="qfq", limit=datalen, freq="D")
             else:
                 # 分钟线需要额外权限
@@ -60,7 +60,7 @@ class TushareKlineFetcher(BaseFetcher):
                         "high": str(row.get("high", 0)),
                         "low": str(row.get("low", 0)),
                         "volume": str(row.get("vol", 0)),
-                        "amount": str(row.get("amount", 0)),  # P1-5: 补全成交额（千元）
+                        "amount": str(row.get("amount", 0)),  # 补全成交额（千元）
                         "source": "tushare",
                     }
                 )

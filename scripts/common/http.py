@@ -250,7 +250,7 @@ def _http_get_requests(
 ) -> bytes:
     """requests 版本的 GET 请求（连接池复用 + 自动编码）。
 
-    P2-16: 跟随重定向（最多 5 次，与 http.client 路径保持一致）。
+    跟随重定向（最多 5 次，与 http.client 路径保持一致）。
     """
     session = _get_session()
     req_headers = {}
@@ -299,7 +299,7 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
                         (resp.text or "")[:200],
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
-    # P1-04: fallback 到 stdlib 时 max_retries=1（单次尝试），避免与 requests 路径
+    # fallback 到 stdlib 时 max_retries=1（单次尝试），避免与 requests 路径
     # 的 urllib3 Retry（total=3）叠加形成超时风暴（最坏 4*timeout + 3*timeout + 退避）
     return _http_get_internal(url, headers=None, timeout=timeout, max_retries=1)
 
@@ -328,14 +328,14 @@ def http_get_with_headers(
                         (resp.text or "")[:200],
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
-    # P1-04: 同 http_get，fallback max_retries=1 避免超时叠加
+    # 同 http_get，fallback max_retries=1 避免超时叠加
     return _http_get_internal(url, headers=headers, timeout=timeout, max_retries=1)
 
 
 def decode_gbk(data: bytes) -> str:
     """自动检测编码解码：先尝试 UTF-8，失败回退 GBK。
 
-    P2-17: GBK decode 失败替换为 U+FFFD 时记录 warning，便于定位乱码源。
+    GBK decode 失败替换为 U+FFFD 时记录 warning，便于定位乱码源。
     """
     try:
         return data.decode("utf-8")

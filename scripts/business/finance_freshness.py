@@ -10,7 +10,7 @@
 过期时，调用方应将硬过滤条件降级为软警告（data_freshness=stale），
 避免基于过时数据做出错误的过滤决策。
 
-WP6 (2026-07-21): 按股票代码前缀反推板块，使用 board_overrides 配置覆盖默认 deadline。
+(2026-07-21): 按股票代码前缀反推板块，使用 board_overrides 配置覆盖默认 deadline。
 """
 
 import logging
@@ -99,7 +99,7 @@ def _load_disclosure_config() -> dict:
 def _periods_for_board(board: str, base_periods: dict) -> dict:
     """根据板块覆盖 base_periods。
 
-    WP6: 从 board_overrides 中取 board 的覆盖项，与 base_periods 合并。
+    从 board_overrides 中取 board 的覆盖项，与 base_periods 合并。
     未配置覆盖项时返回原 base_periods。
     """
     cfg = _load_disclosure_config()
@@ -117,7 +117,7 @@ def _periods_for_board(board: str, base_periods: dict) -> dict:
 def _expected_latest_period(today: date, code: str = "") -> tuple:
     """根据当前日期反推应已披露的最近报告期。
 
-    WP6: code 参数用于按板块差异化 deadline（通过 board_overrides）。
+    code 参数用于按板块差异化 deadline（通过 board_overrides）。
 
     返回:
         (report_end_str, deadline_date) - 报告期结束日字符串和截止日期
@@ -153,7 +153,7 @@ def _expected_latest_period(today: date, code: str = "") -> tuple:
 
             candidates.append((report_end_str, report_end_date, deadline_date))
 
-    # WP6 bugfix: 找 deadline <= today 且 report_end 最大的（即最新应披露期）。
+    # bugfix: 找 deadline <= today 且 report_end 最大的（即最新应披露期）。
     # 返回值加 expected_end_date（带年份），避免 check_finance_freshness
     # 用 today.year 错把去年 Q3 当今年 Q3（2024-09-30 vs 2025-09-30）。
     eligible = [(e, r, d) for e, r, d in candidates if d <= today]
@@ -171,7 +171,7 @@ def check_finance_freshness(fin: dict, today: date = None, code: str = "") -> tu
     Args:
         fin: 财务 dict（需含 report_date 字段，格式 YYYY-MM-DD）
         today: 当前日期（测试可注入），默认 date.today()
-        code: 股票代码（WP6 新增），用于按板块差异化 deadline
+        code: 股票代码（新增），用于按板块差异化 deadline
 
     Returns:
         (is_stale, warning_msg) - is_stale=True 表示数据已过期需降级
@@ -179,7 +179,7 @@ def check_finance_freshness(fin: dict, today: date = None, code: str = "") -> tu
     if today is None:
         today = date.today()
 
-    # WP6: 从 fin 推断 code（若未显式传入）
+    # 从 fin 推断 code（若未显式传入）
     if not code and isinstance(fin, dict):
         code = fin.get("code", "")
 

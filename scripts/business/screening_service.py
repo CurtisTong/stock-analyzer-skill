@@ -82,7 +82,7 @@ def _pledge_threshold() -> float:
     return _limit("pledge_ratio_warning", 70)
 
 
-# P1-22: _st_prefixes() 已删除，ST 检测统一使用 data.pool.is_st
+# _st_prefixes() 已删除，ST 检测统一使用 data.pool.is_st
 
 
 @dataclass
@@ -168,7 +168,7 @@ class ScreeningService:
         """
         filters = filters or {}
 
-        # 验证策略（P2-09: 走锁内 API 而非直读 STRATEGIES）
+        # 验证策略（走锁内 API 而非直读 STRATEGIES）
         if not strategy_exists(strategy):
             logger.warning(f"未知策略 {strategy}，使用默认策略")
             strategy = self.default_strategy
@@ -230,7 +230,7 @@ class ScreeningService:
 
         def fetch_one(code):
             try:
-                # WP4: 解构 (records, meta) tuple
+                # 解构 (records, meta) tuple
                 records, _meta = get_finance(normalize_finance_code(code))
                 return [r.to_dict() for r in records]
             except Exception as e:
@@ -283,7 +283,7 @@ class ScreeningService:
                 "warnings": filter_warnings,
             }
 
-        # 计算因子得分（P0-12: 传入策略权重，跳过权重为 0 的因子）
+        # 计算因子得分（传入策略权重，跳过权重为 0 的因子）
         features = self._compute_features(ctx.code, ctx.kline_bars)
         parts = compute_factor_parts(
             fin, quote_dict, features, industry, weights=get_strategy(ctx.strategy)
@@ -292,7 +292,7 @@ class ScreeningService:
             parts["chip"] = 50
 
         # 两阶段策略：Stage 1 硬条件过滤（review#2）
-        # P2-09: 走锁内 API 而非直读 STRATEGIES
+        # 走锁内 API 而非直读 STRATEGIES
         if ctx.phase1 and get_strategy(ctx.strategy).get("two_stage"):
             from strategies.filters.turning_point import turning_point_filter
 
@@ -350,7 +350,7 @@ class ScreeningService:
 
         Returns:
             (reasons, warnings) 元组：reasons 非空表示硬拒绝，
-            warnings 为软警告（不应导致拒绝）。P1-19: 分离避免 warning 误拒。
+            warnings 为软警告（不应导致拒绝）。分离避免 warning 误拒。
         """
         reasons = []
         warnings = []
@@ -368,7 +368,7 @@ class ScreeningService:
             if fin_stale:
                 warnings.append(f"{stale_msg}(财务硬过滤降级为警告)")
         except Exception as e:
-            # v1.16.0 P1-2 MEDIUM
+            # v1.16.0 MEDIUM
             from common.exceptions import log_silent_fallback
 
             log_silent_fallback(
@@ -393,7 +393,7 @@ class ScreeningService:
             reasons.append("ST风险")
         else:
             # 财务类退市风险预警（2026新增）：营收<1亿+净利润为负+审计意见非标
-            # P1-16: FinanceRecord 暂无营收绝对值字段（只有 revenue_yoy 同比%），
+            # FinanceRecord 暂无营收绝对值字段（只有 revenue_yoy 同比%），
             # 原读 fin.get("revenue", TOTALOPERATEREVE) 永远为 0，预警永不触发，
             # 形成虚假安全感。改为基于 revenue_yoy 异常下滑的近似预警：
             # 营收同比大幅下滑（<-30%）+ 亏损，提示退市风险。
@@ -485,7 +485,7 @@ class ScreeningService:
                     else:
                         warnings.append("涨停(有量,可参与)")
                 except Exception as e:
-                    # v1.16.0 P1-2 MEDIUM
+                    # v1.16.0 MEDIUM
                     from common.exceptions import log_silent_fallback
 
                     log_silent_fallback(
@@ -508,7 +508,7 @@ class ScreeningService:
             else:
                 reasons.append("EPS<=0")
 
-        # P1-19: 返回 (reasons, warnings) 元组，warnings 不导致拒绝
+        # 返回 (reasons, warnings) 元组，warnings 不导致拒绝
         return reasons, warnings
 
 
@@ -516,7 +516,7 @@ def compute_factor_parts(fin, quote_dict, features, industry, weights=None):
     """计算所有因子得分（自动发现已注册因子）。
 
     Args:
-        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算（P0-12），
+        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算，
                  None 时全量计算（向后兼容）。
     """
     code = quote_dict.get("code", "")
@@ -539,7 +539,7 @@ def compute_phase1_parts(fin, quote_dict, industry: str, weights=None) -> dict:
     chip 使用静态评分（仅股东户数变化率，零网络开销）。
 
     Args:
-        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算（P0-12）。
+        weights: 策略权重 dict。传入时权重为 0 的因子跳过计算。
     """
     code = quote_dict.get("code", "")
     parts = compute_phase_factors(
@@ -559,7 +559,7 @@ def compute_phase2_parts(
     chip 在 Phase 1 已用静态评分，Phase 2 不重复计算。
     """
     code = quote_dict.get("code", "")
-    # P1-14: Phase 2 跳过 chip 因子（chip 注册为 phase=2 但 Phase 1 已用静态评分）。
+    # Phase 2 跳过 chip 因子（chip 注册为 phase=2 但 Phase 1 已用静态评分）。
     # 避免 compute_phase_factors 执行 chip_score_dynamic（3 次网络请求）后又被 pop 丢弃。
     parts = compute_phase_factors(
         2, fin, quote_dict, features, industry, code, exclude={"chip"}
@@ -713,7 +713,7 @@ def compute_weighted_score_with_norm(
     Args:
         parts_list: 候选股因子 dict 列表
         strategy: 策略名
-        decorrelate: P2-05 是否启用残差化去相关（默认关闭，减少高共线性因子对
+        decorrelate: 是否启用残差化去相关（默认关闭，减少高共线性因子对
                      打分的过度影响）。仅在样本 >= 3 时生效。
 
     Returns:
@@ -721,7 +721,7 @@ def compute_weighted_score_with_norm(
     """
     if not parts_list:
         return []
-    # P2-05: 可选残差化去相关（在归一化前执行，消除共线性）
+    # 可选残差化去相关（在归一化前执行，消除共线性）
     if decorrelate:
         from strategies.factors.registry import decorrelate_factors
 
@@ -758,7 +758,7 @@ def build_result_row(ctx: ResultRowContext):
         "change_pct": quote_dict.get("change_pct"),
         "pe": quote_dict.get("pe"),
         "pb": quote_dict.get("pb"),
-        # WP2: roe/net_profit_yoy 缺数据时为 None，UI 渲染会显示 "-"
+        # roe/net_profit_yoy 缺数据时为 None，UI 渲染会显示 "-"
         "roe": fin.get("roe") if fin.get("roe") is not None else "-",
         "profit_growth": (
             fin.get("net_profit_yoy") if fin.get("net_profit_yoy") is not None else "-"

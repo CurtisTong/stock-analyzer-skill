@@ -1,8 +1,8 @@
 """P1 改动的单元测试：tencent 钳位 / akshare 列名容错 / baostock IP 退避。
 
-P1-2: tencent_kline datalen 钳位到 640
-P1-4: akshare_kline _pick_col 列名容错
-P1-1: baostock _record_failure / _record_success / get_baostock_ip_risk
+tencent_kline datalen 钳位到 640
+akshare_kline _pick_col 列名容错
+baostock _record_failure / _record_success / get_baostock_ip_risk
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 
 # ═══════════════════════════════════════════════════════════════
-# P1-2: tencent_kline datalen 钳位
+# tencent_kline datalen 钳位
 # ═══════════════════════════════════════════════════════════════
 
 
@@ -71,7 +71,7 @@ class TestTencentClamp:
 
 
 # ═══════════════════════════════════════════════════════════════
-# P1-4: akshare_kline _pick_col 列名容错
+# akshare_kline _pick_col 列名容错
 # ═══════════════════════════════════════════════════════════════
 
 
@@ -105,7 +105,7 @@ class TestAksharePickCol:
 
 
 # ═══════════════════════════════════════════════════════════════
-# P1-1: baostock IP 限流退避逻辑
+# baostock IP 限流退避逻辑
 # ═══════════════════════════════════════════════════════════════
 
 

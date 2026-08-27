@@ -54,7 +54,7 @@ stock-analyzer-skill/
 │   │   ├── utils.py               # 工具函数
 │   │   ├── parsers.py             # 数据解析器
 │   │   ├── metrics.py             # 指标计算
-│   │   ├── rate_limiter.py        # v1.16.0 WP5 + v1.16.0 hardening：slot() contextmanager + is_provider_disabled()
+│   │   ├── rate_limiter.py        # v1.16.0 + v1.16.0 hardening：slot() contextmanager + is_provider_disabled()
 │   │   └── exceptions/            # 异常类体系（含 v1.16.0 silent_fallback.py 模块）
 │   ├── config/                     # 配置外部化
 │   │   ├── loader.py              # YAML 配置加载器
@@ -121,7 +121,7 @@ stock-analyzer-skill/
 │   │       ├── base.py / bark.py
 │   │       ├── wechat.py          # 企业微信（v1.3.1）
 │   │       └── dingtalk.py        # 钉钉（v1.3.1）
-│   ├── portfolio/                  # 持仓管理（v1.16.0 P2-1 部分拆分：analytics.py + rebalance.py）
+│   ├── portfolio/                  # 持仓管理（v1.16.0 部分拆分：analytics.py + rebalance.py）
 │   │   ├── manager.py              # PortfolioManager facade（v1.16.0: 848→711 LOC，5 个方法 thin wrapper）
 │   │   ├── analytics.py            # to_dict / summary / risk_summary / attribution_report
 │   │   ├── rebalance.py            # advisory_rebalance

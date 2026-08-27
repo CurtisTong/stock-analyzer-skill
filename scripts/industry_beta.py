@@ -160,7 +160,7 @@ def _ols_beta(r_stock: list, r_index: list) -> dict | None:
 
 
 def _interpret_beta(beta: float | None, r_squared: float | None = None) -> str:
-    """beta 解读（P1-01c：结合 R² 修正，低 R² 时不再武断报防御型）。"""
+    """beta 解读（结合 R² 修正，低 R² 时不再武断报防御型）。"""
     if beta is None:
         return "数据不足"
     # 低 R²：个股与基准相关性弱，beta 数值参考价值有限，优先提示独立行情
@@ -196,7 +196,7 @@ def _interpret_beta(beta: float | None, r_squared: float | None = None) -> str:
 
 
 def _r2_confidence(r_squared: float | None) -> str:
-    """基于 R² 的解读置信度（P1-01c）。"""
+    """基于 R² 的解读置信度。"""
     if r_squared is None:
         return "低"
     if r_squared >= 0.7:

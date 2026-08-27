@@ -48,7 +48,7 @@ from macro_indicators import (  # noqa: E402  宏观+杠杆+估值桥（与 scri
 from industry_beta import compute_beta, select_index_by_size  # noqa: E402
 from portfolio_correlation import compute_full_portfolio_correlation  # noqa: E402
 
-# P2-26: 统一使用 logger 而非 print(stderr),与其他模块一致
+# 统一使用 logger 而非 print(stderr),与其他模块一致
 import logging as _logging
 
 logger = _logging.getLogger(__name__)
@@ -539,7 +539,7 @@ def _interpret_northbound(total_yi: float, slope: str, direction: str) -> str:
 def _fetch_sector_rotation(window: int = 5) -> dict | None:
     """题材轮动强度（透出 sector_etf_strength.compute_rotation_strength）。
 
-    P2-02：剧烈轮动期（strength>3）附加保守操作建议，避免输出与"分层操作
+    剧烈轮动期（strength>3）附加保守操作建议，避免输出与"分层操作
     建议"错配——主线切换中，分层建议会迅速失效。
     """
     try:
@@ -958,7 +958,7 @@ def to_markdown(payload: dict) -> str:
     if macro or leverage or val_bridge:
         lines.append("")
         lines.append("### 🌐 宏观-估值桥 / 杠杆-反身性")
-        # P2-26 修复：在段首显式标注非实时字段占比，避免脚注式 [fixture] 标记被忽略
+        # 修复：在段首显式标注非实时字段占比，避免脚注式 [fixture] 标记被忽略
         if macro:
             fixture_fields = [
                 f
@@ -1005,7 +1005,7 @@ def to_markdown(payload: dict) -> str:
                     f"- 碳酸锂: ¥{lithium}/吨"
                     f"{_source_tag(macro, 'lithium_carbonate_cny_t')}"
                 )
-            # P0-03c: 存在 fixture 字段时降级宏观结论置信度，避免把预置数据当实时研判
+            # 存在 fixture 字段时降级宏观结论置信度，避免把预置数据当实时研判
             if fixture_fields:
                 lines.append(
                     f"  ⚠️ 宏观结论置信度降级：{len(fixture_fields)} 个字段为预置/兜底数据，"

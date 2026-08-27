@@ -1,4 +1,4 @@
-"""PortfolioManager cost_source 可追溯（P1-03）单元测试。
+"""PortfolioManager cost_source 可追溯单元测试。
 
 验证：
 - add_position 新增持仓记录 cost_source（user_input / screenshot）

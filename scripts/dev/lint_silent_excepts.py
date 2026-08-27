@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lint: 阻止 production 代码新增裸 ``except Exception:``（v1.16.0 P1-2 治理）。
+"""Lint: 阻止 production 代码新增裸 ``except Exception:``（v1.16.0 治理）。
 
 v1.16.0 D: 新增 ``--strict`` 选项：
 - 默认 (advisory)：列出所有无日志调用的吞错点，exit 0；

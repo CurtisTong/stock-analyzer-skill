@@ -505,7 +505,7 @@ class PortfolioManager:
             ol = OpLog()
             return ol.history(limit)
         except Exception as e:
-            # v1.16.0 P1-2 MEDIUM
+            # v1.16.0 MEDIUM
             from common.exceptions import log_silent_fallback
 
             log_silent_fallback(
@@ -531,7 +531,7 @@ class PortfolioManager:
         return self._data.get("watchlist", [])
 
     def get_positions_with_pnl(self, price_lookup: Optional[dict] = None) -> list:
-        """返回持仓+盈亏计算结果（P2-26:为 market skill 持仓影响段提供完整数据）。
+        """返回持仓+盈亏计算结果（为 market skill 持仓影响段提供完整数据）。
 
         Args:
             price_lookup: {code: price} 字典，若 None 则仅返回持仓基础数据
@@ -559,7 +559,7 @@ class PortfolioManager:
     def compute_total_position_ratio(self, price_lookup: Optional[dict] = None) -> dict:
         """计算实际组合总仓位（持仓成本/市值 ÷ 总资产）。
 
-        P2-04 第 1 条：先算实际组合总仓位再给建议。总资产来自 portfolio.json
+        第 1 条：先算实际组合总仓位再给建议。总资产来自 portfolio.json
         顶层 `total_assets`（元）；未配置时返回 None + 提示，不猜测资金上下文。
 
         Args:
@@ -662,7 +662,7 @@ class PortfolioManager:
     ) -> dict:
         """添加持仓。如果已存在则加仓（加权平均成本）。
 
-        P1-03a: cost_source 记录成本来源（user_input / screenshot / calculated），
+        cost_source 记录成本来源（user_input / screenshot / calculated），
         加仓产生加权平均成本时自动置为 calculated，保留可追溯性。
         """
         from portfolio.crud import add_position as _add
@@ -698,7 +698,7 @@ class PortfolioManager:
     ) -> Optional[dict]:
         """更新持仓字段（cost, quantity, name, buy_date, tags, cost_source）。
 
-        P1-03a/c: cost 变更时记录 cost_before/cost_after 到 oplog；显式更新 cost
+        cost 变更时记录 cost_before/cost_after 到 oplog；显式更新 cost
         时若未提供 cost_source，默认标记为 user_input。
         """
         from portfolio.crud import update_position as _update
@@ -751,7 +751,7 @@ class PortfolioManager:
 
         return _remove_watch(self, code, auto_save=auto_save)
 
-    # ---------- 分析（v1.17.0 P2-1 拆分预备：从 manager 抽到 portfolio.analytics） ----------
+    # ---------- 分析（v1.17.0 拆分预备：从 manager 抽到 portfolio.analytics） ----------
 
     def to_dict(self) -> dict:
         """返回完整数据浅副本（v1.16.0 thin wrapper → portfolio.analytics.to_dict）。"""
@@ -788,7 +788,7 @@ class PortfolioManager:
                 "regime_hint": "...",                # 动态生成（基于 age_minutes）
                 "screener_hint": "...",              # 动态生成（基于真实 industry 最大值）
                 "position_ratio": {total_assets, position_cost, position_mv,
-                                   position_ratio, position_ratio_mv, warning},  # P2-04 实际总仓位
+                                   position_ratio, position_ratio_mv, warning},  # 实际总仓位
                 "type": "实盘/示例/虚拟",             # 三态
                 "totals": {cost, value, pnl, pnl_pct}, # 行情缺失时 pnl_pct=None
                 "positions": [...],   # 每只含 breakdown + breakdown_reason
@@ -1311,7 +1311,7 @@ class PortfolioManager:
             return {"warnings": [], "details": {}}
 
         def _value(p) -> float:
-            # P1-21: 优先用市值（现价×数量），无行情时回退成本口径
+            # 优先用市值（现价×数量），无行情时回退成本口径
             if quotes and p["code"] in quotes:
                 price = quotes[p["code"]] or 0
                 return price * p.get("quantity", 0)

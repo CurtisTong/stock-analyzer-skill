@@ -368,11 +368,11 @@ def fetch_batch(code):
     return fetcher(code)
 ```
 
-### `common/rate_limiter.py` — WP5 RateLimiter hardening
+### `common/rate_limiter.py` — RateLimiter hardening
 
-v1.16.0 在 WP5 基础上新增 contextmanager 与 CircuitBreaker 编排：
+v1.16.0 在 基础上新增 contextmanager 与 CircuitBreaker 编排：
 
-- `RateLimiter.slot(provider)` — `@contextmanager` 强制 try/finally 释放信号量（解决 P1-1 信号量泄漏）
+- `RateLimiter.slot(provider)` — `@contextmanager` 强制 try/finally 释放信号量（解决 信号量泄漏）
 - `RateLimiter.is_provider_disabled(provider)` — 检查 provider 是否处于 429 退避窗口
 - 模块级 `rate_limiter_slot(provider)` 与 `is_provider_disabled(provider)` helpers
 
@@ -406,7 +406,7 @@ python3 scripts/dev/lint_silent_excepts.py --strict   # CI blocking (exit 1)
 
 ### `portfolio/analytics.py` + `portfolio/rebalance.py` — god class 部分拆分
 
-v1.16.0 P2-1 第一阶段：将 `PortfolioManager` 的 5 个只读方法抽到子模块：
+v1.16.0 第一阶段：将 `PortfolioManager` 的 5 个只读方法抽到子模块：
 
 ```python
 from portfolio.analytics import to_dict, summary, risk_summary, attribution_report

@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data import get_kline  # noqa: E402 多源数据层
 from industry_beta import _daily_returns  # noqa: E402 复用收益率计算
-from sector_etf_strength import (  # noqa: E402 P2-04 行业重叠复用
+from sector_etf_strength import (  # noqa: E402 行业重叠复用
     _load_stock_sector_map,
     _SECTOR_TO_ETF_PROXY,
 )
@@ -81,7 +81,7 @@ def _industry_of_code(code: str) -> tuple[str | None, str | None]:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 行业重叠（P2-04：候选股与持仓的行业集中度增量）
+# 行业重叠（候选股与持仓的行业集中度增量）
 # ═══════════════════════════════════════════════════════════════
 
 
@@ -90,7 +90,7 @@ def compute_industry_overlap(
     portfolio_positions: list,
     industry_limit: float = 0.30,
 ) -> dict:
-    """计算候选股与持仓的行业重叠率（P2-04）。
+    """计算候选股与持仓的行业重叠率。
 
     口径：候选股与各持仓都映射到"行业名 → ETF 代理代码"，用 ETF 代理对齐判断
     是否同行业（覆盖不同细分同大类的场景，如"汽车电子"与"智能汽车"都映射到
@@ -184,7 +184,7 @@ def compute_industry_overlap(
 # 相关系数计算
 # ═══════════════════════════════════════════════════════════════
 
-# P1-04a：窗口声明（每次输出相关性都附带，避免用户把历史窗口当长期稳定）
+# 窗口声明（每次输出相关性都附带，避免用户把历史窗口当长期稳定）
 WINDOW_NOTICE = "相关性基于有限历史窗口，窗口 ≠ 长期稳定，行情切换或极端行情（如熊市）下相关性普遍上升，负相关可能反转，勿据此过度外推"
 
 
@@ -220,7 +220,7 @@ def _pearson_corr(x: list, y: list) -> float | None:
 
 
 def _corr_detailed(x: list, y: list) -> dict | None:
-    """相关系数 + 显著性（P1-04c：低 R² + 负相关 ≠ 真正分散）。
+    """相关系数 + 显著性（低 R² + 负相关 ≠ 真正分散）。
 
     单变量回归中 R² = corr²；显著性用近似 t 检验（H0: ρ=0）：
         t = corr * sqrt((n - 2) / (1 - corr²))，|t| > 2 视为显著（α≈0.05）
@@ -250,7 +250,7 @@ def _corr_detailed(x: list, y: list) -> dict | None:
 
 
 def _half_window_stability(valid_codes: list[str], returns_map: dict) -> dict | None:
-    """相关性稳定性（P1-04b：双半窗口对比，不额外拉数据）。
+    """相关性稳定性（双半窗口对比，不额外拉数据）。
 
     将收益率序列切成前半段 / 后半段，分别计算每个两两对的相关系数，
     统计：符号翻转对数（supply 至少一个 |corr| >= 0.3）、最大变化幅度。
@@ -499,7 +499,7 @@ def compute_stock_vs_portfolio(
             "data_quality": {"degraded_fields": degraded},
         }
 
-    # 计算个股 vs 每个持仓的相关性（含显著性，P1-04c）
+    # 计算个股 vs 每个持仓的相关性（含显著性，）
     corrs = []
     significant_neg_pairs = 0
     neg_pairs = 0
@@ -546,7 +546,7 @@ def compute_stock_vs_portfolio(
 
 
 def _interpret_diversification(avg_corr: float, neg_significant_ratio: float) -> str:
-    """分散化收益解读（P1-04c：低 R² 负相关 ≠ 真正分散）。"""
+    """分散化收益解读（低 R² 负相关 ≠ 真正分散）。"""
     if avg_corr >= 0.7:
         return "低（个股与组合高度相关，加入组合无分散价值）"
     if avg_corr >= 0.4:
@@ -567,7 +567,7 @@ def _interpret_diversification(avg_corr: float, neg_significant_ratio: float) ->
 
 
 def _corr_confidence(avg_corr: float, neg_significant_ratio: float) -> str:
-    """相关性结论置信度（P1-04c）。"""
+    """相关性结论置信度。"""
     if avg_corr is None:
         return "低"
     if avg_corr < 0 and neg_significant_ratio >= 0.5 and abs(avg_corr) >= 0.3:
@@ -663,7 +663,7 @@ def compute_full_portfolio_correlation(
         vs_portfolio = compute_stock_vs_portfolio(
             stock_code, portfolio_codes, window=window
         )
-        # P2-04：候选股与持仓的行业重叠率
+        # 候选股与持仓的行业重叠率
         try:
             industry_overlap = compute_industry_overlap(
                 stock_code,

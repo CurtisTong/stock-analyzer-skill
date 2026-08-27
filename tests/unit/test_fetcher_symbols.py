@@ -2,7 +2,7 @@
 
 覆盖 scripts/fetchers/kline/yfinance_kline._to_yf_symbol 与
 scripts/fetchers/finance/akshare_balance._normalize_symbol 的
-"00 段二义回退信任入参前缀"修复（P0-1 第二轮修复）。
+"00 段二义回退信任入参前缀"修复（第二轮修复）。
 
 按 FRAMEWORK.md 规范：纯函数无 IO，用 parametrize + 显式命名。
 """

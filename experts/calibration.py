@@ -457,7 +457,7 @@ def get_pending_predictions() -> List[dict]:
 def _calibration_factor_from_rates(rates: list[float]) -> float:
     """由校准率列表计算校准因子（decide.md §六.2）。
 
-    P0-08 修正（v2.4.3 后）：
+    修正（v2.4.3 后）：
         校准因子 = (mean_rate - 0.5) × 2 × (1 - min(cv, 0.5))
     mean_rate=0.5（无信息）时恒为 0——不因离散度产生负惩罚；
     mean_rate=1.0 且 cv=0 时取 1.0（完全可信），mean_rate=0.0 时取 -0.5。
@@ -474,7 +474,7 @@ def _calibration_factor_from_rates(rates: list[float]) -> float:
 
 
 def compute_calibration_factor() -> float:
-    """计算校准因子（decide.md §六.2 公式，P0-08 修正）。
+    """计算校准因子（decide.md §六.2 公式，修正）。
 
     校准因子 = (校准均值 - 0.5) × 2 × (1 - min(校准CV, 0.5))，归一化到 [-1, 1]。
     无历史数据时返回 0.0。

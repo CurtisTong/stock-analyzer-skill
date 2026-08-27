@@ -5,7 +5,7 @@
 量化风控指标（VaR/CVaR/最大回撤）由 business/risk_metrics.py 负责。
 三者职责互不重叠。
 
-P2-26: 扩展为业务指示符库,集中所有业务输出 emoji,
+扩展为业务指示符库,集中所有业务输出 emoji,
 避免散落在多处难以维护。
 """
 
@@ -27,7 +27,7 @@ def chip_emoji(score: float) -> str:
         return "⚠️"  # 筹码分散（主力出货）
 
 
-# ---------- 业务指示符（P2-26 新增）----------
+# ---------- 业务指示符（新增）----------
 
 # 评分等级
 RATING_STRONG = "🟢"  # 强势
@@ -44,7 +44,7 @@ RISK_UNKNOWN = "❓"  # 未知
 def rating_emoji(
     score: float, threshold_strong: float = 75, threshold_weak: float = 50
 ) -> str:
-    """评分等级 emoji（P2-26 新增:统一 0-100 评分的语义映射）。
+    """评分等级 emoji（新增:统一 0-100 评分的语义映射）。
 
     Args:
         score: 评分（0-100）
@@ -62,7 +62,7 @@ def rating_emoji(
 
 
 def trend_emoji(trend: str) -> str:
-    """趋势方向 emoji（P2-26 新增）。
+    """趋势方向 emoji（新增）。
 
     Args:
         trend: 趋势字符串（"上升" / "下降" / "震荡" / 其他）
@@ -78,7 +78,7 @@ def trend_emoji(trend: str) -> str:
 
 
 def risk_emoji(level: str) -> str:
-    """风险等级 emoji（P2-26 新增）。
+    """风险等级 emoji（新增）。
 
     Args:
         level: 风险等级字符串（"高" / "中" / "低" / "未知"）
@@ -94,7 +94,7 @@ def risk_emoji(level: str) -> str:
 
 
 def volume_price_emoji(state) -> str:
-    """量价状态 emoji（P2-26 新增:统一成交量价信号显示）。
+    """量价状态 emoji（新增:统一成交量价信号显示）。
 
     Args:
         state: VP_* 枚举值或字符串描述（"放量上涨" / "缩量下跌" / ...）

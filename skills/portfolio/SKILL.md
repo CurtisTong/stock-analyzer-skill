@@ -252,7 +252,7 @@ Web 录入（curl / JSON Webhook）详见 [`/portfolio-web`](../portfolio-web/SK
 | `as_of` | 行情快照/调用时间 | `quotes_map["__as_of__"]` 哨兵键 → `datetime.now()` 兜底 | SKILL 标题时间戳"📊 我的持仓 (YYYY-MM-DD HH:MM)" |
 | `data_mtime` | portfolio.json 最后写入时间 | `Path.stat().st_mtime` | 数据新鲜度判断；与行情时间错位时提示"持仓快照 16:15 / 行情 10:30" |
 
-### 实际总仓位（P2-04，可选配置）
+### 实际总仓位（，可选配置）
 
 `portfolio.json` 顶层可配置 `total_assets`（元，账户总资产），health_report 即输出 `position_ratio`：
 

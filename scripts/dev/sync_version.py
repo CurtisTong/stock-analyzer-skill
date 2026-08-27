@@ -5,7 +5,7 @@
 自动更新：SKILL.md、plugin.json、marketplace.json、README.md、测试文件、
   methodology.md、pyproject.toml、docs/product-architecture.md
 
-P2-30: 重构为声明式结构--update 和 check 共享同一 VERSION_TARGETS 列表，
+重构为声明式结构--update 和 check 共享同一 VERSION_TARGETS 列表，
   每个条目定义 (label, file_spec, patterns)。
   file_spec 为单文件路径或 glob 模式（"skills/**/SKILL.md"）。
   patterns 为 [(regex, replacement_group_indices)] 列表，支持单文件多模式（如 README badge+footer）。
@@ -34,7 +34,7 @@ def get_package_version() -> str:
 
 
 # ═══════════════════════════════════════════════════════════════
-# P2-30: 声明式版本同步目标
+# 声明式版本同步目标
 # 每个条目: (label, file_spec, patterns)
 #   - label: 显示名
 #   - file_spec: 相对路径（单文件）或 glob 模式（多文件）

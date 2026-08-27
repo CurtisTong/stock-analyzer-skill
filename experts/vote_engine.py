@@ -80,7 +80,7 @@ def _resolve_conflict(
 ) -> dict:
     """冲突解决规则（decide.md §三）。
 
-    v2.4.2：短线组方向改为均分驱动（P2-10）。
+    v2.4.2：短线组方向改为均分驱动。
     - 长线多数阈值 = ceil(long_n * 2/3)（5 人 -> 4），长线方向仍用投票计数。
     - 短线方向由 short_avg 区间驱动：>=60 看多、<=39 看空、40-59 分歧（不再依赖
       3 人投票的 ≥2/3 计数，因 1 人翻转即翻多数，统计噪声过大）。
@@ -101,7 +101,7 @@ def _resolve_conflict(
     long_divergent = (
         long_votes["bull"] < long_majority and long_votes["bear"] < long_majority
     )
-    # B4（P2-10）：短线组方向改为均分驱动，不再依赖 3 人投票的 ≥2/3 计数。
+    # B4：短线组方向改为均分驱动，不再依赖 3 人投票的 ≥2/3 计数。
     # 短线仅 3 人，1 人翻转即翻转投票多数，统计噪声过大；改用加权均分映射方向：
     #   short_avg >= 60 -> 短线看多；<= 39 -> 短线看空；40-59 -> 短线分歧。
     # short_signal 驱动所有短线方向判定；short_votes（原始计数）仅用于两极分化检测。
@@ -162,7 +162,7 @@ def _resolve_conflict(
         position_factor = 0.0
         notes.append("全面分歧，建议观望")
     else:
-        # 弱信号兜底（P2-12）：覆盖长线看多+短线看空等非极端分歧场景--
+        # 弱信号兜底：覆盖长线看多+短线看空等非极端分歧场景--
         # 双组方向不一致但未达两极分化，按综合均分给方向，仓位打折反映不确定性。
         # position 阈值与 direction_from_score 对齐：avg≥60=看多(0.8)，avg≥40=中性(0.5)，
         # 否则=看空(0.0，不建仓)。0.8/0.5 而非 1.0 体现"弱信号"打折语义。
@@ -460,7 +460,7 @@ def aggregate_votes(
     """
     from experts.scoring import compute_confidence_index
 
-    # P1-19: 入口浅拷贝 expert_results，避免 veto_results 原地修改 r["score"]/direction
+    # 入口浅拷贝 expert_results，避免 veto_results 原地修改 r["score"]/direction
     # 污染调用方持有的原始评分（影响风险提示、A/B 对比、校准记录、二次渲染）。
     expert_results = [dict(r) for r in expert_results]
 
@@ -517,7 +517,7 @@ def aggregate_votes(
                 )
 
     # 分组：优先用专家结果自带的 group 字段；缺失时从注册表按 name 补全。
-    # P0-1（v2.4.1）：原实现按规模硬编码切分（n==8->4+4，n==9->6+3），对真实
+    # （v2.4.1）：原实现按规模硬编码切分（n==8->4+4，n==9->6+3），对真实
     # 8 人 active 集（5 长 + 3 短）会错切成 4+4，导致分组均值/投票统计全部错误。
     # 改为按 EXPERT_REGISTRY 的 group 字段补全，注册表查不到的条目才回退到
     # active 集真实分布（5 长 + 3 短）切分。

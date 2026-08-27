@@ -64,14 +64,14 @@ def _build_hist_quote(bars, i, fin, code):
     }
 
 
-# P0-10: A 股财报披露延迟（天）。季报/年报在报告截止日后的法定披露窗口：
+# A 股财报披露延迟（天）。季报/年报在报告截止日后的法定披露窗口：
 #   一季报 4/30、半年报 8/31、三季报 10/31、年报 4/30。
 #   取 90 天作为保守上限，确保回测中仅使用已公开披露的财务数据。
 _FINANCE_DISCLOSURE_LAG_DAYS = 90
 
 
 def _visible_fin(fin: dict, trade_day: str) -> dict:
-    """P0-10: 返回交易日 trade_day 时已公开披露的财务数据。
+    """返回交易日 trade_day 时已公开披露的财务数据。
 
     若 fin.report_date + 披露延迟 > trade_day，说明该财报在交易日
     尚未公开，返回空 dict 消除前瞻偏差。否则返回完整 fin。
@@ -108,7 +108,7 @@ class SimContext:
     # 均为 None 时保持原固定阈值行为（-8% 止损 / +20% 止盈），不改变既有回测结果。
     atr_stop_multiplier: float | None = None  # 止损价 = 入场价 - k×ATR
     trailing_stop_pct: float | None = None  # 移动止盈：最高价回撤 X% 卖出
-    # walk-forward 窗口（P0-1 修复：原实现窗口边界从未传给引擎，OOS 数据被 IS 见过）。
+    # walk-forward 窗口（修复：原实现窗口边界从未传给引擎，OOS 数据被 IS 见过）。
     # eval_start: 收益评估起点（bars 索引，0=全部）；window_end: 模拟终点（None=全部）。
     # 因子计算始终用 bars[:i] 全历史（无前瞻），仅评估区间受窗口限制。
     eval_start: int = 0
@@ -130,7 +130,7 @@ def simulate_strategy(ctx: SimContext):
     quality 因子存在轻微前瞻偏差。valuation 和 liquidity 因子
     基于历史 K 线价格计算，严格无前瞻。
 
-    P0-10 修复：quality 因子现按 report_date + A 股披露延迟（90 天）
+    修复：quality 因子现按 report_date + A 股披露延迟（90 天）
     过滤，仅使用交易日 T 时已公开披露的财务数据，消除前瞻偏差。
     若财务数据尚未披露（report_date + 90 天 > T），quality 因子置 0，
     等效于该因子在回测早期不参与选股。
@@ -185,7 +185,7 @@ def simulate_strategy(ctx: SimContext):
         source = None
         is_degraded = False
         try:
-            # WP4: 解构 (records, meta) tuple
+            # 解构 (records, meta) tuple
             fin_records, _meta = get_finance(normalize_finance_code(code))
             fin = fin_records[0].to_dict() if fin_records else {}
             if _meta is not None:
@@ -211,7 +211,7 @@ def simulate_strategy(ctx: SimContext):
         industry_cache[code] = industry
         fin_cache[code] = fin
 
-    # P0-2: 指数级 regime 判定数据源（复用 kline_data，缺失时拉取一次）
+    # 指数级 regime 判定数据源（复用 kline_data，缺失时拉取一次）
     index_bars = _fetch_index_bars_for_backtest(kline_data)
 
     # 滚动窗口回测
@@ -246,11 +246,11 @@ def simulate_strategy(ctx: SimContext):
                 i += 1
                 continue
 
-            # P0-10: 仅使用交易日已披露的财务数据，消除前瞻偏差
+            # 仅使用交易日已披露的财务数据，消除前瞻偏差
             fin = _visible_fin(fin_raw, bars[i].day)
             hist_quote = _build_hist_quote(bars, i, fin, code)
 
-            # P1-2 评分同源化：与 screener 的 compute_all_factors 同一套因子
+            # 评分同源化：与 screener 的 compute_all_factors 同一套因子
             # （原 quality ×0.85 系数仅回测存在；momentum 用自研分桶而非 momentum_score）
             features = compute_indicators(bars[:i])
             parts = {
@@ -265,7 +265,7 @@ def simulate_strategy(ctx: SimContext):
                 parts["dividend"] = dividend
 
             # 筹码因子（股东户数变化率，静态评分，零网络开销）
-            # P1-13 修复：原调用 chip_score_dynamic(hist_quote, fin, industry) 签名错误
+            # 修复：原调用 chip_score_dynamic(hist_quote, fin, industry) 签名错误
             # （chip_score_dynamic 只收 code），TypeError 被 except 吞掉致 chip 因子永远为 0。
             # 改用 chip_score_static(code)，回测中避免网络请求。
             try:
@@ -280,7 +280,7 @@ def simulate_strategy(ctx: SimContext):
             # 如需启用，请确保事件数据已预加载到缓存
 
             # 策略权重应用 market regime overlay（Sprint 3 收口）
-            # P0-2 修复：v2.8 的指数级 regime 判定（_fetch_index_bars_for_backtest /
+            # 修复：v2.8 的指数级 regime 判定（_fetch_index_bars_for_backtest /
             # _classify_regime_from_index）此前无调用方，主路径仍用个股 bars 误判
             # regime。现改为指数 bars + current_day 截断（严格无前瞻）。
             if i >= 60:
@@ -394,7 +394,7 @@ def simulate_strategy(ctx: SimContext):
 def _calc_daily_returns(bars, start, holding_days):
     """计算持有期内的日收益率序列（用于精确回撤计算）。
 
-    P1-26 修复：持仓从 bars[start].close 起算，第 1 天收益应为 bars[start+1]
+    修复：持仓从 bars[start].close 起算，第 1 天收益应为 bars[start+1]
     相对 bars[start] 的变化。原实现从 j=start 起算（含信号日日内波动），
     与 entry_price=bars[start].close 错位一天，导致回撤/夏普基准偏移。
     """
@@ -482,7 +482,7 @@ def _calc_return_with_stop_loss(
     else:
         stop_price = entry_price * (1 + stop_loss)
 
-    # P1-27: 止损/止盈用日内 low/high 判断是否触及（而非收盘价），
+    # 止损/止盈用日内 low/high 判断是否触及（而非收盘价），
     # 触及后按阈值价成交（保守估计，避免收盘价回升导致乐观偏差）。
     # day=0 为信号日次日（持仓第 1 天），与 entry_price=bars[start].close 对齐。
     # 移动止盈例外：用收盘价触发（methodology 止损铁律"收盘确认"），

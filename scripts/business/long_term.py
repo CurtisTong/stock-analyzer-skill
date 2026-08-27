@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 # 长期持有评估
 # ═══════════════════════════════════════════════════════════════
 
-# P2-20: 默认权重（与 scoring.yaml 的 long_term_weights 保持一致）。
+# 默认权重（与 scoring.yaml 的 long_term_weights 保持一致）。
 # 权重从 scoring.yaml 读取，缺失或非法时回退到以下硬编码默认值。
 _DEFAULT_WEIGHTS = {
     "moat": 0.30,  # 护城河
@@ -52,7 +52,7 @@ class LongTermEvaluator:
     """长期持有评估器。"""
 
     def __init__(self):
-        # P2-20: 权重从 scoring.yaml 加载（支持运行时调参），回退默认值
+        # 权重从 scoring.yaml 加载（支持运行时调参），回退默认值
         self.weights = _load_long_term_weights()
 
     @property

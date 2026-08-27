@@ -1,4 +1,4 @@
-"""P2-02 剧烈轮动期操作建议（避免与分层建议错配）单元测试。"""
+"""剧烈轮动期操作建议（避免与分层建议错配）单元测试。"""
 
 import pytest
 
@@ -26,7 +26,7 @@ def _rotation_payload(strength: float) -> dict:
 
 
 class TestFetchSectorRotationAdvice:
-    """P2-02 剧烈轮动 → 保守建议。"""
+    """剧烈轮动 → 保守建议。"""
 
     def test_high_rotation_conservative(self, monkeypatch):
         monkeypatch.setattr(

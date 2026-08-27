@@ -97,7 +97,7 @@ def optimize_weights(
     跨窗口验证（单窗口优化会过拟合历史，优化结果必须在多个窗口同时为
     正收益才可信）。
     """
-    # 全因子优化（P1-3 修复：原只取 4 键，volatility/chip/dividend/event 合计
+    # 全因子优化（修复：原只取 4 键，volatility/chip/dividend/event 合计
     # 34% 权重被置零，"优化"实为 4 因子策略 vs 7 因子基线的对比）
     base_keys = [
         k

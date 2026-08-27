@@ -1,4 +1,4 @@
-"""PortfolioManager 调仓建议子模块（v1.17.0 god-class 拆分 P2-1 准备）。
+"""PortfolioManager 调仓建议子模块（v1.17.0 god-class 拆分 准备）。
 
 从 ``scripts/portfolio/manager.py`` 抽取的 ``advisory_rebalance`` 方法。
 纯只读操作，不修改 ``manager._data``。

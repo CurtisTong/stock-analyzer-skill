@@ -1,4 +1,4 @@
-"""WP3 FinanceRecord 有效性判定单元测试。
+"""FinanceRecord 有效性判定单元测试。
 
 验证 _is_valid_records 多字段判定逻辑：
 - 微利股（eps=0.01）不被误判为"无效"
@@ -30,7 +30,7 @@ class TestIsValidRecords:
     """_is_valid_records 单元测试。"""
 
     def test_micro_profit_stock_not_misjudged(self):
-        """微利股 eps=0.01 不被误判为无效（WP3 修复点）。
+        """微利股 eps=0.01 不被误判为无效（修复点）。
 
         旧逻辑: all(eps==0 and roe==0) → True（误判）
         新逻辑: 至少 1 字段非 None 且非 0 → 视为有效

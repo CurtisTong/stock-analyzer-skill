@@ -14,7 +14,7 @@ import math
 import statistics
 from typing import Any, Dict, List, Optional
 
-# P1-21: 标准正态分布 PDF，用于参数法 CVaR 计算
+# 标准正态分布 PDF，用于参数法 CVaR 计算
 _NORMAL_PDF_CONST = 1.0 / math.sqrt(2.0 * math.pi)
 
 
@@ -70,7 +70,7 @@ def max_drawdown(prices: List[float]) -> Dict[str, Any]:
     Returns:
         {"max_dd_pct": -0.15, "peak_idx": 100, "trough_idx": 150, "recovery_idx": 180}
 
-    P2-22: recovery_idx 语义--
+    recovery_idx 语义--
         - 非空 int: 回撤后价格首次回升至峰值的位置索引（已恢复）
         - None: 在观测区间内未恢复至峰值（仍在回撤中或数据结束）
         recovery_idx == trough_idx 时也视为未恢复（返回 None）。
@@ -87,7 +87,7 @@ def max_drawdown(prices: List[float]) -> Dict[str, Any]:
     peak_at_max_dd = peak
 
     for i, p in enumerate(prices):
-        # P0-6: 在更新 peak 之前先快照，供后续 max_dd 判定时使用
+        # 在更新 peak 之前先快照，供后续 max_dd 判定时使用
         peak_before = peak
         if p > peak:
             peak = p
@@ -177,7 +177,7 @@ def position_var_summary(
         z_score = 1.65 if confidence == 0.95 else 2.33  # 95% / 99%
         daily_vol = vol / math.sqrt(252)
         var_1d = z_score * daily_vol
-        # P1-21: 正态分布 CVaR = VaR × φ(z) / (z × (1 - confidence))
+        # 正态分布 CVaR = VaR × φ(z) / (z × (1 - confidence))
         # 其中 φ(z) 为标准正态 PDF。95% 时 ≈1.24，99% 时 ≈1.13（比固定 1.2 更准确）
         cvar_ratio = _normal_pdf(z_score) / (z_score * (1 - confidence))
         cvar_1d = var_1d * cvar_ratio

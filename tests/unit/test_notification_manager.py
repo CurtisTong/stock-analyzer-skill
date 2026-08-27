@@ -267,7 +267,7 @@ class TestThrottle:
         assert nm._check_throttle("k3", urgent=True) is False
 
     def test_atomic_under_concurrent_send(self):
-        """并发场景下 _check_throttle 原子占位（P0-10 C1 修复验证）。
+        """并发场景下 _check_throttle 原子占位。
 
         多线程并发 send 同一 key，预期只有 1 个通过 throttle，
         其余应被去重窗口拒绝（不出现双双通过导致重复推送）。
@@ -294,7 +294,7 @@ class TestThrottle:
         assert passed.count(False) == 9
 
     def test_throttle_occupies_independent_of_send_result(self):
-        """占位独立于发送结果（P0-10 C2）：失败的发送也占用去重窗口。"""
+        """占位独立于发送结果：失败的发送也占用去重窗口。"""
         ch = _FakeChannel(name="bark", ok=False, error="err")
         nm = _make_nm(channels=[ch])
 

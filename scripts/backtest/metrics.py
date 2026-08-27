@@ -92,7 +92,7 @@ def run_backtest(
     win_rate = sum(1 for r in all_returns if r > 0) / len(all_returns) * 100
 
     # 夏普比率（年化，假设无风险利率 3%，一年 252 个交易日）
-    # P1-28: 统一用 all_daily_returns 计算；不足时报样本不足而非退化到非独立期收益
+    # 统一用 all_daily_returns 计算；不足时报样本不足而非退化到非独立期收益
     # （原 elif 路径用小样本 stdev + periods_per_year**0.5 年化，非独立样本下数学不成立）。
     annual_risk_free = 0.03
     sharpe = 0
@@ -150,7 +150,7 @@ def run_backtest(
     total_trades = top_n * total_periods
 
     # 信息比率（多基准：基于 benchmark_period_returns_map 循环计算）
-    # P0-12 修复：原实现用 all_daily_returns（多期拼接、不连续）与 benchmark_returns
+    # 修复：原实现用 all_daily_returns（多期拼接、不连续）与 benchmark_returns
     # （连续 N 天）按 min_len 前对齐，时间区间错开数周到数月，数值无意义。
     # 改为基于"每期收益 vs 基准同期持有期收益"的超额收益，不依赖日序列时间对齐。
     import statistics
@@ -228,7 +228,7 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
                 returns.append((bars[i].close - bars[i - 1].close) / bars[i - 1].close)
         return returns
     except Exception as e:
-        # v1.16.0 P1-2 HIGH: 基准收益计算失败直接影响回测指标——记录
+        # v1.16.0 HIGH: 基准收益计算失败直接影响回测指标——记录
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(

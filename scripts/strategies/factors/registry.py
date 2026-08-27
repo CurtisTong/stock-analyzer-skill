@@ -10,7 +10,7 @@
     from strategies.factors.registry import register_factor
     register_factor("esg", compute_fn=esg_score, phase=1, args_style="fin_industry")
 
-P2-05 (v2.0): 因子共线性治理
+(v2.0): 因子共线性治理
   - compute_factor_correlation_matrix(): Pearson 相关矩阵（诊断）
   - compute_vif(): 方差膨胀因子（诊断，VIF > 10 表示严重共线性）
   - decorrelate_factors(): 残差化去相关变换（可选，保留 9-key 接口）
@@ -210,7 +210,7 @@ def compute_all_factors(fin, quote, features, industry, code, weights=None) -> d
     with _FACTORS_LOCK:
         factors_snapshot = list(_FACTORS.items())
     for name, desc in factors_snapshot:
-        # P0-12: 权重为 0 的因子跳过计算（event/analyst 含网络请求但贡献为 0）
+        # 权重为 0 的因子跳过计算（event/analyst 含网络请求但贡献为 0）
         if weights is not None and weights.get(name, 0) == 0:
             continue
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
@@ -247,7 +247,7 @@ def compute_phase_factors(
             continue
         if name in skip:
             continue
-        # P0-12: 权重为 0 的因子跳过计算
+        # 权重为 0 的因子跳过计算
         if weights is not None and weights.get(name, 0) == 0:
             continue
         kwargs = _build_kwargs(desc, fin, quote, features, industry, code)
@@ -267,7 +267,7 @@ def compute_phase_factors(
 def compute_factor_correlation_matrix(
     factor_scores: dict,
 ) -> dict:
-    """P2-05: 计算因子得分相关矩阵（诊断工具，不改变打分）。
+    """计算因子得分相关矩阵（诊断工具，不改变打分）。
 
     Args:
         factor_scores: {factor_name: [score1, score2, ...]} 每只股票一个分数
@@ -303,7 +303,7 @@ def compute_factor_correlation_matrix(
 
 
 def compute_vif(factor_scores: dict) -> dict:
-    """P2-05: 计算方差膨胀因子（VIF）。
+    """计算方差膨胀因子（VIF）。
 
     VIF_j = 1 / (1 - R²_j)，其中 R²_j 是因子 j 对其他因子的线性回归决定系数。
     VIF > 10 表示严重共线性，VIF > 5 表示中等共线性。
@@ -401,7 +401,7 @@ def _solve_linear(A: list, b: list, n: int) -> list | None:
 
 
 def decorrelate_factors(parts_list: list, threshold: float = 0.7) -> list:
-    """P2-05: 对批量因子得分做残差化去相关。
+    """对批量因子得分做残差化去相关。
 
     对每对相关系数 > threshold 的因子 (A, B)，从 B 中减去 A 对 B 的线性回归残差，
     消除共线性。保留 9-key 接口，策略权重无需修改。

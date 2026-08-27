@@ -11,7 +11,6 @@ import pytest
 
 import data.pool as pool
 
-
 # ---------- fetch_board_stocks ----------
 
 

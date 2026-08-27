@@ -1,4 +1,4 @@
-"""Walk-forward 回测框架（P0-11）。
+"""Walk-forward 回测框架。
 
 将历史数据划分为多个 train + test 窗口，在 train 段优化策略参数，
 在 test 段（out-of-sample）评估，汇总 OOS 性能指标。
@@ -196,7 +196,7 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
         is_total = (is_total - 1) * 100
 
         # OOS（测试段）回测——评估 [train_end, test_end)，因子历史含 train 段
-        # （P0-1 修复：原实现不传窗口边界，OOS 数据被 IS 见过，无样本外意义）
+        # （修复：原实现不传窗口边界，OOS 数据被 IS 见过，无样本外意义）
         oos_ctx = SimContext(
             strategy_name=config.strategy_name,
             codes=config.codes,

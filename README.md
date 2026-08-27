@@ -589,7 +589,7 @@ scripts/
 | 🔁 **多数据源故障转移**   | 单 API 挂掉自动切下家（集成熔断器 + RateLimiter）|
 | 🛡️ **429 限流防护**     | v1.16.0 全局 RateLimiter（per-provider 信号量 + 指数退避；contextmanager 强制 try/finally 防泄漏）|
 | 🏛️ **三层架构**           | API 层 → 业务层 → 数据层，职责清晰易扩展  |
-| 📊 **finance 域 WP1-WP6** | v1.16.0 重构：财报表 `Optional[float]=None` 化、`get_finance` 返 `(records, FinanceMeta)` tuple、主板/科创板/北交所差异化披露 |
+| 📊 **finance 域 ** | v1.16.0 重构：财报表 `Optional[float]=None` 化、`get_finance` 返 `(records, FinanceMeta)` tuple、主板/科创板/北交所差异化披露 |
 | ⚙️ **配置外部化**         | 行业阈值 / 评分权重 / 数据端点全部 YAML   |
 | 🔍 **可观测性提升**      | v1.16.0 silent_fallback：14 处 HIGH/MEDIUM 静默吞错加显式 WARNING 日志 |
 | 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1720 测试，v1.20.2 实测）|
@@ -717,7 +717,7 @@ python3 scripts/monitor.py --cleanup
 - 实时数据依赖外部 API 稳定性，端点变更时改 `scripts/fetchers/` 即可
 - 预置股票池为静态快照，全市场最新数据需联网刷新
 - 多因子权重基于经验设定，回测模块（v1.5.0+）支持卡玛/盈亏比/夏普等 11 项指标验证，但未做大规模参数寻优
-- 回测财务数据存在前瞻偏差防护：quality 因子按 report_date + 90 天披露延迟过滤，仅使用交易日已公开披露的财报（P0-10）。valuation/liquidity 因子基于历史 K 线价格，严格无前瞻
+- 回测财务数据存在前瞻偏差防护：quality 因子按 report_date + 90 天披露延迟过滤，仅使用交易日已公开披露的财报。valuation/liquidity 因子基于历史 K 线价格，严格无前瞻
 - 资金面数据（融资融券 / 股东户数）每日更新，受交易所披露节奏限制
 - 美股数据依赖 `yfinance` 包（可选），未安装时自动跳过
 - 校准数据同步依赖 `gh` CLI，未配置 GitHub 认证时 `--auto` 模式不可用
@@ -743,7 +743,7 @@ python3 scripts/dev/sync_skill_test_versions.py --check
 
 # 4. 提交 + 打 tag + push
 git add -A
-git commit -m "release: v1.16.0 — finance 域 WP1-WP6 + 全栈 hardening + skill 验证"
+git commit -m "release: v1.16.0 — finance 域 + 全栈 hardening + skill 验证"
 git tag -a v1.16.0 -m "Release v1.16.0"
 git push origin main --tags
 ```

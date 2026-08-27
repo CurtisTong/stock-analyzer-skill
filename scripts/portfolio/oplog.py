@@ -78,7 +78,7 @@ class OpLog:
             code: 股票代码
             snapshot_before: 操作前的完整 portfolio 数据快照
             auto_save: 是否自动保存
-            extra: 附加 detail 字段（如 cost_before / cost_after，P1-03 可追溯）
+            extra: 附加 detail 字段（如 cost_before / cost_after，可追溯）
 
         Returns:
             新增的操作记录

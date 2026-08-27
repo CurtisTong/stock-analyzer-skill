@@ -50,7 +50,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         [buffett_dims, duan_dims],
         weights=[0.55, 0.45],
     )
-    # P1-17: score() 也输出 buffett_sub_score，使 score_expert_precise（SKILL.md 推荐
+    # score() 也输出 buffett_sub_score，使 score_expert_precise（SKILL.md 推荐
     # 量化基线路径，调用 score() 而非 score_with_reasoning）能正确判断巴菲特否决权，
     # 避免 v2.1.2 否决权隔离在推荐路径下静默失效。
     result["buffett_sub_score"] = _compute_buffett_sub_score(buffett_dims)

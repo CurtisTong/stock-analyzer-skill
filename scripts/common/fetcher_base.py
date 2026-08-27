@@ -52,7 +52,7 @@ class BaseFetcher(ABC):
 
     def __init__(self, name: str, priority: int = 0, provider: str | None = None):
         self.name = name
-        # P2-19: TODO(v2.0) 强制要求子类显式传 provider
+        # TODO(v2.0) 强制要求子类显式传 provider
         # 当前保留隐式推断作为兼容层，避免大量子类重构。
         # 显式 provider 优先；否则从 name 推断（取最后一个 _ 前的段落，
         # 这样 "northbound_flow_eastmoney" -> "eastmoney"，"tencent_quote" -> "tencent"）
@@ -87,14 +87,14 @@ class BaseFetcher(ABC):
             self.provider = name
         self.priority = priority
         self.enabled = True  # 可通过 data_source.yaml 的 enabled 字段覆盖
-        # P0-03: timeout/retry 从 data_source.yaml 读取（_apply_source_config 覆盖），
+        # timeout/retry 从 data_source.yaml 读取（_apply_source_config 覆盖），
         # 默认值与 http_get 内置默认一致，保证未配置时行为不变。
         self.timeout: int = 10
         self.retry: int = 3
-        # P1-2: 最大数据长度上限（kline 域用），从 data_source.yaml 的 max_datalen 读取。
+        # 最大数据长度上限（kline 域用），从 data_source.yaml 的 max_datalen 读取。
         # 各源接口对返回行数有上限（如腾讯 ifzq 固定最多 640 日），fetcher 据此钳位。
         self.max_datalen: int | None = None
-        # P2-9: 熔断器配置改为实例级缓存，避免类级共享导致跨子类/测试串味
+        # 熔断器配置改为实例级缓存，避免类级共享导致跨子类/测试串味
         # （原 _cb_config_cache 类变量在首个子类实例化后被所有子类共享，
         #  且 conftest 的 _reload_config_loader reload 配置后不会重置该缓存）。
         self._cb_config = self._load_cb_config()
@@ -103,7 +103,7 @@ class BaseFetcher(ABC):
     def _load_cb_config(self) -> dict[str, int]:
         """从 data_source.yaml 加载熔断器配置。
 
-        P2-9: 改为实例方法，每个 fetcher 实例独立读取配置，
+        改为实例方法，每个 fetcher 实例独立读取配置，
         不再使用类级缓存，避免跨子类污染和测试间串味。
         """
         try:
@@ -171,7 +171,7 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         return None
     if not fetcher.is_available():
         return None
-    # P1-1: 接入 RateLimiter（与 DataFetcherManager.fetch 对齐）
+    # 接入 RateLimiter（与 DataFetcherManager.fetch 对齐）
     from common.rate_limiter import get_rate_limiter, is_provider_disabled
 
     if is_provider_disabled(fetcher.provider):
@@ -186,7 +186,7 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         with limiter.slot(fetcher.provider):
             result = fetcher.fetch(*args, **kwargs)
     except RateLimitError as e:
-        # P0-04: 429 限速不计入熔断失败（同 DataFetcher.fetch 逻辑）
+        # 429 限速不计入熔断失败（同 DataFetcher.fetch 逻辑）
         logger.debug(
             "fetch_with_breaker %s 限速(429): %s", fetcher.__class__.__name__, e
         )
@@ -223,7 +223,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
     if args and not _SAFE_CODE_PATTERN.match(str(args[0])):
         return None
 
-    # P1-1: 接入 RateLimiter（与 DataFetcherManager.fetch 对齐）
+    # 接入 RateLimiter（与 DataFetcherManager.fetch 对齐）
     from common.rate_limiter import get_rate_limiter, is_provider_disabled
 
     limiter = get_rate_limiter()
@@ -270,7 +270,7 @@ class DataFetcherManager:
         if source_config:
             self._apply_source_config(fetchers, source_config)
         self.fetchers = sorted(fetchers, key=lambda f: f.priority, reverse=True)
-        # P2-18: _last_error 用 threading.Lock 保护读写，单例共享场景下避免跨线程竞争
+        # _last_error 用 threading.Lock 保护读写，单例共享场景下避免跨线程竞争
         self._last_error: Exception | None = None
         self._last_error_lock = threading.Lock()
 
@@ -295,12 +295,12 @@ class DataFetcherManager:
                 fetcher.priority = cfg.get("priority", fetcher.priority)
                 if "enabled" in cfg:
                     fetcher.enabled = bool(cfg["enabled"])
-                # P0-03: 读取 timeout/retry，使 data_source.yaml 配置生效
+                # 读取 timeout/retry，使 data_source.yaml 配置生效
                 if "timeout" in cfg:
                     fetcher.timeout = int(cfg["timeout"])
                 if "retry" in cfg:
                     fetcher.retry = int(cfg["retry"])
-                # P1-2: 读取 max_datalen（kline 域各源返回行数上限）
+                # 读取 max_datalen（kline 域各源返回行数上限）
                 if "max_datalen" in cfg:
                     fetcher.max_datalen = int(cfg["max_datalen"])
 
@@ -312,7 +312,7 @@ class DataFetcherManager:
         返回 None 表示所有源都无数据（非失败）。
         仅在异常时触发熔断，None 返回不触发。
 
-        WP5 (2026-07-21):
+        (2026-07-21):
         - 接入 RateLimiter：per-provider 并发控制 + 429 退避
         - 遇 429 时不再立即切源：退避后重试主源一次，仍失败才切
         """
@@ -329,7 +329,7 @@ class DataFetcherManager:
         for fetcher in self.fetchers:
             if not fetcher.is_available():
                 continue
-            # v1.16.0 P1-1.2: 与 RateLimiter 编排——若 provider 当前在
+            # v1.16.0 与 RateLimiter 编排——若 provider 当前在
             # 429 退避窗口内，直接跳过（避免对退避中的源发起新请求，
             # 让 circuit breaker 与 RateLimiter 形成正交抑制）。
             if is_provider_disabled(fetcher.provider):
@@ -340,7 +340,7 @@ class DataFetcherManager:
                 )
                 continue
             try:
-                # WP5: Semaphore 保护 + 退避 sleep
+                # Semaphore 保护 + 退避 sleep
                 limiter.acquire(fetcher.provider)
                 try:
                     result = fetcher.fetch(code, **kwargs)
@@ -353,7 +353,7 @@ class DataFetcherManager:
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
             except RateLimitError as e:
-                # WP5: 429 退避 + 重试主源一次，避免被切到数据更少的次源
+                # 429 退避 + 重试主源一次，避免被切到数据更少的次源
                 self._set_last_error(e)
                 if fetcher.provider not in retried_429:
                     retried_429.add(fetcher.provider)

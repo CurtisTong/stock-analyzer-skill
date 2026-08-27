@@ -1,7 +1,7 @@
-"""回归测试：stock_analysis.analyze() 在 WP4 get_finance tuple 化后仍正常工作。
+"""回归测试：stock_analysis.analyze() 在 get_finance tuple 化后仍正常工作。
 
 背景：
-- WP4 (90b44e4) 把 get_finance 改为返回 (records, FinanceMeta) tuple
+- (90b44e4) 把 get_finance 改为返回 (records, FinanceMeta) tuple
 - stock_analysis._analyze 在 138 行直接调 f_finance.result() 拿 tuple
 - 早期漏改 → AttributeError: 'list' object has no attribute 'to_dict'
 - 由 /research SZ002920 full 调用栈暴露并修复（commit e0a3ea2）
@@ -111,7 +111,7 @@ def _patch_data_fetchers(fake_records):
 
 
 class TestStockAnalysisAnalyzeWP4:
-    """回归测试 stock_analysis.analyze 在 WP4 tuple 改造后正常返回。"""
+    """回归测试 stock_analysis.analyze 在 tuple 改造后正常返回。"""
 
     def test_analyze_returns_full_result_with_finance(self):
         """analyze 必须能正确处理 get_finance 的 (records, meta) tuple。"""
@@ -126,7 +126,7 @@ class TestStockAnalysisAnalyzeWP4:
         assert result.get("data_failed", []) == []
         assert not result.get("data_warnings", [])
 
-        # 财务摘要字段（WP2 关键：roe/eps 实际是 float）
+        # 财务摘要字段（关键：roe/eps 实际是 float）
         finance = result.get("finance", {})
         assert finance["eps"] == 1.0  # records[0].eps = 1.0 + 0*0.5
         assert finance["roe"] == 10.0

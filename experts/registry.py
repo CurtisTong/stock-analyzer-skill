@@ -8,7 +8,7 @@ experts/*.md 保留为叙事/案例文档（人类可读），其中 §九评分
 加载流程：
   _ensure_loaded() -> yaml_loader.load_all_experts() -> EXPERT_REGISTRY
 
-P2-01 (v2.0): 三源合一为 YAML 单源。原硬编码 ExpertProfile 快照已删除，
+(v2.0): 三源合一为 YAML 单源。原硬编码 ExpertProfile 快照已删除，
 YAML 是唯一数据源。experts/*.md 仅保留叙事（§九 weights 表作为人类可读镜像）。
 """
 
@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 
 EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
 
-# P2-02: LEGACY_ALIAS / get_display_name 已删除（零运行时调用方，
+# LEGACY_ALIAS / get_display_name 已删除（零运行时调用方，
 # 运行时显示名统一从 ExpertProfile.display_name 读取）。
 
 
 def _ensure_loaded() -> None:
     """从 experts/yaml/*.yaml 加载所有专家配置到 EXPERT_REGISTRY。
 
-    P2-01 (v2.0): YAML 是唯一数据源，不再有硬编码回退。
+    (v2.0): YAML 是唯一数据源，不再有硬编码回退。
     PyYAML 是硬依赖（pyproject.toml 已声明 pyyaml>=6.0）。
 
     v2.4.0 的不变量：

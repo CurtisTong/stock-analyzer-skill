@@ -1,4 +1,4 @@
-"""industry_beta 解读置信度（P1-01c）单元测试。
+"""industry_beta 解读置信度单元测试。
 
 覆盖场景：
 - _interpret_beta 结合 R² 修正：低 R² 不再武断报防御型

@@ -204,9 +204,9 @@ class NotificationManager:
         """检查是否被频率限制，并在允许时**原子地占位**（写入去重时间戳+递增计数）。
 
         检查与占位合并为单一临界区操作，避免并发 send 同一 key 时
-        双双通过检查导致重复推送（P0-10 C1 竞态修复）。
+        双双通过检查导致重复推送（C1 竞态修复）。
         占位独立于发送结果：即使后续推送失败，去重窗口内也不会重试，
-        避免"失败不计数→无效重试循环"（P0-10 C2）。
+        避免"失败不计数→无效重试循环"（C2）。
 
         Args:
             key: 去重键
@@ -226,7 +226,7 @@ class NotificationManager:
                 self._daily_date = today
                 self._daily_count = 0
 
-            # P0-19: 惰性清理过期 throttle 条目（每小时一次），
+            # 惰性清理过期 throttle 条目（每小时一次），
             # 防止 throttle_key 含动态数据时无限增长
             if (
                 not self._last_throttle_gc

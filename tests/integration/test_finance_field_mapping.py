@@ -2,7 +2,7 @@
 FinanceRecord 字段映射测试（review#9+10）。
 验证 _dict_to_finance 对东财原始字段名/标准化字段名的归一化能力。
 
-WP1 (2026-07-21): 删除 7 个死字段后，本文件不再断言 dividend_yield 等。
+(2026-07-21): 删除 7 个死字段后，本文件不再断言 dividend_yield 等。
 仍保留 ESG/分红/治理 Tier 3 字段（consecutive_dividend_years / major_shareholder_reduction /
 violation_penalty / audit_opinion）的映射测试，因 strategies/factors 仍在读取（读到的永远是 0）。
 """
@@ -55,14 +55,14 @@ class TestDictToFinanceMapping:
         assert r.revenue_yoy == 12.3
 
     def test_esg_dividend_fields_default_zero(self):
-        """ESG/分红字段缺省时为 None/0（WP2 None 化后语义变化）。
+        """ESG/分红字段缺省时为 None/0（None 化后语义变化）。
 
-        WP1 后 dividend_yield / fcf / ocf / gross_margin_qoq 等 Tier 2 字段
-        已从 FinanceRecord 删除。WP2 后数值字段 None 表示"未披露"。
+        后 dividend_yield / fcf / ocf / gross_margin_qoq 等 Tier 2 字段
+        已从 FinanceRecord 删除。 后数值字段 None 表示"未披露"。
         """
         d = {"eps": 1.0, "roe": 10.0}
         r = _dict_to_finance(d)
-        # WP2: 数值字段 None 表示"未披露"
+        # 数值字段 None 表示"未披露"
         assert r.major_shareholder_reduction is None
         assert r.violation_penalty is None
         # int/str 字段保持默认

@@ -177,7 +177,7 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
             try:
                 bars = fetcher.fetch(code, scale=240, datalen=days_back + 2)
             except Exception as e:
-                # v1.16.0 P1-2 MEDIUM: 显式记录静默降级，便于 grep
+                # v1.16.0 MEDIUM: 显式记录静默降级，便于 grep
                 from common.exceptions import log_silent_fallback
 
                 log_silent_fallback(

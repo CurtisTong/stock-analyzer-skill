@@ -79,7 +79,7 @@ class TestCrossWindowValidation:
 
 
 class TestOptimizeFullFactorSet:
-    """P1-3: optimize_weights 全因子网格（原只取 4 键，34% 权重被置零）。"""
+    """optimize_weights 全因子网格（原只取 4 键，34% 权重被置零）。"""
 
     def test_weights_include_all_factors(self, monkeypatch):
         """传给 run_backtest 的候选权重应含全部 7 因子（含 volatility/chip/dividend）。"""

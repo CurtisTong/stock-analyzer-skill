@@ -26,7 +26,7 @@ def chan_zhongshu(xd_list):
         zd = max(x0["low"], x1["low"], x2["low"])
 
         if zd < zg:
-            # P1-12: 补充 GG/DD 边界（中枢内最高高点和最低低点）
+            # 补充 GG/DD 边界（中枢内最高高点和最低低点）
             gg = max(x0["high"], x1["high"], x2["high"])
             dd = min(x0["low"], x1["low"], x2["low"])
             zs_list.append(
@@ -60,7 +60,7 @@ def chan_zhongshu(xd_list):
             # 缠论中枢合并应保持交集而非并集（并集会扩大中枢范围，违反定义）
             new_zg = min(last["zg"], zs["zg"])
             new_zd = max(last["zd"], zs["zd"])
-            # P1-12: 合并时 GG/DD 取并集（最高高点/最低低点）
+            # 合并时 GG/DD 取并集（最高高点/最低低点）
             new_gg = max(last.get("gg", last["zg"]), zs.get("gg", zs["zg"]))
             new_dd = min(last.get("dd", last["zd"]), zs.get("dd", zs["zd"]))
             merged_zs[-1] = {

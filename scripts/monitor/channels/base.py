@@ -17,7 +17,7 @@ def send_with_retry(
 ) -> Tuple[bool, str]:
     """对网络错误做指数退避重试的包装器。
 
-    P1-23: 通知通道单次 HTTP 失败即返回会漏推关键预警（如止损）。
+    通知通道单次 HTTP 失败即返回会漏推关键预警（如止损）。
     对网络错误（URLError/OSError）重试，API 业务错误（errcode!=0）不重试。
 
     Args:

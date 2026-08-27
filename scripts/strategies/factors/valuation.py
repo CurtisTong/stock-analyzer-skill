@@ -15,7 +15,7 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     """
     pe = to_float(quote.get("pe"))
     pb = to_float(quote.get("pb"))
-    # WP2: 缺数据 → to_float 返回 0.0，max 不会再 TypeError
+    # 缺数据 → to_float 返回 0.0，max 不会再 TypeError
     # P2-H6: 3 年 CAGR 优先，无则用单期净利同比（兼容原始东财键回退）
     cagr_3y = to_float(fin.get("net_profit_cagr_3y"))
     growth = max(

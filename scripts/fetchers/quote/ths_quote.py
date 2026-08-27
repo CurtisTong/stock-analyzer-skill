@@ -51,7 +51,7 @@ def _parse_quote(text: str, code: str) -> dict | None:
         if len(last_item) < 5:
             return None
         # 格式：日期,开,高,低,收,量
-        # P1-02: 补齐缺失字段（K 线端点不返回 PE/PB/市值/换手率，用 0 占位保证 Quote 完整）
+        # 补齐缺失字段（K 线端点不返回 PE/PB/市值/换手率，用 0 占位保证 Quote 完整）
         # 若有多根 K 线，用前一根 close 作为 prev_close 计算 change_pct
         prev_close = 0.0
         if len(items) >= 2:
@@ -79,7 +79,7 @@ def _parse_quote(text: str, code: str) -> dict | None:
             "circulating_cap": 0,
             "source": "ths",
             "is_realtime": False,
-            # P1-02: K 线接口无法提供 PE/PB/市值等估值字段，标记为最小数据源，
+            # K 线接口无法提供 PE/PB/市值等估值字段，标记为最小数据源，
             # 下游可用 quote.get("is_minimal") 识别并避免误用 0 值估值
             "is_minimal": True,
         }
@@ -102,7 +102,7 @@ class ThsQuoteFetcher(BaseFetcher):
         super().__init__("ths_quote", priority=3)
 
     def fetch(self, code: str, **kwargs) -> dict | None:
-        # P0-12: 透传前先标准化为规范 sh/sz/bj+6位 格式
+        # 透传前先标准化为规范 sh/sz/bj+6位 格式
         from common import normalize_quote_code
 
         canonical = normalize_quote_code(code)

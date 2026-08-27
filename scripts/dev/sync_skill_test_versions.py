@@ -63,7 +63,7 @@ def collect_overrides() -> dict[str, str]:
 def parse_existing_constants(test_text: str) -> tuple[str, dict[str, str]]:
     """提取 test_skill_metadata.py 中现有的 DEFAULT_VERSION 和 VERSION_OVERRIDES。
 
-    P0-15: 优先按显式 sync boundary 锚点提取，避免正则猜结构。
+    优先按显式 sync boundary 锚点提取，避免正则猜结构。
     """
     text = _extract_sync_block(test_text)
     m_default = re.search(
@@ -129,7 +129,7 @@ _SYNC_END = "# <SYNC-SKILL-VERSIONS:END>"
 def sync() -> int:
     """执行同步：读 package.json + SKILL.md → 写回 test_skill_metadata.py。
 
-    P0-15: 以显式 boundary 注释为定位锚点；锚点缺失时回退正则（兼容旧文件）。
+    以显式 boundary 注释为定位锚点；锚点缺失时回退正则（兼容旧文件）。
     """
     pkg_ver = get_package_version()
     overrides = collect_overrides()

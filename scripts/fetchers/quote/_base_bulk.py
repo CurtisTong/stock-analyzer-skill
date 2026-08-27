@@ -134,7 +134,7 @@ class BaseBulkQuoteFetcher(BaseFetcher):
     def _get_cached_df(self):
         """double-checked locking 获取缓存的全量行情 DataFrame。
 
-        P1-2: 锁内只检查缓存，锁外做网络 IO。
+        锁内只检查缓存，锁外做网络 IO。
         - 缓存有效 -> 直接返回
         - 其他线程正在加载（_loading=True）-> 返回 None（不阻塞等待，让
           manager 切到下一源）
@@ -175,7 +175,7 @@ class BaseBulkQuoteFetcher(BaseFetcher):
                 self._cache["_loading"] = False
             return None
 
-        # 可选 hook：以代码列为索引，避免每次 fetch O(n) 线性扫描（P2-15）
+        # 可选 hook：以代码列为索引，避免每次 fetch O(n) 线性扫描
         index_col = self._index_column()
         if index_col is not None and index_col in df.columns:
             df = df.set_index(index_col)

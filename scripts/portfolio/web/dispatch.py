@@ -188,7 +188,7 @@ def _do_update_position(pm, body: dict, code: str) -> dict:
             )
         extra["tags"] = tags
 
-    # P1-03b: 成本变更前读取旧成本，用于浮亏影响对比
+    # 成本变更前读取旧成本，用于浮亏影响对比
     cost_before = None
     if "cost" in extra:
         existing = pm.get_position(code)
@@ -296,7 +296,7 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
                 400,
                 "'target_buy=0' is ignored by PortfolioManager; omit to leave unchanged",
             )
-        # P0-9: 负数校验（与 _do_add_watch 一致）
+        # 负数校验（与 _do_add_watch 一致）
         target_buy_raw = _parse_float(extra["target_buy"])
         if target_buy_raw is not None and target_buy_raw < 0:
             return _err("invalid_target_buy", 400, "target_buy must be >= 0")

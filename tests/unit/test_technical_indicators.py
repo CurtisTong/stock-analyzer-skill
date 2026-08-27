@@ -160,7 +160,7 @@ class TestBreakoutCheck:
     def test_integration_breakout_confirm(self):
         """全链路：前高 11.0 → 放量突破，support_resistance 提供 breakout_target。
 
-        锁死"突破确认(放量)"经真实调用链可达（审查 P0-3 修复：
+        锁死"突破确认(放量)"经真实调用链可达（审查 修复：
         原实现用 nearest_resistance（恒在现价上方）导致突破分支不可达）。
         """
         closes = (

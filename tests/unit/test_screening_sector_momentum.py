@@ -1,5 +1,5 @@
 """
-screening_pipeline._apply_sector_momentum 板块退潮过滤（P1-02）单元测试。
+screening_pipeline._apply_sector_momentum 板块退潮过滤单元测试。
 """
 
 from __future__ import annotations

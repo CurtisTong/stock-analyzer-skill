@@ -229,7 +229,7 @@ class TestComputeWeightedScoreWithRegime:
 
 
 class TestOverlayBlendLabelMatch:
-    """P1-4: blend_rule 中文 label ↔ 策略 ID 匹配（修复前恒不触发）。"""
+    """blend_rule 中文 label ↔ 策略 ID 匹配（修复前恒不触发）。"""
 
     _BALANCED = {
         "label": "均衡精选",

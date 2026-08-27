@@ -122,7 +122,7 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
         "board_relax": getattr(args, "board_strict", True) is False,
     }
     svc = _get_screening_service()
-    # P1-19: _hard_filter 返回 (reasons, warnings)；phase1 路径不消费 warnings
+    # _hard_filter 返回 (reasons, warnings)；phase1 路径不消费 warnings
     rejected, _filter_warnings = svc._hard_filter(quote, fin, filters)
     industry = infer_industry(
         quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
@@ -168,7 +168,7 @@ def _apply_factor_normalization(rows, strategy, regime=None):
 
 
 def _apply_sector_momentum(rows: list, exclude: bool) -> list:
-    """P1-02: 板块退潮标记/过滤。
+    """板块退潮标记/过滤。
 
     按行业映射到行业 ETF，板块近 5 日动量 < 阈值时给行加 sector_momentum_warning；
     exclude=True 时直接剔除退潮板块标的。动量数据不可得时静默返回原列表。
@@ -306,7 +306,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             print(f"⚠️ 宏观安全垫检查失败: {e}", file=sys.stderr)
             macro_state = None
 
-    # v1.21.0 P0-01b: full_market 强制两阶段（Phase1 仅 quote+Top500 财务粗筛，不拉 K 线；
+    # v1.21.0 full_market 强制两阶段（Phase1 仅 quote+Top500 财务粗筛，不拉 K 线；
     # Phase2 仅 Top N×3 拉 K 线精排）。此前 full_market 默认走单阶段路径，会对预筛后
     # 全部 ~3300 只 prefetch_kline_all 拉 K 线，整体远超 watchdog deadline 而超时。
     if args.two_stage or args.full_market:
@@ -379,7 +379,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
     rows.sort(key=lambda r: r["score"], reverse=True)
 
-    # v1.21.0 P1-02: 板块退潮标记/过滤。数据不可得时静默跳过，不阻塞主流程。
+    # v1.21.0 板块退潮标记/过滤。数据不可得时静默跳过，不阻塞主流程。
     try:
         rows = _apply_sector_momentum(
             rows, getattr(args, "exclude_sector_momentum", False)

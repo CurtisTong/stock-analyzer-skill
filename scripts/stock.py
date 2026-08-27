@@ -92,7 +92,7 @@ def render_text(result: dict) -> str:
         f = result["finance"]
         lines.append("\n💰 财务")
 
-        # WP2: None 透传--格式化为 "-"
+        # None 透传--格式化为 "-"
         def _f2(v, spec):
             return format(v, spec) if v is not None else "-"
 

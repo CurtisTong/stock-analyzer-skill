@@ -566,7 +566,7 @@ async function loadTrades() {
     // 渲染统计
     const statsEl = $("#trades-stats");
     if (history.length > 0) {
-      // P1-20: 字段对齐 Python trade_log.stats() 返回值
+      // 字段对齐 Python trade_log.stats() 返回值
       // win_rate 已是百分比（如 60.0），total_profit 为绝对盈亏数值
       const winRate = stats.win_rate != null ? stats.win_rate.toFixed(1) + "%" : "—";
       const totalPnl = stats.total_profit != null ? fmtMoney(stats.total_profit) : "—";
@@ -621,7 +621,7 @@ function updateCurl() {
   }
   const bodyStr = JSON.stringify(body);
   const tok = TOKEN || "<TOKEN>";
-  // v1.16.0 P2-3: 用 DOM 节点组合替代 innerHTML+token 拼接（防 XSS）
+  // v1.16.0 用 DOM 节点组合替代 innerHTML+token 拼接（防 XSS）
   // — token 来自 sessionStorage，正常流程由 server 生成的 url-safe base64，
   //   但 defense-in-depth 避免未来被攻击者通过其他渠道注入。
   const curlEl = $("#curl");

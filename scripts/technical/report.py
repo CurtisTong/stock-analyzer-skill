@@ -342,7 +342,7 @@ def _render_risk_section(features, meta):
 def render_report(features, score, signals, meta):
     """完整技术分析报告。
 
-    P2-12: 段落顺序改为列表驱动（RenderSection 抽象），便于未来配置化。
+    段落顺序改为列表驱动（RenderSection 抽象），便于未来配置化。
     渲染函数签名统一为 (features, score, signals, meta) -> list[str]，
     或仅 (features, score, signals, meta, **kwargs) 兼容其他签名。
     """
@@ -364,7 +364,7 @@ def render_report(features, score, signals, meta):
     # 综合评分
     lines.extend(_render_score_section(features, score))
 
-    # 各技术指标段落（P2-12: 列表驱动，便于调整顺序）
+    # 各技术指标段落（列表驱动，便于调整顺序）
     sections = [
         lambda: _render_ma_section(ma),
         lambda: _render_macd_section(macd),

@@ -172,7 +172,7 @@ def render(rows, strategy, top, title=None, show_chip=True):
                 f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
                 f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
             )
-        # P1-02c: 退潮板块高分标的加 ⚠️ 标记
+        # 退潮板块高分标的加 ⚠️ 标记
         if r.get("sector_momentum_warning"):
             print(f"  ⚠️ {r['sector_momentum_warning']}")
 
@@ -230,7 +230,7 @@ def render_brief(rows, strategy, top, title=None):
             f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
             f"{r['momentum']:>5} | {r['trend']}{macd_icon}"
         )
-        # P1-02c: 退潮板块高分标的加 ⚠️ 标记
+        # 退潮板块高分标的加 ⚠️ 标记
         if r.get("sector_momentum_warning"):
             print(f"  ⚠️ {r['sector_momentum_warning']}")
 
@@ -430,7 +430,7 @@ def _build_parser():
         help="板块模式放宽硬过滤（默认行为）",
     )
     # v1.20.1: 整体任务级超时（watchdog 兜底）
-    # v1.21.0 P1-02: 板块退潮过滤（个股行业映射到行业 ETF，近 5 日跌幅 >5% 剔除）
+    # v1.21.0 板块退潮过滤（个股行业映射到行业 ETF，近 5 日跌幅 >5% 剔除）
     parser.add_argument(
         "--exclude-sector-momentum",
         action="store_true",
@@ -486,7 +486,7 @@ def _default_progress_callback(event, payload, *, file=None):
         regime = payload.get("regime")
         if regime:
             _p(f"📊 市场状态: {regime.label} ({regime.value})", flush=True)
-            # P2-07: 明确告知用户 overlay 已应用/未应用，避免策略语义被静默改变
+            # 明确告知用户 overlay 已应用/未应用，避免策略语义被静默改变
             if getattr(payload, "_no_regime", False):
                 _p("⚙️ regime overlay 已禁用（使用固定权重）", flush=True)
             else:
@@ -499,7 +499,7 @@ def _default_progress_callback(event, payload, *, file=None):
         if macro_msg:
             _p(macro_msg, flush=True)
     elif event == "data_prefetch":
-        # P0-01 后续: 数据预取阶段进度提示（quote/finance 是 full_market 慢/卡的主战场）
+        # 后续: 数据预取阶段进度提示（quote/finance 是 full_market 慢/卡的主战场）
         stage = payload.get("stage")
         if stage == "quote":
             _p(

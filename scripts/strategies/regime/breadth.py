@@ -78,7 +78,7 @@ def compute_constituent_breadth(window: int = 20) -> Optional[float]:
                 above_count += 1
             total += 1
         except Exception as e:
-            # v1.16.0 P1-2 MEDIUM: 单只股票均价计算失败不影响整体
+            # v1.16.0 MEDIUM: 单只股票均价计算失败不影响整体
             from common.exceptions import log_silent_fallback
 
             log_silent_fallback(

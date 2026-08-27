@@ -49,7 +49,7 @@ class TestIndustryClassification:
     @pytest.mark.parametrize(
         "tags,expected",
         [
-            # P1-01 bug 修复：状态标签被过滤
+            # bug 修复：状态标签被过滤
             (["T+1待交收", "煤化工", "能源"], "煤化工"),  # T+1 被过滤
             (["长线", "半导体"], "半导体"),  # 长线被过滤
             (["短线", "锂电池"], "锂/新能源"),  # 锂电池合并
@@ -288,7 +288,7 @@ class TestHealthReport:
         assert isinstance(report["watchlist"], list)
 
     def test_thresholds_embedded(self):
-        """thresholds 字段含集中度阈值（用于 P1-06 引用权威源）。"""
+        """thresholds 字段含集中度阈值（用于 引用权威源）。"""
         pm = PortfolioManager()
         report = pm.health_report(quotes={})
         assert report["thresholds"]["top3"] == 50
@@ -298,7 +298,7 @@ class TestHealthReport:
         assert "0.95" in report["thresholds"]["breakdown"]
 
     def test_type_field_three_states(self):
-        """type 字段识别实盘/示例/虚拟三态（解决 P1-13 / M2）。"""
+        """type 字段识别实盘/示例/虚拟三态（解决 / M2）。"""
         # 实盘（默认）
         pm_real = PortfolioManager()
         assert pm_real.health_report(quotes={})["type"] == "实盘持仓"

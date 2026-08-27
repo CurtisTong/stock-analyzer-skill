@@ -41,7 +41,7 @@ STOCK_SECTOR_MAP_JSON = DATA_DIR / "stock_sector_map.json"
 
 
 def _load_stock_sector_map() -> dict:
-    """加载股票→细分行业映射（P1-01b）。
+    """加载股票→细分行业映射。
 
     文件结构：
       {
@@ -59,7 +59,7 @@ def _load_stock_sector_map() -> dict:
         return {}
 
 
-# 板块/行业名 → ETF 代理（P1-01a：覆盖机器人/PCB·AI算力/电力/石化/家电等原盲区）
+# 板块/行业名 → ETF 代理（覆盖机器人/PCB·AI算力/电力/石化/家电等原盲区）
 # 运行时与 stock_sector_map.json 的 industry_proxy 合并（后者可覆盖/新增）
 _SECTOR_TO_ETF_PROXY = {
     "消费": "sh512690",  # 白酒 ETF（消费核心代理）
@@ -69,20 +69,20 @@ _SECTOR_TO_ETF_PROXY = {
     "光伏": "sh515790",  # 光伏 ETF
     "军工": "sh512660",  # 军工 ETF
     "科技": "sh512480",  # 科技 → 半导体 ETF（最热细分）
-    "机器人": "sh562500",  # 机器人 ETF（P1-01a 补盲区）
-    "PCB/AI算力": "sh515980",  # AI 算力 → 人工智能 ETF（P1-01a 补盲区）
+    "机器人": "sh562500",  # 机器人 ETF（补盲区）
+    "PCB/AI算力": "sh515980",  # AI 算力 → 人工智能 ETF（补盲区）
     "金融": "sh512800",  # 银行 ETF（金融最大子板块）
     "资源": "sh518880",  # 黄金 ETF（资源避险代理）
-    "电力": "sz159611",  # 电力 ETF（P1-01a 补盲区）
-    "石化": "sh516020",  # 化工 ETF（石化属化工大类，P1-01a 补盲区）
+    "电力": "sz159611",  # 电力 ETF（补盲区）
+    "石化": "sh516020",  # 化工 ETF（石化属化工大类，补盲区）
     "高股息": "sh510050",  # 上证50 ETF（高股息密集）
-    "家电": "sz159996",  # 家电 ETF（P1-01a 补盲区）
+    "家电": "sz159996",  # 家电 ETF（补盲区）
     # 周期子类（煤化工/化工原料）→ 化工ETF（覆盖原"无对应 ETF"盲区）
     "周期": "sh516020",  # 化工ETF（煤化工=化工子板块，含煤制烯烃/煤制甲醇）
     "煤化工": "sh516020",  # 化工ETF（煤化工属化工大类）
     "化工": "sh516020",  # 化工ETF（直接代理）
     "煤炭": "sh515220",  # 煤炭ETF（煤化工上游成本代理）
-    # P1-01a 新增细分代理（行业名 → ETF）
+    # 新增细分代理（行业名 → ETF）
     "智能汽车": "sh515250",
     "汽车电子": "sh515250",
     "通信": "sh515880",
@@ -292,7 +292,7 @@ def build_stock_sector_compare(
         sectors = find_sector_by_code(stock_code, sector_data) if sector_data else []
         sector_source = "sector_stocks"
 
-    # P1-01b: 合并 stock_sector_map.json 的 industry_proxy（细粒度行业名 → ETF）
+    # 合并 stock_sector_map.json 的 industry_proxy（细粒度行业名 → ETF）
     _industry_proxy = _stock_sector_map.get("industry_proxy", {})
     proxy_map = dict(_SECTOR_TO_ETF_PROXY)
     if isinstance(_industry_proxy, dict):

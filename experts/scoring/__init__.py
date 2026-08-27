@@ -61,7 +61,7 @@ def score_expert(
     精确评分请使用 score_expert_precise()。
 
     .. deprecated:: v2.4.2
-        P2-11 起 score_expert_precise 对未注册 profile 改回退到
+        起 score_expert_precise 对未注册 profile 改回退到
         score_expert_precise_proxy（显式全 50 + warning），不再调用本函数。
         本函数保留供显式调用通用启发式，但不应作为 precise 的隐式回退。
     """
@@ -220,7 +220,7 @@ def score_expert_precise(
     """
     scoring_fn = _EXPERT_SCORING_FUNCTIONS.get(profile.name)
     if scoring_fn is None:
-        # P2-11: profile 未注册精确评分函数时，回退到 proxy（返回全 50 + warning），
+        # profile 未注册精确评分函数时，回退到 proxy（返回全 50 + warning），
         # 而非 score_expert 通用启发式。原因：通用启发式不区分专家风格，会产出
         # 误导性的"看似精确"评分；proxy 显式标注 fallback，让调用方知晓无精确逻辑。
         # 全 16 位 active/legacy 专家均已注册，此分支仅防御未知 profile。

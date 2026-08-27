@@ -1,4 +1,4 @@
-"""WP4 FinanceMeta 单元测试。
+"""FinanceMeta 单元测试。
 
 验证：
 - FinanceMeta dataclass 字段默认值

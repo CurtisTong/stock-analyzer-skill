@@ -59,7 +59,7 @@ def _get_scoring_config():
 
 
 # ═══════════════════════════════════════════════════════════════
-# 维度名别名归一化（C1 / P1-7）
+# 维度名别名归一化（C1 / ）
 # 规范定义在 experts/types.py 的 DIMENSION_ALIASES / normalize_dim，
 # 本模块导入复用，避免双数据源。不同专家可能用非标准维度名（如
 # momentum_trader 用"情绪/资金"、soros 用"情绪/反身性"、topic_leader 用

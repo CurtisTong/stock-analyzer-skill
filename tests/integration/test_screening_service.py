@@ -33,7 +33,7 @@ class TestThresholdHelpers:
     """模块级阈值读取函数。"""
 
     def test_board_limit_known_boards(self):
-        # P0-7: 涨跌停硬过滤改用精确阈值（非预警宽松阈值）
+        # 涨跌停硬过滤改用精确阈值（非预警宽松阈值）
         assert _board_limit("主板") == 10.0
         assert _board_limit("创业板") == 20.0
         assert _board_limit("科创板") == 20.0
@@ -53,7 +53,7 @@ class TestThresholdHelpers:
     def test_pledge_threshold_default(self):
         assert _pledge_threshold() == 70
 
-    # P1-22: _st_prefixes 已删除，ST 检测统一使用 data.pool.is_st
+    # _st_prefixes 已删除，ST 检测统一使用 data.pool.is_st
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -239,7 +239,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": 1, "roe": 10}
-        # 空 filters dict -- P1-19: 返回 (reasons, warnings) 元组
+        # 空 filters dict -- 返回 (reasons, warnings) 元组
         result = self.svc._hard_filter(quote, fin, {})
         assert isinstance(result, tuple)
         assert isinstance(result[0], list)
@@ -280,7 +280,7 @@ class TestVolPriceSignalDesc:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 6. StockAnalysisService.analyze 数据来源元信息 (P0-02 / P1-17)
+# 6. StockAnalysisService.analyze 数据来源元信息 ( / )
 # ═══════════════════════════════════════════════════════════════
 
 
@@ -357,7 +357,7 @@ def _make_finance(source="eastmoney"):
 
 
 class TestAnalyzeDataMetadata:
-    """P0-02: analyze() 填充 data_sources / data_failed / data_time。"""
+    """analyze() 填充 data_sources / data_failed / data_time。"""
 
     def test_all_success_fills_sources_and_time(self):
         """三类数据全部成功 -> data_sources 含三项，data_time 取 quote.fetch_time。"""
@@ -391,7 +391,7 @@ class TestAnalyzeDataMetadata:
         ):
             result = svc.analyze("sh600519")
 
-        # P2-1: data_sources 现在带真实源名（如 行情[tencent]），用前缀匹配
+        # data_sources 现在带真实源名（如 行情[tencent]），用前缀匹配
         assert any(s.startswith("行情") for s in result["data_sources"])
         assert any(s.startswith("K线") for s in result["data_sources"])
         assert any(s.startswith("财务") for s in result["data_sources"])
@@ -471,7 +471,7 @@ class TestAnalyzeDataMetadata:
         assert "财务" not in result["data_sources"]
 
     def test_index_quote_fetched_separately(self):
-        """P1-17: 大盘指数行情独立拉取 sh000001，而非复用个股 quote。"""
+        """大盘指数行情独立拉取 sh000001，而非复用个股 quote。"""
         from business.stock_analysis import StockAnalysisService
 
         quote = _make_quote()
@@ -511,7 +511,7 @@ class TestAnalyzeDataMetadata:
         assert passed_index.code == "sh000001"
 
     def test_all_data_failure(self):
-        """P1-26: quote/kline/finance 全失败 -> data_failed 含三项，data_sources 为空。"""
+        """quote/kline/finance 全失败 -> data_failed 含三项，data_sources 为空。"""
         from business.stock_analysis import StockAnalysisService
 
         svc = StockAnalysisService()

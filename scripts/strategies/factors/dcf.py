@@ -77,7 +77,7 @@ def _compute_capm_wacc(stock_code: str) -> tuple[float, str] | None:
             f"CAPM(beta={beta:.2f}, rf={risk_free:.3f}, erp={erp:.3f})",
         )
     except Exception as e:
-        # v1.16.0 P1-2: WACC 不可用 → DCF 不估值（返回 None 表示该股票跳过 DCF）
+        # v1.16.0 WACC 不可用 → DCF 不估值（返回 None 表示该股票跳过 DCF）
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(

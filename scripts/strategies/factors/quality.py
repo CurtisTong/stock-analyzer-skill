@@ -27,7 +27,7 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     gross_margin_min = get_industry_threshold(industry, "gross_margin_min", 20)
     debt_max = get_industry_threshold(industry, "debt_ratio_max", 60)
 
-    # P1-1: 财务数据整体缺失（fin={}）时返回中性 50——原实现各字段 to_float(0)
+    # 财务数据整体缺失（fin={}）时返回中性 50——原实现各字段 to_float(0)
     # 导致负债率 0 被当最优（+12 满分），缺失股票静默拿 12 分参与加权
     if not fin:
         return 50.0

@@ -20,7 +20,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - `full`：完整复盘，指数+板块+风格+持仓影响+明日预判
 - `intraday`：分时复盘，大盘+关键标的5分钟走势分析
 
-> **职责边界（P1-25 去重）**：`market` 负责市场面（指数/资金/板块/风格），`portfolio-web` 负责持仓面（盈亏/关键价位/风控 + 推送）。
+> **职责边界（去重）**：`market` 负责市场面（指数/资金/板块/风格），`portfolio-web` 负责持仓面（盈亏/关键价位/风控 + 推送）。
 
 ## 共享约定
 

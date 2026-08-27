@@ -1,4 +1,4 @@
-"""WP6 finance_freshness 板块识别 + 差异化 deadline 单元测试。
+"""finance_freshness 板块识别 + 差异化 deadline 单元测试。
 
 验证：
 - _board_for_code: 股票代码前缀 → 板块名
@@ -39,7 +39,7 @@ class TestBoardForCode:
         assert _board_for_code("SZ301236") == "SZ3"
 
     def test_beijing_exchange(self):
-        # WP6: BJ4/BJ8 都映射到统一的 "BJ8" 分组（北交所内部不细分）
+        # BJ4/BJ8 都映射到统一的 "BJ8" 分组（北交所内部不细分）
         assert _board_for_code("BJ830799") == "BJ8"
         assert _board_for_code("BJ430047") == "BJ8"
 

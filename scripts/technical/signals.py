@@ -203,7 +203,7 @@ def _generate_signals(features, market_breadth=None):
     elif bamboo.get("signal", 0) == -1:
         sell.append("竹节走弱(减仓信号)")
 
-    # P1-16: 结构化信号（与字符串信号并行输出，供程序化消费）
+    # 结构化信号（与字符串信号并行输出，供程序化消费）
     # 消费者可逐步从字符串子串判断迁移到结构化字段
     # 钝化时 KDJ 信号整体暂停参考，结构化字段与字符串信号保持一致
     kdj_dunhua = bool(kdj.get("钝化"))

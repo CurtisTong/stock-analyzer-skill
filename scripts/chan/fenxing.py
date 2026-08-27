@@ -12,7 +12,7 @@ def chan_fenxing(merged_bars, equal_eps: float = 0.0):
       高点条件放宽为 b1.high <= max(b0.high, b2.high)，允许中间K线高点不高于两侧最高
 
     v2.4.0 放宽：原实现要求高低点"同时"满足，比缠论原文更严格，导致漏识分型。
-    P2-14: 主条件改为 >=/<= 以处理合并后等高点/等低点边界（merge.py 已用 <=/>=）。
+    主条件改为 >=/<= 以处理合并后等高点/等低点边界（merge.py 已用 <=/>=）。
     equal_eps: 容忍相等时的相对差异阈值（默认 0 = 严格相等也算）。
     """
     if len(merged_bars) < 3:

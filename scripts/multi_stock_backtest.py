@@ -133,7 +133,7 @@ def run_one_strategy(
         return {"error": f"metrics import failed: {e}", "strategy": strategy_name}
 
     try:
-        # P0-11 修复：改调 run_backtest（返回 total_return_pct/sharpe_ratio 等完整指标），
+        # 修复：改调 run_backtest（返回 total_return_pct/sharpe_ratio 等完整指标），
         # 而非 simulate_strategy（只返回原始收益序列，导致 format_report 读取不到字段而全零）。
         # run_backtest 内部按 days//rounds 推导 holding_days，此处透传 days。
         result = run_backtest(

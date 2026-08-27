@@ -16,7 +16,7 @@ def _scoring_config(key: str = None, default=None):
     return safe_get("scoring.yaml", key, default)
 
 
-# P1-15: 各子评分函数的理论上限（用于归一化到 [0,100]）。
+# 各子评分函数的理论上限（用于归一化到 [0,100]）。
 # 提取为模块级常量，便于发现和维护。可通过 scoring.yaml 的 score_max 覆盖。
 # 这些值必须与 _score_* 函数的实际满分（clamp 上限）保持同步。
 _SCORE_MAX_DEFAULT: dict[str, float] = {
@@ -557,7 +557,7 @@ def composite_score(
     vol_signal = vol.get("volume_price_signal", 0)
 
     # 各子评分的理论上限（用于归一化）
-    # P1-15: 提取为模块级 _SCORE_MAX_DEFAULT，可通过 scoring.yaml 的 score_max 覆盖。
+    # 提取为模块级 _SCORE_MAX_DEFAULT，可通过 scoring.yaml 的 score_max 覆盖。
     # 若 _score_* 的评分逻辑变更（如新增 pattern 扣分项），需同步更新 _SCORE_MAX_DEFAULT
     # 或在 scoring.yaml 的 score_max 中覆盖，否则归一化会饱和或欠饱和。
     _SCORE_MAX = _get_score_max()

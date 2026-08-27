@@ -1,6 +1,6 @@
 """BaostockKlineFetcher 代码路由单元测试。
 
-聚焦 P0-1 修复（2026-08-05）：北交所(BSE)代码不应被误判为 sz 并发必失败请求，
+聚焦 修复（2026-08-05）：北交所(BSE)代码不应被误判为 sz 并发必失败请求，
 而应返回 NOT_HANDLED 交给后续源（tencent/akshare/eastmoney）。
 
 参考: https://zhuanlan.zhihu.com/p/2067944129309446823

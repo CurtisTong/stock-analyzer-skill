@@ -562,7 +562,7 @@ def main():
     token = _ensure_token()
     mode_label = "虚拟持仓（模拟盘）" if args.virtual else "实盘持仓"
     is_public = args.host == "0.0.0.0"
-    # P1-22: 公网绑定时不在 stdout 打印完整 token（HTTP 明文可被同网段嗅探），
+    # 公网绑定时不在 stdout 打印完整 token（HTTP 明文可被同网段嗅探），
     # 仅提示访问方式与 token 文件位置；本机绑定可带 token 便于直接打开。
     if is_public:
         print(

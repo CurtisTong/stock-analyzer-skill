@@ -64,7 +64,7 @@ class AkshareKlineFetcher(BaseFetcher):
                 return None
 
             df = df.tail(datalen)
-            # 列名容错：akshare 版本更新可能变更列名（P1-4）
+            # 列名容错：akshare 版本更新可能变更列名
             col_day = _pick_col(df, ("日期", "交易日", "date"))
             col_open = _pick_col(df, ("开盘", "open"))
             col_close = _pick_col(df, ("收盘", "close"))

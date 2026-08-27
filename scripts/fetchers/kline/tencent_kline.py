@@ -7,7 +7,7 @@ from common import BaseFetcher, http_get
 
 logger = logging.getLogger(__name__)
 
-# P2-2: 文档建议 ifzq 用 https（http 可能被运营商劫持/重定向失败）。
+# 文档建议 ifzq 用 https（http 可能被运营商劫持/重定向失败）。
 # 实测 https 可用且返回与 http 一致，故采用 https。
 TENCENT_URL = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={stockCode},{period},,,{count},qfq"
 SCALE_MAP = {5: "m5", 15: "m15", 30: "m30", 60: "m60", 240: "day"}
@@ -26,7 +26,7 @@ class TencentKlineFetcher(BaseFetcher):
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
         period = SCALE_MAP.get(scale, "day")
-        # P1-2: 钳位 datalen，避免超过 ifzq 640 日上限被静默截断。
+        # 钳位 datalen，避免超过 ifzq 640 日上限被静默截断。
         # 取 self.max_datalen（yaml 配置）与 TENCENT_MAX_BARS 的较小值作为上限。
         upper = TENCENT_MAX_BARS
         if self.max_datalen and self.max_datalen < upper:

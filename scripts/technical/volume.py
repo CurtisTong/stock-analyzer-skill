@@ -2,7 +2,7 @@
 成交量分析（量价配合、OBV）。
 依赖: core (_find_swing_points)
 
-P2-26: 量价状态枚举标准化 (VOLUME_PRICE_*)。所有调用方应使用枚举常量，
+量价状态枚举标准化 (VOLUME_PRICE_*)。所有调用方应使用枚举常量，
 不再依赖魔法数字或散落的中文字符串。
 """
 
@@ -10,7 +10,7 @@ import statistics
 
 from .core import _find_swing_points
 
-# ---------- 量价状态枚举（P2-26 新增）----------
+# ---------- 量价状态枚举（新增）----------
 # signal: -1 负面 / 0 中性 / +1 正面
 # 状态码: VP_RISE_VOL=1 放量上涨, VP_FALL_SHRINK=2 缩量下跌,
 #         VP_RISE_SHRINK=3 缩量上涨(背离), VP_FALL_VOL=4 放量下跌(出货),
@@ -57,7 +57,7 @@ VOLUME_PRICE_TABLE = {
 
 
 def get_volume_price_info(state: int) -> dict:
-    """查表获取量价状态描述/信号/胜率（P2-26:统一查询入口）。
+    """查表获取量价状态描述/信号/胜率（统一查询入口）。
 
     Args:
         state: VP_* 枚举值（来自 volume_analysis 返回的 state 字段）
@@ -74,13 +74,13 @@ def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: in
     Args:
         closes: 收盘价序列
         volumes: 成交量序列
-        shrink_window: P2-11: 连续缩量检测的最大回溯窗口（默认 5）
-        shrink_min_days: P2-11: 触发 shrink_signal 的最小连续天数（默认 3）
+        shrink_window: 连续缩量检测的最大回溯窗口（默认 5）
+        shrink_min_days: 触发 shrink_signal 的最小连续天数（默认 3）
 
     Returns:
         dict 含 volume_ratio/volume_ratio_desc/volume_price/volume_price_signal/
              volume_price_state/obv_divergence/shrink_signal/shrink_desc。
-        其中 volume_price_state 为 P2-26 新增枚举（VP_*），
+        其中 volume_price_state 为 新增枚举（VP_*），
         volume_price_signal 保留 ±1/0 三态方向值。
     """
     if len(closes) < 6 or len(volumes) < 6:
@@ -127,7 +127,7 @@ def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: in
     price_chg = statistics.mean(recent_c) / max(statistics.mean(prev_c), 0.01) - 1
     vol_chg = statistics.mean(recent_v) / max(statistics.mean(prev_v), 1) - 1
 
-    # P2-26: 用枚举替代散落的字符串
+    # 用枚举替代散落的字符串
     if price_chg > 0.01 and vol_chg > 0:
         vp_state = VP_RISE_VOL
     elif price_chg < -0.01 and vol_chg < 0:
@@ -170,7 +170,7 @@ def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: in
         "volume_ratio_desc": vr_desc,
         "volume_price": vp_desc,
         "volume_price_signal": vp_signal,
-        "volume_price_state": vp_state,  # P2-26 新增枚举
+        "volume_price_state": vp_state,  # 新增枚举
         "obv_divergence": obv_div,
         "shrink_signal": shrink_signal,
         "shrink_desc": shrink_desc,

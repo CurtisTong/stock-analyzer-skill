@@ -1,7 +1,7 @@
 """
-YAML 专家配置完整性测试（B3 / P1-6 / P2-01）。
+YAML 专家配置完整性测试（B3 / / ）。
 
-P2-01 (v2.0): 三源合一后，YAML 是唯一数据源。本测试守护：
+(v2.0): 三源合一后，YAML 是唯一数据源。本测试守护：
 1. 每个 experts/yaml/<name>.yaml 都能正确加载为 ExpertProfile
 2. YAML 文件数 = 16，active = 8，legacy = 8
 3. load_all_experts() 与运行时 EXPERT_REGISTRY 一致
@@ -21,7 +21,7 @@ from experts.yaml_loader import (
     load_expert_from_yaml,
 )  # noqa: E402
 
-# P2-01: 期望的专家列表（YAML 单源后，这是唯一权威定义）
+# 期望的专家列表（YAML 单源后，这是唯一权威定义）
 _EXPECTED_EXPERT_NAMES = {
     "buffett",
     "chaogu_yangjia",
@@ -43,7 +43,7 @@ _EXPECTED_EXPERT_NAMES = {
 
 
 # ═══════════════════════════════════════════════════════════════
-# 1. YAML 文件完整性（P2-01: 替代原硬编码对等校验）
+# 1. YAML 文件完整性（替代原硬编码对等校验）
 # ═══════════════════════════════════════════════════════════════
 
 

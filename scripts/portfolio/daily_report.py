@@ -48,7 +48,7 @@ class DailyReportGenerator:
                 else:
                     self._pm = PortfolioManager()
             except Exception as e:
-                # v1.16.0 P1-2 MEDIUM
+                # v1.16.0 MEDIUM
                 from common.exceptions import log_silent_fallback
 
                 log_silent_fallback(

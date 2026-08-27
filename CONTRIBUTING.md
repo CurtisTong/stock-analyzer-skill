@@ -164,8 +164,8 @@ Update README
 
 ```markdown
 ### Added
-- **screener**: 数据预取阶段进度输出（`data_prefetch` 事件：行情/预筛/财务/完成）；JSON 模式进度走 stderr 不污染 stdout（P0-01 后续）
-- **portfolio**: 实际组合总仓位 `compute_total_position_ratio`——`portfolio.json` 顶层可选 `total_assets`，成本/市值口径占比 + >90% 仓位过重警告，接入 `health_report`（P2-04 第 1 条）
+- **screener**: 数据预取阶段进度输出（`data_prefetch` 事件：行情/预筛/财务/完成）；JSON 模式进度走 stderr 不污染 stdout（后续）
+- **portfolio**: 实际组合总仓位 `compute_total_position_ratio`——`portfolio.json` 顶层可选 `total_assets`，成本/市值口径占比 + >90% 仓位过重警告，接入 `health_report`（第 1 条）
 - **strategies**: `valuation_score` 语义修复（P2-H6）——revenue/net_profit 仅用标准化字段 + PEG 3 年 CAGR 优先 + PS 优先真实值兜底
 ```
 

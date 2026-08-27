@@ -67,7 +67,7 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # 保留巴菲特否决警示所需的独立子评分
     # value_anchor.score 内部已计算 buffett_sub_score，直接透传
-    # P2-03: 缺失时不再静默回退 50（会禁用 buffett 警示），改为 35（低于触发阈值 39）
+    # 缺失时不再静默回退 50（会禁用 buffett 警示），改为 35（低于触发阈值 39）
     _bs = va_dims.get("buffett_sub_score")
     if _bs is None:
         logger.warning("buffett_sub_score 缺失，value_anchor 未返回该字段，回退 35")

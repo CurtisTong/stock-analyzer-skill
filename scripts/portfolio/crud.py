@@ -53,7 +53,7 @@ def _record_trade_log(
 
 
 def _position_cost(manager: "PortfolioManager", code: str) -> Optional[float]:
-    """返回持仓当前成本价（P1-03 变更对比用），无持仓返回 None。"""
+    """返回持仓当前成本价（变更对比用），无持仓返回 None。"""
     code = normalize_code(code)
     for p in manager._data.get("positions", []):
         if p["code"].lower() == code:
@@ -74,7 +74,7 @@ def add_position(
 ) -> dict:
     """添加持仓。如果已存在则加仓（加权平均成本）。
 
-    P1-03a: cost_source 记录成本来源（user_input / screenshot / calculated），
+    cost_source 记录成本来源（user_input / screenshot / calculated），
     加仓产生加权平均成本时自动置为 calculated，保留可追溯性。
     """
     code = normalize_code(code)
@@ -250,7 +250,7 @@ def update_position(
 ) -> Optional[dict]:
     """更新持仓字段（cost, quantity, name, buy_date, tags, cost_source）。
 
-    P1-03a/c: cost 变更时记录 cost_before/cost_after 到 oplog；显式更新 cost
+    cost 变更时记录 cost_before/cost_after 到 oplog；显式更新 cost
     时若未提供 cost_source，默认标记为 user_input。
     """
     code = normalize_code(code)

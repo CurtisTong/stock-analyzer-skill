@@ -37,7 +37,7 @@ class SinaKlineFetcher(BaseFetcher):
     def fetch(self, code: str, **kwargs) -> list | None:
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
-        # P1-6: 新浪 API datalen 上限约 1023，超出返回空
+        # 新浪 API datalen 上限约 1023，超出返回空
         datalen = min(int(datalen), 1023)
         timeout = kwargs.get("timeout", self.timeout)
         raw = http_get(

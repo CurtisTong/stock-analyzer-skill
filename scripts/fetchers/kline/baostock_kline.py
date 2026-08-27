@@ -31,7 +31,7 @@ except ImportError:
 _bs_login_lock = threading.Lock()
 _bs_logged_in = False
 
-# P1-1: baostock IP 限流专项。
+# baostock IP 限流专项。
 # baostock 匿名登录按 IP 限流，触发后封 IP（非账号），几小时到 24 小时恢复。
 # 不同于 429（RateLimiter 处理），IP 封禁表现为连接超时/错误，需主动退避。
 # 参考: https://zhuanlan.zhihu.com/p/2067944129309446823 第二节
@@ -149,7 +149,7 @@ class BaostockKlineFetcher(BaseFetcher):
 
 
 def _record_failure() -> None:
-    """P1-1: 记录 baostock 连续失败，达阈值时主动退避并提示 IP 封禁风险。
+    """记录 baostock 连续失败，达阈值时主动退避并提示 IP 封禁风险。
 
     baostock IP 封禁后旧 IP 几小时才恢复，持续请求只会加重封禁。
     达 _IP_BAN_FAILURE_THRESHOLD 次后 sleep _IP_BAN_BACKOFF_SECONDS，
@@ -170,14 +170,14 @@ def _record_failure() -> None:
 
 
 def _record_success() -> None:
-    """P1-1: 成功时重置连续失败计数。"""
+    """成功时重置连续失败计数。"""
     global _consecutive_failures
     with _failure_lock:
         _consecutive_failures = 0
 
 
 def get_baostock_ip_risk() -> dict:
-    """P1-1: 供 health.py 调用，返回 baostock IP 封禁风险状态。"""
+    """供 health.py 调用，返回 baostock IP 封禁风险状态。"""
     with _failure_lock:
         count = _consecutive_failures
     return {

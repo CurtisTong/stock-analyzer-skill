@@ -1,6 +1,6 @@
-"""P0-01c 本地 K 线缓存验证。
+"""本地 K 线缓存验证。
 
-背景：screener 全市场模式每只标的重复拉 K 线曾触发 watchdog 超时（P0-01）。
+背景：screener 全市场模式每只标的重复拉 K 线曾触发 watchdog 超时。
 a/b 已修复（watchdog 1800s + full_market 强制两阶段）；c 项要求本地缓存
 K 线，key 为 code_scale_datalen，避免每次重新拉。
 

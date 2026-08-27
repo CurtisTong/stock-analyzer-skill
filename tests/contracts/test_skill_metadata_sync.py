@@ -56,7 +56,7 @@ ALLOWED_MODELS = {"haiku", "sonnet", "opus", "glm-5.2"}
 def parse_frontmatter(text: str) -> dict:
     """解析 YAML frontmatter（--- 包裹段）。
 
-    P2-25: 改用 yaml.safe_load 替代手写解析，支持完整的 YAML 语法
+    改用 yaml.safe_load 替代手写解析，支持完整的 YAML 语法
     （引号、嵌套、多行等）。手写解析无法正确处理引号包裹的标量值。
     """
     if not text.startswith("---"):

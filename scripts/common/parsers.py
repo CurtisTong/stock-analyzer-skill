@@ -5,7 +5,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# ---------- 名称乱码修复（P2-26 修复：腾讯接口部分股票名 GBK 字节
+# ---------- 名称乱码修复（修复：腾讯接口部分股票名 GBK 字节
 # 被 decode_gbk 当 UTF-8 静默接受，输出 'ǢǢʳƷ' 形式乱码）----------
 
 # GBK 双字节字符的典型"乱码"模式：UTF-8 视角下，GBK 字节落在 CJK 扩展
@@ -97,7 +97,7 @@ TENCENT_FIELDS = {
 def _yi_to_yuan(raw: str) -> str:
     """将腾讯行情的"亿"单位字段转换为"元"（×1e8）。
 
-    P1-4: 统一所有 quote fetcher 返回原始"元"值，归一化收口到 data 层
+    统一所有 quote fetcher 返回原始"元"值，归一化收口到 data 层
     _normalize_cap。腾讯字段44/45 原单位为"亿"，此处乘以 1e8 转换。
     解析失败（空/非数值）时原样返回，避免吞异常。
     """
@@ -133,7 +133,7 @@ def parse_tencent_line(line: str) -> dict[str, str]:
         "pe": parts[TENCENT_FIELDS["pe"]],
         "pe_type": "dynamic",  # 字段39 为 PE(动)
         "pb": parts[TENCENT_FIELDS["pb"]],
-        # 字段44/45 原单位为"亿"，P1-4 统一所有 fetcher 返回原始"元"，
+        # 字段44/45 原单位为"亿"，统一所有 fetcher 返回原始"元"，
         # 故 ×1e8 转换；归一化在 data 层 _normalize_cap 统一 /1e8。
         "total_cap": _yi_to_yuan(parts[TENCENT_FIELDS["total_cap"]]),
         "circulating_cap": _yi_to_yuan(parts[TENCENT_FIELDS["circulating_cap"]]),

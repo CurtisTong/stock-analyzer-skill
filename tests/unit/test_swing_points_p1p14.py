@@ -1,4 +1,4 @@
-"""P1-14：_find_swing_points 确认延迟（confirm）与 past-only（confirm=False）测试。"""
+"""_find_swing_points 确认延迟（confirm）与 past-only（confirm=False）测试。"""
 
 from __future__ import annotations
 

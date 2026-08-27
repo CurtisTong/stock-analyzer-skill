@@ -1,4 +1,4 @@
-"""vote_engine.aggregate_votes 单元测试（v1.16.0 Batch 4 P2-2 补测）。
+"""vote_engine.aggregate_votes 单元测试（v1.16.0 Batch 4 补测）。
 
 覆盖 5 种典型场景 + 校准因子 3 种值 + 否决机制：
 1. 长线全看多
@@ -153,7 +153,7 @@ def _two_group(high_names, low_names):
 
 
 class TestTwoGroupBoundaryMatrix:
-    """P1-08：长线 4:1 + 短线临界值边界测试矩阵。
+    """长线 4:1 + 短线临界值边界测试矩阵。
 
     长线 5 人多数阈值 = ceil(5×2/3) = 4；短线 3 人均分驱动（≥60 看多、≤39 看空）。
     """

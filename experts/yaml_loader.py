@@ -83,7 +83,7 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
             f"{path}: weights 加和 = {total:.1f}（期望 100±0.5），维度: {list(weights.keys())}"
         )
 
-    # P0-06: 维度名归一化--把"情绪/资金"等别名映射到标准"情绪"，
+    # 维度名归一化--把"情绪/资金"等别名映射到标准"情绪"，
     # 使 profile.weights 的键与 scoring 层期望的标准维度名一致，
     # 避免投票/维度 breakdown 因别名键错位。归一化可能合并同维度权重，
     # 需在加和校验后执行（合并后加和不变，因别名互斥）。

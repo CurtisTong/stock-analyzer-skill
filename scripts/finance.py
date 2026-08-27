@@ -61,7 +61,7 @@ def render_table(records: list) -> str:
     lines.append(header)
     lines.append("-" * len(header))
 
-    # WP2: None 表示"未披露"——渲染为 "-"（避免 None 字面量）
+    # None 表示"未披露"——渲染为 "-"（避免 None 字面量）
     def _fmt(v):
         return "-" if v is None else str(v)[:8]
 

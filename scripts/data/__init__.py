@@ -180,14 +180,14 @@ def get_kline(
 
 # 核心字段集：判定 FinanceRecord 是否"有效数据"（非空 + 至少 1 个非零）。
 # 旧逻辑仅看 eps/roe 两个字段，在 0.01 元/股的微利股或盈亏平衡股上误判。
-# WP3 (2026-07-21): 加入 revenue_yoy / net_profit_yoy / gross_margin 多字段判定。
+# (2026-07-21): 加入 revenue_yoy / net_profit_yoy / gross_margin 多字段判定。
 _CORE_VALID_FIELDS = ("eps", "roe", "revenue_yoy", "net_profit_yoy", "gross_margin")
 
 
 def _is_valid_records(records) -> bool:
     """基于多字段判定 FinanceRecord 列表是否"有效数据"。
 
-    WP3: 旧实现 `all(eps==0 and roe==0)` 把微利股/盈亏平衡股误判为"无效数据"，
+    旧实现 `all(eps==0 and roe==0)` 把微利股/盈亏平衡股误判为"无效数据"，
     触发 5 分钟 zero_key 短缓存，阻断 akshare 切源。
     新实现：5 个核心字段中至少 1 个非 None 且非 0 → 视为有效。
     """
@@ -222,8 +222,8 @@ def get_finance(
             - cache_hit: 缓存命中
             - fetch_time: ISO 时间戳
 
-    WP3 改造：缓存有效性判定从 2 字段 → 5 字段（_is_valid_records）
-    WP4 改造：返回 (records, meta) tuple，原 list 行为已破坏性变更
+    改造：缓存有效性判定从 2 字段 → 5 字段（_is_valid_records）
+    改造：返回 (records, meta) tuple，原 list 行为已破坏性变更
     """
     from data.types import FinanceMeta  # 局部导入避免循环依赖
 
@@ -266,7 +266,7 @@ def get_finance(
 
     result = _finance_manager.fetch(code, periods=periods)
     if not result or not isinstance(result, list):
-        # P0-4: fetch 返回空（所有源无响应）写 zero_key 防穿透
+        # fetch 返回空（所有源无响应）写 zero_key 防穿透
         if use_cache:
             cache.set_json(zero_key, [])
         meta.is_degraded = True
@@ -297,7 +297,7 @@ def get_finance(
                 meta.degraded_fields.append(f)
         return records, meta
 
-    # WP4: 检查是否被截断（actual < requested）
+    # 检查是否被截断（actual < requested）
     if len(records) < periods:
         meta.is_periods_truncated = True
         # 推断降级源：akshare 固定返回 4 期，>4 请求时被截断即降级
@@ -326,7 +326,7 @@ def _resolve_industry(d: dict, quote_code: str) -> str:
     industry = d.get("industry", "")
     if industry:
         return str(industry)
-    # P2-13 + v1.x 改进：行情 fetcher 均不带 industry，
+    # + v1.x 改进：行情 fetcher 均不带 industry，
     # 异步调用 akshare 行业补全 fetcher（单只 60 天缓存）。
     # 失败回退空串，不影响主链路。
     try:
@@ -348,7 +348,7 @@ def _dict_to_quote(d: dict) -> Quote:
     volume/amount 归一化在此统一进行（单一真相源）：各 quote fetcher 保留
     数据源原始单位（手/万元/元等），不自行归一化，避免与此处重复相乘。
 
-    P2-26: name 字段统一调用 repair_tencent_name() 容错编码错位（GBK→UTF-8
+    name 字段统一调用 repair_tencent_name() 容错编码错位（GBK→UTF-8
     静默替换导致的乱码）。此层为最后兜底，任何 fetcher 返回的乱码均会被修正。
     """
     from common.parsers import repair_tencent_name  # 延迟导入避免循环依赖
@@ -439,7 +439,7 @@ def _normalize_quote_code(code: str) -> str:
     try:
         return normalize_quote_code(code)
     except Exception as e:
-        # v1.16.0 P1-2 MEDIUM: 显式记录静默降级，便于 grep
+        # v1.16.0 MEDIUM: 显式记录静默降级，便于 grep
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(
@@ -498,7 +498,7 @@ def _normalize_period_type(raw: str) -> str:
 def _dict_to_finance(d: dict) -> FinanceRecord:
     """将 fetcher 返回的 dict 转为 FinanceRecord，支持东财原始字段名映射。
 
-    WP2 (2026-07-21): 数值字段在 fetcher 缺数据时返回 None（不再 0.0），
+    (2026-07-21): 数值字段在 fetcher 缺数据时返回 None（不再 0.0），
     区分"未披露/字段映射失败"和"真为 0"。
     业务层须 None-aware：见 business/、strategies/factors/ 等消费方。
     """
@@ -534,7 +534,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
     debt_ratio = _maybe_float(FIELD_MAP["debt_ratio"])
 
     # 计算字段：会计恒等式 资产=负债+权益，无需总股本
-    # WP2 边界保护：debt_ratio 缺失/<=0/>100 时不推导，避免除零或负净资产
+    # 边界保护：debt_ratio 缺失/<=0/>100 时不推导，避免除零或负净资产
     total_assets: float | None = None
     net_assets: float | None = None
     if (

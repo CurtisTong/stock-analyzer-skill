@@ -4,7 +4,7 @@
 维度：基本面(10%) + 估值(12%) + 技术面(31%) + 情绪/题材(35%) + 风险(12%)
 精确复现 experts/zhao_laoge.md §九 评分矩阵中的阈值规则。
 
-# P1-11 已知数据缺失（详见 decide.md §八）：
+# 已知数据缺失（详见 decide.md §八）：
 # 1. 龙头地位：persona 定义为"龙头地位"（稳固->100，被替代->0，跌破20日线->否决），
 #    代码默认用"回撤至 MA20 深度"近似（>=0->80，>=-8->30，else 10），因龙头地位需板块横截面
 #    排名数据（同题材涨幅排名），当前数据源不提供。回撤深度与龙头强度弱相关。
@@ -27,7 +27,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline = stock_data.get("kline_features") or {}
     kline_data = stock_data.get("kline_data") or {}
     market = stock_data.get("market_features") or {}
-    # P1-11: 可选增强输入——龙虎榜（资金博弈）与板块横截面排名（龙头地位）
+    # 可选增强输入——龙虎榜（资金博弈）与板块横截面排名（龙头地位）
     dragon_tiger = stock_data.get("dragon_tiger") or {}
     sector_rank = stock_data.get("sector_rank") or {}
 
@@ -89,7 +89,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     else:
         sent = 50
 
-    # P1-11: 龙虎榜资金博弈（可选）——净买入增强题材强度，净卖出压制
+    # 龙虎榜资金博弈（可选）——净买入增强题材强度，净卖出压制
     net_buy = _safe_float(dragon_tiger.get("net_buy"))
     dt_count = int(dragon_tiger.get("count") or 0)
     if net_buy > 0:
@@ -100,7 +100,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         sent = min(sent, 35)
 
     # 风险：龙头地位 + 20日均线（渐进式扣分，龙头低吸风格破20日线常是买点）
-    # P1-11: 优先用板块横截面排名判定龙头地位；缺失时回退回撤近似
+    # 优先用板块横截面排名判定龙头地位；缺失时回退回撤近似
     rank = int(sector_rank.get("rank") or 0)
     total = int(sector_rank.get("total") or 0)
     if total > 0 and 0 < rank <= total:

@@ -229,7 +229,7 @@ class TestRsi:
 
 
 class TestRsiMultiPeriod:
-    """v1.21.1: RSI 6/12/24 三档参考（审查 P0-2 修复）。"""
+    """v1.21.1: RSI 6/12/24 三档参考（审查 修复）。"""
 
     def test_multi_period_keys_present(self):
         """返回 dict 含 rsi6/rsi12/rsi24 键（数据充足时）。"""
@@ -266,7 +266,7 @@ class TestRsiMultiPeriod:
 
 
 class TestKdjDunhuaDowngrade:
-    """v1.21.1: KDJ 钝化降权（审查 P1-1 修复）。"""
+    """v1.21.1: KDJ 钝化降权（审查 修复）。"""
 
     @staticmethod
     def _features(kdj_sig: str, dunhua: bool) -> dict:

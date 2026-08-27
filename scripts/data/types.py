@@ -31,7 +31,7 @@ class Quote:
     is_suspended: bool = False  # 是否停牌
     limit_up: float = 0.0  # 涨停价（0 表示未知）
     limit_down: float = 0.0  # 跌停价（0 表示未知）
-    # P2-13: 数据源返回的行业（fetcher 可选填充，默认空走 keyword 推断）
+    # 数据源返回的行业（fetcher 可选填充，默认空走 keyword 推断）
     industry: str = ""
 
     def has_basic_data(self) -> bool:
@@ -79,7 +79,7 @@ class KlineBar:
 class FinanceRecord:
     """统一财务数据结构。
 
-    WP2 (2026-07-21): 数值字段从 ``float = 0.0`` 改为 ``Optional[float] = None``，
+    (2026-07-21): 数值字段从 ``float = 0.0`` 改为 ``Optional[float] = None``，
     区分"未披露"（None）与"披露了但确实为 0"（0.0）。
     业务层读取前必须 None-aware：None 时走"未知"分支（中性分/跳过判断/不显示）。
     """
@@ -136,7 +136,7 @@ class FinanceRecord:
 
 @dataclass
 class FinanceMeta:
-    """财务数据获取元信息（WP4 2026-07-21 新增）。
+    """财务数据获取元信息（2026-07-21 新增）。
 
     与 FinanceRecord 列表一起返回，记录：
     - 数据来源（主源 / 降级源）
@@ -146,7 +146,7 @@ class FinanceMeta:
 
     注：`is_stale` / `stale_reason` 字段为预留位，当前 `get_finance()` 尚未自动填充；
     调用方请使用 `scripts.business.finance_freshness.check_finance_freshness()`
-    单独判定（见 WP6 board_overrides 板块差异化披露）。
+    单独判定（见 board_overrides 板块差异化披露）。
     """
 
     source: str = ""  # 主源名（"eastmoney"）

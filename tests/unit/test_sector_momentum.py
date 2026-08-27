@@ -1,5 +1,5 @@
 """
-sector_momentum 板块动量模块 + screener 板块退潮过滤（P1-02）的单元测试。
+sector_momentum 板块动量模块 + screener 板块退潮过滤的单元测试。
 """
 
 from __future__ import annotations

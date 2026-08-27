@@ -31,7 +31,7 @@ _cache_lock = threading.Lock()
 def _try_import(module_name, class_name):
     """尝试导入模块，失败返回 None。
 
-    P1-03: 仅捕获 ImportError/AttributeError（依赖未安装或类不存在），
+    仅捕获 ImportError/AttributeError（依赖未安装或类不存在），
     其他异常（SyntaxError/TypeError 等模块级 bug）打 warning 并 re-raise，
     避免掩盖真实的 fetcher 模块缺陷。
     """

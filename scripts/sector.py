@@ -139,7 +139,7 @@ def fetch_sector_quotes(codes: list) -> list:
 def _fetch_one_finance(code: str) -> tuple:
     """获取单只股票最新财务数据，返回 (code, fin_dict) 或 (code, None)。"""
     fin_code = normalize_finance_code(code)
-    # WP4: 解构 (records, meta) tuple
+    # 解构 (records, meta) tuple
     records, _meta = get_finance(fin_code)
     if records:
         latest = records[0]
@@ -176,7 +176,7 @@ def print_table(quotes: list, finance: dict):
     )
     print("-" * 85)
 
-    # WP2: None 表示"未披露"——格式化为 "-"
+    # None 表示"未披露"——格式化为 "-"
     def _f(v, spec):
         return format(v, spec) if v is not None else "-"
 

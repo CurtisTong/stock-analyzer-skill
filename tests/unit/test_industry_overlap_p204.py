@@ -1,4 +1,4 @@
-"""P2-04 候选股与持仓行业重叠率单元测试。
+"""候选股与持仓行业重叠率单元测试。
 
 覆盖：
 - compute_industry_overlap 基本重叠判定（同 ETF 代理 = 同行业）
@@ -30,7 +30,7 @@ def _pos(code, name, cost, qty, tags=None, industry=None):
 
 
 class TestIndustryOfCode:
-    """P2-04 行业归属映射。"""
+    """行业归属映射。"""
 
     def test_stock_sector_map_hit(self):
         ind, proxy = _industry_of_code("sz002920")

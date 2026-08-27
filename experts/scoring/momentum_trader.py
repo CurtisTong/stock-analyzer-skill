@@ -42,7 +42,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     market = stock_data.get("market_features") or {}
     kline_data = stock_data.get("kline_data") or {}
 
-    # P2-04: ST 股票硬 veto -- 动量派不追 ST/退市风险股
+    # ST 股票硬 veto -- 动量派不追 ST/退市风险股
     # 延迟导入 data.pool（位于 scripts/data/pool.py），使用 importlib + 路径
     # 定位而非裸 import，兼容以下三种调用环境：
     #   1. `python3 scripts/market_anchor.py` （market_anchor.py 自加 sys.path）

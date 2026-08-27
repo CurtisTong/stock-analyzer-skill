@@ -1,4 +1,4 @@
-"""WP5 RateLimiter 单元测试。
+"""RateLimiter 单元测试。
 
 验证：
 - 基础并发控制（Semaphore）
@@ -146,7 +146,7 @@ class TestResetAndStats:
 
 # === v1.16.0 Batch 2 新增测试：contextmanager / circuit breaker 编排 / 鲁棒性 ===
 class TestRateLimiterSlotContextManager:
-    """验证 slot() 上下文管理器的 try/finally 信号量释放行为（P1-1.1 修复）。"""
+    """验证 slot() 上下文管理器的 try/finally 信号量释放行为（修复）。"""
 
     def test_slot_releases_on_normal_exit(self):
         """正常路径：with 块退出后信号量被释放，下一次 acquire() 可立即获得。"""
@@ -159,7 +159,7 @@ class TestRateLimiterSlotContextManager:
         assert sem2._value == 1  # 已释放
 
     def test_slot_releases_on_exception(self):
-        """异常路径：业务代码抛异常后信号量仍被释放（P1-1.1 信号量泄漏修复）。"""
+        """异常路径：业务代码抛异常后信号量仍被释放（信号量泄漏修复）。"""
         rl = RateLimiter(max_concurrent=1)
         with pytest.raises(RuntimeError):
             with rl.slot("eastmoney"):
@@ -182,7 +182,7 @@ class TestRateLimiterSlotContextManager:
 
 
 class TestRateLimiterProviderDisabled:
-    """验证 is_provider_disabled() 用作 circuit breaker 旁路信号（P1-1.2 修复）。"""
+    """验证 is_provider_disabled() 用作 circuit breaker 旁路信号（修复）。"""
 
     def test_disabled_returns_false_when_no_history(self):
         rl = RateLimiter()

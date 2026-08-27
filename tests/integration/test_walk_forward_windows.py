@@ -1,5 +1,5 @@
 """
-walk-forward 窗口边界测试（P0-1 修复）。
+walk-forward 窗口边界测试（修复）。
 
 修复前：窗口边界（train_start/train_end/test_start/test_end）从未传给回测引擎，
 IS/OOS 两次调用仅 total_days 不同，OOS 数据被 IS 见过，所有窗口产出相同结果。
@@ -29,7 +29,7 @@ def _make_finance_obj(**kwargs):
 
 
 class TestWalkForwardWindows:
-    """P0-1: 窗口边界真实生效。"""
+    """窗口边界真实生效。"""
 
     def _mock_all(self, monkeypatch):
         """mock 数据层：前段上涨 + 后段下跌的合成 K 线（不同窗口收益不同）。"""

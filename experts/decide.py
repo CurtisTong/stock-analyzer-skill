@@ -130,7 +130,7 @@ def run_debate(
     except Exception as e:
         _logger.warning("记录预测失败（不影响 debate 结果）: %s", e)
 
-    # P1-10: 自动检查到期待验证预测数（不拉价格，不标记 verified），
+    # 自动检查到期待验证预测数（不拉价格，不标记 verified），
     # 提示用户有 pending 预测需手动 `calibration verify` 拉价验证
     try:
         from experts.calibration import get_pending_predictions

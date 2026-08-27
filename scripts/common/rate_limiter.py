@@ -1,9 +1,9 @@
 """全局限流器：按 provider 维度控制并发 + 429 指数退避。
 
-WP5 (2026-07-21) 新增。
+(2026-07-21) 新增。
 v1.16.0 (2026-07-28) Batch 2 修订：
 - 新增 ``slot()`` 上下文管理器（强制 try/finally 释放信号量，
-  解决 WP5 P1-1 信号量泄漏风险）。
+  解决  信号量泄漏风险）。
 - 公开 API 保留 ``acquire()``/``release()`` 以兼容 ``fetcher_base.py`` 的
   现有调用点；新代码优先使用 ``slot()``。
 - 与 ``circuit_breaker`` 编排：``is_provider_disabled(provider)``
@@ -152,7 +152,7 @@ class RateLimiter:
     def slot(self, provider: str) -> Iterator[None]:
         """上下文管理器形式获取 provider 槽位（推荐用法）。
 
-        解决 P1-1 信号量泄漏：try/finally 强制释放，即便业务代码抛
+        解决 信号量泄漏：try/finally 强制释放，即便业务代码抛
         KeyboardInterrupt、未捕获的 AssertionError 也能保证信号量归还。
 
         用法::
@@ -194,7 +194,7 @@ class RateLimiter:
     def is_provider_disabled(self, provider: str) -> bool:
         """检查 provider 当前是否在退避窗口内（用作 circuit breaker 的旁路信号）。
 
-        v1.16.0 Batch 2 P1-1.2：fetcher_base 可在切源前调用此方法，
+        v1.16.0 Batch 2 fetcher_base 可在切源前调用此方法，
         避免对退避中的 provider 发起新请求，从而让 circuit breaker 与
         RateLimiter 形成正交抑制（一个抑制并发，一个抑制恢复）。
         """
@@ -275,7 +275,7 @@ def reset_rate_limiter() -> None:
 def rate_limiter_slot(provider: str) -> Iterator[None]:
     """使用全局 RateLimiter 单例的 slot 上下文管理器（推荐入口）。
 
-    v1.16.0 Batch 2：解决 P1-1.1 信号量泄漏，业务代码可直接::
+    v1.16.0 Batch 2：解决 信号量泄漏，业务代码可直接::
 
         from common.rate_limiter import rate_limiter_slot
 

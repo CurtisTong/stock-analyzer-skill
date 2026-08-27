@@ -90,7 +90,7 @@ def stddev(values):
 def _find_swing_points(values, window=5, confirm=True):
     """找局部极值点索引列表。用于背离检测。
 
-    P1-14: 默认 confirm=True 时需 window 根后续 K 线确认极值
+    默认 confirm=True 时需 window 根后续 K 线确认极值
     （right = values[i+1:i+window+1]），因此最近 window 根 K 线不会标记为极值点。
     这是 by-design 的确认延迟（非未来数据泄露），但实时信号有 window 根滞后。
 

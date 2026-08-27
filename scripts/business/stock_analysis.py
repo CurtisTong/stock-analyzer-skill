@@ -3,7 +3,7 @@
 
 聚合技术分析、财务分析、缠论分析等模块，提供统一的分析入口。
 
-P2-21: StockAnalysisService 基本无状态（仅 min_kline_days 常量），
+StockAnalysisService 基本无状态（仅 min_kline_days 常量），
 现提供模块级 analyze() 快捷入口，无需实例化即可调用。
 StockAnalysisService 类保留向后兼容，内部委托给模块函数。
 """
@@ -26,7 +26,7 @@ _MIN_KLINE_DAYS = 30
 class StockAnalysisService:
     """个股分析服务。
 
-    P2-21: 该类基本无状态，min_kline_days 已提升为模块常量。
+    该类基本无状态，min_kline_days 已提升为模块常量。
     保留类以兼容现有调用方（stock.py 实例化使用），推荐新代码直接用
     模块级 ``analyze()`` 入口。
     """
@@ -92,7 +92,7 @@ def _analyze(
         "price": 0,
         "change_pct": 0,
         "data_warnings": [],
-        # P0-02: 数据来源元信息（供 stock.py footer 使用，避免回退 now_str/硬编码源名）
+        # 数据来源元信息（供 stock.py footer 使用，避免回退 now_str/硬编码源名）
         "data_sources": [],
         "data_failed": [],
         "data_time": "",
@@ -107,7 +107,7 @@ def _analyze(
         if include_finance
         else None
     )
-    # P1-17: 并行拉取上证指数行情，用于 detect_market_environment
+    # 并行拉取上证指数行情，用于 detect_market_environment
     f_index = ex.submit(get_quote, "sh000001")
 
     try:
@@ -121,7 +121,7 @@ def _analyze(
         quote = None
     else:
         if quote:
-            # P2-1: 透传真实数据源名（如 行情[tencent]），便于追溯数据质量问题
+            # 透传真实数据源名（如 行情[tencent]），便于追溯数据质量问题
             src = getattr(quote, "source", "")
             result["data_sources"].append(f"行情[{src}]" if src else "行情")
     try:
@@ -135,11 +135,11 @@ def _analyze(
         kline = None
     else:
         if kline:
-            # P2-1: 取最后一根 bar 的 source 代表整条 K 线数据来源
+            # 取最后一根 bar 的 source 代表整条 K 线数据来源
             src = getattr(kline[-1], "source", "") if kline else ""
             result["data_sources"].append(f"K线[{src}]" if src else "K线")
     try:
-        # WP4 (2026-07-21): get_finance 返回 (records, FinanceMeta) tuple
+        # (2026-07-21): get_finance 返回 (records, FinanceMeta) tuple
         finance_result = f_finance.result(timeout=45) if f_finance else None
         if isinstance(finance_result, tuple) and len(finance_result) == 2:
             finance, _finance_meta = finance_result
@@ -154,17 +154,17 @@ def _analyze(
         finance = None
     else:
         if finance:
-            # P2-1: 透传财务数据源名
+            # 透传财务数据源名
             src = getattr(finance[0], "source", "") if finance else ""
             result["data_sources"].append(f"财务[{src}]" if src else "财务")
-    # 大盘指数行情（P1-17: 不再用个股 quote 当指数 quote）
+    # 大盘指数行情（不再用个股 quote 当指数 quote）
     index_quote = None
     try:
         index_quote = f_index.result(timeout=15)
     except Exception as e:
         logger.debug("获取大盘指数行情失败: %s", e)
 
-    # P0-02: 提取数据时间戳（优先用 quote.fetch_time，无则用 K线最后一根 day）
+    # 提取数据时间戳（优先用 quote.fetch_time，无则用 K线最后一根 day）
     if quote and getattr(quote, "fetch_time", ""):
         result["data_time"] = quote.fetch_time
     elif kline and len(kline) > 0:
@@ -212,7 +212,7 @@ def _analyze(
     # 5. 综合评分
     if "technical" in result and "profile" in result:
         quote_dict = quote.to_dict() if quote else {}
-        # P1-17: 传入真实大盘指数行情（sh000001），而非个股 quote
+        # 传入真实大盘指数行情（sh000001），而非个股 quote
         result["score"] = _calculate_composite_score(
             result, quote_dict, index_quote=index_quote
         )
@@ -306,7 +306,7 @@ def _eps_caliber_label(period_type: str, report_date: str) -> str:
 def _extract_finance_summary(fin: dict) -> dict:
     """提取财务摘要。
 
-    WP2: 缺数据字段保持 None（不再默认 0），让下游明确感知"未披露"。
+    缺数据字段保持 None（不再默认 0），让下游明确感知"未披露"。
     stock.py 等渲染层有 _f2 / _f_brief 守卫处理 None。
 
     2026-07-23: 透传 period_type / report_date 并附 eps_caliber 口径标签；
@@ -387,7 +387,7 @@ def _calculate_composite_score(
         # PEG：用净利同比增速（net_profit_yoy）。
         # 注：FinanceRecord 暂无 3 年 CAGR 字段（多期绝对值未采集），
         # 故用单期 yoy 近似；未来补全多期数据后再升级为 3 年 CAGR。
-        # WP2: net_profit_yoy 可能为 None（缺数据）—— to_float 会安全返回 0.0
+        # net_profit_yoy 可能为 None（缺数据）—— to_float 会安全返回 0.0
         growth = to_float(fin.get("net_profit_yoy"))
         peg = (pe / growth) if (pe > 0 and growth is not None and growth > 0) else 0
         features["valuation"] = {
@@ -421,7 +421,7 @@ def _calculate_composite_score(
     return score_result
 
 
-# P2-21: 模块级快捷入口，无需实例化 StockAnalysisService
+# 模块级快捷入口，无需实例化 StockAnalysisService
 def analyze(
     code: str,
     include_technical: bool = True,

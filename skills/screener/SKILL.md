@@ -121,7 +121,7 @@ python3 scripts/init_pool.py --top 30       # 每板块取 Top 30
 
 ### Step 0: 判断市场环境再选策略
 
-**⚠️ 使用 screener 前建议先跑 `/market` 或 `/sector` 确认板块状态**（P1-02b）：若某板块正处退潮（5 日板块 ETF 跌幅 >5%），即使个股评分高也可能被板块拖累。可在 `screener.py` 加 `--exclude-sector-momentum` 自动剔除退潮板块内标的，或对退潮板块高分标的按 `sector_momentum_warning` ⚠️ 提示降级处理。
+**⚠️ 使用 screener 前建议先跑 `/market` 或 `/sector` 确认板块状态**：若某板块正处退潮（5 日板块 ETF 跌幅 >5%），即使个股评分高也可能被板块拖累。可在 `screener.py` 加 `--exclude-sector-momentum` 自动剔除退潮板块内标的，或对退潮板块高分标的按 `sector_momentum_warning` ⚠️ 提示降级处理。
 
 先获取大盘指数和板块 ETF 数据来判断当前市场环境，再选择匹配的策略：
 

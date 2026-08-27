@@ -121,7 +121,7 @@ def _fetch_main_flow(code: str) -> list:
             if isinstance(days, list):
                 return days
     except Exception as e:
-        # v1.16.0 P1-2 MEDIUM
+        # v1.16.0 MEDIUM
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(

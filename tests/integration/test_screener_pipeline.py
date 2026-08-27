@@ -206,7 +206,7 @@ class TestQualityScore:
         assert 0 <= score <= 100
 
     def test_empty_finance_neutral_score(self):
-        # P1-1: 空财务数据（抓取失败）→ 中性 50（原 12 分是负债率 0 被当最优的
+        # 空财务数据（抓取失败）→ 中性 50（原 12 分是负债率 0 被当最优的
         # 误导低分，缺失应中性而非惩罚）
         score = quality_score({})
         assert score == pytest.approx(50.0)
@@ -424,7 +424,7 @@ class TestHardFilter:
 
     def test_limit_up_filtered(self, sample_finance):
         args = _make_args()
-        # P0-7: 主板涨跌停精确阈值 >= 10.0%（9.8% 仍可交易，不被过滤）
+        # 主板涨跌停精确阈值 >= 10.0%（9.8% 仍可交易，不被过滤）
         quote = {
             "name": "测试",
             "code": "sh600001",

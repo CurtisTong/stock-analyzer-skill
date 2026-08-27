@@ -1,4 +1,4 @@
-"""portfolio/analytics.py + portfolio/rebalance.py 子模块单元测试（v1.16.0 P2-1）。
+"""portfolio/analytics.py + portfolio/rebalance.py 子模块单元测试（v1.16.0 ）。
 
 验证从 PortfolioManager god class 拆出的两个子模块：
 - portfolio.analytics: to_dict / summary / risk_summary / attribution_report

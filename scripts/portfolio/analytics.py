@@ -1,4 +1,4 @@
-"""PortfolioManager 分析子模块（v1.17.0 god-class 拆分 P2-1 准备）。
+"""PortfolioManager 分析子模块（v1.17.0 god-class 拆分 准备）。
 
 从 ``scripts/portfolio/manager.py`` 抽取的纯只读分析方法：
 - ``to_dict`` / ``summary``

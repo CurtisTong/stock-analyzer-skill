@@ -69,6 +69,6 @@ class PytdxKlineFetcher(BaseFetcher):
             logger.debug("pytdx_kline 请求 %s:%s 失败: %s", host, port, e)
             return None
         finally:
-            # P1-10: 异常时连接可能已损坏，不归还连接池避免污染后续请求
+            # 异常时连接可能已损坏，不归还连接池避免污染后续请求
             if success:
                 pool.put(api, host, port)

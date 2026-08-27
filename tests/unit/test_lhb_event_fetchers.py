@@ -1,9 +1,9 @@
-"""lhb / event fetcher 单元测试（P1-9）。
+"""lhb / event fetcher 单元测试。
 
 覆盖龙虎榜与事件日历 fetcher 的关键路径，弥补此前零测试覆盖：
 
 lhb（scripts/fetchers/lhb/eastmoney_lhb.py）：
-  - LhbDetailFetcher：正常解析 / 日期 null（P0-4 回归）/ 空结果 / JSON 解析失败 / 分页（P1-7 回归）
+  - LhbDetailFetcher：正常解析 / 日期 null（回归）/ 空结果 / JSON 解析失败 / 分页（回归）
   - LhbSeatFetcher：正常解析买卖席位 / 空结果
 
 event（scripts/fetchers/event/eastmoney_event.py）：
@@ -118,7 +118,7 @@ class TestLhbDetailFetcher:
         assert item["reason"] == "日涨幅偏离值达7%"
 
     def test_null_date_returns_empty_string(self, monkeypatch):
-        """P0-4 回归：TRADE_DATE 为 null 时不崩溃，date 为 ''。
+        """回归：TRADE_DATE 为 null 时不崩溃，date 为 ''。
 
         历史 P0 bug：日期字段为 None 时 [:10] 报 TypeError。
         修复后用 (r.get(...) or "")[:10] 防御。
@@ -178,7 +178,7 @@ class TestLhbDetailFetcher:
         assert result is None
 
     def test_pagination_accumulates_multiple_pages(self, monkeypatch):
-        """P1-7 回归：第一页 pages=2，第二页有更多数据，应累积两页记录。
+        """回归：第一页 pages=2，第二页有更多数据，应累积两页记录。
 
         历史 P1 问题：分页循环未正确累积所有页。
         """
@@ -350,7 +350,7 @@ class TestEarningsCalendarFetcher:
         assert item["change"] == "提前"
 
     def test_null_date_fields_return_empty_string(self, monkeypatch):
-        """P0-4 回归：REPORT_DATE / OP_DATE 为 null -> 对应字段为 ''。"""
+        """回归：REPORT_DATE / OP_DATE 为 null -> 对应字段为 ''。"""
         import fetchers.event.eastmoney_event as mod
 
         payload = {
@@ -392,7 +392,7 @@ class TestEarningsCalendarFetcher:
         assert result is None
 
     def test_pagination_accumulates_pages(self, monkeypatch):
-        """P1-7 回归：pages=2，累积两页记录。"""
+        """回归：pages=2，累积两页记录。"""
         import fetchers.event.eastmoney_event as mod
 
         page1 = {
@@ -663,7 +663,7 @@ class TestPerformanceForecastFetcher:
         assert result is None
 
     def test_pagination_accumulates_pages(self, monkeypatch):
-        """P1-7 回归：pages=2，累积两页记录。"""
+        """回归：pages=2，累积两页记录。"""
         import fetchers.event.performance_forecast as mod
 
         page1 = {

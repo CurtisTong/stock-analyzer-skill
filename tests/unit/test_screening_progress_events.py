@@ -1,4 +1,4 @@
-"""screener 进度事件测试（P0-01 后续：数据预取阶段进度提示）。
+"""screener 进度事件测试（后续：数据预取阶段进度提示）。
 
 覆盖：
 1. run_screening 在 full_market 路径发射 data_prefetch 事件（quote→prescreen→finance→done）

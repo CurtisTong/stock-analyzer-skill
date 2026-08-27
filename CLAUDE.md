@@ -12,7 +12,7 @@ A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变
 
 **整体任务超时（v1.20.1 新增；v1.21.0 规划中——调整为 1800s）**：screener 现已接入 watchdog 线程，默认 1800s deadline（[未发布规划 v1.21.0] 从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py:545-557` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中,实际极少触发。
 
-**已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 WP1–WP6 改造（详见「关键抽象」段）。
+**已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 改造（详见「关键抽象」段）。
 
 ## 常用命令
 
@@ -71,7 +71,7 @@ scripts/
 ├── strategies/   # 筛选策略系统（6 策略 × 6 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 消息推送（NotificationManager + 多通道适配器）
-├── portfolio/    # 持仓管理（v1.16.0 P2-1 部分拆分：analytics + rebalance 是 manager 的子模块入口）
+├── portfolio/    # 持仓管理（v1.16.0 部分拆分：analytics + rebalance 是 manager 的子模块入口）
 └── *.py          # 顶层 CLI 脚本（SKILL.md 直接调用的入口）
 ```
 
@@ -81,14 +81,14 @@ scripts/
 
 - **BaseFetcher / DataFetcherManager** (`scripts/common/__init__.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker + RateLimiter
 - **CircuitBreaker** (`scripts/common/__init__.py`): 线程安全熔断器（closed/open/half-open）
-- **RateLimiter** (`scripts/common/rate_limiter.py`, WP5 2026-07-21, v1.16.0 hardening): per-provider 并发信号量 + 429 指数退避；新增 `slot()` contextmanager 强制 try/finally 释放信号量（防 P1-1 泄漏），新增 `is_provider_disabled()` 与 `CircuitBreaker` 编排（正交抑制）；模块级 helpers：`rate_limiter_slot()` / `is_provider_disabled()`
+- **RateLimiter** (`scripts/common/rate_limiter.py`, 2026-07-21, v1.16.0 hardening): per-provider 并发信号量 + 429 指数退避；新增 `slot()` contextmanager 强制 try/finally 释放信号量（防 泄漏），新增 `is_provider_disabled()` 与 `CircuitBreaker` 编排（正交抑制）；模块级 helpers：`rate_limiter_slot()` / `is_provider_disabled()`
 - **silent_fallback** (`scripts/common/exceptions/silent_fallback.py`, v1.16.0): `log_silent_fallback()` 函数 + `@silent_fallback` 装饰器，对 11 处 HIGH/MEDIUM `except Exception:` 加显式 WARNING 日志（用 `extra={silent: True}` 便于 grep）
 - **lint_silent_excepts** (`scripts/dev/lint_silent_excepts.py`, v1.16.0): CI 阻断 lint（默认 advisory，CI 用 `--strict` 启用 exit 1）
 - **异常体系** (`scripts/common/exceptions/__init__.py`): `StockAnalyzerError` → `DataError` / `BusinessError`
 - **ConfigLoader** (`scripts/config/loader.py`): YAML 配置加载器，支持点分路径访问和缓存
-- **board_overrides** (`scripts/config/disclosure.yaml`, WP6 2026-07-21): 按股票代码前缀差异化财报披露 deadline（主板/科创板/北交所）
+- **board_overrides** (`scripts/config/disclosure.yaml`, 2026-07-21): 按股票代码前缀差异化财报披露 deadline（主板/科创板/北交所）
 - **数据类型** (`scripts/data/types.py`): `Quote`、`KlineBar`、`FinanceRecord`、`FinanceMeta` dataclass
-  - FinanceRecord 数值字段 `Optional[float]=None`（WP2 2026-07-21），区分"未披露"与"真为 0"
+  - FinanceRecord 数值字段 `Optional[float]=None`（2026-07-21），区分"未披露"与"真为 0"
   - FinanceMeta 携带元信息：source/fallback_source/periods/is_degraded/cache_hit
 - **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
 - **OOS 验证状态机** (`scripts/strategies/oos_validation.py` + `registry.py:STRATEGY_VALIDATION`): 双层架构——registry 默认值（git tracked，立场默认怀疑 in_sample）+ `data/strategy_oos_validation.json` 运行时覆盖。`get_validation(name)` 合并两层；升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0 → oos_verified。`scripts/multi_stock_backtest.py --update-validation` 跑完自动写 JSON。`scripts/screener.py:_emit_json_with_validation` 与 `scripts/backtest/cli.py:_attach_validation` 透传 `_validation_status / _validation_note / win_rate_pct / n_stocks` 到 JSON 输出。20 项单元测试覆盖于 `tests/unit/test_oos_validation.py`。详见 [docs/strategy-validation.md](docs/strategy-validation.md)。
@@ -103,7 +103,7 @@ scripts/
 | `/stock-technical`   | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） | `scripts/technical.py`                                                                | stock 子模块                           |
 | `/market`            | 大盘快评 / 完整复盘 / 盘中分时               | `scripts/quote.py` + `scripts/kline.py`                                               | 指数/ETF/美股                          |
 | `/sector`            | 板块全景 / 标的对比 / 板块内筛选             | `scripts/sector.py` + `scripts/refresh_pool.py`                                       |                                        |
-| `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/manager.py`（facade） + `analytics.py` + `rebalance.py`（v1.16.0 P2-1 拆分） | Web 服务 :8765                         |
+| `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/manager.py`（facade） + `analytics.py` + `rebalance.py`（v1.16.0 拆分） | Web 服务 :8765                         |
 | `/portfolio-web`     | Web 录入服务（HTTP API）                     | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/portfolio-natural` | 自然语言 → 命令映射（NL → API）              | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/screener`          | 6 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |

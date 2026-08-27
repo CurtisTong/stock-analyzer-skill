@@ -1,9 +1,9 @@
-"""组合相关性"过度乐观"修复（P1-04）单元测试。
+"""组合相关性"过度乐观"修复单元测试。
 
 覆盖场景：
-- P1-04a: window_notice 窗口声明随矩阵/vs_portfolio 输出
-- P1-04b: _half_window_stability 双半窗口稳定性
-- P1-04c: 负相关显著性（_corr_detailed）+ 分散化收益解读结合 R²/显著性
+- window_notice 窗口声明随矩阵/vs_portfolio 输出
+- _half_window_stability 双半窗口稳定性
+- 负相关显著性（_corr_detailed）+ 分散化收益解读结合 R²/显著性
 """
 
 import math
@@ -36,7 +36,7 @@ def _series(n=60, start=1.0, step=0.01, noise=0.0, seed=0):
 
 
 class TestWindowNotice:
-    """P1-04a 窗口声明。"""
+    """窗口声明。"""
 
     def test_matrix_notice(self, monkeypatch):
         def fake_kline(code, scale=240, datalen=60):
@@ -64,7 +64,7 @@ class TestWindowNotice:
 
 
 class TestCorrDetailed:
-    """P1-04c 显著性检验。"""
+    """显著性检验。"""
 
     def test_strong_negative_significant(self):
         x = list(range(60))
@@ -92,7 +92,7 @@ class TestCorrDetailed:
 
 
 class TestHalfWindowStability:
-    """P1-04b 双半窗口稳定性。"""
+    """双半窗口稳定性。"""
 
     def test_stable_when_correlated(self):
         a = _series(60, step=0.02, noise=0.0)
@@ -123,7 +123,7 @@ class TestHalfWindowStability:
 
 
 class TestInterpretDiversification:
-    """P1-04c 分散化解读结合显著性。"""
+    """分散化解读结合显著性。"""
 
     def test_high_neg_significant(self):
         msg = _interpret_diversification(-0.55, 0.8)

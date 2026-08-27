@@ -16,7 +16,6 @@ from technical.core import _ema_series, aligned_macd, ema, sma, stddev
 from technical.kdj import kdj_full
 from technical.macd import _detect_macd_divergence, _nearest_point, macd_full
 
-
 # ═══════════════════════════════════════════════════════════════
 # core.py
 # ═══════════════════════════════════════════════════════════════

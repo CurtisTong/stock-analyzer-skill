@@ -472,7 +472,7 @@ def profile_stock(
         quote: 行情 dict（含 code, name 等）
         fin: 财务数据 dict（可选）
         kline_records: K 线数据列表（可选）
-        fetcher_industry: P2-13 数据源返回的行业（如东财 industry 字段），优先级高于 keyword
+        fetcher_industry: 数据源返回的行业（如东财 industry 字段），优先级高于 keyword
 
     Returns:
         {
@@ -487,7 +487,7 @@ def profile_stock(
     name = quote.get("name", "")
     code = quote.get("code", "")
 
-    # P2-13: 优先用 fetcher_industry（数据源直接给出），keyword 仅作 fallback
+    # 优先用 fetcher_industry（数据源直接给出），keyword 仅作 fallback
     industry = infer_industry(name, code, fetcher_industry=fetcher_industry)
     classification = classify_stock(fin, quote, kline_records)
 

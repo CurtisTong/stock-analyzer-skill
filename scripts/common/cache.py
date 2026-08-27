@@ -49,7 +49,7 @@ def get(key: str, ttl_seconds: int) -> Optional[bytes]:
     if not f.exists():
         return None
     # TTL 抖动：基于 key 的确定性偏移（0~10%），避免雪崩
-    # P1-05: 用 hashlib.sha256 替代内置 hash()，后者受 PYTHONHASHSEED 随机化影响，
+    # 用 hashlib.sha256 替代内置 hash()，后者受 PYTHONHASHSEED 随机化影响，
     # 跨进程/重启抖动值不一致，与"确定性偏移"目标矛盾
     jitter = (int(hashlib.sha256(key.encode()).hexdigest(), 16) % 100) / 1000.0
     effective_ttl = ttl_seconds * (1 + jitter)

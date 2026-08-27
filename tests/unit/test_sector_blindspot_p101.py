@@ -1,10 +1,10 @@
-"""P1-01a/b 板块归属盲区修复单元测试。
+"""板块归属盲区修复单元测试。
 
 覆盖：
-- P1-01a: sector_etf.csv 新增 7 个 ETF（智能汽车/通信/人工智能/机器人/电力/家电/游戏）
-- P1-01a: _SECTOR_TO_ETF_PROXY 盲区板块（机器人/PCB/AI算力/电力/石化/家电）不再为 None
-- P1-01b: stock_sector_map.json 加载 + routers 归属链 + 行业名→ETF 代理合并
-- P1-01b: 德赛西威（主题池外）经映射表归属"智能汽车"并匹配到 ETF
+- sector_etf.csv 新增 7 个 ETF（智能汽车/通信/人工智能/机器人/电力/家电/游戏）
+- _SECTOR_TO_ETF_PROXY 盲区板块（机器人/PCB/AI算力/电力/石化/家电）不再为 None
+- stock_sector_map.json 加载 + routers 归属链 + 行业名→ETF 代理合并
+- 德赛西威（主题池外）经映射表归属"智能汽车"并匹配到 ETF
 """
 
 import pytest
@@ -29,7 +29,7 @@ def ssm():
 
 
 class TestSectorEtfCsvP101a:
-    """P1-01a 扩展 ETF 覆盖。"""
+    """扩展 ETF 覆盖。"""
 
     def test_csv_exists(self):
         assert SECTOR_ETF_CSV.exists()
@@ -51,7 +51,7 @@ class TestSectorEtfCsvP101a:
         assert len(etfs_meta) >= 22
 
     def test_build_stock_sector_compare_robot(self):
-        """P1-01a：机器人板块不再报"无对应 ETF 代理"，能匹配机器人 ETF。"""
+        """机器人板块不再报"无对应 ETF 代理"，能匹配机器人 ETF。"""
         from sector_etf_strength import _load_sector_etfs, compute_etf_strength
 
         metas = _load_sector_etfs()
@@ -68,7 +68,7 @@ class TestSectorEtfCsvP101a:
         assert res["matched_etf"] is not None
 
     def test_proxy_no_longer_none(self):
-        """P1-01a：盲区板块映射不再为 None。"""
+        """盲区板块映射不再为 None。"""
         from sector_etf_strength import _SECTOR_TO_ETF_PROXY
 
         for blind in ["机器人", "PCB/AI算力", "电力", "石化", "家电"]:
@@ -88,7 +88,7 @@ def _fake_quote(code, name):
 
 
 class TestStockSectorMapP101b:
-    """P1-01b 静态映射表。"""
+    """静态映射表。"""
 
     def test_json_exists(self):
         assert STOCK_SECTOR_MAP_JSON.exists()
@@ -102,7 +102,7 @@ class TestStockSectorMapP101b:
         assert len(ssm["industry_proxy"]) >= 25
 
     def test_desay_tesla_mapped(self, ssm):
-        """P1-01b：德赛西威（元复盘场景，主题池外）已归入汽车电子。"""
+        """德赛西威（元复盘场景，主题池外）已归入汽车电子。"""
         assert ssm["stocks"].get("sz002920") == "汽车电子"
 
     def test_industry_proxy_etf_mapping(self, ssm):
@@ -113,7 +113,7 @@ class TestStockSectorMapP101b:
 
 
 class TestBuildStockSectorCompareRouter:
-    """P1-01b 归属链：stock_sector_map 优先。"""
+    """归属链：stock_sector_map 优先。"""
 
     def test_map_takes_priority_over_sector_stocks(self):
         """股票同时在主题池与 stock_sector_map 时，以细粒度归属为准。"""

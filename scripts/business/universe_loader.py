@@ -157,7 +157,7 @@ def pre_screen_quotes(quotes, args):
 
         user_blacklist = set(get_user_preference("blacklist") or [])
     except Exception as e:
-        # v1.16.0 P1-2 HIGH: 黑名单配置缺失影响预筛——记录便于用户感知
+        # v1.16.0 HIGH: 黑名单配置缺失影响预筛——记录便于用户感知
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(
@@ -177,7 +177,7 @@ def pre_screen_quotes(quotes, args):
         market_ref["avg_amount_yuan"] = snap.get("avg_amount_yuan", 0.0)
         market_ref["median_cap"] = snap.get("median_cap", 0.0)
     except Exception as e:
-        # v1.16.0 P1-2 HIGH: 快照失败影响板块权重——记录便于运维定位
+        # v1.16.0 HIGH: 快照失败影响板块权重——记录便于运维定位
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(
@@ -194,7 +194,7 @@ def pre_screen_quotes(quotes, args):
     for q in quotes:
         name = q.get("name", "")
         code = q.get("code", "")
-        # P1-22: 统一调用 data.pool.is_st，避免与 screening_service 双轨实现
+        # 统一调用 data.pool.is_st，避免与 screening_service 双轨实现
         from data.pool import is_st
 
         if is_st(name):
@@ -325,7 +325,7 @@ def load_benchmark_industry_weights() -> dict:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data.get("weights", {})
     except Exception as e:
-        # v1.16.0 P1-2 HIGH: 板块权重失效导致再平衡失真——记录
+        # v1.16.0 HIGH: 板块权重失效导致再平衡失真——记录
         from common.exceptions import log_silent_fallback
 
         log_silent_fallback(

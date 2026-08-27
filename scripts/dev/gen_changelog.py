@@ -164,7 +164,7 @@ def generate_changelog(commits: list[dict]) -> str:
 
 
 def append_to_changelog(content: str) -> None:
-    """追加到 CHANGELOG.md；如已有 [Unreleased] 则就地合并（防堆叠 P0-2）。"""
+    """追加到 CHANGELOG.md；如已有 [Unreleased] 则就地合并（防堆叠 ）。"""
     changelog_path = PKG_ROOT / "CHANGELOG.md"
     if not changelog_path.exists():
         print("❌ CHANGELOG.md 不存在")

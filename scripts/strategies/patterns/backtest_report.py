@@ -280,7 +280,7 @@ def generate_backtest_report(
     # 总结
     report.append("=" * 70)
     report.append("📝 总结:")
-    # P1-15: 强制过拟合警示，避免 71.4% 胜率被误读为实盘可用
+    # 强制过拟合警示，避免 71.4% 胜率被误读为实盘可用
     report.append("  ⚠️ 本结果基于样本内回测，未经外样本验证，不构成实盘依据")
     report.append("  ⚠️ 历史业绩不代表未来收益")
     if stats["win_rate"] >= 60:
@@ -368,7 +368,7 @@ def generate_comparison_report(stocks_data, ma_short=10, ma_long=21, vol_thresho
     report.append("")
     report.append("=" * 80)
     report.append("📝 结论:")
-    # P1-15: 强制过拟合警示
+    # 强制过拟合警示
     report.append("  ⚠️ 本结果基于样本内回测，未经外样本验证，不构成实盘依据")
     report.append("  ⚠️ 历史业绩不代表未来收益")
     if avg_win_rate >= 60:

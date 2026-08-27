@@ -1,4 +1,4 @@
-"""PortfolioManager 单元测试（v1.16.0 Batch 4 P2-1 补测）。
+"""PortfolioManager 单元测试（v1.16.0 Batch 4 补测）。
 
 覆盖 PortfolioManager 的核心 CRUD + OpLog + 查询方法，
 弥补之前缺少 test_portfolio_manager.py 的问题。

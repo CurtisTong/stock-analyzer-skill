@@ -37,5 +37,5 @@ class AkshareQuoteFetcher(BaseBulkQuoteFetcher):
         return "akshare"
 
     def _index_column(self) -> str | None:
-        # P2-15: 以"代码"为索引，避免每次 fetch O(n) 线性扫描
+        # 以"代码"为索引，避免每次 fetch O(n) 线性扫描
         return "代码"

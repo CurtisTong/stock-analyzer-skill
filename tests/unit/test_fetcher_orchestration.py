@@ -1,7 +1,7 @@
 """DataFetcherManager 编排逻辑 + fetch_with_breaker / fetch_with_fallback 单元测试。
 
-背景（P1-9）：lhb/event fetcher 与 DataFetcherManager 编排逻辑此前全域零测试覆盖，
-是 P0-4（日期字段 null 崩溃）等 P0 问题能长期存在的根因。本文件覆盖编排关键分支：
+背景：lhb/event fetcher 与 DataFetcherManager 编排逻辑此前全域零测试覆盖，
+是 （日期字段 null 崩溃）等 P0 问题能长期存在的根因。本文件覆盖编排关键分支：
 
 1. 多源降级（源 A 抛异常 -> 源 B 返回数据）
 2. 熔断 open 跳过（fetcher.is_available()=False 时不调用 fetch）
@@ -268,7 +268,7 @@ class TestDataFetcherManagerFallback:
     def test_429_triggers_retry_then_fallback(self):
         """429 触发退避后重试主源一次，仍失败则换源。
 
-        WP5：遇 429 时退避后重试主源一次，避免被切到数据更少的次源；
+        遇 429 时退避后重试主源一次，避免被切到数据更少的次源；
         重试仍 429 才切到下一个源。
         """
         a = FakeFetcher("a_eastmoney", priority=10, raise_exc=RateLimitError("u"))
@@ -331,7 +331,7 @@ class TestFetchWithBreaker:
         assert a.success_count == 0
 
     def test_rate_limit_error_returns_none_no_failure(self):
-        """RateLimitError(429) -> 返回 None，但不计入熔断失败（P0-04）。"""
+        """RateLimitError(429) -> 返回 None，但不计入熔断失败。"""
         a = FakeFetcher("a_eastmoney", priority=10, raise_exc=RateLimitError("u"))
 
         result = fetch_with_breaker(a, "600519")

@@ -341,5 +341,5 @@ __all__ = [
     "log_silent_fallback",
 ]
 
-# Re-export 静默降级工具（v1.16.0 Batch 3 P1-2 治理）
+# Re-export 静默降级工具（v1.16.0 Batch 3 治理）
 from common.exceptions.silent_fallback import log_silent_fallback

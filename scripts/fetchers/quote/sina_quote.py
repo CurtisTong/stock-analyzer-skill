@@ -38,7 +38,7 @@ class SinaQuoteFetcher(BaseFetcher):
                 continue
             rec = parse_sina_quote_line(line)
             if rec:
-                # P1-01: 校验返回的 code 与请求 code 一致
+                # 校验返回的 code 与请求 code 一致
                 if plain_code(rec["code"]) != plain_code(code):
                     logger.debug(
                         "新浪行情 code 不匹配，跳过: 请求=%s 返回=%s", code, rec["code"]

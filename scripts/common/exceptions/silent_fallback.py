@@ -1,4 +1,4 @@
-"""静默降级异常与日志工具（v1.16.0 Batch 3 P1-2 治理）。
+"""静默降级异常与日志工具（v1.16.0 Batch 3 治理）。
 
 设计动机：项目历史上有 24 处 ``except Exception:`` 静默吞错，导致业务失败被
 替换为默认值或 ``pass``--上游监控/告警完全失明。本模块提供：
@@ -28,7 +28,7 @@ def log_silent_fallback(
     fallback_reason: str = "",
     extra_context: dict | None = None,
 ) -> None:
-    """记录一处静默降级（P1-2 治理核心工具）。
+    """记录一处静默降级（治理核心工具）。
 
     Args:
         location: 业务位置（如 ``"universe_loader.load_blacklist"``）

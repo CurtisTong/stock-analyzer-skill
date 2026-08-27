@@ -97,7 +97,7 @@ class TestFetchHistoricalReturns:
 
 
 class TestVisibleFin:
-    """P0-10: 前瞻偏差过滤--仅使用交易日已披露的财务数据。"""
+    """前瞻偏差过滤--仅使用交易日已披露的财务数据。"""
 
     def test_fin_disclosed_before_trade_returns_full(self):
         """report_date + 90 天 < trade_day -> 返回完整 fin。"""
@@ -662,7 +662,7 @@ class TestCalcDailyReturns:
     def test_returns_reflect_price_changes(self):
         """日收益 = (close[t] - close[t-1]) / close[t-1]。
 
-        P1-26: 持仓从 bars[start].close 起算，第 1 天收益为 bars[start+1] 相对 bars[start]，
+        持仓从 bars[start].close 起算，第 1 天收益为 bars[start+1] 相对 bars[start]，
         不再混入信号日当日波动。
         """
         import backtest
@@ -839,7 +839,7 @@ class TestIsLimitOrSuspended:
 
 
 class TestRegimeIndexWiring:
-    """P0-2: 指数级 regime 判定接线（修复前 _classify_regime_from_index 无调用方）。"""
+    """指数级 regime 判定接线（修复前 _classify_regime_from_index 无调用方）。"""
 
     def test_simulate_uses_index_regime(self, monkeypatch):
         """simulate_strategy 应调用 _classify_regime_from_index（指数数据源）。"""
