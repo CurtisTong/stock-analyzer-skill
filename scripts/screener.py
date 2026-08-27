@@ -442,6 +442,19 @@ def _build_parser():
         default=None,
         help="整体任务超时秒数（默认 1800s，也可由环境变量 STOCK_SCREENER_DEADLINE 设置）",
     )
+    # v1.21.1: 一键深度分析（SKILL.md 声明恢复）——筛选完成后对 Top N 候选
+    # 逐一执行 /stock 五层分析（复用 stock.py 完整流程）
+    parser.add_argument(
+        "--analyze",
+        action="store_true",
+        help="筛选完成后对 Top N 候选逐一执行五层深度分析（调 scripts/stock.py）",
+    )
+    parser.add_argument(
+        "--analyze-top",
+        type=int,
+        default=3,
+        help="--analyze 的候选数量（默认 3）",
+    )
     return parser
 
 
@@ -536,6 +549,42 @@ def _default_progress_callback(event, payload, *, file=None):
         _p(f"📸 快照已保存: {payload['path']}", flush=True)
 
 
+def _run_deep_analysis(rows: list, args) -> None:
+    """对筛选结果 Top N 逐一执行五层深度分析（调 scripts/stock.py）。
+
+    JSON 模式的分析输出走 stderr（不污染 stdout 的 JSON）；每只失败不中断整体。
+    """
+    import subprocess
+
+    top_n = getattr(args, "analyze_top", 3)
+    codes = [r.get("code", "") for r in rows[:top_n] if r.get("code")]
+    if not codes:
+        return
+    target = sys.stderr if args.json else sys.stdout
+    print(f"\n🔍 一键深度分析 Top {len(codes)}（--analyze）", file=target, flush=True)
+    repo_root = Path(__file__).resolve().parent.parent
+    stock_script = repo_root / "scripts" / "stock.py"
+    for i, code in enumerate(codes, 1):
+        print(f"\n=== [{i}/{len(codes)}] {code} 五层分析 ===", file=target, flush=True)
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(stock_script), code],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            out = proc.stdout.strip()
+            if out:
+                print(out, file=target, flush=True)
+            if proc.stderr and not args.json:
+                print(proc.stderr.strip(), file=target, flush=True)
+        except subprocess.TimeoutExpired:
+            print(f"⏱ {code} 分析超时（300s），跳过", file=target, flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"⚠️ {code} 分析失败: {e}", file=target, flush=True)
+
+
 def _run_main(args):
     """main() 核心逻辑（瘦身后：callback + 调用 run_screening + 输出分发）。"""
     # 进度输出策略：--quiet 全静默；JSON 模式进度走 stderr（不污染 stdout 的 JSON）；
@@ -608,6 +657,10 @@ def _run_main(args):
             render(rows, args.strategy, args.top, title=title, show_chip=show_chip)
         else:
             render_brief(rows, args.strategy, args.top, title=title)
+
+    # v1.21.1: --analyze 一键深度分析——对 Top N 候选逐一执行五层分析
+    if getattr(args, "analyze", False) and rows:
+        _run_deep_analysis(rows, args)
 
 
 def main():

@@ -51,6 +51,9 @@ screener 输出后，对 Top 1-3 候选股自动提示可执行 `/stock <code>` 
 python3 scripts/stock.py <top1_code>
 python3 scripts/stock.py <top2_code>
 python3 scripts/stock.py <top3_code>
+
+# 或筛选时直接加 --analyze 一键触发（默认 Top 3，--analyze-top N 调整）
+python3 scripts/screener.py --strategy balanced --analyze
 ```
 
 
