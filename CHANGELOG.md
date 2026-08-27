@@ -436,6 +436,7 @@
 ## [Unreleased] - 2026-08-20
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -550,6 +551,52 @@
 - **archive**: 归档 backtest-philosophy-review 到 archive/reviews + 清理会话引用
 - **archive**: grill-me-positioning-2026-08-20.md 路径调整到 docs/archive/reviews/
 - **trim**: grill-me 报告 1 处「本次重构」重写为 v1.16.0 版本锚定
+
+### Added
+- **screener**: --analyze 一键深度分析（筛选后对 Top N 逐一执行五层分析）
+- **backtest+lhb**: 年化收益率/卡玛比率输出 + 龙虎榜 CLI 查询入口
+- **technical**: v1.21.1 技术模块审查修复 — RSI 三周期 + 突破检测修复 + KDJ 钝化降权 + 市场强势/弱势标签 + pipeline 过滤口径
+- **backtest**: v1.21.1 双池OOS门槛 + ATR止损/移动止盈 + 自校准最小池 + 权重跨窗口验证
+
+### Fixed
+- **portfolio**: health_report_markdown totals 字段为 None 时格式化崩溃（CI 真实数据暴露）
+- **scripts**: release.sh 测试文件路径过时——test_skill_metadata.py 改为 tests/contracts/test_skill_metadata_sync.py
+- **backtest**: P1-2 回测与筛选评分同源化——momentum 改用 factors + 删 0.85 系数
+- **backtest+screener+portfolio**: 剩余缺口推进——regime 混合/权重优化/指数级接线/质量缺失中性/watchdog 文档/watch 目标价清空
+- **backtest**: walk-forward 假外样本修复——窗口边界传给回测引擎
+- **stock+experts+chan**: 逻辑层审查修复——空输入满仓/技术降级掩盖/盘整背驰/短线单组投票
+- **portfolio**: update_position quantity 校验只在显式传入时生效（未传不拦截）
+- **portfolio+market+sector**: P2 遗留修复——CRUD 校验/停牌 pnl/tag oplog/轮动阈值统一/死声明清理
+- **portfolio**: 深度审查修复——quotes_missing 失真/cost=0 虚假盈利/risk_summary 死集成/top5 死参数/归因占位标注/自选舍入
+- **market+sector**: 深度审查修复——轮动方向颠倒/regime 硬编码/非交易日误报退潮/降级崩溃/渲染守卫
+- **test**: portfolio_health 3 个测试 fixture 化——不再依赖真实用户持仓文件
+- **technical**: structured KDJ 信号同步钝化抑制（与字符串信号一致）
+
+### Changed
+- **scripts**: 清理审查编号引用（P#-#/WP# 约 430 处）
+
+### Documentation
+- 记录 v1.21.1 清理工作（归档/编号清理/会话痕迹）+ gitignore securities_codes
+- **archive**: 归档 superpowers/specs 设计文档 + 清理会话痕迹
+- CHANGELOG v1.21.1 段补剩余缺口修复记录（regime 混合/全因子优化/指数级接线/评分同源/watch 清空）
+- 归档第三轮逻辑层审查报告（screener/backtest/stock/chan/experts + walk-forward 假外样本已知缺口）
+- CHANGELOG v1.21.1 段补深度审查修复记录（--analyze/轮动/regime/非交易日/portfolio 4 项）
+- CHANGELOG v1.21.1 段补横跨审查修复记录（backtest 指标/lhb CLI/12 skill 声明对齐）
+- **skills**: 横切声明对齐——12 个 skill 的 SKILL.md 与代码实现一致性修复
+- **technical**: 技术模块审查报告归档 + CHANGELOG v1.21.1 段补充
+- **archive**: 归档 backtest-philosophy-review 到 archive/reviews + 清理会话引用
+- **archive**: grill-me-positioning-2026-08-20.md 路径调整到 docs/archive/reviews/
+- **trim**: grill-me 报告 1 处「本次重构」重写为 v1.16.0 版本锚定
+
+### Testing
+- **backtest+portfolio**: 补修复测试锁定（7 项）+ add_watch 双通道透传
+
+### Maintenance
+- **config**: scoring.yaml market_weights 键对齐代码状态机（牛市/熊市 → 强势/弱势）
+- **release**: v1.21.0 → v1.21.1 版本号同步（22 处 manifest）+ stock-technical SKILL 声明对齐
+
+### Other
+- Merge remote-tracking branch 'origin/main'
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
