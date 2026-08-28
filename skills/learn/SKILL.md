@@ -26,9 +26,9 @@ model: glm-5.2
 - 每个概念配一个实际例子
 - 末尾提供实战练习建议
 
-## 使用方式
+## Usage
 
-```bash
+```text
 /learn              # 显示学习路径
 /learn basics       # 基础概念（PE、ROE、MACD 等）
 /learn valuation    # 估值方法
@@ -196,26 +196,16 @@ model: glm-5.2
 
 #### 4.1 专家系统
 
-**16 份专家人设（8 active + 8 legacy）**
+**8 位 active 专家（5 长 + 3 短）**：
 
-- 长线（active）：林奇（PEG 成长）、索罗斯（反身性 + 宏观）、价值机构锚（value_institution）、行业专家、风控管理
-- 长线（legacy，已合并入 value_institution 经 value_anchor）：巴菲特、段永平、机构派
-- 短线（active）：题材龙头、情绪技术复合、动量派（v2.2.0）
-- 短线（legacy，已合并入 topic_leader / emotion_tech）：徐翔、赵老哥、炒股养家、作手新一
+- 长线：林奇（PEG 成长）、索罗斯（反身性+宏观）、价值机构锚、行业专家、风控
+- 短线：题材龙头、情绪技术复合、动量派
 
-> 实际 vote 引擎调用的是 8 位 active 专家（5 长 + 3 短）；8 位 legacy 专家保留为人设档案供研究，不参与新框架计算。完整定义见 [experts/README.md](../../experts/README.md) 与 [methodology.md §三](../../methodology.md#三专家讨论模式16-份专家人设8-active--8-legacy)。
+> 8 位 legacy 档案（巴菲特/段永平/徐翔/赵老哥/养家/作手新一/机构派/价值锚）已合并入 active 专家，保留为研究档案不参与投票。完整定义见 [experts/README.md](../../experts/README.md)。
 
-**投票规则**
+**投票规则**：双一致看多=强烈看多；双一致看空=强烈看空；分歧按权重综合判断。
 
-- 双一致看多：强烈看多
-- 双一致看空：强烈看空
-- 分歧：按权重综合判断
-
-**实战练习**
-
-- 运行 `/stock 600519 debate`
-- 观察 16 份专家的投票（8 active + 8 legacy 档案对照）
-- 理解分歧原因
+**实战练习**：运行 `/stock 600519 debate` 观察 8 位 active 专家投票，理解分歧原因。
 
 #### 4.2 策略回测
 
@@ -249,10 +239,6 @@ model: glm-5.2
 ---
 
 ## 常见问题
-
-### Q: 我是完全的新手，应该从哪开始？
-
-A: 从 Level 1 开始，先理解基础概念，然后尝试分析一只股票。
 
 ### Q: 学完这些就能赚钱吗？
 

@@ -3,7 +3,7 @@ name: market
 description: 大盘复盘。触发词：今天大盘怎么样、市场今天如何、行情怎么样、今天涨跌、大盘分析、市场复盘、今日行情、美股昨晚怎么样。用于市场快评/完整复盘/盘中分时、指数/板块ETF/风格轮动/资金偏好判断、美股收盘参考。
 version: 1.21.1
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/sector_summary.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
 ---
 
 # Market Review
@@ -53,25 +53,9 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - 美股参考（full 模式）：`quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq` 获取美股主要指数收盘数据
 - `intraday` 模式额外取 5 分钟 K 线（48 根）
 
-**美股代码约定**：使用 `us:` 前缀 + yfinance 符号（如 `us:^gspc` = 标普500, `us:spy` = 标普500 ETF）。
+**跨市场代码约定**：美股用 `us:` 前缀 + yfinance 符号（`us:^gspc`=标普500、`us:spy`=标普500 ETF）；港股用 `hk:` 前缀 + 数字代码（`hk:0700`=腾讯，4-5 位自动补齐）。依赖可选包 yfinance（`pip install yfinance>=0.2`），未安装时 `us:`/`hk:` 返回空、不报错、不影响 A 股功能。
 
-**港股代码约定**：使用 `hk:` 前缀 + 数字代码（如 `hk:0700` = 腾讯控股, `hk:9988` = 阿里巴巴）。支持 4-5 位数字，自动补齐。
-
-**启用美股/港股功能**：跨市场数据依赖可选第三方包 yfinance，**未安装时自动跳过且不影响 A 股功能**。安装命令：
-
-```bash
-pip install yfinance>=0.2
-```
-
-未安装时调用 `us:`/`hk:` 前缀代码会返回空，不报错也不影响主链路。
-
-**通达信局域网数据源（v1.7.1 可选启用）**：如有本地通达信客户端并开启了 7709 端口，可启用局域网直连数据源：
-
-```bash
-pip install pytdx
-```
-
-启用后行情和 K 线会自动优先走 pytdx（优先级 9，仅次于 tencent=10）。优势：速度快（局域网）、无限频限制、K 线历史回溯深度大（800 根）。未安装时不影响任何功能。
+**通达信局域网数据源（可选）**：本地通达信开启 7709 端口后可 `pip install pytdx` 启用，行情/K 线自动优先走 pytdx（优先级 9，仅次于 tencent=10；速度快、无限频、800 根回溯）。未安装不影响主流程。
 
 ### Step 2: 分析输出
 

@@ -1,6 +1,6 @@
 ---
 name: stock-help
-description: Stock Analyzer 帮助索引 `/stock-help`：哪些功能、怎么用、技能列表、新手怎么开始。显示所有skills和使用说明。
+description: Stock Analyzer 帮助索引。触发词：新手、第一次用、怎么用、有哪些功能、能干嘛、使用说明、命令清单、技能列表、怎么开始。显示所有 12 个 skills 和使用说明。
 version: 1.21.1
 model: glm-5.2
 disable-model-invocation: false
@@ -50,17 +50,7 @@ disable-model-invocation: false
 2. `/market quick` — 看今天市场
 3. `/screener` — 找几只值得买的股票
 
-> 跳步不会出错——系统会在需要时自动初始化股票池，无需手动操作。
-
-### 🆕 新手推荐路径
-
-如果你是第一次使用，建议按以下顺序：
-
-1. **先看一只股票**：`/stock 贵州茅台 quick` → 了解五层分析框架
-2. **听专家辩论**：`→ 贵州茅台 debate` → 了解 8 人（5 长线 + 3 短线）圆桌投票
-3. **看今天市场**：`/market quick` → 了解大盘状态
-4. **选几只股票**：`/screener` → 了解多因子选股
-5. **学投资知识**：`/learn` → 系统化学习路径
+> 跳步不会出错——系统会在需要时自动初始化股票池。新手进阶：`/stock 贵州茅台 debate`（专家圆桌）→ `/learn`（系统化学习）。
 
 ## 12 个 Skill 一句话速查
 
@@ -132,20 +122,6 @@ disable-model-invocation: false
 - 12 个 skill = 8 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
 - 所有分析仅供参考，不构成投资建议
 - 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（28 个，熔断器自动故障转移）
-
-## 📚 高级子模式速查（附录）
-
-| Skill              | 子模式                                                                    | 用途                                                                   |
-| ------------------ | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `/stock`           | `quick` / `full` / `debate` / `debate 长线` / `debate 短线` / `technical` | quick=3 分钟；full=五层；debate=8 人圆桌（5 长 + 3 短）；technical=纯技术分析 |
-| `/market`          | `full`（默认）/ `quick` / `intraday`                                      | intraday=盘中分时（5 分钟 K 线）                                       |
-| `/sector`          | `overview`（默认）/ `compare` / `stock`                                   | compare=标的横向对比；stock=板块内个股深挖                             |
-| `/portfolio`       | `health`（默认）/ `rebalance` / `compare` / `web`                         | rebalance=按 workflow 联动；web=本地录入服务                           |
-| `/screener`        | `--strategy` 6 选 1 / `init` 子命令                                       | balanced / quality_value / growth_momentum / defensive / turning_point / ma_volume_momentum |
-| `/backtest`        | `--strategy` / `--all` / `--days N` / `--codes` / `--benchmark`           | --all=6 策略横评；--benchmark=对比基准指数                             |
-| `/research`        | `financial <任务>` / `report <任务>`                                      | financial=财务建模；report=全维度研究报告                              |
-| `/learn`           | `basics` / `valuation` / `technical` / `strategy` / `risk`                | 5 个 Level 主题                                                        |
-| `/stock-technical` | `均线` / `MACD` / `KDJ` / `BOLL` / `RSI` / `缠论` / `战法`                | 纯技术面分析（从 stock 拆出的变体）                                    |
 
 ## 🆘 获取更多帮助
 
