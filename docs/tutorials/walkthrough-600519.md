@@ -1,13 +1,13 @@
-# 实战演练：用 13 个 Skill 分析贵州茅台（600519）
+# 实战演练：用 12 个 Skill 分析贵州茅台（600519）
 
-> 本教程以贵州茅台（sh600519）为例，演示如何用 stock-analyzer-skill 的 13 个 skill 完成一次完整的投资研究流程。
+> 本教程以贵州茅台（sh600519）为例，演示如何用 stock-analyzer-skill 的 12 个 skill（8 核心 + 4 变体）完成一次完整的投资研究流程。
 
 ## 前置条件
 
 ```bash
 # 1. 安装插件（已完成）
-# 2. 初始化股票池
-/stock-init
+# 2. 初始化股票池（仅首次；离线用 default）
+/screener init
 
 # 3. 确认数据源可用
 python3 scripts/monitor.py --sources
@@ -110,7 +110,7 @@ python3 scripts/monitor.py --sources
 /stock sh600519 full
 ```
 
-### 8 人活跃专家圆桌辩论（15 份人设）
+### 8 人活跃专家圆桌辩论
 
 ```bash
 /stock sh600519 debate
@@ -122,33 +122,35 @@ python3 scripts/monitor.py --sources
 🎯 长线优配 / 短线观望
 
 【长线阵营】
-🟢 巴菲特    8.5/10  "31% ROE + 永续护城河"
 🟢 林奇      7.5/10  "PEG 0.8，增长消化估值"
-🟡 索罗斯    6.0/10  "趋势中性，等待量能确认"
-🟢 段永平    9.0/10  "本就该买，跌了更买"
+🟢 索罗斯    6.0/10  "趋势中性，等待量能确认"
+🟢 价值机构锚 8.0/10  "31% ROE + 永续护城河，长期可持有"
+🟢 行业专家  7.0/10  "白酒龙头，行业地位稳固"
+🟡 风控      6.5/10  "集中度可控，留意消费降级"
 
 【短线阵营】
-🟡 徐翔      5.5/10  "无明显涨停基因"
-🔴 赵老哥    4.0/10  "趋势钝化"
-🟡 养家      6.0/10  "情绪温和"
-🟢 作手新一  7.5/10  "回踩 1620 是教科书低吸点"
+🟡 题材龙头  5.5/10  "非当期题材，短线弹性不足"
+🔴 情绪技术  4.5/10  "情绪温和，板块二线"
+🟢 动量派    7.5/10  "回踩 1620 是教科书低吸点"
 
 🗳️ 最终投票：4 买入 · 3 观望 · 1 回避
 🎯 综合建议：长线优配 / 短线观望
 
 📊 专家校准胜率
 | 专家 | 事件数 | 正确数 | 胜率 |
-| --- | --- |
-| buffett | 12 | 9 | 75% |
+| --- | --- | --- |
 | lynch | 12 | 8 | 67% |
+| value_institution | 12 | 9 | 75% |
 
 📊 数据时间戳: 2026-06-15 14:30 | 数据源: 腾讯行情, 东方财富财务, 新浪K线
 ```
 
-## 第 5 步：技术确认（/technical）
+> 只关心某个阵营？加参数：`/stock sh600519 debate 长线`（仅 5 位长线）或 `debate 短线`（仅 3 位短线）。
+
+## 第 5 步：纯技术分析（/stock technical）
 
 ```bash
-/technical sh600519 full
+/stock sh600519 technical
 ```
 
 输出示例：
@@ -168,10 +170,12 @@ RSI: 62（中性偏强）
 📊 数据时间戳: 2026-06-15 14:30 | 数据源: 新浪K线
 ```
 
-## 第 6 步：财务建模（/financial-analyst）
+> 想看买卖点分类 + 缠论结构？加 `--classify`。快速版用 `--quick`。
+
+## 第 6 步：财务建模（/research financial）
 
 ```bash
-/financial-analyst 排雷 sh600989
+/research financial 排雷 sh600519
 ```
 
 输出示例：
@@ -188,10 +192,10 @@ ROE: 31.2%（连续 5 年 > 25%）
 📊 数据时间戳: 2026-06-15 14:30 | 数据源: 东方财富财务
 ```
 
-## 第 7 步：投资研究（/investment-researcher）
+## 第 7 步：深度研究报告（/research report）
 
 ```bash
-/investment-researcher 研究贵州茅台，给一份完整投资报告
+/research report 研究贵州茅台，给一份完整投资报告
 ```
 
 输出示例：
@@ -221,7 +225,8 @@ ROE: 31.2%（连续 5 年 > 25%）
 ```
 
 输出示例：
-``
+
+```
 🎯 均衡策略近 60 日回测结果
 
 累计收益: +12.5%
@@ -231,7 +236,7 @@ ROE: 31.2%（连续 5 年 > 25%）
 夏普比率: 1.85
 
 📊 数据时间戳: 2026-06-15 14:30 | 数据源: 新浪K线
-``
+```
 
 ## 第 9 步：持仓管理（/portfolio）
 
@@ -263,33 +268,34 @@ ROE: 31.2%（连续 5 年 > 25%）
 📊 数据时间戳: 2026-06-15 14:30 | 数据源: 腾讯行情
 ```
 
-### 调仓建议
+### 调仓再平衡
 
 ```bash
 /portfolio rebalance
 ```
 
-### Web 录入（可选）
+### Web 录入（可选，/portfolio-web）
 
 ```bash
 /portfolio web
 # 浏览器自动打开 http://127.0.0.1:8765/
 ```
 
-## 第 10 步：初始化股票池（/screener init）
+## 第 10 步：投资学习（/learn）
+
+想看懂报告里的术语？让学习助手解释：
 
 ```bash
-# 默认初始化（~140 只）
-/stock-init
-
-# 全市场初始化（~5000 只）
-/stock-init full-market
+/learn 什么是市盈率PE 和 ROE
+/learn 怎么看 K 线
 ```
 
-## 第 12 步：帮助（/help）
+返回：概念讲解 + 在分析报告中的实际含义，适合新手补基础。
+
+## 第 11 步：帮助（/stock-help）
 
 ```bash
-/help
+/stock-help
 ```
 
 输出场景化引导：
@@ -307,19 +313,19 @@ ROE: 31.2%（连续 5 年 > 25%）
 ## 完整流程总结
 
 ```
-市场状态 → 板块强弱 → 选股筛选 → 单股分析 → 技术确认 → 财务建模
-    ↓           ↓           ↓           ↓           ↓           ↓
-/market    /sector    /screener    /stock     /technical  /research financial
-    ↓           ↓           ↓           ↓           ↓           ↓
-投资研究 → 策略回测 → 持仓管理 → 帮助
-    ↓           ↓           ↓       ↓
-/research report → /backtest → /portfolio → /stock-help
+市场状态 → 板块强弱 → 选股筛选 → 单股分析 → 专家圆桌 → 技术确认
+   ↓            ↓           ↓           ↓           ↓           ↓
+/market    /sector    /screener    /stock     /stock debate  /stock technical
+   ↓            ↓           ↓           ↓           ↓           ↓
+财务建模 → 深度研究 → 策略回测 → 持仓管理 → 投资学习 → 帮助
+   ↓            ↓           ↓           ↓           ↓           ↓
+/research financial → /research report → /backtest → /portfolio → /learn → /stock-help
 ```
 
 ## 常见问题
 
 **Q: 数据源挂了怎么办？**
-A: 自动故障转移，27 个 fetcher 依次尝试。用 `python3 scripts/monitor.py --sources` 查看状态。
+A: 自动故障转移，27 个 fetcher 模块依次尝试。用 `python3 scripts/monitor.py --sources` 查看状态。
 
 **Q: 专家投票冲突怎么办？**
 A: 由 `decide.md` 定义的整合规则裁决——加权投票 + 长短线分仓建议。

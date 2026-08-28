@@ -1,6 +1,6 @@
 # Skill 工作流编排
 
-本文件定义 13 个 skill（9 核心 + 4 变体）的协作关系。原则：先判断环境，再筛候选，再深挖标的，再落到组合和跟踪。
+本文件定义 12 个 skill（8 核心 + 4 变体）的协作关系。原则：先判断环境，再筛候选，再深挖标的，再落到组合和跟踪。
 
 ## 入口选择
 
@@ -16,7 +16,7 @@
 | 做尽调/研究报告  | `research report`    | 汇总 `market`/`sector`/`stock`/`research financial`/`stock technical` 证据 |
 | 初始化股票池     | `screener init`      | 首次使用需要初始化候选池，零配置可用                                       |
 | 历史回测验证     | `backtest`           | 验证选股策略的有效性                                                       |
-| 查看帮助         | `help`               | 显示所有可用 skills 和使用说明                                             |
+| 查看帮助         | `stock-help`         | 显示所有可用 skills 和使用说明                                             |
 
 ## 标准流水线
 
@@ -100,16 +100,15 @@
 
 ---
 
-## 13 Skills 速查表
+## 12 Skills 速查表
 
 | Skill     | 命令                                               | 功能                                  |
 | --------- | -------------------------------------------------- | ------------------------------------- |
-| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 五层分析 + 16 份专家圆桌              |
+| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 五层分析 + 专家圆桌                  |
 | market    | /market [full\|quick\|intraday]                    | 大盘复盘，指数+板块+风格+资金         |
 | sector    | /sector <板块> [overview\|compare\|stock]          | 板块分析，标的对比+多空博弈           |
 | portfolio | /portfolio [health\|rebalance\|compare]            | 持仓健康检查，涨跌+支撑+风险预警      |
 | screener  | /screener [--sector 板块] [--strategy 策略] [init] | 多因子选股系统 + 股票池初始化         |
 | research  | /research [financial\|report]                      | 深度研究：财务建模 / 市场研究 / 尽调  |
-
-| help      | /help                                              | 显示所有可用 skills 和使用说明        |
 | backtest  | /backtest --strategy 策略 --days 天数              | 策略回测验证                          |
+| stock-help| /stock-help                                         | 显示所有可用 skills 和使用说明        |

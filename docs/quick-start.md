@@ -11,20 +11,24 @@
 
 ## 安装
 
-### 方式一：Claude Code Plugin（推荐）
+两种方式等价，任选其一（README 的 `git clone + install.sh` 与 Plugin 方式底层都是创建 symlink）。
+
+### 方式一：Claude Code Plugin
+
+在项目根目录（含 `.claude-plugin/`）：
 
 ```bash
 claude plugins marketplace add . && claude plugins install stock-analyzer
 ```
 
-### 方式二：手动安装
+### 方式二：install.sh（git clone）
 
 ```bash
 cd ~/Documents/curtis/stock-analyzer-skill
 ./install.sh
 ```
 
-`install.sh` 会在 `~/.claude/skills/` 下创建 13 个 symlink，指向本包的 `skills/` 目录。
+`install.sh` 会在 `~/.claude/skills/` 下创建 12 个 symlink，指向本包的 `skills/` 目录。
 
 重启 Claude Code 即可识别。
 

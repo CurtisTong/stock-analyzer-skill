@@ -9,7 +9,7 @@ stock-analyzer-skill/
 ├── README.md                       # 项目说明
 ├── CONTRIBUTING.md                 # 贡献规范
 ├── CLAUDE.md                       # Claude Code 上下文
-├── workflow.md                     # 9 个核心 skill 的协作流程
+├── workflow.md                     # 12 个 skill 的协作流程
 ├── methodology.md                  # 完整投资方法论
 ├── install.sh                      # 一键注册到 ~/.claude/skills/
 ├── package.json                    # npm 发布配置
@@ -367,7 +367,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 
 ### symlink 机制
 
-`install.sh` 分两级创建扁平 symlink（共 13 个 skill）：
+`install.sh` 分两级创建扁平 symlink（共 12 个 skill）：
 
 - **项目级**（[1/5]、[2/5] 步）：`.claude/skills/<name>` 和 `.codex/skills/<name>` 软链到 `../../skills/<name>`，相对路径，便于仓库内移动。
 - **全局级**（[3/5]、[4/5] 步）：`~/.claude/skills/<name>` 和 `~/.codex/skills/<name>` 软链到项目绝对路径，供全局调用。

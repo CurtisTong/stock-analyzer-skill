@@ -2,7 +2,7 @@
 
 > 本文件沉淀"用户专家"审查视角的方法论，用于在 README、SKILL.md、用户输出、教学文档等"用户面"内容上线前做一次"普通用户能否无障碍使用"的把关。
 >
-> 与 [README §"16 份专家人设"](../README.md#-15-份专家人设招牌功能) 中的 8 active 投资专家不同——这些是"决定买不买"的视角；本视角是"用户愿不愿用、会不会用、用了爽不爽"的视角。
+> 与 [README §"16 份专家人设"](../README.md#-16-份专家人设招牌功能) 中的 8 active 投资专家不同——这些是"决定买不买"的视角；本视角是"用户愿不愿用、会不会用、用了爽不爽"的视角。
 >
 > 状态：active（v2.2.0 起沉淀为独立审查方法论）
 >
@@ -78,7 +78,7 @@
 
 ### 3.4 输出模板的"首行 + 尾行"约束
 
-所有 skill 的输出统一两件事（[methodology.md §四 输出模板](../methodology.md#四统一输出模板-v18) 详述）：
+所有 skill 的输出统一两件事（[skills/_shared/references/output-template.md](../skills/_shared/references/output-template.md) 详述）：
 
 - **首行必须是结论**（"可分批介入"/"建议减仓 30%"），不是"以下是分析结果"。
 - **尾行必须标注数据源 + 时间戳**（`📊 数据源：东财 + 雪球 | 时间：2026-07-01 15:30`），保证可复盘。
@@ -146,7 +146,7 @@
 - 项目历史角色定义见 [CHANGELOG.md §"v1.3.3"](../CHANGELOG.md)：「PM / 用户专家 / 产品专家三维优化」
 - 三方审查背景见 [implementation-plan-2026-q3-q4.md §"概览"](./archive/designs/implementation-plan-2026-q3-q4.md#概览)
 - 用户分层与设计启示见 [docs/persona.md](./persona.md)
-- 教学语言一致性见 [methodology.md §四 输出模板](../methodology.md)
+- 教学语言一致性见 [skills/_shared/references/output-template.md](../skills/_shared/references/output-template.md)
 - 不做清单见 [implementation-plan-2026-q3-q4.md §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
 
 ---

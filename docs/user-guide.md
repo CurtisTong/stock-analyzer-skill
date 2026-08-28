@@ -4,7 +4,7 @@
 
 > **你不需要看完整份指南**——挑一个目标进去就行，剩下的按需翻。
 
-## 🎯 TL;DR · 9 个核心 skill 一句话表
+## 🎯 TL;DR · 核心 skill 一句话表
 
 | 你的目标                 | 命令                                  | 一句话价值                               |
 | ------------------------ | ------------------------------------- | ---------------------------------------- |
@@ -16,6 +16,7 @@
 | 🔬 深度研究一只股票      | `/research <任务>`                    | 财务建模 + 排雷 + DCF + 投资建议         |
 | 🧪 验证选股策略          | `/backtest`                           | 胜率 + 收益 + 夏普 + 回撤 + 基准对比     |
 | 📚 学投资基础            | `/learn`                              | PE/ROE/MACD/均线/缠论 系统化学习路径     |
+| ❓ 不知道哪个命令         | `/stock-help`                         | 场景入口 + 全部命令一览                  |
 
 ## 🗺️ 4 个组合使用场景
 
@@ -79,19 +80,23 @@ stock debate → research financial → research report
 
 | Skill     | 命令                                                   | 用途         | 模式                              |
 | --------- | ------------------------------------------------------ | ------------ | --------------------------------- |
-| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 16份专家圆桌²         |
+| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 专家圆桌²         |
 | market    | `/market [full\|quick\|intraday]`                      | 大盘复盘     | 指数+板块+风格+资金               |
 | sector    | `/sector <板块> [overview\|compare\|stock]`            | 板块分析     | 标的对比+多空博弈                 |
 | portfolio | `/portfolio [health\|rebalance\|compare]`              | 持仓健康检查 | 涨跌+支撑+风险预警                |
 | screener  | `/screener [init\|--sector 板块\|--strategy 策略]`     | 选股策略系统 | 多因子筛选+硬过滤³+候选池         |
 | research  | `/research [financial\|report] <任务>`                 | 深度研究     | 财务建模 / 市场研究 / 尽调 / 估值 |
 | backtest  | `/backtest [--strategy 策略] [--all]`                  | 策略回测     | 历史胜率+收益验证                 |
-| help      | `/help`                                                | 使用说明     | 显示所有可用 skills               |
+| stock-help | `/stock-help`                                          | 使用说明     | 场景入口 + 显示所有可用 skills    |
+| stock-technical | `/stock <代码> technical`                     | 纯技术分析   | 均线/MACD/KDJ/BOLL/RSI/缠论/战法  |
+| portfolio-web | `/portfolio web`                              | Web 录入    | HTTP API :8765，浏览器/手机录入     |
+| portfolio-natural | 自然语言持仓操作                          | 持仓 NL 映射 | 我买了/减仓/破位止损 → 命令      |
+| learn      | `/learn <概念>`                                        | 投资学习     | PE/ROE/MACD/缠论 系统化学习路径     |
 
 > **术语说明**：
 >
 > - ¹ **五层框架**：基本面/估值/技术面/板块/风险收益比，详见 [../methodology.md](../methodology.md)
-> - ² **16份专家圆桌**：8 active 专家（价值机构锚/题材龙头/情绪技术/行业专家/风控/动量派 + 林奇/索罗斯）+ 8 legacy（巴菲特/段永平/徐翔/赵老哥/养家/作手新一/价值锚/机构派）
+> - ² **专家圆桌**：16 份专家人设（8 active + 8 legacy），`debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）；8 位 legacy 已合并入 active 视角
 > - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板≥3500万）、低市值（主板≥40亿、创业板≥24亿）标的
 > - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
 > - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
@@ -164,9 +169,9 @@ stock debate → research financial → research report
 ### debate 模式（专家辩论）
 
 ```text
-/stock sh600989 debate         # 全模式：16份专家圆桌（8 active + 8 legacy）
-/stock sh600989 debate 长线    # 仅长线组（巴菲特/林奇/索罗斯/段永平）
-/stock sh600989 debate 短线    # 仅短线组（徐翔/赵老哥/炒股养家/作手新一）
+/stock sh600989 debate         # 全模式：8 人专家圆桌（5 长线 + 3 短线）
+/stock sh600989 debate 长线    # 仅长线组（林奇/索罗斯/价值机构锚/行业专家/风控）
+/stock sh600989 debate 短线    # 仅短线组（题材龙头/情绪技术/动量派）
 ```
 
 返回：五层分析 + 专家圆桌多空辩论 + 最终折中方案。长线/短线子模式仅调用对应组别专家。

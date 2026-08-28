@@ -153,7 +153,7 @@ AkShare · efinance · yfinance<br>
 
 ```bash
 # 1️⃣ 克隆项目并安装（约 30 秒）
-git clone <repo> && cd stock-analyzer-skill && ./install.sh
+git clone https://github.com/CurtisTong/stock-analyzer-skill.git && cd stock-analyzer-skill && ./install.sh
 
 # 2️⃣ 初始化股票池（仅首次；网络差用 default 走预置数据）
 /screener init default
@@ -204,7 +204,7 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 | 🔄 **校准数据同步**       | `python3 scripts/calibration_sync.py --auto`（依赖 gh CLI）                    | 跨设备同步专家校准数据，GitHub Gist 双向同步         |
 | 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示每位专家历史胜率，可信度透明         |
 | 📊 **回测胜率附加**       | `/stock sh600519 --with-backtest`                                              | 分析报告附加近 60 日回测（胜率/收益/夏普/回撤）      |
-| 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 13 skill 串联实战        |
+| 📚 **mdBook 文档站**      | GitHub Pages 自动部署，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 12 skill 串联实战        |
 | 🛡️ **自审计 CI**          | 提交 PR 自动运行                                                               | SKILL.md 与 settings.json 一致性自动检查，阻断不一致 |
 | 🎯 **场景化帮助**         | `/stock-help`                                                                  | 5 个场景入口（找机会/看大盘/看持仓/深度研究/看板块） |
 
@@ -269,6 +269,8 @@ python3 scripts/portfolio_web.py
 
 🎯 综合结论：可分批介入，回踩 1620 加仓
 ```
+
+> 📖 看不懂 **PE / PB / ROE / 夏普** 等术语？[`methodology.md`](methodology.md) 有完整术语表，或在 Claude Code 里用 `/learn` 随时提问。
 
 </details>
 
@@ -517,7 +519,7 @@ flowchart LR
 **git clone + install.sh**
 
 ```bash
-git clone <repo> && cd stock-analyzer-skill
+git clone https://github.com/CurtisTong/stock-analyzer-skill.git && cd stock-analyzer-skill
 ./install.sh
 ```
 
@@ -543,7 +545,7 @@ npm install -g \
 **Symlink（传统）**
 
 ```bash
-git clone <repo>
+git clone https://github.com/CurtisTong/stock-analyzer-skill.git
 cd stock-analyzer-skill
 ./install.sh
 ```
@@ -553,6 +555,8 @@ cd stock-analyzer-skill
 </td>
 </tr>
 </table>
+
+> 💡 也可以作为 **Claude Code Plugin** 安装（等价）：`claude plugins marketplace add . && claude plugins install stock-analyzer`。详见 [快速入门](docs/quick-start.md)。
 
 ### ✅ 验证安装
 
@@ -707,6 +711,23 @@ python3 scripts/monitor.py --cleanup
 ```
 
 查看缓存状态：`python3 scripts/monitor.py --cache`
+
+</details>
+
+<details>
+<summary><b>Q：想卸载怎么办？</b></summary>
+
+`install.sh` 只创建软链、不写系统文件，卸载只需两步：
+
+```bash
+# 1. 删除全局软链（12 个 skill，花括号展开一次删除）
+rm -f ~/.claude/skills/{stock,stock-technical,stock-help,market,sector,portfolio,portfolio-web,portfolio-natural,screener,backtest,research,learn}
+
+# 2. 删除项目目录（项目级 .claude/skills 软链随仓库一并清除）
+rm -rf ~/Documents/curtis/stock-analyzer-skill
+```
+
+> 软链指向项目目录，删掉项目目录后软链即失效；缓存数据随项目目录一并删除。
 
 </details>
 

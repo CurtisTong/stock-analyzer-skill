@@ -33,7 +33,7 @@
 | 阶段 | 文档 | 说明 |
 | :--- | :--- | :--- |
 | 上手 | [quick-start.md](quick-start.md) | 5 分钟安装 + 第一个 `/stock` 命令 |
-| 上手 | [user-guide.md](user-guide.md) | 使用者指南：13 个 skill 完整流程 |
+| 上手 | [user-guide.md](user-guide.md) | 使用者指南：12 个 skill 完整流程 |
 | 上手 | [tutorials/walkthrough-600519.md](tutorials/walkthrough-600519.md) | 贵州茅台完整演练（12 skill 串联） |
 | 入门 | [../methodology.md](../methodology.md) | 投资方法论（PE/ROE/PEG 等术语翻译） |
 | 入门 | [../skills/learn/SKILL.md](../skills/learn/SKILL.md) | `/learn <概念>` 学习助手 |
@@ -88,7 +88,7 @@
 
 ### 📖 阶段 2：精通（1 天 → 1 周）
 
-- [user-guide.md](user-guide.md) — 13 skill 完整流程
+- [user-guide.md](user-guide.md) — 12 skill 完整流程
 - [../methodology.md](../methodology.md) — 投资方法论
 - [product-architecture.md](product-architecture.md) — 产品架构
 - [../experts/README.md](../experts/README.md) — 16 份专家人设
@@ -152,7 +152,7 @@
 | 我现在想…… | 直接看 |
 | :--- | :--- |
 | 装上试试 | [quick-start.md](quick-start.md) |
-| 知道有哪些命令 | [README.md §13 个 Skill 速查](../README.md#-13-个-skill-速查) |
+| 知道有哪些命令 | [README.md §12 个 Skill 速查](../README.md#-12-个-skill-速查) |
 | 跑个单股分析 | `/stock sh600519 quick` → [user-guide.md](user-guide.md) |
 | 看懂专家怎么打分 | [../experts/README.md](../experts/README.md) |
 | 改个 fetcher | [developer-guide.md](developer-guide.md) + [api-reference.md](api-reference.md) |
