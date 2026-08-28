@@ -31,6 +31,12 @@ allowed-tools: Bash(python3 scripts/backtest.py *)
 /backtest --optimize                         # 优化权重（目标最大化夏普比率）
 ```
 
+## Instructions
+
+使用中文输出。先给结论（推荐策略 + 关键指标），再给数据证据。回测必须运行 `scripts/backtest.py`，不要凭记忆编造历史收益。
+
+输出遵循统一模板：首行为一句话结论，尾行为数据时间戳 + 数据源。详见 `../_shared/references/output-template.md`。
+
 ## Workflow Coordination
 
 - 上游来自 `screener`：验证选股策略的实际表现。
