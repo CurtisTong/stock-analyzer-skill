@@ -23,6 +23,7 @@ from typing import Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from common.cli_base import create_parser, handle_errors
 from common import DATA_DIR, atomic_write_json  # noqa: E402
 from strategies import get_strategy, list_strategies  # noqa: E402
 from backtest.cli import load_test_universe  # noqa: E402
@@ -71,8 +72,7 @@ def record_all(days: int = 60, top: int = 5, codes: List[str] = None) -> Dict:
         return {"error": "无可用股票池"}
     if len(codes) < MIN_POOL_SIZE:
         raise ValueError(
-            f"股票池过小（{len(codes)} < {MIN_POOL_SIZE}），拒绝记录："
-            "小池回测策略间无区分度，自校准记录无效"
+            f"股票池过小（{len(codes)} < {MIN_POOL_SIZE}），拒绝记录：" "小池回测策略间无区分度，自校准记录无效"
         )
 
     now = datetime.now()
@@ -233,7 +233,7 @@ def compare(metric: str = "sharpe_ratio") -> Dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="策略表现校准")
+    parser = create_parser(description="策略表现校准")
     sub = parser.add_subparsers(dest="command")
 
     rec_cmd = sub.add_parser("record", help="跑回测并记录")
@@ -243,7 +243,7 @@ def main():
 
     rep_cmd = sub.add_parser("report", help="月度报告")
     rep_cmd.add_argument("--month", help="YYYY-MM 格式")
-    rep_cmd.add_argument("-j", "--json", action="store_true")
+    rep_cmd.add_argument("-j", "--json", action="store_true", dest="json_output")
 
     cmp_cmd = sub.add_parser("compare", help="跨策略对比指标")
     cmp_cmd.add_argument(
@@ -257,7 +257,7 @@ def main():
         ],
         help="对比指标（默认夏普比率）",
     )
-    cmp_cmd.add_argument("-j", "--json", action="store_true")
+    cmp_cmd.add_argument("-j", "--json", action="store_true", dest="json_output")
 
     args = parser.parse_args()
 
@@ -288,7 +288,7 @@ def main():
 
     elif args.command == "report":
         result = report(month=args.month)
-        if args.json:
+        if args.json_output:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             print("按月报告:")
@@ -304,19 +304,13 @@ def main():
 
     elif args.command == "compare":
         result = compare(metric=args.metric)
-        if args.json:
+        if args.json_output:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             print(f"跨策略对比 [{result['metric']}]:")
             for i, r in enumerate(result["ranking"], 1):
-                print(
-                    f"  {i}. {r['strategy']:<18} {r['label']:<10} "
-                    f"avg={r['value']} (跑 {r['runs']} 次)"
-                )
-            print(
-                f"\n  最佳: {result['best']} | 最差: {result['worst']} "
-                f"| 差距: {result['spread']}"
-            )
+                print(f"  {i}. {r['strategy']:<18} {r['label']:<10} " f"avg={r['value']} (跑 {r['runs']} 次)")
+            print(f"\n  最佳: {result['best']} | 最差: {result['worst']} " f"| 差距: {result['spread']}")
 
     else:
         parser.print_help()

@@ -2,9 +2,9 @@
 """多代码批量数据获取（解决 finance/kline/technical 不支持批量的问题）。
 
 Usage:
-  python3 scripts/dev/multi_fetch.py finance sh600519 sh600036 sh000858 -j
+  python3 scripts/dev/multi_fetch.py finance sh600519 sh600036 sh000858
   python3 scripts/dev/multi_fetch.py kline sh600519 sh600036 sh000858
-  python3 scripts/dev/multi_fetch.py technical sh600519 sh600036 --quick
+  python3 scripts/dev/multi_fetch.py technical sh600519 sh600036
 
 支持的子命令：finance / kline / technical / market_anchor / events
 所有子命令的结果会合并到一个 JSON dict，key 为代码（统一大写）。

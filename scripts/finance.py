@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import json
 import argparse
 from common import normalize_finance_code, parallel_map, err, DataError
-from common.cli_base import handle_errors
+from common.cli_base import create_parser, handle_errors
 from data import get_finance
 
 
@@ -77,19 +77,14 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="财务数据查询（多数据源自动切换）")
+    parser = create_parser(description="财务数据查询（多数据源自动切换）")
     parser.add_argument("code", nargs="?", help="股票代码（如 SH600989）")
     parser.add_argument("-c", "--codes", help="批量代码（逗号分隔）")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
-    parser.add_argument("--sources", action="store_true", help="显示可用数据源")
     parser.add_argument(
         "--periods",
         type=int,
         default=4,
         help="返回期数（默认 4 季；full/debate 模式建议 8 季）",
-    )
-    parser.add_argument(
-        "--debug", action="store_true", help="调试模式：异常时打印完整 traceback"
     )
     args = parser.parse_args()
     if args.debug:
@@ -116,16 +111,12 @@ def main():
     normalized_codes = [normalize_finance_code(c) for c in codes]
 
     if len(normalized_codes) > 1:
-        results = parallel_map(
-            lambda c: fetch(c, periods=args.periods), normalized_codes, timeout=30
-        )
+        results = parallel_map(lambda c: fetch(c, periods=args.periods), normalized_codes, timeout=30)
         all_results = {k: v for k, v in results.items() if v}
     else:
-        all_results = {
-            normalized_codes[0]: fetch(normalized_codes[0], periods=args.periods)
-        }
+        all_results = {normalized_codes[0]: fetch(normalized_codes[0], periods=args.periods)}
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(all_results, ensure_ascii=False, indent=2))
         return
 

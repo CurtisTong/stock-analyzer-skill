@@ -19,6 +19,7 @@ from typing import List, Dict, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
+from common.cli_base import create_parser, handle_errors
 from common import DATA_DIR, atomic_write_json  # noqa: E402
 
 SNAPSHOT_VERSION = "1.14.1"
@@ -42,10 +43,7 @@ def _snapshot_path(strategy: str, date_str: str, hash_id: str) -> Path:
 def _make_hash(strategy: str, codes: List[str], timestamp: str) -> str:
     """生成快照唯一 hash（前 12 位）。"""
     # 用微秒精度避免连续两次保存的 hash 冲突
-    payload = (
-        f"{strategy}|{','.join(sorted(codes))}|{timestamp}|"
-        f"{datetime.now().microsecond}"
-    )
+    payload = f"{strategy}|{','.join(sorted(codes))}|{timestamp}|" f"{datetime.now().microsecond}"
     return hashlib.sha256(payload.encode()).hexdigest()[:12]
 
 
@@ -187,7 +185,7 @@ def diff_snapshots(path_a: Path, path_b: Path) -> Dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="选股快照管理")
+    parser = create_parser(description="选股快照管理")
     sub = parser.add_subparsers(dest="command")
 
     list_cmd = sub.add_parser("list", help="列出快照")
@@ -197,7 +195,7 @@ def main():
     diff_cmd = sub.add_parser("diff", help="对比两个快照")
     diff_cmd.add_argument("path_a")
     diff_cmd.add_argument("path_b")
-    diff_cmd.add_argument("-j", "--json", action="store_true", help="输出 JSON 格式")
+    diff_cmd.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON 格式")
 
     args = parser.parse_args()
 
@@ -207,7 +205,7 @@ def main():
             print(p)
     elif args.command == "diff":
         diff = diff_snapshots(Path(args.path_a), Path(args.path_b))
-        if args.json:
+        if args.json_output:
             print(json.dumps(diff, ensure_ascii=False, indent=2))
         else:
             print(f"A: {diff['snapshot_a']} ({diff['timestamp_a']})")
@@ -216,9 +214,7 @@ def main():
             print(f"退出: {len(diff['removed'])} 只 → {diff['removed'][:10]}")
             print("分数变化 top 10:")
             for c in diff["score_changes"][:10]:
-                print(
-                    f"  {c['code']} {c['name']}: {c['score_a']} → {c['score_b']} ({c['delta']:+})"
-                )
+                print(f"  {c['code']} {c['name']}: {c['score_a']} → {c['score_b']} ({c['delta']:+})")
     else:
         parser.print_help()
 

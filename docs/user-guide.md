@@ -262,13 +262,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 返回：调仓建议、再平衡方案。
 
-### compare 模式（持仓对比）
-
-```
-/portfolio compare
-```
-
-返回：持仓标的对比分析。
+> `compare` 模式未实现——持仓/标的对比由 `/stock` 多股对比或 `/sector` 覆盖。
 
 ## 多因子选股 (/screener)
 

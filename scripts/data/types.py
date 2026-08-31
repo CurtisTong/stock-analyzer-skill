@@ -85,7 +85,7 @@ class FinanceRecord:
     """
 
     report_date: str = ""
-    # 报告期类型（2026-07-23 宝丰能源 PE 误算复盘）：
+    # 报告期类型（2026-07-23 宝丰能源 PE 口径修正）：
     #   annual     = 年报（report_date -12-31）
     #   cumulative = 累计（中报 -06-30 / 三季报 -09-30）
     #   quarterly  = 单季（一季报 -03-31）
@@ -158,9 +158,7 @@ class FinanceMeta:
     degraded_fields: List[str] = field(default_factory=list)  # 缺失字段名列表
     fetch_time: str = ""  # ISO 时间戳
     cache_hit: bool = False  # 缓存命中
-    is_stale: bool = (
-        False  # 预留位：财报过期；当前由 check_finance_freshness() 单独判定
-    )
+    is_stale: bool = False  # 预留位：财报过期；当前由 check_finance_freshness() 单独判定
     stale_reason: str = ""  # 预留位：过期原因
     last_error: str = ""  # 最后一次异常描述
 

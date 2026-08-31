@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data.chip import get_margin, get_holders, get_top_holders
+from common.cli_base import create_parser, handle_errors
 from common import normalize_quote_code
 from typing import Any
 
@@ -59,9 +60,7 @@ def render_margin(data, days=20):
         return
 
     print("【融资融券】")
-    print(
-        f"  {'日期':<12} {'融资余额':>12} {'融资净买入':>12} {'融券余量':>10} {'杠杆情绪':>8}"
-    )
+    print(f"  {'日期':<12} {'融资余额':>12} {'融资净买入':>12} {'融券余量':>10} {'杠杆情绪':>8}")
     print("  " + "-" * 60)
 
     for item in data[:days]:
@@ -97,9 +96,7 @@ def render_holders(data):
         return
 
     print("【股东户数】")
-    print(
-        f"  {'截止日期':<12} {'股东户数':>10} {'环比变化':>10} {'户均持股':>12} {'集中度':>8}"
-    )
+    print(f"  {'截止日期':<12} {'股东户数':>10} {'环比变化':>10} {'户均持股':>12} {'集中度':>8}")
     print("  " + "-" * 58)
 
     for item in data:
@@ -117,23 +114,13 @@ def render_top_holders(data):
         return
 
     print("【十大流通股东】")
-    print(
-        f"  {'排名':>4} {'股东名称':<24} {'类型':<10} {'持股(万股)':>10} {'占比(%)':>8} {'变动':>8}"
-    )
+    print(f"  {'排名':>4} {'股东名称':<24} {'类型':<10} {'持股(万股)':>10} {'占比(%)':>8} {'变动':>8}")
     print("  " + "-" * 70)
 
     for item in data:
         # 截断股东名称
-        name = (
-            item.holder_name[:20] + "..."
-            if len(item.holder_name) > 20
-            else item.holder_name
-        )
-        change_str = (
-            f"{item.change_type}{item.change:+.1f}"
-            if item.change != 0
-            else item.change_type
-        )
+        name = item.holder_name[:20] + "..." if len(item.holder_name) > 20 else item.holder_name
+        change_str = f"{item.change_type}{item.change:+.1f}" if item.change != 0 else item.change_type
 
         print(
             f"  {item.rank:>4} {name:<24} {item.holder_type:<10} "
@@ -148,16 +135,13 @@ def render_top_holders(data):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="资金面分析")
+    parser = create_parser(description="资金面分析")
     parser.add_argument("code", help="股票代码（如 sh600989）")
     parser.add_argument("--margin", action="store_true", help="仅显示融资融券")
     parser.add_argument("--holders", action="store_true", help="仅显示股东户数")
     parser.add_argument("--top-holders", action="store_true", help="仅显示十大流通股东")
-    parser.add_argument(
-        "--chip", action="store_true", help="仅显示筹码分布（暂未实现）"
-    )
+    parser.add_argument("--chip", action="store_true", help="仅显示筹码分布（暂未实现）")
     parser.add_argument("--all", action="store_true", help="显示全部（默认）")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--days", type=int, default=20, help="融资融券天数（默认 20）")
 
     args = parser.parse_args()
@@ -181,7 +165,7 @@ def main():
         result["top_holders"] = get_top_holders(args.code)
 
     # JSON 输出
-    if args.json:
+    if args.json_output:
         output = {}
         if "margin" in result:
             output["margin"] = [d.to_dict() for d in result["margin"]]

@@ -190,9 +190,7 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     fcf_ratio = ocf / max(abs(eps), 0.01) if eps > 0 else 0
 
     if debt < 30 and fcf_ratio > 0.8:
-        margin_reason = (
-            f"✅ 安全边际充足：负债率 {debt:.1f}% < 30%，FCF/EPS {fcf_ratio:.1%} > 80%"
-        )
+        margin_reason = f"✅ 安全边际充足：负债率 {debt:.1f}% < 30%，FCF/EPS {fcf_ratio:.1%} > 80%"
     elif debt < 50:
         margin_reason = f"⚠️ 安全边际一般：负债率 {debt:.1f}% < 50%"
     else:
@@ -212,7 +210,7 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
 
 
 def format_reasoning(result: dict) -> str:
-    """格式化推理链输出。"""
+    """格式化评分依据输出。"""
     scores = result["scores"]
     reasoning = result["reasoning"]
     dimensions = result["dimensions"]
@@ -234,16 +232,14 @@ def format_reasoning(result: dict) -> str:
         "",
         "## 评分明细",
         "",
-        "| 维度 | 权重 | 得分 | 推理过程 |",
+        "| 维度 | 权重 | 得分 | 评分依据 |",
         "|------|------|------|----------|",
     ]
 
     for dim in ["基本面", "估值", "技术面", "情绪", "安全边际"]:
         if dim in dimensions:
             d = dimensions[dim]
-            lines.append(
-                f"| {dim} | {d['weight']:.0%} | {d['score']:.0f} | {d['reason']} |"
-            )
+            lines.append(f"| {dim} | {d['weight']:.0%} | {d['score']:.0f} | {d['reason']} |")
 
     lines.append("")
     lines.append("## 关键判断")

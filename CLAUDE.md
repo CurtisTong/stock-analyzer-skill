@@ -2,17 +2,17 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> 版本：v1.20.2 | 更新日期：2026-08-13
+> 版本：v1.21.1 | 更新日期：2026-08-28
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 27 个 fetcher 模块（35 类）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 35 个 fetcher 类（7 数据域）跨 7 数据域故障转移。
 
 **板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
 
-**整体任务超时（v1.20.1 新增；v1.21.0 规划中——调整为 1800s）**：screener 现已接入 watchdog 线程，默认 1800s deadline（[未发布规划 v1.21.0] 从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py:545-557` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中,实际极少触发。
+**整体任务超时（v1.20.1 新增；v1.21.0 调整为 1800s）**：screener 已接入 watchdog 线程，默认 1800s deadline（从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py:545-557` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中,实际极少触发。
 
-**已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。财务域经 改造（详见「关键抽象」段）。
+**已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。
 
 ## 常用命令
 
@@ -36,7 +36,7 @@ python3 scripts/technical.py sh600989
 python3 scripts/screener.py --strategy balanced
 python3 scripts/chan.py sh600989
 python3 scripts/classifier.py sh600989
-python3 scripts/backtest.py sh600989
+python3 scripts/backtest.py --codes sh600989
 python3 scripts/strategies/patterns/ma_volume_strategy.py sh600989  # MA+成交量组合策略
 python3 scripts/monitor.py                                         # 数据源健康检查 + 缓存管理
 python3 scripts/init_pool.py
@@ -67,8 +67,8 @@ scripts/
 ├── common/       # 基础设施层（HTTP、编码、字段映射、BaseFetcher、CircuitBreaker）
 ├── config/       # 外部化配置（YAML）— scoring/data_source/limits/industry_thresholds
 ├── data/         # 数据类型（Quote, KlineBar, FinanceRecord）+ 磁盘缓存
-├── fetchers/     # 多数据源 Fetcher（27 个模块 × 7 数据域，优先级故障转移）
-├── strategies/   # 筛选策略系统（6 策略 × 6 因子维度 + 模式策略）
+├── fetchers/     # 多数据源 Fetcher（35 个 fetcher 类 × 7 数据域，优先级故障转移）
+├── strategies/   # 筛选策略系统（6 策略 × 9 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 消息推送（NotificationManager + 多通道适配器）
 ├── portfolio/    # 持仓管理（v1.16.0 部分拆分：analytics + rebalance 是 manager 的子模块入口）
@@ -106,7 +106,7 @@ scripts/
 | `/portfolio`         | 持仓 CRUD + 自选 + 健康检查 + 调仓           | `scripts/portfolio_web.py` + `scripts/portfolio/manager.py`（facade） + `analytics.py` + `rebalance.py`（v1.16.0 拆分） | Web 服务 :8765                         |
 | `/portfolio-web`     | Web 录入服务（HTTP API）                     | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
 | `/portfolio-natural` | 自然语言 → 命令映射（NL → API）              | `scripts/portfolio_web.py`                                                            | portfolio 子模块                       |
-| `/screener`          | 6 策略 × 6 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |
+| `/screener`          | 6 策略 × 9 因子批量选股 + 股票池初始化       | `scripts/screener.py` + `scripts/init_pool.py`                                        |                                        |
 | `/backtest`          | 策略历史回测（11 项指标 + 6 策略对比）       | `scripts/backtest.py` + `scripts/strategy_performance.py`                             |                                        |
 | `/research`          | 财务建模 / 排雷 / DCF / 全维度研究报告       | `scripts/stock.py --with-backtest` + `scripts/announcements.py` + `scripts/events.py` |                                        |
 | `/learn`             | 学习助手（PE/ROE/MACD/K 线/缠论/新手入门）   | 无脚本调用                                                                            | 纯教学                                 |
@@ -141,7 +141,7 @@ scripts/
 - **pre-commit hook**（`.pre-commit-config.yaml`）：`sync-skill-test-versions`（pre-commit stage）自动同步；`check-skill-test-versions`（pre-commit stage）作为提交前验证
 - **GitHub Action**（`.github/actions/setup-test/action.yml`）：CI 测试 job 在 `pip install` 之后跑 `sync_skill_test_versions.py`，确保 release workflow 的 test job 不会因版本漂移而阻塞 publish
 - **三处版本号同步**：`scripts/dev/sync_version.py` 同步 `pyproject.toml` + `package.json` + README badge，避免发版时手动三处修改
-- **手动验证**：`python3 scripts/dev/sync_skill_test_versions.py --check`（commit 0 状态：已通过）
+- **手动验证**：`python3 scripts/dev/sync_skill_test_versions.py --check`
 
 ## 开发约定
 

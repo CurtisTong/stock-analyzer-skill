@@ -57,6 +57,9 @@ markers = [
     "network: 需要真实网络访问（默认 skip）",
 ]
 
+[tool.black]
+line-length = 120
+
 [tool.ruff]
 line-length = 120
 

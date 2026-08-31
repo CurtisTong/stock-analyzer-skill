@@ -49,6 +49,9 @@ SIZE_THRESHOLD_LARGE = 500.0  # > 500 亿 → 沪深 300
 SIZE_THRESHOLD_MID = 100.0  # > 100 亿 → 中证 500；否则中证 1000
 
 
+from common.cli_base import create_parser, handle_errors
+
+
 def select_index_by_size(stock_code: str) -> str:
     """按流通市值动态选基准指数。
 
@@ -299,9 +302,7 @@ def compute_beta(
             "index_code": index_code,
             "window": window,
             **ols_result,
-            "interpretation": _interpret_beta(
-                ols_result["beta"], ols_result["r_squared"]
-            ),
+            "interpretation": _interpret_beta(ols_result["beta"], ols_result["r_squared"]),
             "interpretation_confidence": _r2_confidence(ols_result["r_squared"]),
             "data_quality": {"degraded_fields": degraded},
         }
@@ -331,9 +332,8 @@ def compute_beta(
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="个股 beta 系数（手写 OLS）")
+    parser = create_parser(description="个股 beta 系数（手写 OLS）")
     parser.add_argument("stock_code", help="个股代码（如 sh600519）")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--index", default=None, help="基准指数（None=动态选）")
     parser.add_argument("--window", type=int, default=60, help="K 线窗口（默认 60 日）")
     args = parser.parse_args()
@@ -343,7 +343,7 @@ def main():
         print("计算失败")
         return
 
-    if args.json:
+    if args.json_output:
         import json
 
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -351,9 +351,7 @@ def main():
         idx = result["index_code"]
         print(f"📊 {result['stock_code']} vs {idx} ({result['window']}日 OLS)")
         print(f"  Beta: {result['beta']}")
-        print(
-            f"  Alpha: {result['alpha']} (年化 {result['alpha_annual'] * 100 if result['alpha_annual'] else 'N/A'}%)"
-        )
+        print(f"  Alpha: {result['alpha']} (年化 {result['alpha_annual'] * 100 if result['alpha_annual'] else 'N/A'}%)")
         print(f"  R²: {result['r_squared']}")
         conf = result.get("interpretation_confidence")
         if conf:

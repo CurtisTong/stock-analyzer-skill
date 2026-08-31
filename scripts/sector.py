@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data import get_quote, get_finance
+from common.cli_base import create_parser, handle_errors
 from common import parallel_map, normalize_finance_code
 from typing import Any
 
@@ -84,9 +85,7 @@ def _infer_sector_by_code(code: str) -> list:
     """基于股票代码前缀推断行业板块（兜底，覆盖白名单外的标的）。"""
     code = code.lstrip("shzbj")
     # 精确匹配：按前缀长度降序，避免 "300" 遮蔽 "300750" 等长前缀
-    for prefix, sector in sorted(
-        _CODE_SECTOR_HINTS.items(), key=lambda kv: len(kv[0]), reverse=True
-    ):
+    for prefix, sector in sorted(_CODE_SECTOR_HINTS.items(), key=lambda kv: len(kv[0]), reverse=True):
         if code.startswith(prefix):
             return [sector]
     # 通用前缀规则
@@ -161,11 +160,7 @@ def fetch_sector_finance(codes: list) -> dict:
     需先过滤 None 再解包，否则会抛 TypeError: cannot unpack non-iterable NoneType。
     """
     raw = parallel_map(_fetch_one_finance, codes, timeout=30)
-    return {
-        code: fin
-        for code, fin in (v for v in raw.values() if v is not None)
-        if fin is not None
-    }
+    return {code: fin for code, fin in (v for v in raw.values() if v is not None) if fin is not None}
 
 
 def print_table(quotes: list, finance: dict):
@@ -192,9 +187,8 @@ def print_table(quotes: list, finance: dict):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="板块查询")
+    parser = create_parser(description="板块查询")
     parser.add_argument("query", nargs="?", help="股票代码或板块名称")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--list", action="store_true", help="列出所有板块")
     args = parser.parse_args()
 
@@ -208,7 +202,7 @@ def main():
 
     if args.list:
         sectors = [k for k in data if k != "_meta"]
-        if args.json:
+        if args.json_output:
             print(json.dumps(sectors, ensure_ascii=False))
         else:
             print("可用板块:", ", ".join(sectors))
@@ -254,11 +248,11 @@ def main():
             }
             result["sectors"].append(sector_info)
 
-            if not args.json:
+            if not args.json_output:
                 print(f"\n📊 板块: {sector_name}（{len(codes)} 只标的）")
                 print_table(quotes, finance)
 
-        if args.json:
+        if args.json_output:
             print(json.dumps(result, ensure_ascii=False, indent=2))
 
     else:
@@ -282,7 +276,7 @@ def main():
             "finance": finance,
         }
 
-        if args.json:
+        if args.json_output:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
             print(f"\n📊 板块: {query}（{len(codes)} 只标的）")

@@ -12,6 +12,7 @@
 """
 
 import argparse
+from common.cli_base import create_parser, handle_errors
 import json
 import os
 import sys
@@ -85,9 +86,7 @@ def init_pool(top_n: int = 20, force: bool = False, use_default: bool = False) -
             new_pool = init_from_default(top_n=top_n, dry_run=False)
         else:
             # 尝试从 API 获取，失败时自动 fallback 到默认数据
-            new_pool = refresh_pool(
-                top_n=top_n, dry_run=False, show_diff=False, use_default=True
-            )
+            new_pool = refresh_pool(top_n=top_n, dry_run=False, show_diff=False, use_default=True)
 
         if not new_pool:
             print("❌ 初始化失败: 无法获取股票数据", file=sys.stderr)
@@ -112,9 +111,7 @@ def init_full_market(force: bool = False) -> bool:
             total = data.get("_meta", {}).get("total_stocks", 0)
             if total > 0:
                 print(f"✅ 全市场股票池已存在（{total} 只），跳过初始化")
-                print(
-                    "   如需刷新，运行: python3 scripts/refresh_pool.py --full-market"
-                )
+                print("   如需刷新，运行: python3 scripts/refresh_pool.py --full-market")
                 return False
         except (json.JSONDecodeError, OSError):
             pass  # 文件损坏，重新初始化
@@ -135,13 +132,9 @@ def init_full_market(force: bool = False) -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="首次安装初始化股票池")
-    parser.add_argument(
-        "--force", "-f", action="store_true", help="强制重新初始化（忽略已有数据）"
-    )
-    parser.add_argument(
-        "--top", "-n", type=int, default=20, help="每板块取 Top N（默认 20）"
-    )
+    parser = create_parser(description="首次安装初始化股票池")
+    parser.add_argument("--force", "-f", action="store_true", help="强制重新初始化（忽略已有数据）")
+    parser.add_argument("--top", "-n", type=int, default=20, help="每板块取 Top N（默认 20）")
     parser.add_argument(
         "--default",
         "-d",
@@ -153,9 +146,6 @@ def main():
         action="store_true",
         help="初始化全市场股票池（all_stocks.json，约 5000 只）",
     )
-    parser.add_argument(
-        "-j", "--json", action="store_true", help="输出机器可读 JSON 摘要"
-    )
     args = parser.parse_args()
 
     result = {}
@@ -163,11 +153,9 @@ def main():
         ret = init_full_market(force=args.force)
     else:
         ret = init_pool(top_n=args.top, force=args.force, use_default=args.default)
-    result = (
-        ret if isinstance(ret, dict) else {"summary": str(ret) if ret else "completed"}
-    )
+    result = ret if isinstance(ret, dict) else {"summary": str(ret) if ret else "completed"}
 
-    if args.json:
+    if args.json_output:
         print(
             json.dumps(
                 {

@@ -239,9 +239,7 @@ class ScreeningService:
 
         return parallel_fetch_dict(codes, fetch_one, label="finance")
 
-    def _prefetch_kline(
-        self, codes: List[str], scale: int = 240, datalen: int = 240
-    ) -> Dict[str, list]:
+    def _prefetch_kline(self, codes: List[str], scale: int = 240, datalen: int = 240) -> Dict[str, list]:
         """预获取K线数据（并行）。"""
         from common import parallel_fetch_dict
 
@@ -285,9 +283,7 @@ class ScreeningService:
 
         # 计算因子得分（传入策略权重，跳过权重为 0 的因子）
         features = self._compute_features(ctx.code, ctx.kline_bars)
-        parts = compute_factor_parts(
-            fin, quote_dict, features, industry, weights=get_strategy(ctx.strategy)
-        )
+        parts = compute_factor_parts(fin, quote_dict, features, industry, weights=get_strategy(ctx.strategy))
         if ctx.no_chip:
             parts["chip"] = 50
 
@@ -397,9 +393,7 @@ class ScreeningService:
             # 原读 fin.get("revenue", TOTALOPERATEREVE) 永远为 0，预警永不触发，
             # 形成虚假安全感。改为基于 revenue_yoy 异常下滑的近似预警：
             # 营收同比大幅下滑（<-30%）+ 亏损，提示退市风险。
-            revenue_yoy = to_float(
-                fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ", 0))
-            )
+            revenue_yoy = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ", 0)))
             if eps < 0 and revenue_yoy < -30:
                 warnings.append("营收大幅下滑+亏损(退市风险警示)")
 
@@ -414,14 +408,10 @@ class ScreeningService:
 
         # 商誉减值风险（无数据时跳过）
         # (#2) 财务数据过期时降级为软警告
-        goodwill_ratio = to_float(
-            fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0))
-        )
+        goodwill_ratio = to_float(fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0)))
         if goodwill_ratio > _goodwill_threshold():
             if fin_stale:
-                warnings.append(
-                    f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险,财务数据过期降级)"
-                )
+                warnings.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险,财务数据过期降级)")
             else:
                 reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
 
@@ -542,17 +532,13 @@ def compute_phase1_parts(fin, quote_dict, industry: str, weights=None) -> dict:
         weights: 策略权重 dict。传入时权重为 0 的因子跳过计算。
     """
     code = quote_dict.get("code", "")
-    parts = compute_phase_factors(
-        1, fin, quote_dict, {}, industry, code, weights=weights
-    )
+    parts = compute_phase_factors(1, fin, quote_dict, {}, industry, code, weights=weights)
     # Phase 1 chip 使用静态评分
     parts["chip"] = chip_score_static(code)
     return parts
 
 
-def compute_phase2_parts(
-    features: dict, quote_dict: dict, fin: dict, industry: str
-) -> dict:
+def compute_phase2_parts(features: dict, quote_dict: dict, fin: dict, industry: str) -> dict:
     """Sprint 9 Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
 
     仅对 Phase 1 Top N×3 候选调用，节省 K 线获取量。
@@ -561,15 +547,8 @@ def compute_phase2_parts(
     code = quote_dict.get("code", "")
     # Phase 2 跳过 chip 因子（chip 注册为 phase=2 但 Phase 1 已用静态评分）。
     # 避免 compute_phase_factors 执行 chip_score_dynamic（3 次网络请求）后又被 pop 丢弃。
-    parts = compute_phase_factors(
-        2, fin, quote_dict, features, industry, code, exclude={"chip"}
-    )
+    parts = compute_phase_factors(2, fin, quote_dict, features, industry, code, exclude={"chip"})
     return parts
-
-
-def merge_phase_parts(phase1: dict, phase2: dict) -> dict:
-    """合并 Phase 1 + Phase 2 因子分。"""
-    return {**phase1, **phase2}
 
 
 def compute_weighted_score(parts, strategy, regime=None):
@@ -683,9 +662,7 @@ def normalize_factors_batch(
 
     else:
         # 小样本降级：MAD 标准化
-        factor_medians = {
-            k: statistics.median(vals) for k, vals in factor_values.items()
-        }
+        factor_medians = {k: statistics.median(vals) for k, vals in factor_values.items()}
         factor_mads = {}
         for k in keys:
             vals = factor_values[k]
@@ -760,20 +737,12 @@ def build_result_row(ctx: ResultRowContext):
         "pb": quote_dict.get("pb"),
         # roe/net_profit_yoy 缺数据时为 None，UI 渲染会显示 "-"
         "roe": fin.get("roe") if fin.get("roe") is not None else "-",
-        "profit_growth": (
-            fin.get("net_profit_yoy") if fin.get("net_profit_yoy") is not None else "-"
-        ),
+        "profit_growth": (fin.get("net_profit_yoy") if fin.get("net_profit_yoy") is not None else "-"),
         "ret20": round(features.get("ret20", 0), 1),
-        "trend": (
-            "上升"
-            if features.get("trend", 0) > 0
-            else "下降" if features.get("trend", 0) < 0 else "震荡"
-        ),
+        "trend": ("上升" if features.get("trend", 0) > 0 else "下降" if features.get("trend", 0) < 0 else "震荡"),
         "rsi": features.get("rsi", 50),
         "macd_signal": features.get("macd_signal", 0),
-        "vol_price": ScreeningService._vol_price_signal_desc(
-            features.get("vol_price_signal", 0)
-        ),
+        "vol_price": ScreeningService._vol_price_signal_desc(features.get("vol_price_signal", 0)),
         "rejected": rejected,
     }
 

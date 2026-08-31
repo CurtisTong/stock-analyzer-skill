@@ -104,11 +104,17 @@
 
 | Skill     | 命令                                               | 功能                                  |
 | --------- | -------------------------------------------------- | ------------------------------------- |
-| stock     | /stock <代码> [quick\|full\|debate\|technical]     | 五层分析 + 专家圆桌                  |
-| market    | /market [full\|quick\|intraday]                    | 大盘复盘，指数+板块+风格+资金         |
-| sector    | /sector <板块> [overview\|compare\|stock]          | 板块分析，标的对比+多空博弈           |
-| portfolio | /portfolio [health\|rebalance\|compare]            | 持仓健康检查，涨跌+支撑+风险预警      |
-| screener  | /screener [--sector 板块] [--strategy 策略] [init] | 多因子选股系统 + 股票池初始化         |
-| research  | /research [financial\|report]                      | 深度研究：财务建模 / 市场研究 / 尽调  |
-| backtest  | /backtest --strategy 策略 --days 天数              | 策略回测验证                          |
-| stock-help| /stock-help                                         | 显示所有可用 skills 和使用说明        |
+| Skill              | 命令                                                   | 功能                                  |
+| ------------------ | ------------------------------------------------------ | ------------------------------------- |
+| stock              | /stock <代码> [quick\|full\|debate\|technical]         | 五层分析 + 专家圆桌                  |
+| market             | /market [full\|quick\|intraday]                        | 大盘复盘，指数+板块+风格+资金         |
+| sector             | /sector <板块> [overview\|compare\|stock]              | 板块分析，标的对比+多空博弈           |
+| portfolio          | /portfolio [health\|rebalance\|compare]                | 持仓健康检查，涨跌+支撑+风险预警      |
+| screener           | /screener [--sector 板块] [--strategy 策略] [init]     | 多因子选股系统 + 股票池初始化         |
+| research           | /research [financial\|report]                          | 深度研究：财务建模 / 市场研究 / 尽调  |
+| backtest           | /backtest --strategy 策略 --days 天数                  | 策略回测验证                          |
+| stock-help         | /stock-help                                            | 显示所有可用 skills 和使用说明        |
+| stock-technical    | /stock-technical < 代码> [指标\|战法\|缠论]     | 纯技术面分析（从 stock 拆出）        |
+| portfolio-web      | /portfolio-web                                         | Web 录入服务（从 portfolio 拆出）     |
+| portfolio-natural  | /portfolio-natural < 自然语言>                          | 自然语言 → 命令映射                   |
+| learn              | /learn [basics\|valuation\|technical\|strategy\|risk]  | 系统化投资学习路径                     |

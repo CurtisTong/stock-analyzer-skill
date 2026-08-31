@@ -18,6 +18,7 @@
 """
 
 import argparse
+from common.cli_base import create_parser, handle_errors
 from datetime import datetime
 from pathlib import Path
 
@@ -210,9 +211,7 @@ def format_report(
     lines.append("|------|------|---------|-----------|------|-----------|")
     for br in benchmark_results:
         if "error" in br:
-            lines.append(
-                f"| {br.get('benchmark', '?')} | {br.get('code', '?')} | ⚠️ {br['error'][:40]} | - | - | - |"
-            )
+            lines.append(f"| {br.get('benchmark', '?')} | {br.get('code', '?')} | ⚠️ {br['error'][:40]} | - | - | - |")
             continue
         r = br["result"]
         lines.append(
@@ -228,17 +227,11 @@ def format_report(
         br = benchmark_results[0]
         if "error" not in sr and "error" not in br:
             # 用平均收益差近似 alpha（run_backtest 未返回年化收益）
-            alpha = sr["result"].get("avg_return_pct", 0) - br["result"].get(
-                "avg_return_pct", 0
-            )
-            lines.append(
-                f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2f}%\n"
-            )
+            alpha = sr["result"].get("avg_return_pct", 0) - br["result"].get("avg_return_pct", 0)
+            lines.append(f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2f}%\n")
 
     lines.append("## 4. 重要提示\n")
-    lines.append(
-        "- ⚠️ 本回测为**样本外**测试，股票池与 ma_volume_combined 原 5 只样本不重叠"
-    )
+    lines.append("- ⚠️ 本回测为**样本外**测试，股票池与 ma_volume_combined 原 5 只样本不重叠")
     lines.append("- ⚠️ 基准对比使用同期沪深 300 / 中证 500 走势")
     lines.append("- ⚠️ 历史业绩不代表未来收益")
     lines.append("- ⚠️ 数据来自腾讯/东财，存在数据缺失/接口调整风险")
@@ -252,20 +245,17 @@ def format_report(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="外样本多股票回测 + 基准对比")
+    parser = create_parser(description="外样本多股票回测 + 基准对比")
     parser.add_argument("--codes", help="逗号分隔股票代码列表（默认 50 只跨板块）")
     parser.add_argument("--top", type=int, default=5, help="每个时间点持有股票数")
     parser.add_argument("--holding-days", type=int, default=5)
     parser.add_argument("--total-days", type=int, default=60)
-    parser.add_argument(
-        "--strategies", default="balanced,ma_volume_momentum", help="逗号分隔策略列表"
-    )
+    parser.add_argument("--strategies", default="balanced,ma_volume_momentum", help="逗号分隔策略列表")
     parser.add_argument("--output", help="报告输出路径（默认打印到 stdout）")
     parser.add_argument(
         "--update-validation",
         action="store_true",
-        help="跑完后自动把结果写进 data/strategy_oos_validation.json，"
-        "覆盖 STRATEGY_VALIDATION 默认 in_sample 状态",
+        help="跑完后自动把结果写进 data/strategy_oos_validation.json，" "覆盖 STRATEGY_VALIDATION 默认 in_sample 状态",
     )
     parser.add_argument(
         "--pool-type",
@@ -287,9 +277,7 @@ def main() -> None:
 
     print(f"📊 股票池: {len(codes)} 只")
     print(f"🎯 策略: {', '.join(strategies)}")
-    print(
-        f"⏱️  回测窗口: {args.total_days} 日 / 持有 {args.holding_days} 日 / top {args.top}"
-    )
+    print(f"⏱️  回测窗口: {args.total_days} 日 / 持有 {args.holding_days} 日 / top {args.top}")
     print()
 
     strategy_results = []
@@ -307,9 +295,7 @@ def main() -> None:
             print(f"   ❌ {result['error']}")
         else:
             r = result["result"]
-            print(
-                f"   ✅ 总收益 {r.get('total_return_pct', 0):.2f}%, 胜率 {r.get('win_rate_pct', 0):.1f}%"
-            )
+            print(f"   ✅ 总收益 {r.get('total_return_pct', 0):.2f}%, 胜率 {r.get('win_rate_pct', 0):.1f}%")
 
     benchmark_results = []
     for code, name in BENCHMARKS:

@@ -1,4 +1,8 @@
-"""市场环境检测 (decide.md §二)。"""
+"""市场环境检测 (decide.md §二)。
+
+统一市场状态判定核心：classify_market_state() 是三套检测（market_anchor /
+technical / market_breadth）的唯一权威，各调用方映射到各自词汇。
+"""
 
 import statistics
 from typing import Optional
@@ -47,10 +51,56 @@ _MARKET_DEF_ADVANCE_LOW = 0.30
 _MARKET_DEF_ADVANCE_HIGH = 0.45
 
 
+def classify_market_state(
+    index_quote: Optional[dict] = None,
+    kline_data: Optional[dict] = None,
+    breadth_data: Optional[dict] = None,
+    change_pct: Optional[float] = None,
+    limit_up: Optional[int] = None,
+    limit_down: Optional[int] = None,
+    up_ratio: Optional[float] = None,
+) -> str:
+    """统一市场状态判定核心（market_detector 唯一权威）。
+
+    综合可得信号输出统一状态（牛市/熊市/震荡/冰点/亢奋/防御型）。
+    三套调用方（market_anchor / technical / market_breadth）各自映射词汇：
+      - market_anchor: 直接用统一状态
+      - technical: 牛市→强势、熊市→弱势
+      - market_breadth: 牛市→主升、熊市→退潮
+
+    判定优先级：完整数据（均线+宽度）→ 指数涨跌 → 涨跌停家数 → 防御型兜底。
+    """
+    # 1. 完整数据：均线 + 市场宽度（detect_market_state 完整逻辑）
+    if index_quote and kline_data:
+        return detect_market_state(index_quote=index_quote, kline_data=kline_data, breadth_data=breadth_data)["state"]
+    # 2. 指数涨跌（technical 场景）
+    if index_quote is not None or change_pct is not None:
+        q = index_quote or {"change_pct": change_pct}
+        return detect_market_state(index_quote=q, allow_price_fallback=True)["state"]
+    # 3. 涨跌停家数（情绪场景）
+    if limit_up is not None or limit_down is not None:
+        if (limit_down or 0) > 50:
+            return "冰点"
+        if limit_up is not None:
+            if limit_up < 20:
+                return "熊市"
+            if limit_up > 80:
+                return "牛市"
+        if up_ratio is not None:
+            if up_ratio > 2:
+                return "牛市"
+            if up_ratio < 0.5:
+                return "熊市"
+        return "震荡"
+    # 4. 默认
+    return "防御型"
+
+
 def detect_market_state(
     index_quote: Optional[dict] = None,
     kline_data: Optional[dict] = None,
     breadth_data: Optional[dict] = None,
+    allow_price_fallback: bool = False,
 ) -> dict:
     """判断市场环境状态（decide.md §二）。
 
@@ -59,19 +109,40 @@ def detect_market_state(
         kline_data: 大盘 K 线特征 dict（ma20/closes/volumes）
         breadth_data: 市场宽度 dict（advance_ratio/new_high_low_ratio/
             limit_down_count/margin_ratio）
+        allow_price_fallback: 无 kline/breadth 时是否允许用涨跌幅做简易判定。
+            默认 False（缺数据按"防御型" fail-safe）；technical 场景传 True。
 
     Returns:
         {
-            "state": "牛市"|"熊市"|"震荡"|"冰点"|"亢奋",
+            "state": "牛市"|"熊市"|"震荡"|"冰点"|"亢奋"|"防御型",
             "long_weight": float,
             "short_weight": float,
             "reason": str,
         }
     """
     # v2.4.3 引入：缺数据时默认"防御型"而非"震荡"。
-    # fail-safe 原则：宁可防御市误判压短线，不可防御市放任短线。短线专家在防御市
+    # fail-safe 原则：宁可防御市误判牛市，不可防御市放任短线。短线专家在防御市
     # 历史准确率仅 20%，无数据时按最保守假设处理。
     state = "防御型"
+
+    # allow_price_fallback：无 kline/breadth 时用指数涨跌幅做简易判定
+    # （technical 场景只有 index_quote + change_pct，无法算 ma20/宽度）
+    if allow_price_fallback and index_quote and not kline_data:
+        try:
+            from common import to_float
+        except ImportError:
+            to_float = float
+        change_pct = to_float(index_quote.get("change_pct") or 0)
+        if change_pct > 2:
+            state = "牛市"
+        elif change_pct < -2:
+            state = "熊市"
+        elif change_pct > 0.5:
+            state = "牛市"
+        elif change_pct < -0.5:
+            state = "熊市"
+        else:
+            state = "震荡"
 
     if index_quote and kline_data:
         price = index_quote.get("price", 0)
@@ -93,9 +164,7 @@ def detect_market_state(
         below_ma20 = price < ma20 > 0
 
         advance_ratio = breadth_data.get("advance_ratio", 0.5) if breadth_data else 0.5
-        high_low_ratio = (
-            breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
-        )
+        high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
         limit_down = breadth_data.get("limit_down_count", 0) if breadth_data else 0
         margin_ratio = breadth_data.get("margin_ratio", 0) if breadth_data else 0
         pe_percentile = index_quote.get("pe_percentile", 50)

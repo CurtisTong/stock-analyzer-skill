@@ -174,26 +174,18 @@ def _get_stock_type_weights(stock_type: str) -> dict:
         # 导致 valuation 权重默认 1.0 进分子却不进分母（total_weight），
         # 评分被异常放大。现与 chip 同等补全。
         # L2: local 同样需要回填，避免"分子权重 1.0、分母无 local"的不对称。
-        defaults = _STOCK_TYPE_WEIGHTS_DEFAULT.get(
-            stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
-        )
+        defaults = _STOCK_TYPE_WEIGHTS_DEFAULT.get(stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"])
         for field in ("chip", "valuation", "local"):
             if field not in row:
                 row[field] = defaults.get(field, 1.0)
         return row
-    return _STOCK_TYPE_WEIGHTS_DEFAULT.get(
-        stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"]
-    )
+    return _STOCK_TYPE_WEIGHTS_DEFAULT.get(stock_type, _STOCK_TYPE_WEIGHTS_DEFAULT["普通股"])
 
 
 def _score_ma(alignment: str, type_w: dict, adj: dict, alignment_scores: dict) -> float:
     """均线评分（上限 30）。"""
     ma_base = alignment_scores.get(alignment, 7)
-    ma_score = (
-        ma_base
-        * type_w["ma"]
-        * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
-    )
+    ma_score = ma_base * type_w["ma"] * (adj.get("trend_following", 1.0) if alignment == "多头排列" else 1.0)
     return clamp(ma_score, 0, 30)
 
 
@@ -246,9 +238,7 @@ def _score_kdj(kdj: dict, type_w: dict, adj: dict, vol_signal: int = 0) -> float
     elif "死叉" in kdj_sig:
         kdj_base = kdj_weight * 0.2
     elif "超卖" in kdj_sig:
-        kdj_base = (
-            kdj_weight * 0.6 * trend_penalty * dunhua_penalty
-        )  # 下跌趋势中超卖降权
+        kdj_base = kdj_weight * 0.6 * trend_penalty * dunhua_penalty  # 下跌趋势中超卖降权
     elif "超买" in kdj_sig:
         kdj_base = kdj_weight * 0.3 * dunhua_penalty
     else:
@@ -327,9 +317,7 @@ def _score_patterns(patterns: list, type_w: dict, adj: dict) -> float:
             pattern_score = max(pattern_score, 13)
         if any(b in ptype for b in bearish_patterns):
             pattern_score = min(pattern_score, 3)
-    return clamp(
-        pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25
-    )
+    return clamp(pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25)
 
 
 def _score_chan(chan_data: dict, type_w: dict, adj: dict) -> float:
@@ -506,29 +494,12 @@ def _score_chip(chip_data: dict, type_w: dict) -> float:
     elif holders.get("concentration", "") == "分散":
         chip_bonus -= 1  # 允许负分
 
-    # 筹码分布信号（4分）- Phase 3 实现
-    # chip_dist = chip_data.get("chip_dist") or {}
-    # profit_ratio = chip_dist.get("profit_ratio", 50)
-    # if 40 <= profit_ratio <= 60:
-    #     chip_bonus += 2
-    # elif profit_ratio > 80:
-    #     chip_bonus -= 1
-    # elif profit_ratio < 20:
-    #     chip_bonus -= 1
-    # conc = chip_dist.get("concentration_90", 20)
-    # if conc < 10:
-    #     chip_bonus += 2
-    # elif conc < 15:
-    #     chip_bonus += 1
-
     chip_score = chip_bonus * type_w.get("chip", 1.0)
     # 资金面允许负分惩罚，故下限为 -5 而非 0
     return clamp(chip_score, -5, 10)
 
 
-def composite_score(
-    features, stock_type="普通股", market_state=None, market_breadth=None
-):
+def composite_score(features, stock_type="普通股", market_state=None, market_breadth=None):
     """自适应多指标共振评分 0-100，按个股类型和市场环境调整权重。
 
     采用加权平均法：各子评分先归一化到 [0, 100]，再按类型权重加权平均，
@@ -623,9 +594,7 @@ def composite_score(
     # 加权平均：score = sum(normalized_i × weight_i) / sum(weight_i)
     total_weight = sum(type_w.values())
     if total_weight > 0:
-        score = (
-            sum(normalized[k] * type_w.get(k, 1.0) for k in normalized) / total_weight
-        )
+        score = sum(normalized[k] * type_w.get(k, 1.0) for k in normalized) / total_weight
     else:
         score = sum(normalized.values()) / len(normalized)
 
@@ -651,9 +620,7 @@ def composite_score(
     else:
         grade = "强烈看空"
 
-    buy_signals, sell_signals, structured_signals = _generate_signals(
-        features, market_breadth
-    )
+    buy_signals, sell_signals, structured_signals = _generate_signals(features, market_breadth)
 
     return {
         "score": round(score, 1),
@@ -666,9 +633,10 @@ def composite_score(
 
 def detect_market_environment(index_quote=None, recent_quotes=None):
     """
-    检测当前市场环境（强势/弱势/震荡/冰点/亢奋）。
-    优先使用大盘数据（涨跌停家数），不可得时用指数技术指标推断。
-    支持多日窗口判断，避免单日噪声。
+    检测当前技术市场环境（强势/弱势/震荡/冰点/亢奋）。
+
+    市场状态判定统一委托 experts.market_detector.detect_market_state（唯一权威），
+    词汇映射为技术分析口径（强势/弱势）；保留多日窗口均值 + 换手率补充信号。
 
     Args:
         index_quote: 大盘指数行情 dict（可选）
@@ -676,29 +644,55 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
 
     Returns:
         {
-            "state": "强势"|"弱势"|"震荡"|"冰点"|"亢奋",
+            "state": "弱势"|"震荡"|"冰点"|"亢奋",
             "confidence": "高"|"中"|"低",
             "signals": [...],
             "weight_adjustments": {...},
         }
     """
+    from experts.market_detector import detect_market_state as _detect
+
     state = "震荡"
     confidence = "低"
     signals = []
 
-    # M4: 空 dict 或缺失 price 的行情视为无数据（原实现 {} 会走正常分支，
-    # 全 0 值输出"窄幅震荡"而非"大盘数据缺失"，掩盖数据缺失问题）
-    if (
-        index_quote
-        and isinstance(index_quote, dict)
-        and to_float(index_quote.get("price")) > 0
-    ):
-        _price = to_float(index_quote.get("price"))
+    # M4: 空 dict 或缺失 price 的行情视为无效（不视为"窄幅"，掩盖数据缺失）
+    has_quote = bool(index_quote and isinstance(index_quote, dict) and to_float(index_quote.get("price")) > 0)
+
+    # 无行情数据：直接默认（不跑统一判定）
+    if not has_quote:
+        signals.append("大盘数据缺失，默认震荡")
+        adjustments = _market_weight_adjustments("震荡")
+        return {
+            "state": "震荡",
+            "confidence": "低",
+            "signals": signals,
+            "weight_adjustments": adjustments,
+        }
+
+    # 1. 统一判定：委托 market_detector（涨跌幅 fallback → 牛/震荡/冰点/亢奋/防御型）
+    base = _detect(index_quote=index_quote, allow_price_fallback=True)
+    base_state = base["state"]
+    signals.append(f"市场状态: {base_state}（{base['reason']}）")
+
+    # 2. 词汇映射到技术口径
+    state_map = {
+        "牛市": "强势",
+        "熊市": "弱势",
+        "防御型": "弱势",
+        "震荡": "震荡",
+        "冰点": "冰点",
+        "亢奋": "亢奋",
+    }
+    state = state_map.get(base_state, "震荡")
+    confidence = "高" if base_state in ("冰点", "亢奋") else "中"
+
+    # 3. 多日窗口均值 + 换手率补充信号
+    if True:
         change_pct = to_float(index_quote.get("change_pct"))
         turnover = to_float(index_quote.get("turnover"))
-
-        # 多日窗口：用近期数据的均值平滑单日噪声
         has_multi_day = bool(recent_quotes and len(recent_quotes) > 1)
+
         if has_multi_day:
             recent_changes = [to_float(q.get("change_pct")) for q in recent_quotes]
             recent_turnovers = [to_float(q.get("turnover")) for q in recent_quotes]
@@ -706,50 +700,50 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
             avg_turnover = sum(recent_turnovers) / len(recent_turnovers)
             window_days = len(recent_quotes)
             signals.append(f"近{window_days}日均涨跌{avg_change:.2f}%")
-        else:
-            avg_change = change_pct
-            avg_turnover = turnover
-
-        # 用多日均值判断趋势（单日涨跌不直接定性牛熊，降级为强势/弱势）
-        if avg_change > 1.5:
-            state = "强势"
-            if avg_change > 2.5:
-                confidence = "高" if has_multi_day else "中"
-            else:
-                confidence = "中" if has_multi_day else "低"
-            if not has_multi_day:
-                signals.append(f"单日大涨(均值{avg_change:.1f}%,趋势待确认)")
-            else:
+            # 多日窗口覆盖基础映射（平滑单日噪声）
+            if avg_change > 1.5:
+                state = "强势"
+                confidence = "高" if avg_change > 2.5 else "中"
                 signals.append(f"持续上涨(均值{avg_change:.1f}%)")
-        elif avg_change < -1.5:
-            state = "弱势"
-            if avg_change < -2.5:
-                confidence = "高" if has_multi_day else "中"
-            else:
-                confidence = "中" if has_multi_day else "低"
-            if not has_multi_day:
-                signals.append(f"单日大跌(均值{avg_change:.1f}%,趋势待确认)")
-            else:
+            elif avg_change < -1.5:
+                state = "弱势"
+                confidence = "高" if avg_change < -2.5 else "中"
                 signals.append(f"持续下跌(均值{avg_change:.1f}%)")
-        elif avg_change > 0.5:
-            state = "强势"
-            confidence = "低"
-            signals.append(f"温和上涨(均值{avg_change:.1f}%)")
-        elif avg_change < -0.5:
-            state = "弱势"
-            confidence = "低"
-            signals.append(f"温和下跌(均值{avg_change:.1f}%)")
+            elif avg_change > 0.5:
+                state = "强势"
+                confidence = "低"
+                signals.append(f"温和上涨(均值{avg_change:.1f}%)")
+            elif avg_change < -0.5:
+                state = "弱势"
+                confidence = "低"
+                signals.append(f"温和下跌(均值{avg_change:.1f}%)")
+            else:
+                signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
         else:
-            signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
+            avg_turnover = turnover
+            if change_pct > 2.5:
+                signals.append(f"当日大涨{change_pct:.1f}%（趋势待确认）")
+                confidence = "中"
+            elif change_pct > 2:
+                signals.append(f"当日大涨{change_pct:.1f}%")
+                confidence = "中"
+            elif change_pct < -2.5:
+                signals.append(f"当日大跌{change_pct:.1f}%（趋势待确认）")
+                confidence = "中"
+            elif change_pct < -2:
+                signals.append(f"当日大跌{change_pct:.1f}%")
+                confidence = "中"
+            elif change_pct > 0.5:
+                signals.append(f"温和上涨(均值{change_pct:.1f}%)")
+                confidence = "低"
+            elif change_pct < -0.5:
+                signals.append(f"温和下跌(均值{change_pct:.1f}%)")
+                confidence = "低"
+            elif -0.5 <= change_pct <= 0.5:
+                signals.append(f"窄幅震荡(均值{change_pct:.1f}%)")
+                confidence = "低"
 
-        # 用当日数据补充极端信号
-        if change_pct > 2:
-            signals.append(f"当日大涨{change_pct:.1f}%")
-        elif change_pct < -2:
-            signals.append(f"当日大跌{change_pct:.1f}%")
-
-        # 换手率信号：仅当有真实数据时判断（M4 相邻修复——
-        # 行情缺少 turnover 字段时值为 0，原实现会误触发"极度缩量/冰点信号"）
+        # 换手率信号：仅当有真实数据时判断（避免 0 值误触发冰点）
         if avg_turnover > 0:
             if avg_turnover > 5:
                 signals.append("高换手率")
@@ -763,8 +757,9 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
                     signals.append("冰点信号")
     else:
         signals.append("大盘数据缺失，默认震荡")
+        state = "震荡"
 
-    # 市场 → 信号权重调整
+    # 市场 -> 信号权重调整
     adjustments = _market_weight_adjustments(state)
 
     return {
@@ -780,9 +775,7 @@ def _market_weight_adjustments(state):
     cfg = _scoring_config("market_weights") or {}
     if state in cfg:
         return cfg[state]
-    return _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT.get(
-        state, _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT["震荡"]
-    )
+    return _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT.get(state, _MARKET_WEIGHT_ADJUSTMENTS_DEFAULT["震荡"])
 
 
 _ALIGNMENT_SCORES_DEFAULT = {

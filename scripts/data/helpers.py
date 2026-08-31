@@ -198,7 +198,7 @@ def prefetch_kline_all(codes: list, scale: int = 240, datalen: int = 240) -> dic
     return parallel_fetch_dict(codes, _fetch_one, label="screener:kline")
 
 
-# ---------- 报告期口径工具（2026-07-23 宝丰能源 PE 误算复盘） ----------
+# ---------- 报告期口径工具（2026-07-23 宝丰能源 PE 口径修正） ----------
 # 单季 EPS 不可直接做 price/eps；累计期不可直接算 PE（需 TTM）。
 # 这两个纯函数供业务层/渲染层在算 PE 前校验口径，避免高估 PE（如 47 倍）。
 

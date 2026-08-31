@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from business import StockAnalysisService
-from common.cli_base import handle_errors
+from common.cli_base import create_parser, handle_errors
 from common.formatters import format_footer, format_output, now_str
 
 
@@ -78,14 +78,9 @@ def render_text(result: dict) -> str:
             f"KDJ {t.get('kdj', '?')}  "
             f"RSI {t.get('rsi', 0):.1f}"
         )
-        lines.append(
-            f"   BOLL 位置 {t.get('boll_position', 0.5):.2f}  "
-            f"量价 {t.get('volume_signal', 0):+d}"
-        )
+        lines.append(f"   BOLL 位置 {t.get('boll_position', 0.5):.2f}  " f"量价 {t.get('volume_signal', 0):+d}")
         if t.get("patterns"):
-            lines.append(
-                f"   形态: {', '.join(p.get('name', str(p)) for p in t['patterns'][:3])}"
-            )
+            lines.append(f"   形态: {', '.join(p.get('name', str(p)) for p in t['patterns'][:3])}")
 
     # 4. 财务摘要
     if "finance" in result:
@@ -112,8 +107,7 @@ def render_text(result: dict) -> str:
         # 单季 EPS 追加年化提示行，防止 LLM 直接 price/eps
         if f.get("eps_annualized_hint") is not None:
             lines.append(
-                f"   ⚠ 单季EPS年化≈{_f2(f.get('eps_annualized_hint'), '.2f')}  "
-                f"（仅供参考，估值请用TTM/年报口径）"
+                f"   ⚠ 单季EPS年化≈{_f2(f.get('eps_annualized_hint'), '.2f')}  " f"（仅供参考，估值请用TTM/年报口径）"
             )
         if "warning" in f:
             lines.append(f"   {f['warning']}")
@@ -240,9 +234,8 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="个股五层分析")
+    parser = create_parser(description="个股五层分析")
     parser.add_argument("code", help="股票代码（带 sh/sz/bj 前缀）")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--no-finance", action="store_true", help="跳过财务分析")
     parser.add_argument("--no-technical", action="store_true", help="跳过技术分析")
     parser.add_argument("--no-chan", action="store_true", help="跳过缠论分析")
@@ -291,7 +284,7 @@ def main():
             result["backtest_error"] = str(e)
             result.setdefault("data_failed", []).append("回测胜率")
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     elif args.brief:
         print(render_brief(result))

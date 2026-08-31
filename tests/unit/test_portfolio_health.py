@@ -139,9 +139,7 @@ class TestCheckConcentrationMerged:
         industry = result["details"]["industry"]
         # 合并后应有"锂/新能源"大类且占比 >30%
         if "锂/新能源" in industry:
-            assert (
-                industry["锂/新能源"] > 30
-            ), f"锂/新能源占比 {industry['锂/新能源']}% 应触发 30% 阈值警告"
+            assert industry["锂/新能源"] > 30, f"锂/新能源占比 {industry['锂/新能源']}% 应触发 30% 阈值警告"
             # 应触发警告
             assert any("锂/新能源" in w for w in result["warnings"])
 
@@ -236,9 +234,7 @@ class TestHealthReport:
         ]
         pm = _make_manager(tmp_path, positions)
         # 正常情况（有 cost + 报价）
-        report = pm.health_report(
-            quotes={"sh600989": {"price": 23.69, "change_pct": 0}}
-        )
+        report = pm.health_report(quotes={"sh600989": {"price": 23.69, "change_pct": 0}})
         assert set(report["totals"].keys()) == {"cost", "value", "pnl", "pnl_pct"}
         assert isinstance(report["totals"]["cost"], (int, float))
         assert isinstance(report["totals"]["value"], (int, float))
@@ -523,9 +519,7 @@ class TestRegimeHint:
         assert "age_minutes" in report["regime"]
         # 当前 regime_state.json 实际过期（~24000 分钟）
         # 不会断言具体值，但应该返回 int 或 None
-        assert report["regime"]["age_minutes"] is None or isinstance(
-            report["regime"]["age_minutes"], int
-        )
+        assert report["regime"]["age_minutes"] is None or isinstance(report["regime"]["age_minutes"], int)
 
     def test_regime_hint_mentions_stale_data(self):
         """regime_state.json 过期时，regime_hint 提示。"""
@@ -577,9 +571,7 @@ class TestWatchlistStatus:
             w = watchlist[0]
             tb = float(w.get("target_buy", 0) or 0)
             if tb > 0:
-                quotes = {
-                    w["code"]: {"price": tb * 0.9, "change_pct": 0}
-                }  # 现价低于买点
+                quotes = {w["code"]: {"price": tb * 0.9, "change_pct": 0}}  # 现价低于买点
                 report = pm.health_report(quotes=quotes)
                 row = next(r for r in report["watchlist"] if r["code"] == w["code"])
                 assert row["status"] == "到达买点"
@@ -592,9 +584,7 @@ class TestWatchlistStatus:
             w = watchlist[0]
             ts = float(w.get("target_sell", 0) or 0)
             if ts > 0:
-                quotes = {
-                    w["code"]: {"price": ts * 0.5, "change_pct": 0}
-                }  # 现价远低于止损
+                quotes = {w["code"]: {"price": ts * 0.5, "change_pct": 0}}  # 现价远低于止损
                 report = pm.health_report(quotes=quotes)
                 row = next(r for r in report["watchlist"] if r["code"] == w["code"])
                 assert row["status"] == "已破止损"
@@ -635,10 +625,7 @@ class TestRiskRatingNaturalLanguage:
         # 用空 quotes + 临时清空所有持仓难以构造，改用 0 quotes 触发降级
         report = pm.health_report(quotes=None)
         # 降级 + 无超阈值 → 仍含\"组合处于安全区间\"或被\"行情缺失\"覆盖
-        assert (
-            "组合处于安全区间" in report["risk_rating"]
-            or "行情缺失" in report["risk_rating"]
-        )
+        assert "组合处于安全区间" in report["risk_rating"] or "行情缺失" in report["risk_rating"]
 
     def test_risk_rating_uses_semicolon_not_comma(self):
         """risk_rating 摘要用\"；\"分隔（不直接用 warnings 拼接的\"、\"）。"""
@@ -658,14 +645,14 @@ class TestReadRegimeState:
 
     def test_returns_dict_with_keys(self):
         """返回 dict 含 regime/updated_at/age_minutes 三个键。"""
-        from portfolio.manager import _read_regime_state
+        from portfolio.health_report import _read_regime_state
 
         result = _read_regime_state()
         assert set(result.keys()) == {"regime", "updated_at", "age_minutes"}
 
     def test_age_minutes_is_int_or_none(self):
         """age_minutes 是 int 或 None（不抛错）。"""
-        from portfolio.manager import _read_regime_state
+        from portfolio.health_report import _read_regime_state
 
         result = _read_regime_state()
         assert result["age_minutes"] is None or isinstance(result["age_minutes"], int)
@@ -745,7 +732,7 @@ class TestAutoTechnicalIntegration:
         from unittest.mock import patch
 
         pm = PortfolioManager()
-        with patch("portfolio.manager._fetch_technical_features") as mock_fetch:
+        with patch("portfolio.health_report._fetch_technical_features") as mock_fetch:
             pm.health_report(quotes={}, auto_technical=False)
             mock_fetch.assert_not_called()
 
@@ -755,7 +742,7 @@ class TestAutoTechnicalIntegration:
 
         pm = PortfolioManager()
         explicit = {"sh600989": {"breakdown": True, "stop_loss_pct": -3.0}}
-        with patch("portfolio.manager._fetch_technical_features") as mock_fetch:
+        with patch("portfolio.health_report._fetch_technical_features") as mock_fetch:
             report = pm.health_report(quotes={}, technical_features=explicit)
             mock_fetch.assert_not_called()
             # 验证显式 features 被使用（没有 quotes 时 price=0 不破位 cost_5pct，但
@@ -770,7 +757,7 @@ class TestAutoTechnicalIntegration:
         验证 scripts/technical.py 与 scripts/technical/ 包的命名冲突通过
         importlib.spec_from_file_location 解决。
         """
-        from portfolio.manager import _fetch_technical_features
+        from portfolio.health_report import _fetch_technical_features
 
         # 空 positions → 返回空 dict（不抛错）
         result = _fetch_technical_features([], {})
@@ -778,7 +765,7 @@ class TestAutoTechnicalIntegration:
 
     def test_fetch_technical_features_skips_failures(self):
         """_fetch_technical_features 单只失败不中断。"""
-        from portfolio.manager import _fetch_technical_features
+        from portfolio.health_report import _fetch_technical_features
 
         # 不存在的 code 应被跳过（get_kline 抛错或返回空）
         positions = [{"code": "sh999999"}]  # 不存在的代码

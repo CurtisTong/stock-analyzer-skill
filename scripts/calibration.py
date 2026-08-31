@@ -19,6 +19,7 @@
 """
 
 import argparse
+from common.cli_base import create_parser, handle_errors
 import json
 import sys
 from pathlib import Path
@@ -62,9 +63,7 @@ def cmd_verify(args):
     # v2.4.3：默认使用真实价格回调获取实际收益率；
     # --no-price 仅标记到期（无网络环境），不更新专家校准数据
     price_fn = None if args.no_price else get_kline_return
-    result = verify_predictions(
-        days=args.days, get_price_fn=price_fn, mark_only=args.no_price
-    )
+    result = verify_predictions(days=args.days, get_price_fn=price_fn, mark_only=args.no_price)
     # --quiet 输出一行摘要，便于 crontab/定时任务直接调用
     if args.quiet:
         print(
@@ -84,14 +83,8 @@ def cmd_verify(args):
             if d.get("skipped"):
                 print(f"  ⏭ {d['stock']} ({d['direction']}) -> 跳过（无价格）")
                 continue
-            status = (
-                "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
-            )
-            ret = (
-                f"{d['actual_return']:+.1f}%"
-                if d["actual_return"] is not None
-                else "N/A"
-            )
+            status = "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
+            ret = f"{d['actual_return']:+.1f}%" if d["actual_return"] is not None else "N/A"
             print(f"  {status} {d['stock']} ({d['direction']}) -> {ret}")
 
 
@@ -100,7 +93,7 @@ def cmd_factor(args):
     global_factor = compute_calibration_factor()
     long_cal = compute_group_calibration("long_term")
     short_cal = compute_group_calibration("short_term")
-    if args.json:
+    if args.json_output:
         import json as _json
 
         print(
@@ -126,7 +119,7 @@ def cmd_report(args):
     """查看校准报告。"""
     report = get_calibration_report()
     factor = compute_calibration_factor()
-    if args.json:
+    if args.json_output:
         import json as _json
 
         print(
@@ -147,7 +140,7 @@ def cmd_report(args):
 def cmd_pending(args):
     """查看待验证预测。"""
     pending = get_pending_predictions()
-    if args.json:
+    if args.json_output:
         import json as _json
 
         print(
@@ -167,29 +160,20 @@ def cmd_pending(args):
 
     print(f"待验证预测: {len(pending)} 条")
     for p in pending:
-        print(
-            f"  {p['stock']} ({p['date']}) → {p['direction']} "
-            f"| 验证日期: {p['verify_after']}"
-        )
+        print(f"  {p['stock']} ({p['date']}) → {p['direction']} " f"| 验证日期: {p['verify_after']}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="专家校准数据管理")
+    parser = create_parser(description="专家校准数据管理")
     sub = parser.add_subparsers(dest="command", help="子命令")
 
     # record
     p_record = sub.add_parser("record", help="记录 debate 预测")
     p_record.add_argument("--stock", required=True, help="股票代码 (如 sh600989)")
-    p_record.add_argument(
-        "--direction", required=True, help="预测方向 (强烈看多/看多/中性/看空/强烈看空)"
-    )
-    p_record.add_argument(
-        "--scores", required=True, help="专家评分 JSON (如 '{\"buffett\":72,...}')"
-    )
+    p_record.add_argument("--direction", required=True, help="预测方向 (强烈看多/看多/中性/看空/强烈看空)")
+    p_record.add_argument("--scores", required=True, help="专家评分 JSON (如 '{\"buffett\":72,...}')")
     p_record.add_argument("--composite", type=float, default=0.0, help="调整后综合分")
-    p_record.add_argument(
-        "--verify-days", type=int, default=30, help="验证窗口天数 (默认30)"
-    )
+    p_record.add_argument("--verify-days", type=int, default=30, help="验证窗口天数 (默认30)")
 
     # verify
     p_verify = sub.add_parser("verify", help="验证到期预测")
@@ -208,15 +192,15 @@ def main():
 
     # report
     p_report = sub.add_parser("report", help="查看校准报告")
-    p_report.add_argument("-j", "--json", action="store_true", help="输出 JSON")
+    p_report.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
 
     # factor
     p_factor = sub.add_parser("factor", help="查看校准因子（全局 + 分组）")
-    p_factor.add_argument("-j", "--json", action="store_true", help="输出 JSON")
+    p_factor.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
 
     # pending
     p_pending = sub.add_parser("pending", help="查看待验证预测")
-    p_pending.add_argument("-j", "--json", action="store_true", help="输出 JSON")
+    p_pending.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
 
     args = parser.parse_args()
     if args.command is None:

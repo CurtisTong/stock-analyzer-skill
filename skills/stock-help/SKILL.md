@@ -121,7 +121,7 @@ disable-model-invocation: false
 
 - 12 个 skill = 8 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
 - 所有分析仅供参考，不构成投资建议
-- 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（28 个，熔断器自动故障转移）
+- 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（35 个 fetcher 类，熔断器自动故障转移）
 
 ## 🆘 获取更多帮助
 
@@ -147,5 +147,5 @@ disable-model-invocation: false
 - `/stock-help` 是只读索引 skill，**不**修改任何文件、**不**执行投资决策。
 - 风险提示：所有分析仅供参考，**不构成投资建议**。
 - 用户问"哪个 skill 适合我"时，根据意图（看持仓/选股/回测/研究/学习）给出 1-2 个最相关的入口。
-- 13 个 skill 之间的依赖关系（market → sector → screener → stock → portfolio）详见 `workflow.md`。
+- 12 个 skill 之间的依赖关系（market → sector → screener → stock → portfolio）详见 `workflow.md`。
 - 历史合并的 4 个 skill（`/technical` `/stock-init` `/financial-analyst` `/investment-researcher`）已删除，请使用新命令：`/stock technical` `/screener init` `/research financial` `/research report`。

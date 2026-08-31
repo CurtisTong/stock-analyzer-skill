@@ -19,7 +19,7 @@ import argparse
 import json
 
 from common import normalize_quote_code
-from common.cli_base import handle_errors
+from common.cli_base import create_parser, handle_errors
 from data.helpers import fetch_finance_first
 from strategies import (
     STRATEGIES,  # noqa: F401 — re-export（向后兼容：测试通过 screener.STRATEGIES 访问）
@@ -149,11 +149,7 @@ def render(rows, strategy, top, title=None, show_chip=True):
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(accepted[:top], 1):
-        macd_icon = (
-            "↑"
-            if r.get("macd_signal", 0) > 0
-            else "↓" if r.get("macd_signal", 0) < 0 else "→"
-        )
+        macd_icon = "↑" if r.get("macd_signal", 0) > 0 else "↓" if r.get("macd_signal", 0) < 0 else "→"
         if show_chip:
             from business.risk_warning import chip_emoji
 
@@ -196,9 +192,7 @@ def render_brief(rows, strategy, top, title=None):
 
     # 一句话结论
     if not top_rows:
-        print(
-            f"策略 {label}: 无符合条件标的（候选池 {total} 只，剔除 {len(rejected)} 只）"
-        )
+        print(f"策略 {label}: 无符合条件标的（候选池 {total} 只，剔除 {len(rejected)} 只）")
         print()
         print("可能原因:")
         print("  1. 股票池未初始化 → 运行 /screener init 或 /screener init default")
@@ -220,11 +214,7 @@ def render_brief(rows, strategy, top, title=None):
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(top_rows, 1):
-        macd_icon = (
-            "↑"
-            if r.get("macd_signal", 0) > 0
-            else "↓" if r.get("macd_signal", 0) < 0 else "→"
-        )
+        macd_icon = "↑" if r.get("macd_signal", 0) > 0 else "↓" if r.get("macd_signal", 0) < 0 else "→"
         print(
             f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | "
             f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
@@ -302,9 +292,7 @@ def _print_mainline_deviation_warning(rows, args):
             return
 
         # 计算候选覆盖：候选股票 industry/board 与 top3 板块名匹配
-        accepted_industries = {r.get("industry", "") for r in accepted} | {
-            r.get("board", "") for r in accepted
-        }
+        accepted_industries = {r.get("industry", "") for r in accepted} | {r.get("board", "") for r in accepted}
         # 用板块 ETF name → 行业主题关键词做宽松匹配
         covered = 0
         for name in top3_names:
@@ -336,23 +324,17 @@ def _print_mainline_deviation_warning(rows, args):
 
 def _build_parser():
     """构造 screener CLI 参数解析器（V2.1 提取便于单测复用）。"""
-    parser = argparse.ArgumentParser(description="A 股多因子选股器", add_help=False)
+    parser = create_parser(description="A 股多因子选股器", add_help=False)
     from common.version import __version__
 
-    parser.add_argument(
-        "-v", "--version", action="version", version=f"screener {__version__}"
-    )
+    parser.add_argument("-v", "--version", action="version", version=f"screener {__version__}")
     parser.add_argument("-h", "--help", action="help", help="显示帮助")
     parser.add_argument("--strategy", choices=list_strategies(), default="balanced")
     parser.add_argument("--sector", help="内置板块名称，支持模糊匹配")
     parser.add_argument("--codes", help="逗号分隔代码列表，优先于 --sector")
     parser.add_argument("--top", type=int, default=10)
-    parser.add_argument(
-        "--min-amount", type=float, default=5000, help="最低成交额，单位万元"
-    )
-    parser.add_argument(
-        "--min-cap", type=float, default=40, help="最低总市值，单位亿元"
-    )
+    parser.add_argument("--min-amount", type=float, default=5000, help="最低成交额，单位万元")
+    parser.add_argument("--min-cap", type=float, default=40, help="最低总市值，单位亿元")
     parser.add_argument("--exclude-loss", action="store_true", help="剔除 EPS<=0 标的")
     parser.add_argument("--no-constraints", action="store_true", help="禁用组合约束")
     parser.add_argument("--sector-cap", type=float, default=0.30, help="单板块最高占比")
@@ -402,7 +384,6 @@ def _build_parser():
         action="store_true",
         help="两阶段管线：Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排",
     )
-    parser.add_argument("-j", "--json", action="store_true")
     parser.add_argument(
         "-q",
         "--quiet",
@@ -513,8 +494,7 @@ def _default_progress_callback(event, payload, *, file=None):
             )
         elif stage == "finance":
             _p(
-                f"📊 拉取财务 Top {payload.get('count', '?')} 只"
-                f"（可能 1-8min；数据源挂起时由 watchdog 兜底）...",
+                f"📊 拉取财务 Top {payload.get('count', '?')} 只" f"（可能 1-8min；数据源挂起时由 watchdog 兜底）...",
                 flush=True,
             )
         elif stage == "parallel":
@@ -529,8 +509,7 @@ def _default_progress_callback(event, payload, *, file=None):
             )
     elif event == "phase1":
         _p(
-            f"⚡ Phase 1: {payload['count_in']} 只 → Top {payload['count_out']} 只 "
-            f"({payload['elapsed']:.2f}s)",
+            f"⚡ Phase 1: {payload['count_in']} 只 → Top {payload['count_out']} 只 " f"({payload['elapsed']:.2f}s)",
             flush=True,
         )
     elif event == "phase2":
@@ -541,8 +520,7 @@ def _default_progress_callback(event, payload, *, file=None):
         saved = payload.get("saved_kline", 0)
         if saved:
             _p(
-                f"✅ 两阶段管线完成: {payload['total']:.2f}s "
-                f"(节省 K 线 {saved} 只)",
+                f"✅ 两阶段管线完成: {payload['total']:.2f}s " f"(节省 K 线 {saved} 只)",
                 flush=True,
             )
     elif event == "snapshot":
@@ -560,7 +538,7 @@ def _run_deep_analysis(rows: list, args) -> None:
     codes = [r.get("code", "") for r in rows[:top_n] if r.get("code")]
     if not codes:
         return
-    target = sys.stderr if args.json else sys.stdout
+    target = sys.stderr if args.json_output else sys.stdout
     print(f"\n🔍 一键深度分析 Top {len(codes)}（--analyze）", file=target, flush=True)
     repo_root = Path(__file__).resolve().parent.parent
     stock_script = repo_root / "scripts" / "stock.py"
@@ -577,7 +555,7 @@ def _run_deep_analysis(rows: list, args) -> None:
             out = proc.stdout.strip()
             if out:
                 print(out, file=target, flush=True)
-            if proc.stderr and not args.json:
+            if proc.stderr and not args.json_output:
                 print(proc.stderr.strip(), file=target, flush=True)
         except subprocess.TimeoutExpired:
             print(f"⏱ {code} 分析超时（300s），跳过", file=target, flush=True)
@@ -596,7 +574,7 @@ def _run_main(args):
             return None
 
         callback = _noop
-    elif args.json:
+    elif args.json_output:
         from functools import partial
 
         callback = partial(_default_progress_callback, file=sys.stderr)
@@ -633,19 +611,19 @@ def _run_main(args):
             file=sys.stderr,
             flush=True,
         )
-        if args.json:
+        if args.json_output:
             _emit_json_with_validation(rows_partial, args.strategy)
         sys.exit(2)
         return  # unreachable but for type-checker
 
     if halted:
         # 宏观 RED 且非 JSON 模式 → 暂停；JSON 模式仍输出空结果
-        if not args.json:
+        if not args.json_output:
             return
 
     rows = rows_partial
 
-    if args.json:
+    if args.json_output:
         _emit_json_with_validation(rows, args.strategy)
     else:
         title = None
