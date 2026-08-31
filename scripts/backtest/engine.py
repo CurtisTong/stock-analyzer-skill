@@ -255,6 +255,21 @@ def simulate_strategy(ctx: SimContext):
             # 评分同源化：与 screener 的 compute_all_factors 同一套因子
             # （原 quality ×0.85 系数仅回测存在；momentum 用自研分桶而非 momentum_score）
             features = compute_indicators(bars[:i])
+
+            # 两阶段策略（turning_point）：Stage 1 硬条件过滤，与实盘 screener 同源。
+            # 修复：原回测引擎未实现 two_stage，turning_point 回测只是 balanced 变权，
+            # 与实盘"先硬过滤再打分"口径不一致。财务未披露（fin 为空）时跳过过滤——
+            # 保守不误杀（无法确认基本面）；flow_data=[] 避免资金流网络请求。
+            # 用策略注册表标记而非 weights（optimize_weights 传入的自定义 weights
+            # 不含 two_stage 键，会导致过滤静默失效）。
+            if get_strategy(strategy_name).get("two_stage") and fin:
+                from strategies.filters.turning_point import turning_point_filter
+
+                pass_, _reason = turning_point_filter(hist_quote, fin, features, flow_data=[])
+                if not pass_:
+                    i += holding_days
+                    continue
+
             parts = {
                 "quality": quality_score(fin, industry),
                 "valuation": valuation_score(hist_quote, fin, industry),

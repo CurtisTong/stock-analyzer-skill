@@ -968,3 +968,109 @@ class TestHoldingDaysPassthrough:
 
         backtest.run_backtest("balanced", ["sh600519"], top_n=1, days=30, rounds=3)
         assert captured["holding_days"] == 10  # 30 // 3
+
+
+class TestTwoStageBacktest:
+    """two_stage 硬过滤接入回测引擎（v1.22.1 修复 turning_point 口径）。"""
+
+    def _mock_all(self, monkeypatch):
+        """mock 数据层（复用 holding_days 测试的 setup）。"""
+        import backtest
+        from datetime import datetime, timedelta
+        from data.types import KlineBar
+
+        finance_obj = _make_finance_obj()
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: ([finance_obj], None))
+        today = datetime.now()
+
+        def _mock_kline(code, scale=240, datalen=140):
+            n = max(datalen, 140)
+            bars = []
+            for i in range(n):
+                d = today - timedelta(days=n - i)
+                bars.append(
+                    KlineBar(
+                        day=d.strftime("%Y-%m-%d"),
+                        close=10 + i * 0.3,
+                        open=10 + i * 0.3,
+                        high=10 + i * 0.3,
+                        low=10 + i * 0.3,
+                        volume=1000,
+                    )
+                )
+            return bars
+
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
+
+    def test_turning_point_applies_hard_filter(self, monkeypatch):
+        """turning_point 策略应调用 turning_point_filter（修复前零调用）。"""
+        import backtest
+        from strategies.filters import turning_point as tp_mod
+
+        self._mock_all(monkeypatch)
+        calls = []
+
+        def fake_filter(quote, fin, features, flow_data=None):
+            calls.append(1)
+            return (True, "")
+
+        monkeypatch.setattr(tp_mod, "turning_point_filter", fake_filter)
+
+        result = backtest.simulate_strategy(
+            backtest.SimContext(
+                strategy_name="turning_point",
+                codes=["sh600519"],
+                top_n=1,
+                holding_days=5,
+            )
+        )
+        assert "error" not in result
+        assert calls, "turning_point 应应用 two_stage 硬过滤"
+
+    def test_balanced_no_filter(self, monkeypatch):
+        """balanced（无 two_stage）不应调用 turning_point_filter。"""
+        import backtest
+        from strategies.filters import turning_point as tp_mod
+
+        self._mock_all(monkeypatch)
+        calls = []
+
+        def fake_filter(quote, fin, features, flow_data=None):
+            calls.append(1)
+            return (True, "")
+
+        monkeypatch.setattr(tp_mod, "turning_point_filter", fake_filter)
+
+        backtest.simulate_strategy(
+            backtest.SimContext(
+                strategy_name="balanced",
+                codes=["sh600519"],
+                top_n=1,
+                holding_days=5,
+            )
+        )
+        assert not calls, "balanced 不应应用 two_stage 过滤"
+
+    def test_filter_rejection_skips_selection(self, monkeypatch):
+        """过滤拒绝时该期不入选（模拟全拒绝 → 无有效数据）。"""
+        import backtest
+        from strategies.filters import turning_point as tp_mod
+
+        self._mock_all(monkeypatch)
+
+        def fake_filter(quote, fin, features, flow_data=None):
+            return (False, "测试拒绝")
+
+        monkeypatch.setattr(tp_mod, "turning_point_filter", fake_filter)
+
+        result = backtest.simulate_strategy(
+            backtest.SimContext(
+                strategy_name="turning_point",
+                codes=["sh600519"],
+                top_n=1,
+                holding_days=5,
+            )
+        )
+        # 全部被硬过滤拒绝 → 无有效数据
+        assert "error" in result
+        assert "无法计算收益" in result["error"]
