@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.21.1（2026-08-27）策略胜率复盘落地：①双池 OOS 验证门槛（evaluate_multi_pool，55 大票池 + 210 sector 池全部达标才升级）②ATR 自适应止损 + 移动止盈（可选，默认行为不变）③自校准最小池强制（MIN_POOL_SIZE=30 拒绝小池记录）④权重优化跨窗口验证（--validate，60/120/240 三窗口全正才 robust）⑤技术模块审查修复（RSI 6/12/24 三档、突破检测集成死代码修复、KDJ 钝化降权、市场环境强势/弱势标签、SKILL.md 声明对齐）；v1.21.0（2026-08-20）OOS 验证状态机（双层架构：registry 默认 in_sample + JSON 覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件 + 修复 screener 主线偏离警告静默失效 bug。
+> 🟢 **当前状态**：v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,7 +20,8 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
-| 1.21.1 | 2026-08-27 | 策略复盘落地：双池 OOS 验证门槛（evaluate_multi_pool）+ ATR 止损/移动止盈（可选）+ 自校准最小池 30 + 权重优化跨窗口验证 + 24 个新测试 |
+| 1.22.0 | 2026-08-28 | 工程化重构：死代码清理（~800 行）+ technical 冲突解决 + manager 拆分（1391→680）+ CLI 统一 cli_base（29 脚本）+ 市场状态统一 + CI 纳入 e2e/dispatch + 文档数字漂移修正 |
+| 1.21.1 | 2026-08-27 | 策略复盘落地：双源 OOS 验证门槛（evaluate_multi_pool）+ ATR 止损/移动止盈（可选）+ 自校准最小池 30 + 权重优化跨窗口验证 + 24 个新测试 |
 | 1.21.0 | 2026-08-20 | OOS 验证状态机（双层架构：registry 默认 in_sample + `data/strategy_oos_validation.json` 运行时覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档 |
 | 1.20.2 | 2026-08-13 | mypy 白名单扩至 203 文件（10 目录 + 5 顶层脚本）+ experts/config/dev 类型清零 + 修复 screener 主线偏离警告静默失效 bug + dcf/cyclical 双命名冲突回归修复 |
 | 1.20.1 | 2026-08-12 | screener 整体任务超时 watchdog + sector_summary CLI + CI 黑块修复（black 19 文件 / ruff F601+F821 / sector 授权 sector_summary）+ 数据快照 |
@@ -281,7 +282,38 @@
 - **ignore**: 移除对运行时缓存 macro_snapshot.json 的 git 追踪
 - **ignore**: 忽略运行时缓存 macro_snapshot.json（测试后 git status 不再脏）
 
-## [1.21.1] - 2026-08-27（策略复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 + 权重优化跨窗口验证 + 技术模块审查修复）
+## [1.22.0] - 2026-08-28（工程化重构：死代码清理 + technical 冲突解决 + manager 拆分 + CLI 统一 + 市场状态统一 + CI 纳入 e2e/dispatch）
+
+> 依据 2026-08-28 全项目审查（代码架构 / 测试 CI / 文档一致性三维度），
+> 修复优化方案列出的 P0/P1/P2 全部问题，全量测试 2271 passed。
+
+### Changed
+- **portfolio**: 删除死代码 `daily_report.py`（423 行）+ `performance.py`（348 行）；
+  `manager.py` 拆分 `health_report` 系到 `portfolio/health_report.py`（1391→680 行），
+  manager 保留同名方法 thin wrapper，方法签名不变
+- **technical**: 解决 `technical.py` vs `technical/` 同名包冲突——`TechnicalInput`/`_compute_all`
+  下沉到 `technical/analyzer.py`，`portfolio/manager.py` 删除 importlib hack
+- **cli**: 29 个顶层脚本 CLI 统一到 `common/cli_base.create_parser`（统一
+  `-j/--json/--sources/--no-cache/--debug`）；monitor/market_breadth 因特殊 `--json` 保留原 argparse
+- **market**: 统一市场状态检测——新增 `experts/market_detector.classify_market_state()`
+  唯一权威，`technical/scoring.detect_market_environment` 与 `market_breadth.get_market_state`
+  均委托它（词汇各自映射：牛→强势/主升、熊→弱势/退潮）
+- **ci**: test-suite.yml 纳入 e2e(62)+test_dispatch(21) 测试（88 个测试点 CI 不再跳过）、
+  `-x`→`--maxfail=10`、去重重复 contracts、覆盖率门槛 21→30
+- **docs**: 数据源数量统一（27/28→35 个 fetcher 类）、因子维度统一（6/五因子→9）、
+  skill 数量 13→12、debate 人数 4→5；README 专家表重写为 active 8 人；CLAUDE.md 版本同步
+
+### Added
+- **tests/unit/test_core_scripts.py**: 核心脚本单测 11 个（quote/events/chip/market_anchor 纯函数）
+- **ci**: e2e 与 dispatch 测试纳入全量测试（此前 CI 永不运行）
+
+### Removed
+- `portfolio/daily_report.py`（423 行，全仓零引用）
+- `portfolio/performance.py`（348 行，功能已被 health_report + analytics 取代）
+- `screening_service.merge_phase_parts`（未使用函数）
+- `tests/conftest.py mock_http_get`（死 fixture）
+
+## [1.21.1] - 2026-08-27（策略复盘落地：双池 OOS 验证 + ATR 止损/移动止盈 + 自校准最小池 + 权重优化跨窗口验证 + 技术模块审查修复）
 
 > 依据 2026-08-26 深度复盘（`docs/archive/reviews/backtest-philosophy-review-2026-08-26.md`）：
 > 210 池凯利 f 全负 vs 55 池 OOS 全正，单池验证无统计意义；盈亏比 <1 是负期望根源；
