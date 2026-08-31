@@ -109,14 +109,13 @@ def _find_swing_points(values, window=5, confirm=True):
             if i >= len(values) - window and len(right) < window:
                 # 右侧窗口不足：等待确认，不标记
                 continue
-            if right and values[i] > max(right):
-                is_high = True
-            else:
-                is_high = False
-            if right and values[i] < min(right):
-                is_low = True
-            else:
-                is_low = False
+            # 修复：原实现无条件覆写 is_high/is_low 为仅看右窗口，
+            # 单调趋势下每个点都满足"比右侧高/低"被误标为摆动点，
+            # 导致背离检测/支撑阻力/波浪判断失效。正确语义是左右窗口
+            # 同时确认（is_high 已含左窗口判定）。
+            if right:
+                is_high = is_high and values[i] > max(right)
+                is_low = is_low and values[i] < min(right)
         if is_high:
             highs.append(i)
         if is_low:

@@ -40,12 +40,8 @@ from technical.volume import (
 def _records(closes, opens=None, highs=None, lows=None, base=10.0):
     """构造 KlineBar dict 记录列表。"""
     opens = opens if opens is not None else closes[:]
-    highs = (
-        highs if highs is not None else [max(o, c) + 0.2 for o, c in zip(opens, closes)]
-    )
-    lows = (
-        lows if lows is not None else [min(o, c) - 0.2 for o, c in zip(opens, closes)]
-    )
+    highs = highs if highs is not None else [max(o, c) + 0.2 for o, c in zip(opens, closes)]
+    lows = lows if lows is not None else [min(o, c) - 0.2 for o, c in zip(opens, closes)]
     return [
         {"open": o, "high": h, "low": lo, "close": c, "day": f"d{i}", "volume": 1000.0}
         for i, (o, h, lo, c) in enumerate(zip(opens, highs, lows, closes))
@@ -218,14 +214,12 @@ class TestRsi:
         }
         for expected, ratio in cases.items():
             out = rsi_features(_rsi_ratio_series(ratio))
-            assert (
-                out["zone_desc"] == expected
-            ), f"ratio={ratio} got={out['zone_desc']} rsi={out['rsi']}"
+            assert out["zone_desc"] == expected, f"ratio={ratio} got={out['zone_desc']} rsi={out['rsi']}"
 
-    def test_flat_price_rsi_100(self):
-        """无波动 → RSI=100（26-27 行）。"""
+    def test_flat_price_rsi_neutral(self):
+        """无波动 → RSI=50 中性（修复：原返回 100 误判极度超买）。"""
         out = rsi_features([5.0] * 20)
-        assert out["rsi"] == 100
+        assert out["rsi"] == 50
 
 
 class TestRsiMultiPeriod:
@@ -240,12 +234,12 @@ class TestRsiMultiPeriod:
         assert out["rsi24"] is not None
         assert all(0 <= out[k] <= 100 for k in ("rsi6", "rsi12", "rsi24"))
 
-    def test_flat_price_all_periods_100(self):
-        """无波动 → 三档均为 100。"""
+    def test_flat_price_all_periods_neutral(self):
+        """无波动 → 三档均为 50 中性（修复：原误判 100）。"""
         out = rsi_features([5.0] * 30)
-        assert out["rsi6"] == 100
-        assert out["rsi12"] == 100
-        assert out["rsi24"] == 100
+        assert out["rsi6"] == 50
+        assert out["rsi12"] == 50
+        assert out["rsi24"] == 50
 
     def test_main_period_unchanged(self):
         """主键 rsi/signal/zone_desc 与单周期行为一致（14 周期）。"""
@@ -297,9 +291,7 @@ class TestKdjDunhuaDowngrade:
         """钝化时结构化 KDJ 信号与字符串信号一致（均为 False）。"""
         from technical.scoring import composite_score
 
-        score = composite_score(
-            self._features("死叉+超买 [KDJ高位钝化-趋势延续]", dunhua=True)
-        )
+        score = composite_score(self._features("死叉+超买 [KDJ高位钝化-趋势延续]", dunhua=True))
         st = score["structured_signals"]
         assert not st["kdj_death_cross"]
         assert not st["kdj_overbought"]
@@ -315,9 +307,7 @@ class TestKdjDunhuaDowngrade:
         """钝化时超卖档位评分低于非钝化同档。"""
         type_w = {"kdj": 1.0}
         adj = {"trend_following": 1.0}
-        base = _score_kdj(
-            {"signal": "超卖区(J=8)", "钝化": False}, type_w, adj, vol_signal=0
-        )
+        base = _score_kdj({"signal": "超卖区(J=8)", "钝化": False}, type_w, adj, vol_signal=0)
         dunhua = _score_kdj(
             {"signal": "超卖区(J=8) [KDJ低位钝化-趋势延续]", "钝化": True},
             type_w,
@@ -407,9 +397,7 @@ class TestShadowStats:
 
 
 class _Bar:
-    def __init__(
-        self, close, volume=None, amount=None, open_=None, high=None, low=None
-    ):
+    def __init__(self, close, volume=None, amount=None, open_=None, high=None, low=None):
         self.close = close
         self.open = open_ if open_ is not None else close
         self.high = high if high is not None else close
@@ -547,9 +535,7 @@ class TestVolume:
         for ratio, expected in cases:
             vols = [1000.0] * 25 + [ratio * 1000.0] * 5
             out = volume_analysis(closes, vols)
-            assert (
-                out["volume_ratio_desc"] == expected
-            ), f"ratio={ratio} got={out['volume_ratio']}"
+            assert out["volume_ratio_desc"] == expected, f"ratio={ratio} got={out['volume_ratio']}"
 
     def test_volume_price_rise_shrink(self):
         """缩量上涨（135 行）。"""
@@ -613,22 +599,18 @@ class TestTrend:
         assert out["nearest_support"] == 53.0
         assert out["nearest_resistance"] == 55.5
         # 前高阻力(47 行) + 整数关口支撑(52-56 行) + 前低支撑(43 行)
-        sources = {s["source"] for s in out["supports"]} | {
-            s["source"] for s in out["resistances"]
-        }
+        sources = {s["source"] for s in out["supports"]} | {s["source"] for s in out["resistances"]}
         assert "前高" in sources
         assert "整数关口" in sources
         assert "前低" in sources
 
     def test_support_resistance_low_price(self):
-        """last<50 → 整数关口阻力（58-60 行）。"""
+        """last<50 → 整数关口阻力含最近关口（修复：原跳过 50 从 51 起）。"""
         closes = [49.0] * 30
         highs = [50.0] * 30
         lows = [48.0] * 30
-        out = support_resistance(
-            closes, highs, lows, {"ma_supports": [], "ma_resistances": []}
-        )
-        assert out["nearest_resistance"] == 51.0
+        out = support_resistance(closes, highs, lows, {"ma_supports": [], "ma_resistances": []})
+        assert out["nearest_resistance"] == 50.0  # 修复前：51（跳过最近关口）
         assert out["nearest_support"] is None
 
     def test_box_detection_short(self):
@@ -747,10 +729,8 @@ class TestTrend:
         assert wave_state([1.0] * 30, [1.0] * 30, [1.0] * 30) == "数据不足"
 
     def test_wave_bottom_structure(self):
-        """低点抬高但高点不抬 → 底部结构（172-173 行）。"""
-        arr = _wave_series(
-            [(0, 100), (9, 111.4), (16, 101.4), (26, 95.0), (34, 101.0), (55, 101.7)]
-        )
+        """低点抬高但高点不抬 → 底部结构（修复后数据修正：原序列低点实际降低）。"""
+        arr = _wave_series([(0, 100), (5, 115), (16, 102), (26, 110), (36, 104), (44, 106)])
         out = wave_state(arr, [c + 1 for c in arr], [c - 1 for c in arr])
         assert out == "可能有底部结构(低点抬高)"
 

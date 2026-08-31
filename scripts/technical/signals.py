@@ -61,7 +61,7 @@ def _generate_signals(features, market_breadth=None):
     macd = features.get("macd") or {}
     kdj = features.get("kdj") or {}
     boll = features.get("bollinger") or {}
-    rsi_data = features.get("rsi", {})
+    rsi_data = features.get("rsi") or {}
     vol = features.get("volume") or {}
     vol_price = vol.get("volume_price", "")
     vol_vp = vol.get("volume_price_signal", 0)
@@ -70,11 +70,7 @@ def _generate_signals(features, market_breadth=None):
     # 趋势判断（用于过滤虚假超卖信号）
     wave = features.get("wave", "")
     ma_alignment = ma.get("alignment", "")
-    is_downtrend = (
-        "下跌" in wave
-        or ma_alignment == "空头排列"
-        or (vol_vp == -1 and "出货" in vol_price)
-    )
+    is_downtrend = "下跌" in wave or ma_alignment == "空头排列" or (vol_vp == -1 and "出货" in vol_price)
 
     # 缩量信号（作手新一建议：缩量下跌>放量下跌）
     shrink_signal = vol.get("shrink_signal", 0)
@@ -105,11 +101,7 @@ def _generate_signals(features, market_breadth=None):
     if divergence == "底背离(看涨)":
         buy.append("MACD底背离")
     # KDJ超卖金叉：下跌趋势中降级为"待确认"；钝化时信号暂停参考
-    if (
-        not kdj.get("钝化")
-        and "金叉" in kdj.get("signal", "")
-        and "超卖" in kdj.get("signal", "")
-    ):
+    if not kdj.get("钝化") and "金叉" in kdj.get("signal", "") and "超卖" in kdj.get("signal", ""):
         if is_downtrend:
             buy.append("KDJ超卖区金叉(待确认-下跌趋势)")
         else:
@@ -133,9 +125,7 @@ def _generate_signals(features, market_breadth=None):
         buy.append(f"均线止跌({ma_stop.get('type')})")
 
     # 趋势警告：当存在出货信号时，超卖信号不可靠
-    if is_downtrend and (
-        rsi_data.get("rsi", 50) < 35 or "超卖" in kdj.get("signal", "")
-    ):
+    if is_downtrend and (rsi_data.get("rsi", 50) < 35 or "超卖" in kdj.get("signal", "")):
         sell.append("⚠️下跌趋势中超卖信号失效")
 
     # 缠论买卖点信号
@@ -186,9 +176,7 @@ def _generate_signals(features, market_breadth=None):
     if divergence == "顶背离(看跌)":
         sell.append("MACD顶背离")
     # KDJ 死叉/超买：钝化时信号暂停参考（与报告层"钝化中超买超卖暂停"一致）
-    if not kdj.get("钝化") and (
-        "死叉" in kdj.get("signal", "") or "超买" in kdj.get("signal", "")
-    ):
+    if not kdj.get("钝化") and ("死叉" in kdj.get("signal", "") or "超买" in kdj.get("signal", "")):
         sell.append(f"KDJ{kdj.get('signal')}")
     if boll.get("position", 0.5) > 0.8:
         sell.append("BOLL触及上轨")

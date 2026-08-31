@@ -391,7 +391,9 @@ def _score_limit(limit_data: dict, type_w: dict, adj: dict) -> float:
     if "封涨停" in board_status:
         limit_bonus += 3
     elif "翘板" in board_status:  # 跌停打开，反转信号
-        limit_bonus += 2 * adj.get("divergence_bottom", 1.0)
+        # 修复：去掉内层 divergence_bottom adj（M5 已统一在末尾应用一次 breakout，
+        # 残留 inner adj 导致翘板被双重缩放，弱势市信号被弱化）
+        limit_bonus += 2
     elif "封跌停" in board_status:
         limit_bonus -= 3
     elif "炸板" in board_status:  # 涨停打开，弱势信号
@@ -520,7 +522,9 @@ def composite_score(features, stock_type="普通股", market_state=None, market_
     macd = features.get("macd") or {}
     kdj = features.get("kdj") or {}
     boll = features.get("bollinger") or {}
-    rsi_data = features.get("rsi", {})
+    # 修复：rsi_features 在 K 线 < 15 根时返回 None，`or {}` 守卫与其余指标一致，
+    # 避免 _score_rsi(None) AttributeError（其余指标均有 or {} 守卫，唯独 rsi 漏）。
+    rsi_data = features.get("rsi") or {}
     vol = features.get("volume") or {}
     patterns = features.get("patterns", [])
 
@@ -546,8 +550,9 @@ def composite_score(features, stock_type="普通股", market_state=None, market_
         "local": _score_local(features.get("local_patterns") or {}),
         "limit": _score_limit(features.get("limit_analysis"), type_w, adj),
         "chip": _score_chip(features.get("chip") or {}, type_w),
-        # 估值因子评分（0-100），None 时用中性 50（与下游 max_val=100 兼容）
-        "valuation": features.get("valuation_score") or 50,
+        # 估值因子评分（0-100），None 时用中性 50（与下游 max_val=100 兼容）。
+        # 修复：原 `or 50` 会把真实 0 分（高估值/亏损无增长股）误当缺数据抬成中性。
+        "valuation": (features.get("valuation_score") if features.get("valuation_score") is not None else 50),
     }
 
     # 市场宽度惩罚（徐翔、赵老哥、养家建议）

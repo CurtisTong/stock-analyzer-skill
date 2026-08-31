@@ -174,9 +174,7 @@ class TestBreakoutCheck:
         lows = [c - 0.15 for c in closes]
         volumes = [800.0] * (len(closes) - 2) + [800.0, 1800.0]
 
-        sr = support_resistance(
-            closes, highs, lows, {"ma_supports": [], "ma_resistances": []}
-        )
+        sr = support_resistance(closes, highs, lows, {"ma_supports": [], "ma_resistances": []})
         target = sr.get("breakout_target")
         assert target is not None  # 现价下方存在摆动高点
         r = breakout_check(closes, highs, volumes, target)
@@ -187,9 +185,7 @@ class TestBreakoutCheck:
         closes = [10.0 + i * 0.1 for i in range(60)]
         highs = [c + 0.1 for c in closes]
         lows = [c - 0.1 for c in closes]
-        sr = support_resistance(
-            closes, highs, lows, {"ma_supports": [], "ma_resistances": []}
-        )
+        sr = support_resistance(closes, highs, lows, {"ma_supports": [], "ma_resistances": []})
         assert sr.get("breakout_target") is None
 
 
@@ -259,12 +255,7 @@ class TestMacdBarTrend:
     def test_golden_cross_with_amplifying_bar_scores_15(self):
         w = {"macd": 1.0}
         adj = {"divergence_bottom": 1.0, "overbought": 1.0}
-        assert (
-            _score_macd(
-                {"signal": 1, "bar_trend": "红柱放大", "divergence": ""}, w, adj
-            )
-            == 15.0
-        )
+        assert _score_macd({"signal": 1, "bar_trend": "红柱放大", "divergence": ""}, w, adj) == 15.0
 
     def test_golden_cross_without_bar_trend_scores_10(self):
         w = {"macd": 1.0}
@@ -302,9 +293,7 @@ class TestPePercentileUnified:
         assert pe_percentile(-5, "默认") == 50
 
     def test_technical_cli_path_uses_unified_percentile(self, technical_cli):
-        features = technical_cli._compute_all(
-            _cli_input(technical_cli, {"code": "sh600000", "pe": -5, "pb": 1.2})
-        )
+        features = technical_cli._compute_all(_cli_input(technical_cli, {"code": "sh600000", "pe": -5, "pb": 1.2}))
         assert features["valuation"]["pe_percentile"] == 50.0
 
     def test_valuation_polarity_cheap_higher_than_expensive(self, technical_cli):
@@ -358,6 +347,52 @@ class TestScoreLimit:
         }
         assert _score_limit(limit_data, {"limit": 1.0}, {}) == -3.0
 
+    def test_qiaoban_adj_applied_once(self):
+        """翘板（跌停打开）不再双重乘 adj（修复：去掉内层 divergence_bottom）。"""
+        adj = {"breakout": 0.6, "divergence_bottom": 1.5}
+        limit_data = {
+            "streak_type": "无连板",
+            "board_status": "翘板",
+            "streak_volume": "",
+        }
+        # 修复前：2 × 1.5 × 0.6 = 1.8；修复后：2 × 0.6 = 1.2（breakout 仅末尾一次）
+        assert _score_limit(limit_data, {"limit": 1.0}, adj) == pytest.approx(1.2)
+
+
+# ═══════════════════════════════════════════════════════════════
+# v1.22.1 审查修复回归：rsi None / RSI 平坦 / valuation 0 分
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestCompositeScoreSignals:
+    """features 缺失/边界回归：rsi None / RSI 平坦 / valuation 0 分。"""
+
+    def test_rsi_none_no_crash(self):
+        """features['rsi']=None（K 线 < 15 根）不应崩溃（修复：or {} 守卫）。"""
+        features = _neutral_features()
+        features["rsi"] = None
+        score = composite_score(features)
+        assert isinstance(score, dict)
+        assert "score" in score
+
+    def test_rsi_flat_returns_neutral(self):
+        """RSI 平坦序列返回 50（修复：原返回 100 误判极度超买）。"""
+        from technical.rsi import _rsi_wilder
+
+        assert _rsi_wilder([10.0] * 30, 14) == 50.0
+        # 全涨仍为 100
+        rising = [10.0 + i for i in range(30)]
+        assert _rsi_wilder(rising, 14) == 100.0
+
+    def test_valuation_zero_not_swallowed(self):
+        """valuation_score=0（高估股）不被 or 50 抬成中性（修复前总分虚高）。"""
+        neutral = _neutral_features()
+        zero_val = dict(neutral)
+        zero_val["valuation_score"] = 0
+        score_neutral = composite_score(neutral)["score"]
+        score_zero = composite_score(zero_val)["score"]
+        assert score_zero < score_neutral  # 修复前 or 50 把 0 抬成中性 → 两者相等
+
 
 # ═══════════════════════════════════════════════════════════════
 # M4: detect_market_environment 缺失数据
@@ -377,9 +412,7 @@ class TestMarketEnvironmentMissingData:
         assert not any("冰点" in s or "极度缩量" in s for s in r["signals"])
 
     def test_normal_quote_detects_bull(self):
-        r = detect_market_environment(
-            {"price": 3000, "change_pct": 1.8, "turnover": 3.0}
-        )
+        r = detect_market_environment({"price": 3000, "change_pct": 1.8, "turnover": 3.0})
         assert r["state"] == "强势"
 
 

@@ -34,3 +34,26 @@ class TestConfirm:
     def test_too_short_returns_empty(self):
         assert _find_swing_points([1, 2], window=5) == ([], [])
         assert _find_swing_points([1, 2], window=5, confirm=False) == ([], [])
+
+    def test_monotonic_down_no_false_highs(self):
+        """单调下跌不应标记摆动高点（修复：confirm 覆写左窗口产生 90 个假高点）。"""
+        highs, lows = _find_swing_points(list(range(100, 0, -1)), window=5)
+        assert highs == []  # 修复前：90 个假高点
+        assert lows == []
+
+    def test_monotonic_up_no_false_lows(self):
+        """单调上涨不应标记摆动低点。"""
+        highs, lows = _find_swing_points(list(range(1, 101)), window=5)
+        assert highs == []
+        assert lows == []  # 修复前：90 个假低点
+
+    def test_swing_requires_both_windows(self):
+        """摆动点须左右窗口同时确认（修复：仅右窗口不构成摆动点）。"""
+        # 中部峰值 5 两侧都是低值 → 是摆动高点
+        values = [1, 2, 5, 3, 1, 2]
+        highs, _ = _find_swing_points(values, window=2, confirm=True)
+        assert 2 in highs
+        # 斜坡（每个点都比右侧高但左侧更高）→ 不是摆动高点
+        ramp = [10, 9, 8, 7, 6, 5, 4, 3]
+        highs2, _ = _find_swing_points(ramp, window=2, confirm=True)
+        assert highs2 == []

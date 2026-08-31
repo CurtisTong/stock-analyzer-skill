@@ -24,9 +24,7 @@ def support_resistance(closes, highs, lows, ma_info):
     ph, pl = _find_swing_points(recent_highs, window=3)
     all_swing_highs = sorted(set(round(recent_highs[i], 2) for i in ph))
     swing_highs = [h for h in all_swing_highs if h > last]
-    swing_lows = sorted(
-        set(round(recent_lows[i], 2) for i in pl if recent_lows[i] < last), reverse=True
-    )
+    swing_lows = sorted(set(round(recent_lows[i], 2) for i in pl if recent_lows[i] < last), reverse=True)
 
     # 突破目标：现价下方最近的摆动高点（供 breakout_check 检测"突破前高"）。
     # 与 nearest_resistance（现价上方最近阻力，供报告/止盈）区分：
@@ -52,19 +50,24 @@ def support_resistance(closes, highs, lows, ma_info):
         resistances.append({"level": hv, "source": "前高", "strength": "强"})
 
     # 整数关口
+    # 修复：原实现两侧都跳过最近的整数位（last=15 → 阻力从 21 而非 20；
+    # last=12 → 支撑从 9 而非 10），最近支撑/阻力整体偏移一格。
     round_num = round(last, -1 if last >= 10 else 0)
+    step = 10 if last >= 50 else 1
     if round_num < last:
+        # 最近整数关口在价格下方 → 支撑（含关口本身）
         base = round_num
-        for i in range(1, 4):
-            r = base - i * (10 if last >= 50 else 1)
+        for i in range(4):
+            r = base - i * step
             if r > 0:
                 supports.append({"level": r, "source": "整数关口", "strength": "弱"})
     else:
-        base = round_num + (10 if last >= 50 else 1)
+        # 最近整数关口在价格上方（或恰在此）→ 阻力（含关口本身）
+        base = round_num if round_num > last else round_num + step
         for i in range(3):
             resistances.append(
                 {
-                    "level": base + i * (10 if last >= 50 else 1),
+                    "level": base + i * step,
                     "source": "整数关口",
                     "strength": "弱",
                 }
@@ -100,9 +103,7 @@ def box_detection(highs, lows, closes, window=20):
         return None
 
     mid = (hh + ll) / 2
-    in_box = sum(
-        1 for c in closes[-window:] if ll + (hh - ll) * 0.1 < c < hh - (hh - ll) * 0.1
-    )
+    in_box = sum(1 for c in closes[-window:] if ll + (hh - ll) * 0.1 < c < hh - (hh - ll) * 0.1)
     if in_box / window >= 0.6:
         return {
             "top": round(hh, 2),
@@ -122,11 +123,7 @@ def breakout_check(closes, highs, volumes, resistance):
         return {"status": "数据不足"}
     last = closes[-1]
     prev = closes[-2]
-    avg_vol20 = (
-        statistics.mean(volumes[-21:-1])
-        if len(volumes) >= 21
-        else statistics.mean(volumes[:-1])
-    )
+    avg_vol20 = statistics.mean(volumes[-21:-1]) if len(volumes) >= 21 else statistics.mean(volumes[:-1])
     last_vol = volumes[-1]
 
     broke = last > resistance and prev <= resistance

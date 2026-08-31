@@ -27,7 +27,8 @@ def _rsi_wilder(closes, period):
         avg_loss = (avg_loss * (period - 1) + losses[i]) / period
 
     if avg_loss == 0:
-        return 100.0
+        # 全涨 → RSI 100；完全平坦（avg_gain 也 0）→ 中性 50，非超买
+        return 100.0 if avg_gain > 0 else 50.0
     rs = avg_gain / avg_loss
     return 100 - 100 / (1 + rs)
 
