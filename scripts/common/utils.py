@@ -29,11 +29,7 @@ def split_codes(arg: str) -> list[str]:
             raise ValueError(f"文件路径不在允许范围内: {arg[1:]}")
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {arg[1:]}")
-        return [
-            line.strip()
-            for line in file_path.read_text(encoding="utf-8").splitlines()
-            if line.strip()
-        ]
+        return [line.strip() for line in file_path.read_text(encoding="utf-8").splitlines() if line.strip()]
     return [c.strip() for c in arg.split(",") if c.strip()]
 
 
@@ -174,9 +170,7 @@ def clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
 
-def compute_volume_ratio(
-    volumes: list[float], recent_window: int = 5, base_window: int = 10
-) -> float:
+def compute_volume_ratio(volumes: list[float], recent_window: int = 5, base_window: int = 10) -> float:
     """计算量比（最近 N 日平均 / 基础 N 日平均）。
 
     base_window 包含 recent_window，语义为"最近 N 日放量程度"，
@@ -210,6 +204,10 @@ def normalize_volume(raw: int | str | None, source: str, code: str = "") -> int:
     例外（2026-08-05 实测确认）：腾讯 ifzq 对科创板(688/689)返回的 volume 单位
     是"股"而非"手"，主板/创业板仍是"手"。东财全市场均为"手"。
     参考：https://zhuanlan.zhihu.com/p/2067944129309446823
+
+    pytdx/xueqiu 单位注记（2026-08-31 审查）：按 TDX 协议与雪球 API 惯例
+    vol/volume 均为"手"，×100 正确。本机无法实测（TDX 服务器网络被拦、
+    xueqiu API 需认证），若线上降级到这两个源时发现量级异常，需先复核此假设。
     """
     v = to_int(raw)
     if source == "tencent" and code:
@@ -302,13 +300,7 @@ def get_shared_executor() -> ThreadPoolExecutor:
             _shared_executor = ThreadPoolExecutor(max_workers=get_config().max_workers)
             # 防御：测试隔离场景下 _shared_executor 可能被置 None，
             # 进程退出时 atexit 回调需安全跳过
-            atexit.register(
-                lambda: (
-                    _shared_executor.shutdown(wait=False)
-                    if _shared_executor is not None
-                    else None
-                )
-            )
+            atexit.register(lambda: (_shared_executor.shutdown(wait=False) if _shared_executor is not None else None))
     return _shared_executor
 
 
@@ -351,9 +343,7 @@ def parallel_map(
                 logger.warning("parallel_map 任务失败: %s -> %s", item, e)
                 results[item] = None
     except concurrent.futures.TimeoutError:
-        logger.warning(
-            "parallel_map 超时，返回部分结果 (%d/%d)", len(results), len(items)
-        )
+        logger.warning("parallel_map 超时，返回部分结果 (%d/%d)", len(results), len(items))
         for future in futures:
             future.cancel()
     return results
