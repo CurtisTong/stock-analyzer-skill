@@ -733,7 +733,7 @@ def advisory_rebalance(self, target_ratio: float = 1.0, quotes: dict = None) -> 
 
 def export_codes(self) -> list:
     """导出所有持仓代码列表（兼容旧接口）。"""
-    return [p["code"] for p in manager.get_positions()]
+    return [p["code"] for p in self.get_positions()]
 
 
 def check_concentration(

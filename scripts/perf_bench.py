@@ -13,6 +13,7 @@ import sys
 import time
 from pathlib import Path
 from typing import List
+from common import normalize_quote_code
 from common.cli_base import create_parser, handle_errors
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
