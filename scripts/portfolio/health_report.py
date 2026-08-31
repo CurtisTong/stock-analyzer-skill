@@ -536,8 +536,12 @@ def health_report(
     if explicit_as_of:
         as_of = explicit_as_of
     else:
-        fallback_mtime = _file_mtime(manager._path)
-        as_of = datetime.now().strftime("%Y-%m-%d %H:%M:%S") if not fallback_mtime else fallback_mtime
+        # 修复：as_of 是行情快照时间，优先用调用时刻（本地时间）。
+        # 原实现 mtime 优先，持仓文件最后修改时间被当作行情时间戳，
+        # 用户未改持仓时报告误显示旧日期。文件 mtime 仅作最后兜底。
+        as_of = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if not as_of:
+            as_of = _file_mtime(manager._path)
 
     return {
         "as_of": as_of,
