@@ -27,6 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from common.cli_base import create_parser, handle_errors
 from common import DATA_DIR, parallel_map, atomic_write_json
 from data import get_quote, get_kline
 from snapshots import list_snapshots, load_snapshot
@@ -40,9 +41,7 @@ def _load_all_stocks() -> list:
     """加载全市场股票池（all_stocks.json），排除北交所。"""
     path = Path(DATA_DIR) / "all_stocks.json"
     if not path.exists():
-        raise SystemExit(
-            f"{path} 不存在，请先运行: python3 scripts/init_pool.py --full-market"
-        )
+        raise SystemExit(f"{path} 不存在，请先运行: python3 scripts/init_pool.py --full-market")
     data = json.loads(path.read_text(encoding="utf-8"))
     codes = []
     for key in ("主板沪", "主板深", "创业板", "科创板"):
@@ -68,18 +67,14 @@ def _hot_score(amount: float, turnover: float) -> float:
     return amount * math.log1p(max(turnover, 0))
 
 
-def _fetch_quotes_batched(
-    codes: list, batch: int = 600, per_timeout: int = 180
-) -> list:
+def _fetch_quotes_batched(codes: list, batch: int = 600, per_timeout: int = 180) -> list:
     """分批并行拉 quote，每批用更长的 timeout 避免大池子超时。"""
 
     all_quotes = []
     total = len(codes)
     for i in range(0, total, batch):
         sub = codes[i : i + batch]
-        results = parallel_map(
-            lambda c: get_quote(c, use_cache=True), sub, timeout=per_timeout
-        )
+        results = parallel_map(lambda c: get_quote(c, use_cache=True), sub, timeout=per_timeout)
         all_quotes.extend([q for q in results.values() if q is not None])
         print(
             f"  · {min(i + batch, total)}/{total} ({sum(1 for v in results.values() if v is not None)} 成功)",
@@ -210,11 +205,7 @@ def rank_historical(codes: list, date_str: str, top: int = 100) -> list:
         avg_price = (high + low) / 2 if (high and low) else (close or q.price)
         amount_est = volume * avg_price
         # turnover = 成交额 / 流通市值
-        turnover = (
-            (amount_est / (q.circulating_cap * 1e8) * 100)
-            if q.circulating_cap > 0
-            else 1
-        )
+        turnover = (amount_est / (q.circulating_cap * 1e8) * 100) if q.circulating_cap > 0 else 1
         rows.append(
             {
                 "code": q.code,
@@ -275,9 +266,7 @@ def _load_window_snapshots(n_days: int) -> dict:
             code = row.get("code")
             if not code:
                 continue
-            entry = counter.setdefault(
-                code, {"count": 0, "name": row.get("name", ""), "latest_score": 0}
-            )
+            entry = counter.setdefault(code, {"count": 0, "name": row.get("name", ""), "latest_score": 0})
             entry["count"] += 1
             entry["latest_score"] = max(entry["latest_score"], row.get("hot_score", 0))
     return counter
@@ -326,7 +315,7 @@ def _print_table(rows: list, cols: list, headers: list, top: int):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="A 股热度榜（活跃 Top N）")
+    ap = create_parser(description="A 股热度榜（活跃 Top N）")
     ap.add_argument("-v", "--version", action="store_true")
     ap.add_argument("--top", type=int, default=100, help="输出 Top N（默认 100）")
     ap.add_argument("--days", type=int, default=1, help="N 日累计热度（默认 1=单日）")
@@ -337,16 +326,13 @@ def main():
         metavar="N",
         help="合并最近 N 个交易日快照（出现次数≥⌊N/2⌋+1）",
     )
-    ap.add_argument(
-        "--min-appear", type=int, default=None, help="合并模式下最低出现次数"
-    )
+    ap.add_argument("--min-appear", type=int, default=None, help="合并模式下最低出现次数")
     ap.add_argument(
         "--historical",
         metavar="YYYY-MM-DD",
         default=None,
         help="历史某日热度榜（用 K 线回放）",
     )
-    ap.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = ap.parse_args()
 
     if args.version:
@@ -357,12 +343,10 @@ def main():
 
     if args.merge > 0:
         rows = merge_recent(args.merge, args.min_appear)
-        if args.json:
+        if args.json_output:
             print(json.dumps(rows, ensure_ascii=False, indent=2))
             return
-        print(
-            f"📅 合并最近 {args.merge} 个交易日快照，出现 ≥ {args.min_appear or (args.merge // 2 + 1)} 次"
-        )
+        print(f"📅 合并最近 {args.merge} 个交易日快照，出现 ≥ {args.min_appear or (args.merge // 2 + 1)} 次")
         _print_table(
             rows,
             cols=["code", "name", "appear_count", "appear_ratio", "latest_score"],
@@ -384,7 +368,7 @@ def main():
         rows = rank_today(codes, args.top)
         path = _save_snapshot(rows, mode="today", days=1)
 
-    if args.json:
+    if args.json_output:
         out = [r.to_dict() if hasattr(r, "to_dict") else r for r in rows]
         print(json.dumps(out, ensure_ascii=False, indent=2))
         return

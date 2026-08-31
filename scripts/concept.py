@@ -23,6 +23,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from common.cli_base import create_parser, handle_errors
 from common import to_float  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -238,17 +239,13 @@ def find_arbitrage(anchor_code, top=5, scan_boards=30):
             continue
 
         # 检查锚定股是否在该板块
-        anchor_in_board = any(
-            s.get("code", "").endswith(anchor_code_clean) for s in stocks
-        )
+        anchor_in_board = any(s.get("code", "").endswith(anchor_code_clean) for s in stocks)
         if not anchor_in_board:
             continue
 
         # 板内热度排序，排除锚定股
         ranked = concept_stock_rank(bk_code, top=0)
-        candidates = [r for r in ranked if not r["code"].endswith(anchor_code_clean)][
-            :top
-        ]
+        candidates = [r for r in ranked if not r["code"].endswith(anchor_code_clean)][:top]
 
         results.append(
             {
@@ -272,9 +269,7 @@ def _print_hot_rank(rankings):
     if not rankings:
         print("暂无数据")
         return
-    print(
-        f"{'排名':>4}  {'板块':<12} {'热度':>12} {'涨跌幅':>7} {'成交额(亿)':>10} {'换手率':>6}"
-    )
+    print(f"{'排名':>4}  {'板块':<12} {'热度':>12} {'涨跌幅':>7} {'成交额(亿)':>10} {'换手率':>6}")
     print("-" * 60)
     for i, r in enumerate(rankings, 1):
         print(
@@ -290,9 +285,7 @@ def _print_stock_rank(rankings, bk_code=""):
         return
     title = f"概念板块 {bk_code} 成分股热度榜" if bk_code else "成分股热度榜"
     print(f"\n{title}（共 {len(rankings)} 只）")
-    print(
-        f"{'排名':>4}  {'代码':<10} {'名称':<8} {'热度':>12} {'涨跌幅':>7} {'成交额(亿)':>10}"
-    )
+    print(f"{'排名':>4}  {'代码':<10} {'名称':<8} {'热度':>12} {'涨跌幅':>7} {'成交额(亿)':>10}")
     print("-" * 60)
     for i, r in enumerate(rankings, 1):
         print(
@@ -315,38 +308,32 @@ def _print_arbitrage(results):
         print(f"  {'代码':<10} {'名称':<8} {'热度':>12} {'涨跌幅':>7}")
         print("  " + "-" * 44)
         for c in cands:
-            print(
-                f"  {c['code']:<10} {c['name']:<8} {c['hot_score']:>12.0f} "
-                f"{c['change_pct']:>+6.2f}%"
-            )
+            print(f"  {c['code']:<10} {c['name']:<8} {c['hot_score']:>12.0f} " f"{c['change_pct']:>+6.2f}%")
 
 
 def main():
-    ap = argparse.ArgumentParser(description="题材概念板块分析")
+    ap = create_parser(description="题材概念板块分析")
     ap.add_argument("--top", type=int, default=20, help="返回数量（默认20）")
-    ap.add_argument(
-        "--board", type=str, default="", help="概念板块BK代码，查看板内个股热度"
-    )
+    ap.add_argument("--board", type=str, default="", help="概念板块BK代码，查看板内个股热度")
     ap.add_argument("--arbitrage", type=str, default="", help="看A做B：锚定股代码")
     ap.add_argument("--scan", type=int, default=30, help="套利扫描板块数（默认30）")
-    ap.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = ap.parse_args()
 
     if args.arbitrage:
         results = find_arbitrage(args.arbitrage, top=args.top, scan_boards=args.scan)
-        if args.json:
+        if args.json_output:
             print(json.dumps(results, ensure_ascii=False, indent=2))
         else:
             _print_arbitrage(results)
     elif args.board:
         rankings = concept_stock_rank(args.board, top=args.top)
-        if args.json:
+        if args.json_output:
             print(json.dumps(rankings, ensure_ascii=False, indent=2))
         else:
             _print_stock_rank(rankings, args.board)
     else:
         rankings = concept_hot_rank(top=args.top)
-        if args.json:
+        if args.json_output:
             print(json.dumps(rankings, ensure_ascii=False, indent=2))
         else:
             _print_hot_rank(rankings)

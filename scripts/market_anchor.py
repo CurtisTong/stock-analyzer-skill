@@ -21,6 +21,7 @@ full / debate / technical 三个模式统一提供前置"市场环境锚定"数�
 import json
 import sys
 import argparse
+from common.cli_base import create_parser, handle_errors
 import statistics
 from pathlib import Path
 from datetime import datetime
@@ -133,9 +134,7 @@ def _fetch_breadth() -> dict | None:
             "advance_ratio": round(advance_ratio, 3),
             # 新高/新低家数无直接数据源，用涨跌家数比近似（同量纲：>1.5 普涨、
             # <0.5 普跌、<0.2 极端下跌），修复原硬编码 1.0 导致牛市/熊市/冰点不可达
-            "new_high_low_ratio": (
-                round(up / down, 3) if down > 0 else (2.0 if up > 0 else 1.0)
-            ),
+            "new_high_low_ratio": (round(up / down, 3) if down > 0 else (2.0 if up > 0 else 1.0)),
             "margin_ratio": 0,  # 两融数据未接入，亢奋判定（需 >10）保持不可达（数据降级）
             "_degraded": breadth.get("_degraded", False),
             "_degraded_reason": breadth.get("_degraded_reason"),
@@ -171,11 +170,7 @@ def _compute_multi_timeframe(index_code: str = "sh000300") -> dict | None:
         lows = [k.low for k in klines if k.low > 0]
 
         if len(closes) < 20:
-            return {
-                "data_quality": {
-                    "degraded_fields": ["multi_timeframe.insufficient_data"]
-                }
-            }
+            return {"data_quality": {"degraded_fields": ["multi_timeframe.insufficient_data"]}}
 
         # 复用 ma_system
         mas = ma_system(closes)
@@ -247,9 +242,7 @@ def _fetch_macro_anchor() -> dict | None:
         }
 
 
-def _fetch_liquidity_volatility(
-    stock_code: str | None, index_code: str = "sh000300"
-) -> dict | None:
+def _fetch_liquidity_volatility(stock_code: str | None, index_code: str = "sh000300") -> dict | None:
     """流动性 + 波动率。
 
     - 大盘 ATR14 + 60 日年化波动率（复用 detector 公式）
@@ -304,9 +297,7 @@ def _fetch_liquidity_volatility(
             stock_klines = get_kline(stock_code, scale=240, datalen=20)
             if stock_klines:
                 # 优先用 amount（精确），降级到 volume*close/100（估算）
-                amounts_yi = [
-                    k.amount / 1e8 for k in stock_klines if k.amount and k.amount > 0
-                ]
+                amounts_yi = [k.amount / 1e8 for k in stock_klines if k.amount and k.amount > 0]
                 if amounts_yi:
                     avg_amount = statistics.mean(amounts_yi)
                     source_tag = "amount"
@@ -315,9 +306,7 @@ def _fetch_liquidity_volatility(
                     # A 股 volume 单位是"手"（100 股），close 是元
                     # amount(元) ≈ volume(手) × 100 × close(元) / 1e8 = 亿元
                     est_amounts = [
-                        (k.volume * k.close * 100) / 1e8
-                        for k in stock_klines
-                        if k.volume > 0 and k.close > 0
+                        (k.volume * k.close * 100) / 1e8 for k in stock_klines if k.volume > 0 and k.close > 0
                     ]
                     if est_amounts:
                         avg_amount = statistics.mean(est_amounts)
@@ -548,13 +537,10 @@ def _fetch_sector_rotation(window: int = 5) -> dict | None:
             # 阈值与 _interpret_rotation 的"剧烈轮动"判定（>=2.5）统一
             if result["rotation_strength"] >= 2.5:
                 result["advice"] = (
-                    "剧烈轮动期（主线切换中）：减少新增仓位，优先减仓弱势持仓，"
-                    "等待主线明确后再考虑进攻/分层配置"
+                    "剧烈轮动期（主线切换中）：减少新增仓位，优先减仓弱势持仓，" "等待主线明确后再考虑进攻/分层配置"
                 )
             else:
-                result["advice"] = (
-                    "轮动强度适中：可维持现有配置，结合板块强弱做均衡布局"
-                )
+                result["advice"] = "轮动强度适中：可维持现有配置，结合板块强弱做均衡布局"
         return result
     except Exception as e:
         logger.warning("题材轮动计算失败: %s", e)
@@ -675,36 +661,28 @@ def analyze(
     industry_beta_payload = None
     if stock_code:
         industry_beta_payload = _fetch_industry_beta(stock_code)
-        if industry_beta_payload and industry_beta_payload.get("data_quality", {}).get(
-            "degraded_fields"
-        ):
+        if industry_beta_payload and industry_beta_payload.get("data_quality", {}).get("degraded_fields"):
             degraded.extend(industry_beta_payload["data_quality"]["degraded_fields"])
 
     # 10. v2.6.0 新增：组合相关性（与 /portfolio skill 联动）
     portfolio_corr_payload = None
     if fetch_portfolio:
         portfolio_corr_payload = _fetch_portfolio_correlation(stock_code)
-        if portfolio_corr_payload and portfolio_corr_payload.get(
-            "data_quality", {}
-        ).get("degraded_fields"):
+        if portfolio_corr_payload and portfolio_corr_payload.get("data_quality", {}).get("degraded_fields"):
             degraded.extend(portfolio_corr_payload["data_quality"]["degraded_fields"])
 
     # 11. v2.7.0 新增：题材轮动强度
     rotation_payload = None
     if fetch_rotation:
         rotation_payload = _fetch_sector_rotation(window=5)
-        if rotation_payload and rotation_payload.get("data_quality", {}).get(
-            "degraded_fields"
-        ):
+        if rotation_payload and rotation_payload.get("data_quality", {}).get("degraded_fields"):
             degraded.extend(rotation_payload["data_quality"]["degraded_fields"])
 
     # 12. v2.7.0 新增：北向资金边际定价者
     northbound_payload = None
     if fetch_northbound:
         northbound_payload = _fetch_northbound_pricer(days=20)
-        if northbound_payload and northbound_payload.get("data_quality", {}).get(
-            "degraded_fields"
-        ):
+        if northbound_payload and northbound_payload.get("data_quality", {}).get("degraded_fields"):
             degraded.extend(northbound_payload["data_quality"]["degraded_fields"])
 
     # 13. 组装输出
@@ -717,32 +695,24 @@ def analyze(
         "long_weight": regime_result.get("long_weight"),
         "short_weight": regime_result.get("short_weight"),
         "index_code": index_code,
-        "index_change_pct": (
-            round(index_quote["change_pct"], 2) if index_quote else None
-        ),
+        "index_change_pct": (round(index_quote["change_pct"], 2) if index_quote else None),
         "breadth": breadth,
         "sector_strength": (
             {
                 "etfs": sector_payload["etfs"] if sector_payload else [],
                 "top": sector_payload["strong_sectors"] if sector_payload else [],
                 "bottom": sector_payload["weak_sectors"] if sector_payload else [],
-                "data_quality": (
-                    sector_payload["data_quality"] if sector_payload else None
-                ),
+                "data_quality": (sector_payload["data_quality"] if sector_payload else None),
             }
             if fetch_sector
             else None
         ),
-        "stock_sector_compare": (
-            sector_payload["stock_sector_compare"] if sector_payload else None
-        ),
+        "stock_sector_compare": (sector_payload["stock_sector_compare"] if sector_payload else None),
         # v2.5.x 新增 5 个字段
         "multi_timeframe": multi_tf,
         "macro": macro_payload.get("macro") if macro_payload else None,
         "leverage": macro_payload.get("leverage") if macro_payload else None,
-        "valuation_bridge": (
-            macro_payload.get("valuation_bridge") if macro_payload else None
-        ),
+        "valuation_bridge": (macro_payload.get("valuation_bridge") if macro_payload else None),
         "liquidity_volatility": liq_vol,
         "emotion_phase": emotion_phase,
         # v2.6.0 新增 2 个字段
@@ -756,21 +726,14 @@ def analyze(
             "index_kline_ok": index_kline is not None,
             "breadth_ok": breadth is not None,
             "sector_ok": sector_payload is not None,
-            "multi_timeframe_ok": multi_tf is not None
-            and not multi_tf.get("data_quality", {}).get("degraded_fields"),
-            "macro_ok": macro_payload is not None
-            and not macro_payload.get("data_quality", {}).get("degraded_fields"),
-            "liquidity_ok": liq_vol is not None
-            and not liq_vol.get("data_quality", {}).get("degraded_fields"),
+            "multi_timeframe_ok": multi_tf is not None and not multi_tf.get("data_quality", {}).get("degraded_fields"),
+            "macro_ok": macro_payload is not None and not macro_payload.get("data_quality", {}).get("degraded_fields"),
+            "liquidity_ok": liq_vol is not None and not liq_vol.get("data_quality", {}).get("degraded_fields"),
             "emotion_phase_ok": emotion_phase is not None,
             "industry_beta_ok": industry_beta_payload is not None
-            and not industry_beta_payload.get("data_quality", {}).get(
-                "degraded_fields"
-            ),
+            and not industry_beta_payload.get("data_quality", {}).get("degraded_fields"),
             "portfolio_correlation_ok": portfolio_corr_payload is not None
-            and not portfolio_corr_payload.get("data_quality", {}).get(
-                "degraded_fields"
-            ),
+            and not portfolio_corr_payload.get("data_quality", {}).get("degraded_fields"),
             "sector_rotation_ok": rotation_payload is not None
             and not rotation_payload.get("data_quality", {}).get("degraded_fields"),
             "northbound_ok": northbound_payload is not None
@@ -856,8 +819,7 @@ def to_markdown(payload: dict) -> str:
     # v1.x: 数据时效三档标签（实时/延迟/过期），解决"盘前快照误以为实时"问题
     freshness = _compute_freshness(payload)
     lines.append(
-        f"{emoji} **市场状态**: {regime_zh} ({conf}) — {payload['regime_reason']}  "
-        f"`[数据时效:{freshness}]`"
+        f"{emoji} **市场状态**: {regime_zh} ({conf}) — {payload['regime_reason']}  " f"`[数据时效:{freshness}]`"
     )
     if idx_chg is not None:
         lines.append(f"📈 **大盘指数**: {payload['index_code']} 当日 {idx_chg:+.2f}%")
@@ -866,19 +828,13 @@ def to_markdown(payload: dict) -> str:
 
     b = payload.get("breadth") or {}
     if b:
-        lines.append(
-            f"🌐 **市场宽度**: 上涨 {b.get('up_count', 0)} 家 / 下跌 {b.get('down_count', 0)} 家"
-        )
+        lines.append(f"🌐 **市场宽度**: 上涨 {b.get('up_count', 0)} 家 / 下跌 {b.get('down_count', 0)} 家")
         if b.get("_degraded"):
             lines.append(
-                "        ⚠️ 涨跌停数据降级"
-                f"（{b.get('_degraded_reason', '原因未知')}）"
-                "，情绪状态按涨跌比定性"
+                "        ⚠️ 涨跌停数据降级" f"（{b.get('_degraded_reason', '原因未知')}）" "，情绪状态按涨跌比定性"
             )
         else:
-            lines.append(
-                f"        涨停 {b.get('limit_up_count', 0)} 家 / 跌停 {b.get('limit_down_count', 0)} 家"
-            )
+            lines.append(f"        涨停 {b.get('limit_up_count', 0)} 家 / 跌停 {b.get('limit_down_count', 0)} 家")
     else:
         lines.append("🌐 **市场宽度**: ⚠️ 数据缺失")
 
@@ -906,9 +862,7 @@ def to_markdown(payload: dict) -> str:
         if comp.get("stock_sectors"):
             lines.append(f"- 所属板块: {', '.join(comp['stock_sectors'])}")
         if comp.get("matched_etf_name"):
-            lines.append(
-                f"- 匹配 ETF: {comp['matched_etf']} {comp['matched_etf_name']}"
-            )
+            lines.append(f"- 匹配 ETF: {comp['matched_etf']} {comp['matched_etf_name']}")
         if comp.get("stock_change_pct") is not None:
             lines.append(f"- 个股涨跌: {comp['stock_change_pct']:+.2f}%")
         if comp.get("sector_change_pct") is not None:
@@ -921,9 +875,7 @@ def to_markdown(payload: dict) -> str:
             lines.append(f"- RPS vs 大盘: {comp['rps_vs_index']:+.2f}pp")
         lines.append(f"- **结论**: {comp['verdict']}")
         if comp.get("data_quality", {}).get("degraded_fields"):
-            lines.append(
-                f"- ⚠️ 降级字段: {', '.join(comp['data_quality']['degraded_fields'])}"
-            )
+            lines.append(f"- ⚠️ 降级字段: {', '.join(comp['data_quality']['degraded_fields'])}")
 
     # v2.5.x 新增：多时间框架
     mtf = payload.get("multi_timeframe")
@@ -934,9 +886,7 @@ def to_markdown(payload: dict) -> str:
         ma60 = mtf.get("ma60")
         ma250 = mtf.get("ma250")
         alignment = mtf.get("ma_alignment", "unknown")
-        lines.append(
-            f"- MA20: {ma20 or 'N/A'} | MA60: {ma60 or 'N/A'} | MA250: {ma250 or 'N/A'}"
-        )
+        lines.append(f"- MA20: {ma20 or 'N/A'} | MA60: {ma60 or 'N/A'} | MA250: {ma250 or 'N/A'}")
         lines.append(f"- 排列状态: {alignment}")
         ret5 = mtf.get("ret_5d_pct")
         ret20 = mtf.get("ret_20d_pct")
@@ -975,8 +925,7 @@ def to_markdown(payload: dict) -> str:
             ]
             if fixture_fields:
                 lines.append(
-                    f"⚠️ **本段含 {len(fixture_fields)} 个非实时字段** "
-                    f"(仅作占位参考): {', '.join(fixture_fields)}"
+                    f"⚠️ **本段含 {len(fixture_fields)} 个非实时字段** " f"(仅作占位参考): {', '.join(fixture_fields)}"
                 )
         if macro:
             tnx = macro.get("treasury_10y_pct")
@@ -987,9 +936,7 @@ def to_markdown(payload: dict) -> str:
             brent = macro.get("brent_oil_usd")
             lithium = macro.get("lithium_carbonate_cny_t")
             if tnx is not None:
-                lines.append(
-                    f"- 10Y 美债: {tnx}%{_source_tag(macro, 'treasury_10y_pct')}"
-                )
+                lines.append(f"- 10Y 美债: {tnx}%{_source_tag(macro, 'treasury_10y_pct')}")
             if usdx is not None:
                 lines.append(f"- 美元指数: {usdx}{_source_tag(macro, 'usd_index')}")
             if cny is not None:
@@ -1001,10 +948,7 @@ def to_markdown(payload: dict) -> str:
             if brent is not None:
                 lines.append(f"- 布伦特: ${brent}{_source_tag(macro, 'brent_oil_usd')}")
             if lithium is not None:
-                lines.append(
-                    f"- 碳酸锂: ¥{lithium}/吨"
-                    f"{_source_tag(macro, 'lithium_carbonate_cny_t')}"
-                )
+                lines.append(f"- 碳酸锂: ¥{lithium}/吨" f"{_source_tag(macro, 'lithium_carbonate_cny_t')}")
             # 存在 fixture 字段时降级宏观结论置信度，避免把预置数据当实时研判
             if fixture_fields:
                 lines.append(
@@ -1064,24 +1008,17 @@ def to_markdown(payload: dict) -> str:
     ib = payload.get("industry_beta")
     if ib and ib.get("beta") is not None:
         lines.append("")
-        lines.append(
-            f"### 📈 行业 beta ({ib.get('stock_code', '')} vs {ib.get('index_code', '')})"
-        )
+        lines.append(f"### 📈 行业 beta ({ib.get('stock_code', '')} vs {ib.get('index_code', '')})")
         lines.append(f"- beta: {ib['beta']}（{ib.get('interpretation', '')}）")
         if ib.get("interpretation_confidence"):
-            lines.append(
-                f"- 解读置信度: {ib['interpretation_confidence']}"
-                "（R² <0.3 时 beta 参考价值有限）"
-            )
+            lines.append(f"- 解读置信度: {ib['interpretation_confidence']}" "（R² <0.3 时 beta 参考价值有限）")
         if ib.get("alpha_annual") is not None:
             lines.append(f"- 年化 alpha: {ib['alpha_annual'] * 100:.2f}%")
         if ib.get("r_squared") is not None:
             lines.append(f"- R²: {ib['r_squared']}（拟合优度）")
         if ib.get("volatility_pct") is not None:
             lines.append(f"- 个股年化波动率: {ib['volatility_pct']}%")
-        lines.append(
-            f"- 窗口: {ib.get('window', 60)} 日（{ib.get('n_observations', 0)} 个观测值）"
-        )
+        lines.append(f"- 窗口: {ib.get('window', 60)} 日（{ib.get('n_observations', 0)} 个观测值）")
         lines.append(f"- 基准选择: {ib.get('index_selection', 'dynamic')}")
 
     # v2.6.0 新增：组合相关性
@@ -1093,9 +1030,7 @@ def to_markdown(payload: dict) -> str:
             lines.append(f"- {pc.get('interpretation', '无持仓')}")
         else:
             codes = pc.get("portfolio_codes", [])
-            lines.append(
-                f"- 持仓数: {len(codes)} 只 ({', '.join(codes[:3])}{'...' if len(codes) > 3 else ''})"
-            )
+            lines.append(f"- 持仓数: {len(codes)} 只 ({', '.join(codes[:3])}{'...' if len(codes) > 3 else ''})")
             avg = pc.get("avg_pairwise_corr")
             if avg is not None:
                 lines.append(f"- 平均两两相关性: {avg}")
@@ -1162,9 +1097,7 @@ def to_markdown(payload: dict) -> str:
         if nb.get("latest_day_net_yi") is not None:
             lines.append(f"- 最近一日: {nb['latest_day_net_yi']} 亿元")
         if nb.get("recent_5d_net_yi") is not None:
-            lines.append(
-                f"- 近 5 日累计: {nb['recent_5d_net_yi']} 亿元（{nb.get('recent_5d_slope', '')}）"
-            )
+            lines.append(f"- 近 5 日累计: {nb['recent_5d_net_yi']} 亿元（{nb.get('recent_5d_slope', '')}）")
         lines.append(f"- 方向: {nb.get('direction', 'unknown')}")
         lines.append(f"- 解读: {nb.get('interpretation', '')}")
 
@@ -1192,24 +1125,13 @@ def main():
     _logging.getLogger("urllib3").setLevel(_logging.CRITICAL)
     _logging.getLogger("peewee").setLevel(_logging.CRITICAL)
 
-    parser = argparse.ArgumentParser(description="市场环境锚定编排器")
+    parser = create_parser(description="市场环境锚定编排器")
     parser.add_argument("stock_code", nargs="?", help="股票代码（如 sh600519），可选")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
-    parser.add_argument(
-        "--no-sector", action="store_true", help="跳过板块拉取（technical 模式用）"
-    )
-    parser.add_argument(
-        "--no-portfolio", action="store_true", help="跳过组合相关性（v2.6.0）"
-    )
-    parser.add_argument(
-        "--no-rotation", action="store_true", help="跳过题材轮动（v2.7.0）"
-    )
-    parser.add_argument(
-        "--no-northbound", action="store_true", help="跳过北向资金（v2.7.0）"
-    )
-    parser.add_argument(
-        "--index", default="sh000300", help="大盘指数代码（默认 sh000300）"
-    )
+    parser.add_argument("--no-sector", action="store_true", help="跳过板块拉取（technical 模式用）")
+    parser.add_argument("--no-portfolio", action="store_true", help="跳过组合相关性（v2.6.0）")
+    parser.add_argument("--no-rotation", action="store_true", help="跳过题材轮动（v2.7.0）")
+    parser.add_argument("--no-northbound", action="store_true", help="跳过北向资金（v2.7.0）")
+    parser.add_argument("--index", default="sh000300", help="大盘指数代码（默认 sh000300）")
     args = parser.parse_args()
 
     payload = analyze(
@@ -1221,7 +1143,7 @@ def main():
         index_code=args.index,
     )
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         print(to_markdown(payload))

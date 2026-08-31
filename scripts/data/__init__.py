@@ -130,9 +130,7 @@ def get_quotes(codes: list, use_cache: bool = True) -> list:
     return [q for q in results.values() if q is not None]
 
 
-def get_kline(
-    code: str, scale: int = 240, datalen: int = 30, use_cache: bool = True
-) -> list:
+def get_kline(code: str, scale: int = 240, datalen: int = 30, use_cache: bool = True) -> list:
     """获取 K 线数据。
 
     Args:
@@ -199,9 +197,7 @@ def _is_valid_records(records) -> bool:
     return False
 
 
-def get_finance(
-    code: str, use_cache: bool = True, periods: int = 4
-) -> tuple[list, "FinanceMeta"]:
+def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> tuple[list, "FinanceMeta"]:
     """获取财务数据 + 元信息。
 
     Args:
@@ -270,11 +266,7 @@ def get_finance(
         if use_cache:
             cache.set_json(zero_key, [])
         meta.is_degraded = True
-        meta.last_error = (
-            str(_finance_manager.last_error)
-            if _finance_manager.last_error
-            else "all sources empty"
-        )
+        meta.last_error = str(_finance_manager.last_error) if _finance_manager.last_error else "all sources empty"
         return [], meta
 
     # 用 akshare 资产负债表增强存货绝对额（INVENTORY）
@@ -473,7 +465,7 @@ def _dict_to_kline_bar(d: dict, code: str = "") -> KlineBar:
 # 财务字段映射表（迁入 data/mappers.py，此处 re-export 保持向后兼容）
 from data.mappers import FINANCE_FIELD_MAP as _FINANCE_FIELD_MAP  # noqa: F401
 
-# 东财 REPORT_TYPE 中文值 -> 标准化英文枚举（2026-07-23 宝丰能源 PE 误算复盘）
+# 东财 REPORT_TYPE 中文值 -> 标准化英文枚举（2026-07-23 宝丰能源 PE 口径修正）
 # 一季报 = 单季 Q1；中报/三季报 = 累计 H1/Q3；年报 = 全年
 # 不可用 report_date 末尾日期推断：-06-30 无法区分"累计中报"与"单季 Q2"
 _PERIOD_TYPE_MAP = {
@@ -537,12 +529,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
     # 边界保护：debt_ratio 缺失/<=0/>100 时不推导，避免除零或负净资产
     total_assets: float | None = None
     net_assets: float | None = None
-    if (
-        total_liability is not None
-        and total_liability > 0
-        and debt_ratio is not None
-        and 0 < debt_ratio <= 100
-    ):
+    if total_liability is not None and total_liability > 0 and debt_ratio is not None and 0 < debt_ratio <= 100:
         total_assets = round(total_liability / (debt_ratio / 100.0), 2)
         net_assets = round(total_assets - total_liability, 2)
 
@@ -561,12 +548,8 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         goodwill=_maybe_float(FIELD_MAP["goodwill"]),
         pledge_ratio=_maybe_float(FIELD_MAP["pledge_ratio"]),
         goodwill_ratio=_maybe_float(FIELD_MAP["goodwill_ratio"]),
-        consecutive_dividend_years=to_int(
-            _find(FIELD_MAP["consecutive_dividend_years"])
-        ),
-        major_shareholder_reduction=_maybe_float(
-            FIELD_MAP["major_shareholder_reduction"]
-        ),
+        consecutive_dividend_years=to_int(_find(FIELD_MAP["consecutive_dividend_years"])),
+        major_shareholder_reduction=_maybe_float(FIELD_MAP["major_shareholder_reduction"]),
         violation_penalty=_maybe_float(FIELD_MAP["violation_penalty"]),
         audit_opinion=str(_find(FIELD_MAP["audit_opinion"])),
         source=d.get("source", ""),
@@ -579,42 +562,14 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         total_assets=total_assets,
         net_assets=net_assets,
         # 偿债能力 + 季度环比（保留 2 位小数，与绝对值精度一致）
-        quick_ratio=(
-            None
-            if (v := _maybe_float(FIELD_MAP["quick_ratio"])) is None
-            else round(v, 2)
-        ),
-        current_ratio=(
-            None
-            if (v := _maybe_float(FIELD_MAP["current_ratio"])) is None
-            else round(v, 2)
-        ),
-        deducted_np_yoy=(
-            None
-            if (v := _maybe_float(FIELD_MAP["deducted_np_yoy"])) is None
-            else round(v, 2)
-        ),
-        revenue_qoq=(
-            None
-            if (v := _maybe_float(FIELD_MAP["revenue_qoq"])) is None
-            else round(v, 2)
-        ),
-        profit_qoq=(
-            None
-            if (v := _maybe_float(FIELD_MAP["profit_qoq"])) is None
-            else round(v, 2)
-        ),
+        quick_ratio=(None if (v := _maybe_float(FIELD_MAP["quick_ratio"])) is None else round(v, 2)),
+        current_ratio=(None if (v := _maybe_float(FIELD_MAP["current_ratio"])) is None else round(v, 2)),
+        deducted_np_yoy=(None if (v := _maybe_float(FIELD_MAP["deducted_np_yoy"])) is None else round(v, 2)),
+        revenue_qoq=(None if (v := _maybe_float(FIELD_MAP["revenue_qoq"])) is None else round(v, 2)),
+        profit_qoq=(None if (v := _maybe_float(FIELD_MAP["profit_qoq"])) is None else round(v, 2)),
         # 存货/营运能力
-        inventory_turnover=(
-            None
-            if (v := _maybe_float(FIELD_MAP["inventory_turnover"])) is None
-            else round(v, 4)
-        ),
-        inventory_days=(
-            None
-            if (v := _maybe_float(FIELD_MAP["inventory_days"])) is None
-            else round(v, 1)
-        ),
+        inventory_turnover=(None if (v := _maybe_float(FIELD_MAP["inventory_turnover"])) is None else round(v, 4)),
+        inventory_days=(None if (v := _maybe_float(FIELD_MAP["inventory_days"])) is None else round(v, 1)),
         inventory=inventory,
     )
 

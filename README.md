@@ -16,7 +16,7 @@
 
 装进 Claude Code 后用 `/stock <代码>` 等 12 个斜杠命令做 A 股分析（基本面/估值/技术面/板块/风险收益比 5 层 + 8 人专家投票）。
 
-**8 位活跃专家圆桌** · **27 个 fetcher 模块（35 类）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
+**8 位活跃专家圆桌** · **35 个 fetcher 类（7 数据域）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
 
 > "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
 > 核心 8 命令（quote/kline/finance/technical/stock/portfolio/screener/backtest）只需 stdlib + PyYAML；扩展功能（`/research` DCF、`/screener init full-market`、美股 yfinance、`/market full` 美股参考）按需 `pip install yfinance akshare efinance pytdx`。
@@ -132,7 +132,7 @@
 
 ### 🔁 多源故障转移
 
-**27 个 fetcher 模块（35 类）**<br>
+**35 个 fetcher 类（7 数据域）**<br>
 腾讯 · 东财 · 新浪<br>
 雪球 · 同花顺 · 通达信<br>
 AkShare · efinance · yfinance<br>
@@ -182,7 +182,7 @@ npm install -g stock-analyzer-skill
 # 完整可重放脚本：bash scripts/demo.sh
 $ python3 scripts/init_pool.py --default                       # 1. 初始化股票池
 $ python3 scripts/screener.py --strategy balanced --top 5    # 2. 选股
-$ python3 scripts/stock.py sh600519 quick                    # 3. 单股快评
+$ python3 scripts/stock.py sh600519 --brief                  # 3. 单股快评
 $ python3 scripts/backtest.py --all --benchmark sh000300     # 4. 6 策略回测对比
 $ python3 scripts/backtest.py --optimize --strategy growth_momentum  # 5. 权重优化
 $ python3 scripts/strategy_performance.py record --days 30   # 6. 月度校准
@@ -333,40 +333,17 @@ python3 scripts/portfolio_web.py
 
 <table>
 <tr>
-<th colspan="2" align="center">🟢 长线 4 人（价值发现）</th>
-<th colspan="2" align="center">🔴 短线 4 人（时机把握）</th>
+<th colspan="3" align="center">🟢 长线 5 人（价值发现）</th>
+<th colspan="3" align="center">🔴 短线 3 人（时机把握）</th>
 </tr>
 <tr>
 <td align="center">
 
-**[巴菲特](experts/buffett.md)**
-价值投资<br>
-高 ROE + 低 PE
-
-</td>
-<td align="center">
-
-**[彼得·林奇](experts/lynch.md)**
+**[林奇](experts/lynch.md)**
 成长投资<br>
 PEG &lt; 1
 
 </td>
-<td align="center">
-
-**[徐翔](experts/xu_xiang.md)**
-涨停板战法<br>
-龙头 + 量价
-
-</td>
-<td align="center">
-
-**[赵老哥](experts/zhao_laoge.md)**
-趋势龙头<br>
-波段操作
-
-</td>
-</tr>
-<tr>
 <td align="center">
 
 **[索罗斯](experts/soros.md)**
@@ -376,23 +353,51 @@ PEG &lt; 1
 </td>
 <td align="center">
 
-**[段永平](experts/duan_yongping.md)**
-逆向投资<br>
-低估值 + 护城河
+**[价值机构锚](experts/value_institution.md)**
+价值 + 机构合并<br>
+ROE + 安全边际
 
 </td>
 <td align="center">
 
-**[炒股养家](experts/chaogu_yangjia.md)**
-情绪流<br>
-情绪周期判断
+**[题材龙头](experts/topic_leader.md)**
+涨停龙头战法<br>
+二板定龙头
 
 </td>
 <td align="center">
 
-**[作手新一](experts/zuoshou_xinyi.md)**
-强势股低吸<br>
-回调支撑分批
+**[情绪技术](experts/emotion_tech.md)**
+情绪周期<br>
+涨停家数 + K线反转
+
+</td>
+<td align="center">
+
+**[动量派](experts/momentum_trader.md)**
+利弗莫尔 + 海龟<br>
+趋势跟踪
+
+</td>
+</tr>
+<tr>
+<td align="center">
+
+**[行业专家](experts/sector_specialist.md)**
+5 大类行业<br>
+差异化阈值
+
+</td>
+<td align="center">
+
+**[风控官](experts/risk_manager.md)**
+二阶思维<br>
+风险预算 + 集中度
+
+</td>
+<td colspan="4" align="center">
+
+> 另有 **8 份 legacy 档案**（巴菲特 / 段永平 / 徐翔 / 赵老哥 / 炒股养家 / 作手新一 / value_anchor / institution）已合并入 active 视角，保留为研究档案不参与新框架投票。完整对照见 [experts/README.md](experts/README.md)。
 
 </td>
 </tr>
@@ -492,7 +497,7 @@ flowchart LR
 | 🌐 **环境** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
 | 🌐 **环境** | [sector](skills/sector/SKILL.md)                       | `/sector <板块> [overview\|compare\|stock]`      | 板块全景 / 标的对比 / 板块内筛选             |
 | 🔎 **选股** | [screener](skills/screener/SKILL.md)                   | `/screener [--strategy 策略] [init]`             | 6 种策略 × 9 因子维度批量选股 + 股票池初始化 |
-| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance\|compare]`        | 持仓健康 / 调仓再平衡 / 模拟盘 / 标的对比    |
+| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance]`        | 持仓健康 / 调仓再平衡 / 模拟盘（compare 由 /stock 承接）    |
 | 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md)         | `/portfolio web [--port 8765]`                   | Web 录入服务（HTTP API :8765）               |
 | 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                                 | NL → 命令映射（我买了/减仓/破位止损）        |
 | 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                   | `/backtest [--strategy 策略] [--all]`            | 策略历史回测，含卡玛比率/盈亏比/夏普         |
@@ -575,7 +580,7 @@ scripts/
 ├── common/        # 基础设施（HTTP、缓存、熔断器、异常体系）
 ├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
-├── fetchers/      # 27 个数据源适配器（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
+├── fetchers/      # 35 个 fetcher 类（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
 ├── strategies/    # 6 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 消息推送（NotificationManager + 多通道适配器）

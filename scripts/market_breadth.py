@@ -104,9 +104,7 @@ def get_market_breadth() -> dict:
         # 透传降级标记（sentiment.py 在 token 未配置/接口异常时设置）
         if limit_data.get("_degraded"):
             result["_degraded"] = True
-            result["_degraded_reason"] = limit_data.get(
-                "_degraded_reason", "涨跌停数据降级"
-            )
+            result["_degraded_reason"] = limit_data.get("_degraded_reason", "涨跌停数据降级")
         return result
 
     except Exception as e:
@@ -202,16 +200,34 @@ def get_market_state(breadth: dict) -> dict:
             "degraded": True,
         }
 
-    # 涨停家数判断（徐翔建议）
+    # 统一市场状态判定：委托 market_detector.classify_market_state（唯一权威），
+    # 映射为情绪周期词汇（牛市→主升、熊市→退潮）。
+    from experts.market_detector import classify_market_state as _classify
+
+    _unified = _classify(
+        index_quote=None,
+        change_pct=None,
+        limit_up=limit_up,
+        limit_down=limit_down,
+        up_ratio=up_ratio,
+    )
+    _unified_map = {
+        "牛市": STATE_RALLY,
+        "熊市": STATE_RETREAT,
+        "震荡": STATE_OSCILLATE,
+        "冰点": STATE_ICE,
+        "亢奋": STATE_RALLY,
+        "防御型": STATE_OSCILLATE,
+    }
+    state = _unified_map.get(_unified, STATE_OSCILLATE)
+
+    # 涨停家数补充信号（徐翔建议；不覆盖统一判定，仅作证据）
     if limit_up < 20:
         signals.append(f"涨停家数仅{limit_up}家，市场赚钱效应弱（退潮期信号）")
-        state = STATE_RETREAT
     elif limit_up > 80:
         signals.append(f"涨停家数{limit_up}家，市场赚钱效应强（主升期信号）")
-        state = STATE_RALLY
     else:
         signals.append(f"涨停家数{limit_up}家，市场情绪中性")
-        state = STATE_OSCILLATE
 
     # 跌停家数判断（养家建议）
     if limit_down > 50:
@@ -272,9 +288,7 @@ def get_market_state(breadth: dict) -> dict:
     }
 
 
-def _soft_validate_limits(
-    limit_up: int, limit_down: int, total_stocks: int, up_count: int, down_count: int
-) -> str:
+def _soft_validate_limits(limit_up: int, limit_down: int, total_stocks: int, up_count: int, down_count: int) -> str:
     """软校验涨跌停数据合理性。
 
     v1.x 改进：解决"涨停74/跌停0"这类数据虽非降级但仍有疑问时无提示的问题。

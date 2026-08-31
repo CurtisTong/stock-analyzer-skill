@@ -1,8 +1,8 @@
 """杜邦三因子分解：ROE = 净利率 × 总资产周转率 × 权益乘数。
 
-解决审查 #9（🔴 严重）：原始报告用 0.70 估算总资产周转率，得 30% 与实际
-ROE 24.84% 对不上。本模块用真实财务数据计算三因子，并与原始 ROE 对账，
-偏差 >1pp 输出 warning，杜绝数值自相矛盾。
+原始报告曾用 0.70 估算总资产周转率，得 30% 与实际 ROE 24.84% 对不上。
+本模块用真实财务数据计算三因子，并与原始 ROE 对账，偏差 >1pp 输出
+warning，杜绝数值自相矛盾。
 
 数据来源：FinanceRecord.to_dict()（阶段一 1.1 已补齐 total_revenue /
 total_liability / total_assets / net_assets / net_margin / debt_ratio）。

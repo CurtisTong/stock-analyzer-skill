@@ -53,6 +53,9 @@ from sector_etf_strength import (  # noqa: E402 行业重叠复用
 _SSM_CACHE: dict = {"data": None}
 
 
+from common.cli_base import create_parser, handle_errors
+
+
 def _get_stock_sector_map() -> dict:
     """加载股票→行业映射（带模块级缓存）。"""
     if _SSM_CACHE["data"] is None:
@@ -116,9 +119,7 @@ def compute_industry_overlap(
     stock_industry, stock_proxy = _industry_of_code(stock_code)
 
     # 组合成本总额（分母）
-    total_cost = sum(
-        (p.get("cost") or 0) * (p.get("quantity") or 0) for p in portfolio_positions
-    )
+    total_cost = sum((p.get("cost") or 0) * (p.get("quantity") or 0) for p in portfolio_positions)
 
     overlap_positions = []
     for p in portfolio_positions:
@@ -151,15 +152,11 @@ def compute_industry_overlap(
     overlap_pct = round(sum(o["pct"] for o in overlap_positions), 1)
     warning = overlap_pct > industry_limit * 100 * 2 / 3  # >20% 即提示
     if not stock_industry:
-        message = (
-            f"候选股 {stock_code} 行业归属未知（不在 stock_sector_map），无法判断重叠"
-        )
+        message = f"候选股 {stock_code} 行业归属未知（不在 stock_sector_map），无法判断重叠"
     elif not overlap_positions:
         message = f"候选股行业（{stock_industry}）与现有持仓无重叠，分散性良好"
     else:
-        names = "、".join(
-            f"{o['name'] or o['code']}({o['pct']}%)" for o in overlap_positions
-        )
+        names = "、".join(f"{o['name'] or o['code']}({o['pct']}%)" for o in overlap_positions)
         action = (
             f"⚠️ 注意：重叠行业占组合 {overlap_pct}%，建议候选股新增仓位不超过 "
             f"{max(0, round(industry_limit * 100 - overlap_pct, 1))}% 以免触发 30% 硬约束"
@@ -556,10 +553,7 @@ def _interpret_diversification(avg_corr: float, neg_significant_ratio: float) ->
     if avg_corr < -0.3 and neg_significant_ratio >= 0.5:
         return "高（显著负相关，加入组合有显著分散价值）"
     if avg_corr < -0.3:
-        return (
-            f"中（负相关较强，但显著性不足（{neg_significant_ratio:.0%} 通过检验），"
-            "负相关可能不稳定）"
-        )
+        return f"中（负相关较强，但显著性不足（{neg_significant_ratio:.0%} 通过检验），" "负相关可能不稳定）"
     return (
         f"高存疑（负相关但 |corr|<0.3，低 R² 下可能为噪声，"
         f"仅 {neg_significant_ratio:.0%} 通过显著性检验，分散价值有限）"
@@ -660,9 +654,7 @@ def compute_full_portfolio_correlation(
     vs_portfolio = None
     industry_overlap = None
     if stock_code:
-        vs_portfolio = compute_stock_vs_portfolio(
-            stock_code, portfolio_codes, window=window
-        )
+        vs_portfolio = compute_stock_vs_portfolio(stock_code, portfolio_codes, window=window)
         # 候选股与持仓的行业重叠率
         try:
             industry_overlap = compute_industry_overlap(
@@ -680,23 +672,15 @@ def compute_full_portfolio_correlation(
         "portfolio_empty": False,
         "portfolio_codes": portfolio_codes,
         "matrix": matrix_payload.get("matrix") if matrix_payload else None,
-        "avg_pairwise_corr": (
-            matrix_payload.get("avg_pairwise_corr") if matrix_payload else None
-        ),
-        "high_corr_pairs": (
-            matrix_payload.get("high_corr_pairs") if matrix_payload else []
-        ),
+        "avg_pairwise_corr": (matrix_payload.get("avg_pairwise_corr") if matrix_payload else None),
+        "high_corr_pairs": (matrix_payload.get("high_corr_pairs") if matrix_payload else []),
         "stability": matrix_payload.get("stability") if matrix_payload else None,
         "vs_portfolio": vs_portfolio,
         "industry_overlap": industry_overlap,
-        "interpretation": (
-            matrix_payload.get("interpretation") if matrix_payload else "无数据"
-        ),
+        "interpretation": (matrix_payload.get("interpretation") if matrix_payload else "无数据"),
         "window_notice": WINDOW_NOTICE,
         "data_quality": (
-            matrix_payload.get("data_quality")
-            if matrix_payload
-            else {"degraded_fields": ["portfolio_correlation"]}
+            matrix_payload.get("data_quality") if matrix_payload else {"degraded_fields": ["portfolio_correlation"]}
         ),
     }
 
@@ -709,9 +693,8 @@ def compute_full_portfolio_correlation(
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="组合相关性矩阵")
+    parser = create_parser(description="组合相关性矩阵")
     parser.add_argument("--stock", default=None, help="候选个股（计算 vs_portfolio）")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--window", type=int, default=60, help="K 线窗口")
     parser.add_argument("--list", action="store_true", help="仅列出持仓代码")
     args = parser.parse_args()
@@ -721,10 +704,8 @@ def main():
         print(f"持仓代码 ({len(codes)}): {codes}")
         return
 
-    result = compute_full_portfolio_correlation(
-        stock_code=args.stock, window=args.window
-    )
-    if args.json:
+    result = compute_full_portfolio_correlation(stock_code=args.stock, window=args.window)
+    if args.json_output:
         import json
 
         print(json.dumps(result, ensure_ascii=False, indent=2))

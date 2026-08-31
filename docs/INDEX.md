@@ -3,7 +3,7 @@
 > 🟢 **一句话**：docs/ 目录下分两层 —— **核心指南**（活跃维护）+ **archive/**（历史归档），按"你是谁 / 你想干啥"两条线分类。
 > 🟡 **只想看一份**？
 > 🆕 新用户 → [quick-start.md](quick-start.md) · 📈 投资者 → [product-architecture.md](product-architecture.md) · 🛠️ 开发者 → [developer-guide.md](developer-guide.md) · 🤝 贡献者 → [CONTRIBUTING.md](../CONTRIBUTING.md)
-> ⚫ **文档数**：9 份核心指南 + 1 份合规 + 26 份历史归档（designs/reviews/reports/releases） = 36 份
+> ⚫ **文档数**：9 份核心指南 + 1 份合规 + 31 份历史归档（designs/reviews/reports/releases） = 41 份
 > 📦 投资方法论新版见 [../methodology.md](../methodology.md)（已从 docs/ 移到仓库根目录）
 
 > 适用文档：stock-analyzer-skill v1.20.2
@@ -205,7 +205,7 @@
 | [2026-06-05-improvement-roadmap.md](archive/designs/2026-06-05-improvement-roadmap.md) | 2026-06 | 早期改进路线图（多数项已完成） |
 | [2026-06-16-skill-workflow-optimization.md](archive/designs/2026-06-16-skill-workflow-optimization.md) | 2026-06 | Skill 工作流优化施工方案（Phase 1-6 已实施） |
 
-### 📊 reviews/ — 审查与回归报告（10 份）
+### 📊 reviews/ — 审查与回归报告（15 份）
 
 | 文档 | 时期 | 说明 |
 | :--- | :--- | :--- |
@@ -217,8 +217,13 @@
 | [skill-smoke-2026-07-28.md](archive/reviews/skill-smoke-2026-07-28.md) | 2026-07-28 | skill 冒烟报告 |
 | [screener-review.md](archive/reviews/screener-review.md) | 2026 | 选股模块审查 |
 | [2026-08-12-replay-meta-review.md](archive/reviews/2026-08-12-replay-meta-review.md) | 2026-08-12 | 运行期元复盘（11 项 P0-P2） |
+| [grill-me-positioning-2026-08-20.md](archive/reviews/grill-me-positioning-2026-08-20.md) | 2026-08-20 | 项目定位压力测试（grill-me） |
+| [backtest-philosophy-review-2026-08-26.md](archive/reviews/backtest-philosophy-review-2026-08-26.md) | 2026-08-26 | 策略胜率 × 投资哲学复盘（6 策略 × 3 窗口 × 2 池 + walk-forward OOS） |
+| [technical-module-review-2026-08-27.md](archive/reviews/technical-module-review-2026-08-27.md) | 2026-08-27 | 技术分析模块审查（technical.py + 19 文件 + 195 例测试） |
+| [deep-audit-2026-08-27.md](archive/reviews/deep-audit-2026-08-27.md) | 2026-08-27 | market/sector/portfolio 模块深度审查 |
+| [deep-audit-round3-2026-08-27.md](archive/reviews/deep-audit-round3-2026-08-27.md) | 2026-08-27 | screener/backtest/stock/chan/experts 逻辑层审查 |
 | [review-issues.md](archive/reviews/review-issues.md) | 2026-Q3 | **75 项深度审阅问题清单（P0×15 + P1×30 + P2×30，Round 11 收官归档）** |
-| [review-verification.md](archive/reviews/review-verification.md) | 2026-Q3 | **逐条源码验证报告（116 项中 100 真实 + 12 部分真实 + 4 不真实/已修复）** |
+| [review-verification.md](archive/reviews/review-verification.md) | 2026-Q3 | **逐条源码验证报告（116 项 / 100 真实 + 12 部分真实 + 4 不真实/已修复）** |
 
 ### 📈 reports/ — 阶段性报告（2 份）
 

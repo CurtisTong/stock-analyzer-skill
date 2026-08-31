@@ -112,13 +112,8 @@ class LongTermEvaluator:
             valuation_score,
         )
 
-        # 合并推理链
-        reasoning = (
-            moat_reasoning
-            + growth_reasoning
-            + stability_reasoning
-            + valuation_reasoning
-        )
+        # 合并各维度评分依据
+        reasoning = moat_reasoning + growth_reasoning + stability_reasoning + valuation_reasoning
 
         return {
             "code": code,
@@ -281,9 +276,7 @@ class LongTermEvaluator:
         elif eps <= 0 and ocf > 0:
             # 亏损但有现金流：可能是账面亏损（折旧等），实际经营有造血能力
             score += 10
-            reasoning.append(
-                f"✅ 虽然账面亏损(EPS={eps:.2f})，但经营现金流为正(OCF={ocf:.2f})，造血能力尚存"
-            )
+            reasoning.append(f"✅ 虽然账面亏损(EPS={eps:.2f})，但经营现金流为正(OCF={ocf:.2f})，造血能力尚存")
         elif ocf <= 0:
             score -= 10
             reasoning.append(f"❌ 经营现金流为负(OCF={ocf:.2f})，需关注资金链风险")
@@ -364,9 +357,7 @@ class LongTermEvaluator:
         else:
             return "不适合"
 
-    def _generate_conclusion(
-        self, total_score, level, moat, growth, stability, valuation
-    ) -> str:
+    def _generate_conclusion(self, total_score, level, moat, growth, stability, valuation) -> str:
         """生成结论。"""
         conclusions = []
 
@@ -376,17 +367,11 @@ class LongTermEvaluator:
                 f"综合评分 {total_score} 分（{level}），护城河宽、成长性好、财务稳健、估值合理，非常适合长期持有。"
             )
         elif total_score >= 60:
-            conclusions.append(
-                f"综合评分 {total_score} 分（{level}），整体质量较好，可考虑长期持有。"
-            )
+            conclusions.append(f"综合评分 {total_score} 分（{level}），整体质量较好，可考虑长期持有。")
         elif total_score >= 45:
-            conclusions.append(
-                f"综合评分 {total_score} 分（{level}），质量一般，需谨慎考虑。"
-            )
+            conclusions.append(f"综合评分 {total_score} 分（{level}），质量一般，需谨慎考虑。")
         else:
-            conclusions.append(
-                f"综合评分 {total_score} 分（{level}），不建议长期持有。"
-            )
+            conclusions.append(f"综合评分 {total_score} 分（{level}），不建议长期持有。")
 
         # 各维度亮点/风险
         if moat >= 70:
@@ -474,7 +459,7 @@ def format_long_term_result(result: dict) -> str:
         lines.append(f"| {dim_name} | {weight:.0%} | {score:.0f} | {level_str} |")
 
     lines.append("")
-    lines.append("## 推理过程")
+    lines.append("## 评分依据")
     lines.append("")
 
     for r in reasoning:

@@ -34,6 +34,7 @@
 """
 
 import argparse
+from common.cli_base import create_parser, handle_errors
 import json
 import os
 import socket
@@ -61,12 +62,8 @@ def _normalize_ths_row(rank: int, row) -> dict:
         "lead_change_pct": _to_float(row.get("领涨股-涨跌幅")),
         "turnover_yi": _to_float(row.get("总成交额")),
         "net_inflow_yi": _to_float(row.get("净流入")),
-        "up_count": (
-            int(row.get("上涨家数", 0) or 0) if _finite(row.get("上涨家数")) else 0
-        ),
-        "down_count": (
-            int(row.get("下跌家数", 0) or 0) if _finite(row.get("下跌家数")) else 0
-        ),
+        "up_count": (int(row.get("上涨家数", 0) or 0) if _finite(row.get("上涨家数")) else 0),
+        "down_count": (int(row.get("下跌家数", 0) or 0) if _finite(row.get("下跌家数")) else 0),
     }
 
 
@@ -87,9 +84,7 @@ def _normalize_eastmoney_row(rank: int, item: dict) -> dict:
         # 东财 f3 是小数 ×100（原始 6.95 表示 6.95%），需除以 100
         "change_pct": _to_float(item.get("f3")) / 100.0 if item.get("f3") else 0.0,
         "lead_stock": str(item.get("f104", "") or ""),
-        "lead_change_pct": (
-            _to_float(item.get("f105")) / 100.0 if item.get("f105") else 0.0
-        ),
+        "lead_change_pct": (_to_float(item.get("f105")) / 100.0 if item.get("f105") else 0.0),
         "turnover_yi": _to_float(item.get("f6")) / 1e8,
         "net_inflow_yi": 0.0,  # push2 不直接给板块净流入，需二次 fetch
         "up_count": 0,
@@ -111,10 +106,7 @@ def fetch_ths_summary(top: int = 30) -> dict:
     df = ak.stock_board_industry_summary_ths()
     # 按涨跌幅降序排序
     df_sorted = df.sort_values("涨跌幅", ascending=False).head(top)
-    items = [
-        _normalize_ths_row(i + 1, row)
-        for i, (_, row) in enumerate(df_sorted.iterrows())
-    ]
+    items = [_normalize_ths_row(i + 1, row) for i, (_, row) in enumerate(df_sorted.iterrows())]
     return {
         "as_of": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "source": "ths",
@@ -126,11 +118,7 @@ def fetch_ths_summary(top: int = 30) -> dict:
 def fetch_eastmoney_summary(top: int = 30) -> dict:
     """备选路径: 东方财富 push2 clist (行业板块 m:90+t:2)."""
     socket.setdefaulttimeout(DEFAULT_TIMEOUT)
-    params = (
-        f"fid=f3&po=1&pz={top}&pn=1"
-        f"&fs=m:90+t:2"
-        f"&fields=f1,f2,f3,f4,f5,f6,f12,f14,f104,f105,f128"
-    )
+    params = f"fid=f3&po=1&pz={top}&pn=1" f"&fs=m:90+t:2" f"&fields=f1,f2,f3,f4,f5,f6,f12,f14,f104,f105,f128"
     url = f"{EASTMONEY_PUSH2}?{params}"
     req = urllib.request.Request(
         url,
@@ -210,8 +198,7 @@ def filter_by_name(items: list, sector_name: str) -> list:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="板块涨跌幅汇总")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
+    parser = create_parser(description="板块涨跌幅汇总")
     parser.add_argument(
         "--source",
         choices=["auto", "ths", "eastmoney"],
@@ -229,7 +216,7 @@ def main():
         for i, it in enumerate(result["items"], start=1):
             it["rank"] = i
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
 

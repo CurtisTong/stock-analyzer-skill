@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data.event import get_events
+from common.cli_base import create_parser, handle_errors
 from common import normalize_quote_code
 
 
@@ -29,9 +30,7 @@ def format_events_text(events: dict) -> str:
     if events["earnings"]:
         lines.append("📊 财报披露:")
         for item in events["earnings"]:
-            lines.append(
-                f"  {item.get('disclosure_date', '?')} - {item.get('name', '?')} ({item.get('code', '?')})"
-            )
+            lines.append(f"  {item.get('disclosure_date', '?')} - {item.get('name', '?')} ({item.get('code', '?')})")
         lines.append("")
 
     if events["lockup"]:
@@ -39,9 +38,7 @@ def format_events_text(events: dict) -> str:
         for item in events["lockup"]:
             cap = item.get("lift_market_cap", 0)
             cap_str = f"{cap:.1f}亿" if cap > 0 else "?"
-            lines.append(
-                f"  {item.get('free_date', '?')} - {item.get('name', '?')} 解禁市值 {cap_str}"
-            )
+            lines.append(f"  {item.get('free_date', '?')} - {item.get('name', '?')} 解禁市值 {cap_str}")
         lines.append("")
 
     if events["dividend"]:
@@ -49,9 +46,7 @@ def format_events_text(events: dict) -> str:
         for item in events["dividend"]:
             bonus = item.get("bonus_per_share", 0)
             bonus_str = f"每股 {bonus:.4f} 元" if bonus > 0 else "?"
-            lines.append(
-                f"  {item.get('ex_date', '?')} - {item.get('name', '?')} {bonus_str}"
-            )
+            lines.append(f"  {item.get('ex_date', '?')} - {item.get('name', '?')} {bonus_str}")
         lines.append("")
 
     if events.get("shareholder"):
@@ -59,17 +54,13 @@ def format_events_text(events: dict) -> str:
         for item in events["shareholder"][:3]:  # 最多显示 3 条
             direction = "增持" if item.get("direction") == "increase" else "减持"
             ratio = item.get("change_ratio", 0)
-            lines.append(
-                f"  {item.get('end_date', '?')} - {item.get('holder_name', '?')} {direction} {ratio:+.2f}%"
-            )
+            lines.append(f"  {item.get('end_date', '?')} - {item.get('holder_name', '?')} {direction} {ratio:+.2f}%")
         lines.append("")
 
     if events.get("violation"):
         lines.append("⚠️ 监管处罚:")
         for item in events["violation"][:3]:  # 最多显示 3 条
-            lines.append(
-                f"  {item.get('punish_date', '?')} - {item.get('reason', '?')[:30]}"
-            )
+            lines.append(f"  {item.get('punish_date', '?')} - {item.get('reason', '?')[:30]}")
         lines.append("")
 
     if events.get("forecast"):
@@ -81,16 +72,8 @@ def format_events_text(events: dict) -> str:
             pmax = item.get("profit_max")
             cmin = item.get("change_min")
             cmax = item.get("change_max")
-            profit_str = (
-                f"{pmin / 1e8:.2f}-{pmax / 1e8:.2f}亿"
-                if pmin is not None and pmax is not None
-                else "?"
-            )
-            change_str = (
-                f"{cmin:+.0f}%-{cmax:+.0f}%"
-                if cmin is not None and cmax is not None
-                else "?"
-            )
+            profit_str = f"{pmin / 1e8:.2f}-{pmax / 1e8:.2f}亿" if pmin is not None and pmax is not None else "?"
+            change_str = f"{cmin:+.0f}%-{cmax:+.0f}%" if cmin is not None and cmax is not None else "?"
             lines.append(
                 f"  {item.get('notice_date', '?')} - {item.get('name', '?')} {ftype} "
                 f"归母 {profit_str} 同比 {change_str}"
@@ -119,16 +102,15 @@ def format_events_text(events: dict) -> str:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="个股事件日历查询")
+    parser = create_parser(description="个股事件日历查询")
     parser.add_argument("code", help="股票代码（如 sh600519）")
     parser.add_argument("--days", type=int, default=30, help="查询天数（默认 30）")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
     args.code = normalize_quote_code(args.code)
 
     events = get_events(args.code, args.days)
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(events, ensure_ascii=False, indent=2))
     else:
         print(format_events_text(events))

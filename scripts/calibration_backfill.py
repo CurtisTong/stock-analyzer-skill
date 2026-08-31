@@ -22,6 +22,7 @@
 """
 
 import argparse
+from common.cli_base import create_parser, handle_errors
 import json
 import sys
 from pathlib import Path
@@ -48,10 +49,7 @@ def cmd_status(args):
     print("=" * 60)
     print(f"\n待验证预测: {len(pending)} 条")
     for p in pending[:10]:
-        print(
-            f"  {p['stock']} ({p['date']}) -> {p['direction']} "
-            f"| 验证日期: {p['verify_after']}"
-        )
+        print(f"  {p['stock']} ({p['date']}) -> {p['direction']} " f"| 验证日期: {p['verify_after']}")
     if len(pending) > 10:
         print(f"  ... 共 {len(pending)} 条")
 
@@ -69,9 +67,7 @@ def cmd_status(args):
 def cmd_verify(args):
     """批量验证到期预测。"""
     price_fn = None if args.no_price else get_kline_return
-    result = verify_predictions(
-        days=args.days, get_price_fn=price_fn, mark_only=args.no_price
-    )
+    result = verify_predictions(days=args.days, get_price_fn=price_fn, mark_only=args.no_price)
     print(f"验证完成: {result['verified']} 条记录")
     print(f"更新专家校准: {result['updated_experts']} 位")
     if result.get("skipped"):
@@ -83,14 +79,8 @@ def cmd_verify(args):
             if d.get("skipped"):
                 print(f"  ⏭ {d['stock']} ({d['direction']}) -> 跳过（无价格）")
                 continue
-            status = (
-                "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
-            )
-            ret = (
-                f"{d['actual_return']:+.1f}%"
-                if d["actual_return"] is not None
-                else "N/A"
-            )
+            status = "✓" if d.get("correct") else ("✗" if d.get("correct") is False else "?")
+            ret = f"{d['actual_return']:+.1f}%" if d["actual_return"] is not None else "N/A"
             print(f"  {status} {d['stock']} ({d['direction']}) -> {ret}")
 
 
@@ -143,7 +133,7 @@ def cmd_import(args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="校准数据回填与管理")
+    parser = create_parser(description="校准数据回填与管理")
     sub = parser.add_subparsers(dest="command", help="子命令")
 
     # status
@@ -152,9 +142,7 @@ def main():
     # verify
     p_verify = sub.add_parser("verify", help="批量验证到期预测")
     p_verify.add_argument("--days", type=int, default=30, help="验证窗口天数 (默认30)")
-    p_verify.add_argument(
-        "--no-price", action="store_true", help="仅标记到期不获取价格"
-    )
+    p_verify.add_argument("--no-price", action="store_true", help="仅标记到期不获取价格")
     p_verify.add_argument("-v", "--verbose", action="store_true", help="输出详情")
 
     # import

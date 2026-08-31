@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from data import get_quotes, get_kline  # noqa: E402 多源数据层
+from common.cli_base import create_parser, handle_errors
 from common import parallel_map  # noqa: E402 并行拉取
 from sector import _load_sector_stocks, find_sector_by_code  # noqa: E402 复用现有函数
 
@@ -119,9 +120,7 @@ def _load_sector_etfs() -> list:
                 continue
             code, name, category = parts[0], parts[1], parts[2]
             bk_code = parts[3] if len(parts) >= 4 and parts[3] else None
-            rows.append(
-                {"code": code, "name": name, "category": category, "bk_code": bk_code}
-            )
+            rows.append({"code": code, "name": name, "category": category, "bk_code": bk_code})
     return rows
 
 
@@ -208,14 +207,8 @@ def compute_etf_strength(etfs_meta: list, etf_quotes: dict) -> list:
                 "code": code,
                 "name": meta["name"],
                 "category": meta["category"],
-                "change_pct": (
-                    round(q["change_pct"], 2)
-                    if q.get("change_pct") is not None
-                    else None
-                ),
-                "turnover": (
-                    round(q["turnover"], 2) if q.get("turnover") is not None else None
-                ),
+                "change_pct": (round(q["change_pct"], 2) if q.get("change_pct") is not None else None),
+                "turnover": (round(q["turnover"], 2) if q.get("turnover") is not None else None),
                 "price": q.get("price"),
                 "data_ok": True,
                 "strength_rank": None,  # 排序后填
@@ -347,9 +340,7 @@ def build_stock_sector_compare(
     else:
         # 板块在 ETF 覆盖盲区（机器人/电力/家电等）
         if sectors:
-            verdict_parts.append(
-                f"板块 {','.join(sectors)} 无对应 ETF 代理（覆盖盲区）"
-            )
+            verdict_parts.append(f"板块 {','.join(sectors)} 无对应 ETF 代理（覆盖盲区）")
         else:
             verdict_parts.append("板块归属未知")
 
@@ -388,15 +379,9 @@ def build_stock_sector_compare(
         "sector_source": sector_source,
         "matched_etf": matched_etf["code"] if matched_etf else None,
         "matched_etf_name": matched_etf["name"] if matched_etf else None,
-        "stock_change_pct": (
-            round(stock_change, 2) if stock_change is not None else None
-        ),
-        "sector_change_pct": (
-            round(sector_change, 2) if sector_change is not None else None
-        ),
-        "index_change_pct": (
-            round(index_change, 2) if index_change is not None else None
-        ),
+        "stock_change_pct": (round(stock_change, 2) if stock_change is not None else None),
+        "sector_change_pct": (round(sector_change, 2) if sector_change is not None else None),
+        "index_change_pct": (round(index_change, 2) if index_change is not None else None),
         "rps_vs_sector": rps_vs_sector,
         "rps_vs_index": rps_vs_index,
         "verdict": "; ".join(verdict_parts) if verdict_parts else "数据缺失",
@@ -508,16 +493,10 @@ def compute_rotation_strength(window: int = 5) -> dict | None:
     # 位次上升 / 下降 top 3（rank_delta 正=位次上升，负=位次下降）
     risers = sorted(rows, key=lambda r: r["rank_delta"], reverse=True)[:3]
     fallers = sorted(rows, key=lambda r: r["rank_delta"])[:3]
-    biggest_risers = [
-        [r["code"], r["name"], r["rank_delta"]] for r in risers if r["rank_delta"] > 0
-    ]
-    biggest_fallers = [
-        [r["code"], r["name"], r["rank_delta"]] for r in fallers if r["rank_delta"] < 0
-    ]
+    biggest_risers = [[r["code"], r["name"], r["rank_delta"]] for r in risers if r["rank_delta"] > 0]
+    biggest_fallers = [[r["code"], r["name"], r["rank_delta"]] for r in fallers if r["rank_delta"] < 0]
 
-    interpretation = _interpret_rotation(
-        rotation_strength, biggest_risers, biggest_fallers
-    )
+    interpretation = _interpret_rotation(rotation_strength, biggest_risers, biggest_fallers)
 
     return {
         "window": window,
@@ -601,9 +580,7 @@ def analyze(stock_code: str | None = None, fetch_index: bool = True) -> dict:
         stock_quote = _fetch_one_quote(stock_code)
         if fetch_index:
             index_quote = _pick_index_quote("sh000300")
-        stock_compare = build_stock_sector_compare(
-            stock_code, stock_quote, etfs, index_quote
-        )
+        stock_compare = build_stock_sector_compare(stock_code, stock_quote, etfs, index_quote)
 
     # 6. 数据质量汇总
     degraded = []
@@ -647,18 +624,13 @@ def _print_table(payload: dict) -> None:
 
     print(f"📊 板块 ETF 横向强度对比  (as_of {as_of})")
     print("=" * 78)
-    print(
-        f"{'排名':<4} {'代码':<10} {'名称':<14} {'类别':<6} {'涨跌%':>7} {'换手%':>6}  强度"
-    )
+    print(f"{'排名':<4} {'代码':<10} {'名称':<14} {'类别':<6} {'涨跌%':>7} {'换手%':>6}  强度")
     print("-" * 78)
     for r in etfs:
         rank = r["strength_rank"] if r["strength_rank"] else "-"
         chg = f"{r['change_pct']:+.2f}" if r["change_pct"] is not None else "N/A"
         tov = f"{r['turnover']:.2f}" if r["turnover"] is not None else "N/A"
-        print(
-            f"{rank:<4} {r['code']:<10} {r['name']:<14} {r['category']:<6} "
-            f"{chg:>7} {tov:>6}  {r['quadrant']}"
-        )
+        print(f"{rank:<4} {r['code']:<10} {r['name']:<14} {r['category']:<6} " f"{chg:>7} {tov:>6}  {r['quadrant']}")
 
     if strong:
         print(f"\n🔥 强势板块 (top 3): {', '.join(strong)}")
@@ -670,9 +642,7 @@ def _print_table(payload: dict) -> None:
         print(f"🎯 个股 vs 板块 vs 大盘 ({compare['stock_code']})")
         print(f"  所属板块    : {compare['stock_sectors'] or '未知'}")
         if compare["matched_etf"]:
-            print(
-                f"  匹配 ETF    : {compare['matched_etf']} {compare['matched_etf_name']}"
-            )
+            print(f"  匹配 ETF    : {compare['matched_etf']} {compare['matched_etf_name']}")
         print(
             f"  个股涨跌    : {compare['stock_change_pct']:+.2f}%"
             if compare["stock_change_pct"] is not None
@@ -701,15 +671,12 @@ def _print_table(payload: dict) -> None:
     dq = payload["data_quality"]
     if dq["degraded_fields"]:
         print(f"\n⚠️  数据降级: {', '.join(dq['degraded_fields'])}")
-    print(
-        f"📊 数据源: sector_etf.csv ({dq['etf_ok_count']}/{dq['etf_total_count']} 个 ETF 成功)"
-    )
+    print(f"📊 数据源: sector_etf.csv ({dq['etf_ok_count']}/{dq['etf_total_count']} 个 ETF 成功)")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="板块 ETF 横向强度对比 + 个股 RPS")
+    parser = create_parser(description="板块 ETF 横向强度对比 + 个股 RPS")
     parser.add_argument("stock_code", nargs="?", help="股票代码（如 sh600519），可选")
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     parser.add_argument("--no-index", action="store_true", help="跳过大盘指数拉取")
     args = parser.parse_args()
 
@@ -718,7 +685,7 @@ def main():
         fetch_index=not args.no_index,
     )
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
         _print_table(payload)

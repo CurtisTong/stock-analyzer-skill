@@ -1,6 +1,6 @@
 # stock-analyzer-skill 产品架构文档
 
-> 🟢 **一句话**：把 16 份专家人设 + 27 个数据源 + 12 个 skill 串成 A 股分析框架。
+> 🟢 **一句话**：把 16 份专家人设 + 35 个 fetcher 类 + 12 个 skill 串成 A 股分析框架。
 > 🟡 **适用读者**：产品经理 / 投资人 / 二次开发者；纯终端用户可直接看 [quick-start.md](quick-start.md)。  
 > 🔴 **风险提示**：本文档描述产品能力；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -70,7 +70,7 @@
 │  └── screening_service.py - 选股服务                            │
 ├─────────────────────────────────────────────────────────────────┤
 │  📊 数据层 (scripts/)                                            │
-│  ├── fetchers/ - 多数据源适配器（27 个数据源 × 7 数据域 = 35 类）│
+│  ├── fetchers/ - 多数据源适配器（35 个 fetcher 类 × 7 数据域 = 35 类）│
 │  ├── common/ - 基础设施 (HTTP/缓存/异常/熔断器)                 │
 │  ├── config/ - YAML 配置外部化                                  │
 │  ├── strategies/ - 选股策略系统                                 │
@@ -78,7 +78,7 @@
 │  └── portfolio/ - 持仓管理模块                                  │
 └─────────────────────────────────────────────────────────────────┘
 
-> **数据源数量核对口径**：27 个真实数据源 fetcher（quote 10 + kline 9 + finance 2 + flow 2 + lhb 1 + event 2 + chip 1），按 7 个数据域覆盖 35 类查询类型。`scripts/fetchers/_common/` 下另有 3 个 helper 文件（`tushare_check` / `pytdx_pool` / `pytdx_meta`）属于基础设施而非数据源。
+> **数据源数量核对口径**：35 个真实数据源 fetcher 类（quote 10 + kline 9 + finance 2 + flow 3 + lhb 2 + event 6 + chip 3），按 7 个数据域覆盖。`scripts/fetchers/_common/` 下另有 4 个 helper 文件（`tushare_check` / `pytdx_pool` / `pytdx_meta` 等）属于基础设施而非数据源。
 
 ### 2.2 核心技术组件
 
@@ -120,7 +120,7 @@
 | 地产     | 房地产开发        | 8%       | 10      | 20%        | 80%        |
 | 周期     | 钢铁/有色/建材    | 10%      | 15      | 15%        | 75%        |
 
-### 2.5 选股策略系统（五因子模型）
+### 2.5 选股策略系统（九因子模型：5 主因子 + 4 辅助因子）
 
 5 种主策略 + 1 模式策略（`scripts/strategies/registry.py`，共 6 种内置策略）：
 
@@ -133,9 +133,9 @@
 | turning_point        | 主策略 | 超跌修复/拐点 | 18%  | 18%  | 32%  | 14%    | 18%    |
 | ma_volume_momentum   | 模式策略 | MA10/MA21 金叉 + 放量 2.5x（⚠️ 样本内拟合：71.4% 胜率仅基于 5 只股票） | — | — | — | — | — |
 
-> 模式策略权重不参与五因子加权打分，而是按 `scripts/strategies/patterns/ma_volume_strategy.py` 的独立信号触发；详见 §2.5 下方说明与 [docs/strategy-validation.md](./strategy-validation.md)。
+> 上表为 5 主因子权重；另有 4 个辅助因子参与打分——`dividend`（红利，权重 0.05）、`chip`（筹码，权重 0.10）、`event`（事件，灰度 0.05）、`analyst`（分析师预期，权重 0）。模式策略权重不参与九因子加权打分，而是按 `scripts/strategies/patterns/ma_volume_strategy.py` 的独立信号触发。
 
-### 2.6 五因子详解
+### 2.6 九因子详解
 
 | 因子       | 文件位置                           | 评分逻辑                                                    |
 | ---------- | ---------------------------------- | ----------------------------------------------------------- |
@@ -144,6 +144,10 @@
 | **动量**   | `strategies/factors/momentum.py`   | 20日收益、趋势、量能比、MACD金叉/死叉、RSI                  |
 | **流动性** | `strategies/factors/liquidity.py`  | 成交额、总市值、换手率（板块差异化）                        |
 | **波动率** | `strategies/factors/volatility.py` | 历史收益率标准差，低波动得高分（A股低波动异象）             |
+| **红利**   | `strategies/factors/dividend.py`   | 股息率 + 分红连续性 + 分红率稳定性                          |
+| **筹码**   | `strategies/factors/chip.py`       | 股东户数变化率 + 融资融券趋势                               |
+| **事件**   | `strategies/factors/event.py`      | 事件因子（待调优，当前权重 0.0）                            |
+| **分析师** | `strategies/factors/analyst.py`    | 分析师预期因子（待调优，当前权重 0.0）                      |
 
 ---
 
@@ -210,7 +214,7 @@
 | `defensive`       | 防御策略   |
 | `turning_point`   | 转折点策略 |
 
-#### 2.2.3 技术分析 (`/technical`)
+#### 2.2.3 技术分析 (`/stock-technical`)
 
 | 指标 | 功能                   |
 | ---- | ---------------------- |
@@ -316,7 +320,7 @@
 
 | 能力域              | v1.16.0 已交付                                                                                                  |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 数据源              | 27 个数据源 × 7 数据域 = 35 类查询；雪球/同花顺接入；yfinance 美股；pytdx 局域网                                  |
+| 数据源              | 35 个 fetcher 类 × 7 数据域 = 35 类查询；雪球/同花顺接入；yfinance 美股；pytdx 局域网                                  |
 | 分析引擎            | 五层分析（基本面/估值/技术/板块/风险收益）；缠论 9 模块；技术面 MACD/KDJ/BOLL/RSI/MA                            |
 | 专家系统            | 16 份专家人设（8 active + 8 legacy）；投票引擎；自校准；胜率卡片                                                 |
 | 选股                | 5 因子模型 + 1 模式策略（ma_volume_momentum）；市场状态自适应；快照；权重优化                                    |
@@ -396,7 +400,7 @@
 | 术语           | 解释                           |
 | -------------- | ------------------------------ |
 | Skill          | Claude Code 的技能命令，如 `/stock sh600519` |
-| BaseFetcher    | 数据源抽象基类，所有 27 个 fetcher 的父类 |
+| BaseFetcher    | 数据源抽象基类，所有 35 个 fetcher 的父类 |
 | CircuitBreaker | 熔断器，防止单点故障；threading.Lock 保护 |
 | 五层分析       | 基本面 → 估值 → 技术 → 板块 → 风险收益 |
 | 专家圆桌       | 16 份专家人设（8 active + 8 legacy）投票决策机制 |

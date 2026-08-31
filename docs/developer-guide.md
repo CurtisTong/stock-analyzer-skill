@@ -24,7 +24,7 @@ stock-analyzer-skill/
 │   ├── vote_engine.py              # 投票引擎
 │   ├── registry.py                 # 专家注册表
 │   └── scoring.py                  # 量化评分
-├── skills/                         # skill 权威源（13 个：9 核心 + 4 变体）
+├── skills/                         # skill 权威源（12 个：8 核心 + 4 变体）
 │   ├── stock/SKILL.md
 │   ├── stock-technical/SKILL.md
 │   ├── market/SKILL.md
@@ -69,7 +69,7 @@ stock-analyzer-skill/
 │   │   ├── chip.py                # 资金面数据汇总（v1.3.1）
 │   │   ├── config.py              # 数据配置
 │   │   └── *.json / *.csv         # 静态参考数据
-│   ├── fetchers/                   # 数据获取层（27 个 fetcher × 7 数据域 = 35 类查询，详见 product-architecture.md §2.3）
+│   ├── fetchers/                   # 数据获取层（35 个 fetcher 类 × 7 数据域，详见 product-architecture.md §2.3）
 │   │   ├── tencent_quote.py       # 腾讯行情
 │   │   ├── eastmoney_quote.py     # 东财行情
 │   │   ├── eastmoney_finance.py   # 东财财务
@@ -212,7 +212,7 @@ python3 scripts/screener.py --strategy defensive --exclude-loss --json
 用法：
 
 ```bash
-python3 scripts/technical.py sh600989 full
+python3 scripts/technical.py sh600989 --classify   # 完整分析（含缠论+战法）
 ```
 
 ### chan.py - 缠论结构

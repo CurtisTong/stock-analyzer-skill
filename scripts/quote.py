@@ -25,7 +25,7 @@ from common import (
     err,
     DataError,
 )
-from common.cli_base import handle_errors
+from common.cli_base import create_parser, handle_errors
 from data import get_quotes
 
 
@@ -40,15 +40,8 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="实时行情查询（多数据源自动切换）")
-    parser.add_argument(
-        "code", nargs="?", help="股票代码（如 sh600989）或 @codes.txt 文件路径"
-    )
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
-    parser.add_argument("--sources", action="store_true", help="显示可用数据源")
-    parser.add_argument(
-        "--debug", action="store_true", help="调试模式：异常时打印完整 traceback"
-    )
+    parser = create_parser(description="实时行情查询（多数据源自动切换）")
+    parser.add_argument("code", nargs="?", help="股票代码（如 sh600989）或 @codes.txt 文件路径")
     args = parser.parse_args()
     if args.debug:
         import os
@@ -78,16 +71,14 @@ def main():
     # get_quotes 返回 Quote 对象，需归一化为 dict 以兼容 JSON 序列化与表格字段索引
     all_records = [q.to_dict() for q in quotes] if quotes else fetch_batch(codes)
 
-    if args.json:
+    if args.json_output:
         print(json.dumps(all_records, ensure_ascii=False, indent=2))
         return
 
     if not all_records:
         print("(无数据)")
         return
-    print(
-        f"{'代码':<10} {'名称':<10} {'现价':>8} {'涨跌%':>7} {'PE':>7} {'换手%':>6} {'市值亿':>8}"
-    )
+    print(f"{'代码':<10} {'名称':<10} {'现价':>8} {'涨跌%':>7} {'PE':>7} {'换手%':>6} {'市值亿':>8}")
     print("-" * 60)
     for r in all_records:
         print(

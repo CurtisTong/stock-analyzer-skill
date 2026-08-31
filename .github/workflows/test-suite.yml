@@ -10,7 +10,7 @@ on:
       fail-under:
         description: "覆盖率门槛"
         type: string
-        default: "21"
+        default: "30"
 
 jobs:
   test:
@@ -25,16 +25,14 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
-      - name: 跑 unit + integration 测试
+      - name: 跑全量测试（unit + integration + contracts + e2e + dispatch）
         run: |
-          python -m pytest tests/integration/ tests/unit/ tests/contracts/ \
-            -x -q \
+          python -m pytest tests/ \
+            -q \
+            --maxfail=10 \
             -m "not network" \
             --timeout=60 \
             -n auto \
             --durations=10 \
             --cov=scripts --cov=experts \
             --cov-fail-under=${{ inputs.fail-under }}
-
-      - name: 跑 skill 元数据校验
-        run: python -m pytest tests/contracts/ -v

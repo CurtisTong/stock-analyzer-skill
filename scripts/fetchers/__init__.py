@@ -2,18 +2,18 @@
 数据源集合：自动发现并加载可用的数据源。
 依赖包未安装时自动跳过对应数据源。
 
-v1.3.2 起按数据域分组（7 个数据域 × 27 个 fetcher 模块 / 35 个 fetcher 类），
+v1.3.2 起按数据域分组（7 个数据域 × 35 个 fetcher 类），
 便于扩展时定位代码。子目录化后通过 __init__.py re-export 屏蔽 import 路径变更。
 
 数据域分块：
   quote   - 实时行情        （10 个模块：tencent/eastmoney/sina/xueqiu/ths/efinance/akshare/tushare/pytdx/yfinance）
   kline   - K 线            （9 个模块：sina/eastmoney/tencent/efinance/akshare/tushare/baostock/pytdx/yfinance）
   finance - 财务            （2 个模块：eastmoney/akshare）
-  flow    - 资金流向        （2 个模块：eastmoney/sina，3 个 fetcher 类）
-  lhb     - 龙虎榜          （1 个模块：eastmoney，2 个 fetcher 类）
-  event   - 事件日历        （2 个模块：eastmoney/performance_forecast，6 个 fetcher 类）
-  chip    - 融资融券/股东   （1 个模块：eastmoney，3 个 fetcher 类）
-  _common - 内部辅助        （1 个模块：pytdx_pool，非 fetcher）
+  flow    - 资金流向        （3 个模块：eastmoney/sina/akshare）
+  lhb     - 龙虎榜          （2 个模块：eastmoney）
+  event   - 事件日历        （6 个模块：eastmoney/performance_forecast）
+  chip    - 融资融券/股东   （3 个模块：eastmoney）
+  _common - 内部辅助        （4 个模块：tushare_check/pytdx_pool/pytdx_meta 等，非 fetcher）
 """
 
 import logging
@@ -110,9 +110,7 @@ def get_kline_fetchers() -> list:
         from .kline.eastmoney_kline import EastmoneyKlineFetcher
         from .kline.tencent_kline import TencentKlineFetcher
 
-        fetchers.extend(
-            [SinaKlineFetcher(), EastmoneyKlineFetcher(), TencentKlineFetcher()]
-        )
+        fetchers.extend([SinaKlineFetcher(), EastmoneyKlineFetcher(), TencentKlineFetcher()])
 
         for mod, cls in [
             ("kline.efinance_kline", "EfinanceKlineFetcher"),
@@ -176,9 +174,7 @@ def get_flow_fetchers() -> list:
         from .flow.eastmoney_flow import NorthboundFlowFetcher, StockFlowFetcher
         from .flow.sina_flow import SinaNorthboundFlowFetcher
 
-        fetchers.extend(
-            [NorthboundFlowFetcher(), StockFlowFetcher(), SinaNorthboundFlowFetcher()]
-        )
+        fetchers.extend([NorthboundFlowFetcher(), StockFlowFetcher(), SinaNorthboundFlowFetcher()])
 
         _fetcher_cache["flow"] = fetchers
         return fetchers
@@ -329,9 +325,7 @@ def _load_source_config(section: str) -> dict:
         return {}
 
 
-def _get_or_create(
-    domain: str, factory, source_section: str | None = None
-) -> DataFetcherManager:
+def _get_or_create(domain: str, factory, source_section: str | None = None) -> DataFetcherManager:
     """线程安全的管理器获取。"""
     mgr = _managers.get(domain)
     if mgr is not None:

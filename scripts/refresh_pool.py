@@ -23,6 +23,7 @@ import sys
 
 # 复用 common.py 的分类工具（消除与 _classify_board/_infer_exchange 的重复）
 sys.path.insert(0, os.path.dirname(__file__))
+from common.cli_base import create_parser, handle_errors
 from common import board_type, infer_exchange
 from data.pool import (
     # 常量
@@ -101,30 +102,8 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="股票池自动刷新")
+    parser = create_parser(description="股票池自动刷新")
     parser.add_argument("--sector", "-s", nargs="+", help="只刷新指定板块")
-    parser.add_argument(
-        "--top", "-n", type=int, default=20, help="每板块取 Top N（默认 20）"
-    )
-    parser.add_argument(
-        "--sort",
-        choices=["amount", "cap", "pe", "turnover"],
-        default="amount",
-        help="排序方式（默认 amount 成交额）",
-    )
-    parser.add_argument("--dry-run", action="store_true", help="只打印不写入")
-    parser.add_argument("--diff", action="store_true", help="对比当前池显示变更")
-    parser.add_argument(
-        "--default", action="store_true", help="使用预置默认数据初始化（不访问 API）"
-    )
-    parser.add_argument(
-        "--full-market",
-        action="store_true",
-        help="拉取全市场 A 股列表（约 5000 只），保存到 all_stocks.json",
-    )
-    parser.add_argument(
-        "-j", "--json", action="store_true", help="输出机器可读 JSON 摘要"
-    )
     args = parser.parse_args()
 
     if args.full_market:
@@ -155,7 +134,7 @@ def main():
             "sort_by": args.sort or "default",
         }
 
-    if args.json:
+    if args.json_output:
         print(json.dumps({"status": "ok", **result}, ensure_ascii=False, indent=2))
 
 

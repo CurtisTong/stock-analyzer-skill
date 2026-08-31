@@ -325,7 +325,7 @@ ROE: 31.2%（连续 5 年 > 25%）
 ## 常见问题
 
 **Q: 数据源挂了怎么办？**
-A: 自动故障转移，27 个 fetcher 模块依次尝试。用 `python3 scripts/monitor.py --sources` 查看状态。
+A: 自动故障转移，35 个 fetcher 类依次尝试。用 `python3 scripts/monitor.py --sources` 查看状态。
 
 **Q: 专家投票冲突怎么办？**
 A: 由 `decide.md` 定义的整合规则裁决——加权投票 + 长短线分仓建议。

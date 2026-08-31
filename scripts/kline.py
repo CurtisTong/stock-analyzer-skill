@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import json
 import argparse
 from common import normalize_quote_code, err, DataError
-from common.cli_base import handle_errors
+from common.cli_base import create_parser, handle_errors
 from data import get_kline
 
 
@@ -104,7 +104,7 @@ def main():
 
     cleanup_tmp_files()
 
-    parser = argparse.ArgumentParser(description="K 线数据查询（多数据源自动切换）")
+    parser = create_parser(description="K 线数据查询（多数据源自动切换）")
     parser.add_argument("symbol", nargs="?", help="股票代码（如 sh600989）")
     parser.add_argument(
         "scale",
@@ -113,15 +113,9 @@ def main():
         default=240,
         help="K 线周期（240=日，5=5分钟），默认 240",
     )
-    parser.add_argument(
-        "datalen", nargs="?", type=int, default=30, help="数据条数，默认 30"
-    )
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
-    parser.add_argument("--sources", action="store_true", help="显示可用数据源")
+    parser.add_argument("datalen", nargs="?", type=int, default=30, help="数据条数，默认 30")
     # #10: 添加 --days 别名，兼容用户直觉（等价于 datalen 位置参数）
-    parser.add_argument(
-        "--days", type=int, default=None, help="数据条数别名（等价于 datalen）"
-    )
+    parser.add_argument("--days", type=int, default=None, help="数据条数别名（等价于 datalen）")
     args = parser.parse_args()
 
     # --days 覆盖 datalen 位置参数
@@ -142,7 +136,7 @@ def main():
 
     symbol = normalize_quote_code(args.symbol)
     records = fetch(symbol, args.scale, args.datalen)
-    if args.json:
+    if args.json_output:
         print(json.dumps(records, ensure_ascii=False, indent=2))
     else:
         print(render_table(records))

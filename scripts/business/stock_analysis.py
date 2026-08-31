@@ -46,7 +46,7 @@ class StockAnalysisService:
 
         Args:
             finance_periods: 财务数据期数（默认 4；full/debate 模式传 8 以覆盖累计同比 vs
-                单季度同比的口径差异，详见 2026-07-09 宝丰能源复盘）。
+                单季度同比的累计/单季口径差异）。
         """
         return _analyze(
             code,
@@ -102,11 +102,7 @@ def _analyze(
     ex = get_shared_executor()
     f_quote = ex.submit(get_quote, code)
     f_kline = ex.submit(get_kline, code, 240, 240)
-    f_finance = (
-        ex.submit(get_finance, code, periods=finance_periods)
-        if include_finance
-        else None
-    )
+    f_finance = ex.submit(get_finance, code, periods=finance_periods) if include_finance else None
     # 并行拉取上证指数行情，用于 detect_market_environment
     f_index = ex.submit(get_quote, "sh000001")
 
@@ -114,9 +110,7 @@ def _analyze(
         quote = f_quote.result(timeout=15)
     except Exception as e:
         logger.warning("获取行情失败 %s: %s", code, e)
-        result["data_warnings"].append(
-            f"⚠ 行情数据获取失败（{type(e).__name__}），以下分析可能不完整"
-        )
+        result["data_warnings"].append(f"⚠ 行情数据获取失败（{type(e).__name__}），以下分析可能不完整")
         result["data_failed"].append("行情")
         quote = None
     else:
@@ -128,9 +122,7 @@ def _analyze(
         kline = f_kline.result(timeout=30)
     except Exception as e:
         logger.warning("获取K线失败 %s: %s", code, e)
-        result["data_warnings"].append(
-            f"⚠ K线数据获取失败（{type(e).__name__}），技术面分析将跳过"
-        )
+        result["data_warnings"].append(f"⚠ K线数据获取失败（{type(e).__name__}），技术面分析将跳过")
         result["data_failed"].append("K线")
         kline = None
     else:
@@ -147,9 +139,7 @@ def _analyze(
             finance = finance_result or []
     except Exception as e:
         logger.warning("获取财务数据失败 %s: %s", code, e)
-        result["data_warnings"].append(
-            f"⚠ 财务数据获取失败（{type(e).__name__}），基本面分析将跳过"
-        )
+        result["data_warnings"].append(f"⚠ 财务数据获取失败（{type(e).__name__}），基本面分析将跳过")
         result["data_failed"].append("财务")
         finance = None
     else:
@@ -186,9 +176,7 @@ def _analyze(
     if not kline or len(kline) < 10:
         logger.warning(f"K线数据不足: {code}")
         result["warning"] = "K线数据不足"
-        result["data_warnings"].append(
-            f"⚠ K线数据不足（{len(kline) if kline else 0}根，需≥10根），技术面分析将跳过"
-        )
+        result["data_warnings"].append(f"⚠ K线数据不足（{len(kline) if kline else 0}根，需≥10根），技术面分析将跳过")
     else:
         result["kline_count"] = len(kline)
 
@@ -196,9 +184,7 @@ def _analyze(
             result["technical"] = _analyze_technical(kline)
             if result["technical"].get("_technical_error"):
                 # K 线临界（10-59 根）技术面整体失败：标注降级，评分走中性
-                result["data_warnings"].append(
-                    "⚠ 技术面分析失败（K线数据不足），技术评分按中性处理"
-                )
+                result["data_warnings"].append("⚠ 技术面分析失败（K线数据不足），技术评分按中性处理")
 
         if include_chan and len(kline) >= _MIN_KLINE_DAYS:
             result["chan"] = _analyze_chan([b.to_dict() for b in kline])
@@ -213,9 +199,7 @@ def _analyze(
     if "technical" in result and "profile" in result:
         quote_dict = quote.to_dict() if quote else {}
         # 传入真实大盘指数行情（sh000001），而非个股 quote
-        result["score"] = _calculate_composite_score(
-            result, quote_dict, index_quote=index_quote
-        )
+        result["score"] = _calculate_composite_score(result, quote_dict, index_quote=index_quote)
 
     return result
 
@@ -285,7 +269,7 @@ def _analyze_chan(kline: list) -> dict:
         return {"error": str(e)}
 
 
-# period_type -> 中文口径标签（2026-07-23 宝丰能源 PE 误算复盘）
+# period_type -> 中文口径标签（2026-07-23 宝丰能源 PE 口径修正）
 _PERIOD_LABEL_MAP = {
     "annual": "年报",
     "cumulative": "累计",
@@ -334,9 +318,7 @@ def _extract_finance_summary(fin: dict) -> dict:
     return summary
 
 
-def _calculate_composite_score(
-    result: dict, quote_dict: dict = None, index_quote=None
-) -> dict:
+def _calculate_composite_score(result: dict, quote_dict: dict = None, index_quote=None) -> dict:
     """计算综合评分（注入市场环境状态）。"""
     from technical import composite_score
     from technical.scoring import detect_market_environment
@@ -407,16 +389,12 @@ def _calculate_composite_score(
         if index_quote:
             env = detect_market_environment(index_quote.to_dict())
             market_state = env.get("state", "震荡")
-            logger.debug(
-                "市场环境: %s (置信度: %s)", market_state, env.get("confidence")
-            )
+            logger.debug("市场环境: %s (置信度: %s)", market_state, env.get("confidence"))
     except Exception as e:
         logger.debug("获取大盘行情失败，使用默认市场环境: %s", e)
 
     stock_type = profile.get("type", "普通股")
-    score_result = composite_score(
-        features, stock_type=stock_type, market_state=market_state
-    )
+    score_result = composite_score(features, stock_type=stock_type, market_state=market_state)
 
     return score_result
 

@@ -16,6 +16,7 @@ import sys
 import json
 import argparse
 from datetime import datetime, timedelta
+from common.cli_base import create_parser, handle_errors
 from common import http_get, err, DataError, cache_key_for_stock, cache_get, cache_set
 from common.utils import plain_code
 
@@ -99,7 +100,7 @@ def render_reports(items: list) -> str:
         date = it.get("publishDate", "")[:10]
         it.get("infoCode", "")  # 简化
         lines.append(f"{date} | {org} | {title}")
-    # 追加机构一致预期小结（解决审查 #17：机构预期完全缺失）
+    # 追加机构一致预期小结（研报含机构预期时）
     consensus = summarize_consensus(items)
     if consensus:
         lines.append("")
@@ -107,13 +108,10 @@ def render_reports(items: list) -> str:
         lines.append(f"覆盖机构数: {consensus['institution_count']}")
         if consensus["target_price_avg"] > 0:
             lines.append(
-                f"目标价均值: {consensus['target_price_avg']:.2f} 元"
-                f"（{consensus['target_price_count']} 家给出）"
+                f"目标价均值: {consensus['target_price_avg']:.2f} 元" f"（{consensus['target_price_count']} 家给出）"
             )
         if consensus["rating_distribution"]:
-            rating_str = "、".join(
-                f"{k} {v}家" for k, v in consensus["rating_distribution"]
-            )
+            rating_str = "、".join(f"{k} {v}家" for k, v in consensus["rating_distribution"])
             lines.append(f"评级分布: {rating_str}")
         if consensus["predict_eps_this_year"] > 0:
             lines.append(
@@ -129,7 +127,7 @@ def render_reports(items: list) -> str:
 
 
 def summarize_consensus(items: list) -> dict:
-    """从研报列表聚合机构一致预期（解决审查 #17）。
+    """从研报列表聚合机构一致预期。
 
     东财 reportapi 已返回目标价/评级/预测EPS/预测PE，但 render_reports 原仅提取
     标题/机构/日期，本函数补齐结构化聚合。
@@ -184,9 +182,7 @@ def summarize_consensus(items: list) -> dict:
 
     return {
         "institution_count": len(items),
-        "target_price_avg": (
-            sum(target_prices) / len(target_prices) if target_prices else 0.0
-        ),
+        "target_price_avg": (sum(target_prices) / len(target_prices) if target_prices else 0.0),
         "target_price_count": len(target_prices),
         "rating_distribution": sorted(ratings.items(), key=lambda x: -x[1]),
         "predict_eps_this_year": _safe_float(latest.get("predictThisYearEps")),
@@ -197,7 +193,7 @@ def summarize_consensus(items: list) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="东方财富公告 + 研报")
+    parser = create_parser(description="东方财富公告 + 研报")
     parser.add_argument("code", nargs="?", help="股票代码（如 600989）")
     parser.add_argument(
         "mode",
@@ -206,7 +202,6 @@ def main():
         choices=["announcements", "reports"],
         help="类型：announcements（公告）或 reports（研报）",
     )
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
     if not args.code:
@@ -214,14 +209,14 @@ def main():
 
     if args.mode == "reports":
         data = fetch_reports(args.code)
-        if args.json:
+        if args.json_output:
             print(json.dumps(data, ensure_ascii=False, indent=2))
         else:
             print(f"\n=== 研报 {args.code} ===")
             print(render_reports(data))
     else:
         data = fetch_announcements(args.code)
-        if args.json:
+        if args.json_output:
             print(json.dumps(data, ensure_ascii=False, indent=2))
         else:
             print(f"\n=== 公告 {args.code} ===")

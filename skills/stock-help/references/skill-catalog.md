@@ -11,8 +11,8 @@
 /stock <股票名称或代码> quick        # 3 分钟快评
 /stock <股票名称或代码> full         # 五层完整分析
 /stock <股票名称或代码> debate       # 8 人专家圆桌辩论（5 长线 + 3 短线）
-/stock <股票名称或代码> debate 长线  # 仅长线 4 人专家
-/stock <股票名称或代码> debate 短线  # 仅短线 4 人专家
+/stock <股票名称或代码> debate 长线  # 仅长线 5 人专家
+/stock <股票名称或代码> debate 短线  # 仅短线 3 人专家
 /stock <股票代码> technical        # 技术分析（原 /technical）
 /stock <股票代码> technical quick  # 快速技术扫描
 /stock <股票代码> technical full   # 完整报告+缠论+战法

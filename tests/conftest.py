@@ -197,30 +197,11 @@ def sample_finance_efinance() -> dict:
 
 
 @pytest.fixture
-def mock_http_get(monkeypatch):
-    """Mock common.http_get，避免真实网络请求。
-
-    注：fetchers 测试优先使用 respx_mock（见 helpers.http_fixtures），
-    此 fixture 仅供旧式 monkeypatch 测试使用。
-    """
-
-    def _mock(url, timeout=10):
-        return b""
-
-    import common
-
-    monkeypatch.setattr(common, "http_get", _mock)
-    return _mock
-
-
-@pytest.fixture
 def mock_fetch_kline(monkeypatch, kline_uptrend):
     """Mock kline.fetch，返回标准上升趋势数据。"""
     import kline
 
-    monkeypatch.setattr(
-        kline, "fetch", lambda code, scale="day", limit=250: kline_uptrend
-    )
+    monkeypatch.setattr(kline, "fetch", lambda code, scale="day", limit=250: kline_uptrend)
     return kline_uptrend
 
 
@@ -229,9 +210,7 @@ def mock_fetch_batch(monkeypatch, sample_quote):
     """Mock quote.fetch_batch，返回标准行情。"""
     import quote
 
-    monkeypatch.setattr(
-        quote, "fetch_batch", lambda codes: {c: sample_quote for c in codes}
-    )
+    monkeypatch.setattr(quote, "fetch_batch", lambda codes: {c: sample_quote for c in codes})
     return sample_quote
 
 

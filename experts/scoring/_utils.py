@@ -83,9 +83,7 @@ def _safe_float(val, default: float = 0.0) -> float:
         return default
 
 
-def score_from_dimensions(
-    profile: ExpertProfile, dim_scores: Dict[str, float]
-) -> float:
+def score_from_dimensions(profile: ExpertProfile, dim_scores: Dict[str, float]) -> float:
     """根据维度分和权重计算专家总分（0-100）。
 
     Args:
@@ -106,9 +104,7 @@ def score_from_dimensions(
     return max(0.0, min(100.0, total))
 
 
-def dimension_breakdown(
-    profile: ExpertProfile, dim_scores: Dict[str, float]
-) -> Dict[str, float]:
+def dimension_breakdown(profile: ExpertProfile, dim_scores: Dict[str, float]) -> Dict[str, float]:
     """返回每个维度的加权贡献（用于在 debate 报告中显示）。
 
     与 score_from_dimensions 一致，对输入分值做 0-100 钳制。
@@ -184,11 +180,7 @@ def _score_valuation(quote: dict, fin: dict, industry: str = "默认") -> float:
         return 50.0
     pe = float(quote.get("pe") or 0)
     pb = float(quote.get("pb") or 0)
-    growth = (
-        float(fin.get("net_profit_yoy") or fin.get("PARENTNETPROFITTZ") or 0)
-        if fin
-        else 0
-    )
+    growth = float(fin.get("net_profit_yoy") or fin.get("PARENTNETPROFITTZ") or 0) if fin else 0
 
     if pe <= 0 and pb <= 0:
         return 50.0
@@ -387,14 +379,12 @@ def format_generic_reasoning(
         "",
         "## 评分明细",
         "",
-        "| 维度 | 权重 | 得分 | 推理过程 |",
+        "| 维度 | 权重 | 得分 | 评分依据 |",
         "|------|------|------|----------|",
     ]
 
     for dim, info in dimensions.items():
-        lines.append(
-            f"| {dim} | {info['weight']:.0%} | {info['score']:.0f} | {info['reason']} |"
-        )
+        lines.append(f"| {dim} | {info['weight']:.0%} | {info['score']:.0f} | {info['reason']} |")
 
     lines.append("")
     lines.append("## 关键判断")

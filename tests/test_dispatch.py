@@ -6,11 +6,7 @@ test_dispatch_final2.py 合并而来。三文件内容互补不重复，合并�
 动作类型分组组织，便于维护。
 """
 
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -26,9 +22,7 @@ class TestAddReduceRemove:
 
         pm = MagicMock()
         pm.add_position.return_value = True
-        result = dispatch(
-            pm, {"action": "add", "code": "sh600519", "quantity": 100, "cost": 1800}
-        )
+        result = dispatch(pm, {"action": "add", "code": "sh600519", "quantity": 100, "cost": 1800})
         assert isinstance(result, dict)
 
     def test_reduce_position(self):
@@ -56,9 +50,7 @@ class TestUpdatePosition:
 
         pm = MagicMock()
         pm.update_position.return_value = True
-        result = dispatch(
-            pm, {"action": "update", "code": "sh600519", "cost": 1800, "quantity": 100}
-        )
+        result = dispatch(pm, {"action": "update", "code": "sh600519", "cost": 1800, "quantity": 100})
         assert isinstance(result, dict)
 
     def test_update_error(self):
@@ -103,9 +95,7 @@ class TestWatch:
 
         pm = MagicMock()
         pm.add_watch.return_value = True
-        result = dispatch(
-            pm, {"action": "add_watch", "code": "sh600519", "name": "茅台"}
-        )
+        result = dispatch(pm, {"action": "add_watch", "code": "sh600519", "name": "茅台"})
         assert isinstance(result, dict)
 
     def test_add_watch_with_note(self):
@@ -141,9 +131,7 @@ class TestDispatchErrors:
 
         pm = MagicMock()
         pm.add_position.side_effect = ValueError("bad")
-        result = dispatch(
-            pm, {"action": "add", "code": "sh600519", "quantity": 100, "cost": 1800}
-        )
+        result = dispatch(pm, {"action": "add", "code": "sh600519", "quantity": 100, "cost": 1800})
         assert isinstance(result, dict)
 
     def test_reduce_position_error(self):

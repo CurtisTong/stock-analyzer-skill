@@ -83,8 +83,8 @@ python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：�
 按 `../_shared/references/script-catalog.md` 调用 `quote.py` / `finance.py` / `kline.py` / `announcements.py`。**批量调用语法差异（quote 逗号位置参数 / finance 必须 `-c` / kline·technical·market_anchor 逐个）见 script-catalog.md §多代码批量调用约定**。多股分析推荐用 helper 批量取数：
 
 ```bash
-python3 scripts/dev/multi_fetch.py finance sh600519 sh600036 sh000858 -j
-python3 scripts/dev/multi_fetch.py technical sh600519 sh600036 --quick
+python3 scripts/dev/multi_fetch.py finance sh600519 sh600036 sh000858
+python3 scripts/dev/multi_fetch.py technical sh600519 sh600036
 ```
 
 `--with-backtest` 模式附加近 60 日回测胜率（`win_rate` / `total_return` / `sharpe` / `max_drawdown`）：

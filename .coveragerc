@@ -13,7 +13,7 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 
-fail_under = 21
+fail_under = 30
 show_missing = true
 skip_empty = true
 precision = 1

@@ -91,7 +91,7 @@ data/strategy_oos_validation.json（git ignored, 运行时）
 
 **规则**：README / CHANGELOG / SKILL.md 顶部 banner 等"对外宣传位置"只能写以下三类内容：
 
-1. **机制类声明**："支持 6 策略 × 6 因子 × 27 fetcher"——可观察可验证
+1. **机制类声明**："支持 6 策略 × 9 因子 × 35 fetcher"——可观察可验证
 2. **OOS 数字**：当且仅当 `validation_status == oos_verified` 时才允许写胜率/收益数字
 3. **结构类声明**："8 位活跃专家圆桌"——结构性事实（已合并底料来源链路见 experts/ARCHITECTURE.md）
 

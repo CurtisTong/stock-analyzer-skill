@@ -27,7 +27,7 @@
 ### 使用场景
 
 - **每日开盘前**：`/market quick` 看大盘，`/portfolio health` 看持仓
-- **盘中异动**：`/monitor scan` 检查触发条件
+- **盘中异动**：`/portfolio health` 检查持仓异动与风险预警
 - **周末复盘**：`/stock <持仓股> debate` 深度分析
 - **发现机会**：`/screener` 筛选候选，`/stock <候选> quick` 快速验证
 

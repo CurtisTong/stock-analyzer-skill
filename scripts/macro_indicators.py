@@ -52,6 +52,9 @@ SNAPSHOT_TTL_SECONDS = 3600
 # ═══════════════════════════════════════════════════════════════
 
 
+from common.cli_base import create_parser, handle_errors
+
+
 def _load_snapshot() -> dict:
     """读取 macro_snapshot.json fixture。失败返回空 dict。"""
     try:
@@ -185,9 +188,7 @@ def _akshare_get(symbol: str) -> float | None:
         return None
 
 
-def _akshare_get_history(
-    symbol: str, lookback: int = _PERCENTILE_LOOKBACK
-) -> list[float] | None:
+def _akshare_get_history(symbol: str, lookback: int = _PERCENTILE_LOOKBACK) -> list[float] | None:
     """拉取国内商品期货连续合约近 N 个交易日收盘价序列（用于分位计算）。
 
     复用 futures_zh_daily_sina 同一接口（已含完整历史），不额外请求。
@@ -434,9 +435,7 @@ def fetch_wti_oil() -> dict | None:
     return fetch_commodity("CL=F", "wti_oil_usd")
 
 
-def fetch_commodity_akshare(
-    material_key: str, fixture_key: str, symbol: str
-) -> dict | None:
+def fetch_commodity_akshare(material_key: str, fixture_key: str, symbol: str) -> dict | None:
     """国内商品期货连续合约拉取（akshare 实时优先 + fixture 兜底）。
 
     3 段式（对称于 fetch_commodity 的 yfinance 版本）：
@@ -533,10 +532,7 @@ def fetch_coal() -> dict | None:
     pct_key = "coal_percentile_1y"
 
     # 1. 新鲜 fixture 短路（per-key TTL）
-    if (
-        _key_is_fresh(snapshot, "coal_thermal_cny_t")
-        and "coal_thermal_cny_t" in snapshot
-    ):
+    if _key_is_fresh(snapshot, "coal_thermal_cny_t") and "coal_thermal_cny_t" in snapshot:
         return {
             "value": snapshot["coal_thermal_cny_t"],
             "as_of": snapshot["updated"],
@@ -711,119 +707,53 @@ def fetch_all() -> dict:
         for v in section.values():
             if isinstance(v, dict) and "as_of" in v:
                 timestamps.append(v["as_of"])
-    as_of = (
-        max(timestamps) if timestamps else datetime.now().isoformat(timespec="seconds")
-    )
+    as_of = max(timestamps) if timestamps else datetime.now().isoformat(timespec="seconds")
 
     return {
         "as_of": as_of,
         "macro": {
-            "treasury_10y_pct": (
-                macro["treasury_10y_pct"]["value"]
-                if macro["treasury_10y_pct"]
-                else None
-            ),
-            "treasury_10y_pct_source": (
-                macro["treasury_10y_pct"]["source"]
-                if macro["treasury_10y_pct"]
-                else None
-            ),
+            "treasury_10y_pct": (macro["treasury_10y_pct"]["value"] if macro["treasury_10y_pct"] else None),
+            "treasury_10y_pct_source": (macro["treasury_10y_pct"]["source"] if macro["treasury_10y_pct"] else None),
             "usd_index": macro["usd_index"]["value"] if macro["usd_index"] else None,
-            "usd_index_source": (
-                macro["usd_index"]["source"] if macro["usd_index"] else None
-            ),
+            "usd_index_source": (macro["usd_index"]["source"] if macro["usd_index"] else None),
             "usd_cny": macro["usd_cny"]["value"] if macro["usd_cny"] else None,
-            "usd_cny_source": (
-                macro["usd_cny"]["source"] if macro["usd_cny"] else None
-            ),
+            "usd_cny_source": (macro["usd_cny"]["source"] if macro["usd_cny"] else None),
             "vix": macro["vix"]["value"] if macro["vix"] else None,
             "vix_source": macro["vix"]["source"] if macro["vix"] else None,
-            "gold_usd_oz": (
-                macro["gold_usd_oz"]["value"] if macro["gold_usd_oz"] else None
-            ),
-            "gold_usd_oz_source": (
-                macro["gold_usd_oz"]["source"] if macro["gold_usd_oz"] else None
-            ),
-            "brent_oil_usd": (
-                macro["brent_oil_usd"]["value"] if macro["brent_oil_usd"] else None
-            ),
-            "brent_oil_usd_source": (
-                macro["brent_oil_usd"]["source"] if macro["brent_oil_usd"] else None
-            ),
-            "wti_oil_usd": (
-                macro["wti_oil_usd"]["value"] if macro["wti_oil_usd"] else None
-            ),
-            "wti_oil_usd_source": (
-                macro["wti_oil_usd"]["source"] if macro["wti_oil_usd"] else None
-            ),
+            "gold_usd_oz": (macro["gold_usd_oz"]["value"] if macro["gold_usd_oz"] else None),
+            "gold_usd_oz_source": (macro["gold_usd_oz"]["source"] if macro["gold_usd_oz"] else None),
+            "brent_oil_usd": (macro["brent_oil_usd"]["value"] if macro["brent_oil_usd"] else None),
+            "brent_oil_usd_source": (macro["brent_oil_usd"]["source"] if macro["brent_oil_usd"] else None),
+            "wti_oil_usd": (macro["wti_oil_usd"]["value"] if macro["wti_oil_usd"] else None),
+            "wti_oil_usd_source": (macro["wti_oil_usd"]["source"] if macro["wti_oil_usd"] else None),
             "lithium_carbonate_cny_t": (
-                macro["lithium_carbonate_cny_t"]["value"]
-                if macro["lithium_carbonate_cny_t"]
-                else None
+                macro["lithium_carbonate_cny_t"]["value"] if macro["lithium_carbonate_cny_t"] else None
             ),
             "lithium_carbonate_cny_t_source": (
-                macro["lithium_carbonate_cny_t"]["source"]
-                if macro["lithium_carbonate_cny_t"]
-                else None
+                macro["lithium_carbonate_cny_t"]["source"] if macro["lithium_carbonate_cny_t"] else None
             ),
         },
         "leverage": {
             "margin_balance_total_yi": (
-                leverage["margin_balance_total"]["value"]
-                if leverage["margin_balance_total"]
-                else None
+                leverage["margin_balance_total"]["value"] if leverage["margin_balance_total"] else None
             ),
             "margin_balance_total_yi_source": (
-                leverage["margin_balance_total"]["source"]
-                if leverage["margin_balance_total"]
-                else None
+                leverage["margin_balance_total"]["source"] if leverage["margin_balance_total"] else None
             ),
             "margin_change_5d_pct": (
-                leverage["margin_balance_total"]["change_5d_pct"]
-                if leverage["margin_balance_total"]
-                else None
+                leverage["margin_balance_total"]["change_5d_pct"] if leverage["margin_balance_total"] else None
             ),
-            "if_main_basis_pts": (
-                leverage["if_main_basis"]["value"]
-                if leverage["if_main_basis"]
-                else None
-            ),
-            "if_main_basis_pts_source": (
-                leverage["if_main_basis"]["source"]
-                if leverage["if_main_basis"]
-                else None
-            ),
-            "ic_main_basis_pts": (
-                leverage["ic_main_basis"]["value"]
-                if leverage["ic_main_basis"]
-                else None
-            ),
-            "ic_main_basis_pts_source": (
-                leverage["ic_main_basis"]["source"]
-                if leverage["ic_main_basis"]
-                else None
-            ),
-            "ih_main_basis_pts": (
-                leverage["ih_main_basis"]["value"]
-                if leverage["ih_main_basis"]
-                else None
-            ),
-            "ih_main_basis_pts_source": (
-                leverage["ih_main_basis"]["source"]
-                if leverage["ih_main_basis"]
-                else None
-            ),
+            "if_main_basis_pts": (leverage["if_main_basis"]["value"] if leverage["if_main_basis"] else None),
+            "if_main_basis_pts_source": (leverage["if_main_basis"]["source"] if leverage["if_main_basis"] else None),
+            "ic_main_basis_pts": (leverage["ic_main_basis"]["value"] if leverage["ic_main_basis"] else None),
+            "ic_main_basis_pts_source": (leverage["ic_main_basis"]["source"] if leverage["ic_main_basis"] else None),
+            "ih_main_basis_pts": (leverage["ih_main_basis"]["value"] if leverage["ih_main_basis"] else None),
+            "ih_main_basis_pts_source": (leverage["ih_main_basis"]["source"] if leverage["ih_main_basis"] else None),
         },
         "valuation_bridge": {
-            "erp_sh300_pct": (
-                valuation_bridge["erp_sh300"]["value"]
-                if valuation_bridge["erp_sh300"]
-                else None
-            ),
+            "erp_sh300_pct": (valuation_bridge["erp_sh300"]["value"] if valuation_bridge["erp_sh300"] else None),
             "erp_sh300_pct_source": (
-                valuation_bridge["erp_sh300"]["source"]
-                if valuation_bridge["erp_sh300"]
-                else None
+                valuation_bridge["erp_sh300"]["source"] if valuation_bridge["erp_sh300"] else None
             ),
         },
         "_raw": {
@@ -845,14 +775,11 @@ def fetch_all() -> dict:
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="宏观指标获取（yfinance + fixture fallback）"
-    )
-    parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
+    parser = create_parser(description="宏观指标获取（yfinance + fixture fallback）")
     args = parser.parse_args()
 
     data = fetch_all()
-    if args.json:
+    if args.json_output:
         # 移除 _raw（CLI 不展示原始 dict）
         out = {k: v for k, v in data.items() if k != "_raw"}
         print(json.dumps(out, ensure_ascii=False, indent=2))
@@ -872,9 +799,7 @@ def main():
 
         print("\n💪 杠杆:")
         lev = data["leverage"]
-        print(
-            f"  两市两融余额 : {lev['margin_balance_total_yi']} 亿元（5 日 {lev['margin_change_5d_pct']}%）"
-        )
+        print(f"  两市两融余额 : {lev['margin_balance_total_yi']} 亿元（5 日 {lev['margin_change_5d_pct']}%）")
         print(f"  IF 主基差   : {lev['if_main_basis_pts']} 点")
         print(f"  IC 主基差   : {lev['ic_main_basis_pts']} 点")
         print(f"  IH 主基差   : {lev['ih_main_basis_pts']} 点")

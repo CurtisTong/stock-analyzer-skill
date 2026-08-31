@@ -13,14 +13,13 @@ import sys
 import time
 from pathlib import Path
 from typing import List
+from common.cli_base import create_parser, handle_errors
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 def _parse_codes(s: str) -> List[str]:
-    from common import normalize_quote_code
-
     return [normalize_quote_code(c) for c in s.split(",")]
 
 
@@ -51,9 +50,7 @@ def bench_screener(codes: List[str], rounds: int) -> dict:
         "total_seconds": round(sum(durations), 3),
         "avg_per_round": round(statistics.mean(durations), 3),
         "stdev": round(statistics.stdev(durations), 3) if len(durations) >= 2 else 0,
-        "per_stock_ms": round(
-            statistics.mean(durations) * 1000 / max(len(codes), 1), 2
-        ),
+        "per_stock_ms": round(statistics.mean(durations) * 1000 / max(len(codes), 1), 2),
     }
 
 
@@ -84,13 +81,11 @@ def bench_backtest(codes: List[str], rounds: int) -> dict:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="性能压测")
+    parser = create_parser(description="性能压测")
     sub = parser.add_subparsers(dest="command")
 
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument(
-        "--codes", default="sh600519,sh600989,sh600000,sh600036,sh601318"
-    )
+    common.add_argument("--codes", default="sh600519,sh600989,sh600000,sh600036,sh601318")
     common.add_argument("--rounds", type=int, default=3)
 
     sub.add_parser("all", parents=[common], help="跑所有压测")
