@@ -157,7 +157,7 @@ def test_model_field_valid(skill_path):
 VERSION_OVERRIDES = {
     # 当前所有 skill 与主版本一致
 }
-DEFAULT_VERSION = "1.21.1"
+DEFAULT_VERSION = "1.22.0"
 # <SYNC-SKILL-VERSIONS:END>
 
 
