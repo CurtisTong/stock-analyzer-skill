@@ -136,12 +136,13 @@ def run_one_strategy(
     try:
         # 修复：改调 run_backtest（返回 total_return_pct/sharpe_ratio 等完整指标），
         # 而非 simulate_strategy（只返回原始收益序列，导致 format_report 读取不到字段而全零）。
-        # run_backtest 内部按 days//rounds 推导 holding_days，此处透传 days。
+        # v1.22.1 修复：透传 holding_days（此前被静默忽略，CLI 打印"持有 X 日"与实际不符）。
         result = run_backtest(
             strategy_name=strategy_name,
             codes=codes,
             top_n=top_n,
             days=total_days,
+            holding_days=holding_days,
         )
         return {
             "strategy": strategy_name,
@@ -156,7 +157,7 @@ def run_one_strategy(
         }
 
 
-def run_benchmark(code: str, name: str, total_days: int = 60) -> dict:
+def run_benchmark(code: str, name: str, total_days: int = 60, holding_days: int | None = None) -> dict:
     """跑基准指数回测（用 balanced 策略权重在指数上）。"""
     try:
         from backtest.metrics import run_backtest
@@ -169,6 +170,7 @@ def run_benchmark(code: str, name: str, total_days: int = 60) -> dict:
             codes=[code],
             top_n=1,
             days=total_days,
+            holding_days=holding_days,
         )
         return {"benchmark": name, "code": code, "result": result}
     except Exception as e:
@@ -300,7 +302,7 @@ def main() -> None:
     benchmark_results = []
     for code, name in BENCHMARKS:
         print(f"⏳ 跑基准 {name}({code}) ...")
-        result = run_benchmark(code, name, total_days=args.total_days)
+        result = run_benchmark(code, name, total_days=args.total_days, holding_days=args.holding_days)
         benchmark_results.append(result)
         if "error" in result:
             print(f"   ❌ {result['error']}")

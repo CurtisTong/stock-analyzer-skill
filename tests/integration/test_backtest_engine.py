@@ -29,8 +29,7 @@ def _make_quote_obj(code="sh600519", name="贵州茅台", price=1800.0, **kwargs
 def _make_kline_bars(prices):
     """从价格列表构造 KlineBar 列表（含 volume，满足 compute_indicators 五字段过滤）。"""
     return [
-        KlineBar(day=f"2025-01-{i+1:02d}", close=p, open=p, high=p, low=p, volume=1000)
-        for i, p in enumerate(prices)
+        KlineBar(day=f"2025-01-{i+1:02d}", close=p, open=p, high=p, low=p, volume=1000) for i, p in enumerate(prices)
     ]
 
 
@@ -55,9 +54,7 @@ class TestFetchHistoricalReturns:
     def test_empty_records_returns_empty(self, monkeypatch):
         import backtest
 
-        monkeypatch.setattr(
-            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: []
-        )
+        monkeypatch.setattr(backtest.engine, "get_kline", lambda code, scale=240, datalen=65: [])
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert result == []
 
@@ -65,9 +62,7 @@ class TestFetchHistoricalReturns:
         import backtest
 
         bars = _make_kline_bars([100.0])
-        monkeypatch.setattr(
-            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars
-        )
+        monkeypatch.setattr(backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars)
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert result == []
 
@@ -75,9 +70,7 @@ class TestFetchHistoricalReturns:
         import backtest
 
         bars = _make_kline_bars([100.0, 110.0, 99.0, 108.9])
-        monkeypatch.setattr(
-            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars
-        )
+        monkeypatch.setattr(backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars)
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert len(result) == 3
         assert result[0] == pytest.approx(0.1)  # +10%
@@ -88,9 +81,7 @@ class TestFetchHistoricalReturns:
         import backtest
 
         bars = _make_kline_bars([0.0, 100.0, 110.0])
-        monkeypatch.setattr(
-            backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars
-        )
+        monkeypatch.setattr(backtest.engine, "get_kline", lambda code, scale=240, datalen=65: bars)
         result = backtest.fetch_historical_returns("sh600519", 60)
         assert len(result) == 1
         assert result[0] == pytest.approx(0.1)
@@ -192,9 +183,7 @@ class TestSimulateStrategy:
         self._mock_all(monkeypatch, sample_finance, kline_uptrend)
 
         result = backtest.simulate_strategy(
-            backtest.SimContext(
-                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=5
-            )
+            backtest.SimContext(strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=5)
         )
         assert "strategy" in result
         assert "selections" in result
@@ -207,19 +196,13 @@ class TestSimulateStrategy:
         """K 线数据不足时返回错误。"""
         import backtest
 
-        monkeypatch.setattr(
-            backtest.engine, "get_kline", lambda code, scale=240, datalen=70: []
-        )
+        monkeypatch.setattr(backtest.engine, "get_kline", lambda code, scale=240, datalen=70: [])
         monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [])
 
-        result = backtest.simulate_strategy(
-            backtest.SimContext(strategy_name="balanced", codes=["sh600519"])
-        )
+        result = backtest.simulate_strategy(backtest.SimContext(strategy_name="balanced", codes=["sh600519"]))
         assert "error" in result
 
-    def test_rolling_window_generates_returns(
-        self, monkeypatch, sample_finance, kline_uptrend
-    ):
+    def test_rolling_window_generates_returns(self, monkeypatch, sample_finance, kline_uptrend):
         """验证滚动窗口生成多个收益周期。"""
         import backtest
         import screener
@@ -251,9 +234,7 @@ class TestSimulateStrategy:
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         result = backtest.simulate_strategy(
-            backtest.SimContext(
-                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10
-            )
+            backtest.SimContext(strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10)
         )
         assert "error" not in result
         assert result["total_periods"] > 1  # 滚动窗口应产生多个周期
@@ -296,9 +277,7 @@ class TestSimulateStrategy:
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
         backtest.simulate_strategy(
-            backtest.SimContext(
-                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=5
-            )
+            backtest.SimContext(strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=5)
         )
         assert finance_called["count"] > 0
 
@@ -334,16 +313,12 @@ class TestRunBacktest:
 
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
-    def test_returns_statistical_fields(
-        self, monkeypatch, sample_finance, kline_uptrend
-    ):
+    def test_returns_statistical_fields(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
 
         self._mock_all(monkeypatch, sample_finance, kline_uptrend)
 
-        result = backtest.run_backtest(
-            "balanced", ["sh600519"], top_n=1, days=30, rounds=3
-        )
+        result = backtest.run_backtest("balanced", ["sh600519"], top_n=1, days=30, rounds=3)
         assert "total_return_pct" in result
         assert "avg_return_pct" in result
         assert "win_rate_pct" in result
@@ -353,16 +328,12 @@ class TestRunBacktest:
         assert "max_drawdown_pct" in result
         assert "round_details" in result
 
-    def test_win_rate_between_0_and_100(
-        self, monkeypatch, sample_finance, kline_uptrend
-    ):
+    def test_win_rate_between_0_and_100(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
 
         self._mock_all(monkeypatch, sample_finance, kline_uptrend)
 
-        result = backtest.run_backtest(
-            "balanced", ["sh600519"], top_n=1, days=30, rounds=3
-        )
+        result = backtest.run_backtest("balanced", ["sh600519"], top_n=1, days=30, rounds=3)
         assert 0 <= result["win_rate_pct"] <= 100
 
 
@@ -480,9 +451,7 @@ class TestOptimizeWeights:
 
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
-    def test_restores_original_weights(
-        self, monkeypatch, sample_finance, kline_uptrend
-    ):
+    def test_restores_original_weights(self, monkeypatch, sample_finance, kline_uptrend):
         """验证优化后原始权重被恢复。"""
         import backtest
         import screener
@@ -493,9 +462,7 @@ class TestOptimizeWeights:
         backtest.optimize_weights(["sh600519"], "balanced", top_n=1, days=10)
         assert screener.STRATEGIES["balanced"] == original
 
-    def test_restores_weights_on_exception(
-        self, monkeypatch, sample_finance, kline_uptrend
-    ):
+    def test_restores_weights_on_exception(self, monkeypatch, sample_finance, kline_uptrend):
         """验证异常时也能恢复权重。"""
         import backtest
         import screener
@@ -639,11 +606,7 @@ class TestBuildHistQuote:
         """amount/volume 取自 K 线。"""
         import backtest
 
-        bars = [
-            KlineBar(
-                day="d1", open=10, high=10, low=10, close=10, volume=5000, amount=50000
-            )
-        ]
+        bars = [KlineBar(day="d1", open=10, high=10, low=10, close=10, volume=5000, amount=50000)]
         result = backtest._build_hist_quote(bars, 0, {}, "sh600989")
         assert result["volume"] == 5000
         assert result["amount"] == 50000
@@ -831,9 +794,7 @@ class TestIsLimitOrSuspended:
                 low=10.0,
                 volume=1000,
             ),
-            KlineBar(
-                day="2025-01-02", close=10.0, open=10.0, high=10.0, low=10.0, volume=0
-            ),
+            KlineBar(day="2025-01-02", close=10.0, open=10.0, high=10.0, low=10.0, volume=0),
         ]
         assert self._is_limit(bars, 1, "sh600001") is True
 
@@ -881,12 +842,129 @@ class TestRegimeIndexWiring:
         monkeypatch.setattr(backtest.engine, "_classify_regime_from_index", spy)
 
         result = backtest.simulate_strategy(
-            backtest.SimContext(
-                strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10
-            )
+            backtest.SimContext(strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10)
         )
         assert "error" not in result
         # 修复前：主路径用 _classify_for_backtest（个股 bars），此函数零调用
         assert calls, "指数级 regime 判定应被主路径调用"
         # 每次调用传入指数 bars（>= 80 根 gate）与当前交易日
         assert all(n >= 80 for n, _ in calls)
+
+
+class TestWinByPosition:
+    """分位置胜率（v1.22.1 修复：按持有期分段统计）。"""
+
+    def test_period_based_counting(self):
+        """每个持有期的位置索引应重置，而非全局拼接。"""
+        from backtest import _calc_win_by_position
+
+        # 2 个持有期，每期 6 天（thirds=2）：early=day0-1 / mid=day2-3 / late=day4-5
+        result = {
+            "period_daily_returns": [
+                [0.01, 0.02, -0.01, 0.01, -0.02, 0.01],  # 期1
+                [-0.01, 0.02, 0.01, -0.02, 0.01, 0.02],  # 期2
+            ]
+        }
+        wp = _calc_win_by_position([result], holding_days=6)
+        # early: 2 期 × 2 天 = 4 样本，3 正（期1:2 + 期2:1）→ 75%
+        assert wp["early"] == 75.0
+        # mid: 4 样本，期1:1 正 + 期2:1 正 → 50%
+        assert wp["mid"] == 50.0
+        # late: 4 样本，期1:1 正 + 期2:2 正 → 75%
+        assert wp["late"] == 75.0
+
+    def test_legacy_flat_fallback(self):
+        """无 period_daily_returns 时退化到扁平拼接（兼容旧结构）。"""
+        from backtest import _calc_win_by_position
+
+        result = {"daily_returns": [0.01, 0.02, -0.01, 0.01]}
+        wp = _calc_win_by_position([result], holding_days=6)
+        # 扁平：early=day0-1（2 正）、mid=day2-3（1 正）、late=空
+        assert wp["early"] == 100.0
+        assert wp["mid"] == 50.0
+        assert wp["late"] == 0
+
+
+class TestHoldingDaysPassthrough:
+    """run_backtest holding_days 透传（v1.22.1 修复 multi_stock_backtest 参数被忽略）。"""
+
+    def test_holding_days_reaches_simulate(self, monkeypatch, sample_finance, kline_uptrend):
+        import backtest
+        from datetime import datetime, timedelta
+        from data.types import KlineBar
+
+        finance_obj = _make_finance_obj()
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
+        today = datetime.now()
+
+        def _mock_kline(code, scale=240, datalen=140):
+            n = max(datalen, 140)
+            bars = []
+            for i in range(n):
+                d = today - timedelta(days=n - i)
+                bars.append(
+                    KlineBar(
+                        day=d.strftime("%Y-%m-%d"),
+                        close=10 + i * 0.3,
+                        open=10 + i * 0.3,
+                        high=10 + i * 0.3,
+                        low=10 + i * 0.3,
+                        volume=1000,
+                    )
+                )
+            return bars
+
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
+
+        captured = {}
+        orig = backtest.metrics.simulate_strategy
+
+        def spy(ctx):
+            captured["holding_days"] = ctx.holding_days
+            return orig(ctx)
+
+        monkeypatch.setattr(backtest.metrics, "simulate_strategy", spy)
+
+        backtest.run_backtest("balanced", ["sh600519"], top_n=1, days=30, rounds=3, holding_days=3)
+        assert captured["holding_days"] == 3
+
+    def test_default_derives_from_days_rounds(self, monkeypatch, sample_finance, kline_uptrend):
+        """holding_days=None 时保持 days//rounds 推导（历史行为）。"""
+        import backtest
+        from datetime import datetime, timedelta
+        from data.types import KlineBar
+
+        finance_obj = _make_finance_obj()
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
+        today = datetime.now()
+
+        def _mock_kline(code, scale=240, datalen=140):
+            n = max(datalen, 140)
+            bars = []
+            for i in range(n):
+                d = today - timedelta(days=n - i)
+                bars.append(
+                    KlineBar(
+                        day=d.strftime("%Y-%m-%d"),
+                        close=10 + i * 0.3,
+                        open=10 + i * 0.3,
+                        high=10 + i * 0.3,
+                        low=10 + i * 0.3,
+                        volume=1000,
+                    )
+                )
+            return bars
+
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
+
+        captured = {}
+        orig = backtest.metrics.simulate_strategy
+
+        def spy(ctx):
+            captured["holding_days"] = ctx.holding_days
+            return orig(ctx)
+
+        monkeypatch.setattr(backtest.metrics, "simulate_strategy", spy)
+
+        backtest.run_backtest("balanced", ["sh600519"], top_n=1, days=30, rounds=3)
+        assert captured["holding_days"] == 10  # 30 // 3

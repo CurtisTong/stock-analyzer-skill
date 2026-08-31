@@ -22,12 +22,16 @@ from strategies.factors.liquidity import liquidity_score
 from strategies.factors.momentum import momentum_score
 from technical.pipeline import compute_indicators
 from strategies.regime import compute_overlay_weights, RegimeState
-from strategies.regime.classifier import _classify_for_backtest, classify_regime
+from strategies.regime.classifier import classify_regime
 from strategies.regime.detector import compute_signals_from_bars
 from config.loader import safe_get
 from classifier import infer_industry
 
 logger = logging.getLogger(__name__)
+
+# 因子计算所需的最小历史 K 线根数（回测评估起点）。
+# metrics._fetch_benchmark_returns 依赖此常量对齐基准与策略评估窗口。
+MIN_HISTORY = 60
 
 
 def fetch_historical_returns(code: str, days: int = 60) -> list:
@@ -156,7 +160,7 @@ def simulate_strategy(ctx: SimContext):
 
     if weights is None:
         weights = get_strategy(strategy_name)
-    min_history = 60
+    min_history = MIN_HISTORY
 
     datalen = min_history + total_days + 10
 
@@ -233,9 +237,7 @@ def simulate_strategy(ctx: SimContext):
 
         i = min_history
         # eval_end 上限 = len(bars)（datalen 不足时窗口截断，不越界）
-        eval_end = (
-            min(ctx.eval_end, len(bars)) if ctx.eval_end is not None else len(bars)
-        )
+        eval_end = min(ctx.eval_end, len(bars)) if ctx.eval_end is not None else len(bars)
         while i + holding_days <= eval_end:
             if bars[i].day < common_start_date:
                 i += holding_days
@@ -268,8 +270,10 @@ def simulate_strategy(ctx: SimContext):
             # 修复：原调用 chip_score_dynamic(hist_quote, fin, industry) 签名错误
             # （chip_score_dynamic 只收 code），TypeError 被 except 吞掉致 chip 因子永远为 0。
             # 改用 chip_score_static(code)，回测中避免网络请求。
+            # v1.22.1 修复：传 trade_day 做披露时点过滤，消除 chip 因子前瞻偏差
+            # （原实现用当前股东户数数据评分历史所有时点）。
             try:
-                chip = _chip_score(code)
+                chip = _chip_score(code, trade_day=bars[i].day)
                 if chip > 0:
                     parts["chip"] = chip
             except Exception as e:
@@ -284,14 +288,10 @@ def simulate_strategy(ctx: SimContext):
             # _classify_regime_from_index）此前无调用方，主路径仍用个股 bars 误判
             # regime。现改为指数 bars + current_day 截断（严格无前瞻）。
             if i >= 60:
-                regime, extreme_drop = _classify_regime_from_index(
-                    index_bars, bars[i].day
-                )
+                regime, extreme_drop = _classify_regime_from_index(index_bars, bars[i].day)
             else:
                 regime, extreme_drop = RegimeState.RANGE, False
-            effective_weights = compute_overlay_weights(
-                weights, regime, extreme_drop=extreme_drop
-            )
+            effective_weights = compute_overlay_weights(weights, regime, extreme_drop=extreme_drop)
 
             score = sum(
                 parts.get(k, 0) * effective_weights.get(k, 0)
@@ -349,25 +349,24 @@ def simulate_strategy(ctx: SimContext):
 
     portfolio_returns = []
     portfolio_daily_returns = []
+    # v1.22.1: 每期日收益分段（供分位置胜率按持有期统计，而非全局拼接）
+    portfolio_period_daily_returns = []
     selection_details = []
 
     for date in sorted(valid_dates):
-        group_list = sorted(date_groups[date], key=lambda x: x["score"], reverse=True)[
-            :top_n
-        ]
+        group_list = sorted(date_groups[date], key=lambda x: x["score"], reverse=True)[:top_n]
         avg_ret = sum(s["return_pct"] for s in group_list) / len(group_list)
         portfolio_returns.append(avg_ret / 100)
-        stock_daily_returns = [
-            s["daily_returns"] for s in group_list if s["daily_returns"]
-        ]
+        stock_daily_returns = [s["daily_returns"] for s in group_list if s["daily_returns"]]
         if stock_daily_returns:
             max_len = max(len(d) for d in stock_daily_returns)
+            period_daily = []
             for day_idx in range(max_len):
-                day_returns = [
-                    d[day_idx] for d in stock_daily_returns if day_idx < len(d)
-                ]
+                day_returns = [d[day_idx] for d in stock_daily_returns if day_idx < len(d)]
                 if day_returns:
-                    portfolio_daily_returns.append(sum(day_returns) / len(day_returns))
+                    period_daily.append(sum(day_returns) / len(day_returns))
+            portfolio_daily_returns.extend(period_daily)
+            portfolio_period_daily_returns.append(period_daily)
         selection_details.extend(group_list)
 
     if not portfolio_returns:
@@ -380,13 +379,12 @@ def simulate_strategy(ctx: SimContext):
         "selections": selection_details[:20],
         "returns": [round(r * 100, 2) for r in portfolio_returns],
         "daily_returns": portfolio_daily_returns,
+        "period_daily_returns": portfolio_period_daily_returns,
         "avg_return_pct": round(avg_return, 2),
         "total_periods": len(portfolio_returns),
         "holding_days": holding_days,
         "top_n": top_n,
-        "data_sources": (
-            sorted(finance_sources) if finance_sources else ["K线(多源聚合)"]
-        ),
+        "data_sources": (sorted(finance_sources) if finance_sources else ["K线(多源聚合)"]),
         "is_degraded": finance_degraded,
     }
 
@@ -503,8 +501,14 @@ def _calc_return_with_stop_loss(
                     # 按移动止盈价成交（保守估计）
                     ret = (trail_stop - entry_price) / entry_price
                     return ret, day, "take_profit"
-        # 日内触及止损（最低价跌破止损线）→ 按止损价成交
+        # 日内触及止损（最低价跌破止损线）→ 按止损价成交。
+        # v1.22.1 修复：ATR 模式下返回实际止损价收益（stop_price-entry）/entry。
+        # ATR 止损价可宽于固定 -8%，原实现恒返回 stop_loss（-8%）会系统性
+        # 少报亏损、高估回测收益。固定模式（atr_multiplier=None）保持返回
+        # stop_loss 原值，不改变既有回测结果。
         if bar.low <= stop_price:
+            if atr_multiplier is not None:
+                return (stop_price - entry_price) / entry_price, day, "stop_loss"
             return stop_loss, day, "stop_loss"
         # 固定止盈（仅非移动止盈模式）
         if trailing_pct is None:
@@ -614,8 +618,12 @@ def _fetch_index_bars_for_backtest(kline_data: dict):
         return existing
 
     try:
-        # v2.8: 拉取 80 根 K 线（gate 80 阈值，与 _classify_regime_from_index 对齐）
-        return get_kline("sh000300", scale=240, datalen=80)
+        # v2.8: 拉取 80 根 K 线（gate 80 阈值，与 _classify_regime_from_index 对齐）。
+        # v1.22.1 修复：walk-forward 旧窗口的 current_day 早于最近 80 根时，
+        # 截断后 < 80 根导致 regime 恒为 RANGE_LOW_VOL。现按最深个股 K 线序列
+        # 同深拉取，覆盖整个回测窗口（gate 仍为 80）。
+        max_depth = max((len(b) for b in kline_data.values()), default=80)
+        return get_kline("sh000300", scale=240, datalen=max(80, max_depth))
     except Exception as e:
         logger.debug("backtest 拉取 sh000300 失败: %s", e)
         return []

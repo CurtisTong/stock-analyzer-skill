@@ -72,11 +72,27 @@ class TestAtrStopLoss:
         hist = _flat_bars(14) + [_Bar(10, 11.9, 9, 10.5)]
         hold = [_Bar(10.5, 10.6, 9.0, 9.2)]
         bars = hist + hold
-        ret, day, reason = _calc_return_with_stop_loss(
-            bars, len(hist) - 1, 5, atr_multiplier=2.0
-        )
+        ret, day, reason = _calc_return_with_stop_loss(bars, len(hist) - 1, 5, atr_multiplier=2.0)
         assert reason == "stop_loss"
         assert day == 1
+
+    def test_atr_stop_reports_actual_stop_price(self):
+        """ATR 止损触发时应返回实际止损价收益，而非固定 -8%（v1.22.1 修复）。
+
+        回归：原实现 return stop_loss（-8%），而 ATR 止损价可宽于 -8%，
+        返回固定值会少报亏损、高估回测收益。
+        """
+        # 16 根 ±10% 波动历史：bars[:15] 满足 period+1=15，ATR 才真正计算
+        hist = [_Bar(10, 11, 9, 10) for _ in range(16)]  # 每根 TR=2 → ATR=2
+        entry = 10.0
+        atr = _calc_atr(hist)
+        stop_price = entry - 2 * atr  # 10 - 4 = 6.0，宽于固定 -8%
+        assert stop_price < entry * 0.92  # 确认 ATR 止损确实更宽
+        hold = [_Bar(10, 10.5, stop_price - 0.1, 6.2)]  # low 触及止损价
+        ret, day, reason = _calc_return_with_stop_loss(hist + hold, 15, 5, atr_multiplier=2.0)
+        assert reason == "stop_loss"
+        assert day == 1
+        assert ret == pytest.approx((stop_price - entry) / entry, abs=1e-6)
 
     def test_atr_unavailable_falls_back_to_fixed(self):
         """ATR 不可用（0）时回退固定止损。"""
@@ -96,9 +112,7 @@ class TestTrailingStop:
             _Bar(11.2, 12.5, 11.0, 11.3),  # day4 峰值 12.5，收盘 11.3
             _Bar(11.3, 11.4, 10.6, 10.8),  # day5 跌破
         ]
-        ret, day, reason = _calc_return_with_stop_loss(
-            hist + hold, 14, 5, trailing_pct=0.05
-        )
+        ret, day, reason = _calc_return_with_stop_loss(hist + hold, 14, 5, trailing_pct=0.05)
         # 峰值 12.5 回撤 5% = 11.875；day4 收盘 11.3 ≤ 11.875 → 当日触发
         assert reason == "take_profit"
         assert day == 4
@@ -111,18 +125,14 @@ class TestTrailingStop:
             _Bar(10, 11.5, 9.8, 11.2),  # 冲高 11.5，收盘 11.2（未破 11.5*0.95）
             _Bar(11.2, 11.6, 11.0, 11.4),
         ]
-        ret, day, reason = _calc_return_with_stop_loss(
-            hist + hold, 14, 5, trailing_pct=0.05
-        )
+        ret, day, reason = _calc_return_with_stop_loss(hist + hold, 14, 5, trailing_pct=0.05)
         assert reason == "normal"
 
     def test_trailing_requires_profit_first(self):
         """峰值从未超过入场价时移动止盈不触发。"""
         hist = _flat_bars(15)
         hold = [_Bar(10, 9.8, 9.5, 9.6), _Bar(9.6, 9.7, 9.3, 9.4)]
-        ret, day, reason = _calc_return_with_stop_loss(
-            hist + hold, 14, 5, trailing_pct=0.05
-        )
+        ret, day, reason = _calc_return_with_stop_loss(hist + hold, 14, 5, trailing_pct=0.05)
         assert reason == "normal"
 
 

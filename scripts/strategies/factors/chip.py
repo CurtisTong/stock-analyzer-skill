@@ -24,7 +24,7 @@ _STALE_FLOOR = 0.5  # 衰减下限
 _TRADING_DAYS_PER_CALENDAR = 0.68  # 日历日 -> 交易日近似系数（252/365）
 
 
-def chip_score_static(code: str) -> float:
+def chip_score_static(code: str, trade_day: str | None = None) -> float:
     """Phase 1 静态评分：仅用缓存数据（股东户数变化率）。满分 100。
 
     从 data/chip 缓存读取，零网络开销，适用于 5000 只初筛。
@@ -36,27 +36,33 @@ def chip_score_static(code: str) -> float:
 
     Args:
         code: 股票代码（如 sh600989）
+        trade_day: 回测时点（YYYY-MM-DD）。传值时仅使用 end_date <= trade_day
+            的已披露户数记录，消除回测前瞻偏差；None 时用最新数据（实盘筛选）。
 
     Returns:
         0-100 筹码因子得分
     """
-    holders = _get_cached_holders(code)
+    holders = _get_cached_holders(code, periods=12 if trade_day else 4)
     if not holders or len(holders) < 2:
         return 50  # 无数据给中性分
 
+    if trade_day:
+        # 回测时点过滤：只用 trade_day 之前（含）已披露的户数记录。
+        # get_holders 按时间倒序返回，eligible[:4] 取最近 4 期。
+        eligible = [h for h in holders if h.end_date and h.end_date <= trade_day]
+        if len(eligible) < 2:
+            return 50  # 该时点已披露记录不足，给中性分（等效因子不参与选股）
+        holders = eligible[:4]
+
     # (#5) 多期平滑：取最近 4 期变化率中位数
     recent = holders[:4]
-    changes = [
-        to_float(h.holder_num_change)
-        for h in recent
-        if to_float(h.holder_num_change) != 0
-    ]
+    changes = [to_float(h.holder_num_change) for h in recent if to_float(h.holder_num_change) != 0]
     if not changes:
         return 50  # 无有效变化率
     smoothed_change = statistics.median(changes)
 
-    # (#5) 滞后衰减：最新一期 end_date 距今的交易日数
-    decay = _compute_staleness_decay(holders[0].end_date)
+    # (#5) 滞后衰减：最新一期 end_date 距今（或回测时点）的交易日数
+    decay = _compute_staleness_decay(holders[0].end_date, as_of=trade_day)
 
     # 基础评分
     base_score = _score_concentration(smoothed_change)
@@ -116,10 +122,7 @@ def _get_northbound_flow_cached(code: str, days: int = 20) -> list:
     # 缓存有效期内直接返回（北向资金按 code 过滤，但市场级数据共享）
     cache_key = f"{code}:{days}"
     now = time.time()
-    if (
-        cache_key in _NORTHBOUND_CACHE
-        and (now - _NORTHBOUND_CACHE_TS) < _NORTHBOUND_CACHE_TTL
-    ):
+    if cache_key in _NORTHBOUND_CACHE and (now - _NORTHBOUND_CACHE_TS) < _NORTHBOUND_CACHE_TTL:
         return _NORTHBOUND_CACHE[cache_key]
 
     # 获取数据
@@ -154,12 +157,8 @@ def chip_score_dynamic_batch(codes: list) -> dict:
     from common import parallel_fetch_dict
 
     # 并行获取 margin 和 top_holders
-    margin_data = parallel_fetch_dict(
-        codes, lambda c: _get_margin_data(c, days=5), label="margin"
-    )
-    top_holders_data = parallel_fetch_dict(
-        codes, lambda c: _get_top_holders(c), label="top_holders"
-    )
+    margin_data = parallel_fetch_dict(codes, lambda c: _get_margin_data(c, days=5), label="margin")
+    top_holders_data = parallel_fetch_dict(codes, lambda c: _get_top_holders(c), label="top_holders")
 
     results = {}
     for code in codes:
@@ -244,12 +243,17 @@ def chip_details(code: str) -> dict:
 # ---------- 内部工具函数 ----------
 
 
-def _get_cached_holders(code: str) -> list:
-    """从缓存获取股东户数数据（不触发网络请求）。"""
+def _get_cached_holders(code: str, periods: int = 4) -> list:
+    """从缓存获取股东户数数据（不触发网络请求）。
+
+    Args:
+        code: 股票代码
+        periods: 获取期数。回测时点过滤需要更多期数（默认 4，时点过滤用 12）
+    """
     try:
         from data.chip import get_holders
 
-        return get_holders(code, periods=4)
+        return get_holders(code, periods=periods)
     except Exception as e:
         logger.debug("get_holders 失败 %s: %s", code, e)
         return []
@@ -277,13 +281,15 @@ def _get_top_holders(code: str) -> list:
         return []
 
 
-def _compute_staleness_decay(end_date_str: str) -> float:
+def _compute_staleness_decay(end_date_str: str, as_of: str | None = None) -> float:
     """(#5) 计算数据滞后衰减系数。
 
     最新一期报告截止日距今超过 60 交易日时，信号线性衰减至 0.5×（120 交易日时）。
 
     Args:
         end_date_str: 报告截止日期（YYYY-MM-DD）
+        as_of: 基准日期（YYYY-MM-DD）。回测时传 trade_day，使衰减相对该时点
+            而非"现在"计算（否则历史时点的数据会被误判为陈旧）；None 用今天。
 
     Returns:
         衰减系数 [0.5, 1.0]，无法解析时返回 1.0（不衰减）
@@ -295,7 +301,14 @@ def _compute_staleness_decay(end_date_str: str) -> float:
     except (ValueError, TypeError):
         return 1.0
 
-    calendar_days = (datetime.now() - end_date).days
+    if as_of:
+        try:
+            ref = datetime.strptime(as_of[:10], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            ref = datetime.now()
+    else:
+        ref = datetime.now()
+    calendar_days = (ref - end_date).days
     if calendar_days <= 0:
         return 1.0  # 未来日期不衰减
 

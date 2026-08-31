@@ -17,12 +17,13 @@ def run_backtest(
     weights=None,
     atr_stop_multiplier=None,
     trailing_stop_pct=None,
+    holding_days: int | None = None,
 ):
     """
     运行滚动窗口回测。
 
     simulate_strategy 内部已做滚动窗口分析，返回每期收益序列。
-    本函数只需调用一次，直接使用其返回的各期收益计算统计指标。
+    本函数只需调用一次，直接使用其各期收益计算统计指标。
 
     Args:
         strategy_name: 策略名称
@@ -34,11 +35,13 @@ def run_backtest(
         weights: 可选覆盖权重 dict（透传给 simulate_strategy）。None 时从 STRATEGIES[strategy_name] 读取。
         atr_stop_multiplier: ATR 自适应止损倍数（None = 固定 -8% 止损）
         trailing_stop_pct: 移动止盈回撤比例（None = 固定 +20% 止盈）
+        holding_days: 持有天数。None 时按 days//rounds 推导（历史行为）；
+            传入时透传给 simulate_strategy（修复 multi_stock_backtest --holding-days 被忽略）
 
     Returns:
         回测报告 dict
     """
-    holding_days = max(1, days // rounds)
+    holding_days = holding_days or max(1, days // rounds)
     result = simulate_strategy(
         SimContext(
             strategy_name=strategy_name,
@@ -63,9 +66,7 @@ def run_backtest(
         return {"error": "回测失败，无有效数据"}
 
     # 多基准：每个基准独立抓日收益并切分为每期持有期收益（连乘）
-    benchmark_list = (
-        benchmark if isinstance(benchmark, list) else ([benchmark] if benchmark else [])
-    )
+    benchmark_list = benchmark if isinstance(benchmark, list) else ([benchmark] if benchmark else [])
     benchmark_period_returns_map = {}
     for bm in benchmark_list:
         bm_ret = _fetch_benchmark_returns(bm, days)
@@ -132,10 +133,9 @@ def run_backtest(
                 max_drawdown = drawdown
 
     # 卡玛比率 = 年化收益率 / 最大回撤
-    annualized_return = total_return * (252 / days) if days > 0 else 0
-    calmar_ratio = (
-        round(annualized_return / (max_drawdown * 100), 2) if max_drawdown > 0 else 0
-    )
+    # v1.22.1: 年化改为复利（原线性 total_return×(252/days) 低估正收益年化）
+    annualized_return = ((1 + total_return / 100) ** (252 / days) - 1) * 100 if days > 0 else 0
+    calmar_ratio = round(annualized_return / (max_drawdown * 100), 2) if max_drawdown > 0 else 0
 
     # 盈亏比 = 平均盈利 / 平均亏损
     winning_trades = [r for r in all_returns if r > 0]
@@ -163,9 +163,7 @@ def run_backtest(
             mean_excess = sum(excess) / len(excess)
             te = statistics.stdev(excess)
             periods_per_year = 252 / holding_days if holding_days > 0 else 0
-            information_ratios[bm] = (
-                round(mean_excess / te * (periods_per_year**0.5), 2) if te > 0 else 0
-            )
+            information_ratios[bm] = round(mean_excess / te * (periods_per_year**0.5), 2) if te > 0 else 0
     # 兼容旧字段：取第一个基准（若存在）
     information_ratio = next(iter(information_ratios.values()), 0)
 
@@ -195,9 +193,7 @@ def run_backtest(
         "total_trades": total_trades,
         "annual_turnover": round(annual_turnover),
         "win_by_position": win_by_position,
-        "benchmark": (
-            benchmark if isinstance(benchmark, list) else (benchmark or "none")
-        ),
+        "benchmark": (benchmark if isinstance(benchmark, list) else (benchmark or "none")),
         "benchmark_returns_pct": {},
         "round_details": round_results,
         "meta": {
@@ -210,15 +206,24 @@ def run_backtest(
 
 
 def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
-    """获取基准指数的日收益率序列。"""
+    """获取基准指数的日收益率序列。
+
+    修复（v1.22.1）：原实现只拉 days+5 根且取最旧一段，与策略评估窗口
+    （MIN_HISTORY 起）错位约半个持有期，信息比率在错位期上计算。现拉取与
+    simulate_strategy 同深（MIN_HISTORY+days+10），并从 bars[MIN_HISTORY]
+    起返回——策略第 1 期收益 = returns[MIN_HISTORY..]，两者逐期对齐。
+    """
     if not benchmark_code:
         return None
     try:
         from data import get_kline
         from common import normalize_quote_code
+        from .engine import MIN_HISTORY
 
         bars = get_kline(
-            normalize_quote_code(benchmark_code), scale=240, datalen=days + 5
+            normalize_quote_code(benchmark_code),
+            scale=240,
+            datalen=MIN_HISTORY + days + 10,
         )
         if not bars or len(bars) < 2:
             return None
@@ -226,7 +231,7 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
         for i in range(1, len(bars)):
             if bars[i - 1].close > 0:
                 returns.append((bars[i].close - bars[i - 1].close) / bars[i - 1].close)
-        return returns
+        return returns[MIN_HISTORY:]
     except Exception as e:
         # v1.16.0 HIGH: 基准收益计算失败直接影响回测指标——记录
         from common.exceptions import log_silent_fallback
@@ -241,7 +246,12 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
 
 
 def _calc_win_by_position(round_results: list, holding_days: int) -> dict:
-    """计算不同持仓位置的胜率分布。"""
+    """计算不同持仓位置的胜率分布。
+
+    修复（v1.22.1）：原实现用扁平拼接的 daily_returns 全局索引分段，仅首个
+    持有期的前几日算 early/mid，其余全部归入 late，位置分布失真。现按
+    period_daily_returns（每持有期一段）逐段统计，位置索引在每期内重置。
+    """
     if not round_results or holding_days <= 0:
         return {}
     thirds = max(1, holding_days // 3)
@@ -251,16 +261,24 @@ def _calc_win_by_position(round_results: list, holding_days: int) -> dict:
         "late": {"wins": 0, "total": 0},
     }
     for res in round_results:
-        dly = res.get("daily_returns", [])
-        for i, r in enumerate(dly):
-            pos = "early" if i < thirds else ("mid" if i < 2 * thirds else "late")
-            positions[pos]["total"] += 1
-            if r > 0:
-                positions[pos]["wins"] += 1
-    return {
-        k: round(v["wins"] / v["total"] * 100, 1) if v["total"] > 0 else 0
-        for k, v in positions.items()
-    }
+        periods = res.get("period_daily_returns")
+        if periods:
+            # 每持有期一段，位置在期内重置
+            for dly in periods:
+                for i, r in enumerate(dly):
+                    pos = "early" if i < thirds else ("mid" if i < 2 * thirds else "late")
+                    positions[pos]["total"] += 1
+                    if r > 0:
+                        positions[pos]["wins"] += 1
+        else:
+            # 兼容旧结构：无 period_daily_returns 时退化为扁平拼接（原行为）
+            dly = res.get("daily_returns", [])
+            for i, r in enumerate(dly):
+                pos = "early" if i < thirds else ("mid" if i < 2 * thirds else "late")
+                positions[pos]["total"] += 1
+                if r > 0:
+                    positions[pos]["wins"] += 1
+    return {k: round(v["wins"] / v["total"] * 100, 1) if v["total"] > 0 else 0 for k, v in positions.items()}
 
 
 def _calc_sortino(daily_returns: list, annual_risk_free: float = 0.03) -> float:

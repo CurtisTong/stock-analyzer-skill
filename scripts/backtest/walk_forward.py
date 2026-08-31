@@ -101,8 +101,12 @@ class WalkForwardResult:
         }
 
 
-def _calc_sharpe(returns: list, daily_returns: list = None) -> float:
-    """计算夏普比率（年化，无风险利率 3%）。"""
+def _calc_sharpe(returns: list, daily_returns: list = None, holding_days: int = 5) -> float:
+    """计算夏普比率（年化，无风险利率 3%）。
+
+    holding_days: 期收益年化所用的持有天数（修复：原硬编码 252/5，
+    持有期非 5 天时年化因子错误）。
+    """
     import statistics
 
     if daily_returns and len(daily_returns) > 1:
@@ -115,7 +119,7 @@ def _calc_sharpe(returns: list, daily_returns: list = None) -> float:
     if len(returns) < 2:
         return 0.0
     annual_rf = 0.03
-    periods_per_year = 252 / 5  # 假设 5 天持有期
+    periods_per_year = 252 / holding_days if holding_days > 0 else 252 / 5
     rf_per_period = annual_rf / periods_per_year
     excess = [r / 100 - rf_per_period for r in returns]
     mean_ex = sum(excess) / len(excess)
@@ -189,7 +193,7 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             result.windows.append({**window_info, "status": "is_error"})
             continue
         is_returns = is_result.get("returns", [])
-        is_sharpe = _calc_sharpe(is_returns)
+        is_sharpe = _calc_sharpe(is_returns, holding_days=config.holding_days)
         is_total = 1.0
         for r in is_returns:
             is_total *= 1 + r / 100
@@ -229,15 +233,9 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
                 "is_sharpe": round(is_sharpe, 2),
                 "is_total_return_pct": round(is_total, 2),
                 "oos_returns": oos_returns,
-                "oos_avg_return_pct": round(
-                    sum(oos_returns) / len(oos_returns) if oos_returns else 0, 2
-                ),
+                "oos_avg_return_pct": round(sum(oos_returns) / len(oos_returns) if oos_returns else 0, 2),
                 "oos_win_rate_pct": round(
-                    (
-                        sum(1 for r in oos_returns if r > 0) / len(oos_returns) * 100
-                        if oos_returns
-                        else 0
-                    ),
+                    (sum(1 for r in oos_returns if r > 0) / len(oos_returns) * 100 if oos_returns else 0),
                     1,
                 ),
             }
@@ -251,10 +249,8 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
         result.oos_total_return = (result.oos_total_return - 1) * 100
 
         result.oos_avg_return = sum(result.oos_returns) / len(result.oos_returns)
-        result.oos_win_rate = (
-            sum(1 for r in result.oos_returns if r > 0) / len(result.oos_returns) * 100
-        )
-        result.oos_sharpe = _calc_sharpe(result.oos_returns)
+        result.oos_win_rate = sum(1 for r in result.oos_returns if r > 0) / len(result.oos_returns) * 100
+        result.oos_sharpe = _calc_sharpe(result.oos_returns, holding_days=config.holding_days)
         result.oos_max_drawdown = _calc_max_drawdown(result.oos_returns)
 
     if result.n_valid_windows > 0:
