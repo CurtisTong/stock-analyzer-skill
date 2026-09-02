@@ -1,7 +1,7 @@
 ---
 name: stock-help
 description: Stock Analyzer 帮助索引。触发词：新手、第一次用、怎么用、有哪些功能、能干嘛、使用说明、命令清单、技能列表、怎么开始。显示所有 12 个 skills 和使用说明。
-version: 1.22.0
+version: 1.22.1
 model: glm-5.2
 disable-model-invocation: false
 ---

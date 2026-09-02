@@ -107,9 +107,7 @@ def test_name_matches_directory(skill_path):
     """frontmatter name 字段跟目录名一致。"""
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
-    assert (
-        fm["name"] == skill_path.parent.name
-    ), f"目录 {skill_path.parent.name} vs frontmatter name={fm.get('name')}"
+    assert fm["name"] == skill_path.parent.name, f"目录 {skill_path.parent.name} vs frontmatter name={fm.get('name')}"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -118,9 +116,7 @@ def test_description_length(skill_path):
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
     desc = fm.get("description", "")
-    assert (
-        len(desc) <= 250
-    ), f"{skill_path.parent.name}: description {len(desc)} 字符（>250），请裁剪"
+    assert len(desc) <= 250, f"{skill_path.parent.name}: description {len(desc)} 字符（>250），请裁剪"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -136,9 +132,7 @@ def test_description_no_command_trigger_pattern(skill_path):
     ]
     for pat in bad_patterns:
         matches = re.findall(pat, desc)
-        assert (
-            not matches
-        ), f"{skill_path.parent.name}: description 含命令触发句 {matches}，应改为能力/场景描述"
+        assert not matches, f"{skill_path.parent.name}: description 含命令触发句 {matches}，应改为能力/场景描述"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -148,16 +142,14 @@ def test_model_field_valid(skill_path):
     fm = parse_frontmatter(text)
     model = fm.get("model")
     if model is not None:
-        assert (
-            model in ALLOWED_MODELS
-        ), f"{skill_path.parent.name}: model={model} 不在 {ALLOWED_MODELS}"
+        assert model in ALLOWED_MODELS, f"{skill_path.parent.name}: model={model} 不在 {ALLOWED_MODELS}"
 
 
 # <SYNC-SKILL-VERSIONS:START>
 VERSION_OVERRIDES = {
     # 当前所有 skill 与主版本一致
 }
-DEFAULT_VERSION = "1.22.0"
+DEFAULT_VERSION = "1.22.1"
 # <SYNC-SKILL-VERSIONS:END>
 
 
@@ -168,9 +160,7 @@ def test_version_consistency(skill_path):
     fm = parse_frontmatter(text)
     expected = VERSION_OVERRIDES.get(skill_path.parent.name, DEFAULT_VERSION)
     if "version" in fm:
-        assert (
-            fm["version"] == expected
-        ), f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
+        assert fm["version"] == expected, f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -182,9 +172,7 @@ def test_required_sections(skill_path):
     # 允许个别章节改名（如 help）但至少应存在 "## Guardrails" 或说明替代品
     if "## Guardrails" in missing:
         # help 允许用"## 注意事项"代替
-        assert (
-            "## 注意事项" in text or "## 进阶场景" in text
-        ), f"{skill_path.parent.name}: 缺 Guardrails 章节"
+        assert "## 注意事项" in text or "## 进阶场景" in text, f"{skill_path.parent.name}: 缺 Guardrails 章节"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)
@@ -207,9 +195,7 @@ def test_no_absolute_paths_in_allowed_tools(skill_path):
         tools = [tools]
     for tool in tools:
         # 匹配 //xxx/... 或 /xxx/... 形式的绝对路径
-        assert (
-            "/Users/" not in tool
-        ), f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
+        assert "/Users/" not in tool, f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
         assert not re.search(
             r"^/\w+/", tool
         ), f"{skill_path.parent.name}: allowed-tools 含绝对路径 '{tool}'，应改为相对路径"
