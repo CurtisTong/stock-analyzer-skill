@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
+> 🟢 **当前状态**：v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.22.1 | 2026-09-02 | 修复：portfolio health_report 未传行情自动拉实时价格（web/manager 双路径对齐，盈亏/破位判定恢复）+ backtest walk-forward 输出错误窗口具体原因 |
 | 1.22.0 | 2026-08-28 | 工程化重构：死代码清理（~800 行）+ technical 冲突解决 + manager 拆分（1391→680）+ CLI 统一 cli_base（29 脚本）+ 市场状态统一 + CI 纳入 e2e/dispatch + 文档数字漂移修正 |
 | 1.21.1 | 2026-08-27 | 策略复盘落地：双源 OOS 验证门槛（evaluate_multi_pool）+ ATR 止损/移动止盈（可选）+ 自校准最小池 30 + 权重优化跨窗口验证 + 24 个新测试 |
 | 1.21.0 | 2026-08-20 | OOS 验证状态机（双层架构：registry 默认 in_sample + `data/strategy_oos_validation.json` 运行时覆盖层）+ sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation + strategy-validation.md/experts-ARCHITECTURE.md 新文档 |
