@@ -1,4 +1,4 @@
-"""周期因子评分：多因子周期位置评估矩阵（v2.5.0 Phase 3）。
+"""周期因子评分：多因子周期位置评估矩阵。
 
 三维度周期位置评估，取代单一指标判定：
 - 价格维度：主要产品价格在历史分位数中的位置
@@ -66,9 +66,7 @@ _COST_PCT_HIGH = 80  # >=80 分位 -> 原料高位（周期顶部信号）
 _COST_PCT_LOW = 20  # <=20 分位 -> 原料低位（周期底部信号）
 
 # per-stock 主营产品映射（兜底）
-_PRODUCT_MAPPING_PATH = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "product_mapping.json"
-)
+_PRODUCT_MAPPING_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "product_mapping.json"
 _PRODUCT_MAPPING: dict | None = None
 
 
@@ -271,9 +269,7 @@ def _cost_dimension(industry: str, code: str = "") -> dict:
 # ═══════════════════════════════════════════════════════════════
 
 
-def cyclical_score(
-    fin: dict, quote: dict, features: dict, industry: str, code: str = ""
-) -> float:
+def cyclical_score(fin: dict, quote: dict, features: dict, industry: str, code: str = "") -> float:
     """周期因子评分（三维度周期位置矩阵）。
 
     Args:

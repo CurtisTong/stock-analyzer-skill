@@ -513,7 +513,7 @@ def compute_factor_parts(fin, quote_dict, features, industry, weights=None):
     return compute_all_factors(fin, quote_dict, features, industry, code, weights)
 
 
-# Sprint 9 两阶段管线（Sprint 末节架构建议）：
+# 两阶段管线：
 # Phase 1（轻量快速筛选）：仅算不依赖 K 线的因子
 #   quality / valuation / liquidity / chip(static)
 # Phase 2（精准评分）：在 Phase 1 Top N×3 上补 K 线依赖因子
@@ -523,7 +523,7 @@ PHASE2_FACTORS = ("momentum", "volatility", "dividend")
 
 
 def compute_phase1_parts(fin, quote_dict, industry: str, weights=None) -> dict:
-    """Sprint 9 Phase 1：算 quality/valuation/liquidity/chip（不依赖 K 线）。
+    """Phase 1：算 quality/valuation/liquidity/chip（不依赖 K 线）。
 
     适用于全市场 5000 只初筛，3-5 秒内完成。
     chip 使用静态评分（仅股东户数变化率，零网络开销）。
@@ -539,7 +539,7 @@ def compute_phase1_parts(fin, quote_dict, industry: str, weights=None) -> dict:
 
 
 def compute_phase2_parts(features: dict, quote_dict: dict, fin: dict, industry: str) -> dict:
-    """Sprint 9 Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
+    """Phase 2：算 momentum/volatility/dividend（依赖 K 线）。
 
     仅对 Phase 1 Top N×3 候选调用，节省 K 线获取量。
     chip 在 Phase 1 已用静态评分，Phase 2 不重复计算。
@@ -552,7 +552,7 @@ def compute_phase2_parts(features: dict, quote_dict: dict, fin: dict, industry: 
 
 
 def compute_weighted_score(parts, strategy, regime=None):
-    """按策略权重加权求和，支持 market regime overlay（Sprint 2）。
+    """按策略权重加权求和，支持 market regime overlay。
 
     Args:
         parts: 6 因子分 dict

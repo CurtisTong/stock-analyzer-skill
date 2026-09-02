@@ -107,7 +107,7 @@ register_factor(
     default_weight=0.0,
 )
 
-# v2.5.0 Phase 3：周期因子（多因子周期位置矩阵）
+# 周期因子（多因子周期位置矩阵）
 # 非周期行业返回中性 50，不影响评分；周期行业按价格/供给/成本三维度评估
 register_factor(
     "cyclical",

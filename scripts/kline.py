@@ -69,7 +69,7 @@ def aggregate_klines(records: list, period: str = "week") -> list:
         else:
             current_bars.append(r)
 
-    # P0 fix: 最后一组必须加入，不能遗漏
+    # 最后一组必须加入，不能遗漏
     if current_bars:
         groups.append(current_bars)
 

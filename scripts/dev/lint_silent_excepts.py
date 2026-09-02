@@ -94,9 +94,7 @@ def main():
                     file=sys.stderr,
                 )
             return 1
-        print(
-            f"ℹ️  {len(all_advisories)} 处建议加 log_silent_fallback（advisory，非阻塞）："
-        )
+        print(f"ℹ️  {len(all_advisories)} 处建议加 log_silent_fallback（advisory，非阻塞）：")
         for ln, msg in all_advisories[:30]:
             print(f"  {msg}")
         if len(all_advisories) > 30:
@@ -104,7 +102,7 @@ def main():
         print()
         print("说明：v1.16.0 Batch 3 仅就 11 处 HIGH/MEDIUM 风险做了治理；")
         print("      剩余约 100 处为 LOW 风险（atomic write / fallback 兜底等），")
-        print("      列为 advisory 但不阻断 CI。后续按需在 Phase 5/6 治理。")
+        print("      列为 advisory 但不阻断 CI。后续按需治理。")
         print("      用 --strict 开启阻断模式（CI 推荐先用 advisory）")
         return 0
     print("✅ 全部 except Exception 已合规或豁免")

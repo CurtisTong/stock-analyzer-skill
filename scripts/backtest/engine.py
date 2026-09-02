@@ -298,7 +298,7 @@ def simulate_strategy(ctx: SimContext):
             # 注意：event_score 涉及网络请求，回测中禁用以避免超时
             # 如需启用，请确保事件数据已预加载到缓存
 
-            # 策略权重应用 market regime overlay（Sprint 3 收口）
+            # 策略权重应用 market regime overlay
             # 修复：v2.8 的指数级 regime 判定（_fetch_index_bars_for_backtest /
             # _classify_regime_from_index）此前无调用方，主路径仍用个股 bars 误判
             # regime。现改为指数 bars + current_day 截断（严格无前瞻）。

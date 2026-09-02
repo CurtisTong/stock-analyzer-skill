@@ -202,9 +202,7 @@ def dcf_valuation(
     # 2. 推断增长率
     if growth_rate is None:
         # 用单期净利同比增速（FinanceRecord 暂无 3 年 CAGR 字段）
-        profit_yoy = to_float(
-            fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0))
-        )
+        profit_yoy = to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ", 0)))
         if profit_yoy > 0:
             growth_rate = min(profit_yoy / 100, 0.30)  # 上限 30%
         else:
@@ -226,24 +224,18 @@ def dcf_valuation(
     # 阶段 2：过渡期（增速逐年递减）
     for year in range(1, years_transition + 1):
         # 增速从 growth_rate 线性递减到 terminal_growth
-        transition_growth = (
-            growth_rate - (growth_rate - terminal_growth) * year / years_transition
-        )
+        transition_growth = growth_rate - (growth_rate - terminal_growth) * year / years_transition
         pv = current_fcf / ((1 + discount_rate) ** (years_high + year))
         total_value += pv
         current_fcf *= 1 + transition_growth
 
     # 永续价值（Gordon Growth Model）
     terminal_value = current_fcf / (discount_rate - terminal_growth)
-    terminal_pv = terminal_value / (
-        (1 + discount_rate) ** (years_high + years_transition)
-    )
+    terminal_pv = terminal_value / ((1 + discount_rate) ** (years_high + years_transition))
     total_value += terminal_pv
 
     intrinsic_value = round(total_value, 2)
-    margin_of_safety = (
-        round((intrinsic_value - price) / price * 100, 1) if price > 0 else 0
-    )
+    margin_of_safety = round((intrinsic_value - price) / price * 100, 1) if price > 0 else 0
 
     return {
         "intrinsic_value": intrinsic_value,
@@ -287,7 +279,7 @@ def dcf_score(price: float, fin: dict, industry: str = "默认") -> float:
 
 
 # ═══════════════════════════════════════════════════════════════
-# DCF 三情景估值（v2.5.0 Phase 3）
+# DCF 三情景估值
 # ═══════════════════════════════════════════════════════════════
 
 # 周期位置 -> 三情景权重（bear/base/bull）
@@ -306,7 +298,7 @@ def dcf_scenario_valuation(
     cycle_position: str = "unknown",
     stock_code: str = None,
 ) -> dict:
-    """三情景 DCF 估值（v2.5.0 Phase 3）。
+    """三情景 DCF 估值。
 
     基于周期位置评估矩阵，设定悲观/中性/乐观三种情景下的增长率，
     各跑一次 DCF 后按周期位置赋权合成安全边际。
@@ -350,9 +342,7 @@ def dcf_scenario_valuation(
         ("base", base_growth),
         ("bull", bull_growth),
     ]:
-        result = dcf_valuation(
-            price, fin, growth_rate=growth, industry=industry, stock_code=stock_code
-        )
+        result = dcf_valuation(price, fin, growth_rate=growth, industry=industry, stock_code=stock_code)
         if result.get("error"):
             # 单情景无数据时返回中性
             return {
@@ -369,17 +359,11 @@ def dcf_scenario_valuation(
         }
 
     # 按周期位置赋权
-    weights = _CYCLE_SCENARIO_WEIGHTS.get(
-        cycle_position, _CYCLE_SCENARIO_WEIGHTS["unknown"]
-    )
+    weights = _CYCLE_SCENARIO_WEIGHTS.get(cycle_position, _CYCLE_SCENARIO_WEIGHTS["unknown"])
 
     # 加权合成安全边际
-    weighted_margin = sum(
-        scenarios[s]["margin_of_safety"] * weights[s] for s in ("bear", "base", "bull")
-    )
-    weighted_value = sum(
-        scenarios[s]["intrinsic_value"] * weights[s] for s in ("bear", "base", "bull")
-    )
+    weighted_margin = sum(scenarios[s]["margin_of_safety"] * weights[s] for s in ("bear", "base", "bull"))
+    weighted_value = sum(scenarios[s]["intrinsic_value"] * weights[s] for s in ("bear", "base", "bull"))
 
     return {
         "intrinsic_value": round(weighted_value, 2),
@@ -400,7 +384,7 @@ def dcf_scenario_score(
 ) -> float:
     """三情景 DCF 评分（0-100，50=合理估值）。
 
-    v2.5.0 Phase 3：用三情景加权安全边际替代单点估计。
+    用三情景加权安全边际替代单点估计。
     周期股在疑似高位时悲观情景权重 80%，如仍有正向安全边际，
     就能清晰量化"安全边际很薄但有"，而非粗暴归零。
     """
@@ -500,9 +484,7 @@ def ev_ebitda_valuation(
     }
 
 
-def ev_ebitda_score(
-    price: float, fin: dict, quote: dict = None, industry: str = "默认"
-) -> float:
+def ev_ebitda_score(price: float, fin: dict, quote: dict = None, industry: str = "默认") -> float:
     """EV/EBITDA 估值评分（0-100，50=合理估值）。
 
     行业差异化阈值：
