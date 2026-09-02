@@ -1,4 +1,4 @@
-# 核心目录覆盖率报告配置（docs/next-tasks.md 任务 B）
+# 核心目录覆盖率报告配置
 # 缓冲期：仅报告不拦截（fail_under=0），达标 ≥80% 后放开阈值。
 # 用法：
 #   pytest --cov=scripts/common --cov=scripts/fetchers --cov=scripts/data \

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """CI ↔ pre-commit mypy 白名单同步校验工具。
 
-docs/next-tasks.md 任务 D：ci.yml 与 .pre-commit-config.yaml 中 3 条 mypy 白名单
-命令（scripts 目录层 / CLI 层 / experts 层）重复维护易漂移。
+ci.yml 与 .pre-commit-config.yaml 中 3 条 mypy 白名单命令（scripts
+目录层 / CLI 层 / experts 层）重复维护易漂移。
 本工具解析两份文件，抽取每条 mypy 命令的 目标路径列表，逐条比对：
   - --check：仅检查。不一致时打印差异并 exit 1（CI/pre-commit 门禁用）。
   - 默认：同样只做检查（该工具无需写回——漂移时需手动补齐命令）。
@@ -129,7 +129,7 @@ def check() -> int:
         for e in errors:
             print(f"  ✗ {e}", file=sys.stderr)
         print(
-            "\n修复方法: 手动同步 ci.yml 相关 step 与 .pre-commit-config.yaml 对应 hook 的目标路径（docs/next-tasks.md 任务 D）",
+            "\n修复方法: 手动同步 ci.yml 相关 step 与 .pre-commit-config.yaml 对应 hook 的目标路径",
             file=sys.stderr,
         )
         return 1
@@ -144,9 +144,7 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument(
-        "--check", action="store_true", help="仅检查，不修改（默认行为）"
-    )
+    parser.add_argument("--check", action="store_true", help="仅检查，不修改（默认行为）")
     args = parser.parse_args()
 
     if args.check:
