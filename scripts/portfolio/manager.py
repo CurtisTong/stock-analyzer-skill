@@ -57,6 +57,10 @@ def _atomic_read(path: Path) -> dict:
         return json.loads(path.read_text(encoding="utf-8"))
 
 
+# 哨兵值：区分"健康报告未传 quotes（自动拉行情）"与"显式传 None（走降级）"
+_AUTO_FETCH_MARKER = object()
+
+
 class PortfolioManager:
     """持仓组合管理器。
 
@@ -663,11 +667,33 @@ class PortfolioManager:
 
     # ---------- 健康检查（v1.21.2 拆分到 health_report.py） ----------
 
-    def health_report(self, *args, **kwargs):
-        """委托到 portfolio.health_report（v1.21.2 拆分）。"""
+    def health_report(self, quotes=_AUTO_FETCH_MARKER, **kwargs):
+        """委托到 portfolio.health_report（v1.21.2 拆分）。
+
+        quotes 未传入时自动批量拉取实时行情（对齐 portfolio_web `/api/health` 行为），
+        避免健康报告因缺少行情导致价格全 0、盈亏/支撑位/破位判定失真。
+
+        显式传 `quotes=None` 仍走底层降级路径（行情缺失置 None、不伪造盈亏），
+        该契约由 tests/unit/test_portfolio_health.py 的 TestQuotesNoneDegradation 保障。
+        """
         from portfolio.health_report import health_report as _hr
 
-        return _hr(self, *args, **kwargs)
+        if quotes is _AUTO_FETCH_MARKER:
+            quotes = self._fetch_live_quotes_or_none()
+        return _hr(self, quotes=quotes, **kwargs)
+
+    def _fetch_live_quotes_or_none(self):
+        """批量拉取持仓实时行情；失败返回 None（委托底层降级），不抛异常。"""
+        codes = [p["code"] for p in self.get_positions()]
+        if not codes:
+            return None
+        try:
+            from data import get_quotes
+
+            fetched = get_quotes(codes, use_cache=True)
+            return {q.code: q.to_dict() for q in fetched if q}
+        except Exception:
+            return None
 
     def health_report_markdown(self, report: dict) -> str:
         """委托到 portfolio.health_report（v1.21.2 拆分）。"""
