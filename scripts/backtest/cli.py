@@ -64,9 +64,7 @@ def compare_strategies(
                 label = sc.get("label", "未知")
                 sc_days = sc.get("days", days)
                 sc_rounds = sc.get("rounds", max(1, rounds // 2))
-                sr = run_backtest(
-                    strategy_name, codes, top_n, sc_days, sc_rounds, benchmark
-                )
+                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark)
                 scenario_results[label] = {
                     "total_return_pct": sr.get("total_return_pct"),
                     "sharpe_ratio": sr.get("sharpe_ratio"),
@@ -99,11 +97,7 @@ def optimize_weights(
     """
     # 全因子优化（修复：原只取 4 键，volatility/chip/dividend/event 合计
     # 34% 权重被置零，"优化"实为 4 因子策略 vs 7 因子基线的对比）
-    base_keys = [
-        k
-        for k in get_strategy(strategy_name)
-        if k not in ("label", "two_stage", "analyst")
-    ]
+    base_keys = [k for k in get_strategy(strategy_name) if k not in ("label", "two_stage", "analyst")]
     original_weights = {k: get_strategy(strategy_name)[k] for k in base_keys}
 
     best_score = -999
@@ -126,9 +120,7 @@ def optimize_weights(
             test_weights = {k: v / total for k, v in test_weights.items()}
 
             # 通过 weights 参数传入，不修改全局 STRATEGIES（避免并发数据竞争）
-            report = run_backtest(
-                strategy_name, codes, top_n, days, 3, weights=test_weights
-            )
+            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights)
 
             score = report.get("sharpe_ratio", 0)
 
@@ -157,9 +149,7 @@ def optimize_weights(
     if validate:
         validation = {}
         for vdays in (60, 120, 240):
-            vreport = run_backtest(
-                strategy_name, codes, top_n, vdays, 3, weights=best_weights
-            )
+            vreport = run_backtest(strategy_name, codes, top_n, vdays, 3, weights=best_weights)
             validation[str(vdays)] = {
                 "total_return_pct": vreport.get("total_return_pct", 0),
                 "sharpe_ratio": vreport.get("sharpe_ratio", 0),
@@ -239,13 +229,9 @@ def main():
     parser = argparse.ArgumentParser(description="多因子选股策略回测", add_help=False)
     from common.version import __version__
 
-    parser.add_argument(
-        "-v", "--version", action="version", version=f"backtest {__version__}"
-    )
+    parser.add_argument("-v", "--version", action="version", version=f"backtest {__version__}")
     parser.add_argument("-h", "--help", action="help")
-    parser.add_argument(
-        "--strategy", choices=list_strategies(), default="balanced", help="回测策略"
-    )
+    parser.add_argument("--strategy", choices=list_strategies(), default="balanced", help="回测策略")
     parser.add_argument("--all", action="store_true", help="比较所有策略")
     parser.add_argument("--optimize", action="store_true", help="优化权重")
     parser.add_argument(
@@ -304,9 +290,7 @@ def main():
     # 多基准解析：--benchmark sh000300,sh000016,sz399006
     benchmarks: list[str] = []
     if args.benchmark:
-        benchmarks = [
-            normalize_quote_code(b) for b in args.benchmark.split(",") if b.strip()
-        ]
+        benchmarks = [normalize_quote_code(b) for b in args.benchmark.split(",") if b.strip()]
     benchmark_arg = benchmarks[0] if len(benchmarks) == 1 else (benchmarks or None)
 
     if not codes:
@@ -317,8 +301,7 @@ def main():
 
     if len(codes) < args.top:
         print(
-            f"⚠️  股票池 ({len(codes)}) 少于 top ({args.top})，"
-            f"自动调整为 top={len(codes)}",
+            f"⚠️  股票池 ({len(codes)}) 少于 top ({args.top})，" f"自动调整为 top={len(codes)}",
             flush=True,
         )
 
@@ -346,31 +329,27 @@ def main():
         else:
             print(f"\n{'指标':<20} {'OOS':>10} {'IS(参考)':>10}")
             print("-" * 42)
-            print(
-                f"{'总收益%':<20} {d['oos_total_return_pct']:>10.2f} {d['is_total_return_pct']:>10.2f}"
-            )
+            print(f"{'总收益%':<20} {d['oos_total_return_pct']:>10.2f} {d['is_total_return_pct']:>10.2f}")
             print(f"{'夏普比率':<20} {d['oos_sharpe']:>10.2f} {d['is_sharpe']:>10.2f}")
             print(f"{'胜率%':<20} {d['oos_win_rate_pct']:>10.1f} {'-':>10}")
             print(f"{'最大回撤%':<20} {d['oos_max_drawdown_pct']:>10.2f} {'-':>10}")
             print(f"\n有效窗口: {d['n_valid_windows']}/{args.n_windows}")
             if d.get("errors"):
-                print(f"错误窗口: {len(d['errors'])}")
+                print(f"错误窗口: {len(d['errors'])} 个")
+                for e in d["errors"]:
+                    print(f"  - {e}")
             print("\n💡 OOS = Out-of-Sample（策略未见过的数据），比全样本回测更可信")
             _print_report_meta(
                 {
                     "generated_at": datetime.now().isoformat(timespec="seconds"),
                     "data_sources": ["K线(多源聚合)"],
-                    "is_degraded": any(
-                        w.get("status") != "ok" for w in wf_result.windows
-                    ),
+                    "is_degraded": any(w.get("status") != "ok" for w in wf_result.windows),
                 }
             )
 
     elif args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
-        result = optimize_weights(
-            codes, args.strategy, args.top, args.days, validate=args.validate
-        )
+        result = optimize_weights(codes, args.strategy, args.top, args.days, validate=args.validate)
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
@@ -388,10 +367,7 @@ def main():
                 if result.get("robust"):
                     print("✅ 优化权重通过跨窗口验证（三窗口均为正收益）")
                 else:
-                    print(
-                        "⚠️  优化权重未通过跨窗口验证（存在负收益窗口），"
-                        "不建议实盘使用——单窗口优化可能过拟合历史"
-                    )
+                    print("⚠️  优化权重未通过跨窗口验证（存在负收益窗口），" "不建议实盘使用——单窗口优化可能过拟合历史")
             _print_report_meta(
                 {
                     "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -422,7 +398,9 @@ def main():
         if args.json:
             print(json.dumps(results, ensure_ascii=False, indent=2))
         else:
-            header = f"{'策略':<18} {'总收益%':>8} {'夏普':>6} {'索提诺':>7} {'信息比':>7} {'最大回撤%':>8} {'胜率%':>6}"
+            header = (
+                f"{'策略':<18} {'总收益%':>8} {'夏普':>6} {'索提诺':>7} {'信息比':>7} {'最大回撤%':>8} {'胜率%':>6}"
+            )
             if scenarios:
                 header += f" {'情景(收%)':>30}"
             print(header)
@@ -441,11 +419,7 @@ def main():
                     )
                     if report.get("scenarios"):
                         scenario_str = "; ".join(
-                            (
-                                f"{k}:{v['total_return_pct']}%"
-                                if v.get("total_return_pct") is not None
-                                else f"{k}:?"
-                            )
+                            (f"{k}:{v['total_return_pct']}%" if v.get("total_return_pct") is not None else f"{k}:?")
                             for k, v in report["scenarios"].items()
                         )
                         line += f" {scenario_str[:30]:>30}"
@@ -456,13 +430,9 @@ def main():
                 for bm in benchmarks:
                     bench_pct = _fetch_benchmark_return(bm, args.days)
                     if bench_pct is not None:
-                        print(
-                            f"{'基准 ' + bm:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>7} {'-':>8} {'-':>6}"
-                        )
+                        print(f"{'基准 ' + bm:<18} {bench_pct:>8.2f} {'-':>6} {'-':>7} {'-':>7} {'-':>8} {'-':>6}")
             # 报告尾行：时间戳 + 数据源
-            any_meta = next(
-                (r.get("meta") for r in results.values() if r.get("meta")), None
-            )
+            any_meta = next((r.get("meta") for r in results.values() if r.get("meta")), None)
             _print_report_meta(any_meta)
 
     else:
@@ -526,9 +496,7 @@ def main():
                 round_details = report.get("round_details", [{}])
                 returns = round_details[0].get("returns", []) if round_details else []
                 if not returns:
-                    returns = [report.get("avg_return_pct", 0)] * report.get(
-                        "rounds", 1
-                    )
+                    returns = [report.get("avg_return_pct", 0)] * report.get("rounds", 1)
 
                 print()
                 print(render_return_curve(returns, width=50, height=10))
