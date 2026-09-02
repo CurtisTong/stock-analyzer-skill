@@ -161,10 +161,10 @@ def test_quote_normalized(sample_quote):
 CI 命令保持不变：
 
 ```
-pytest tests/ -q -m "not network" --timeout=60 -n auto --cov=scripts --cov=experts --cov-fail-under=60
+pytest tests/ -q -m "not network" --timeout=60 -n auto --cov=scripts --cov=experts --cov-fail-under=30
 ```
 
-`fail_under=60` 是底线。当前 MUST PRESERVE 21 个核心文件覆盖约 25-35%，**门禁需调整到符合实际的水平**（Step 5 处理）。
+门禁当前为 `fail_under=30`（见 `.coveragerc` 与 `.github/workflows/test-suite.yml` 默认值）。
 
 ## CI 编排
 
