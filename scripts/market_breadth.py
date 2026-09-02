@@ -18,6 +18,8 @@ import os
 
 # 添加scripts目录到pythonpath
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# 项目根（experts/*.py 包位于仓库根，与 backtest.py/portfolio_web.py 保持一致）
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.http import http_get
 
