@@ -787,7 +787,7 @@ MIT License © curtis
 
 ---
 
-**v1.23.0** · 2026-07-28 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.23.0** · 2026-10-13 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 
