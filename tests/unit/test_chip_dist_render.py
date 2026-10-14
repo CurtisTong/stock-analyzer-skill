@@ -114,6 +114,32 @@ class TestRenderBatch:
         assert "1 只取数失败" in out
 
 
+class TestBatchAlignment:
+    """批量表按终端显示宽度对齐（CJK 表头每个字占 2 列）。"""
+
+    def test_pad_uses_display_width(self, chip_cli):
+        """CJK 表头按显示宽度补齐，而非按字符数。"""
+        assert chip_cli._display_width("代码") == 4
+        assert chip_cli._display_width("ab") == 2
+        assert chip_cli._pad("代码", 10) == "代码" + " " * 6
+        assert chip_cli._pad("现价", 9, "right") == " " * 5 + "现价"
+        assert chip_cli._display_width(chip_cli._pad("代码", 10)) == 10
+
+    def test_tier_column_starts_at_same_display_column(self, chip_cli):
+        """表头与数据行的档位起始显示列一致（回归：此前 CJK 表头错列 2 列）。"""
+        rows = [
+            chip_cli._flat(_one("sh600989", chip=_chip())),
+            chip_cli._flat(_one("sh601398", chip=_chip(price=8.49, tier="深度套牢"))),
+        ]
+        header, separator, *data = chip_cli.render_batch(rows).splitlines()
+        # 10+9+8+8+8+7 列 + 2 空格分隔
+        assert chip_cli._display_width(header[: header.index("档位")]) == 52
+        assert len(separator) == chip_cli._display_width(header)
+        for line in data:
+            assert line[:52].isascii()
+            assert line[52:].strip() in {"筹码在脚下", "上方有墙", "深度套牢"}
+
+
 class TestApplyFilters:
     """筛选行为。"""
 

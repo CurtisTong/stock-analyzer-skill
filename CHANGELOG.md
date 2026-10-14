@@ -61,6 +61,7 @@
 - **repo**: `.claude/settings.json` 补 `Bash(python3 scripts/chip_dist.py *)` 授权——`stock`/`portfolio` 的 SKILL.md 已声明该工具，settings.json 未同步会使 `check_allowed_tools.py --ci` 门禁失败。
 - **scripts**: 修复 `technical.py --classify` 抛 `ModuleNotFoundError: No module named 'experts'`——`technical/scoring.py` 的市场环境判定会导入仓库根的 `experts` 包，而 `technical.py` 缺少项目根 sys.path 入口（`market_breadth.py` 此前已按同一口径修过）。已在 CI 冒烟测试中失败。
 - **scripts**: 恢复 6 个核心 CLI 脚本的可执行位（`quote.py`/`finance.py`/`kline.py`/`screener.py`/`technical.py`/`stock.py`）——同为冒烟测试清单内的 `announcements.py`/`classifier.py`/`chan.py`/`chip.py` 保持 755，这 6 个退化为 644，导致 `tests/smoke_test.sh` 第 1 节 6 项失败。
+- **scripts**: 修复批量表列错位——表头是 CJK（每字占 2 列）而数据行是 ASCII，原用 `f"{'代码':<10}"` 按字符数补齐，导致每个 CJK 表头列比数据行宽 2 列、分隔线也短 2 字符。改为按终端显示宽度补齐（`unicodedata.east_asian_width`），表头/分隔线/数据行的档位列现落在同一显示列。
 - **tests**: 修正 `tests/smoke_test.sh` 中过期的 screener 断言——原 `grep "策略:"` 只匹配 `render()` 路径的输出，而 `--sector/--top` 走三段式漏斗路径输出「策略 <label> | 📦 候选池 …」，断言改为 `策略[: ]` 同时覆盖两条路径。
 - **docs**: `script-catalog.md` 脚本清单改为**受管区域**（BEGIN/END marker 之间的表由 `gen_script_catalog.py` 独占，手写的批量调用约定/JSON 输出/开发辅助脚本章节原样保留）。修正清单漏登记的 3 个脚本（`concept.py`/`monitor.py`/`sector_momentum.py`）与失真的数量（32 → 35），参数列改由 argparse 声明自动提取（此前手工列在 `technical.py` 等处为空）。`--check` 由"整文件字节比对"（因手写章节恒失败）改为"仅比对受管区域"，并接入 CI 与 pre-commit——此前该检查未被任何入口调用。
 

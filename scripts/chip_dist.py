@@ -28,6 +28,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import json  # noqa: E402
+import unicodedata  # noqa: E402
 from datetime import datetime  # noqa: E402
 
 from common import err  # noqa: E402
@@ -154,9 +155,32 @@ def render_single(one: dict) -> str:
     return "\n".join(lines)
 
 
+# 批量表列定义：(表头, 宽度, 对齐)。数据行是 ASCII，表头是 CJK，
+# 必须按**终端显示宽度**补齐——str.ljust 按字符数补齐会让 CJK 表头错列。
+_COLUMNS = (
+    ("代码", 10, "left"),
+    ("现价", 9, "right"),
+    ("获利盘", 8, "right"),
+    ("套牢盘", 8, "right"),
+    ("需反弹", 8, "right"),
+    ("墙厚", 7, "right"),
+)
+
+
+def _display_width(text: str) -> int:
+    """终端显示宽度（CJK 全角字符占 2 列）。"""
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in str(text))
+
+
+def _pad(text, width: int, align: str = "left") -> str:
+    """按显示宽度补齐到 width 列。"""
+    gap = " " * max(0, width - _display_width(text))
+    return f"{gap}{text}" if align == "right" else f"{text}{gap}"
+
+
 def render_batch(items: list) -> str:
-    head = f"{'代码':<10}{'现价':>9}{'获利盘':>8}{'套牢盘':>8}{'需反弹':>8}{'墙厚':>7}  档位"
-    lines = [head, "-" * len(head)]
+    head = "".join(_pad(name, width, align) for name, width, align in _COLUMNS) + "  档位"
+    lines = [head, "-" * _display_width(head)]
     failed = 0
     for it in items:
         if it.get("error"):
