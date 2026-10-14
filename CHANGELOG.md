@@ -509,6 +509,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -695,6 +696,20 @@
 - 清理陈旧 docs/next-tasks.md 引用与任务 B/D 代号
 
 ### Maintenance
+- **scripts**: 清除注释中的 Sprint/Phase/P0 内部排期标记
+- 删除一次性 AI 生成报告产物（baofeng 完整分析 + 202506 汇总）
+
+### Added
+- **chip**: add cost-distribution (chip) analysis dimension
+
+### Fixed
+- **chip**: align the batch table by terminal display width
+- **docs**: make the script catalog a managed region and gate it in CI
+- **scripts**: repair the 8 CI smoke-test failures
+- **scripts**: market_breadth 补项目根到 sys.path
+
+### Maintenance
+- **repo**: unify black formatting to 120 columns and pin the version
 - **scripts**: 清除注释中的 Sprint/Phase/P0 内部排期标记
 - 删除一次性 AI 生成报告产物（baofeng 完整分析 + 202506 汇总）
 
