@@ -204,9 +204,7 @@ class TestRegisterStrategy:
 
     def test_replace_true_overrides_existing(self):
         """replace=True 可覆盖已有策略。"""
-        register_strategy(
-            "balanced", self._valid_weights(), label="覆盖测试", replace=True
-        )
+        register_strategy("balanced", self._valid_weights(), label="覆盖测试", replace=True)
         assert get_strategy("balanced")["label"] == "覆盖测试"
 
     def test_label_defaults_to_name(self):
@@ -248,9 +246,7 @@ class TestConcurrencySafety:
             except ValueError as e:
                 errors.append(e)
 
-        threads = [
-            threading.Thread(target=register_one, args=(str(i),)) for i in range(10)
-        ]
+        threads = [threading.Thread(target=register_one, args=(str(i),)) for i in range(10)]
         for t in threads:
             t.start()
         for t in threads:
@@ -285,9 +281,7 @@ class TestConcurrencySafety:
             except ValueError:
                 pass  # 可能被其他线程抢先注册
 
-        threads = [threading.Thread(target=reader) for _ in range(5)] + [
-            threading.Thread(target=writer)
-        ]
+        threads = [threading.Thread(target=reader) for _ in range(5)] + [threading.Thread(target=writer)]
 
         for t in threads:
             t.start()

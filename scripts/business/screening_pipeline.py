@@ -124,12 +124,8 @@ def analyze_code_phase1(quote, args, finance_cache=None, regime=None):
     svc = _get_screening_service()
     # _hard_filter 返回 (reasons, warnings)；phase1 路径不消费 warnings
     rejected, _filter_warnings = svc._hard_filter(quote, fin, filters)
-    industry = infer_industry(
-        quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", "")
-    )
-    parts = compute_phase1_parts(
-        fin, quote, industry, weights=get_strategy(args.strategy)
-    )
+    industry = infer_industry(quote.get("name", ""), quote_code, fetcher_industry=quote.get("industry", ""))
+    parts = compute_phase1_parts(fin, quote, industry, weights=get_strategy(args.strategy))
     if getattr(args, "no_chip", False):
         parts["chip"] = 50
     total = compute_weighted_score(parts, args.strategy, regime=regime)
@@ -190,8 +186,7 @@ def _apply_sector_momentum(rows: list, exclude: bool) -> list:
             r["sector_momentum_ret_5d"] = m["ret_5d"]
             if m["ret_5d"] < SECTOR_WEAK_THRESHOLD:
                 r["sector_momentum_warning"] = (
-                    f"{r.get('industry')} 板块退潮"
-                    f"（ETF {m['etf']} 近 5 日 {m['ret_5d']:+.2f}%）"
+                    f"{r.get('industry')} 板块退潮" f"（ETF {m['etf']} 近 5 日 {m['ret_5d']:+.2f}%）"
                 )
                 if exclude:
                     continue
@@ -241,14 +236,8 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
         quotes = fetch_batch_dicts(codes)
         quotes = pre_screen_quotes(quotes, args)
         # 按成交额降序，仅对 Top 500 抓财务数据
-        _fm_quotes_sorted = sorted(
-            quotes, key=lambda q: float(q.get("amount", 0) or 0), reverse=True
-        )
-        _fm_fin_codes = [
-            normalize_quote_code(q.get("code", ""))
-            for q in _fm_quotes_sorted[:500]
-            if q.get("code")
-        ]
+        _fm_quotes_sorted = sorted(quotes, key=lambda q: float(q.get("amount", 0) or 0), reverse=True)
+        _fm_fin_codes = [normalize_quote_code(q.get("code", "")) for q in _fm_quotes_sorted[:500] if q.get("code")]
         _cb("data_prefetch", {"stage": "prescreen", "count": len(quotes)})
         _cb("data_prefetch", {"stage": "finance", "count": len(_fm_fin_codes)})
         finance_cache = prefetch_finance_all(_fm_fin_codes)
@@ -311,9 +300,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     # 全部 ~3300 只 prefetch_kline_all 拉 K 线，整体远超 watchdog deadline 而超时。
     if args.two_stage or args.full_market:
         t_p1 = _time.perf_counter()
-        rows_p1 = [
-            analyze_code_phase1(q, args, finance_cache, regime=regime) for q in quotes
-        ]
+        rows_p1 = [analyze_code_phase1(q, args, finance_cache, regime=regime) for q in quotes]
         if not args.no_normalize and len(rows_p1) >= 3:
             _apply_factor_normalization(rows_p1, args.strategy, regime=regime)
         # 先配对再排序，避免 sort 后 zip 将 quote 与错误 row 配对
@@ -381,9 +368,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
 
     # v1.21.0 板块退潮标记/过滤。数据不可得时静默跳过，不阻塞主流程。
     try:
-        rows = _apply_sector_momentum(
-            rows, getattr(args, "exclude_sector_momentum", False)
-        )
+        rows = _apply_sector_momentum(rows, getattr(args, "exclude_sector_momentum", False))
     except Exception as e:
         print(f"⚠️ 板块动量检查失败（跳过）: {e}", file=sys.stderr)
 

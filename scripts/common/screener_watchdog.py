@@ -30,9 +30,7 @@ import threading
 import time
 from typing import Optional
 
-DEFAULT_DEADLINE_SEC = (
-    1800  # 30 分钟（v1.21.0: 600->1800，全市场 3323 只 K 线拉取 10 分钟不够）
-)
+DEFAULT_DEADLINE_SEC = 1800  # 30 分钟（v1.21.0: 600->1800，全市场 3323 只 K 线拉取 10 分钟不够）
 
 
 def _resolve_deadline(arg_value: Optional[float] = None) -> float:

@@ -149,9 +149,7 @@ class HolderFetcher(BaseFetcher):
             return None
 
         # 按日期降序排序（确保最新的在前），避免依赖 API 返回顺序
-        gdrs_list = sorted(
-            gdrs_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True
-        )
+        gdrs_list = sorted(gdrs_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True)
 
         result = []
         prev_holder_num = 0
@@ -233,9 +231,7 @@ class TopHolderFetcher(BaseFetcher):
             return None
 
         # 按日期降序排序，确保最新一期在最前面
-        sdltgd_list = sorted(
-            sdltgd_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True
-        )
+        sdltgd_list = sorted(sdltgd_list, key=lambda x: str(x.get("END_DATE", "")), reverse=True)
 
         # 获取最新一期的日期
         latest_date = str(sdltgd_list[0].get("END_DATE", ""))[:10]
@@ -256,9 +252,7 @@ class TopHolderFetcher(BaseFetcher):
 
                 # 变动类型：从独立状态字段获取，辅以变化量数值判断
                 change_type_raw = str(item.get("CHANGE_TYPE", "")).strip()
-                hold_num_change = (
-                    to_float(item.get("HOLD_NUM_CHANGE", 0)) / 10000
-                )  # 转万股
+                hold_num_change = to_float(item.get("HOLD_NUM_CHANGE", 0)) / 10000  # 转万股
 
                 if change_type_raw:
                     # API 返回了独立的变动类型字段（如"新进"/"增持"/"减持"/"不变"）

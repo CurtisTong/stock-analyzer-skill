@@ -24,15 +24,11 @@ def detect_sanying_yiyang(records, volumes, code=""):
 
     for i in range(3, len(records)):
         r0, r1, r2, r3 = records[i - 3], records[i - 2], records[i - 1], records[i]
-        o0, c0, o1, c1, o2, c2, o3, c3 = [
-            to_float(r.get(k)) for r in [r0, r1, r2, r3] for k in ["open", "close"]
-        ]
+        o0, c0, o1, c1, o2, c2, o3, c3 = [to_float(r.get(k)) for r in [r0, r1, r2, r3] for k in ["open", "close"]]
         v0, v1, v2, v3 = [to_float(r.get("volume")) for r in [r0, r1, r2, r3]]
 
         # ── 三阴一阳（底部洗盘结束）──
-        if all(
-            _is_bearish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]
-        ) and _is_bullish(o3, c3):
+        if all(_is_bearish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]) and _is_bullish(o3, c3):
 
             # 计算三阴累计跌幅（负值表示下跌）
             total_decline = (c2 - o0) / max(o0, 0.001) * 100
@@ -85,11 +81,7 @@ def detect_sanying_yiyang(records, volumes, code=""):
                 if coverage > 0.8:
                     confidence_score += 1
 
-                confidence = (
-                    "高"
-                    if confidence_score >= 5
-                    else "中" if confidence_score >= 3 else "低"
-                )
+                confidence = "高" if confidence_score >= 5 else "中" if confidence_score >= 3 else "低"
 
                 results.append(
                     {
@@ -109,9 +101,7 @@ def detect_sanying_yiyang(records, volumes, code=""):
                 )
 
         # ── 三阳一阴（高位诱多出货）──
-        if all(
-            _is_bullish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]
-        ) and _is_bearish(o3, c3):
+        if all(_is_bullish(o, c) for o, c in [(o0, c0), (o1, c1), (o2, c2)]) and _is_bearish(o3, c3):
 
             # 计算三阳累计涨幅
             total_rise = (c2 - o0) / max(o0, 0.001) * 100

@@ -129,11 +129,7 @@ def evaluate_oos(win_rate_pct: float, n_stocks: int, total_return_pct: float) ->
                        total_return_pct > 0
         "in_sample" otherwise（含样本数不够 / 胜率不足 / 负收益）
     """
-    if (
-        n_stocks >= OOS_MIN_STOCKS
-        and win_rate_pct >= OOS_MIN_WIN_RATE
-        and total_return_pct > 0
-    ):
+    if n_stocks >= OOS_MIN_STOCKS and win_rate_pct >= OOS_MIN_WIN_RATE and total_return_pct > 0:
         return "oos_verified"
     return "in_sample"
 
@@ -162,10 +158,7 @@ def evaluate_multi_pool(
 
     all_verified = all(s == "oos_verified" for s in statuses.values())
     if all_verified:
-        parts = " / ".join(
-            f"{pt} 胜率{wr:.1f}% 收益{tr:+.2f}%"
-            for pt, (wr, _, tr) in pool_results.items()
-        )
+        parts = " / ".join(f"{pt} 胜率{wr:.1f}% 收益{tr:+.2f}%" for pt, (wr, _, tr) in pool_results.items())
         return "oos_verified", f"✓ 双池 OOS 验证通过：{parts}"
 
     failed = [pt for pt, s in statuses.items() if s != "oos_verified"]
@@ -177,7 +170,4 @@ def evaluate_multi_pool(
 
 def build_oos_note(win_rate_pct: float, n_stocks: int, total_return_pct: float) -> str:
     """生成 OOS 验证 note（含数字 + 阈值提示）。"""
-    return (
-        f"✓ OOS 验证（{n_stocks} 只股票池）："
-        f"胜率 {win_rate_pct:.1f}% / 累计收益 {total_return_pct:+.2f}%"
-    )
+    return f"✓ OOS 验证（{n_stocks} 只股票池）：" f"胜率 {win_rate_pct:.1f}% / 累计收益 {total_return_pct:+.2f}%"

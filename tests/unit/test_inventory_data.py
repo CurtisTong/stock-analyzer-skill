@@ -115,18 +115,14 @@ class TestAkshareBalanceEnricher:
         monkeypatch.setattr(
             akshare_balance,
             "ak",
-            type(
-                "M", (), {"stock_balance_sheet_by_report_em": lambda symbol: MockDF()}
-            ),
+            type("M", (), {"stock_balance_sheet_by_report_em": lambda symbol: MockDF()}),
         )
 
         records = [
             {"REPORT_DATE": "2026-03-31", "EPSJB": 0.41, "source": "eastmoney"},
             {"REPORT_DATE": "2025-12-31", "EPSJB": 3.37, "source": "eastmoney"},
         ]
-        result = akshare_balance.enrich_with_balance_sheet(
-            records, "sh603501", periods=2
-        )
+        result = akshare_balance.enrich_with_balance_sheet(records, "sh603501", periods=2)
         assert result[0]["INVENTORY"] == 9382405579.77
         assert result[1]["INVENTORY"] == 8500000000.0
 
@@ -158,11 +154,7 @@ class TestAkshareBalanceEnricher:
             type(
                 "M",
                 (),
-                {
-                    "stock_balance_sheet_by_report_em": lambda symbol: (
-                        _ for _ in ()
-                    ).throw(RuntimeError("网络错误"))
-                },
+                {"stock_balance_sheet_by_report_em": lambda symbol: (_ for _ in ()).throw(RuntimeError("网络错误"))},
             ),
         )
 

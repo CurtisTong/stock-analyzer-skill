@@ -70,9 +70,7 @@ class TestCrossWindowValidation:
             return _report(1.0, 0.2)
 
         monkeypatch.setattr("backtest.cli.run_backtest", fake_run_backtest)
-        result = optimize_weights(
-            ["sh600519"], STRATEGY, top_n=5, days=60, validate=False
-        )
+        result = optimize_weights(["sh600519"], STRATEGY, top_n=5, days=60, validate=False)
         assert "cross_window_validation" not in result
         assert "robust" not in result
         assert 120 not in calls and 240 not in calls

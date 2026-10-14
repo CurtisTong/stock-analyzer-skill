@@ -17,9 +17,7 @@ from technical.core import sma
 
 logger = logging.getLogger(__name__)
 
-_CSI300_FILE = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "csi300_stocks.json"
-)
+_CSI300_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "csi300_stocks.json"
 _csi300_cache: Optional[list] = None
 _breadth_cache: Optional[float] = None
 _breadth_cache_ts: float = 0

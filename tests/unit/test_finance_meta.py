@@ -128,9 +128,7 @@ class TestGetFinanceReturnsTuple:
         """实际期数 < 请求期数 → is_periods_truncated=True。"""
         from data import get_finance
 
-        with _patch_finance_fetch(
-            [{"EPSJB": "1.0", "ROEJQ": "10.0", "source": "eastmoney"}] * 3
-        ):
+        with _patch_finance_fetch([{"EPSJB": "1.0", "ROEJQ": "10.0", "source": "eastmoney"}] * 3):
             records, meta = get_finance("SH600989", use_cache=False, periods=8)
         assert meta.actual_periods == 3
         assert meta.requested_periods == 8

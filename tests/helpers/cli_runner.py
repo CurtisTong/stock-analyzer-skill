@@ -97,9 +97,7 @@ class CliRunner:
                 check=False,
             )
         except subprocess.TimeoutExpired as e:
-            raise AssertionError(
-                f"CLI 超时: {script} {' '.join(args)} (>{self.timeout_s}s)"
-            ) from e
+            raise AssertionError(f"CLI 超时: {script} {' '.join(args)} (>{self.timeout_s}s)") from e
 
         elapsed_ms = (time.perf_counter() - start) * 1000
         return CliResult(

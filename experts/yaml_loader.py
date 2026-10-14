@@ -66,9 +66,7 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
     if not isinstance(data["name"], str) or not data["name"]:
         raise ValueError(f"{path}: name 应为非空 str")
     if data["group"] not in ("long_term", "short_term"):
-        raise ValueError(
-            f"{path}: group 应为 'long_term' 或 'short_term'，实际 {data['group']!r}"
-        )
+        raise ValueError(f"{path}: group 应为 'long_term' 或 'short_term'，实际 {data['group']!r}")
     weights = data["weights"]
     if not isinstance(weights, dict) or not weights:
         raise ValueError(f"{path}: weights 应为非空 dict")
@@ -79,9 +77,7 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
     # 权重加和校验（±0.5 容差，与 ExpertProfile.__post_init__ 一致）
     total = sum(weights.values())
     if abs(total - 100.0) > 0.5:
-        raise ValueError(
-            f"{path}: weights 加和 = {total:.1f}（期望 100±0.5），维度: {list(weights.keys())}"
-        )
+        raise ValueError(f"{path}: weights 加和 = {total:.1f}（期望 100±0.5），维度: {list(weights.keys())}")
 
     # 维度名归一化--把"情绪/资金"等别名映射到标准"情绪"，
     # 使 profile.weights 的键与 scoring 层期望的标准维度名一致，

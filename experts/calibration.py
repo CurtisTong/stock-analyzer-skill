@@ -75,10 +75,7 @@ def _get_calibration_threshold() -> float:
 def _empty_data() -> dict:
     return {
         "predictions": [],
-        "experts": {
-            name: {"events": 0, "correct": 0, "last_updated": None}
-            for name in _get_all_expert_names()
-        },
+        "experts": {name: {"events": 0, "correct": 0, "last_updated": None} for name in _get_all_expert_names()},
     }
 
 
@@ -258,9 +255,7 @@ def record_prediction(
     """
     ts = timestamp or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     date = ts[:10]
-    verify_after = (
-        datetime.strptime(date, "%Y-%m-%d") + timedelta(days=verify_days)
-    ).strftime("%Y-%m-%d")
+    verify_after = (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=verify_days)).strftime("%Y-%m-%d")
 
     pred_id = f"pred_{date.replace('-', '')}_{stock_code}"
 
@@ -330,9 +325,7 @@ def verify_predictions(
         actual_direction = None
         if get_price_fn is not None:
             try:
-                actual_return = get_price_fn(
-                    pred["stock"], pred["date"], pred["verify_after"]
-                )
+                actual_return = get_price_fn(pred["stock"], pred["date"], pred["verify_after"])
                 # v1.7.1 起阈值可配置：从 scripts/config/scoring.yaml 读取
                 threshold = _get_calibration_threshold()
                 if actual_return > threshold:
@@ -342,9 +335,7 @@ def verify_predictions(
                 else:
                     actual_direction = "横盘"
             except (KeyError, ValueError, TypeError) as e:
-                logging.getLogger(__name__).debug(
-                    "获取 %s 实际收益率失败: %s", pred["stock"], e
-                )
+                logging.getLogger(__name__).debug("获取 %s 实际收益率失败: %s", pred["stock"], e)
 
         # v2.4.3 修正：重验证 bug
         # 原 get_price_fn=None 时仍置 verified=True，导致预测被永久锁死（无结果）。
@@ -397,15 +388,9 @@ def verify_predictions(
                 if actual_direction is not None:
                     expert_direction = direction_from_score(score)
                     is_correct = None
-                    if (
-                        expert_direction in ("强烈看多", "看多")
-                        and actual_direction == "上涨"
-                    ):
+                    if expert_direction in ("强烈看多", "看多") and actual_direction == "上涨":
                         is_correct = True
-                    elif (
-                        expert_direction in ("看空", "强烈看空")
-                        and actual_direction == "下跌"
-                    ):
+                    elif expert_direction in ("看空", "强烈看空") and actual_direction == "下跌":
                         is_correct = True
                     elif expert_direction == "中性" and actual_direction == "横盘":
                         is_correct = True
@@ -447,11 +432,7 @@ def get_pending_predictions() -> List[dict]:
     """返回尚未验证的预测记录。"""
     data = _load()
     today = datetime.now().strftime("%Y-%m-%d")
-    return [
-        p
-        for p in data.get("predictions", [])
-        if not p.get("verified") and p.get("verify_after", "") <= today
-    ]
+    return [p for p in data.get("predictions", []) if not p.get("verified") and p.get("verify_after", "") <= today]
 
 
 def _calibration_factor_from_rates(rates: list[float]) -> float:
@@ -522,10 +503,7 @@ def get_calibration_report() -> str:
         lines.append("")
         lines.append(f"### 待验证预测 ({len(pending)} 条)")
         for p in pending[:10]:
-            lines.append(
-                f"- {p['stock']} ({p['date']}) → {p['direction']} "
-                f"(验证日期: {p['verify_after']})"
-            )
+            lines.append(f"- {p['stock']} ({p['date']}) → {p['direction']} " f"(验证日期: {p['verify_after']})")
 
     return "\n".join(lines)
 

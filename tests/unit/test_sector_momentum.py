@@ -35,9 +35,7 @@ class TestIndustryEtfMap:
         import csv
         from pathlib import Path
 
-        csv_path = (
-            Path(__file__).parent.parent.parent / "scripts" / "data" / "sector_etf.csv"
-        )
+        csv_path = Path(__file__).parent.parent.parent / "scripts" / "data" / "sector_etf.csv"
         known = set()
         with csv_path.open(encoding="utf-8") as f:
             for row in csv.DictReader(f):

@@ -30,9 +30,7 @@ def _render_score_section(features, score):
     if score["sell_signals"]:
         lines.append(f"  卖出信号: {', '.join(score['sell_signals'])}")
     if sr.get("nearest_support"):
-        lines.append(
-            f"  关键支撑: {sr['nearest_support']}  关键阻力: {sr.get('nearest_resistance', '-')}"
-        )
+        lines.append(f"  关键支撑: {sr['nearest_support']}  关键阻力: {sr.get('nearest_resistance', '-')}")
     return lines
 
 
@@ -46,9 +44,7 @@ def _render_ma_section(ma):
         if v is not None:
             ma_parts.append(f"MA{p}: {v}")
     lines.append(f"  {', '.join(ma_parts)}")
-    lines.append(
-        f"  排列: {ma.get('alignment', '-')}  |  粘合度: {ma.get('convergence_desc', '-')}"
-    )
+    lines.append(f"  排列: {ma.get('alignment', '-')}  |  粘合度: {ma.get('convergence_desc', '-')}")
     return lines
 
 
@@ -56,12 +52,8 @@ def _render_macd_section(macd):
     """渲染 MACD 段落。"""
     lines = []
     lines.append("\n## MACD")
-    lines.append(
-        f"  DIF: {_fmt(macd.get('dif'))}  DEA: {_fmt(macd.get('dea'))}  BAR: {_fmt(macd.get('macd_bar'))}"
-    )
-    lines.append(
-        f"  信号: {macd.get('signal_desc', '-')}  |  柱趋势: {macd.get('bar_trend', '-')}"
-    )
+    lines.append(f"  DIF: {_fmt(macd.get('dif'))}  DEA: {_fmt(macd.get('dea'))}  BAR: {_fmt(macd.get('macd_bar'))}")
+    lines.append(f"  信号: {macd.get('signal_desc', '-')}  |  柱趋势: {macd.get('bar_trend', '-')}")
     if macd.get("divergence"):
         lines.append(f"  背离: **{macd['divergence']}**")
     return lines
@@ -71,9 +63,7 @@ def _render_kdj_section(kdj):
     """渲染 KDJ 段落。"""
     lines = []
     lines.append("\n## KDJ")
-    lines.append(
-        f"  K: {_fmt(kdj.get('k'))}  D: {_fmt(kdj.get('d'))}  J: {_fmt(kdj.get('j'))}"
-    )
+    lines.append(f"  K: {_fmt(kdj.get('k'))}  D: {_fmt(kdj.get('d'))}  J: {_fmt(kdj.get('j'))}")
     lines.append(f"  信号: {kdj.get('signal', '-')}")
     if kdj.get("钝化"):
         lines.append("  ⚠ KDJ钝化中，超买超卖信号暂停参考")
@@ -84,12 +74,8 @@ def _render_boll_section(boll):
     """渲染 BOLL 段落。"""
     lines = []
     lines.append("\n## BOLL")
-    lines.append(
-        f"  上轨: {_fmt(boll.get('upper'))}  中轨: {_fmt(boll.get('mid'))}  下轨: {_fmt(boll.get('lower'))}"
-    )
-    lines.append(
-        f"  带宽: {boll.get('bandwidth_desc', '-')}  |  价格: {boll.get('position_desc', '-')}"
-    )
+    lines.append(f"  上轨: {_fmt(boll.get('upper'))}  中轨: {_fmt(boll.get('mid'))}  下轨: {_fmt(boll.get('lower'))}")
+    lines.append(f"  带宽: {boll.get('bandwidth_desc', '-')}  |  价格: {boll.get('position_desc', '-')}")
     return lines
 
 
@@ -111,9 +97,7 @@ def _render_volume_section(vol):
     """渲染量能段落。"""
     lines = []
     lines.append("\n## 成交量")
-    lines.append(
-        f"  量比: {_fmt(vol.get('volume_ratio'))} ({vol.get('volume_ratio_desc', '-')})"
-    )
+    lines.append(f"  量比: {_fmt(vol.get('volume_ratio'))} ({vol.get('volume_ratio_desc', '-')})")
     lines.append(f"  量价: {vol.get('volume_price', '-')}")
     if vol.get("obv_divergence"):
         lines.append(f"  OBV: {vol['obv_divergence']}")
@@ -139,9 +123,7 @@ def _render_classification_section(features):
         return []
     lines = []
     lines.append("\n## 个股分类")
-    lines.append(
-        f"  类型: {classification['type']} (置信度: {classification['confidence']})"
-    )
+    lines.append(f"  类型: {classification['type']} (置信度: {classification['confidence']})")
     if classification.get("reasons"):
         lines.append(f"  依据: {'; '.join(classification['reasons'])}")
     if classification.get("priority_indicators"):
@@ -176,14 +158,10 @@ def _render_chan_section(features):
     buy_pts = maidain.get("buy_points", [])
     sell_pts = maidain.get("sell_points", [])
     if buy_pts:
-        bp_desc = "; ".join(
-            bp["type"] + "(" + bp.get("confidence", "") + ")" for bp in buy_pts
-        )
+        bp_desc = "; ".join(bp["type"] + "(" + bp.get("confidence", "") + ")" for bp in buy_pts)
         lines.append(f"  买点: {bp_desc}")
     if sell_pts:
-        sp_desc = "; ".join(
-            sp["type"] + "(" + sp.get("confidence", "") + ")" for sp in sell_pts
-        )
+        sp_desc = "; ".join(sp["type"] + "(" + sp.get("confidence", "") + ")" for sp in sell_pts)
         lines.append(f"  卖点: {sp_desc}")
     if not buy_pts and not sell_pts:
         lines.append("  买卖点: 当前无明确缠论买卖点")
@@ -231,9 +209,7 @@ def _render_market_env_section(features):
         return []
     lines = []
     lines.append("\n## 市场环境自适应")
-    lines.append(
-        f"  市场状态: {market_env['state']} (置信度: {market_env.get('confidence', '-')})"
-    )
+    lines.append(f"  市场状态: {market_env['state']} (置信度: {market_env.get('confidence', '-')})")
     adj_info = market_env.get("weight_adjustments", {})
     if adj_info.get("desc"):
         lines.append(f"  权重调整: {adj_info['desc']}")
@@ -262,9 +238,7 @@ def _render_trend_section(features):
     lines.append("\n## 趋势结构")
     lines.append(f"  波浪状态: {wave}")
     if box:
-        lines.append(
-            f"  箱体: {box['top']}-{box['bottom']} 震荡 (幅度{box['range_pct']}%, {box['days']}日)"
-        )
+        lines.append(f"  箱体: {box['top']}-{box['bottom']} 震荡 (幅度{box['range_pct']}%, {box['days']}日)")
     if breakout and breakout.get("status", "未突破") != "未突破":
         lines.append(f"  突破: {breakout.get('status')}")
     return lines
@@ -307,17 +281,13 @@ def _render_limit_section(features):
         return []
     lines = []
     lines.append("\n## A股特化分析")
-    lines.append(
-        f"  板块制度: {limit_data.get('board', '-')} (涨跌停{limit_data.get('limit_ratio', 10)}%)"
-    )
+    lines.append(f"  板块制度: {limit_data.get('board', '-')} (涨跌停{limit_data.get('limit_ratio', 10)}%)")
     lines.append(
         f"  涨跌停价: 涨停{limit_data.get('limit_up_price', '-')} / 跌停{limit_data.get('limit_down_price', '-')}"
     )
     lines.append(f"  当前状态: {limit_data.get('board_status', '-')}")
     if limit_data.get("limit_streak", 0) > 0:
-        lines.append(
-            f"  连板: {limit_data.get('limit_streak')}连板 ({limit_data.get('streak_type')})"
-        )
+        lines.append(f"  连板: {limit_data.get('limit_streak')}连板 ({limit_data.get('streak_type')})")
         if limit_data.get("streak_volume"):
             lines.append(f"  连板量能: {limit_data['streak_volume']}")
     if limit_data.get("t1_risk"):
@@ -350,12 +320,9 @@ def _render_risk_section(features, meta):
             lower_supports = [s for s in supports if s["level"] < price_num]
             if lower_supports:
                 next_support = max(lower_supports, key=lambda x: x["level"])
-                next_pct = round(
-                    (price_num - next_support["level"]) / price_num * 100, 1
-                )
+                next_pct = round((price_num - next_support["level"]) / price_num * 100, 1)
                 lines.append(
-                    f"  下一支撑(新止损参考): {next_support['level']}"
-                    f"({next_support['source']}) 距现价 -{next_pct}%"
+                    f"  下一支撑(新止损参考): {next_support['level']}" f"({next_support['source']}) 距现价 -{next_pct}%"
                 )
             else:
                 lines.append("  下方无有效支撑，建议关注整数关口或前低")
@@ -432,30 +399,18 @@ def render_quick(features, score, meta):
 
     lines = []
     lines.append(f"## 技术面快扫: {meta['name']} ({meta['code']})")
-    lines.append(
-        f"现价: {meta['price']} | 涨跌: {meta['change_pct']}% | 板块: {meta['board']} | {meta['timestamp']}"
-    )
+    lines.append(f"现价: {meta['price']} | 涨跌: {meta['change_pct']}% | 板块: {meta['board']} | {meta['timestamp']}")
     lines.append("")
     lines.append(f"评分: {score['score']}/100 ({score['grade']})")
     lines.append(f"趋势: {ma.get('alignment', '-')}")
-    macd_icon = (
-        "↑金叉"
-        if macd.get("signal") == 1
-        else "↓死叉" if macd.get("signal") == -1 else "→"
-    )
+    macd_icon = "↑金叉" if macd.get("signal") == 1 else "↓死叉" if macd.get("signal") == -1 else "→"
     lines.append(f"MACD: {macd_icon} | {macd.get('bar_trend', '-')}")
     if macd.get("divergence"):
         lines.append(f"  ⚠ {macd['divergence']}")
-    lines.append(
-        f"量能: {vol.get('volume_ratio_desc', '-')} | {vol.get('volume_price', '-')}"
-    )
-    lines.append(
-        f"支撑: {sr.get('nearest_support', '-')} | 阻力: {sr.get('nearest_resistance', '-')}"
-    )
+    lines.append(f"量能: {vol.get('volume_ratio_desc', '-')} | {vol.get('volume_price', '-')}")
+    lines.append(f"支撑: {sr.get('nearest_support', '-')} | 阻力: {sr.get('nearest_resistance', '-')}")
     if limit_data and limit_data.get("limit_streak", 0) > 0:
-        lines.append(
-            f"连板: {limit_data['limit_streak']}板 ({limit_data.get('board_status')})"
-        )
+        lines.append(f"连板: {limit_data['limit_streak']}板 ({limit_data.get('board_status')})")
     if score["buy_signals"]:
         lines.append(f"买入: {', '.join(score['buy_signals'])}")
     if score["sell_signals"]:

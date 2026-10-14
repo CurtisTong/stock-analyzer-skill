@@ -66,23 +66,15 @@ class DataConfig:
         cfg.http_timeout = http_cfg.get("connect_timeout", cfg.http_timeout)
         cfg.parallel_timeout = http_cfg.get("read_timeout", cfg.parallel_timeout)
         cfg.quote_cache_ttl = cache_cfg.get("quote_ttl", cfg.quote_cache_ttl)
-        cfg.intraday_quote_cache_ttl = cache_cfg.get(
-            "intraday_quote_ttl", cfg.intraday_quote_cache_ttl
-        )
+        cfg.intraday_quote_cache_ttl = cache_cfg.get("intraday_quote_ttl", cfg.intraday_quote_cache_ttl)
         cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
         cfg.kline_1m_cache_ttl = cache_cfg.get("kline_1m_ttl", cfg.kline_1m_cache_ttl)
-        cfg.kline_240m_cache_ttl = cache_cfg.get(
-            "kline_240m_ttl", cfg.kline_240m_cache_ttl
-        )
+        cfg.kline_240m_cache_ttl = cache_cfg.get("kline_240m_ttl", cfg.kline_240m_cache_ttl)
         cfg.finance_cache_ttl = cache_cfg.get("finance_ttl", cfg.finance_cache_ttl)
         cfg.margin_cache_ttl = cache_cfg.get("margin_ttl", cfg.margin_cache_ttl)
         cfg.ann_cache_ttl = cache_cfg.get("ann_ttl", cfg.ann_cache_ttl)
-        cfg.circuit_failure_threshold = cb_cfg.get(
-            "failure_threshold", cfg.circuit_failure_threshold
-        )
-        cfg.circuit_recovery_timeout = cb_cfg.get(
-            "recovery_timeout", cfg.circuit_recovery_timeout
-        )
+        cfg.circuit_failure_threshold = cb_cfg.get("failure_threshold", cfg.circuit_failure_threshold)
+        cfg.circuit_recovery_timeout = cb_cfg.get("recovery_timeout", cfg.circuit_recovery_timeout)
 
         # 环境变量覆盖（容错：非法值回退到默认）
         def _safe_int(env_val, default: int) -> int:
@@ -91,23 +83,17 @@ class DataConfig:
             except (TypeError, ValueError):
                 return default
 
-        cfg.http_timeout = _safe_int(
-            os.getenv("DATA_HTTP_TIMEOUT", cfg.http_timeout), cfg.http_timeout
-        )
+        cfg.http_timeout = _safe_int(os.getenv("DATA_HTTP_TIMEOUT", cfg.http_timeout), cfg.http_timeout)
         cfg.parallel_timeout = _safe_int(
             os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout),
             cfg.parallel_timeout,
         )
-        cfg.quote_cache_ttl = _safe_int(
-            os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl), cfg.quote_cache_ttl
-        )
+        cfg.quote_cache_ttl = _safe_int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl), cfg.quote_cache_ttl)
         cfg.intraday_quote_cache_ttl = _safe_int(
             os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl),
             cfg.intraday_quote_cache_ttl,
         )
-        cfg.kline_cache_ttl = _safe_int(
-            os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl), cfg.kline_cache_ttl
-        )
+        cfg.kline_cache_ttl = _safe_int(os.getenv("DATA_KLINE_TTL", cfg.kline_cache_ttl), cfg.kline_cache_ttl)
         cfg.kline_1m_cache_ttl = _safe_int(
             os.getenv("DATA_KLINE_1M_TTL", cfg.kline_1m_cache_ttl),
             cfg.kline_1m_cache_ttl,
@@ -116,12 +102,8 @@ class DataConfig:
             os.getenv("DATA_KLINE_240M_TTL", cfg.kline_240m_cache_ttl),
             cfg.kline_240m_cache_ttl,
         )
-        cfg.finance_cache_ttl = _safe_int(
-            os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl), cfg.finance_cache_ttl
-        )
-        cfg.margin_cache_ttl = _safe_int(
-            os.getenv("DATA_MARGIN_TTL", cfg.margin_cache_ttl), cfg.margin_cache_ttl
-        )
+        cfg.finance_cache_ttl = _safe_int(os.getenv("DATA_FINANCE_TTL", cfg.finance_cache_ttl), cfg.finance_cache_ttl)
+        cfg.margin_cache_ttl = _safe_int(os.getenv("DATA_MARGIN_TTL", cfg.margin_cache_ttl), cfg.margin_cache_ttl)
         cfg.circuit_failure_threshold = _safe_int(
             os.getenv("DATA_CIRCUIT_THRESHOLD", cfg.circuit_failure_threshold),
             cfg.circuit_failure_threshold,
@@ -183,11 +165,7 @@ def _load_holidays() -> set:
     try:
         from pathlib import Path
 
-        path = (
-            Path(__file__).resolve().parent.parent.parent
-            / "data"
-            / "a_share_holidays.json"
-        )
+        path = Path(__file__).resolve().parent.parent.parent / "data" / "a_share_holidays.json"
         import json
 
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -224,9 +202,7 @@ def get_source_timeout(source_type: str, source_name: str, default: int = 10) ->
     """
     from config.loader import ConfigLoader
 
-    return ConfigLoader.get(
-        "data_source.yaml", f"{source_type}.{source_name}.timeout", default
-    )
+    return ConfigLoader.get("data_source.yaml", f"{source_type}.{source_name}.timeout", default)
 
 
 _config = None

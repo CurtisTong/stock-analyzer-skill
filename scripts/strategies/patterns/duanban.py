@@ -57,9 +57,7 @@ def detect_duanban(records, closes, highs, lows, volumes, code=""):
             c1 = to_float(r_zt1.get("close"))
             v1 = to_float(r_zt1.get("volume"))
             h1 = to_float(r_zt1.get("high"))
-            prev_close_1 = (
-                to_float(records[zt1_idx - 1].get("close")) if zt1_idx > 0 else c1
-            )
+            prev_close_1 = to_float(records[zt1_idx - 1].get("close")) if zt1_idx > 0 else c1
 
             # 第一次涨停
             if not _is_limit_up(o1, c1, prev_close_1, board):

@@ -125,9 +125,7 @@ class TestBuildStockSectorCompareRouter:
         stock_quote = {"change_pct": 0.5}
         index_quote = {"change_pct": 0.1}
         # 德赛西威不在主题池，走 stock_sector_map → 汽车电子 → 智能汽车ETF
-        res = build_stock_sector_compare(
-            "sz002920", stock_quote, force_rows, index_quote
-        )
+        res = build_stock_sector_compare("sz002920", stock_quote, force_rows, index_quote)
         assert res["stock_sectors"] == ["汽车电子"]
         assert res["sector_source"] == "stock_sector_map"
         assert res["matched_etf"] == "sh515250"
@@ -143,9 +141,7 @@ class TestBuildStockSectorCompareRouter:
         force_rows = compute_etf_strength(metas, quotes)
         stock_quote = {"change_pct": 0.5}
         index_quote = {"change_pct": 0.1}
-        res = build_stock_sector_compare(
-            "sh601988", stock_quote, force_rows, index_quote
-        )
+        res = build_stock_sector_compare("sh601988", stock_quote, force_rows, index_quote)
         assert res["sector_source"] == "sector_stocks"
         assert res["matched_etf"] is not None
 
@@ -158,8 +154,6 @@ class TestBuildStockSectorCompareRouter:
         force_rows = compute_etf_strength(metas, quotes)
         stock_quote = {"change_pct": 0.5}
         index_quote = {"change_pct": 0.1}
-        res = build_stock_sector_compare(
-            "sh699999", stock_quote, force_rows, index_quote
-        )
+        res = build_stock_sector_compare("sh699999", stock_quote, force_rows, index_quote)
         assert res["matched_etf"] is None
         assert res["verdict"] is not None

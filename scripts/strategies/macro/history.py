@@ -15,9 +15,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-HISTORY_FILE = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "macro_history.csv"
-)
+HISTORY_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "macro_history.csv"
 
 
 def fetch_history(years: int = 10) -> str:
@@ -86,9 +84,7 @@ def fetch_history(years: int = 10) -> str:
             if len(closes) >= window + 1:
                 recent = closes[-(window + 1) :]
                 returns = [
-                    (recent[i] - recent[i - 1]) / recent[i - 1]
-                    for i in range(1, len(recent))
-                    if recent[i - 1] > 0
+                    (recent[i] - recent[i - 1]) / recent[i - 1] for i in range(1, len(recent)) if recent[i - 1] > 0
                 ]
                 if len(returns) >= 2:
                     import statistics

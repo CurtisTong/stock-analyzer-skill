@@ -20,9 +20,7 @@ logger = logging.getLogger(__name__)
 NATIONAL_TEAM_ETFS = ["sh510050", "sh510300", "sh510500"]
 
 
-def detect_national_team(
-    daily_threshold: float = 3.0, tail_threshold: float = 2.5
-) -> Dict:
+def detect_national_team(daily_threshold: float = 3.0, tail_threshold: float = 2.5) -> Dict:
     """检测国家队 ETF 放量。
 
     Args:

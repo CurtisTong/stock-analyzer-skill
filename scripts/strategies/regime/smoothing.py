@@ -60,9 +60,7 @@ class RegimeSmoother:
         """
         from .overlay import compute_overlay_weights
 
-        new_weights = compute_overlay_weights(
-            original_weights, regime, extreme_drop, national_team, ic_multipliers
-        )
+        new_weights = compute_overlay_weights(original_weights, regime, extreme_drop, national_team, ic_multipliers)
 
         if self._prev_weights is None:
             # 首次调用：不混合，直接用新权重

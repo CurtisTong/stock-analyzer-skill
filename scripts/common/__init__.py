@@ -131,9 +131,7 @@ def __getattr__(name: str):
 # ---------- 带缓存的 HTTP 包装 ----------
 
 
-def http_get_cached(
-    url: str, timeout: int = 10, ttl: int = 21600, key: str | None = None
-) -> bytes:
+def http_get_cached(url: str, timeout: int = 10, ttl: int = 21600, key: str | None = None) -> bytes:
     """带缓存的 HTTP GET。先读缓存，未命中则请求并写入缓存。
 
     Args:
@@ -153,9 +151,7 @@ def http_get_cached(
     return data
 
 
-def http_get_cached_keyed(
-    url: str, key: str, timeout: int = 10, ttl: int = 21600
-) -> bytes:
+def http_get_cached_keyed(url: str, key: str, timeout: int = 10, ttl: int = 21600) -> bytes:
     """带语义缓存键的 HTTP GET（向后兼容别名，委托 http_get_cached）。"""
     return http_get_cached(url, timeout=timeout, ttl=ttl, key=key)
 

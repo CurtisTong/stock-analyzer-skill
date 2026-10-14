@@ -45,9 +45,7 @@ TREND_MAP = {
 def fetch_json(cmd: list[str], timeout: int = 60) -> dict:
     """子进程调用脚本，解析 JSON。失败返回 {'error': ...}。"""
     try:
-        r = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=timeout, cwd=ROOT
-        )
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=ROOT)
     except subprocess.TimeoutExpired:
         return {"error": "timeout"}
     if r.returncode != 0:
@@ -121,13 +119,9 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             macd_signal = -1
 
     # 4. 市场特征（从 market_anchor）
-    ma = fetch_json(
-        ["python3", "scripts/market_anchor.py", code_lower, "--no-sector", "-j"]
-    )
+    ma = fetch_json(["python3", "scripts/market_anchor.py", code_lower, "--no-sector", "-j"])
     raw_meta["market_anchor"] = ma
-    breadth = (
-        ma.get("breadth", {}) if isinstance(ma, dict) and not ma.get("error") else {}
-    )
+    breadth = ma.get("breadth", {}) if isinstance(ma, dict) and not ma.get("error") else {}
 
     stock_data = {
         "quote": {
@@ -153,11 +147,7 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             "limit_up_count": breadth.get("limit_up_count", 0),
             "limit_down_count": breadth.get("limit_down_count", 0),
             "advance_ratio": breadth.get("advance_ratio", 0.5),
-            "break_rate": (
-                breadth.get("broken_limit_rate", 0) / 100
-                if breadth.get("broken_limit_rate")
-                else 0
-            ),
+            "break_rate": (breadth.get("broken_limit_rate", 0) / 100 if breadth.get("broken_limit_rate") else 0),
             "limit_up_30d_count": 0,
             "sector_limit_up_count": 0,
         },
@@ -188,11 +178,7 @@ def run_for_stock(code: str, group_filter: str | None = None) -> dict:
             }
         )
 
-    composite = (
-        sum(r["score"] for r in expert_results) / len(expert_results)
-        if expert_results
-        else 50
-    )
+    composite = sum(r["score"] for r in expert_results) / len(expert_results) if expert_results else 50
     return {
         "code": code.upper(),
         "stock_data": stock_data,
@@ -265,14 +251,10 @@ def main() -> int:
         return 0
 
     # 终端表格输出
-    print(
-        f"\n# 量化评分 · {'长线5' if args.long else ('短线3' if args.short else '全部8')}"
-    )
+    print(f"\n# 量化评分 · {'长线5' if args.long else ('短线3' if args.short else '全部8')}")
     print(render_table(out))
     print("\n# 方向标签说明：多=看多，空=看空，中=中性")
-    print(
-        "# 注意：此为量化基线，debate 模式应与 LLM 推理分对比，差异 >15 须说明原因。\n"
-    )
+    print("# 注意：此为量化基线，debate 模式应与 LLM 推理分对比，差异 >15 须说明原因。\n")
     return 0
 
 

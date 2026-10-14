@@ -43,16 +43,8 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
 
         # 条件2：最近 2-5 天横盘（价格振幅 2-5%，不破 MA10）
         consolidation_range = range(max(ci - 5, 0), ci)
-        price_high = (
-            max(highs[j] for j in consolidation_range)
-            if consolidation_range
-            else closes[ci]
-        )
-        price_low = (
-            min(lows[j] for j in consolidation_range)
-            if consolidation_range
-            else closes[ci]
-        )
+        price_high = max(highs[j] for j in consolidation_range) if consolidation_range else closes[ci]
+        price_low = min(lows[j] for j in consolidation_range) if consolidation_range else closes[ci]
         amplitude = (price_high - price_low) / max(price_low, 0.001) * 100
 
         if not (2 <= amplitude <= 5):
@@ -69,28 +61,18 @@ def detect_meirenjian(records, closes, highs, lows, volumes, mas):
         pre_vol = [volumes[j] for j in range(max(ci - 10, 0), max(ci - 5, 0))]
         if not consol_vol or not pre_vol:
             continue
-        if (
-            sum(consol_vol) / len(consol_vol)
-            > sum(pre_vol) / max(len(pre_vol), 1) * 0.7
-        ):
+        if sum(consol_vol) / len(consol_vol) > sum(pre_vol) / max(len(pre_vol), 1) * 0.7:
             continue
 
         # 条件4：今日放量突破横盘区间
-        if (
-            volumes[ci] > sum(consol_vol) / len(consol_vol) * 1.5
-            and closes[ci] > price_high
-        ):
+        if volumes[ci] > sum(consol_vol) / len(consol_vol) * 1.5 and closes[ci] > price_high:
             results.append(
                 {
                     "name": "美人肩",
                     "type": "看涨",
                     "date": records[ci].get("day", ""),
                     "desc": f"横盘{len(consolidation_range)}日振幅{amplitude:.1f}%不破MA10后放量突破",
-                    "confidence": (
-                        "高"
-                        if volumes[ci] > sum(consol_vol) / len(consol_vol) * 2
-                        else "中"
-                    ),
+                    "confidence": ("高" if volumes[ci] > sum(consol_vol) / len(consol_vol) * 2 else "中"),
                     "idx": ci,
                 }
             )

@@ -81,21 +81,11 @@ def run_debate(
 
             # 只评估 expert_results 中实际参与的专家
             active_names = {r.get("name") for r in expert_results if r.get("name")}
-            active_profiles = {
-                name: EXPERT_REGISTRY[name]
-                for name in active_names
-                if name in EXPERT_REGISTRY
-            }
+            active_profiles = {name: EXPERT_REGISTRY[name] for name in active_names if name in EXPERT_REGISTRY}
             if active_profiles:
-                _, risk_coefficients = evaluate_veto_conditions(
-                    stock_data, active_profiles
-                )
+                _, risk_coefficients = evaluate_veto_conditions(stock_data, active_profiles)
                 # 过滤掉无折扣的专家（coeff=1.0），减少 notes 噪声
-                risk_coefficients = {
-                    name: coeff
-                    for name, coeff in risk_coefficients.items()
-                    if coeff < 1.0
-                } or None
+                risk_coefficients = {name: coeff for name, coeff in risk_coefficients.items() if coeff < 1.0} or None
         except Exception as e:
             _logger.warning("风险分级评估失败（不影响 debate 结果）: %s", e)
 
@@ -117,10 +107,7 @@ def run_debate(
 
         # 兼容双组/单组返回结构
         composite = result.get("composite_score") or result.get("avg_score", 0.0)
-        expert_scores = {
-            r.get("name"): r.get("score", 50.0)
-            for r in result.get("expert_results", [])
-        }
+        expert_scores = {r.get("name"): r.get("score", 50.0) for r in result.get("expert_results", [])}
         pred_id = record_prediction(
             stock_code=stock_code,
             expert_scores=expert_scores,

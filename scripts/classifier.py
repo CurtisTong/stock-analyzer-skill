@@ -65,9 +65,7 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     # confidence 在规则分类前统一初始化为"低"（见下方 ── 规则分类 ──）
 
     # 提取行情特征
-    circulating_cap = (
-        to_float(quote_record.get("circulating_cap")) if quote_record else 0
-    )
+    circulating_cap = to_float(quote_record.get("circulating_cap")) if quote_record else 0
     turnover = to_float(quote_record.get("turnover")) if quote_record else 0
 
     # 提取财务特征
@@ -82,16 +80,12 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     if kline_records and len(kline_records) >= 10:
         code = quote_record.get("code", "") if quote_record else ""
         bd = board_type(code)
-        limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(
-            bd, 9.5
-        )
+        limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(bd, 9.5)
         for i in range(len(kline_records) - 1, max(len(kline_records) - 5, 0), -1):
             r = kline_records[i]
             prev = kline_records[i - 1] if i > 0 else r
             chg = (
-                (to_float(r.get("close")) - to_float(prev.get("close")))
-                / max(to_float(prev.get("close")), 0.01)
-                * 100
+                (to_float(r.get("close")) - to_float(prev.get("close"))) / max(to_float(prev.get("close")), 0.01) * 100
             )
             if chg >= limit_ratio * 0.95:
                 has_limit_streak = True
@@ -102,11 +96,7 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     confidence = "低"
 
     # 1. 题材股
-    if (
-        circulating_cap > 0
-        and circulating_cap < 100
-        and (has_limit_streak or turnover > 10)
-    ):
+    if circulating_cap > 0 and circulating_cap < 100 and (has_limit_streak or turnover > 10):
         stock_type = "题材股"
         reasons.append(f"流通市值{circulating_cap:.0f}亿(小盘)")
         if has_limit_streak:
@@ -224,9 +214,7 @@ def _attach_feature_tags(result, quote_record, kline_records, code):
             closes.append(c)
             highs.append(h)
             lows.append(low)
-            records.append(
-                {"day": day, "open": o, "high": h, "low": low, "close": c, "volume": v}
-            )
+            records.append({"day": day, "open": o, "high": h, "low": low, "close": c, "volume": v})
 
     # 容量票识别
     try:
@@ -240,9 +228,7 @@ def _attach_feature_tags(result, quote_record, kline_records, code):
     try:
         from strategies.factors.dealer import detect_dealer_stock
 
-        result["dealer"] = detect_dealer_stock(
-            code, quote_record, records, closes, highs, lows
-        )
+        result["dealer"] = detect_dealer_stock(code, quote_record, records, closes, highs, lows)
     except Exception:
         result["dealer"] = None
 
@@ -445,14 +431,10 @@ def infer_industry(name: str, code: str = "", fetcher_industry: str = "") -> str
     ):
         return "制造"
     # 军工（"航空"移至交运，军工航空用"航天"/"航发"/"中航"等区分）
-    if any(
-        kw in name for kw in ["军工", "航天", "航发", "中航", "兵器", "船舶", "电科"]
-    ):
+    if any(kw in name for kw in ["军工", "航天", "航发", "中航", "兵器", "船舶", "电科"]):
         return "军工"
     # 交运
-    if any(
-        kw in name for kw in ["航空", "国航", "航运", "港口", "铁路", "高速", "物流"]
-    ):
+    if any(kw in name for kw in ["航空", "国航", "航运", "港口", "铁路", "高速", "物流"]):
         return "交运"
     return "默认"
 

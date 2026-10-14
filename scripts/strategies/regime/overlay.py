@@ -132,11 +132,7 @@ def _load_config() -> dict:
     global _config_cache, _config_mtime
     from pathlib import Path
 
-    config_path = (
-        Path(__file__).resolve().parent.parent.parent
-        / "config"
-        / "regime_weight_map.yaml"
-    )
+    config_path = Path(__file__).resolve().parent.parent.parent / "config" / "regime_weight_map.yaml"
     if not config_path.exists():
         return {}
 

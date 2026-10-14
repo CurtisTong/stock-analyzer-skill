@@ -23,9 +23,7 @@ class TdxPool:
         idle_timeout: 空闲连接超时秒数，超时连接会被丢弃。
     """
 
-    def __init__(
-        self, servers: list[tuple[str, int]], size: int = 4, idle_timeout: int = 30
-    ):
+    def __init__(self, servers: list[tuple[str, int]], size: int = 4, idle_timeout: int = 30):
         self.servers = servers
         self.size = size
         self.idle_timeout = idle_timeout
@@ -49,9 +47,7 @@ class TdxPool:
             while self._pool:
                 entry = self._pool.pop(0)
                 if now - entry["idle_since"] <= self.idle_timeout:
-                    logger.debug(
-                        "pytdx_pool 复用连接 %s:%s", entry["host"], entry["port"]
-                    )
+                    logger.debug("pytdx_pool 复用连接 %s:%s", entry["host"], entry["port"])
                     return entry["api"], entry["host"], entry["port"]
                 # 超时，关闭
                 self._close(entry["api"])
@@ -72,9 +68,7 @@ class TdxPool:
                         "idle_since": time.time(),
                     }
                 )
-                logger.debug(
-                    "pytdx_pool 归还连接 %s:%s，池大小 %d", host, port, len(self._pool)
-                )
+                logger.debug("pytdx_pool 归还连接 %s:%s，池大小 %d", host, port, len(self._pool))
             else:
                 self._close(api)
 

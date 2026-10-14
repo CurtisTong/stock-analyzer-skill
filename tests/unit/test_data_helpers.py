@@ -78,9 +78,7 @@ class TestFetchFinance:
     def _fake_finance(self):
         from data import _dict_to_finance
 
-        return [
-            _dict_to_finance({"EPSJB": "1.5", "ROEJQ": "15.0", "source": "eastmoney"})
-        ]
+        return [_dict_to_finance({"EPSJB": "1.5", "ROEJQ": "15.0", "source": "eastmoney"})]
 
     def test_finance_dicts_returns_records(self):
         records = self._fake_finance()
@@ -125,9 +123,7 @@ class TestPrefetchFinanceAll:
             "data.helpers.get_finance",
             return_value=([], FinanceMeta()),
         ):
-            with patch(
-                "common.normalize_finance_code", side_effect=lambda c: c.upper()
-            ):
+            with patch("common.normalize_finance_code", side_effect=lambda c: c.upper()):
                 result = prefetch_finance_all(["sh600989", "sz000001"])
         assert result["sh600989"] == []
         assert result["sz000001"] == []

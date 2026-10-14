@@ -43,9 +43,7 @@ def detect_zhangting(records, closes, volumes, code=""):
                 to_float(r_zt1.get("close")),
                 to_float(r_zt1.get("volume")),
             )
-            prev_close_1 = (
-                to_float(records[zt1_idx - 1].get("close")) if zt1_idx > 0 else c1
-            )
+            prev_close_1 = to_float(records[zt1_idx - 1].get("close")) if zt1_idx > 0 else c1
 
             # 第一次涨停
             if not _is_limit_up(o1, c1, prev_close_1, board):

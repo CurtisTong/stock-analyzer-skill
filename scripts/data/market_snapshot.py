@@ -65,9 +65,7 @@ def _save_cache(snapshot: dict) -> None:
         import json
 
         path = _get_data_dir() / "market_snapshot.json"
-        path.write_text(
-            json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        path.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception as e:
         logger.debug("market_snapshot 缓存写入失败: %s", e)
 
@@ -112,11 +110,7 @@ def _compute_from_quotes() -> dict:
         caps = []
         for q in quotes:
             amt = to_float(q.to_dict().get("amount", 0)) if hasattr(q, "to_dict") else 0
-            cap = (
-                to_float(q.to_dict().get("total_cap", 0))
-                if hasattr(q, "to_dict")
-                else 0
-            )
+            cap = to_float(q.to_dict().get("total_cap", 0)) if hasattr(q, "to_dict") else 0
             if amt > 0:
                 amounts.append(amt)
             if cap > 0:

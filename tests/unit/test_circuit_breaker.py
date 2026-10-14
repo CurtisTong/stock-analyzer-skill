@@ -102,18 +102,14 @@ class TestHalfOpenWindow:
     """半开窗口期节流：配额 = half_open_max，窗口过期自动续期。"""
 
     def test_quota_blocks_after_half_open_max(self):
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=60, half_open_max=2
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=60, half_open_max=2)
         assert _enter_half_open(cb) is True
         assert cb.can_execute() is True
         assert cb.can_execute() is False  # 窗口内配额 2 已耗尽
         assert cb.can_execute() is False
 
     def test_window_expiry_renews_quota(self):
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=60, half_open_max=2
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=60, half_open_max=2)
         assert _enter_half_open(cb) is True
         assert cb.can_execute() is True
         assert cb.can_execute() is False
@@ -124,9 +120,7 @@ class TestHalfOpenWindow:
         assert cb.can_execute() is False
 
     def test_short_timeout_window_renews_on_real_elapse(self):
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=0.01, half_open_max=1
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=0.01, half_open_max=1)
         assert _enter_half_open(cb) is True
         assert cb.can_execute() is False  # 配额 1 已耗尽
         time.sleep(0.02)
@@ -134,9 +128,7 @@ class TestHalfOpenWindow:
 
     def test_zero_timeout_never_renews_within_half_open(self):
         """recovery_timeout=0 时半开期不自动续期（防止无限试探）。"""
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=0, half_open_max=1
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=0, half_open_max=1)
         assert cb.can_execute() is True
         cb.record_failure()
         assert cb.state == CircuitState.OPEN
@@ -151,9 +143,7 @@ class TestConcurrentWindow:
     """并发下窗口内放行数严格等于 half_open_max（lock 保护）。"""
 
     def test_concurrent_can_execute_respects_quota(self):
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=60, half_open_max=3
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=60, half_open_max=3)
         assert _enter_half_open(cb) is True
         passed: list = []
         lock = threading.Lock()
@@ -174,9 +164,7 @@ class TestConcurrentWindow:
         assert cb._half_open_attempts == 3
 
     def test_concurrent_after_window_expiry_next_quota(self):
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=60, half_open_max=2
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=60, half_open_max=2)
         assert _enter_half_open(cb) is True
         passed: list = []
 
@@ -205,9 +193,7 @@ class TestCanExecuteEdgeBranches:
 
     def test_half_open_attempts_exhausted_returns_false_before_window(self):
         """半开配额耗尽且窗口未过期 → False（76 行）。"""
-        cb = CircuitBreaker(
-            "t", failure_threshold=1, recovery_timeout=60, half_open_max=1
-        )
+        cb = CircuitBreaker("t", failure_threshold=1, recovery_timeout=60, half_open_max=1)
         assert _enter_half_open(cb) is True  # 进入半开消耗 1 配额
         assert cb.can_execute() is False  # 耗尽，窗口未过期 → False
 

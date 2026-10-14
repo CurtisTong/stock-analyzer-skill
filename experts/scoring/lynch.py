@@ -21,9 +21,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline = stock_data.get("kline_features") or {}
 
     # 基本面：净利增速阶梯
-    profit_growth = _safe_float(
-        fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy")
-    )
+    profit_growth = _safe_float(fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy"))
     if profit_growth >= 25:
         base = 100
     elif profit_growth >= 20:

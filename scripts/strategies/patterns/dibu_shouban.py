@@ -19,9 +19,7 @@ def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
 
     for i in range(10, len(records) - 3):
         r_zt = records[i]
-        o_zt, c_zt, h_zt, l_zt = [
-            to_float(r_zt.get(k)) for k in ["open", "close", "high", "low"]
-        ]
+        o_zt, c_zt, h_zt, l_zt = [to_float(r_zt.get(k)) for k in ["open", "close", "high", "low"]]
         v_zt = to_float(r_zt.get("volume"))
         prev_close = to_float(records[i - 1].get("close"))
 
@@ -36,11 +34,7 @@ def detect_dibu_shouban(records, closes, highs, lows, volumes, code=""):
             continue
 
         # 涨停前 5 天有过下跌
-        pre_change = (
-            (closes[i - 1] - closes[i - 5]) / max(closes[i - 5], 0.001) * 100
-            if i >= 5
-            else 0
-        )
+        pre_change = (closes[i - 1] - closes[i - 5]) / max(closes[i - 5], 0.001) * 100 if i >= 5 else 0
         if pre_change > -5:
             continue
 

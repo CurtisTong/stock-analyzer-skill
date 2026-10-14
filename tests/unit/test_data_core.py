@@ -176,9 +176,7 @@ class TestDictToKlineBar:
         assert bar.day == "2026-08-11"
 
     def test_day_priority(self):
-        bar = _dict_to_kline_bar(
-            {"day": "2026-08-11", "date": "2026-08-10", "source": "sina"}
-        )
+        bar = _dict_to_kline_bar({"day": "2026-08-11", "date": "2026-08-10", "source": "sina"})
         assert bar.day == "2026-08-11"
 
     def test_fields_and_normalization(self):
@@ -234,9 +232,7 @@ class TestDictToFinance:
 
     def test_assets_not_derived_when_ratio_invalid(self):
         """debt_ratio 缺失/超界时不推导，避免除零。"""
-        break_even = _dict_to_finance(
-            {"REPORT_DATE": "2026-03-31", "LIABILITY": 5e10, "source": "eastmoney"}
-        )
+        break_even = _dict_to_finance({"REPORT_DATE": "2026-03-31", "LIABILITY": 5e10, "source": "eastmoney"})
         assert break_even.total_liability == 500.0
         assert break_even.total_assets is None
 

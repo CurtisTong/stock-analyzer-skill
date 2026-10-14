@@ -120,9 +120,7 @@ class BaseFetcher(ABC):
             return {}
 
     @abstractmethod
-    def fetch(
-        self, code: str, **kwargs: object
-    ) -> dict[str, object] | list[object] | _NotHandled | None:
+    def fetch(self, code: str, **kwargs: object) -> dict[str, object] | list[object] | _NotHandled | None:
         """获取数据。
 
         返回值语义：
@@ -187,9 +185,7 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
             result = fetcher.fetch(*args, **kwargs)
     except RateLimitError as e:
         # 429 限速不计入熔断失败（同 DataFetcher.fetch 逻辑）
-        logger.debug(
-            "fetch_with_breaker %s 限速(429): %s", fetcher.__class__.__name__, e
-        )
+        logger.debug("fetch_with_breaker %s 限速(429): %s", fetcher.__class__.__name__, e)
         return None
     except Exception as e:
         logger.debug("fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e)
@@ -243,14 +239,10 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
             with limiter.slot(fetcher.provider):
                 result = fetcher.fetch(*args, **kwargs)
         except RateLimitError as e:
-            logger.debug(
-                "fetch_with_fallback %s 限速(429): %s", fetcher.__class__.__name__, e
-            )
+            logger.debug("fetch_with_fallback %s 限速(429): %s", fetcher.__class__.__name__, e)
             continue
         except Exception as e:
-            logger.debug(
-                "fetch_with_fallback %s 异常: %s", fetcher.__class__.__name__, e
-            )
+            logger.debug("fetch_with_fallback %s 异常: %s", fetcher.__class__.__name__, e)
             fetcher.on_failure()
             continue
         if result is not None and not isinstance(result, _NotHandled):
@@ -286,9 +278,7 @@ class DataFetcherManager:
             self._last_error = err
 
     @staticmethod
-    def _apply_source_config(
-        fetchers: list[BaseFetcher], source_config: dict[str, object]
-    ) -> None:
+    def _apply_source_config(fetchers: list[BaseFetcher], source_config: dict[str, object]) -> None:
         for fetcher in fetchers:
             cfg = source_config.get(fetcher.provider)
             if cfg and isinstance(cfg, dict):
@@ -304,9 +294,7 @@ class DataFetcherManager:
                 if "max_datalen" in cfg:
                     fetcher.max_datalen = int(cfg["max_datalen"])
 
-    def fetch(
-        self, code: str, **kwargs: object
-    ) -> dict[str, object] | list[object] | None:
+    def fetch(self, code: str, **kwargs: object) -> dict[str, object] | list[object] | None:
         """按优先级尝试各数据源。
 
         返回 None 表示所有源都无数据（非失败）。
@@ -389,9 +377,7 @@ class DataFetcherManager:
                 continue
         return None
 
-    def fetch_with_fallback(
-        self, code: str, fallback: object = None, **kwargs: object
-    ) -> object:
+    def fetch_with_fallback(self, code: str, fallback: object = None, **kwargs: object) -> object:
         result = self.fetch(code, **kwargs)
         return result if result is not None else fallback
 

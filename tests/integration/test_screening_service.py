@@ -120,9 +120,7 @@ class TestScreeningServiceHardFilter:
             "change_pct": 0,
         }
         fin = {"eps": -1, "roe": -5}
-        reasons, _ = self.svc._hard_filter(
-            quote, fin, {**self.filters, "exclude_loss": True}
-        )
+        reasons, _ = self.svc._hard_filter(quote, fin, {**self.filters, "exclude_loss": True})
         assert "EPS<=0" in reasons
 
     def test_loss_not_excluded_by_default(self):
@@ -259,9 +257,7 @@ class TestScreeningServiceScreenEdgeCases:
         svc = ScreeningService()
         # 不会抛异常，会用 balanced
         with patch("business.screening_service.get_quotes", return_value=[]):
-            result = svc.screen(
-                ["sh600000"], strategy="nonexistent_strategy", filters={}
-            )
+            result = svc.screen(["sh600000"], strategy="nonexistent_strategy", filters={})
         assert isinstance(result, list)
 
 
@@ -343,10 +339,7 @@ def _make_kline(n=60, last_day="2026-07-09", source="sina"):
     """构造模拟 KlineBar 列表。"""
     from data.types import KlineBar
 
-    return [
-        KlineBar(day=last_day, close=1800.0 + i, volume=10000, source=source)
-        for i in range(n)
-    ]
+    return [KlineBar(day=last_day, close=1800.0 + i, volume=10000, source=source) for i in range(n)]
 
 
 def _make_finance(source="eastmoney"):
@@ -380,9 +373,7 @@ class TestAnalyzeDataMetadata:
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch(
-                "business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}
-            ),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
             patch(
                 "business.stock_analysis._analyze_technical",
                 return_value={"ma": "多头"},
@@ -410,9 +401,7 @@ class TestAnalyzeDataMetadata:
         svc = StockAnalysisService()
         fake_ex = _FakeExecutor(
             {
-                (get_quote_fn, ("sh600519",)): _FakeFuture(
-                    exc=ConnectionError("timeout")
-                ),
+                (get_quote_fn, ("sh600519",)): _FakeFuture(exc=ConnectionError("timeout")),
                 (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
                 (get_finance_fn, ("sh600519",)): _FakeFuture(value=finance),
                 (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
@@ -421,9 +410,7 @@ class TestAnalyzeDataMetadata:
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch(
-                "business.stock_analysis.profile_stock", return_value={"type": "普通股"}
-            ),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
             patch(
                 "business.stock_analysis._analyze_technical",
                 return_value={"ma": "多头"},
@@ -456,9 +443,7 @@ class TestAnalyzeDataMetadata:
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch(
-                "business.stock_analysis.profile_stock", return_value={"type": "普通股"}
-            ),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "普通股"}),
             patch(
                 "business.stock_analysis._analyze_technical",
                 return_value={"ma": "多头"},
@@ -491,9 +476,7 @@ class TestAnalyzeDataMetadata:
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch(
-                "business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}
-            ),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
             patch(
                 "business.stock_analysis._analyze_technical",
                 return_value={"ma": "多头"},
@@ -517,24 +500,16 @@ class TestAnalyzeDataMetadata:
         svc = StockAnalysisService()
         fake_ex = _FakeExecutor(
             {
-                (get_quote_fn, ("sh600519",)): _FakeFuture(
-                    exc=ConnectionError("timeout")
-                ),
-                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(
-                    exc=ConnectionError("timeout")
-                ),
+                (get_quote_fn, ("sh600519",)): _FakeFuture(exc=ConnectionError("timeout")),
+                (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(exc=ConnectionError("timeout")),
                 (get_finance_fn, ("sh600519",)): _FakeFuture(exc=RuntimeError("fail")),
-                (get_quote_fn, ("sh000001",)): _FakeFuture(
-                    exc=ConnectionError("timeout")
-                ),
+                (get_quote_fn, ("sh000001",)): _FakeFuture(exc=ConnectionError("timeout")),
             }
         )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch(
-                "business.stock_analysis.profile_stock", return_value={"type": "未知"}
-            ),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "未知"}),
             patch("business.stock_analysis._analyze_technical", return_value={}),
             patch("business.stock_analysis._analyze_chan", return_value={}),
         ):
@@ -559,18 +534,14 @@ class TestAnalyzeDataMetadata:
                 (get_quote_fn, ("sh600519",)): _FakeFuture(value=quote),
                 (get_kline_fn, ("sh600519", 240, 240)): _FakeFuture(value=kline),
                 # get_finance 带 periods=8 kwargs
-                (get_finance_fn, ("sh600519",), (("periods", 8),)): _FakeFuture(
-                    value=finance
-                ),
+                (get_finance_fn, ("sh600519",), (("periods", 8),)): _FakeFuture(value=finance),
                 (get_quote_fn, ("sh000001",)): _FakeFuture(value=_make_index_quote()),
             }
         )
 
         with (
             patch("business.stock_analysis.get_shared_executor", return_value=fake_ex),
-            patch(
-                "business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}
-            ),
+            patch("business.stock_analysis.profile_stock", return_value={"type": "蓝筹股"}),
             patch(
                 "business.stock_analysis._analyze_technical",
                 return_value={"ma": "多头"},

@@ -33,13 +33,9 @@ def create_parser(description: str, **kwargs) -> argparse.ArgumentParser:
         配置好公共参数的 parser
     """
     parser = argparse.ArgumentParser(description=description, **kwargs)
-    parser.add_argument(
-        "-j", "--json", action="store_true", dest="json_output", help="JSON 格式输出"
-    )
+    parser.add_argument("-j", "--json", action="store_true", dest="json_output", help="JSON 格式输出")
     parser.add_argument("--sources", action="store_true", help="显示可用数据源")
-    parser.add_argument(
-        "--no-cache", action="store_true", help="禁用缓存，强制实时获取"
-    )
+    parser.add_argument("--no-cache", action="store_true", help="禁用缓存，强制实时获取")
     parser.add_argument(
         "--debug",
         action="store_true",

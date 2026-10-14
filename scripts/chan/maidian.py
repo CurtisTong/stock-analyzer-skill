@@ -41,12 +41,8 @@ def chan_maidian(
     trend_beichi = (beichi or {}).get("trend_beichi")
     range_beichi = (beichi or {}).get("range_beichi", [])
     # 盘整底背驰也算一买的背驰确认
-    has_bottom_beichi = trend_beichi == "底背驰(看涨)" or any(
-        "看涨" in rb.get("type", "") for rb in range_beichi
-    )
-    has_top_beichi = trend_beichi == "顶背驰(看跌)" or any(
-        "看跌" in rb.get("type", "") for rb in range_beichi
-    )
+    has_bottom_beichi = trend_beichi == "底背驰(看涨)" or any("看涨" in rb.get("type", "") for rb in range_beichi)
+    has_top_beichi = trend_beichi == "顶背驰(看跌)" or any("看跌" in rb.get("type", "") for rb in range_beichi)
 
     buy_points = []
     sell_points = []
@@ -111,9 +107,7 @@ def chan_maidian(
                 {
                     "type": "三买",
                     "desc": f"突破中枢上沿(ZG={last_zs['zg']})后回踩不落入",
-                    "confidence": (
-                        "高" if last_close > last_zs["zg"] + tolerance else "中"
-                    ),
+                    "confidence": ("高" if last_close > last_zs["zg"] + tolerance else "中"),
                 }
             )
 
@@ -176,9 +170,7 @@ def chan_maidian(
                 {
                     "type": "三卖",
                     "desc": f"跌破中枢下沿(ZD={last_zs['zd']})后反弹不入",
-                    "confidence": (
-                        "高" if last_close < last_zs["zd"] - tolerance else "中"
-                    ),
+                    "confidence": ("高" if last_close < last_zs["zd"] - tolerance else "中"),
                 }
             )
 

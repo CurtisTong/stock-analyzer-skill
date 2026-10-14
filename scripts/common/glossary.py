@@ -128,11 +128,7 @@ def format_glossary(terms: List[str]) -> str:
     for term in terms:
         if term in GLOSSARY:
             g = GLOSSARY[term]
-            explanations.append(
-                f"📖 {term}（{g['name']}）\n"
-                f"   含义：{g['meaning']}\n"
-                f"   参考：{g['reference']}"
-            )
+            explanations.append(f"📖 {term}（{g['name']}）\n" f"   含义：{g['meaning']}\n" f"   参考：{g['reference']}")
     if not explanations:
         return ""
     return "\n\n## 术语解释\n\n" + "\n\n".join(explanations)

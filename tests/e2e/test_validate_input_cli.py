@@ -117,9 +117,7 @@ class TestCliRangeSubcommand:
     """range 子命令：校验日期区间。"""
 
     def test_valid_range(self, cli_runner):
-        result = cli_runner.run(
-            "dev/validate_input.py", "range", "2026-01-01", "2026-12-31"
-        )
+        result = cli_runner.run("dev/validate_input.py", "range", "2026-01-01", "2026-12-31")
         result.assert_ok()
         payload = json.loads(result.stdout.strip())
         assert payload["ok"] is True
@@ -128,16 +126,12 @@ class TestCliRangeSubcommand:
 
     def test_same_day_range(self, cli_runner):
         """同一天区间合法。"""
-        result = cli_runner.run(
-            "dev/validate_input.py", "range", "2026-07-20", "2026-07-20"
-        )
+        result = cli_runner.run("dev/validate_input.py", "range", "2026-07-20", "2026-07-20")
         result.assert_ok()
 
     def test_reversed_range_returns_1(self, cli_runner):
         """start > end 应退出码 1。"""
-        result = cli_runner.run(
-            "dev/validate_input.py", "range", "2026-12-31", "2026-01-01"
-        )
+        result = cli_runner.run("dev/validate_input.py", "range", "2026-12-31", "2026-01-01")
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip())
         assert payload["ok"] is False

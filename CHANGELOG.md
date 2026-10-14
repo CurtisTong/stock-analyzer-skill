@@ -60,6 +60,11 @@
 - **repo**: `.gitignore` 补 `scripts/data/*.bak-*`——既有规则只覆盖 `.bak.<ts>`（点号），横线命名的持仓备份（`portfolio.json.bak-<ts>`）不被忽略，`git add -A` 会提交含成本/资产的真实持仓快照。
 - **repo**: `.claude/settings.json` 补 `Bash(python3 scripts/chip_dist.py *)` 授权——`stock`/`portfolio` 的 SKILL.md 已声明该工具，settings.json 未同步会使 `check_allowed_tools.py --ci` 门禁失败。
 
+### Changed
+
+- **repo**: 统一 black 格式到 120 列（`pyproject.toml` 声明的口径），重排 165 个历史遗留的 88 列文件——此前 CI 的 `black --check` 步骤在 main 上持续失败（CI 报告同为 165 文件），其后 ruff/mypy 等步骤被跳过。纯格式变更，无逻辑改动。
+- **repo**: black 版本对齐并固定——CI 原先 `pip install black`（latest 浮动）与 `.pre-commit-config.yaml` pin 的 `24.10.0` 不一致，两者对 `scripts/common/parsers.py`（含组合附加符号的超长正则）换行判定不同。现 pre-commit rev 与 CI 均固定为 `26.10.1`，本地/CI/钩子三处口径一致。
+
 ### 说明
 
 - 结果为**模型推算值**（非交易所观测数据），不同软件衰减参数不同；档位阈值以 7 只持仓 + 中际旭创为初始样本标定，**未经校准**，仅作相对比较，不构成独立买卖依据。

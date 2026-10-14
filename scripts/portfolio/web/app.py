@@ -85,9 +85,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         """抑制默认 stderr 日志。"""
         with _log_lock:
-            sys.stderr.write(
-                f"[{datetime.now().strftime('%H:%M:%S')}] {self.address_string()} {format % args}\n"
-            )
+            sys.stderr.write(f"[{datetime.now().strftime('%H:%M:%S')}] {self.address_string()} {format % args}\n")
             sys.stderr.flush()
 
     def _write(
@@ -342,9 +340,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             for c, n in pairs
         )
-        page = INDEX_HTML_TEMPLATE.replace("__DATALIST__", datalist).replace(
-            "__VERSION__", VERSION
-        )
+        page = INDEX_HTML_TEMPLATE.replace("__DATALIST__", datalist).replace("__VERSION__", VERSION)
         body = page.encode("utf-8")
         self._write(HTTPStatus.OK, body, "text/html; charset=utf-8")
 
@@ -384,9 +380,7 @@ class Handler(BaseHTTPRequestHandler):
                 qty = p.get("quantity", 0)
                 if q.price and cost and qty:
                     p["market_value"] = round(q.price * qty, 2)
-                    p["profit_pct"] = (
-                        round((q.price - cost) / cost * 100, 2) if cost else 0
-                    )
+                    p["profit_pct"] = round((q.price - cost) / cost * 100, 2) if cost else 0
                     p["profit_amount"] = round((q.price - cost) * qty, 2)
                 else:
                     p["market_value"] = None
@@ -491,9 +485,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send_method_not_allowed("GET, POST")
 
 
-def make_server(
-    host: str, port: int, data_file: Optional[str] = None, virtual: bool = False
-) -> ThreadingHTTPServer:
+def make_server(host: str, port: int, data_file: Optional[str] = None, virtual: bool = False) -> ThreadingHTTPServer:
     """构造 ThreadingHTTPServer 实例（不启动）。"""
     import portfolio.web.utils as utils
 
@@ -510,9 +502,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="持仓录入 Web 服务（仅本机，零依赖 stdlib http.server）",
     )
-    parser.add_argument(
-        "--host", default="127.0.0.1", help="监听地址（默认 127.0.0.1）"
-    )
+    parser.add_argument("--host", default="127.0.0.1", help="监听地址（默认 127.0.0.1）")
     parser.add_argument("--port", type=int, default=8765, help="监听端口（默认 8765）")
     parser.add_argument(
         "--data-file",
@@ -531,9 +521,7 @@ def main():
         default=True,
         help="启用持仓变更推送（默认开启，自动读取 notification.yaml）",
     )
-    parser.add_argument(
-        "--no-notify", dest="notify", action="store_false", help="禁用持仓变更推送"
-    )
+    parser.add_argument("--no-notify", dest="notify", action="store_false", help="禁用持仓变更推送")
     parser.add_argument(
         "--allow-public-bind",
         action="store_true",

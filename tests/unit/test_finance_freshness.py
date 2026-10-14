@@ -26,9 +26,7 @@ class TestBoardForCode:
 
     def test_shanghai_star_market(self):
         assert _board_for_code("SH688001") == "SH8"
-        assert (
-            _board_for_code("SH689009") == "SH8"
-        )  # SH9 实际归到 SH8（688/689 都是科创板）
+        assert _board_for_code("SH689009") == "SH8"  # SH9 实际归到 SH8（688/689 都是科创板）
 
     def test_shenzhen_main_board(self):
         assert _board_for_code("SZ000001") == "SZ0"
@@ -72,9 +70,7 @@ class TestPeriodsForBoard:
         from business.finance_freshness import _load_disclosure_config
 
         cfg = _load_disclosure_config()
-        cfg.setdefault("board_overrides", {})["SH8"] = {
-            "full_year": {"deadline": "04-15"}  # 北交所年报提前
-        }
+        cfg.setdefault("board_overrides", {})["SH8"] = {"full_year": {"deadline": "04-15"}}  # 北交所年报提前
         # 注：直接改 cfg 在测试范围内影响全局，但仅测试期间有效
         try:
             result = _periods_for_board("SH8", base)
@@ -122,12 +118,8 @@ class TestCheckFreshness:
     def test_code_param_does_not_affect_when_no_override(self):
         """未配置 board_overrides 时，code 参数不影响结果。"""
         fin = {"report_date": "2025-09-30"}
-        is_stale_main, _ = check_finance_freshness(
-            fin, today=date(2026, 1, 15), code="SH600000"
-        )
-        is_stale_star, _ = check_finance_freshness(
-            fin, today=date(2026, 1, 15), code="SH688001"
-        )
+        is_stale_main, _ = check_finance_freshness(fin, today=date(2026, 1, 15), code="SH600000")
+        is_stale_star, _ = check_finance_freshness(fin, today=date(2026, 1, 15), code="SH688001")
         # 默认配置下主板和科创板判定一致
         assert is_stale_main == is_stale_star
 

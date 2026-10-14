@@ -99,9 +99,7 @@ def _monkey_dif_dea(monkeypatch, dif_series, dea_series):
 
     def fake_ema12(values, period):
         if period == 12:
-            return [
-                dif_series[i] + fake26[i] for i in range(n)
-            ]  # 长 n（含补齐 offset）
+            return [dif_series[i] + fake26[i] for i in range(n)]  # 长 n（含补齐 offset）
         if period == 26:
             return fake26
         if period == 9:

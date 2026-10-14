@@ -44,13 +44,9 @@ def ma_system(closes):
         if v is not None:
             mas.append(v)
     if len(mas) >= 4:
-        if all(
-            mas[i] > mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]
-        ):
+        if all(mas[i] > mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]):
             result["alignment"] = "多头排列"
-        elif all(
-            mas[i] < mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]
-        ):
+        elif all(mas[i] < mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]):
             result["alignment"] = "空头排列"
         else:
             result["alignment"] = "交叉震荡"

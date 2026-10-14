@@ -87,12 +87,8 @@ class TestYamlCompleteness:
         loaded = load_all_experts()
         active = [p for p in loaded.values() if p.active]
         legacy = [p for p in loaded.values() if not p.active]
-        assert (
-            len(active) == 8
-        ), f"active 专家数 {len(active)} != 8: {[p.name for p in active]}"
-        assert (
-            len(legacy) == 8
-        ), f"legacy 专家数 {len(legacy)} != 8: {[p.name for p in legacy]}"
+        assert len(active) == 8, f"active 专家数 {len(active)} != 8: {[p.name for p in active]}"
+        assert len(legacy) == 8, f"legacy 专家数 {len(legacy)} != 8: {[p.name for p in legacy]}"
 
 
 # ═══════════════════════════════════════════════════════════════

@@ -41,9 +41,7 @@ def mock_data_dir(monkeypatch, tmp_path):
         """content 为 None → 不创建文件（测试缺失路径）。"""
         if content is None:
             return
-        (tmp_path / "industry_thresholds.json").write_text(
-            json.dumps(content, ensure_ascii=False), encoding="utf-8"
-        )
+        (tmp_path / "industry_thresholds.json").write_text(json.dumps(content, ensure_ascii=False), encoding="utf-8")
 
     import common
 
@@ -104,9 +102,7 @@ class TestLoadIndustryThresholds:
         import common
 
         monkeypatch.setattr(common, "DATA_DIR", tmp_path)
-        (tmp_path / "industry_thresholds.json").write_text(
-            "{invalid json", encoding="utf-8"
-        )
+        (tmp_path / "industry_thresholds.json").write_text("{invalid json", encoding="utf-8")
 
         from strategies.thresholds import load_industry_thresholds
 
@@ -207,11 +203,7 @@ class TestThresholdIntegrationWithScoreUtils:
 
     def test_pe_percentile_uses_industry_specific_thresholds(self, mock_data_dir):
         """pe_percentile 通过 industry 加载不同阈值表。"""
-        mock_data_dir(
-            content={
-                "科技": {"pe_undervalued": 30, "pe_reasonable": 50, "pe_expensive": 80}
-            }
-        )
+        mock_data_dir(content={"科技": {"pe_undervalued": 30, "pe_reasonable": 50, "pe_expensive": 80}})
 
         from strategies.factors.score_utils import pe_percentile
 

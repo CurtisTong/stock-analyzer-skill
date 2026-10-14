@@ -42,9 +42,7 @@ def _get_session():
             return _session
         _session = _requests.Session()
         _session.max_redirects = 5  # 限制重定向次数，防止循环攻击
-        retry = Retry(
-            total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504]
-        )
+        retry = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
         adapter = HTTPAdapter(
             max_retries=retry,
             pool_connections=32,
@@ -88,9 +86,7 @@ def _parse_url(url: str) -> tuple[str, str, str, int, str]:
     return key, scheme, host, port, path
 
 
-def _create_connection(
-    scheme: str, host: str, port: int, timeout: int = 10
-) -> http.client.HTTPConnection:
+def _create_connection(scheme: str, host: str, port: int, timeout: int = 10) -> http.client.HTTPConnection:
     """创建新连接。"""
     if scheme == "https":
         return http.client.HTTPSConnection(host, port=port, timeout=timeout)
@@ -100,9 +96,7 @@ def _create_connection(
 _CONN_IDLE_TIMEOUT = 60  # 空闲连接过期时间（秒）
 
 
-def _get_connection(
-    key: str, scheme: str, host: str, port: int, timeout: int = 10
-) -> http.client.HTTPConnection:
+def _get_connection(key: str, scheme: str, host: str, port: int, timeout: int = 10) -> http.client.HTTPConnection:
     """从连接池获取或创建连接（线程安全，同一 host 可复用多个连接）。
     空闲超过 _CONN_IDLE_TIMEOUT 秒的连接会被丢弃。
     """
@@ -171,9 +165,7 @@ def _do_request(
         # P2-H2(common): 4xx 业务错误抛 HTTPStatusError（DataError 子类），
         # 让 DataFetcherManager 能区分业务错误（不熔断）与网络故障（熔断），
         # 避免 404 被当作数据源故障误触发熔断。
-        raise HTTPStatusError(
-            url, status, body.decode("utf-8", "replace") if body else ""
-        )
+        raise HTTPStatusError(url, status, body.decode("utf-8", "replace") if body else "")
 
     # 分块读取响应体，限制最大大小防止 OOM
     chunks = []
@@ -184,9 +176,7 @@ def _do_request(
             break
         total_size += len(chunk)
         if total_size > MAX_RESPONSE_SIZE:
-            logger.warning(
-                "响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url
-            )
+            logger.warning("响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url)
             break
         chunks.append(chunk)
     return b"".join(chunks)
@@ -268,9 +258,7 @@ def _http_get_requests(
     # 响应体大小检查（与 stdlib 路径保持一致，防止 OOM）
     content = resp.content
     if len(content) > MAX_RESPONSE_SIZE:
-        logger.warning(
-            "响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url
-        )
+        logger.warning("响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url)
         return content[:MAX_RESPONSE_SIZE]
     return content
 

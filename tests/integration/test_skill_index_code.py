@@ -97,9 +97,7 @@ class TestScreenerIndexCode:
         """指数代码作为自定义 --codes 输入，screener 应不报错返回。"""
         # 注：实际观察 - screener 输出顶层可能是 dict 或 list（取决于 args），
         # 但必须不抛错。本测试验证可正常返回结构化结果。
-        result = _run_script(
-            "screener", "--codes", "sh000300", "--top", "5", timeout=60
-        )
+        result = _run_script("screener", "--codes", "sh000300", "--top", "5", timeout=60)
         if "_error" in result:
             pytest.skip(f"screener 跑指数代码失败: {result['_error']}")
         # 输出可能是 dict（JSON 模式）或 list（依赖 sub-command）
@@ -149,6 +147,4 @@ class TestResearchNoScript:
     def test_research_py_does_not_exist(self):
         """scripts/research.py 不存在（确认 SKILL.md NOTE 描述准确）。"""
         script = Path(__file__).parent.parent.parent / "scripts" / "research.py"
-        assert not script.exists(), (
-            "research.py 存在但 SKILL.md 声明它不存在，" "需同步更新 NOTE 段"
-        )
+        assert not script.exists(), "research.py 存在但 SKILL.md 声明它不存在，" "需同步更新 NOTE 段"

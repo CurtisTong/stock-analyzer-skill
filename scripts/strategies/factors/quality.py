@@ -49,17 +49,9 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
             score += 5  # 基本面改善
 
     profit_growth_base = get_industry_threshold(industry, "profit_growth_excellent", 40)
-    score += (
-        clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
-    )
-    revenue_growth_base = get_industry_threshold(
-        industry, "revenue_growth_excellent", 30
-    )
-    score += (
-        clamp(revenue_growth / revenue_growth_base * 16)
-        if revenue_growth_base > 0
-        else 0
-    )
+    score += clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
+    revenue_growth_base = get_industry_threshold(industry, "revenue_growth_excellent", 30)
+    score += clamp(revenue_growth / revenue_growth_base * 16) if revenue_growth_base > 0 else 0
     # 毛利率：相对于行业最低值评分
     if gross_margin_min > 0:
         score += clamp(gross_margin / (gross_margin_min * 2) * 16)
@@ -123,9 +115,7 @@ def _earnings_quality_score(fin: dict, eps: float) -> float:
 
     # 3. 非经常性损益/净利润（-2~0）
     net_profit = to_float(fin.get("net_profit", fin.get("PARENTNETPROFIT", 0)))
-    non_recurring = to_float(
-        fin.get("non_recurring_gain", fin.get("DEDUCT_PARENTNETPROFIT", 0))
-    )
+    non_recurring = to_float(fin.get("non_recurring_gain", fin.get("DEDUCT_PARENTNETPROFIT", 0)))
     if net_profit > 0 and non_recurring != 0:
         nr_ratio = abs(non_recurring) / net_profit * 100
         if nr_ratio > 50:
@@ -232,9 +222,7 @@ def _a_stock_red_flag_score(fin: dict) -> float:
             flag_score -= 1.5
 
     # 3. 关联交易占比（-2~0）
-    related_rev = to_float(
-        fin.get("related_party_revenue", fin.get("RELATED_REVENUE", 0))
-    )
+    related_rev = to_float(fin.get("related_party_revenue", fin.get("RELATED_REVENUE", 0)))
     total_rev = to_float(fin.get("total_revenue", fin.get("TOTALOPERATEREVETZ", 0)))
     if total_rev > 0 and related_rev > 0:
         related_pct = related_rev / total_rev * 100

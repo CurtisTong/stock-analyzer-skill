@@ -43,9 +43,7 @@ def dispatch(pm, body: dict) -> dict:
     if not action:
         return _err("missing_action", 400, "'action' field is required")
     if action not in ALLOWED_ACTIONS:
-        return _err(
-            "unknown_action", 400, f"action must be one of {sorted(ALLOWED_ACTIONS)}"
-        )
+        return _err("unknown_action", 400, f"action must be one of {sorted(ALLOWED_ACTIONS)}")
 
     code = body.get("code")
     if not code or not isinstance(code, str):
@@ -183,9 +181,7 @@ def _do_update_position(pm, body: dict, code: str) -> dict:
     if "tags" in extra:
         tags = _to_bool_str_list(extra["tags"])
         if tags is None:
-            return _err(
-                "invalid_tags", 400, "'tags' must be list or comma-separated string"
-            )
+            return _err("invalid_tags", 400, "'tags' must be list or comma-separated string")
         extra["tags"] = tags
 
     # 成本变更前读取旧成本，用于浮亏影响对比
@@ -229,9 +225,7 @@ def _do_add_watch(pm, body: dict, code: str) -> dict:
     target_buy: float = 0
     target_sell: float = 0
     if target_buy_raw is not None:
-        if isinstance(target_buy_raw, bool) or not isinstance(
-            target_buy_raw, (int, float)
-        ):
+        if isinstance(target_buy_raw, bool) or not isinstance(target_buy_raw, (int, float)):
             return _err(
                 "invalid_target_buy",
                 400,
@@ -247,9 +241,7 @@ def _do_add_watch(pm, body: dict, code: str) -> dict:
             return _err("invalid_target_buy", 400, "'target_buy' must be > 0")
         target_buy = float(target_buy_raw)
     if target_sell_raw is not None:
-        if isinstance(target_sell_raw, bool) or not isinstance(
-            target_sell_raw, (int, float)
-        ):
+        if isinstance(target_sell_raw, bool) or not isinstance(target_sell_raw, (int, float)):
             return _err(
                 "invalid_target_sell",
                 400,
@@ -265,9 +257,7 @@ def _do_add_watch(pm, body: dict, code: str) -> dict:
             return _err("invalid_target_sell", 400, "'target_sell' must be > 0")
         target_sell = float(target_sell_raw)
 
-    result = pm.add_watch(
-        code, name=name, target_buy=target_buy, target_sell=target_sell
-    )
+    result = pm.add_watch(code, name=name, target_buy=target_buy, target_sell=target_sell)
     return _ok(result)
 
 
@@ -303,9 +293,7 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
         extra["target_buy"] = target_buy_raw or 0
     if "target_sell" in extra:
         # target_sell=0 = 清空目标价（原实现拒绝，导致目标价无法清除）
-        target_sell_raw = (
-            0.0 if extra["target_sell"] == 0 else _parse_float(extra["target_sell"])
-        )
+        target_sell_raw = 0.0 if extra["target_sell"] == 0 else _parse_float(extra["target_sell"])
         if target_sell_raw is not None and target_sell_raw < 0:
             return _err("invalid_target_sell", 400, "target_sell must be >= 0")
         extra["target_sell"] = target_sell_raw or 0

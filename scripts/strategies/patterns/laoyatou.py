@@ -12,13 +12,7 @@ def detect_laoyatou(records, closes, volumes, mas):
     鸭头：MA5下穿MA10形成凹坑，股价回调但未跌破MA60
     鸭嘴：MA5重新上穿MA10，放量突破前高
     """
-    if (
-        len(closes) < 60
-        or "ma5" not in mas
-        or "ma10" not in mas
-        or "ma20" not in mas
-        or "ma60" not in mas
-    ):
+    if len(closes) < 60 or "ma5" not in mas or "ma10" not in mas or "ma20" not in mas or "ma60" not in mas:
         return []
 
     ma5, ma10, ma20, ma60 = mas["ma5"], mas["ma10"], mas["ma20"], mas["ma60"]
@@ -80,11 +74,7 @@ def detect_laoyatou(records, closes, volumes, mas):
             k20 = k_ma60 + ma20_offset
             if k20 >= 0 and k5 < len(ma5) and k20 < len(ma20):
                 # 跳过未填充的 MA 值
-                if (
-                    math.isnan(ma5[k5])
-                    or math.isnan(ma10[k10])
-                    or math.isnan(ma20[k20])
-                ):
+                if math.isnan(ma5[k5]) or math.isnan(ma10[k10]) or math.isnan(ma20[k20]):
                     continue
                 if ma5[k5] > ma10[k10] > ma20[k20]:
                     neck_days += 1
@@ -95,11 +85,7 @@ def detect_laoyatou(records, closes, volumes, mas):
         # 验证鸭嘴：放量 + 突破前高
         head_ci = duck_head_j + cl_offset
         lookback = min(head_ci, 10)
-        prev_high = (
-            max(closes[head_ci - lookback : head_ci])
-            if lookback >= 1
-            else closes[head_ci]
-        )
+        prev_high = max(closes[head_ci - lookback : head_ci]) if lookback >= 1 else closes[head_ci]
 
         vol_recent = [volumes[k] for k in range(max(ci - 3, 0), ci + 1)]
         vol_older = [volumes[k] for k in range(max(head_ci - 3, 0), head_ci + 1)]

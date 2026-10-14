@@ -94,11 +94,7 @@ def event_score(code: str) -> float:
     shareholder = events.get("shareholder", [])
     if shareholder:
         today = datetime.now().strftime("%Y-%m-%d")
-        recent_changes = [
-            item
-            for item in shareholder
-            if _days_between(today, item.get("end_date", "")) >= -90
-        ]
+        recent_changes = [item for item in shareholder if _days_between(today, item.get("end_date", "")) >= -90]
         if recent_changes:
             total_ratio = sum(item.get("change_ratio", 0) for item in recent_changes)
             if total_ratio > 1.0:
@@ -114,11 +110,7 @@ def event_score(code: str) -> float:
     violation = events.get("violation", [])
     if violation:
         today = datetime.now().strftime("%Y-%m-%d")
-        recent_violations = [
-            item
-            for item in violation
-            if _days_between(today, item.get("punish_date", "")) >= -180
-        ]
+        recent_violations = [item for item in violation if _days_between(today, item.get("punish_date", "")) >= -180]
         if recent_violations:
             # 严重程度按内容关键词判断
             for item in recent_violations:

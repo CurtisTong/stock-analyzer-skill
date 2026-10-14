@@ -72,9 +72,7 @@ class AkshareKlineFetcher(BaseFetcher):
             col_low = _pick_col(df, ("最低", "low"))
             col_volume = _pick_col(df, ("成交量", "volume"))
             if not col_day:
-                logger.warning(
-                    "akshare 日线列名变动: 缺日期列，实际列=%s", list(df.columns)
-                )
+                logger.warning("akshare 日线列名变动: 缺日期列，实际列=%s", list(df.columns))
                 return None
             result = []
             for _, row in df.iterrows():

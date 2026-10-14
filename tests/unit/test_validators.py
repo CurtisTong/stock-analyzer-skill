@@ -374,6 +374,4 @@ class TestNameToCodeTable:
 
     def test_minimum_coverage(self):
         """至少覆盖 50 个常用标的，避免漂移到稀疏状态。"""
-        assert (
-            len(NAME_TO_CODE) >= 50
-        ), f"NAME_TO_CODE 只有 {len(NAME_TO_CODE)} 个映射，少于预期"
+        assert len(NAME_TO_CODE) >= 50, f"NAME_TO_CODE 只有 {len(NAME_TO_CODE)} 个映射，少于预期"

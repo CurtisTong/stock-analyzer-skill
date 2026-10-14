@@ -14,9 +14,7 @@ import sys
 import os
 from datetime import datetime
 
-scripts_dir = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+scripts_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if scripts_dir not in sys.path:
     sys.path.insert(0, scripts_dir)
 
@@ -55,9 +53,7 @@ def calculate_advanced_stats(trades):
     # 风险指标
     max_win = max(returns) if returns else 0
     max_loss = min(returns) if returns else 0
-    profit_factor = (
-        abs(sum(wins) / sum(losses)) if losses and sum(losses) != 0 else float("inf")
-    )
+    profit_factor = abs(sum(wins) / sum(losses)) if losses and sum(losses) != 0 else float("inf")
 
     # 连续盈亏
     max_consecutive_wins = 0
@@ -186,9 +182,7 @@ def generate_trade_timeline(trades, max_trades=20):
     chart = []
     chart.append("交易时间线 (最近 {} 笔):".format(min(len(trades), max_trades)))
     chart.append("-" * 80)
-    chart.append(
-        f"{'买入日':<12} {'买入价':>8} {'卖出日':<12} {'卖出价':>8} {'收益%':>8} {'结果':<6} {'信号':<20}"
-    )
+    chart.append(f"{'买入日':<12} {'买入价':>8} {'卖出日':<12} {'卖出价':>8} {'收益%':>8} {'结果':<6} {'信号':<20}")
     chart.append("-" * 80)
 
     for t in trades[-max_trades:]:
@@ -212,9 +206,7 @@ def generate_backtest_report(
 ):
     """生成完整回测报告"""
     # 执行回测
-    trades = backtest_strategy(
-        data, ma_short, ma_long, vol_threshold, hold_days, stop_loss
-    )
+    trades = backtest_strategy(data, ma_short, ma_long, vol_threshold, hold_days, stop_loss)
 
     if not trades:
         return f"❌ {stock_name}: 未产生交易信号"
@@ -268,9 +260,7 @@ def generate_backtest_report(
     for r in returns:
         total += r
         cumulative.append(total)
-    report.append(
-        generate_ascii_chart(cumulative, width=50, height=8, title="累计收益曲线 (%)")
-    )
+    report.append(generate_ascii_chart(cumulative, width=50, height=8, title="累计收益曲线 (%)"))
     report.append("")
 
     # 交易时间线
@@ -338,9 +328,7 @@ def generate_comparison_report(stocks_data, ma_short=10, ma_long=21, vol_thresho
     avg_win_rate = sum(s["win_rate"] for s in all_stats) / len(all_stats)
     avg_return = sum(s["avg_return"] for s in all_stats) / len(all_stats)
     avg_total = sum(s["total_return"] for s in all_stats) / len(all_stats)
-    finite_pfs = [
-        s["profit_factor"] for s in all_stats if s["profit_factor"] != float("inf")
-    ]
+    finite_pfs = [s["profit_factor"] for s in all_stats if s["profit_factor"] != float("inf")]
     avg_pf = sum(finite_pfs) / len(finite_pfs) if finite_pfs else float("inf")
     avg_sharpe = sum(s["sharpe_ratio"] for s in all_stats) / len(all_stats)
 
@@ -355,14 +343,10 @@ def generate_comparison_report(stocks_data, ma_short=10, ma_long=21, vol_thresho
 
     report.append("")
     report.append("🏆 最佳表现:")
-    report.append(
-        f"  • {best['stock_name']}: 胜率 {best['win_rate']}%, 平均收益 {best['avg_return']}%"
-    )
+    report.append(f"  • {best['stock_name']}: 胜率 {best['win_rate']}%, 平均收益 {best['avg_return']}%")
 
     report.append("⚠️ 最差表现:")
-    report.append(
-        f"  • {worst['stock_name']}: 胜率 {worst['win_rate']}%, 平均收益 {worst['avg_return']}%"
-    )
+    report.append(f"  • {worst['stock_name']}: 胜率 {worst['win_rate']}%, 平均收益 {worst['avg_return']}%")
 
     # 结论
     report.append("")

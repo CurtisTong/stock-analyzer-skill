@@ -26,11 +26,7 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
     """
     # 统一过滤：与 technical.core.filter_records 同口径（close/open/high/low/volume
     # 五字段全 > 0 才保留），确保两条消费路径的 K 线条数与数组索引一致
-    valid_bars = [
-        b
-        for b in kline_bars
-        if b.close > 0 and b.open > 0 and b.high > 0 and b.low > 0 and b.volume > 0
-    ]
+    valid_bars = [b for b in kline_bars if b.close > 0 and b.open > 0 and b.high > 0 and b.low > 0 and b.volume > 0]
     closes = [b.close for b in valid_bars]
     volumes = [b.volume for b in valid_bars]
 
@@ -53,24 +49,12 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
         ma10 = ma_info.get("ma10")
         ma20 = ma_info.get("ma20")
         if ma10 is not None and ma20 is not None:
-            result["trend"] = (
-                1
-                if closes[-1] > ma10 > ma20
-                else (-1 if closes[-1] < ma10 < ma20 else 0)
-            )
+            result["trend"] = 1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
         else:
             # 数据不足时回退到简单计算
             ma10 = statistics.mean(closes[-10:])
-            ma20 = (
-                statistics.mean(closes[-20:])
-                if len(closes) >= 20
-                else statistics.mean(closes)
-            )
-            result["trend"] = (
-                1
-                if closes[-1] > ma10 > ma20
-                else (-1 if closes[-1] < ma10 < ma20 else 0)
-            )
+            ma20 = statistics.mean(closes[-20:]) if len(closes) >= 20 else statistics.mean(closes)
+            result["trend"] = 1 if closes[-1] > ma10 > ma20 else (-1 if closes[-1] < ma10 < ma20 else 0)
         result["ma10"] = ma10
         result["ma20"] = ma20
 
@@ -80,9 +64,7 @@ def compute_indicators(kline_bars: list, indicators: list[str] | None = None) ->
 
     if all_indicators or (indicators is not None and "volume" in indicators):
         recent_vol = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else 0
-        base_vol = (
-            statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol
-        )
+        base_vol = statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol
         result["volume_ratio"] = recent_vol / base_vol if base_vol else 1
 
     if all_indicators or (indicators is not None and "rsi" in indicators):

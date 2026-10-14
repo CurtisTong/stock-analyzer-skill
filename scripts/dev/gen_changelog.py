@@ -48,9 +48,7 @@ IGNORE_TYPES = {"merge", "revert"}
 # 2. data: 持仓操作流水——散户交易不应混入 CHANGELOG
 NOISE_PATTERNS = [
     re.compile(r"auto-update\s+CHANGELOG\.md", re.IGNORECASE),
-    re.compile(
-        r"^data\s*:", re.IGNORECASE
-    ),  # e.g. "data: 记录 2026-06-29 持仓交易操作"
+    re.compile(r"^data\s*:", re.IGNORECASE),  # e.g. "data: 记录 2026-06-29 持仓交易操作"
 ]
 
 
@@ -188,9 +186,7 @@ def append_to_changelog(content: str) -> None:
         existing_body = unreleased_match.group(2).strip("\n")
         new_body = content.strip()
         # 去重：若 content 中段落已在 existing_body 中，跳过；否则追加
-        existing_paragraphs = {
-            p.strip() for p in existing_body.split("\n\n") if p.strip()
-        }
+        existing_paragraphs = {p.strip() for p in existing_body.split("\n\n") if p.strip()}
         new_paragraphs = [p.strip() for p in new_body.split("\n\n") if p.strip()]
         merged_paragraphs = list(
             dict.fromkeys(
@@ -200,15 +196,9 @@ def append_to_changelog(content: str) -> None:
         )
         merged_body = "\n\n".join(merged_paragraphs)
         # 用最新日期作为 header（如果当前已经是带日期的就不再变）
-        new_header = (
-            header_line if " - " in header_line else f"## [Unreleased] - {date_str}\n"
-        )
+        new_header = header_line if " - " in header_line else f"## [Unreleased] - {date_str}\n"
         new_section = new_header + "\n" + merged_body + "\n"
-        new_content = (
-            existing[: unreleased_match.start()]
-            + new_section
-            + existing[unreleased_match.end() :]
-        )
+        new_content = existing[: unreleased_match.start()] + new_section + existing[unreleased_match.end() :]
     else:
         # 没有 [Unreleased]：在第一个 ## [xxx] 之前插入新区块
         header = f"\n## [Unreleased] - {date_str}\n\n"
@@ -216,9 +206,7 @@ def append_to_changelog(content: str) -> None:
         if insert_pos == -1:
             new_content = existing + header + content
         else:
-            new_content = (
-                existing[:insert_pos] + header + content + existing[insert_pos:]
-            )
+            new_content = existing[:insert_pos] + header + content + existing[insert_pos:]
 
     changelog_path.write_text(new_content, encoding="utf-8")
     print("✅ 已追加到 CHANGELOG.md（合并模式）")

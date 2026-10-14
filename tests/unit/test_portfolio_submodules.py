@@ -133,9 +133,7 @@ class TestRebalance:
         from portfolio.rebalance import advisory_rebalance
 
         data_file = tmp_path / "empty.json"
-        data_file.write_text(
-            json.dumps({"version": 2, "positions": [], "watchlist": []})
-        )
+        data_file.write_text(json.dumps({"version": 2, "positions": [], "watchlist": []}))
         mgr = PortfolioManager(str(data_file))
         result = advisory_rebalance(mgr, target_ratio=0.5)
         assert result == []

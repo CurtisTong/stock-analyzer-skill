@@ -34,9 +34,7 @@ _LOG_MAX_SIZE = 5 * 1024 * 1024  # 默认 5MB
 _LOG_MAX_FILES = 5  # 保留最近 5 个轮转文件
 
 
-def _rotate_log_if_needed(
-    log_path: Path, max_size: int = _LOG_MAX_SIZE, max_files: int = _LOG_MAX_FILES
-) -> None:
+def _rotate_log_if_needed(log_path: Path, max_size: int = _LOG_MAX_SIZE, max_files: int = _LOG_MAX_FILES) -> None:
     """检查并执行日志轮转。
 
     Args:
@@ -228,10 +226,7 @@ class NotificationManager:
 
             # 惰性清理过期 throttle 条目（每小时一次），
             # 防止 throttle_key 含动态数据时无限增长
-            if (
-                not self._last_throttle_gc
-                or time.time() - self._last_throttle_gc > 3600
-            ):
+            if not self._last_throttle_gc or time.time() - self._last_throttle_gc > 3600:
                 self._gc_throttle_log(dedup_window)
                 self._last_throttle_gc = time.time()
 
@@ -281,9 +276,7 @@ class NotificationManager:
         except (ValueError, AttributeError):
             return False
 
-    def _log_send(
-        self, title: str, channel: str, success: bool, error: str = ""
-    ) -> None:
+    def _log_send(self, title: str, channel: str, success: bool, error: str = "") -> None:
         """记录推送日志（带日志轮转保护，每 10 次写入检查一次轮转）。"""
         log_path = _log_path()
 
@@ -393,6 +386,4 @@ class NotificationManager:
             title += f" ({stock_code})"
 
         throttle_key = f"{alert_type}:{stock_code}:{message[:20]}"
-        return self.send(
-            title, body=message, url=url, throttle_key=throttle_key, urgent=urgent
-        )
+        return self.send(title, body=message, url=url, throttle_key=throttle_key, urgent=urgent)

@@ -37,9 +37,7 @@ class TestWalkForwardWindows:
         from datetime import datetime, timedelta
 
         finance_obj = _make_finance_obj()
-        monkeypatch.setattr(
-            backtest.engine, "get_finance", lambda code: ([finance_obj], None)
-        )
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: ([finance_obj], None))
         today = datetime.now()
 
         def _mock_kline(code, scale=240, datalen=300):
@@ -105,9 +103,7 @@ class TestWalkForwardWindows:
             n_windows=2,
         )
         result = run_walk_forward(cfg)
-        oos_by_window = [
-            tuple(w["oos_returns"]) for w in result.windows if w["status"] == "ok"
-        ]
+        oos_by_window = [tuple(w["oos_returns"]) for w in result.windows if w["status"] == "ok"]
         assert len(oos_by_window) >= 2
         # 修复前所有窗口相同（无窗口边界）；修复后窗口 1 的 OOS 在窗口 0 之后
         assert oos_by_window[0] != oos_by_window[1], "不同窗口应产出不同 OOS 结果"
@@ -117,9 +113,7 @@ class TestWalkForwardWindows:
         import backtest
 
         self._mock_all(monkeypatch)
-        ctx = backtest.SimContext(
-            strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10
-        )
+        ctx = backtest.SimContext(strategy_name="balanced", codes=["sh600519"], top_n=1, holding_days=10)
         result = backtest.simulate_strategy(ctx)
         assert "error" not in result
         assert result["total_periods"] > 1

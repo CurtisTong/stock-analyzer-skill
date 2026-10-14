@@ -38,13 +38,10 @@ def test_ci_simulation_has_requests_false():
                 err_msg = str(e)
                 err_type = type(e).__name__
                 assert "name resolution" in err_msg or "Network" in err_type, (
-                    f"CI 模拟失败：期望 DNS 错误或 NetworkError，"
-                    f"actual={err_type}: {err_msg}"
+                    f"CI 模拟失败：期望 DNS 错误或 NetworkError，" f"actual={err_type}: {err_msg}"
                 )
                 # 不应是 RateLimitError（说明 mock 确实被绕过了）
-                assert not isinstance(
-                    e, RateLimitError
-                ), "CI 模拟失败：mock _get_session 仍生效（不应该）"
+                assert not isinstance(e, RateLimitError), "CI 模拟失败：mock _get_session 仍生效（不应该）"
             else:
                 pytest.fail("CI 模拟失败：http_get 没抛异常（应该走真实 HTTP 失败）")
     finally:

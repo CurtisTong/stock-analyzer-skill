@@ -145,9 +145,7 @@ class TestWatchTargetClear:
 
     def test_update_watch_clears_target_buy(self, portfolio_mgr):
         """显式传 target_buy=0 → 清空目标买价。"""
-        portfolio_mgr.add_watch(
-            "sz000001", name="平安银行", target_buy=10.0, target_sell=12.0
-        )
+        portfolio_mgr.add_watch("sz000001", name="平安银行", target_buy=10.0, target_sell=12.0)
         # 清空 target_buy（保留 target_sell）
         portfolio_mgr.add_watch(
             "sz000001",

@@ -131,8 +131,7 @@ class TestExpertProfileWeightValidation:
             )
         # 不应有警告
         assert not any(
-            "权重加和" in record.message or "weights" in record.message.lower()
-            for record in caplog.records
+            "权重加和" in record.message or "weights" in record.message.lower() for record in caplog.records
         ), f"权重和=100 不应触发警告，但收到: {[r.message for r in caplog.records]}"
 
     def test_tolerance_within_0_5(self, caplog):
@@ -150,8 +149,7 @@ class TestExpertProfileWeightValidation:
                 }
             )
         assert not any(
-            "权重加和" in r.message or "weights" in r.message.lower()
-            for r in caplog.records
+            "权重加和" in r.message or "weights" in r.message.lower() for r in caplog.records
         ), f"权重和=100.3（容差内）不应警告: {[r.message for r in caplog.records]}"
 
     def test_invalid_weights_logs_warning(self, caplog):
@@ -169,11 +167,7 @@ class TestExpertProfileWeightValidation:
                 }
             )
         # 应有警告
-        weight_warnings = [
-            r
-            for r in caplog.records
-            if "权重加和" in r.message or "weights" in r.message.lower()
-        ]
+        weight_warnings = [r for r in caplog.records if "权重加和" in r.message or "weights" in r.message.lower()]
         assert weight_warnings, "权重和严重偏离 100 应记录 warning"
 
 
@@ -222,9 +216,7 @@ class TestDirectionFromScore:
     def test_thresholds_descending_order(self):
         """DIRECTION_THRESHOLDS 必须降序排列（高阈值在前）。"""
         thresholds = [t for t, _ in DIRECTION_THRESHOLDS]
-        assert thresholds == sorted(
-            thresholds, reverse=True
-        ), f"DIRECTION_THRESHOLDS 不是降序: {thresholds}"
+        assert thresholds == sorted(thresholds, reverse=True), f"DIRECTION_THRESHOLDS 不是降序: {thresholds}"
 
     def test_thresholds_cover_full_range(self):
         """DIRECTION_THRESHOLDS 阈值应覆盖 [0, 100]。"""
@@ -293,6 +285,4 @@ class TestDimensionAliasesTable:
 
     def test_minimum_alias_coverage(self):
         """至少 10 个别名（防漂移到稀疏状态）。"""
-        assert (
-            len(DIMENSION_ALIASES) >= 10
-        ), f"DIMENSION_ALIASES 只有 {len(DIMENSION_ALIASES)} 个映射，少于预期"
+        assert len(DIMENSION_ALIASES) >= 10, f"DIMENSION_ALIASES 只有 {len(DIMENSION_ALIASES)} 个映射，少于预期"

@@ -84,18 +84,12 @@ def format_sources_table(sources: dict) -> str:
     lines = []
     for domain, fetchers in sources.items():
         lines.append(f"=== {domain} 数据源 ===")
-        lines.append(
-            f"{'名称':<25} {'优先级':>6} {'状态':<8} {'失败次数':>8} {'熔断状态':<10}"
-        )
+        lines.append(f"{'名称':<25} {'优先级':>6} {'状态':<8} {'失败次数':>8} {'熔断状态':<10}")
         lines.append("-" * 65)
         for f in fetchers:
             status = "✅" if f["available"] else "❌"
-            state_label = {"closed": "正常", "open": "熔断", "half_open": "试探"}.get(
-                f["state"], f["state"]
-            )
-            lines.append(
-                f"  {f['name']:<23} {f['priority']:>6} {status:<8} {f['failure_count']:>8} {state_label:<10}"
-            )
+            state_label = {"closed": "正常", "open": "熔断", "half_open": "试探"}.get(f["state"], f["state"])
+            lines.append(f"  {f['name']:<23} {f['priority']:>6} {status:<8} {f['failure_count']:>8} {state_label:<10}")
         lines.append("")
     return "\n".join(lines)
 
@@ -109,9 +103,7 @@ def run_health_check(log_json: bool = False) -> None:
 
     # 统计
     total_fetchers = sum(len(v) for v in sources_info.values())
-    available_fetchers = sum(
-        1 for v in sources_info.values() for f in v if f["available"]
-    )
+    available_fetchers = sum(1 for v in sources_info.values() for f in v if f["available"])
     failed_fetchers = total_fetchers - available_fetchers
 
     result = {
@@ -145,9 +137,7 @@ def run_health_check(log_json: bool = False) -> None:
         print(format_sources_table(sources_info))
 
         print("--- 行业阈值配置 ---")
-        thresholds_path = (
-            Path(__file__).resolve().parent / "data" / "industry_thresholds.json"
-        )
+        thresholds_path = Path(__file__).resolve().parent / "data" / "industry_thresholds.json"
         if thresholds_path.exists():
             thresholds = json.loads(thresholds_path.read_text(encoding="utf-8"))
             industries = [k for k in thresholds.keys() if not k.startswith("_")]
@@ -166,9 +156,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="数据源健康检查和缓存监控")
     parser.add_argument("--cache", action="store_true", help="显示缓存状态")
-    parser.add_argument(
-        "--sources", action="store_true", help="显示数据源状态（含健康度矩阵）"
-    )
+    parser.add_argument("--sources", action="store_true", help="显示数据源状态（含健康度矩阵）")
     parser.add_argument("--cleanup", action="store_true", help="清理过期缓存")
     parser.add_argument(
         "--json",

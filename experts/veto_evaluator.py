@@ -103,9 +103,7 @@ def _check_goodwill_ratio(stock_data: dict) -> ConditionResult:
     """
     fin = _get_fin(stock_data)
     goodwill = _safe_float(fin.get("goodwill") or fin.get("GOODWILL"))
-    net_assets = _safe_float(
-        fin.get("net_assets") or fin.get("TOTAL_EQUITY") or fin.get("BPS")
-    )
+    net_assets = _safe_float(fin.get("net_assets") or fin.get("TOTAL_EQUITY") or fin.get("BPS"))
     if goodwill <= 0 or net_assets <= 0:
         return ConditionResult(evaluable=False, detail="商誉或净资产数据缺失")
     ratio = goodwill / net_assets
@@ -124,9 +122,7 @@ def _check_fraud(stock_data: dict) -> ConditionResult:
     此条件无法从财务数据自动判定（需公告/监管信息），标记不可评估。
     但提供 quote.fraud_flag 或 stock_data.fraud_flag 接口供外部注入。
     """
-    fraud_flag = stock_data.get("fraud_flag") or _get_quote(stock_data).get(
-        "fraud_flag"
-    )
+    fraud_flag = stock_data.get("fraud_flag") or _get_quote(stock_data).get("fraud_flag")
     if fraud_flag is None:
         return ConditionResult(evaluable=False, detail="欺诈标记数据缺失，需外部注入")
     if fraud_flag:

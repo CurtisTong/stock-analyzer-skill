@@ -15,9 +15,7 @@ from typing import Dict, Optional
 
 logger = logging.getLogger(__name__)
 
-STATE_FILE = (
-    Path(__file__).resolve().parent.parent.parent / "data" / "regime_state.json"
-)
+STATE_FILE = Path(__file__).resolve().parent.parent.parent / "data" / "regime_state.json"
 STATE_TTL_SECONDS = 7 * 86400  # 7 天
 
 

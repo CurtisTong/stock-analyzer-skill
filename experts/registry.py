@@ -58,16 +58,11 @@ def _ensure_loaded() -> None:
     total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)
     if total < 8:
-        raise RuntimeError(
-            f"Expected at least 8 experts in registry, "
-            f"found {total}: {list(EXPERT_REGISTRY)}"
-        )
+        raise RuntimeError(f"Expected at least 8 experts in registry, " f"found {total}: {list(EXPERT_REGISTRY)}")
     if active_count < 5:
         raise RuntimeError(
             f"Expected at least 5 active experts, found {active_count}: "
             f"{[p.name for p in EXPERT_REGISTRY.values() if p.active]}"
         )
     if total != 16 or active_count != 8:
-        logger.warning(
-            "专家数量变化: total=%d (期望16), active=%d (期望8)", total, active_count
-        )
+        logger.warning("专家数量变化: total=%d (期望16), active=%d (期望8)", total, active_count)

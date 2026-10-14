@@ -31,9 +31,7 @@ class EastmoneyQuoteFetcher(BaseFetcher):
         try:
             data = json.loads(raw)
         except json.JSONDecodeError as e:
-            raise ParseError(
-                raw, "eastmoney_quote", f"JSON 解析失败: {code} url={url}"
-            ) from e
+            raise ParseError(raw, "eastmoney_quote", f"JSON 解析失败: {code} url={url}") from e
         if not data or data.get("rc") != 0 or "data" not in data:
             logger.debug("东方财富行情无数据: %s", code)
             return None
@@ -62,9 +60,7 @@ class EastmoneyQuoteFetcher(BaseFetcher):
             "pe": _div100(d.get("f162", 0)),
             "pe_type": "dynamic",  # f162 为动态市盈率
             "pb": _div100(d.get("f167", 0)),
-            "total_cap": str(
-                d.get("f116", 0)
-            ),  # 原始元值，归一化在 data 层 _normalize_cap
+            "total_cap": str(d.get("f116", 0)),  # 原始元值，归一化在 data 层 _normalize_cap
             "circulating_cap": str(d.get("f117", 0)),
             "source": "eastmoney",
         }

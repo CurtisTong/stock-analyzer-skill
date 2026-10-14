@@ -106,9 +106,7 @@ class YfinanceQuoteFetcher(BaseFetcher):
                     "pe": str(info.get("trailingPE", 0) or 0),
                     "pe_type": "ttm",  # trailingPE 为滚动市盈率
                     "pb": str(info.get("priceToBook", 0) or 0),
-                    "total_cap": str(
-                        info.get("marketCap", 0) or 0
-                    ),  # 原始元值，归一化在 data 层
+                    "total_cap": str(info.get("marketCap", 0) or 0),  # 原始元值，归一化在 data 层
                     "circulating_cap": "0",
                     "source": "yfinance",
                 }
@@ -134,9 +132,7 @@ class YfinanceQuoteFetcher(BaseFetcher):
                 "pe": str(info.get("trailingPE", 0) or 0),
                 "pe_type": "ttm",  # trailingPE 为滚动市盈率
                 "pb": str(info.get("priceToBook", 0) or 0),
-                "total_cap": str(
-                    info.get("marketCap", 0) or 0
-                ),  # 原始元值，归一化在 data 层
+                "total_cap": str(info.get("marketCap", 0) or 0),  # 原始元值，归一化在 data 层
                 "circulating_cap": "0",
                 "source": "yfinance",
             }

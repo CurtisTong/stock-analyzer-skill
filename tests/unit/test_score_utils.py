@@ -113,9 +113,7 @@ class TestScoringContext:
 
     def test_required_fields(self):
         """quote/fin/features 是必需位置参数。"""
-        ctx = ScoringContext(
-            quote={"price": 100}, fin={"eps": 1.5}, features={"rsi": 50}
-        )
+        ctx = ScoringContext(quote={"price": 100}, fin={"eps": 1.5}, features={"rsi": 50})
         assert ctx.quote == {"price": 100}
         assert ctx.fin == {"eps": 1.5}
         assert ctx.features == {"rsi": 50}
@@ -150,10 +148,6 @@ class TestScoringContext:
 
     def test_equality(self):
         """两个内容相同的 ScoringContext 应相等（dataclass 默认行为）。"""
-        ctx1 = ScoringContext(
-            quote={"a": 1}, fin={}, features={}, industry="默认", code=""
-        )
-        ctx2 = ScoringContext(
-            quote={"a": 1}, fin={}, features={}, industry="默认", code=""
-        )
+        ctx1 = ScoringContext(quote={"a": 1}, fin={}, features={}, industry="默认", code="")
+        ctx2 = ScoringContext(quote={"a": 1}, fin={}, features={}, industry="默认", code="")
         assert ctx1 == ctx2

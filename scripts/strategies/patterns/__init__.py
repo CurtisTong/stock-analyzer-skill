@@ -99,9 +99,7 @@ def detect_all_local_patterns(inp: PatternInput):
     all_patterns.extend(detect_duanban(records, closes, highs, lows, volumes, code))
 
     # 底部首板
-    all_patterns.extend(
-        detect_dibu_shouban(records, closes, highs, lows, volumes, code)
-    )
+    all_patterns.extend(detect_dibu_shouban(records, closes, highs, lows, volumes, code))
 
     # 按时间排序（最新的在后）
     all_patterns.sort(key=lambda p: p["idx"])

@@ -55,11 +55,7 @@ class TestIsValidRecords:
 
     def test_zero_everywhere(self):
         """5 字段全 0.0（旧字段默认值）→ 视为无效。"""
-        records = [
-            _make_record(
-                eps=0.0, roe=0.0, revenue_yoy=0.0, net_profit_yoy=0.0, gross_margin=0.0
-            )
-        ]
+        records = [_make_record(eps=0.0, roe=0.0, revenue_yoy=0.0, net_profit_yoy=0.0, gross_margin=0.0)]
         assert _is_valid_records(records) is False
 
     def test_multi_records_one_valid(self):

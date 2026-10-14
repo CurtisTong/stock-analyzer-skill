@@ -8,9 +8,7 @@ from common import BaseFetcher, http_get_with_headers, to_float
 logger = logging.getLogger(__name__)
 
 # 雪球行情 API
-XUEQIU_URL = (
-    "https://stock.xueqiu.com/v5/stock/quote.json?symbol={symbol}&extend=detail"
-)
+XUEQIU_URL = "https://stock.xueqiu.com/v5/stock/quote.json?symbol={symbol}&extend=detail"
 
 
 def _to_xueqiu_symbol(code: str) -> str:
@@ -45,9 +43,7 @@ def _parse_quote(data: dict) -> dict | None:
         "pe": to_float(quote.get("pe_ttm")),
         "pe_type": "ttm",  # pe_ttm 为滚动市盈率
         "pb": to_float(quote.get("pb")),
-        "total_cap": to_float(
-            quote.get("market_capital")
-        ),  # 原始元值，归一化在 data 层
+        "total_cap": to_float(quote.get("market_capital")),  # 原始元值，归一化在 data 层
         "circulating_cap": to_float(quote.get("float_market_capital")),
         "source": "xueqiu",
     }

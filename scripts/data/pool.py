@@ -62,10 +62,8 @@ def fetch_board_stocks(bk_code: str, max_retries: int = 2) -> list[dict]:
     http_get_cached, _, infer_exchange = _get_common_deps()
     # v1.16.0 D-A.2: urlencode API_TOKEN 而不是字符串拼接
     extra_params = urlencode({"ut": API_TOKEN}) if API_TOKEN else ""
-    url = (
-        f"{API_BASE}?pn=1&pz=500&np=1"
-        f"&fltt=2&invt=2&fid=f3&fs=b:{bk_code}&fields={FIELDS}"
-        + (f"&{extra_params}" if extra_params else "")
+    url = f"{API_BASE}?pn=1&pz=500&np=1" f"&fltt=2&invt=2&fid=f3&fs=b:{bk_code}&fields={FIELDS}" + (
+        f"&{extra_params}" if extra_params else ""
     )
     for attempt in range(max_retries + 1):
         try:
@@ -215,9 +213,7 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
     page_size = 1000
 
     while True:
-        stocks, total = _fetch_xuangu_page(
-            page, page_size, '(SECURITY_TYPE_CODE="058001001")'
-        )
+        stocks, total = _fetch_xuangu_page(page, page_size, '(SECURITY_TYPE_CODE="058001001")')
         if not stocks:
             break
 
@@ -257,10 +253,7 @@ def _fetch_push2_market(boards: dict[str, list[str]]) -> None:
     page_size = 5000
 
     while True:
-        url = (
-            f"{API_BASE}?pn={page}&pz={page_size}&np=1"
-            f"&fltt=2&invt=2&fid=f3&fs={FULL_MARKET_FS}&fields={FIELDS}"
-        )
+        url = f"{API_BASE}?pn={page}&pz={page_size}&np=1" f"&fltt=2&invt=2&fid=f3&fs={FULL_MARKET_FS}&fields={FIELDS}"
         raw = http_get_cached(url, ttl=3600)
         data = json.loads(raw)
 
@@ -363,9 +356,7 @@ def sort_stocks(stocks: list[dict], key: str = "amount") -> list[dict]:
     return sorted(stocks, key=keys.get(key, keys["amount"]), reverse=True)
 
 
-def build_sector_pool(
-    stocks: list[dict], top_n: int = 20, sort_by: str = "amount"
-) -> list[str]:
+def build_sector_pool(stocks: list[dict], top_n: int = 20, sort_by: str = "amount") -> list[str]:
     """过滤+排序+截取，返回代码列表"""
     filtered = []
     reasons = {}
@@ -383,9 +374,7 @@ def build_sector_pool(
 # ---------- 高股息特殊处理 ----------
 
 
-def build_dividend_pool(
-    all_pools: dict[str, list[str]], code_to_stock: dict[str, dict]
-) -> list[str]:
+def build_dividend_pool(all_pools: dict[str, list[str]], code_to_stock: dict[str, dict]) -> list[str]:
     """从所有板块中筛选 PE<20 的标的（按成交额取 Top 20）。
 
     Args:
@@ -522,9 +511,7 @@ def refresh_pool(
         if all_stocks_raw:
             dividend_pool = build_dividend_pool(new_pool, all_stocks_raw)
             new_pool["高股息"] = dividend_pool
-            logger.info(
-                "高股息: 从 %d 只中筛选 %d 只", len(all_stocks_raw), len(dividend_pool)
-            )
+            logger.info("高股息: 从 %d 只中筛选 %d 只", len(all_stocks_raw), len(dividend_pool))
 
     # 对比
     if show_diff:

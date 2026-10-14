@@ -17,8 +17,7 @@ def _rotation_payload(strength: float) -> dict:
     # 与 _fetch_sector_rotation 包装一致：strength>3 → 保守建议
     if strength > 3:
         payload["advice"] = (
-            "剧烈轮动期（主线切换中）：减少新增仓位，优先减仓弱势持仓，"
-            "等待主线明确后再考虑进攻/分层配置"
+            "剧烈轮动期（主线切换中）：减少新增仓位，优先减仓弱势持仓，" "等待主线明确后再考虑进攻/分层配置"
         )
     else:
         payload["advice"] = "轮动强度适中：可维持现有配置，结合板块强弱做均衡布局"
@@ -50,9 +49,7 @@ class TestFetchSectorRotationAdvice:
         def boom(window=5):
             raise RuntimeError("boom")
 
-        monkeypatch.setattr(
-            "market_anchor.sector_etf_strength.compute_rotation_strength", boom
-        )
+        monkeypatch.setattr("market_anchor.sector_etf_strength.compute_rotation_strength", boom)
         res = market_anchor._fetch_sector_rotation(window=5)
         assert res.get("data_quality", {}).get("degraded_fields") == ["sector_rotation"]
 

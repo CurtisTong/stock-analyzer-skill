@@ -109,10 +109,7 @@ def brinson_attribution(
 
     # 基准总收益
     if period_return is None:
-        benchmark_return = sum(
-            benchmark_sector_weights.get(s, 0) * benchmark_sector_returns.get(s, 0)
-            for s in sectors
-        )
+        benchmark_return = sum(benchmark_sector_weights.get(s, 0) * benchmark_sector_returns.get(s, 0) for s in sectors)
     else:
         benchmark_return = period_return
 
@@ -147,10 +144,7 @@ def brinson_attribution(
         total_interaction += interaction
 
     # 组合总收益
-    portfolio_return = sum(
-        portfolio_sector_weights.get(s, 0) * portfolio_sector_returns.get(s, 0)
-        for s in sectors
-    )
+    portfolio_return = sum(portfolio_sector_weights.get(s, 0) * portfolio_sector_returns.get(s, 0) for s in sectors)
 
     return BrinsonResult(
         sectors=results,
@@ -183,10 +177,7 @@ def brinson_from_holdings(
 
     # 简化版：假设所有持仓属于"未指定"行业，使用沪深300做基准
     # 真实场景应从 quotes/tags 中提取 industry
-    total_value = sum(
-        quotes.get(p["code"], p.get("cost", 0)) * p.get("quantity", 0)
-        for p in positions
-    )
+    total_value = sum(quotes.get(p["code"], p.get("cost", 0)) * p.get("quantity", 0) for p in positions)
     if total_value <= 0:
         return BrinsonResult()
 
@@ -214,9 +205,7 @@ def brinson_from_holdings(
         # 加权平均收益
         old_w = portfolio_weights[sector] - weight
         old_r = portfolio_returns.get(sector, 0)
-        portfolio_returns[sector] = (old_w * old_r + weight * ret) / portfolio_weights[
-            sector
-        ]
+        portfolio_returns[sector] = (old_w * old_r + weight * ret) / portfolio_weights[sector]
 
     # 默认沪深300行业分布（中证指数官网近似权重）
     if benchmark_sector_weights is None:
@@ -248,10 +237,7 @@ def brinson_from_holdings(
         benchmark_sector_weights=benchmark_sector_weights,
     )
     # 降级标注：持仓文件无上期价，组合当期收益按 0 计（浮盈未计入归因）
-    result.note = (
-        "组合收益按 0 计（缺上期价格数据，累计浮盈未计入归因）；"
-        "基准行业收益为默认假设（5%），仅供结构参考"
-    )
+    result.note = "组合收益按 0 计（缺上期价格数据，累计浮盈未计入归因）；" "基准行业收益为默认假设（5%），仅供结构参考"
     return result
 
 
@@ -276,20 +262,15 @@ def format_brinson_report(result: BrinsonResult) -> str:
         f"({'✅ 行业配置贡献' if s['allocation_pct'] > 0 else '⚠️ 行业配置拖累'})"
     )
     lines.append(
-        f"- 选择效应: {s['selection_pct']:+.2f}% "
-        f"({'✅ 选股贡献' if s['selection_pct'] > 0 else '⚠️ 选股拖累'})"
+        f"- 选择效应: {s['selection_pct']:+.2f}% " f"({'✅ 选股贡献' if s['selection_pct'] > 0 else '⚠️ 选股拖累'})"
     )
     lines.append(f"- 交互效应: {s['interaction_pct']:+.2f}%")
     lines.append("")
 
     # 行业明细
     lines.append("### 行业明细")
-    lines.append(
-        "| 行业 | 组合权重 | 基准权重 | 组合收益 | 基准收益 | 配置 | 选择 | 交互 | 总效应 |"
-    )
-    lines.append(
-        "|------|---------|---------|---------|---------|------|------|------|--------|"
-    )
+    lines.append("| 行业 | 组合权重 | 基准权重 | 组合收益 | 基准收益 | 配置 | 选择 | 交互 | 总效应 |")
+    lines.append("|------|---------|---------|---------|---------|------|------|------|--------|")
     for s in result.sectors:
         d = s.to_dict()
         lines.append(

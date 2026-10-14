@@ -51,9 +51,7 @@ class TestPrefetchKlineAll:
         from screener import _prefetch_kline_all
         from data.types import KlineBar
 
-        fake_bars = [
-            KlineBar(day="2025-01-01", open=10, high=11, low=9, close=10, volume=1000)
-        ]
+        fake_bars = [KlineBar(day="2025-01-01", open=10, high=11, low=9, close=10, volume=1000)]
 
         # monkeypatch get_kline（通过 data 模块）
         import data

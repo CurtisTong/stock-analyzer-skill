@@ -357,9 +357,7 @@ class TestEarningsCalendarFetcher:
             "success": True,
             "result": {
                 "pages": 1,
-                "data": [
-                    {"SECURITY_CODE": "600519", "REPORT_DATE": None, "OP_DATE": None}
-                ],
+                "data": [{"SECURITY_CODE": "600519", "REPORT_DATE": None, "OP_DATE": None}],
             },
         }
         monkeypatch.setattr(mod, "http_get", _make_json_getter(payload))

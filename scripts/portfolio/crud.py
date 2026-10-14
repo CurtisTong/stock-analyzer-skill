@@ -83,9 +83,7 @@ def add_position(
     if quantity <= 0:
         raise ValueError("quantity must be positive")
     cost_before = _position_cost(manager, code)
-    manager._push_oplog(
-        "add_position", code=code, cost_before=cost_before, cost_source=cost_source
-    )
+    manager._push_oplog("add_position", code=code, cost_before=cost_before, cost_source=cost_source)
     result_holder: dict[str, Any] = {}
 
     def _apply(data: dict) -> dict:
@@ -209,9 +207,7 @@ def reduce_position(
     return result_holder["r"]
 
 
-def remove_position(
-    manager: "PortfolioManager", code: str, auto_save: bool = True
-) -> bool:
+def remove_position(manager: "PortfolioManager", code: str, auto_save: bool = True) -> bool:
     """清仓（移除持仓）并记录交易日志。"""
     code = normalize_code(code)
     manager._push_oplog("remove_position", code=code)
@@ -245,9 +241,7 @@ def remove_position(
     return holder["found"]
 
 
-def update_position(
-    manager: "PortfolioManager", code: str, auto_save: bool = True, **kwargs
-) -> Optional[dict]:
+def update_position(manager: "PortfolioManager", code: str, auto_save: bool = True, **kwargs) -> Optional[dict]:
     """更新持仓字段（cost, quantity, name, buy_date, tags, cost_source）。
 
     cost 变更时记录 cost_before/cost_after 到 oplog；显式更新 cost
@@ -256,11 +250,7 @@ def update_position(
     code = normalize_code(code)
     if kwargs.get("cost", 0) < 0:
         raise ValueError("cost 不能为负")
-    if (
-        "quantity" in kwargs
-        and kwargs["quantity"] is not None
-        and kwargs["quantity"] <= 0
-    ):
+    if "quantity" in kwargs and kwargs["quantity"] is not None and kwargs["quantity"] <= 0:
         raise ValueError("quantity must be positive")
     cost_before = _position_cost(manager, code)
     if "cost" in kwargs and "cost_source" not in kwargs:
@@ -299,9 +289,7 @@ def update_position(
     return r
 
 
-def tag_position(
-    manager: "PortfolioManager", code: str, *tags: str, auto_save: bool = True
-) -> Optional[dict]:
+def tag_position(manager: "PortfolioManager", code: str, *tags: str, auto_save: bool = True) -> Optional[dict]:
     """给持仓添加标签。"""
     code = normalize_code(code)
     manager._push_oplog("tag_position", code=code, tags=list(tags))
@@ -324,9 +312,7 @@ def tag_position(
     return holder["r"]
 
 
-def untag_position(
-    manager: "PortfolioManager", code: str, *tags: str, auto_save: bool = True
-) -> Optional[dict]:
+def untag_position(manager: "PortfolioManager", code: str, *tags: str, auto_save: bool = True) -> Optional[dict]:
     """移除持仓标签。"""
     code = normalize_code(code)
     manager._push_oplog("untag_position", code=code, tags=list(tags))
@@ -406,9 +392,7 @@ def add_watch(
     return holder["r"]
 
 
-def remove_watch(
-    manager: "PortfolioManager", code: str, auto_save: bool = True
-) -> bool:
+def remove_watch(manager: "PortfolioManager", code: str, auto_save: bool = True) -> bool:
     """移除自选股。"""
     code = normalize_code(code)
     manager._push_oplog("remove_watch", code=code)

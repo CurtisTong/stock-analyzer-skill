@@ -185,11 +185,7 @@ def render_backtest_summary(report: dict) -> str:
     lines.append(f"  🔄 总交易: {total_trades} 笔")
 
     # 收益曲线
-    returns = (
-        report.get("round_details", [{}])[0].get("returns", [])
-        if report.get("round_details")
-        else []
-    )
+    returns = report.get("round_details", [{}])[0].get("returns", []) if report.get("round_details") else []
     if not returns:
         returns = [report.get("avg_return_pct", 0)] * report.get("rounds", 1)
 

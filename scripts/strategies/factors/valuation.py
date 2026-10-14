@@ -19,19 +19,13 @@ def valuation_score(quote: dict, fin: dict, industry: str = "默认") -> float:
     # P2-H6: 3 年 CAGR 优先，无则用单期净利同比（兼容原始东财键回退）
     cagr_3y = to_float(fin.get("net_profit_cagr_3y"))
     growth = max(
-        (
-            cagr_3y
-            if cagr_3y > 0
-            else to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ")))
-        ),
+        (cagr_3y if cagr_3y > 0 else to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ")))),
         0,
     )
 
     # 亏损股评分用到的字段
     total_cap = to_float(quote.get("total_cap"))  # 亿（Quote.to_dict 已归一化）
-    revenue_yoy = to_float(
-        fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ"))
-    )  # 营收同比(%)
+    revenue_yoy = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ")))  # 营收同比(%)
 
     # 行业差异化 PE 阈值
     pe_undervalued = get_industry_threshold(industry, "pe_undervalued", 15)

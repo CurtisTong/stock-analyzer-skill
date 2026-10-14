@@ -91,9 +91,7 @@ class TestSaveSnapshot:
 
     def test_save_with_extra(self, temp_snapshots_dir):
         rows = [_make_row("sh600519", "贵州茅台", 80.0)]
-        path = save_snapshot(
-            "balanced", rows, ["sh600519"], extra={"note": "test snapshot"}
-        )
+        path = save_snapshot("balanced", rows, ["sh600519"], extra={"note": "test snapshot"})
         data = load_snapshot(path)
         assert data["extra"]["note"] == "test snapshot"
 
@@ -220,10 +218,7 @@ class TestSnapshotPath:
 
         monkeypatch.setattr(snapshots, "DATA_DIR", str(tmp_path))
         path = snapshots._snapshot_path("balanced", "2026-07-10", "abc123def456")
-        assert (
-            path
-            == tmp_path / "snapshots" / "balanced" / "2026-07-10" / "abc123def456.json"
-        )
+        assert path == tmp_path / "snapshots" / "balanced" / "2026-07-10" / "abc123def456.json"
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -265,9 +260,7 @@ class TestMain:
         p_a = save_snapshot("balanced", rows_a, ["sh600519"])
         p_b = save_snapshot("balanced", rows_b, ["sh600519"])
 
-        monkeypatch.setattr(
-            sys, "argv", ["snapshots.py", "diff", str(p_a), str(p_b), "--json"]
-        )
+        monkeypatch.setattr(sys, "argv", ["snapshots.py", "diff", str(p_a), str(p_b), "--json"])
         main()
         captured = capsys.readouterr()
         # 输出必须是合法 JSON

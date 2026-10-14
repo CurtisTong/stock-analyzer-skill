@@ -46,9 +46,7 @@ def log_silent_fallback(
     if extra_context:
         extra.update(extra_context)
 
-    exc_repr = (
-        f"{type(exception).__name__}: {exception}" if exception else "(no exception)"
-    )
+    exc_repr = f"{type(exception).__name__}: {exception}" if exception else "(no exception)"
     logger.warning(
         "静默降级 @ %s | reason=%s | default=%s | exc=%s",
         location,

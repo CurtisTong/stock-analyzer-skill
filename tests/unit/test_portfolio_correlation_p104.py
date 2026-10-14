@@ -116,10 +116,7 @@ class TestHalfWindowStability:
         assert stability["sign_flips"] >= 1
 
     def test_insufficient(self):
-        assert (
-            _half_window_stability(["A", "B"], {"A": [0.01] * 5, "B": [0.02] * 5})
-            is None
-        )
+        assert _half_window_stability(["A", "B"], {"A": [0.01] * 5, "B": [0.02] * 5}) is None
 
 
 class TestInterpretDiversification:

@@ -13,9 +13,7 @@ class MetricsCollector:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._counters: dict[str, int] = defaultdict(int)
-        self._latencies: dict[str, deque[float]] = defaultdict(
-            lambda: deque(maxlen=1000)
-        )
+        self._latencies: dict[str, deque[float]] = defaultdict(lambda: deque(maxlen=1000))
         self._start_time = time.time()
 
     def record_fetch(self, source: str, success: bool, latency_ms: float) -> None:
@@ -58,15 +56,11 @@ class MetricsCollector:
                         "count": len(values),
                     }
             # 计算成功率
-            for source in set(
-                k.split(".")[1] for k in self._counters if k.startswith("fetch.")
-            ):
+            for source in set(k.split(".")[1] for k in self._counters if k.startswith("fetch.")):
                 total = self._counters.get(f"fetch.{source}.total", 0)
                 success = self._counters.get(f"fetch.{source}.success", 0)
                 if total > 0:
-                    counters[f"fetch.{source}.success_rate"] = round(
-                        success / total * 100, 1
-                    )
+                    counters[f"fetch.{source}.success_rate"] = round(success / total * 100, 1)
             # 缓存命中率
             cache_total = self._counters.get("cache.total", 0)
             cache_hit = self._counters.get("cache.hit", 0)

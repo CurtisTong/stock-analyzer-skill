@@ -15,9 +15,7 @@ def macd_full(closes):
     ema12_series = _ema_series(closes, 12)
     ema26_series = _ema_series(closes, 26)
     offset = len(ema12_series) - len(ema26_series)  # = 14
-    dif_series = [
-        ema12_series[offset + i] - ema26_series[i] for i in range(len(ema26_series))
-    ]
+    dif_series = [ema12_series[offset + i] - ema26_series[i] for i in range(len(ema26_series))]
 
     # 当前值取序列末尾
     dif = dif_series[-1] if dif_series else 0.0

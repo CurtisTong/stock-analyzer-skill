@@ -50,10 +50,7 @@ def load_full_market_universe(boards=None):
     """从 data/all_stocks.json 加载全市场股票池。"""
     path = _get_data_dir() / "all_stocks.json"
     if not path.exists():
-        raise SystemExit(
-            "data/all_stocks.json 不存在，请先运行:\n"
-            "  python3 scripts/refresh_pool.py --full-market"
-        )
+        raise SystemExit("data/all_stocks.json 不存在，请先运行:\n" "  python3 scripts/refresh_pool.py --full-market")
     data = json.loads(path.read_text(encoding="utf-8"))
     all_board_keys = [k for k in data if not k.startswith("_")]
     if boards:
@@ -87,9 +84,7 @@ def _try_fetch_from_mapping(sector: str) -> list:
                 bk_codes = cfg.get("bk_codes", [])
                 if not bk_codes:
                     continue
-                print(
-                    f"📡 动态获取板块 '{name}' ({', '.join(bk_codes)})...", flush=True
-                )
+                print(f"📡 动态获取板块 '{name}' ({', '.join(bk_codes)})...", flush=True)
                 stocks = fetch_multiple_boards(bk_codes)
                 if stocks:
                     pool = build_sector_pool(stocks, top_n=30)
@@ -275,11 +270,7 @@ def apply_portfolio_constraints(
     if benchmark_active:
         assert benchmark_weights is not None
         total_bw = sum(benchmark_weights.values())
-        norm_benchmark = (
-            {k: v / total_bw for k, v in benchmark_weights.items()}
-            if total_bw > 0
-            else {}
-        )
+        norm_benchmark = {k: v / total_bw for k, v in benchmark_weights.items()} if total_bw > 0 else {}
     else:
         norm_benchmark = {}
 

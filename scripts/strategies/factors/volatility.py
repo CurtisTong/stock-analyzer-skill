@@ -67,9 +67,5 @@ def volatility_from_closes(closes: list, industry: str = "默认") -> float:
     if len(closes) < 20:
         return 50
     recent = closes[-60:] if len(closes) >= 60 else closes
-    returns = [
-        (recent[i] - recent[i - 1]) / recent[i - 1]
-        for i in range(1, len(recent))
-        if recent[i - 1] > 0
-    ]
+    returns = [(recent[i] - recent[i - 1]) / recent[i - 1] for i in range(1, len(recent)) if recent[i - 1] > 0]
     return _compute_vol_score(returns, industry)

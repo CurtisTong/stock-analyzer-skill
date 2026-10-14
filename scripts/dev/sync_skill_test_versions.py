@@ -83,9 +83,7 @@ def parse_existing_constants(test_text: str) -> tuple[str, dict[str, str]]:
     overrides: dict[str, str] = {}
     if m_overrides:
         for line in m_overrides.group(1).splitlines():
-            m_item = re.match(
-                r'\s*[\'"]?([\w-]+)[\'"]?\s*:\s*[\'"]([^\'"]+)[\'"]', line
-            )
+            m_item = re.match(r'\s*[\'"]?([\w-]+)[\'"]?\s*:\s*[\'"]([^\'"]+)[\'"]', line)
             if m_item:
                 overrides[m_item.group(1)] = m_item.group(2)
     return default, overrides
@@ -178,13 +176,9 @@ def check() -> int:
 
     errors = []
     if cur_default != pkg_ver:
-        errors.append(
-            f"DEFAULT_VERSION 不一致: 测试文件={cur_default}, package.json={pkg_ver}"
-        )
+        errors.append(f"DEFAULT_VERSION 不一致: 测试文件={cur_default}, package.json={pkg_ver}")
     if cur_overrides != overrides:
-        errors.append(
-            f"VERSION_OVERRIDES 不一致: 测试文件={cur_overrides}, 实际={overrides}"
-        )
+        errors.append(f"VERSION_OVERRIDES 不一致: 测试文件={cur_overrides}, 实际={overrides}")
 
     if errors:
         for e in errors:

@@ -31,9 +31,7 @@ def dividend_score(quote: dict, fin: dict = None, industry: str = "默认") -> f
 
     # fallback：用 DPS / price 计算（若 fin 提供了非标准字段 dps/MGJXFH）
     if dividend_yield <= 0 and fin:
-        eps_dps_bonus = to_float(
-            fin.get("dps") or fin.get("MGJXFH") or fin.get("每股现金分红") or 0
-        )
+        eps_dps_bonus = to_float(fin.get("dps") or fin.get("MGJXFH") or fin.get("每股现金分红") or 0)
         if price > 0 and eps_dps_bonus > 0:
             dividend_yield = eps_dps_bonus / price * 100
 

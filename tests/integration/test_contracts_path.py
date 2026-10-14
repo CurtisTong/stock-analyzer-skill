@@ -33,18 +33,12 @@ class TestStockSchemaPath:
 
     def test_schema_file_exists(self):
         """stock.schema.json 物理存在。"""
-        schema_path = (
-            REPO_ROOT / "skills" / "_shared" / "contracts" / "stock.schema.json"
-        )
-        assert (
-            schema_path.exists()
-        ), f"SKILL.md 引用 stock.schema.json 但文件缺失: {schema_path}"
+        schema_path = REPO_ROOT / "skills" / "_shared" / "contracts" / "stock.schema.json"
+        assert schema_path.exists(), f"SKILL.md 引用 stock.schema.json 但文件缺失: {schema_path}"
 
     def test_schema_is_valid_json(self):
         """schema 是有效 JSON。"""
-        schema_path = (
-            REPO_ROOT / "skills" / "_shared" / "contracts" / "stock.schema.json"
-        )
+        schema_path = REPO_ROOT / "skills" / "_shared" / "contracts" / "stock.schema.json"
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         assert isinstance(schema, dict), "schema 顶层必须是 dict"
         # JSON Schema 必有 $schema 或 type 字段
@@ -59,9 +53,7 @@ class TestStockSchemaPath:
         except ImportError:
             pytest.skip("jsonschema 未安装")
 
-        schema_path = (
-            REPO_ROOT / "skills" / "_shared" / "contracts" / "stock.schema.json"
-        )
+        schema_path = REPO_ROOT / "skills" / "_shared" / "contracts" / "stock.schema.json"
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         # Draft 7 校验：检查语法 + $ref 是否闭合
         # 用一个最简有效实例验证 schema 至少能跑通验证
@@ -72,9 +64,7 @@ class TestStockSchemaPath:
 
     def test_readme_python_snippet_compiles(self):
         """README.md 行 29-40 的 Python 校验代码片段语法正确。"""
-        readme = (
-            REPO_ROOT / "skills" / "_shared" / "contracts" / "README.md"
-        ).read_text(encoding="utf-8")
+        readme = (REPO_ROOT / "skills" / "_shared" / "contracts" / "README.md").read_text(encoding="utf-8")
         # 提取 ```python ... ``` 块
         pattern = re.compile(r"```python\n(.*?)\n```", re.DOTALL)
         snippets = pattern.findall(readme)
@@ -106,9 +96,7 @@ class TestValidateContractsCLI:
             text=True,
             timeout=10,
         )
-        assert (
-            result.returncode == 0
-        ), f"validate_contracts.py --help 失败: {result.stderr}"
+        assert result.returncode == 0, f"validate_contracts.py --help 失败: {result.stderr}"
 
     def test_validate_contracts_stock_schema(self):
         """validate_contracts.py 能正确验证 stock.schema.json。"""

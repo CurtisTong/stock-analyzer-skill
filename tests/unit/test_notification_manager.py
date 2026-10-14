@@ -158,9 +158,7 @@ class TestSendAlert:
                 message="测试消息",
             )
             title = ch.calls[-1]["title"]
-            assert title.startswith(
-                expected_icon
-            ), f"{alert_type} 应以 {expected_icon} 开头，实际 {title}"
+            assert title.startswith(expected_icon), f"{alert_type} 应以 {expected_icon} 开头，实际 {title}"
 
     def test_unknown_alert_type_uses_default_icon(self):
         """未知 alert_type 用默认 📌 icon。"""

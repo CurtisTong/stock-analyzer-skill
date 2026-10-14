@@ -419,9 +419,7 @@ class TestFetchWithFallback:
 
     def test_priority_desc_fallback(self):
         """按 priority 降序遍历，高优先级失败后降级到低优先级。"""
-        high = FakeFetcher(
-            "high_eastmoney", priority=100, raise_exc=RuntimeError("boom")
-        )
+        high = FakeFetcher("high_eastmoney", priority=100, raise_exc=RuntimeError("boom"))
         low = FakeFetcher("low_tencent", priority=1, behavior="data")
         # 传入乱序，验证内部排序
         result = fetch_with_fallback([low, high], "600519")
@@ -694,10 +692,7 @@ class TestDataFetcherManagerCacheFallback:
         monkeypatch.setattr(cache_mod, "cache_key_for_stock", lambda *a, **k: "k")
         monkeypatch.setattr(cache_mod, "get", lambda key, ttl: None)
 
-        assert (
-            mgr.fetch_with_cache_fallback("600519", cache_prefix="pfx", fallback="F")
-            == "F"
-        )
+        assert mgr.fetch_with_cache_fallback("600519", cache_prefix="pfx", fallback="F") == "F"
 
     def test_cache_corrupt_returns_fallback(self, monkeypatch, caplog):
         """缓存损坏（非 JSON）→ warning + fallback（419-420 行）。"""
@@ -711,9 +706,7 @@ class TestDataFetcherManagerCacheFallback:
         monkeypatch.setattr(cache_mod, "get", lambda key, ttl: b"not-json")
 
         with caplog.at_level(logging.WARNING, logger="common.fetcher_base"):
-            result = mgr.fetch_with_cache_fallback(
-                "600519", cache_prefix="pfx", fallback="F"
-            )
+            result = mgr.fetch_with_cache_fallback("600519", cache_prefix="pfx", fallback="F")
 
         assert result == "F"
         assert "缓存数据损坏" in caplog.text

@@ -22,9 +22,7 @@ REQUIRED_QUOTE_FIELDS = {
 }
 
 
-def assert_valid_quote(
-    quote: dict[str, Any], *, code: str | None = None, price_positive: bool = True
-) -> None:
+def assert_valid_quote(quote: dict[str, Any], *, code: str | None = None, price_positive: bool = True) -> None:
     """校验归一化后的行情数据。
 
     Args:
@@ -36,9 +34,7 @@ def assert_valid_quote(
     assert not missing, f"Quote 缺少字段: {missing}"
 
     if code is not None:
-        assert quote["code"].endswith(
-            code
-        ), f"期望 code 以 {code} 结尾，实际 {quote['code']}"
+        assert quote["code"].endswith(code), f"期望 code 以 {code} 结尾，实际 {quote['code']}"
 
     if price_positive:
         assert float(quote["price"]) > 0, f"price 必须 > 0，实际 {quote['price']}"

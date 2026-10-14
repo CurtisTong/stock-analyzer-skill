@@ -54,16 +54,12 @@ def weighted_merge(
     if weights is None:
         weights = [1.0 / len(expert_results)] * len(expert_results)
     if len(weights) != len(expert_results):
-        raise ValueError(
-            f"weights 长度({len(weights)})与 expert_results 长度({len(expert_results)})不一致"
-        )
+        raise ValueError(f"weights 长度({len(weights)})与 expert_results 长度({len(expert_results)})不一致")
     total_w = sum(weights)
     weights = [w / total_w for w in weights]  # 归一化
 
     # C1: 先对每个子专家的维度名归一化，使别名维度合并到标准名
-    normalized_results = [
-        {normalize_dim(dim): score for dim, score in r.items()} for r in expert_results
-    ]
+    normalized_results = [{normalize_dim(dim): score for dim, score in r.items()} for r in expert_results]
 
     # 收集所有（归一化后的）维度
     all_dims = set()

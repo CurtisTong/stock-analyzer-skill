@@ -38,15 +38,9 @@ def detect_capacity_stock(quote, closes, highs=None, lows=None):
     try:
         from config.loader import ConfigLoader
 
-        min_cap = ConfigLoader.get(
-            "limits.yaml", "capacity_stock.min_cap", _DEFAULT_MIN_CAP
-        )
-        min_amount = ConfigLoader.get(
-            "limits.yaml", "capacity_stock.min_amount", _DEFAULT_MIN_AMOUNT
-        )
-        score_threshold = ConfigLoader.get(
-            "limits.yaml", "capacity_stock.score_threshold", _DEFAULT_SCORE_THRESHOLD
-        )
+        min_cap = ConfigLoader.get("limits.yaml", "capacity_stock.min_cap", _DEFAULT_MIN_CAP)
+        min_amount = ConfigLoader.get("limits.yaml", "capacity_stock.min_amount", _DEFAULT_MIN_AMOUNT)
+        score_threshold = ConfigLoader.get("limits.yaml", "capacity_stock.score_threshold", _DEFAULT_SCORE_THRESHOLD)
     except Exception:
         min_cap = _DEFAULT_MIN_CAP
         min_amount = _DEFAULT_MIN_AMOUNT

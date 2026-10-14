@@ -60,8 +60,6 @@ def _body_pct(open_p, close_p):
 
 def _is_limit_up(open_p, close_p, prev_close, board):
     """检测涨停（考虑板块涨跌幅限制）。"""
-    limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(
-        board, 9.5
-    )
+    limit_ratio = {"主板": 9.5, "创业板": 19.5, "科创板": 19.5, "北交所": 29.5}.get(board, 9.5)
     chg = (close_p - prev_close) / max(prev_close, 0.001) * 100
     return chg >= limit_ratio * 0.95

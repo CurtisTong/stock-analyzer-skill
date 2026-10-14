@@ -124,9 +124,7 @@ class TestFetchConceptBoards:
             return json.dumps(_MOCK_CONCEPT_RESPONSE).encode()
 
         monkeypatch.setattr("common.http_get_cached", mock_http)
-        monkeypatch.setattr(
-            "common.__init__", type("M", (), {"http_get_cached": mock_http})
-        )
+        monkeypatch.setattr("common.__init__", type("M", (), {"http_get_cached": mock_http}))
 
         # 直接 mock concept._get_http 返回 mock 函数
         monkeypatch.setattr(concept, "_get_http", lambda: mock_http)

@@ -365,9 +365,7 @@ class TestComputeVolumeRatio:
         ratio ≈ 200 / 171.43 ≈ 1.167
         """
         volumes = [100] * 5 + [200] * 5
-        assert compute_volume_ratio(
-            volumes, recent_window=3, base_window=7
-        ) == pytest.approx(1.1667, rel=1e-3)
+        assert compute_volume_ratio(volumes, recent_window=3, base_window=7) == pytest.approx(1.1667, rel=1e-3)
 
 
 class TestComputeOptimalWorkers:

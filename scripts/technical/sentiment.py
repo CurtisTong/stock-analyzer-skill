@@ -262,9 +262,7 @@ class SentimentCalculator:
         """
         # 计算各指标得分
         limit_up_score = self._calc_limit_up_score(market_data.get("limit_up_count", 0))
-        height_score = self._calc_height_score(
-            market_data.get("continuous_limit_height", 0)
-        )
+        height_score = self._calc_height_score(market_data.get("continuous_limit_height", 0))
         broken_score = self._calc_broken_score(market_data.get("broken_limit_rate", 0))
         margin_score = self._calc_margin_score(market_data.get("margin_balance", 0))
 

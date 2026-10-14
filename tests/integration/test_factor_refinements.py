@@ -197,12 +197,8 @@ class TestNorthboundFlowScoring:
         # 构造 20 天数据：前 15 天全部净买入（旧），后 5 天全部净卖出（新）
         # 若取 flow[:5]（旧），会误判为连续净买入（加分）
         # 若取 flow[-5:]（新），正确判断为连续净卖出（扣分）
-        flow_data = [
-            {"date": f"2025-06-{i:02d}", "net_buy": 1000}
-            for i in range(1, 16)  # 前 15 天：净买入
-        ] + [
-            {"date": f"2025-06-{i:02d}", "net_buy": -500}
-            for i in range(16, 21)  # 后 5 天：净卖出
+        flow_data = [{"date": f"2025-06-{i:02d}", "net_buy": 1000} for i in range(1, 16)] + [  # 前 15 天：净买入
+            {"date": f"2025-06-{i:02d}", "net_buy": -500} for i in range(16, 21)  # 后 5 天：净卖出
         ]
 
         with patch(
@@ -228,10 +224,7 @@ class TestNorthboundFlowScoring:
         from strategies.factors.chip import _score_northbound_flow
         import data.flow
 
-        flow_data = [
-            {"date": f"2025-06-{i:02d}", "net_buy": 800}
-            for i in range(1, 21)  # 20 天全部净买入
-        ]
+        flow_data = [{"date": f"2025-06-{i:02d}", "net_buy": 800} for i in range(1, 21)]  # 20 天全部净买入
         original = data.flow.get_northbound_flow
         data.flow.get_northbound_flow = lambda code, days=20: flow_data
         try:

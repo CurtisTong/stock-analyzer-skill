@@ -87,9 +87,7 @@ def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: in
         return None
 
     recent_vol_avg = statistics.mean(volumes[-5:]) if len(volumes) >= 5 else volumes[-1]
-    base_vol_avg = (
-        statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol_avg
-    )
+    base_vol_avg = statistics.mean(volumes[-20:-5]) if len(volumes) >= 20 else recent_vol_avg
     volume_ratio = recent_vol_avg / base_vol_avg if base_vol_avg > 0 else 1
 
     # 量比定性
@@ -114,15 +112,9 @@ def volume_analysis(closes, volumes, shrink_window: int = 5, shrink_min_days: in
     if prev_n < 3:
         prev_n = max(len(closes) - recent_n, 3)
     recent_c = closes[-recent_n:]
-    prev_c = (
-        closes[-recent_n - prev_n : -recent_n] if len(closes) > recent_n else closes[:1]
-    )
+    prev_c = closes[-recent_n - prev_n : -recent_n] if len(closes) > recent_n else closes[:1]
     recent_v = volumes[-recent_n:]
-    prev_v = (
-        volumes[-recent_n - prev_n : -recent_n]
-        if len(volumes) > recent_n
-        else volumes[:1]
-    )
+    prev_v = volumes[-recent_n - prev_n : -recent_n] if len(volumes) > recent_n else volumes[:1]
 
     price_chg = statistics.mean(recent_c) / max(statistics.mean(prev_c), 0.01) - 1
     vol_chg = statistics.mean(recent_v) / max(statistics.mean(prev_v), 1) - 1
@@ -207,26 +199,14 @@ def _detect_obv_divergence(closes, obv_series):
     if len(price_highs) >= 2 and len(obv_highs) >= 2:
         last2_p = sorted(price_highs[-2:])
         if last2_p[1] - last2_p[0] >= 8 and c[last2_p[1]] > c[last2_p[0]]:
-            relevant = sorted(
-                [
-                    i
-                    for i in obv_highs
-                    if abs(i - last2_p[0]) <= 5 or abs(i - last2_p[1]) <= 5
-                ]
-            )
+            relevant = sorted([i for i in obv_highs if abs(i - last2_p[0]) <= 5 or abs(i - last2_p[1]) <= 5])
             if len(relevant) >= 2 and o[relevant[-1]] < o[relevant[0]]:
                 return "OBV顶背离"
 
     if len(price_lows) >= 2 and len(obv_lows) >= 2:
         last2_p = sorted(price_lows[-2:])
         if last2_p[1] - last2_p[0] >= 8 and c[last2_p[1]] < c[last2_p[0]]:
-            relevant = sorted(
-                [
-                    i
-                    for i in obv_lows
-                    if abs(i - last2_p[0]) <= 5 or abs(i - last2_p[1]) <= 5
-                ]
-            )
+            relevant = sorted([i for i in obv_lows if abs(i - last2_p[0]) <= 5 or abs(i - last2_p[1]) <= 5])
             if len(relevant) >= 2 and o[relevant[-1]] > o[relevant[0]]:
                 return "OBV底背离"
     return None

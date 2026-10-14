@@ -42,20 +42,14 @@ def actual_skill_count() -> int:
     """扫描 skills/ 下实际 skill 目录数（排除 _shared）。"""
     if not SKILLS_DIR.exists():
         return 0
-    return sum(
-        1 for d in SKILLS_DIR.iterdir() if d.is_dir() and d.name not in _NON_SKILL_DIRS
-    )
+    return sum(1 for d in SKILLS_DIR.iterdir() if d.is_dir() and d.name not in _NON_SKILL_DIRS)
 
 
 def actual_skill_names() -> list[str]:
     """列出实际 skill 名（按字母排序）。"""
     if not SKILLS_DIR.exists():
         return []
-    return sorted(
-        d.name
-        for d in SKILLS_DIR.iterdir()
-        if d.is_dir() and d.name not in _NON_SKILL_DIRS
-    )
+    return sorted(d.name for d in SKILLS_DIR.iterdir() if d.is_dir() and d.name not in _NON_SKILL_DIRS)
 
 
 def extract_skill_count_from_text(text: str, pattern: str) -> int | None:
@@ -109,10 +103,7 @@ def check() -> int:
     if not m_badge:
         errors.append("✗ README.md 顶部 badge 找不到 'badge/skills-N-N'")
     elif int(m_badge.group(1)) != actual:
-        errors.append(
-            f"✗ README.md 顶部 badge 写 skills-{m_badge.group(1)}，"
-            f"应为 skills-{actual}"
-        )
+        errors.append(f"✗ README.md 顶部 badge 写 skills-{m_badge.group(1)}，" f"应为 skills-{actual}")
 
     # 4. README.md 锚点 #N-个-skill-速查 必须等于实际 N
     anchor_pattern = r"\(#-(\d+)-个-skill-速查\)"
@@ -120,10 +111,7 @@ def check() -> int:
     if not m_anchor:
         errors.append("✗ README.md 锚点找不到 '(#-N-个-skill-速查)'")
     elif int(m_anchor.group(1)) != actual:
-        errors.append(
-            f"✗ README.md 锚点写 #-{m_anchor.group(1)}-个-skill-速查，"
-            f"应为 #-{actual}-个-skill-速查"
-        )
+        errors.append(f"✗ README.md 锚点写 #-{m_anchor.group(1)}-个-skill-速查，" f"应为 #-{actual}-个-skill-速查")
 
     # 输出
     print(f"实际 skill 数: {actual}（{', '.join(names)}）")
@@ -181,12 +169,8 @@ def main() -> int:
         m_badge = re.search(r"badge/skills-(\d+)-", readme_text)
         m_anchor = re.search(r"\(#-(\d+)-个-skill-速查\)", readme_text)
         print("DRY-RUN: 将做以下变更（不写文件）")
-        print(
-            f"  README badge: skills-{m_badge.group(1) if m_badge else '?'} → skills-{actual}"
-        )
-        print(
-            f"  README 锚点:  #-{m_anchor.group(1) if m_anchor else '?'}-个-skill-速查 → #-{actual}-个-skill-速查"
-        )
+        print(f"  README badge: skills-{m_badge.group(1) if m_badge else '?'} → skills-{actual}")
+        print(f"  README 锚点:  #-{m_anchor.group(1) if m_anchor else '?'}-个-skill-速查 → #-{actual}-个-skill-速查")
         return 0
     return sync()
 

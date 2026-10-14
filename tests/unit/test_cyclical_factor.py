@@ -95,9 +95,7 @@ class TestFetchAluminumAkshare:
         prices[-1] = 23810  # 最新价高于全部历史 -> 高分位
 
         snapshot = tmp_path / "macro_snapshot.json"
-        snapshot.write_text(
-            json.dumps({"updated": "2020-01-01T00:00:00"})  # 过期，触发实时拉取
-        )
+        snapshot.write_text(json.dumps({"updated": "2020-01-01T00:00:00"}))  # 过期，触发实时拉取
 
         import macro_indicators as mi
 
@@ -258,9 +256,7 @@ class TestPerKeyFreshnessIndependence:
             return 23810.0
 
         monkeypatch.setattr(mi, "_akshare_get", _counting_get)
-        monkeypatch.setattr(
-            mi, "_akshare_get_history", lambda s, lookback=250: [20000] * 250
-        )
+        monkeypatch.setattr(mi, "_akshare_get_history", lambda s, lookback=250: [20000] * 250)
 
         # 第一次：实时拉取
         res1 = fetch_aluminum()
@@ -283,9 +279,7 @@ class TestPerKeyFreshnessIndependence:
 
         monkeypatch.setattr(mi, "SNAPSHOT_PATH", snapshot)
         monkeypatch.setattr(mi, "_akshare_get", lambda s: 23810.0)
-        monkeypatch.setattr(
-            mi, "_akshare_get_history", lambda s, lookback=250: [20000] * 250
-        )
+        monkeypatch.setattr(mi, "_akshare_get_history", lambda s, lookback=250: [20000] * 250)
 
         fetch_aluminum()
 
@@ -324,9 +318,7 @@ class TestFetchCoalEnergyIndex:
         from macro_indicators import fetch_coal
 
         snapshot = tmp_path / "macro_snapshot.json"
-        snapshot.write_text(
-            json.dumps({"updated": "2020-01-01T00:00:00", "coal_thermal_cny_t": 850.0})
-        )
+        snapshot.write_text(json.dumps({"updated": "2020-01-01T00:00:00", "coal_thermal_cny_t": 850.0}))
 
         import macro_indicators as mi
 
@@ -545,9 +537,7 @@ class TestCyclicalScoreIntegration:
     def test_non_cyclical_returns_neutral(self):
         from strategies.factors.cyclical import cyclical_score
 
-        score = cyclical_score(
-            {"net_profit_yoy": 20.0}, {"pe": 30.0, "pb": 5.0}, {}, "科技", "sh688001"
-        )
+        score = cyclical_score({"net_profit_yoy": 20.0}, {"pe": 30.0, "pb": 5.0}, {}, "科技", "sh688001")
         assert score == 50.0
 
     def test_code_param_optional_backward_compat(self):
@@ -555,9 +545,7 @@ class TestCyclicalScoreIntegration:
         from strategies.factors.cyclical import cyclical_score
 
         # 不传 code 不应报错
-        score = cyclical_score(
-            {"net_profit_yoy": 20.0}, {"pe": 30.0, "pb": 5.0}, {}, "科技"
-        )
+        score = cyclical_score({"net_profit_yoy": 20.0}, {"pe": 30.0, "pb": 5.0}, {}, "科技")
         assert score == 50.0
 
 

@@ -43,9 +43,7 @@ class AkshareFinanceFetcher(BaseFetcher):
             #   行 = 指标（归母净利润/营业总收入/...），列 = 报告期（20260331/...）
             # 需转置为"每期一个 dict"，key=指标名（中文），value=数值
             periods = kwargs.get("periods", 4)
-            date_cols = [
-                c for c in df.columns if c not in ("选项", "指标") and len(str(c)) == 8
-            ]
+            date_cols = [c for c in df.columns if c not in ("选项", "指标") and len(str(c)) == 8]
             date_cols = date_cols[:periods]  # 取最近 N 期
 
             result = []

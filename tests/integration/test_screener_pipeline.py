@@ -266,9 +266,7 @@ class TestValuationScore:
     def test_low_pe_beats_high_pe(self, sample_finance):
         low_pe = {"pe": "8", "pb": "2"}
         high_pe = {"pe": "80", "pb": "10"}
-        assert valuation_score(low_pe, sample_finance) > valuation_score(
-            high_pe, sample_finance
-        )
+        assert valuation_score(low_pe, sample_finance) > valuation_score(high_pe, sample_finance)
 
     def test_peg_bonus(self, sample_finance):
         # 低 PEG 应得到额外加分
@@ -276,9 +274,7 @@ class TestValuationScore:
         q_no_peg = {"pe": "10", "pb": "2"}
         fin_high_growth = {**sample_finance, "PARENTNETPROFITTZ": "50"}
         fin_no_growth = {**sample_finance, "PARENTNETPROFITTZ": "0"}
-        assert valuation_score(q_low_peg, fin_high_growth) > valuation_score(
-            q_no_peg, fin_no_growth
-        )
+        assert valuation_score(q_low_peg, fin_high_growth) > valuation_score(q_no_peg, fin_no_growth)
 
 
 # ====================================================================
@@ -318,9 +314,7 @@ class TestMomentumScore:
     def test_limit_up_no_penalty_in_momentum(self, sample_quote):
         """涨跌停扣分已移至 hard_filter，momentum_score 不再重复扣分"""
         normal = momentum_score(self._make_features(), sample_quote)
-        limit_up = momentum_score(
-            self._make_features(), {**sample_quote, "change_pct": "9.8"}
-        )
+        limit_up = momentum_score(self._make_features(), {**sample_quote, "change_pct": "9.8"})
         # momentum_score 不再对涨跌停扣分，两者应相等
         assert normal == limit_up
 
@@ -346,20 +340,14 @@ class TestLiquidityScore:
         assert 0 <= score <= 100
 
     def test_higher_amount_scores_higher(self):
-        high = liquidity_score(
-            {"amount": "200000", "total_cap": "500", "turnover": "2"}
-        )
+        high = liquidity_score({"amount": "200000", "total_cap": "500", "turnover": "2"})
         low = liquidity_score({"amount": "1000", "total_cap": "10", "turnover": "0.1"})
         assert high > low
 
     def test_ideal_turnover_gets_max_turnover_score(self):
         # 使用较小的 amount/cap 避免 clamp 到 100（amount 单位为元）
-        ideal = liquidity_score(
-            {"amount": "300000000", "total_cap": "80", "turnover": "3"}
-        )
-        extreme = liquidity_score(
-            {"amount": "300000000", "total_cap": "80", "turnover": "20"}
-        )
+        ideal = liquidity_score({"amount": "300000000", "total_cap": "80", "turnover": "3"})
+        extreme = liquidity_score({"amount": "300000000", "total_cap": "80", "turnover": "20"})
         assert ideal > extreme
 
 
@@ -493,9 +481,7 @@ class TestLoadUniverse:
 
     def _make_args(self, **kwargs):
         """创建 load_universe 所需的 args namespace。"""
-        defaults = dict(
-            codes=None, sector=None, full_market=False, board_limit=0, exclude_board=""
-        )
+        defaults = dict(codes=None, sector=None, full_market=False, board_limit=0, exclude_board="")
         defaults.update(kwargs)
         return argparse.Namespace(**defaults)
 
@@ -640,9 +626,7 @@ class TestPreScreenQuotes:
         defaults.update(kwargs)
         return argparse.Namespace(**defaults)
 
-    def _make_quote(
-        self, code="sh600519", name="贵州茅台", amount=5000000000, total_cap=2000
-    ):
+    def _make_quote(self, code="sh600519", name="贵州茅台", amount=5000000000, total_cap=2000):
         """创建测试用行情 dict。"""
         return {
             "code": code,
@@ -752,9 +736,7 @@ class TestDailyFeatures:
             )
             for r in kline_uptrend
         ]
-        monkeypatch.setattr(
-            "data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: bars
-        )
+        monkeypatch.setattr("data.get_kline", lambda code, scale=240, datalen=240, use_cache=True: bars)
 
         result = daily_features("sh600519")
         assert "trend" in result
@@ -818,9 +800,7 @@ class TestAnalyzeCode:
         }
         assert expected_keys.issubset(set(result.keys()))
 
-    def test_score_is_weighted_combination(
-        self, sample_quote, sample_finance, monkeypatch
-    ):
+    def test_score_is_weighted_combination(self, sample_quote, sample_finance, monkeypatch):
         import business.screening_service as ss
 
         monkeypatch.setattr(

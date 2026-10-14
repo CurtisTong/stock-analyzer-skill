@@ -99,9 +99,7 @@ class TestChipGet:
         assert chip.get_margin("sh600989") == []
 
     def test_margin_fetcher_returns_empty(self, monkeypatch):
-        monkeypatch.setattr(
-            chip._registry, "find", lambda name: _fake_fetcher(result=[])
-        )
+        monkeypatch.setattr(chip._registry, "find", lambda name: _fake_fetcher(result=[]))
         assert chip.get_margin("sh600989") == []
 
     def test_margin_returns_data(self, monkeypatch):
@@ -112,17 +110,9 @@ class TestChipGet:
         assert data[0].rzye == 1.0
 
     def test_holders_and_top_holders(self, monkeypatch):
-        fh = _fake_fetcher(
-            result=[
-                {"end_date": "2026-06-30", "holder_num": "100", "concentration": "波动"}
-            ]
-        )
-        ft = _fake_fetcher(
-            result=[{"end_date": "2026-06-30", "rank": "1", "holder_name": "A"}]
-        )
-        monkeypatch.setattr(
-            chip._registry, "find", lambda name: fh if name == "holder" else ft
-        )
+        fh = _fake_fetcher(result=[{"end_date": "2026-06-30", "holder_num": "100", "concentration": "波动"}])
+        ft = _fake_fetcher(result=[{"end_date": "2026-06-30", "rank": "1", "holder_name": "A"}])
+        monkeypatch.setattr(chip._registry, "find", lambda name: fh if name == "holder" else ft)
         hs = chip.get_holders("sh600989", periods=4)
         assert len(hs) == 1 and hs[0].holder_num == 100
         ts = chip.get_top_holders("sh600989")
@@ -150,9 +140,7 @@ class TestMarginSummary:
         assert chip.get_margin_summary("sh600989") == {}
 
     def test_increasing_and_bullish(self, monkeypatch):
-        monkeypatch.setattr(
-            chip, "get_margin", lambda code, days=20: self._rows([1, 2, 3])
-        )
+        monkeypatch.setattr(chip, "get_margin", lambda code, days=20: self._rows([1, 2, 3]))
         s = chip.get_margin_summary("sh600989")
         assert s["rzjme_5d"] == 6
         assert s["rzjme_trend"] == "连续增加"
@@ -169,9 +157,7 @@ class TestMarginSummary:
 
     def test_mixed_sum_positive_ratio_high_bullish(self, monkeypatch):
         """sum>0 且 rz_ratio>30 → 偏多（趋势波动不影响情绪判定）。"""
-        monkeypatch.setattr(
-            chip, "get_margin", lambda code, days=20: self._rows([1, -2, 3])
-        )
+        monkeypatch.setattr(chip, "get_margin", lambda code, days=20: self._rows([1, -2, 3]))
         s = chip.get_margin_summary("sh600989")
         assert s["rzjme_5d"] == 2
         assert s["rzjme_trend"] == "波动"
@@ -188,9 +174,7 @@ class TestMarginSummary:
     def test_sorted_by_date_desc(self, monkeypatch):
         """返回顺序乱序时应按日期降序再取近5日。"""
         rows = self._rows([10.0, 20.0, 30.0])
-        monkeypatch.setattr(
-            chip, "get_margin", lambda code, days=20: list(reversed(rows))
-        )
+        monkeypatch.setattr(chip, "get_margin", lambda code, days=20: list(reversed(rows)))
         s = chip.get_margin_summary("sh600989")
         assert s["rzjme_5d"] == 60.0
 
@@ -233,9 +217,7 @@ class TestHoldersSummary:
         assert s["concentration"] == "提升"
 
     def test_single_period_data_insufficient(self, monkeypatch):
-        monkeypatch.setattr(
-            chip, "get_holders", lambda code, periods=4: [self._holder(-1)]
-        )
+        monkeypatch.setattr(chip, "get_holders", lambda code, periods=4: [self._holder(-1)])
         s = chip.get_holders_summary("sh600989")
         assert s["trend"] == "数据不足"
         assert s["concentration"] == "波动"
@@ -287,9 +269,7 @@ class TestEventGetEvents:
         assert "👤 大股东增持: 2026-08-01" in r["summary"]
 
     def test_shareholder_decrease_direction(self, monkeypatch):
-        fets = self._fets(
-            shareholder={"type": "shareholder", "items": [{"end_date": "2026-08-01"}]}
-        )
+        fets = self._fets(shareholder={"type": "shareholder", "items": [{"end_date": "2026-08-01"}]})
         monkeypatch.setattr(event._registry, "get_all", lambda: fets)
         r = event.get_events("sh600519")
         assert "👤 大股东减持: 2026-08-01" in r["summary"]
@@ -340,11 +320,7 @@ class TestFlowNorthBound:
         assert flow.get_northbound_flow("sh600519") == []
 
     def test_success_converts_days(self, monkeypatch):
-        fetchers = [
-            self._nb_fetcher(
-                [{"date": "2026-08-11", "total_net": 100.0, "sh_net": 60, "sz_net": 40}]
-            )
-        ]
+        fetchers = [self._nb_fetcher([{"date": "2026-08-11", "total_net": 100.0, "sh_net": 60, "sz_net": 40}])]
         monkeypatch.setattr(flow._registry, "get_all", lambda: fetchers)
         r = flow.get_northbound_flow("sh600519")
         assert len(r) == 1
@@ -369,9 +345,7 @@ class TestFlowNorthBound:
     def test_fetch_exception_continues_next(self, monkeypatch):
         fetchers = [
             self._nb_fetcher(exc=ConnectionError("down"), name="northbound_eastmoney"),
-            self._nb_fetcher(
-                [{"date": "2026-08-11", "total_net": 8}], name="northbound_sina"
-            ),
+            self._nb_fetcher([{"date": "2026-08-11", "total_net": 8}], name="northbound_sina"),
         ]
         monkeypatch.setattr(flow._registry, "get_all", lambda: fetchers)
         r = flow.get_northbound_flow("sh600519")

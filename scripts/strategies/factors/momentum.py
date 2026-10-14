@@ -75,9 +75,7 @@ def momentum_score(features: dict, quote: dict) -> float:
     # RSI 合理区间加分，过度区域扣分
     # 与 MACD 同向时降权（避免趋势类信息重复计算）
     rsi = features.get("rsi", 50)
-    rsi_weight = (
-        0.6 if (macd_signal > 0 and rsi > 50) or (macd_signal < 0 and rsi < 50) else 1.0
-    )
+    rsi_weight = 0.6 if (macd_signal > 0 and rsi > 50) or (macd_signal < 0 and rsi < 50) else 1.0
     if 30 <= rsi <= 70:
         score += round(5 * rsi_weight, 2)
     elif rsi > 80:

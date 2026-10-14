@@ -158,15 +158,9 @@ def get_validation(name: str) -> dict:
         # OOS 覆盖：透传 status / note；额外字段（validated_at / win_rate_pct /
         # n_stocks）保留以便消费方获取数字
         return {
-            "validation_status": oos.get(
-                "validation_status", base["validation_status"]
-            ),
+            "validation_status": oos.get("validation_status", base["validation_status"]),
             "validation_note": oos.get("validation_note", base["validation_note"]),
-            **{
-                k: v
-                for k, v in oos.items()
-                if k not in ("validation_status", "validation_note")
-            },
+            **{k: v for k, v in oos.items() if k not in ("validation_status", "validation_note")},
         }
     return base
 
@@ -174,9 +168,7 @@ def get_validation(name: str) -> dict:
 # ---------- 策略注册 API ----------
 
 
-def register_strategy(
-    name: str, weights: dict, label: str = "", replace: bool = False
-) -> None:
+def register_strategy(name: str, weights: dict, label: str = "", replace: bool = False) -> None:
     """注册新策略。
 
     Args:
@@ -216,9 +208,7 @@ def register_strategy(
         if abs(total - 1.0) > 0.01:
             raise ValueError(f"权重之和应为 1.0，当前为 {total}")
         if name in STRATEGIES and not replace:
-            raise ValueError(
-                f"策略 {name!r} 已注册；如需覆盖请显式传 replace=True（保护全局状态不被并发修改）"
-            )
+            raise ValueError(f"策略 {name!r} 已注册；如需覆盖请显式传 replace=True（保护全局状态不被并发修改）")
         STRATEGIES[name] = {**weights, "label": label or name}
 
 

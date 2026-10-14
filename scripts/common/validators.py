@@ -139,9 +139,7 @@ def resolve_code(name_or_code: str) -> str:
         prefix, _, symbol = s.partition(":")
         symbol = symbol.strip()
         if not symbol:
-            raise ValidationError(
-                "name_or_code", name_or_code, "跨市场代码符号不能为空"
-            )
+            raise ValidationError("name_or_code", name_or_code, "跨市场代码符号不能为空")
         return f"{prefix.lower()}:{symbol}"
 
     # 优先按代码处理（含纯 6 位数字 / 带前缀）
@@ -153,9 +151,7 @@ def resolve_code(name_or_code: str) -> str:
     if resolved:
         return resolved
 
-    raise ValidationError(
-        "name_or_code", name_or_code, "无法识别为股票代码或已收录的中文名"
-    )
+    raise ValidationError("name_or_code", name_or_code, "无法识别为股票代码或已收录的中文名")
 
 
 def validate_code(code: str) -> bool:
@@ -309,9 +305,7 @@ def validate_date_range(start_date: str, end_date: str) -> bool:
         raise ValidationError("end_date", end_date, "格式应为 YYYY-MM-DD")
 
     if start_date > end_date:
-        raise ValidationError(
-            "date_range", f"{start_date} - {end_date}", "开始日期必须早于或等于结束日期"
-        )
+        raise ValidationError("date_range", f"{start_date} - {end_date}", "开始日期必须早于或等于结束日期")
 
     return True
 
@@ -342,9 +336,7 @@ def validate_positive(value: float, field_name: str, min_value: float = 0) -> fl
     return v
 
 
-def validate_in_range(
-    value: float, field_name: str, min_value: float, max_value: float
-) -> float:
+def validate_in_range(value: float, field_name: str, min_value: float, max_value: float) -> float:
     """
     验证值在指定范围内。
 
@@ -366,9 +358,7 @@ def validate_in_range(
         raise ValidationError(field_name, value, "必须为数字")
 
     if not (min_value <= v <= max_value):
-        raise ValidationError(
-            field_name, value, f"必须在 {min_value} 到 {max_value} 之间"
-        )
+        raise ValidationError(field_name, value, f"必须在 {min_value} 到 {max_value} 之间")
 
     return v
 

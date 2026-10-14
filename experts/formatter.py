@@ -9,8 +9,7 @@ logger = logging.getLogger(__name__)
 
 # AI 判断边界声明：所有圆桌输出强制尾部注入，避免散户误把 AI 建议当真
 RISK_DISCLAIMER = (
-    "⚠️ 本结果由 AI 辅助生成，仅供参考，不构成投资建议。"
-    "过往表现不代表未来收益，市场有风险，决策需谨慎。"
+    "⚠️ 本结果由 AI 辅助生成，仅供参考，不构成投资建议。" "过往表现不代表未来收益，市场有风险，决策需谨慎。"
 )
 
 # 模型有效边界声明：承认结构性局限，防止低分被误读为"反向指标"
@@ -90,14 +89,8 @@ def format_debate_output(result: dict) -> str:
     lines.append("## 分组汇总")
     lv = result["long_votes"]
     sv = result["short_votes"]
-    lines.append(
-        f"- 长线组平均: {result['long_avg']}分 | "
-        f"看多{lv['bull']}票 / 看空{lv['bear']}票"
-    )
-    lines.append(
-        f"- 短线组平均: {result['short_avg']}分 | "
-        f"看多{sv['bull']}票 / 看空{sv['bear']}票"
-    )
+    lines.append(f"- 长线组平均: {result['long_avg']}分 | " f"看多{lv['bull']}票 / 看空{lv['bear']}票")
+    lines.append(f"- 短线组平均: {result['short_avg']}分 | " f"看多{sv['bull']}票 / 看空{sv['bear']}票")
     lines.append(f"- 调整后综合分: {result['composite_score']}/100")
     lines.append(f"- **最终方向: {result['direction']}**")
     lines.append(f"- 信心指数: {result['confidence']}/100")
@@ -113,9 +106,7 @@ def format_debate_output(result: dict) -> str:
     # 仓位建议
     pos = result.get("position", {})
     lines.append("## 仓位建议")
-    lines.append(
-        f"- 推荐仓位: {pos.get('position_pct', 0)}% ({pos.get('recommendation', '-')})"
-    )
+    lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}% ({pos.get('recommendation', '-')})")
     lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
     lines.append(f"- 分步建仓: {pos.get('steps', '-')}")
 
@@ -153,14 +144,9 @@ def format_debate_output(result: dict) -> str:
             long_cal = compute_group_calibration("long_term")
             short_cal = compute_group_calibration("short_term")
             lines.append("")
-            lines.append(
-                f"**校准因子**: 全局 {global_factor:+.3f} | "
-                f"长线 {long_cal:+.3f} | 短线 {short_cal:+.3f}"
-            )
+            lines.append(f"**校准因子**: 全局 {global_factor:+.3f} | " f"长线 {long_cal:+.3f} | 短线 {short_cal:+.3f}")
             if short_cal < 0:
-                lines.append(
-                    f"  ⚠ 短线组校准为负（历史准确率低），信心扣 {short_cal * 10:+.1f} 分"
-                )
+                lines.append(f"  ⚠ 短线组校准为负（历史准确率低），信心扣 {short_cal * 10:+.1f} 分")
     except Exception as e:
         logger.debug("校准数据不可用，跳过胜率卡片: %s", e)
 
@@ -283,9 +269,7 @@ def format_debate_brief(result: dict) -> str:
 
     pos = result.get("position", {})
     if pos.get("position_pct", 0) > 0:
-        lines.append(
-            f"📌 建议仓位 {pos['position_pct']}% | 止损 {pos.get('stop_loss', '-')}"
-        )
+        lines.append(f"📌 建议仓位 {pos['position_pct']}% | 止损 {pos.get('stop_loss', '-')}")
     else:
         lines.append("📌 建议观望，暂不开仓")
 
@@ -321,9 +305,7 @@ def format_group_output(result: dict) -> str:
     lines.append("")
     lines.append("## 组内汇总")
     v = result["votes"]
-    lines.append(
-        f"- 平均分: {result['avg_score']}/100 | 看多{v['bull']}票 / 看空{v['bear']}票"
-    )
+    lines.append(f"- 平均分: {result['avg_score']}/100 | 看多{v['bull']}票 / 看空{v['bear']}票")
     lines.append(f"- **最终方向: {result['direction']}**")
     lines.append(f"- 信心指数: {result['confidence']}/100")
     lines.append("")

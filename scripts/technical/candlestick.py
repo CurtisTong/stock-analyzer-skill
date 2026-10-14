@@ -30,9 +30,7 @@ def detect_candle_patterns(records):
         prev_close = bars[idx - 1]["close"] if idx > 0 else b["open"]
         singles = _candle_single(b, prev_close)
         for s in singles:
-            patterns.append(
-                {"date": b["date"], "type": s, "position": f"T-{len(bars)-1-idx}"}
-            )
+            patterns.append({"date": b["date"], "type": s, "position": f"T-{len(bars)-1-idx}"})
 
     # A 股特化形态
     if len(bars) >= 2:
@@ -124,20 +122,10 @@ def _candle_double(b1, b2):
     """双根 K 线组合。"""
     patterns = []
     # 阳包阴
-    if (
-        not _is_bullish(b1)
-        and _is_bullish(b2)
-        and b2["close"] > b1["open"]
-        and b2["open"] < b1["close"]
-    ):
+    if not _is_bullish(b1) and _is_bullish(b2) and b2["close"] > b1["open"] and b2["open"] < b1["close"]:
         patterns.append("阳包阴(看涨吞没)")
     # 阴包阳
-    if (
-        _is_bullish(b1)
-        and not _is_bullish(b2)
-        and b2["close"] < b1["open"]
-        and b2["open"] > b1["close"]
-    ):
+    if _is_bullish(b1) and not _is_bullish(b2) and b2["close"] < b1["open"] and b2["open"] > b1["close"]:
         patterns.append("阴包阳(看跌吞没)")
     # 平底/平顶
     if abs(b1["low"] - b2["low"]) / max(b1["low"], 0.01) < 0.005:
@@ -147,9 +135,7 @@ def _candle_double(b1, b2):
     # 揉搓线：一长上影一长下影
     body1, upper1, lower1, _ = _body_shadow(b1)
     body2, upper2, lower2, _ = _body_shadow(b2)
-    if (upper1 > 2 * body1 and lower2 > 2 * body2) or (
-        lower1 > 2 * body1 and upper2 > 2 * body2
-    ):
+    if (upper1 > 2 * body1 and lower2 > 2 * body2) or (lower1 > 2 * body1 and upper2 > 2 * body2):
         patterns.append("揉搓线(洗盘或变盘)")
     return patterns
 
@@ -162,36 +148,16 @@ def _candle_triple(b1, b2, b3):
     body3, _, _, _ = _body_shadow(b3)
 
     # 早晨之星：阴线 + 小实体 + 阳线
-    if (
-        not _is_bullish(b1)
-        and body2 < body1 * 0.5
-        and _is_bullish(b3)
-        and b3["close"] > (b1["open"] + b1["close"]) / 2
-    ):
+    if not _is_bullish(b1) and body2 < body1 * 0.5 and _is_bullish(b3) and b3["close"] > (b1["open"] + b1["close"]) / 2:
         patterns.append("早晨之星(底部反转)")
     # 黄昏之星：阳线 + 小实体 + 阴线
-    if (
-        _is_bullish(b1)
-        and body2 < body1 * 0.5
-        and not _is_bullish(b3)
-        and b3["close"] < (b1["open"] + b1["close"]) / 2
-    ):
+    if _is_bullish(b1) and body2 < body1 * 0.5 and not _is_bullish(b3) and b3["close"] < (b1["open"] + b1["close"]) / 2:
         patterns.append("黄昏之星(顶部反转)")
     # 红三兵
-    if (
-        _is_bullish(b1)
-        and _is_bullish(b2)
-        and _is_bullish(b3)
-        and b1["close"] < b2["close"] < b3["close"]
-    ):
+    if _is_bullish(b1) and _is_bullish(b2) and _is_bullish(b3) and b1["close"] < b2["close"] < b3["close"]:
         if b2["open"] > b1["open"] and b3["open"] > b2["open"]:
             patterns.append("红三兵(强势延续)")
     # 三只乌鸦
-    if (
-        not _is_bullish(b1)
-        and not _is_bullish(b2)
-        and not _is_bullish(b3)
-        and b1["close"] > b2["close"] > b3["close"]
-    ):
+    if not _is_bullish(b1) and not _is_bullish(b2) and not _is_bullish(b3) and b1["close"] > b2["close"] > b3["close"]:
         patterns.append("三只乌鸦(弱势延续)")
     return patterns

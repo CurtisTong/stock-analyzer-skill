@@ -30,11 +30,7 @@ def fetch_ashare_vol(window: int = 20, code: str = "sh000300") -> Optional[float
             return None
 
         closes = [float(b.close) for b in bars]
-        returns = [
-            (closes[i] - closes[i - 1]) / closes[i - 1]
-            for i in range(1, len(closes))
-            if closes[i - 1] > 0
-        ]
+        returns = [(closes[i] - closes[i - 1]) / closes[i - 1] for i in range(1, len(closes)) if closes[i - 1] > 0]
         recent = returns[-window:]
         if len(recent) < 2:
             return None

@@ -174,9 +174,7 @@ def main():
             print(w)
 
     if errors:
-        print(
-            "\n💡 修复方法: 在 .claude/settings.json 的 permissions.allow 中添加以上条目"
-        )
+        print("\n💡 修复方法: 在 .claude/settings.json 的 permissions.allow 中添加以上条目")
         if args.ci:
             sys.exit(1)
     else:

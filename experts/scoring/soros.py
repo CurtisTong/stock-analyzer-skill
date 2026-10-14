@@ -26,9 +26,7 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # 基本面：仅作背景
     roe = _safe_float(fin.get("ROEJQ") or fin.get("roe"))
-    profit_growth = _safe_float(
-        fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy")
-    )
+    profit_growth = _safe_float(fin.get("PARENTNETPROFITTZ") or fin.get("net_profit_yoy"))
     base = 60 if roe >= 15 else 30
     if profit_growth > 20:
         base = max(base, 60)
@@ -72,9 +70,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     total_amount = market.get("total_amount", 0)
     limit_down = market.get("limit_down_count", 0)
     cfg = _get_scoring_config()
-    liquidity_floor = cfg(
-        "experts.soros.market_liquidity_floor_yi", _SOROS_LIQUIDITY_FLOOR_DEFAULT
-    )
+    liquidity_floor = cfg("experts.soros.market_liquidity_floor_yi", _SOROS_LIQUIDITY_FLOOR_DEFAULT)
     if total_amount > 0 and total_amount < liquidity_floor:
         risk = 20  # 流动性枯竭
     elif limit_down > 50:

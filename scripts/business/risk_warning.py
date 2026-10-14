@@ -41,9 +41,7 @@ RISK_LOW = "🟢"  # 低风险
 RISK_UNKNOWN = "❓"  # 未知
 
 
-def rating_emoji(
-    score: float, threshold_strong: float = 75, threshold_weak: float = 50
-) -> str:
+def rating_emoji(score: float, threshold_strong: float = 75, threshold_weak: float = 50) -> str:
     """评分等级 emoji（新增:统一 0-100 评分的语义映射）。
 
     Args:

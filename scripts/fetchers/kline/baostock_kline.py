@@ -161,8 +161,7 @@ def _record_failure() -> None:
         count = _consecutive_failures
     if count >= _IP_BAN_FAILURE_THRESHOLD:
         logger.warning(
-            "baostock 连续失败 %d 次，疑似 IP 封禁，主动退避 %ds "
-            "（换网络/热点可立即解封，旧 IP 几小时恢复）",
+            "baostock 连续失败 %d 次，疑似 IP 封禁，主动退避 %ds " "（换网络/热点可立即解封，旧 IP 几小时恢复）",
             count,
             _IP_BAN_BACKOFF_SECONDS,
         )

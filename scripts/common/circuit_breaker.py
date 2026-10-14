@@ -66,10 +66,7 @@ class CircuitBreaker:
                     return True
                 # 试探次数耗尽：若距进入 HALF_OPEN 已超过 recovery_timeout，重置允许重试。
                 # recovery_timeout=0 时不重置（避免无限试探，由 record_failure 回到 OPEN 再等超时）
-                if (
-                    self.recovery_timeout > 0
-                    and time.time() - self._half_open_started > self.recovery_timeout
-                ):
+                if self.recovery_timeout > 0 and time.time() - self._half_open_started > self.recovery_timeout:
                     self._half_open_attempts = 1
                     self._half_open_started = time.time()
                     return True

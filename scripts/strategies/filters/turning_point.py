@@ -22,9 +22,7 @@ Stage 1 硬条件（须全部满足）：
 from common import to_float
 
 
-def turning_point_filter(
-    quote: dict, fin: dict, features: dict, flow_data: list = None
-) -> tuple:
+def turning_point_filter(quote: dict, fin: dict, features: dict, flow_data: list = None) -> tuple:
     """拐点修复 Stage 1 硬条件过滤。
 
     Args:

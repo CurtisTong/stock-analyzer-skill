@@ -214,11 +214,7 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # ATR 波动性（动量派偏好波动适中）
     atr_pct = 0.0
-    if (
-        len(closes) >= 14
-        and len(highs) >= 14
-        and len(kline_data.get("lows") or []) >= 14
-    ):
+    if len(closes) >= 14 and len(highs) >= 14 and len(kline_data.get("lows") or []) >= 14:
         lows = kline_data.get("lows") or []
         trs = []
         for i in range(-14, 0):

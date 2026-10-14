@@ -51,23 +51,15 @@ def detect_dealer_stock(code, quote, records, closes, highs, lows):
     try:
         from config.loader import ConfigLoader
 
-        cap_range = ConfigLoader.get(
-            "limits.yaml", "dealer_stock.cap_range", _DEFAULT_CAP_RANGE
-        )
-        r2_max = ConfigLoader.get(
-            "limits.yaml", "dealer_stock.r_squared_max", _DEFAULT_R2_MAX
-        )
-        beta_abs_max = ConfigLoader.get(
-            "limits.yaml", "dealer_stock.beta_abs_max", _DEFAULT_BETA_ABS_MAX
-        )
+        cap_range = ConfigLoader.get("limits.yaml", "dealer_stock.cap_range", _DEFAULT_CAP_RANGE)
+        r2_max = ConfigLoader.get("limits.yaml", "dealer_stock.r_squared_max", _DEFAULT_R2_MAX)
+        beta_abs_max = ConfigLoader.get("limits.yaml", "dealer_stock.beta_abs_max", _DEFAULT_BETA_ABS_MAX)
         shadow_pct_threshold = ConfigLoader.get(
             "limits.yaml",
             "dealer_stock.shadow_pct_threshold",
             _DEFAULT_SHADOW_PCT_THRESHOLD,
         )
-        score_threshold = ConfigLoader.get(
-            "limits.yaml", "dealer_stock.score_threshold", _DEFAULT_SCORE_THRESHOLD
-        )
+        score_threshold = ConfigLoader.get("limits.yaml", "dealer_stock.score_threshold", _DEFAULT_SCORE_THRESHOLD)
     except Exception:
         cap_range = _DEFAULT_CAP_RANGE
         r2_max = _DEFAULT_R2_MAX
@@ -133,9 +125,7 @@ def detect_dealer_stock(code, quote, records, closes, highs, lows):
 
         if shadow_pct > shadow_pct_threshold and avg_body_ratio < 0.3:
             score += 25
-            reasons.append(
-                f"毛刺多(长影线{shadow_pct:.0f}%+实体小{avg_body_ratio:.1%})"
-            )
+            reasons.append(f"毛刺多(长影线{shadow_pct:.0f}%+实体小{avg_body_ratio:.1%})")
         elif shadow_pct > shadow_pct_threshold * 0.625:  # 25%
             score += 15
             reasons.append(f"影线较多(长影线{shadow_pct:.0f}%)")

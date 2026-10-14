@@ -220,8 +220,7 @@ class RateLimiter:
                 "max_concurrent": self.max_concurrent,
                 "providers": list(self._semaphores.keys()),
                 "backoff_state": {
-                    p: {"consecutive_429": c, "elapsed": time.time() - t}
-                    for p, (t, c) in self._backoff_state.items()
+                    p: {"consecutive_429": c, "elapsed": time.time() - t} for p, (t, c) in self._backoff_state.items()
                 },
             }
 
@@ -252,14 +251,10 @@ def get_rate_limiter() -> RateLimiter:
         if _rate_limiter is None:
             cfg = _load_rate_limit_config()
             _rate_limiter = RateLimiter(
-                max_concurrent=int(
-                    cfg.get("default_max_concurrent", _DEFAULT_MAX_CONCURRENT)
-                ),
+                max_concurrent=int(cfg.get("default_max_concurrent", _DEFAULT_MAX_CONCURRENT)),
                 backoff_base=float(cfg.get("backoff_base", _DEFAULT_BACKOFF_BASE)),
                 backoff_cap=float(cfg.get("backoff_cap", _DEFAULT_BACKOFF_CAP)),
-                backoff_window=float(
-                    cfg.get("backoff_window", _DEFAULT_BACKOFF_WINDOW)
-                ),
+                backoff_window=float(cfg.get("backoff_window", _DEFAULT_BACKOFF_WINDOW)),
             )
         return _rate_limiter
 

@@ -10,9 +10,7 @@ import json
 import sys
 from pathlib import Path
 
-CONTRACTS_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "skills" / "_shared" / "contracts"
-)
+CONTRACTS_DIR = Path(__file__).resolve().parent.parent.parent / "skills" / "_shared" / "contracts"
 
 
 def collect_schemas(contracts_dir: Path) -> dict[str, dict]:

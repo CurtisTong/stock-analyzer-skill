@@ -156,11 +156,7 @@ class TestDetectDealerStock:
         # 独立35 + 毛刺25 + 振幅20 + 市值0 = 80 >= 60，仍然判庄股
         # 但市值维度得0分，reasons不含市值
         assert result["is_dealer"] in (True, False)  # 取决于其他维度总分
-        assert (
-            all("流通市值500亿" not in r for r in result["reasons"])
-            if result["reasons"]
-            else True
-        )
+        assert all("流通市值500亿" not in r for r in result["reasons"]) if result["reasons"] else True
 
     def test_beta_failure_graceful(self, monkeypatch):
         """compute_beta 抛异常 -> 独立走势维度跳过，不崩溃。"""

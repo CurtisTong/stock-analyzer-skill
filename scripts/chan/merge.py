@@ -50,9 +50,7 @@ def chan_merge_inclusions(records, max_merge=3):
         curr_in_prev = curr["high"] <= prev["high"] and curr["low"] >= prev["low"]
         prev_in_curr = prev["high"] <= curr["high"] and prev["low"] >= curr["low"]
 
-        if (curr_in_prev or prev_in_curr) and (
-            max_merge == 0 or consecutive_merges < max_merge
-        ):
+        if (curr_in_prev or prev_in_curr) and (max_merge == 0 or consecutive_merges < max_merge):
             consecutive_merges += 1
             if direction == "up":
                 merged[-1] = {

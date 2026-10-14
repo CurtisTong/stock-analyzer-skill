@@ -82,9 +82,7 @@ class EarningsCalendarFetcher(BaseFetcher):
         end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
         start_date = now().strftime("%Y-%m-%d")
 
-        url = EARNINGS_URL.format(
-            start_date=start_date, end_date=end_date, page="{page}"
-        )
+        url = EARNINGS_URL.format(start_date=start_date, end_date=end_date, page="{page}")
         try:
             result_data, truncated = _fetch_all_pages(
                 lambda p: url.format(page=p),
@@ -165,9 +163,7 @@ class DividendCalendarFetcher(BaseFetcher):
         end_date = (now() + timedelta(days=days)).strftime("%Y-%m-%d")
         start_date = now().strftime("%Y-%m-%d")
 
-        url = DIVIDEND_URL.format(
-            start_date=start_date, end_date=end_date, page="{page}"
-        )
+        url = DIVIDEND_URL.format(start_date=start_date, end_date=end_date, page="{page}")
         try:
             result_data, truncated = _fetch_all_pages(
                 lambda p: url.format(page=p),

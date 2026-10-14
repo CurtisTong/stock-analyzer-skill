@@ -45,15 +45,8 @@ def detect_shuangzhen(records, closes, lows, volumes):
                     if low_diff < 2:
                         # 确认缩量
                         vol_needle = [volumes[na["idx"]], volumes[nb["idx"]]]
-                        vol_others = [
-                            v
-                            for j, v in enumerate(w_vol)
-                            if i - 5 + j not in (na["idx"], nb["idx"])
-                        ]
-                        if (
-                            sum(vol_needle) / max(len(vol_needle), 1)
-                            < sum(vol_others) / max(len(vol_others), 1) * 0.8
-                        ):
+                        vol_others = [v for j, v in enumerate(w_vol) if i - 5 + j not in (na["idx"], nb["idx"])]
+                        if sum(vol_needle) / max(len(vol_needle), 1) < sum(vol_others) / max(len(vol_others), 1) * 0.8:
                             results.append(
                                 {
                                     "name": "双针探底",

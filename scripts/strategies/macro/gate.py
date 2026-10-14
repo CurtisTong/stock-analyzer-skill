@@ -108,11 +108,7 @@ class MacroSafetyGate:
         # 构建状态描述
         vix_str = f"VIX {vix:.1f}" if vix is not None else "VIX N/A"
         tlt_str = f"TLT ${tlt:.1f}" if tlt is not None else "TLT N/A"
-        ashare_str = (
-            f"沪深300波动率 {ashare_vol:.1f}%"
-            if ashare_vol is not None
-            else "ashare N/A"
-        )
+        ashare_str = f"沪深300波动率 {ashare_vol:.1f}%" if ashare_vol is not None else "ashare N/A"
         indicators = f"{vix_str} / {tlt_str} / {ashare_str}"
 
         # RED: 任一触发（最高优先级，严格超阈值触发）

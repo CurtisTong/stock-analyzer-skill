@@ -193,9 +193,7 @@ def check_finance_freshness(fin: dict, today: date = None, code: str = "") -> tu
     except (ValueError, TypeError):
         return (False, "")
 
-    expected_end_str, expected_deadline, expected_end_date = _expected_latest_period(
-        today, code
-    )
+    expected_end_str, expected_deadline, expected_end_date = _expected_latest_period(today, code)
     if expected_end_str is None or expected_deadline is None:
         return (False, "")
 
@@ -208,8 +206,7 @@ def check_finance_freshness(fin: dict, today: date = None, code: str = "") -> tu
         board_hint = f" (board={_board_for_code(code)})" if code else ""
         return (
             True,
-            f"财报数据过期{board_hint}(report_date={report_date_str}, "
-            f"应已披露至 {expected_end_str})",
+            f"财报数据过期{board_hint}(report_date={report_date_str}, " f"应已披露至 {expected_end_str})",
         )
 
     return (False, "")

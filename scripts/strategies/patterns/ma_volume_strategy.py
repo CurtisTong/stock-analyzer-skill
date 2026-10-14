@@ -15,9 +15,7 @@ import sys
 import os
 
 # 添加 scripts 目录到路径
-scripts_dir = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-)
+scripts_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if scripts_dir not in sys.path:
     sys.path.insert(0, scripts_dir)
 
@@ -34,9 +32,7 @@ def calc_ma(closes, period):
     return result
 
 
-def detect_ma_volume_signal(
-    records, closes, volumes, ma_short=10, ma_long=21, vol_threshold=2.5
-):
+def detect_ma_volume_signal(records, closes, volumes, ma_short=10, ma_long=21, vol_threshold=2.5):
     """
     检测 MA 金叉 + 放量突破信号
 
@@ -72,11 +68,7 @@ def detect_ma_volume_signal(
         # ma_long_series[i] 对应 closes[i + offset_long]，需 k + offset_short == i + offset_long
         idx_short = i + offset_long - offset_short
 
-        if (
-            idx_short < 0
-            or idx_short >= len(ma_short_series)
-            or idx_long >= len(closes)
-        ):
+        if idx_short < 0 or idx_short >= len(ma_short_series) or idx_long >= len(closes):
             continue
 
         # 计算信号
@@ -88,10 +80,7 @@ def detect_ma_volume_signal(
         }
 
         # 条件 1：MA 金叉
-        if (
-            ma_short_series[idx_short - 1] <= ma_long_series[i - 1]
-            and ma_short_series[idx_short] > ma_long_series[i]
-        ):
+        if ma_short_series[idx_short - 1] <= ma_long_series[i - 1] and ma_short_series[idx_short] > ma_long_series[i]:
             signal["conditions"].append(f"MA{ma_short}/MA{ma_long}金叉")
             signal["strength"] += 3
 
@@ -127,16 +116,13 @@ def detect_ma_volume_signal(
     # ⚠️ 样本内回测警告
     if signals:
         signals[0]["_warning"] = (
-            "⚠️ 本策略回测基于 5 只股票样本内优化（71.4%胜率），"
-            "未经外样本验证，实盘表现可能显著偏差"
+            "⚠️ 本策略回测基于 5 只股票样本内优化（71.4%胜率），" "未经外样本验证，实盘表现可能显著偏差"
         )
 
     return signals
 
 
-def backtest_strategy(
-    data, ma_short=10, ma_long=21, vol_threshold=2.5, hold_days=5, stop_loss=-5
-):
+def backtest_strategy(data, ma_short=10, ma_long=21, vol_threshold=2.5, hold_days=5, stop_loss=-5):
     """
     回测 MA + 成交量组合策略
 
@@ -155,9 +141,7 @@ def backtest_strategy(
     volumes = [to_float(r.get("volume")) for r in data]
     dates = [r.get("day", "") for r in data]
 
-    signals = detect_ma_volume_signal(
-        data, closes, volumes, ma_short, ma_long, vol_threshold
-    )
+    signals = detect_ma_volume_signal(data, closes, volumes, ma_short, ma_long, vol_threshold)
 
     trades = []
     for signal in signals:
@@ -265,8 +249,4 @@ if __name__ == "__main__":
     total = len(trades)
     print(f"  交易次数: {total}")
     print(f"  胜率: {wins/total*100:.1f}%" if total > 0 else "  胜率: N/A")
-    print(
-        f"  平均收益: {sum(t['return_pct'] for t in trades)/total:.2f}%"
-        if total > 0
-        else "  平均收益: N/A"
-    )
+    print(f"  平均收益: {sum(t['return_pct'] for t in trades)/total:.2f}%" if total > 0 else "  平均收益: N/A")

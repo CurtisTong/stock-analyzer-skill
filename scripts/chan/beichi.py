@@ -69,25 +69,14 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
             x_start = _mapped_idx(exit_bi, "start_idx") - _dea_offset
             x_end = _mapped_idx(exit_bi, "end_idx") - _dea_offset
 
-            if (
-                0 <= e_start
-                and e_end < len(dif_series)
-                and 0 <= x_start
-                and x_end < len(dif_series)
-            ):
+            if 0 <= e_start and e_end < len(dif_series) and 0 <= x_start and x_end < len(dif_series):
                 entry_area = _macd_area(dif_series, dea_series, e_start, e_end)
                 exit_area = _macd_area(dif_series, dea_series, x_start, x_end)
 
                 if exit_area < entry_area:
-                    if (
-                        entry_bi["direction"] == "down"
-                        and exit_bi["low"] < entry_bi["low"]
-                    ):
+                    if entry_bi["direction"] == "down" and exit_bi["low"] < entry_bi["low"]:
                         result["trend_beichi"] = "底背驰(看涨)"
-                    elif (
-                        entry_bi["direction"] == "up"
-                        and exit_bi["high"] > entry_bi["high"]
-                    ):
+                    elif entry_bi["direction"] == "up" and exit_bi["high"] > entry_bi["high"]:
                         result["trend_beichi"] = "顶背驰(看跌)"
 
     # ── 盘整背驰：检查每个中枢的进入段 vs 离开段 ──
@@ -111,12 +100,7 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
             x_start = _mapped_idx(exit_bi, "start_idx") - _dea_offset
             x_end = _mapped_idx(exit_bi, "end_idx") - _dea_offset
 
-            if (
-                0 <= e_start
-                and e_end < len(dif_series)
-                and 0 <= x_start
-                and x_end < len(dif_series)
-            ):
+            if 0 <= e_start and e_end < len(dif_series) and 0 <= x_start and x_end < len(dif_series):
                 entry_area = _macd_area(dif_series, dea_series, e_start, e_end)
                 exit_area = _macd_area(dif_series, dea_series, x_start, x_end)
 

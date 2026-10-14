@@ -168,9 +168,7 @@ def score_expert_with_reasoning(
     if fn is None:
         from ._utils import generic_score_with_reasoning
 
-        return generic_score_with_reasoning(
-            profile, score_expert_precise_proxy, stock_data
-        )
+        return generic_score_with_reasoning(profile, score_expert_precise_proxy, stock_data)
     return fn(stock_data)
 
 

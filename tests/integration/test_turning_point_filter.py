@@ -33,9 +33,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 1.2}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_PASS
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_PASS)
         assert passed is True
         assert reason == ""
 
@@ -44,9 +42,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -5.0, "volume_ratio": 1.2}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_PASS
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_PASS)
         assert passed is False
         assert "未超跌" in reason
 
@@ -55,9 +51,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 0.5}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_PASS
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_PASS)
         assert passed is False
         assert "量能萎缩" in reason
 
@@ -66,9 +60,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 3.0, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 1.2}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_PASS
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_PASS)
         assert passed is False
         assert "基本面差" in reason
 
@@ -77,9 +69,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 12.5, "eps": -0.5}
         features = {"ret20": -18.0, "volume_ratio": 1.2}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_PASS
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_PASS)
         assert passed is False
         assert "基本面差" in reason
 
@@ -88,9 +78,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 1.0, "eps": -0.1}
         features = {"ret20": -3.0, "volume_ratio": 0.3}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_FAIL
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_FAIL)
         assert passed is False
         assert "未超跌" in reason
         assert "量能萎缩" in reason
@@ -110,9 +98,7 @@ class TestTurningPointFilter:
         quote = {"code": "sh600519"}
         fin = {"roe": 12.5, "eps": 1.5}
         features = {"ret20": -18.0, "volume_ratio": 1.2}
-        passed, reason = turning_point_filter(
-            quote, fin, features, flow_data=self._FLOW_FAIL
-        )
+        passed, reason = turning_point_filter(quote, fin, features, flow_data=self._FLOW_FAIL)
         assert passed is False
         assert "资金未确认" in reason
 

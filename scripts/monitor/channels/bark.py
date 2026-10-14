@@ -17,9 +17,7 @@ from .base import NotificationChannel, send_with_retry, validate_webhook_url
 class BarkChannel(NotificationChannel):
     """Bark 推送通道。"""
 
-    def __init__(
-        self, server: str = "https://api.day.app", key: str = "", group: str = "stock"
-    ):
+    def __init__(self, server: str = "https://api.day.app", key: str = "", group: str = "stock"):
         validate_webhook_url(server)
         self._server = server.rstrip("/")
         self._key = key

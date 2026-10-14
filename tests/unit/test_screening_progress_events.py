@@ -107,9 +107,7 @@ class TestDataPrefetchEvents:
         monkeypatch.setattr(sp, "_apply_sector_momentum", lambda rows, x: rows)
 
         events = []
-        result = sp.run_screening(
-            _make_args(full_market=False), progress_callback=_collect(events)
-        )
+        result = sp.run_screening(_make_args(full_market=False), progress_callback=_collect(events))
 
         assert result["rows"]
         assert "data_prefetch" in events
@@ -121,12 +119,8 @@ class TestCallbackStream:
         """file 参数指定 stderr 时，进度写入 stderr 不污染 stdout。"""
         from screener import _default_progress_callback
 
-        _default_progress_callback(
-            "data_prefetch", {"stage": "finance", "count": 500}, file=None
-        )
-        _default_progress_callback(
-            "data_prefetch", {"stage": "quote", "count": 3323}, file=None
-        )
+        _default_progress_callback("data_prefetch", {"stage": "finance", "count": 500}, file=None)
+        _default_progress_callback("data_prefetch", {"stage": "quote", "count": 3323}, file=None)
         captured = capsys.readouterr()
         assert "拉取财务 Top 500" in captured.out
         assert "拉取行情 3323" in captured.out
@@ -136,7 +130,5 @@ class TestCallbackStream:
         from screener import _default_progress_callback
 
         stream = StringIO()
-        _default_progress_callback(
-            "data_prefetch", {"stage": "finance", "count": 500}, file=stream
-        )
+        _default_progress_callback("data_prefetch", {"stage": "finance", "count": 500}, file=stream)
         assert "拉取财务 Top 500" in stream.getvalue()

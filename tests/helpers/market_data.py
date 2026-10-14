@@ -53,9 +53,7 @@ def generate_trend(
     return records
 
 
-def generate_sideways(
-    n: int, center: float = 10.0, amplitude: float = 0.5
-) -> list[dict]:
+def generate_sideways(n: int, center: float = 10.0, amplitude: float = 0.5) -> list[dict]:
     """生成横盘震荡 K 线（n 根，正弦波动）。"""
     records = []
     start_date = datetime.now() - timedelta(days=n + 5)

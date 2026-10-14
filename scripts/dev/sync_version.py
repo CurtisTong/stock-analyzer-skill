@@ -95,9 +95,7 @@ VERSION_TARGETS: list[tuple[str, str, list[tuple[str, str]]]] = [
         "docs/product-architecture.md",
         [
             (
-                r"(?P<prefix>版本：v)"
-                + _VER
-                + r"(?P<suffix>\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
+                r"(?P<prefix>版本：v)" + _VER + r"(?P<suffix>\s*\|\s*更新日期：\s*\d{4}-\d{2}-\d{2})",
                 r"\g<prefix>{version}\g<suffix>",
             )
         ],
@@ -139,9 +137,7 @@ def _resolve_files(file_spec: str) -> list[Path]:
     return [path] if path.exists() else []
 
 
-def _apply_patterns(
-    content: str, patterns: list[tuple[str, str]], version: str
-) -> tuple[str, list[str]]:
+def _apply_patterns(content: str, patterns: list[tuple[str, str]], version: str) -> tuple[str, list[str]]:
     """对内容应用所有 patterns，返回 (新内容, 匹配到的版本列表)。"""
     found_versions = []
     for regex, replacement in patterns:
@@ -158,9 +154,7 @@ def _apply_patterns(
     return content, found_versions
 
 
-def update_version(
-    label: str, file_spec: str, patterns: list[tuple[str, str]], version: str
-) -> list[Path]:
+def update_version(label: str, file_spec: str, patterns: list[tuple[str, str]], version: str) -> list[Path]:
     """更新单个目标的版本号，返回被修改的文件列表。"""
     updated = []
     for path in _resolve_files(file_spec):
@@ -192,9 +186,7 @@ def check_version(
                 if v == version:
                     match.append(rel if len(files) > 1 else label)
                 else:
-                    mismatch.append(
-                        f"{rel}: {v}" if len(files) > 1 else f"{label}: {v}"
-                    )
+                    mismatch.append(f"{rel}: {v}" if len(files) > 1 else f"{label}: {v}")
     return match, mismatch, missing
 
 
@@ -204,9 +196,7 @@ def update_all(version: str, dry_run: bool = False) -> list[str]:
     for label, file_spec, patterns in VERSION_TARGETS:
         if dry_run:
             # dry-run 模式：检查是否需要更新
-            match, mismatch, missing = check_version(
-                label, file_spec, patterns, version
-            )
+            match, mismatch, missing = check_version(label, file_spec, patterns, version)
             if mismatch:
                 summaries.append(f"   📝 {label} (需更新)")
             elif missing:
@@ -236,9 +226,7 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
 
     # 检查所有声明式目标
     for label, file_spec, patterns in VERSION_TARGETS:
-        match, mismatch, missing = check_version(
-            label, file_spec, patterns, target_version
-        )
+        match, mismatch, missing = check_version(label, file_spec, patterns, target_version)
         result["match"].extend(match)
         result["mismatch"].extend(mismatch)
         result["missing"].extend(missing)

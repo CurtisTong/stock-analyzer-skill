@@ -70,9 +70,7 @@ def limit_analysis(records, board, quote):
 
     # T+1 风险提示
     if streak >= 1 and result.get("board_status") == "封涨停":
-        result["t1_risk"] = (
-            "T+1隔夜风险：今日追板仓位明日方可卖出，需关注次日溢价和核按钮风险"
-        )
+        result["t1_risk"] = "T+1隔夜风险：今日追板仓位明日方可卖出，需关注次日溢价和核按钮风险"
     else:
         result["t1_risk"] = None
 

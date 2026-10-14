@@ -60,9 +60,7 @@ class TestContractValidator:
             capture_output=True,
             text=True,
         )
-        assert (
-            result.returncode == 0
-        ), f"Validator failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        assert result.returncode == 0, f"Validator failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
     def test_validator_finds_schemas(self):
         """validator 输出应包含找到的 schema。"""

@@ -46,9 +46,7 @@ class TestClassifyRegime:
     def test_default_zero_signals(self):
         """全零信号 → range_low_vol（默认值，低波动子类）。"""
         assert (
-            classify_regime(
-                {"index_trend": 0, "volatility": 0, "breadth": 0.5, "turnover": 0}
-            )
+            classify_regime({"index_trend": 0, "volatility": 0, "breadth": 0.5, "turnover": 0})
             == RegimeState.RANGE_LOW_VOL
         )
 
@@ -222,9 +220,7 @@ class TestComputeWeightedScoreWithRegime:
             "dividend": 50,
         }
         score_normal = compute_weighted_score(parts, "balanced")
-        score_panic = compute_weighted_score(
-            parts, "balanced", regime=RegimeState.PANIC
-        )
+        score_panic = compute_weighted_score(parts, "balanced", regime=RegimeState.PANIC)
         assert score_panic < score_normal
 
 
@@ -247,9 +243,7 @@ class TestOverlayBlendLabelMatch:
         """混合数学：0.7×balanced + 0.3×defensive 的 quality = 0.259。"""
         from strategies.regime.overlay import _blend_strategy_weights
 
-        blended = _blend_strategy_weights(
-            "balanced", {"balanced": 0.7, "defensive": 0.3}, RegimeState.BEAR
-        )
+        blended = _blend_strategy_weights("balanced", {"balanced": 0.7, "defensive": 0.3}, RegimeState.BEAR)
         assert abs(blended["quality"] - 0.259) < 0.001
 
     def test_bear_blend_fires_for_balanced_label(self):

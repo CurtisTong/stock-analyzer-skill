@@ -271,10 +271,6 @@ def get_cache_stats() -> dict[str, Any]:
     return {
         "total_files": len(files),
         "total_size_mb": round(total_size / 1024 / 1024, 2),
-        "oldest_file": datetime.fromtimestamp(
-            min(t for _, t in files_with_time)
-        ).isoformat(),
-        "newest_file": datetime.fromtimestamp(
-            max(t for _, t in files_with_time)
-        ).isoformat(),
+        "oldest_file": datetime.fromtimestamp(min(t for _, t in files_with_time)).isoformat(),
+        "newest_file": datetime.fromtimestamp(max(t for _, t in files_with_time)).isoformat(),
     }

@@ -39,11 +39,7 @@ class TestNoWildcardScripts:
                     # 例外：若明确含 ` scripts/*)` 表示 Bash 通配
                     if re.search(r"Bash\(python3 scripts/\*\)", line):
                         offenders.append(f"{skill_md.relative_to(REPO_ROOT)}: {line}")
-        assert (
-            not offenders
-        ), "以下 SKILL.md 仍使用 scripts/* 通配（应改为显式脚本列表）:\n" + "\n".join(
-            offenders
-        )
+        assert not offenders, "以下 SKILL.md 仍使用 scripts/* 通配（应改为显式脚本列表）:\n" + "\n".join(offenders)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -144,9 +140,7 @@ class TestAllowedToolsCoverage:
             ("sector", {"quote", "sector", "sector_etf_strength", "stock", "screener"}),
         ],
     )
-    def test_scripts_in_skill_covered_by_allowed_tools(
-        self, skill_name, expected_scripts
-    ):
+    def test_scripts_in_skill_covered_by_allowed_tools(self, skill_name, expected_scripts):
         """SKILL.md 文档里调用的脚本必须在 allowed-tools 白名单里。"""
         skill_md = SKILLS_DIR / skill_name / "SKILL.md"
         if not skill_md.exists():
@@ -176,15 +170,11 @@ class TestAllowedToolsCoverage:
         nonexistent = {
             name
             for name in used_scripts
-            if not (
-                _Path(__file__).parent.parent.parent / "scripts" / f"{name}.py"
-            ).exists()
+            if not (_Path(__file__).parent.parent.parent / "scripts" / f"{name}.py").exists()
         }
         # 单独断言：若脚本不存在，SKILL.md 应有相关说明（NOTE/警告）
         # 本测试只检查 allowed-tools 覆盖，跳过不存在脚本
         used_scripts = used_scripts - nonexistent
 
         missing = used_scripts - allowed_scripts
-        assert (
-            not missing
-        ), f"{skill_name}: SKILL.md 文档调用但 allowed-tools 未授权: {missing}"
+        assert not missing, f"{skill_name}: SKILL.md 文档调用但 allowed-tools 未授权: {missing}"

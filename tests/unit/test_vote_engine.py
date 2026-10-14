@@ -18,8 +18,7 @@ def _make_expert(name: str, score: int, direction: str = "") -> dict:
     return {
         "name": name,
         "score": score,
-        "direction": direction
-        or ("看多" if score > 60 else "看空" if score < 40 else "中性"),
+        "direction": direction or ("看多" if score > 60 else "看空" if score < 40 else "中性"),
         "reason": f"测试专家 {name}",
         "breakdown": {"fundamental": score},
     }
@@ -29,8 +28,7 @@ def _make_expert(name: str, score: int, direction: str = "") -> dict:
     return {
         "name": name,
         "score": score,
-        "direction": direction
-        or ("看多" if score > 60 else "看空" if score < 40 else "中性"),
+        "direction": direction or ("看多" if score > 60 else "看空" if score < 40 else "中性"),
         "reason": f"测试专家 {name}",
         "breakdown": {"fundamental": score},
     }

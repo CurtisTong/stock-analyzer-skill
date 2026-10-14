@@ -52,9 +52,7 @@ COMPARE_FIELDS = [
 ]
 
 
-def _fetch_from_source(
-    source_name: str, code: str, datalen: int
-) -> dict[str, dict] | None:
+def _fetch_from_source(source_name: str, code: str, datalen: int) -> dict[str, dict] | None:
     """从指定源拉取日线，返回 {day: record} 映射。失败返回 None。
 
     直接实例化单个 fetcher，绕过 DataFetcherManager 路由。
@@ -197,9 +195,7 @@ def validate_stock(code: str, datalen: int, sources: list[str] | None = None) ->
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="离线多源一致性校验：对比 baostock/腾讯/东财/sina 日线数据"
-    )
+    parser = argparse.ArgumentParser(description="离线多源一致性校验：对比 baostock/腾讯/东财/sina 日线数据")
     parser.add_argument("codes", nargs="+", help="股票代码（如 600519 688981）")
     parser.add_argument("--days", type=int, default=5, help="校验天数（默认 5）")
     parser.add_argument(
@@ -251,14 +247,8 @@ def _print_report(results: list[dict]):
             print(f"  ❌ {r['error']}")
             continue
         print(f"  共有交易日: {r['common_days']}")
-        print(
-            f"  close 差异: {r['close_diff_count']}/{r['common_days']}"
-            f" ({r['close_diff_pct'] * 100:.2f}%)"
-        )
-        print(
-            f"  amount 差异: {r['amount_diff_count']}/{r['common_days']}"
-            f" ({r['amount_diff_pct'] * 100:.2f}%)"
-        )
+        print(f"  close 差异: {r['close_diff_count']}/{r['common_days']}" f" ({r['close_diff_pct'] * 100:.2f}%)")
+        print(f"  amount 差异: {r['amount_diff_count']}/{r['common_days']}" f" ({r['amount_diff_pct'] * 100:.2f}%)")
         if r["close_diff_pct"] > 0.01:
             print("  ⚠️ close 差异率 >1%，可能存在前复权因子未同步刷新")
         if r["amount_diff_pct"] > 0.01:
@@ -266,22 +256,13 @@ def _print_report(results: list[dict]):
         if r["diffs"]:
             print("  差异明细（前 5 条）:")
             for d in r["diffs"][:5]:
-                print(
-                    f"    {d['day']} {d['field']}: {d['values']}"
-                    f" (差异 {d['max_diff_pct'] * 100:.3f}%)"
-                )
+                print(f"    {d['day']} {d['field']}: {d['values']}" f" (差异 {d['max_diff_pct'] * 100:.3f}%)")
     print("\n" + "=" * 70)
     total_close = sum(r["close_diff_count"] for r in results)
     total_days = sum(r["common_days"] for r in results)
     if total_days:
-        print(
-            f"汇总: close 差异 {total_close}/{total_days}"
-            f" ({total_close / total_days * 100:.2f}%)"
-        )
-    print(
-        "提示: close 差异通常源于前复权因子动态变化（文档结论 0.58%），"
-        "amount 应 100% 一致。"
-    )
+        print(f"汇总: close 差异 {total_close}/{total_days}" f" ({total_close / total_days * 100:.2f}%)")
+    print("提示: close 差异通常源于前复权因子动态变化（文档结论 0.58%），" "amount 应 100% 一致。")
 
 
 if __name__ == "__main__":

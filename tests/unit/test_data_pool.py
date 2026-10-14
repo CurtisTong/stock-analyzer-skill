@@ -79,9 +79,7 @@ class TestFetchBoardStocks:
             calls["n"] += 1
             raise ConnectionError("boom")
 
-        monkeypatch.setattr(
-            pool, "_get_common_deps", lambda: (_fail, lambda c: "主板", lambda c: "sh")
-        )
+        monkeypatch.setattr(pool, "_get_common_deps", lambda: (_fail, lambda c: "主板", lambda c: "sh"))
         assert pool.fetch_board_stocks("BK0437", max_retries=2) == []
         assert calls["n"] == 3  # 初始 + 2 次重试
 
@@ -89,9 +87,7 @@ class TestFetchBoardStocks:
         def _bad(*a, **k):
             return "{not json"
 
-        monkeypatch.setattr(
-            pool, "_get_common_deps", lambda: (_bad, lambda c: "主板", lambda c: "sh")
-        )
+        monkeypatch.setattr(pool, "_get_common_deps", lambda: (_bad, lambda c: "主板", lambda c: "sh"))
         assert pool.fetch_board_stocks("BK0437") == []
 
 
@@ -133,23 +129,17 @@ class TestPassesFilter:
 
     def test_amount_below_min_rejected(self):
         # 主板最低 5000 万，传 3000 万（amount 元）
-        ok, reason = pool.passes_filter(
-            {"code": "sh600519", "name": "茅台", "amount": 3e7}
-        )
+        ok, reason = pool.passes_filter({"code": "sh600519", "name": "茅台", "amount": 3e7})
         assert not ok
         assert "成交额" in reason
 
     def test_cap_below_min_rejected(self):
-        ok, reason = pool.passes_filter(
-            {"code": "sh600519", "name": "茅台", "cap": 1e8}
-        )
+        ok, reason = pool.passes_filter({"code": "sh600519", "name": "茅台", "cap": 1e8})
         assert not ok
         assert "市值" in reason
 
     def test_pass_when_above_thresholds(self):
-        ok, reason = pool.passes_filter(
-            {"code": "sh600519", "name": "茅台", "amount": 1e8, "cap": 1e10}
-        )
+        ok, reason = pool.passes_filter({"code": "sh600519", "name": "茅台", "amount": 1e8, "cap": 1e10})
         assert ok and reason == ""
 
     def test_missing_amount_cap_no_rejection(self):
@@ -230,9 +220,7 @@ class TestBuildDividendPool:
 
     def test_cap_at_20(self):
         all_pools = {"A": [f"s{i}" for i in range(30)]}
-        code_to_stock = {
-            f"s{i}": {"code": f"s{i}", "pe": 1 + i, "amount": i} for i in range(30)
-        }
+        code_to_stock = {f"s{i}": {"code": f"s{i}", "pe": 1 + i, "amount": i} for i in range(30)}
         assert len(pool.build_dividend_pool(all_pools, code_to_stock)) <= 20
 
 
@@ -290,9 +278,7 @@ class TestLoadFiles:
 
     def test_load_mapping(self, monkeypatch, tmp_path):
         p = tmp_path / "sector_mapping.json"
-        p.write_text(
-            json.dumps({"消费": {"bk_codes": ["BK1"], "filter": ""}}), encoding="utf-8"
-        )
+        p.write_text(json.dumps({"消费": {"bk_codes": ["BK1"], "filter": ""}}), encoding="utf-8")
         monkeypatch.setattr(pool, "MAPPING_FILE", str(p))
         assert pool.load_mapping()["消费"]["bk_codes"] == ["BK1"]
 
@@ -307,9 +293,7 @@ class TestLoadFiles:
 
     def test_load_default_pool_filters_meta(self, monkeypatch, tmp_path):
         p = tmp_path / "sector_stocks.default.json"
-        p.write_text(
-            json.dumps({"_meta": {"updated": "x"}, "消费": ["s1"]}), encoding="utf-8"
-        )
+        p.write_text(json.dumps({"_meta": {"updated": "x"}, "消费": ["s1"]}), encoding="utf-8")
         monkeypatch.setattr(pool, "DEFAULT_POOL_FILE", str(p))
         d = pool.load_default_pool()
         assert "消费" in d

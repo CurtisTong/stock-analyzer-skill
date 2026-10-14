@@ -50,10 +50,7 @@ def summary(manager: "PortfolioManager") -> str:
     watch = manager.get_watchlist()
     lines = [f"持仓 {len(pos)} 只，自选 {len(watch)} 只"]
     if pos:
-        lines.append(
-            "持仓: "
-            + ", ".join(f"{p.get('name') or p['code']}({p['quantity']}股)" for p in pos)
-        )
+        lines.append("持仓: " + ", ".join(f"{p.get('name') or p['code']}({p['quantity']}股)" for p in pos))
     if watch:
         lines.append("自选: " + ", ".join(w.get("name") or w["code"] for w in watch))
     return "\n".join(lines)
@@ -83,10 +80,7 @@ def risk_summary(
         quotes = {p["code"]: p.get("cost", 0) for p in positions}
 
     # 计算组合权重（市值占比）
-    total_mv = sum(
-        quotes.get(p["code"], p.get("cost", 0)) * p.get("quantity", 0)
-        for p in positions
-    )
+    total_mv = sum(quotes.get(p["code"], p.get("cost", 0)) * p.get("quantity", 0) for p in positions)
     weighted = []
     for p in positions:
         price = quotes.get(p["code"], p.get("cost", 0))
@@ -116,10 +110,7 @@ def risk_summary(
     if worst:
         lines.append(
             "主要风险贡献: "
-            + ", ".join(
-                f"{w['code']}(权重{w['weight']:.0%}, VaR {w['var_1d_pct']}%)"
-                for w in worst[:3]
-            )
+            + ", ".join(f"{w['code']}(权重{w['weight']:.0%}, VaR {w['var_1d_pct']}%)" for w in worst[:3])
         )
     return "\n".join(lines)
 

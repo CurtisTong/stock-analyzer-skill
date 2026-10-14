@@ -35,9 +35,7 @@ def _get_short_defensive_factor(market_state: Optional[dict], is_ice: bool) -> f
         return 1.0
     state = market_state.get("state", "")
     try:
-        bearish_states = get_scoring_config(
-            "experts.short_term.bearish_states", list(_DEFENSIVE_STATES)
-        )
+        bearish_states = get_scoring_config("experts.short_term.bearish_states", list(_DEFENSIVE_STATES))
         if state not in set(bearish_states):
             return 1.0
         factor = get_scoring_config(
@@ -98,9 +96,7 @@ def _resolve_conflict(
 
     # 分歧检测（组内无多数方向）
     # 长线组（5 人）仍用投票计数：bull/bear 均 < ceil(5*2/3)=4 时为分歧。
-    long_divergent = (
-        long_votes["bull"] < long_majority and long_votes["bear"] < long_majority
-    )
+    long_divergent = long_votes["bull"] < long_majority and long_votes["bear"] < long_majority
     # B4：短线组方向改为均分驱动，不再依赖 3 人投票的 ≥2/3 计数。
     # 短线仅 3 人，1 人翻转即翻转投票多数，统计噪声过大；改用加权均分映射方向：
     #   short_avg >= 60 -> 短线看多；<= 39 -> 短线看空；40-59 -> 短线分歧。
@@ -122,9 +118,7 @@ def _resolve_conflict(
     long_extreme_bear = long_votes["bear"] >= long_n - 1 and long_votes["bull"] == 0
     short_extreme_bull = short_votes["bull"] == short_n and short_votes["bear"] == 0
     short_extreme_bear = short_votes["bear"] == short_n and short_votes["bull"] == 0
-    polarized = (long_extreme_bull and short_extreme_bear) or (
-        long_extreme_bear and short_extreme_bull
-    )
+    polarized = (long_extreme_bull and short_extreme_bear) or (long_extreme_bear and short_extreme_bull)
 
     if polarized:
         direction = "中性"
@@ -231,9 +225,7 @@ def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     if not yangjia.get("breakdown"):
         return 50
     dim_scores = yangjia.get("dim_scores", {})
-    return dim_scores.get(
-        "情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50))
-    )
+    return dim_scores.get("情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50)))
 
 
 # legacy 专家名 → 合并型专家名映射（v2.1.0）。
@@ -345,9 +337,7 @@ def _apply_buffett_long_downweight(long_experts: List[dict]) -> float:
 # ═══════════════════════════════════════════════════════════════
 
 
-def _compute_position(
-    direction: str, confidence: float, position_factor: float
-) -> dict:
+def _compute_position(direction: str, confidence: float, position_factor: float) -> dict:
     """基于方向和信心指数计算仓位建议。
 
     Returns:
@@ -540,9 +530,7 @@ def aggregate_votes(
 
     # 注册表也补全不了的条目（未知专家名）：按 active 集真实分布 5 长 + 3 短 切分，
     # 而非旧的 4+4。仅当仍有未分组条目时触发。
-    ungrouped = [
-        r for r in expert_results if r.get("group") not in ("long_term", "short_term")
-    ]
+    ungrouped = [r for r in expert_results if r.get("group") not in ("long_term", "short_term")]
     if ungrouped and (not long_experts or not short_experts):
         n = len(expert_results)
         # active 集真实分布：长线占 ceil(n*5/8)，短线占其余。
@@ -637,10 +625,7 @@ def aggregate_votes(
         short_scores = [s * short_defensive_factor for s in short_scores]
         short_avg = statistics.mean(short_scores)
         short_votes = _count_votes(short_scores)
-        pre_notes.append(
-            f"防御市短线降权：短线组分数 ×{short_defensive_factor:.1f}"
-            f"（{mkt} 市场短线历史准确率低）"
-        )
+        pre_notes.append(f"防御市短线降权：短线组分数 ×{short_defensive_factor:.1f}" f"（{mkt} 市场短线历史准确率低）")
 
     # 综合分
     # I16: 综合分用校准率加权--校准率越高（历史预测越准）的组权重越大
@@ -712,9 +697,7 @@ def aggregate_votes(
             penalty = short_cal * 10  # short_cal=-1 -> -10
             confidence = max(0, confidence + penalty)
             if penalty < -2:
-                notes.append(
-                    f"短线组校准惩罚：信心 {penalty:+.0f}（短线组历史准确率低）"
-                )
+                notes.append(f"短线组校准惩罚：信心 {penalty:+.0f}（短线组历史准确率低）")
     except Exception:
         pass  # 校准模块不可用时静默跳过，不影响主流程
 
@@ -730,9 +713,7 @@ def aggregate_votes(
     risk_notes = []
     for r in expert_results:
         if r["score"] <= 39:
-            risk_notes.append(
-                f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}"
-            )
+            risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
 
     return {
         "market_state": mkt,
@@ -848,9 +829,7 @@ def aggregate_group_votes(
     risk_notes = []
     for r in expert_results:
         if r["score"] <= 39:
-            risk_notes.append(
-                f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}"
-            )
+            risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
 
     return {
         "group": group,

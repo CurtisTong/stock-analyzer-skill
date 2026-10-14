@@ -45,12 +45,8 @@ class ArgsStyle(str, Enum):
     QUOTE = "quote"  # (quote,)
     FEATURES_CLOSES_INDUSTRY = "features_closes_industry"  # (closes, industry)
     CODE = "code"  # (code,)
-    FIN_QUOTE_FEATURES_INDUSTRY = (
-        "fin_quote_features_industry"  # (fin, quote, features, industry)
-    )
-    FIN_QUOTE_FEATURES_INDUSTRY_CODE = (
-        "fin_quote_features_industry_code"  # (fin, quote, features, industry, code)
-    )
+    FIN_QUOTE_FEATURES_INDUSTRY = "fin_quote_features_industry"  # (fin, quote, features, industry)
+    FIN_QUOTE_FEATURES_INDUSTRY_CODE = "fin_quote_features_industry_code"  # (fin, quote, features, industry, code)
 
 
 class FactorDescriptor:
@@ -225,9 +221,7 @@ def compute_all_factors(fin, quote, features, industry, code, weights=None) -> d
     return result
 
 
-def compute_phase_factors(
-    phase, fin, quote, features, industry, code, exclude=None, weights=None
-) -> dict:
+def compute_phase_factors(phase, fin, quote, features, industry, code, exclude=None, weights=None) -> dict:
     """自动调用指定阶段的因子，返回 {name: score} dict。
 
     替代原 compute_phase1_parts() / compute_phase2_parts() 中的硬编码映射。
@@ -254,9 +248,7 @@ def compute_phase_factors(
         try:
             result[name] = desc.compute_fn(**kwargs)
         except Exception as e:
-            logger.warning(
-                "因子 %s 计算异常(phase=%d)，使用默认分 50: %s", name, phase, e
-            )
+            logger.warning("因子 %s 计算异常(phase=%d)，使用默认分 50: %s", name, phase, e)
             result[name] = 50
             degraded.append(name)
     if degraded:
@@ -278,9 +270,7 @@ def compute_factor_correlation_matrix(
     """
     names = list(factor_scores.keys())
     n = len(names)
-    matrix: dict[str, dict[str, float | None]] = {
-        a: {b: None for b in names} for a in names
-    }
+    matrix: dict[str, dict[str, float | None]] = {a: {b: None for b in names} for a in names}
     for a in names:
         matrix[a][a] = 1.0
 
@@ -366,9 +356,7 @@ def compute_vif(factor_scores: dict) -> dict:
 
         # 计算 R²
         y_mean = sum(y) / n
-        ss_res = sum(
-            (y[i] - sum(beta[a] * X[i][a] for a in range(k))) ** 2 for i in range(n)
-        )
+        ss_res = sum((y[i] - sum(beta[a] * X[i][a] for a in range(k))) ** 2 for i in range(n))
         ss_tot = sum((yi - y_mean) ** 2 for yi in y)
         if ss_tot == 0:
             result[target] = None
@@ -424,11 +412,7 @@ def decorrelate_factors(parts_list: list, threshold: float = 0.7) -> list:
     for p in parts_list:
         all_factors.update(p.keys())
     # 只处理有数值的因子
-    factor_names = sorted(
-        f
-        for f in all_factors
-        if all(isinstance(p.get(f), (int, float)) for p in parts_list)
-    )
+    factor_names = sorted(f for f in all_factors if all(isinstance(p.get(f), (int, float)) for p in parts_list))
 
     if len(factor_names) < 2:
         return parts_list
@@ -459,9 +443,7 @@ def decorrelate_factors(parts_list: list, threshold: float = 0.7) -> list:
                 # 残差 = b - beta * a，加回 b 的均值保持尺度
                 decorrelated[b] = [vb[k] - beta * (va[k] - ma) for k in range(len(vb))]
                 processed.add(b)
-                logger.debug(
-                    "去相关: %s 被 %s 残差化 (r=%.3f, beta=%.3f)", b, a, r, beta
-                )
+                logger.debug("去相关: %s 被 %s 残差化 (r=%.3f, beta=%.3f)", b, a, r, beta)
 
     # 重建 parts_list
     result = []

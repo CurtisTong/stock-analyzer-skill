@@ -75,9 +75,7 @@ class TestZtGetPool:
 
     def test_token_missing_returns_empty(self, monkeypatch):
         monkeypatch.setattr(technical.sentiment, "_EASTMONEY_UT", "", raising=True)
-        monkeypatch.setattr(
-            technical.sentiment, "_http_get_json", lambda *a, **k: {}, raising=True
-        )
+        monkeypatch.setattr(technical.sentiment, "_http_get_json", lambda *a, **k: {}, raising=True)
         assert zt.get_zt_pool() == {}
 
     def test_parse_pool_and_normalize(self, monkeypatch):
@@ -180,9 +178,7 @@ class TestMarketSnapshot:
 
     def test_cache_hit_when_fresh(self, _data_dir):
         path = _data_dir / "market_snapshot.json"
-        path.write_text(
-            json.dumps(self._snapshot(datetime.now().isoformat())), encoding="utf-8"
-        )
+        path.write_text(json.dumps(self._snapshot(datetime.now().isoformat())), encoding="utf-8")
         s = ms.get_market_snapshot()
         assert s["source"] == "cache"
         assert s["median_cap"] == 100.0
@@ -209,9 +205,7 @@ class TestMarketSnapshot:
         assert (_data_dir / "market_snapshot.json").exists()
 
     def test_no_universe_returns_defaults(self):
-        with patch(
-            "business.universe_loader.load_full_market_universe", return_value=[]
-        ):
+        with patch("business.universe_loader.load_full_market_universe", return_value=[]):
             s = ms.get_market_snapshot()
         assert s["source"] == "computed"
         assert s["avg_amount_yuan"] == 0.0

@@ -44,9 +44,7 @@ class PytdxQuoteFetcher(BaseFetcher):
             d = data[0]
             price = d.get("price", 0)
             prev_close = d.get("last_close", 0)
-            change_pct = (
-                round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0
-            )
+            change_pct = round((price / prev_close - 1) * 100, 2) if prev_close > 0 else 0
             return {
                 "code": plain,
                 "name": d.get("name", ""),

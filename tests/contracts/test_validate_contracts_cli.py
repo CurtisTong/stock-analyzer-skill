@@ -31,9 +31,7 @@ class TestCollectSchemas:
         """从真实 contracts 目录加载所有 schema（已有 stock/technical/market 等）。"""
         schemas = validate_contracts.collect_schemas(CONTRACTS_DIR)
         assert len(schemas) > 0
-        assert "stock.schema.json" in schemas or any(
-            "stock" in k for k in schemas.keys()
-        )
+        assert "stock.schema.json" in schemas or any("stock" in k for k in schemas.keys())
 
     def test_empty_dir_returns_empty(self, tmp_path):
         """空目录返回空 dict。"""
