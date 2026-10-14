@@ -511,6 +511,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -713,6 +714,13 @@
 - **repo**: unify black formatting to 120 columns and pin the version
 - **scripts**: 清除注释中的 Sprint/Phase/P0 内部排期标记
 - 删除一次性 AI 生成报告产物（baofeng 完整分析 + 202506 汇总）
+
+### Fixed
+- **lint**: declare the ruff rule set explicitly and pin the version
+- **chip**: align the batch table by terminal display width
+- **docs**: make the script catalog a managed region and gate it in CI
+- **scripts**: repair the 8 CI smoke-test failures
+- **scripts**: market_breadth 补项目根到 sys.path
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
