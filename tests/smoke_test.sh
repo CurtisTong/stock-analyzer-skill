@@ -96,7 +96,9 @@ else
 fi
 
 output=$(python3 screener.py --sector 资源 --top 3 2>&1 || true)
-if echo "$output" | grep -q "策略:"; then
+# 两条渲染路径的措辞不同：三段式漏斗输出「策略 <label> | 📦 候选池 …」，
+# render() 输出「策略: <label> (<strategy>)」，两者都算通过
+if echo "$output" | grep -qE "策略[: ]"; then
   ok "screener.py 输出含策略"
 else
   ko "screener.py 输出异常: $output"

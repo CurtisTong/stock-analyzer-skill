@@ -59,6 +59,9 @@
 - **docs**: 档位阈值与代码对齐——「上方有墙」由 `套牢盘 90–97% 且需反弹 10–15%` 更正为 `套牢盘 85–97% 且需反弹 <15%`（与 `_TIER_FOOT_PROFIT=15` / `_TIER_DEEP_REBOUND=15` 一致）。
 - **repo**: `.gitignore` 补 `scripts/data/*.bak-*`——既有规则只覆盖 `.bak.<ts>`（点号），横线命名的持仓备份（`portfolio.json.bak-<ts>`）不被忽略，`git add -A` 会提交含成本/资产的真实持仓快照。
 - **repo**: `.claude/settings.json` 补 `Bash(python3 scripts/chip_dist.py *)` 授权——`stock`/`portfolio` 的 SKILL.md 已声明该工具，settings.json 未同步会使 `check_allowed_tools.py --ci` 门禁失败。
+- **scripts**: 修复 `technical.py --classify` 抛 `ModuleNotFoundError: No module named 'experts'`——`technical/scoring.py` 的市场环境判定会导入仓库根的 `experts` 包，而 `technical.py` 缺少项目根 sys.path 入口（`market_breadth.py` 此前已按同一口径修过）。已在 CI 冒烟测试中失败。
+- **scripts**: 恢复 6 个核心 CLI 脚本的可执行位（`quote.py`/`finance.py`/`kline.py`/`screener.py`/`technical.py`/`stock.py`）——同为冒烟测试清单内的 `announcements.py`/`classifier.py`/`chan.py`/`chip.py` 保持 755，这 6 个退化为 644，导致 `tests/smoke_test.sh` 第 1 节 6 项失败。
+- **tests**: 修正 `tests/smoke_test.sh` 中过期的 screener 断言——原 `grep "策略:"` 只匹配 `render()` 路径的输出，而 `--sector/--top` 走三段式漏斗路径输出「策略 <label> | 📦 候选池 …」，断言改为 `策略[: ]` 同时覆盖两条路径。
 
 ### Changed
 

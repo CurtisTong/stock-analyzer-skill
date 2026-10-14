@@ -14,11 +14,16 @@
 import argparse
 import json
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+# 项目根（experts/*.py 包位于仓库根，--classify 的市场环境判定会导入它）
+# 与 market_breadth.py/backtest.py/portfolio_web.py 保持一致的 sys.path 口径
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.cli_base import create_parser, handle_errors
 from common import (
