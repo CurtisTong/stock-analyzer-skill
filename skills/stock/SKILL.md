@@ -1,9 +1,9 @@
 ---
 name: stock
 description: 单股分析。触发词：帮我看看XX、分析一下XX、XX怎么样、XX能买吗、看看XX的技术面、技术分析XX、XX估值如何、XX基本面、专家讨论XX。用于个股快速/完整五层分析、技术分析（均线/MACD/KDJ/BOLL/RSI/缠论/战法）、估值判断、8人专家圆桌多空辩论（16份人设中 8 active = 5长线+3短线）。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
-version: 1.22.1
+version: 1.23.0
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/stock.py *) Bash(python3 scripts/events.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/calibration.py *) Bash(python3 scripts/calibration_backfill.py *) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/stock.py *) Bash(python3 scripts/events.py *) Bash(python3 scripts/chip_dist.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/calibration.py *) Bash(python3 scripts/calibration_backfill.py *) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
 ---
 
 # Stock Analysis
@@ -92,6 +92,20 @@ python3 scripts/dev/multi_fetch.py technical sh600519 sh600036
 ```bash
 python3 scripts/stock.py sh600989 --with-backtest
 ```
+
+### 成本分布（筹码）
+
+判断上方解套抛压（"反弹的第一道墙是密集区，不是均线"）。`full` / `debate` 模式在技术面章节引用，`technical` 模式走 `technical.py --chip`：
+
+```bash
+python3 scripts/chip_dist.py sh600989 -j          # 单股：获利盘/套牢盘、平均成本、主密集区、需反弹
+python3 scripts/chip_dist.py --codes sh600989,sz300274 -j   # 批量（组合排序）
+python3 scripts/technical.py sh600989 --chip -j   # 并入技术面 features.chip_distribution
+```
+
+- 口径：**不复权**优先（筹码成本=实际成交价），失败降级前复权并在 `meta.adjust` 标记。
+- 档位：`筹码在脚下`（密集区含现价/获利盘≥15%）/ `上方有墙` / `深度套牢`（套牢盘≥97% 或需反弹≥15%）。
+- 输出为**模型推算值**（三角分布+换手衰减），非交易所观测数据；阈值未经校准，仅作相对比较。
 
 ### 事件日历
 
@@ -189,6 +203,7 @@ python3 scripts/technical.py sh600989 [--classify] [--quick]
 - 数据失败时说明失败的数据源和影响，仍可用已有数据给低置信度结论。
 - 不要虚构实时价格、最新公告、研报评级或成交数据。
 - **专家 `reason` 字段约束**：核心理由必须基于实际数据值，不得编造"反向加分""反向指标"等无数据支撑的论述。`experts/formatter.py` 渲染层检测并标记违规。
+- **筹码（成本分布）是模型推算值**：三角分布+换手衰减的口径推算，非交易所观测数据，不同软件参数不同；引用时须标"推算"，且**不得作为独立买卖依据**，只作技术面的抛压/支撑判断补充。`meta.adjust=qfq` 或 `degraded` 非空时须在报告中标注口径降级。
 
 ### 日内T策略过滤器
 

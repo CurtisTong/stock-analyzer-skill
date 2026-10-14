@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
+> 🟢 **当前状态**：v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.23.0 | 2026-10-13 | 新增**成本分布（筹码）**分析维度：`scripts/chip_dist.py` + `technical/chip_distribution.py`（三角分布+换手衰减，不复权优先）+ `technical.py --chip` + stock/portfolio/stock-technical 技能接入 |
 | 1.22.1 | 2026-09-02 | 修复：portfolio health_report 未传行情自动拉实时价格（web/manager 双路径对齐，盈亏/破位判定恢复）+ backtest walk-forward 输出错误窗口具体原因 |
 | 1.22.0 | 2026-08-28 | 工程化重构：死代码清理（~800 行）+ technical 冲突解决 + manager 拆分（1391→680）+ CLI 统一 cli_base（29 脚本）+ 市场状态统一 + CI 纳入 e2e/dispatch + 文档数字漂移修正 |
 | 1.21.1 | 2026-08-27 | 策略复盘落地：双源 OOS 验证门槛（evaluate_multi_pool）+ ATR 止损/移动止盈（可选）+ 自校准最小池 30 + 权重优化跨窗口验证 + 24 个新测试 |
@@ -39,6 +40,31 @@
 | 1.12.0 | 2026-06-17 | V2 量化策略平台 + V2.1 维护（合并历史 tag） |
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
+
+## [1.23.0] - 2026-10-13（成本分布（筹码）分析维度：chip_dist CLI + 技术包算法 + technical --chip + 技能接入）
+
+### Added
+
+- **scripts**: 新增 `scripts/chip_dist.py` CLI——成本分布（筹码分布）分析，支持单股 / `--codes` 批量 / `--pool` 板块池 / `--tier`·`--min-profit`·`--max-rebound` 筛选 / `--sort`·`--limit` 排序截断，输出获利盘/套牢盘比例、平均成本、主密集区、收复密集区所需反弹幅度、上方抛压厚度与档位（筹码在脚下/上方有墙/深度套牢）。
+- **scripts**: 新增 `scripts/technical/chip_distribution.py` 纯算法模块（三角分布 + 换手衰减；流通筹码固定 100%，按日换手率衰减旧筹码、新增筹码按当日 [low, high] 三角分布铺开，峰值取当日均价）。
+- **scripts**: 新增 `scripts/data/chip_dist.py` 取数层——**不复权优先**（sina 直连，筹码成本=实际成交价），失败降级默认前复权链路并标记 `meta.adjust=qfq`；流通股本由 `quote.circulating_cap ÷ price` 反算，缺失时降级总股本（`finance.net_assets ÷ bps`）并标记 degraded。
+- **scripts**: `scripts/technical.py` 新增 **`--chip`** 开关（opt-in，避免给所有现有调用增加一次 K 线请求）→ 输出 `features.chip_distribution`；`technical/report.py` 新增"成本分布（筹码）"文本段落。
+- **tests**: `tests/unit/test_chip_distribution.py`（17 项：守恒/密集区/分档边界/衰减方向/无上方密集区/数值快照）+ `tests/unit/test_chip_dist_render.py`（8 项：None 占位符格式化 + 单股/批量渲染 + 失败项筛选保留）+ `tests/integration/test_chip_dist_cli.py`（7 项网络回归：中际旭创"上方密集区"、宝丰"筹码在脚下"、250 日新高标的文本渲染）。
+- **skills**: `stock`（Step 1 取数 + 护栏 + allowed-tools）、`stock-technical`（输出维度 + `--chip`）、`portfolio`（health 模式"筹码/套牢排序"段）、`_shared/references/five-layer.md`（技术面子维度：筹码）、`stock/reports/full-template.md`（新增 §3.3.1 成本分布与套牢盘）、`_shared/references/script-catalog.md`（新增 chip_dist.py 行）。
+
+### Fixed
+
+- **scripts**: 修复成本分布文本渲染在"现价上方无筹码密集区"时崩溃——`main_cluster` 为 None 时需反弹/墙厚随之缺失，f-string 直接对 None 做 `:+.1f`/`:>7` 格式化抛 `TypeError`。影响 `scripts/chip_dist.py` 单股/批量文本输出与 `technical.py --chip` 报告渲染；250 日新高标的中招（板块池抽样 214 只命中 8 只，含四大行/长江电力/中国神华）。现以「主密集区 无（反弹第一压力=均线）」显式表达该状态，数值列用对齐占位符 `-`。
+- **scripts**: 修复批量模式静默丢弃取数失败标的——`_apply_filters` 原先剔除 error 项，导致失败持仓从表格与 JSON 中无声消失（`render_batch` 的失败分支成为死代码）。现失败项始终保留为行并在表尾汇总，JSON 增加 `failed` 计数。
+- **docs**: 档位阈值与代码对齐——「上方有墙」由 `套牢盘 90–97% 且需反弹 10–15%` 更正为 `套牢盘 85–97% 且需反弹 <15%`（与 `_TIER_FOOT_PROFIT=15` / `_TIER_DEEP_REBOUND=15` 一致）。
+- **repo**: `.gitignore` 补 `scripts/data/*.bak-*`——既有规则只覆盖 `.bak.<ts>`（点号），横线命名的持仓备份（`portfolio.json.bak-<ts>`）不被忽略，`git add -A` 会提交含成本/资产的真实持仓快照。
+- **repo**: `.claude/settings.json` 补 `Bash(python3 scripts/chip_dist.py *)` 授权——`stock`/`portfolio` 的 SKILL.md 已声明该工具，settings.json 未同步会使 `check_allowed_tools.py --ci` 门禁失败。
+
+### 说明
+
+- 结果为**模型推算值**（非交易所观测数据），不同软件衰减参数不同；档位阈值以 7 只持仓 + 中际旭创为初始样本标定，**未经校准**，仅作相对比较，不构成独立买卖依据。
+- **无指数成分股数据源**，市场/指数层面请用 `--pool` 或显式 `--codes`；全市场逐只取 250 日 K 线成本过高，不建议。
+- 底层 K 线走 `common.cache` 缓存，重复运行很快，未引入额外缓存层。
 
 ## [1.20.2] - 2026-08-13（mypy 白名单扩至 203 文件 + experts/config/dev 类型清零 + screener 主线偏离警告静默失效 bug 修复 + dcf/cyclical 双命名回归）
 

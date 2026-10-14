@@ -1,7 +1,7 @@
 ---
 name: stock-technical
 description: 纯技术分析子模块（从 /stock 拆分）。触发词：技术面分析 XX、纯技术角度看 XX、K 线分析 XX、缠论分析 XX、战法识别 XX。支持均线/MACD/KDJ/BOLL/RSI/缠论/本土战法。
-version: 1.22.1
+version: 1.23.0
 model: glm-5.2
 allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.py *) Read(./skills/_shared/references/*.md)
 ---
@@ -17,6 +17,7 @@ allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.p
 /stock-technical <代码> --classify       # 含缠论+个股分类+本土战法+市场自适应
 /stock-technical <代码> --classify --no-chan  # 跳过缠论
 /stock-technical <代码> --quick           # 快速模式（核心指标摘要）
+/stock-technical <代码> --chip            # 附加成本分布（筹码）：套牢盘/密集区/上方抛压
 ```
 
 ## 输出维度
@@ -27,6 +28,7 @@ allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.p
 - **BOLL**：上中下轨 + 开口/收口
 - **RSI**：14 主周期 + 6/12/24 三档参考
 - **量能**：量比、换手率、量价配合
+- **成本分布（筹码）**：获利盘/套牢盘比例、平均成本、主密集区、收复密集区所需反弹幅度（`--chip` 时启用）。⚠️ 模型推算值（三角分布+换手衰减），非交易所观测数据；用于判断上方解套抛压
 - **缠论**：分型/笔/段/中枢（`--classify` 时启用，`--no-chan` 关闭）。⚠️ 非标准简化实现，买卖点信号可能与标准缠论软件有差异，仅供学习参考
 - **本土战法**：7 种 A 股经典形态（v2 优化：三阴一阳增加量化评分）
   - 三阴一阳/三阳一阴：量比、跌幅、反弹比例三维评分

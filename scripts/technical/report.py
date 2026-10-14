@@ -270,6 +270,36 @@ def _render_trend_section(features):
     return lines
 
 
+def _render_chip_section(features):
+    """渲染成本分布（筹码）段落。仅在 --chip 时存在。"""
+    chip = features.get("chip_distribution")
+    if not chip:
+        return []
+    lines = ["\n## 成本分布（筹码）"]
+    if chip.get("error"):
+        lines.append(f"  不可用: {chip['error']}")
+        return lines
+    main = chip.get("main_cluster")
+    rebound = chip.get("rebound_to_main_pct")
+    avg_vs = chip.get("price_vs_avg_cost_pct")
+    avg_cost = chip.get("avg_cost", "-")
+    avg_txt = f"{avg_cost}（现价 {avg_vs:+.1f}%）" if avg_vs is not None else f"{avg_cost}"
+    lines.append(f"  平均成本 {avg_txt} | 获利盘 {chip.get('profit_ratio')}% / 套牢盘 {chip.get('trapped_ratio')}%")
+    if main:
+        band = main.get("band") or ["-", "-"]
+        lines.append(
+            f"  主密集区 {band[0]}-{band[1]}（峰 {main.get('peak', '-')}，占流通盘 {main.get('mass_pct', '-')}%）"
+        )
+    else:
+        lines.append("  主密集区 无（现价上方无筹码密集区，反弹第一压力=均线）")
+    if rebound is None:
+        lines.append(f"  上方无筹码密集区 | 档位 {chip.get('tier', '-')}")
+    else:
+        lines.append(f"  需反弹至密集区 {rebound:+.1f}% | 档位 {chip.get('tier', '-')}")
+    lines.append("  ⚠ 模型推算值（三角分布+换手衰减），非交易所观测数据")
+    return lines
+
+
 def _render_limit_section(features):
     """渲染 A 股特化（涨跌停/连板）段落。"""
     limit_data = features.get("limit_analysis") or {}
@@ -380,6 +410,7 @@ def render_report(features, score, signals, meta):
         lambda: _render_support_resistance_section(sr),
         lambda: _render_trend_section(features),
         lambda: _render_limit_section(features),
+        lambda: _render_chip_section(features),
     ]
     for section_fn in sections:
         lines.extend(section_fn())

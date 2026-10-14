@@ -85,6 +85,7 @@ jobs:
             scripts/screener.py \
             scripts/stock.py \
             scripts/chip.py \
+            scripts/chip_dist.py \
             scripts/sector.py \
             scripts/monitor.py \
             scripts/sector_summary.py \

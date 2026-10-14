@@ -1,9 +1,9 @@
 ---
 name: portfolio
 description: 持仓管理。触发词：我的持仓怎么样、帮我看看持仓、我买了XX、加仓XX、减仓XX、清仓XX、持仓健康检查、帮我调仓、自选股、持仓对比、仓位分析。支持买入/加仓/减仓/清仓CRUD、自选股管理、组合涨跌/集中度/风险预警/调仓再平衡。⚠️ AI 辅助生成，仅供参考，不构成投资建议。
-version: 1.22.1
+version: 1.23.0
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(./scripts/data/portfolio.json) Read(./scripts/data/portfolio_example.json) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/chip_dist.py *) Bash(python3 scripts/portfolio_web.py *) Bash(curl -X POST http://127.0.0.1:8765/api/positions *) Bash(lsof -i:8765 *) Read(./scripts/data/portfolio.json) Read(./scripts/data/portfolio_example.json) Read(./skills/_shared/references/*.md)
 ---
 
 # Portfolio Management
@@ -183,6 +183,27 @@ print(pm.attribution_report(quotes={'sh600519': 1900}))     # Brinson 归因（�
 板块分布: 资源40% 医药0% 科技5% 避险8% 金融3.5% 现金30%
 风险评级: ⚠️ 资源仓位偏重，科技偏轻
 ```
+
+### 筹码/套牢排序（health 模式推荐附加段）
+
+> 用**成本分布**回答"组合里谁的反弹被上方套牢盘压住"，用于排处理优先级。
+> 批量一条命令跑完全部持仓（`--codes` 逗号串，默认按套牢盘降序）：
+
+```bash
+python3 scripts/chip_dist.py --codes <code1>,<code2>,... -j        # 默认按套牢盘排序
+python3 scripts/chip_dist.py --codes <code1>,<code2> --sort rebound
+```
+
+```
+筹码/套牢排序 | 时间: YYYY-MM-DD HH:MM
+代码        现价    获利盘  套牢盘  需反弹  墙厚   档位
+sh601689  40.55    1.0    99.0   14.8   22.0  深度套牢
+sh600989  22.36   20.6    79.4    4.2   49.7  筹码在脚下
+```
+
+- 档位：`筹码在脚下`（密集区含现价/获利盘 ≥15%）/ `上方有墙` / `深度套牢`（套牢盘 ≥97% 或需反弹 ≥15%）。
+- **处理优先级**：深度套牢（墙厚、需反弹大）> 上方有墙 > 筹码在脚下。
+- ⚠️ 模型推算值（三角分布+换手衰减），非交易所观测数据；阈值未经校准，仅作**相对**比较，须与 `technical.py` 的破位/支撑结论交叉验证。
 
 ### 风险预警规则
 

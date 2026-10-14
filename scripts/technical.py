@@ -83,6 +83,11 @@ def main():
         default=None,
         help="市场环境参考指数（默认无，如 sh000001）",
     )
+    parser.add_argument(
+        "--chip",
+        action="store_true",
+        help="附加成本分布（筹码）：获利盘/套牢盘、主密集区、上方抛压（需额外取不复权 K 线）",
+    )
     args = parser.parse_args()
 
     code = normalize_quote_code(args.code)
@@ -128,6 +133,16 @@ def main():
         market_state = market_env.get("state")
     score = composite_score(features, stock_type=stock_type, market_state=market_state)
 
+    # 成本分布（筹码）——opt-in，需额外取不复权 K 线，故默认不算
+    if args.chip:
+        from data.chip_dist import get_chip_distribution
+
+        chip, chip_meta = get_chip_distribution(code)
+        if chip is not None:
+            features["chip_distribution"] = {**chip, "meta": chip_meta}
+        else:
+            features["chip_distribution"] = {"error": chip_meta.get("error", "不可用"), "meta": chip_meta}
+
     # 元数据
     price_num = to_float(quote.get("price"))
     meta = {
@@ -169,6 +184,7 @@ def main():
             "ma_stop_buy",
             "stop_loss_pct",
             "breakdown",
+            "chip_distribution",
         }
         if args.classify:
             feature_keys.update(

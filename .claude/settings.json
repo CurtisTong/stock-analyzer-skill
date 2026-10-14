@@ -20,6 +20,7 @@
       "Bash(python3 scripts/chan.py *)",
       "Bash(python3 scripts/technical.py *)",
       "Bash(python3 scripts/chip.py *)",
+      "Bash(python3 scripts/chip_dist.py *)",
       "Bash(python3 scripts/events.py *)",
       "Bash(python3 scripts/sector.py *)",
       "Bash(python3 scripts/hot_rank.py *)",

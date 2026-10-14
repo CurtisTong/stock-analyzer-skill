@@ -40,6 +40,9 @@ from .trend import (
 # A 股特化
 from .astock import limit_analysis
 
+# 成本分布（筹码）
+from .chip_distribution import chip_distribution, classify_tier
+
 # 综合评分
 from .scoring import composite_score, detect_market_environment
 
@@ -72,6 +75,9 @@ __all__ = [
     "wave_state",
     # astock
     "limit_analysis",
+    # chip_distribution
+    "chip_distribution",
+    "classify_tier",
     # scoring
     "composite_score",
     "detect_market_environment",

@@ -1,6 +1,6 @@
 # 脚本目录
 
-> 31 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
+> 32 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
 > **Claude Code 运行时工作目录即为项目根目录**（含 `scripts/`），无须 `cd`。
 
 ## 多代码批量调用约定（重要）
@@ -37,6 +37,7 @@ done
 | `python3 scripts/calibration_sync.py` | 校准数据 GitHub Gist 双向同步 | — |
 | `python3 scripts/chan.py` | 缠中说禅理论（缠论）实现 | — |
 | `python3 scripts/chip.py` | 资金面分析 CLI 入口 | -j |
+| `python3 scripts/chip_dist.py` | 成本分布（筹码分布）分析——获利盘/套牢盘、平均成本、主密集区、上方抛压 | --codes、--sort、-j |
 | `python3 scripts/classifier.py` | A 股个股类型分类器 | — |
 | `python3 scripts/events.py` | 个股事件日历查询 | -j |
 | `python3 scripts/finance.py` | 财务数据查询（多数据源自动切换） | -c、-j |
