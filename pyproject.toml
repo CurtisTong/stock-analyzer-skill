@@ -64,6 +64,10 @@ line-length = 120
 line-length = 120
 
 [tool.ruff.lint]
+# 显式声明规则集（等价于 ruff 历史默认 E4/E7/E9/F）。
+# 不写 select 会跟随各版本的默认值：ruff 0.17 扩容了默认集，同一份代码
+# 从 0 报错变成 1326 条（I001/UP*/BLE001/RUF* 等），CI 与本地结论不一致。
+select = ["E4", "E7", "E9", "F"]
 # E402: module level import not at top of file — 项目内大量 forward reference 模式合法
 # F401: unused-import — __init__.py re-export 模式有意为之
 extend-ignore = [

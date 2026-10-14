@@ -31,9 +31,9 @@ jobs:
         uses: ./.github/actions/setup-test
 
       - name: 安装 lint 工具
-        # black 固定版本：与 .pre-commit-config.yaml 的 rev 保持一致，
-        # 避免 latest 漂移导致同一份代码在两个入口格式判定不同
-        run: pip install black==26.10.1 ruff mypy
+        # black/ruff 固定版本：与 .pre-commit-config.yaml 的 rev 保持一致，
+        # 避免 latest 漂移导致同一份代码在不同入口结论不同
+        run: pip install black==26.10.1 ruff==0.17.0 mypy
 
       - name: 版本一致性检查
         run: python3 scripts/dev/sync_version.py --check

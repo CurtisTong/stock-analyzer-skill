@@ -69,6 +69,7 @@
 
 - **repo**: 统一 black 格式到 120 列（`pyproject.toml` 声明的口径），重排 165 个历史遗留的 88 列文件——此前 CI 的 `black --check` 步骤在 main 上持续失败（CI 报告同为 165 文件），其后 ruff/mypy 等步骤被跳过。纯格式变更，无逻辑改动。
 - **repo**: black 版本对齐并固定——CI 原先 `pip install black`（latest 浮动）与 `.pre-commit-config.yaml` pin 的 `24.10.0` 不一致，两者对 `scripts/common/parsers.py`（含组合附加符号的超长正则）换行判定不同。现 pre-commit rev 与 CI 均固定为 `26.10.1`，本地/CI/钩子三处口径一致。
+- **repo**: ruff 规则集显式声明并固定版本——`pyproject.toml` 的 `[tool.ruff.lint]` 原先只写 `extend-ignore` 而无 `select`，吃的是**各版本不同的默认规则集**：ruff 0.17 扩容默认集后，同一份代码从 0 报错变成 1326 条（I001/UP*/BLE001/RUF*/SIM* 等）。该步骤此前一直因 black 先失败而被跳过，故未暴露。现显式声明 `select = ["E4","E7","E9","F"]`（等价于历史默认集），规则集不再随版本漂移；同时 CI 与 pre-commit 均固定 ruff `0.17.0`（原 pin `v0.8.0`）。已验证 0.15.21/0.17.0 两个版本结论一致。
 
 ### 说明
 
