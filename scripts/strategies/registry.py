@@ -10,8 +10,9 @@ from typing import Dict
 # volatility 为 A 股低波动异象因子，低波动得高分
 # dividend 为红利因子（2026新增），股息率+分红连续性+分红率稳定性
 # chip 为筹码因子（2026新增），股东户数变化率+融资融券趋势
-# event 为事件因子（待调优），当前权重 0.0
+# event 为事件因子（#10 已灰度上线，6 策略各 0.05）
 # analyst 为分析师预期因子（待调优），当前权重 0.0
+# cyclical 为第 10 个已注册因子（默认权重 0），不进"9 因子"外宣口径
 
 # RLock 守护 STRATEGIES 全局 dict 的写路径；
 # 外部 12+ 个读取点（strategy_performance.py / screener.py / screening_service.py / backtest/*）
@@ -213,11 +214,15 @@ def register_strategy(name: str, weights: dict, label: str = "", replace: bool =
 
 
 def get_strategy(name: str) -> dict:
-    """获取策略配置。"""
+    """获取策略配置（返回拷贝，防止调用方修改污染全局注册表）。
+
+    与 register_strategy 的 `{**weights}` 拷贝保护一致：读路径同样不暴露
+    可变引用，外部改返回值不影响 STRATEGIES。
+    """
     with _STRATEGIES_LOCK:
         if name not in STRATEGIES:
             raise KeyError(f"未知策略: {name}，可用: {list(STRATEGIES.keys())}")
-        return STRATEGIES[name]
+        return {**STRATEGIES[name]}
 
 
 def list_strategies() -> list:

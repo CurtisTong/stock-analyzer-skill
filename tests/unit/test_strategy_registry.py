@@ -289,3 +289,16 @@ class TestConcurrencySafety:
             t.join()
 
         assert errors == [], f"并发读取失败: {errors}"
+
+
+class TestGetStrategyIsolation:
+    """get_strategy 返回拷贝，调用方修改不污染全局注册表（P2-1 修复）。"""
+
+    def test_mutation_does_not_pollute_registry(self):
+        s = get_strategy("balanced")
+        s["quality"] = 0.0
+        assert get_strategy("balanced")["quality"] == 0.28
+
+    def test_label_preserved(self):
+        s = get_strategy("balanced")
+        assert s["label"] == "均衡精选"
