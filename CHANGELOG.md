@@ -514,6 +514,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -729,6 +730,18 @@
 - **repo**: unify black formatting to 120 columns and pin the version
 - **scripts**: 清除注释中的 Sprint/Phase/P0 内部排期标记
 - 删除一次性 AI 生成报告产物（baofeng 完整分析 + 202506 汇总）
+
+### Fixed
+- **technical**: pattern signal dedup, truncation disclosure, BOLL open state, stale-data warning
+- **portfolio**: remove 4 dead module-level functions left by the v1.21.2 split
+- **strategy**: return a copy from get_strategy to protect the global registry
+
+### Documentation
+- **archive**: add the 2026-10-19 technical indicator and module retest reviews
+- **sync**: fix cross-document number drift from the 2026-10-19 retest review
+
+### Maintenance
+- **release**: bump version to 1.23.1 (sync_version)
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
