@@ -19,8 +19,10 @@ def bollinger(closes, period=20, multiplier=2.0):
     last = closes[-1]
     position = (last - lower) / (upper - lower) if (upper - lower) > 1e-6 else 0.5
 
-    # 带宽状态
-    if bandwidth < 0.05:
+    # 带宽状态（SKILL 声明"开口/收口"：开口 = 波动放大）
+    if bandwidth >= 0.15:
+        bw_desc = "开口(波动放大)"
+    elif bandwidth < 0.05:
         bw_desc = "极度收窄(变盘信号)"
     elif bandwidth < 0.10:
         bw_desc = "收窄中"

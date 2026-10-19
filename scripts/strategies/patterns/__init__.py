@@ -130,4 +130,7 @@ def detect_all_local_patterns(inp: PatternInput):
         "patterns": recent,
         "summary": summary,
         "count": len(recent),
+        # 未截断的检测总数（含被"最近 5 个"展示上限丢弃的早期形态）
+        "detected_count": len(deduped),
+        "truncated": len(deduped) > 5,
     }

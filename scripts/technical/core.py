@@ -3,8 +3,11 @@
 无内部依赖，仅使用标准库。
 """
 
+import json
 import math
 import statistics
+from datetime import date, timedelta
+from pathlib import Path
 
 from common import to_float
 
@@ -85,6 +88,40 @@ def stddev(values):
         return 0
     mean = statistics.mean(values)
     return math.sqrt(sum((x - mean) ** 2 for x in values) / len(values))
+
+
+def stale_trading_days(last_day: str, today: date | None = None) -> int:
+    """计算自最后 K 线日期到今日的 A 股交易日数（剔除周末与节假日）。
+
+    SKILL guardrail"数据 stale（>3 个交易日）必须警告用户"的支撑实现。
+    节假日表 data/a_share_holidays.json 缺失或解析失败时仅剔除周末（保守口径）。
+    """
+    if not last_day:
+        return 0
+    try:
+        last = date.fromisoformat(last_day[:10])
+    except ValueError:
+        return 0
+    today = today or date.today()
+    if last >= today:
+        return 0
+    holidays: set[str] = set()
+    try:
+        # 节假日表位于仓库根 data/（与 scripts/data/ 运行时数据目录不同）
+        repo_data = Path(__file__).resolve().parent.parent.parent / "data"
+        path = repo_data / "a_share_holidays.json"
+        if path.exists():
+            holidays = set(json.loads(path.read_text(encoding="utf-8")).get("holidays", []))
+    except Exception:
+        holidays = set()
+    days = 0
+    cur = last
+    while cur < today:
+        cur += timedelta(days=1)
+        if cur.weekday() >= 5 or cur.isoformat() in holidays:
+            continue
+        days += 1
+    return days
 
 
 def _find_swing_points(values, window=5, confirm=True):

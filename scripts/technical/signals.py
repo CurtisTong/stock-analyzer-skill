@@ -143,13 +143,18 @@ def _generate_signals(features, market_breadth=None):
         elif "顶背驰" in summary:
             sell.append("缠论顶背驰")
 
-    # 本土战法信号
+    # 本土战法信号：同一形态多次触发（不同日期）只报最近一次，避免重复噪音。
+    # patterns 已按 idx 升序（最新在后），dict 覆盖天然保留最后一例。
     local_patterns = features.get("local_patterns") or {}
+    latest_bullish: dict = {}
+    latest_bearish: dict = {}
     for lp in local_patterns.get("patterns", []):
         if lp["type"] == "看涨":
-            buy.append(lp["name"])
+            latest_bullish[lp["name"]] = lp
         elif lp["type"] == "看跌":
-            sell.append(lp["name"])
+            latest_bearish[lp["name"]] = lp
+    buy.extend(latest_bullish.keys())
+    sell.extend(latest_bearish.keys())
 
     # 估值信号（反追涨杀跌核心机制）
     valuation = features.get("valuation") or {}

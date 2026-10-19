@@ -336,6 +336,16 @@ def _render_risk_section(features, meta):
     return lines
 
 
+def _render_data_stamp(meta):
+    """数据时间戳 + stale 警告（SKILL guardrail：stale >3 交易日必须警告）。"""
+    data_date = meta.get("data_date", "-")
+    stale_days = meta.get("data_stale_days", 0)
+    line = f"数据时间: {data_date}"
+    if stale_days and stale_days > 3:
+        line += f"  ⚠️ 数据已 stale（{stale_days} 个交易日未更新，请核对数据源）"
+    return line
+
+
 def render_report(features, score, signals, meta):
     """完整技术分析报告。
 
@@ -385,6 +395,8 @@ def render_report(features, score, signals, meta):
     # 风险提示
     lines.extend(_render_risk_section(features, meta))
 
+    # 数据时间戳（尾行，与 SKILL"尾行数据时间戳"契约一致）
+    lines.append(_render_data_stamp(meta))
     lines.append("═" * 72)
     return "\n".join(lines)
 
@@ -415,5 +427,6 @@ def render_quick(features, score, meta):
         lines.append(f"买入: {', '.join(score['buy_signals'])}")
     if score["sell_signals"]:
         lines.append(f"卖出: {', '.join(score['sell_signals'])}")
+    lines.append(_render_data_stamp(meta))
     lines.append("⚠ 纯技术视角，不构成投资建议")
     return "\n".join(lines)

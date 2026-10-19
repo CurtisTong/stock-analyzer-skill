@@ -841,3 +841,117 @@ class TestCandlestick:
         ]
         types = [p["type"] for p in detect_candle_patterns(records)]
         assert any("三只乌鸦" in t for t in types)
+
+
+class TestStaleTradingDays:
+    """data stale 判定（P1-1 修复：technical.core.stale_trading_days）。"""
+
+    def test_weekend_skipped(self):
+        from technical.core import stale_trading_days
+        from datetime import date
+
+        # 2026-10-12 周一 → 2026-10-19 周一：中间 10-17/18 周末，5 个交易日
+        assert stale_trading_days("2026-10-12", date(2026, 10, 19)) == 5
+
+    def test_same_day_zero(self):
+        from technical.core import stale_trading_days
+        from datetime import date
+
+        assert stale_trading_days("2026-10-19", date(2026, 10, 19)) == 0
+
+    def test_future_date_zero(self):
+        from technical.core import stale_trading_days
+        from datetime import date
+
+        assert stale_trading_days("2026-10-20", date(2026, 10, 19)) == 0
+
+    def test_friday_to_monday_one(self):
+        from technical.core import stale_trading_days
+        from datetime import date
+
+        assert stale_trading_days("2026-10-16", date(2026, 10, 19)) == 1
+
+    def test_invalid_or_empty(self):
+        from technical.core import stale_trading_days
+        from datetime import date
+
+        assert stale_trading_days("abcd", date(2026, 10, 19)) == 0
+        assert stale_trading_days("", date(2026, 10, 19)) == 0
+
+    def test_holiday_skipped(self):
+        from technical.core import stale_trading_days
+        from datetime import date
+
+        # 2026-10-01 为国庆假期（holidays 表中应含）：9-30 周三 → 10-09 周五，
+        # 中间 10-01~10-07 法定休市 + 周末，交易日应为 9-30 次日 10-09 之间仅 10-09 一天？
+        # 保守断言：跨国庆跨度 > 5 天应被节假日剔除（结果小于自然日数）
+        days = stale_trading_days("2026-09-30", date(2026, 10, 12))
+        assert 0 < days <= 5, f"国庆假期应显著削减交易日数, got {days}"
+
+
+class TestPatternSignalDedup:
+    """本土战法同名信号去重（P2-1 修复：signals.py 按名保留最近一次）。"""
+
+    def _features(self):
+        return {
+            "ma_system": {"alignment": "多头排列"},
+            "macd": {},
+            "kdj": {},
+            "bollinger": {},
+            "rsi": {},
+            "volume": {},
+            "wave": "盘整",
+            "local_patterns": {
+                "patterns": [
+                    {"name": "三阳一阴", "type": "看跌", "date": "2026-07-10"},
+                    {"name": "三阳一阴", "type": "看跌", "date": "2026-09-13"},
+                    {"name": "三阴一阳", "type": "看涨", "date": "2026-08-01"},
+                ]
+            },
+            "valuation": {},
+            "chan_theory": {},
+            "bamboo": {},
+            "ma_stop_buy": {},
+        }
+
+    def test_duplicate_names_collapsed(self):
+        from technical.signals import _generate_signals
+
+        buy, sell, _ = _generate_signals(self._features())
+        assert sell.count("三阳一阴") == 1, f"重复信号未去重: {sell}"
+        assert buy.count("三阴一阳") == 1
+
+    def test_report_renders_data_stamp(self):
+        """报告尾部数据时间戳 + stale 警告。"""
+        from technical.report import render_report
+
+        meta = {
+            "code": "sh600000",
+            "name": "测试",
+            "price": "10",
+            "price_num": 10.0,
+            "change_pct": "1",
+            "board": "主板",
+            "scale": 240,
+            "timestamp": "2026-10-19 10:00",
+            "data_date": "2026-10-01",
+            "data_stale_days": 12,
+        }
+        report = render_report({}, {"score": 50, "grade": "中性", "buy_signals": [], "sell_signals": []}, {}, meta)
+        assert "数据时间: 2026-10-01" in report
+        assert "⚠️ 数据已 stale（12 个交易日未更新" in report
+
+    def test_boll_open_state(self):
+        """BOLL 开口档（bandwidth >= 0.15）。"""
+        from technical.boll import bollinger
+
+        closes = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        b = bollinger(closes, period=20)
+        assert b["bandwidth_desc"] == "开口(波动放大)" or b["bandwidth_desc"] == "极度收窄(变盘信号)"
+        # 构造大波动序列 → 开口
+        import math
+
+        closes2 = [10 + 2 * math.sin(i) for i in range(40)]
+        b2 = bollinger(closes2, period=20)
+        assert b2["bandwidth"] >= 0.15
+        assert b2["bandwidth_desc"] == "开口(波动放大)"

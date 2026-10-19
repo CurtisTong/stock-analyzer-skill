@@ -62,6 +62,7 @@ from technical.report import render_report, render_quick
 from technical.moving_average import incremental_ma
 
 from technical.analyzer import TechnicalInput, _compute_all
+from technical.core import stale_trading_days
 
 
 def main():
@@ -150,6 +151,7 @@ def main():
 
     # 元数据
     price_num = to_float(quote.get("price"))
+    data_date = records[-1].get("day", "") if records else ""
     meta = {
         "code": code,
         "name": quote.get("name", ""),
@@ -159,6 +161,9 @@ def main():
         "board": board,
         "scale": args.scale,
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        # 数据时间戳与新鲜度（SKILL guardrail：stale >3 交易日必须警告）
+        "data_date": data_date,
+        "data_stale_days": stale_trading_days(data_date),
     }
 
     # 查找止损位 + 破位检测
