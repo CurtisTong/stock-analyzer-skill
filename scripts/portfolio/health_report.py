@@ -712,34 +712,6 @@ def health_report_markdown(report: dict) -> str:
     return "\n".join(lines)
 
 
-def risk_summary(self, quotes: dict = None, confidence: float = 0.95) -> str:
-    """持仓组合 VaR 风险摘要（v1.16.0 thin wrapper → portfolio.analytics.risk_summary）。"""
-    from portfolio.analytics import risk_summary as _risk_summary
-
-    return _risk_summary(self, quotes=quotes, confidence=confidence)
-
-
-def attribution_report(self, quotes: dict = None, period: str = "1M") -> str:
-    """组合 Brinson 归因报告（v1.16.0 thin wrapper → portfolio.analytics.attribution_report）。"""
-    from portfolio.analytics import attribution_report as _attribution_report
-
-    return _attribution_report(self, quotes=quotes, period=period)
-
-
-def advisory_rebalance(self, target_ratio: float = 1.0, quotes: dict = None) -> list:
-    """调仓建议（v1.16.0 thin wrapper → portfolio.rebalance.advisory_rebalance）。"""
-    from portfolio.rebalance import advisory_rebalance as _advisory_rebalance
-
-    return _advisory_rebalance(self, target_ratio=target_ratio, quotes=quotes)
-
-    # ---------- 导入导出 ----------
-
-
-def export_codes(self) -> list:
-    """导出所有持仓代码列表（兼容旧接口）。"""
-    return [p["code"] for p in self.get_positions()]
-
-
 def check_concentration(
     manager,
     single_stock_limit: float = 0.20,
