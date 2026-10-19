@@ -1,7 +1,11 @@
 # 6 策略单一事实源
 
 本目录是策略定义的**单一事实源（SSOT）**。所有 SKILL.md（screener / backtest / research）和
-脚本（`scripts/strategies/thresholds.py`）应引用此处，不再各自维护一份。
+脚本应引用此处，不再各自维护一份。
+
+> ⚠️ 策略**权重**的定义真源在 `scripts/strategies/registry.py`（STRATEGIES dict，注册表 API
+> `get_strategy()` / `register_strategy()`）；`scripts/strategies/thresholds.py` 仅管理**行业差异化
+> 阈值**（data/industry_thresholds.json），不包含策略权重。本文档是策略清单与口径说明。
 
 ## 6 策略一览
 
@@ -14,15 +18,20 @@
 | `turning_point` | 拐点修复 | 超跌修复/拐点 | 估值安全垫 + 技术转强 | 跌多了反弹，左侧抄底 |
 | `ma_volume_momentum` | 量价动量 | 趋势确认/突破行情 | MA 金叉 + 放量 2.5× 验证 | 跟趋势，只买放量的主升浪 |
 
-## 因子维度
+## 因子维度（9 因子）
 
-每个策略对应一组因子权重（详见 `scripts/strategies/thresholds.py`）：
+每个策略对应一组因子权重（详见 `scripts/strategies/registry.py`）：
 
 - **质量**：ROE、净利增速、营收增速、毛利率、负债率、经营现金流/EPS
 - **估值**：PE、PB、PEG、PE/ROE
 - **动量**：20 日收益、均线结构、MACD 金叉/死叉（↑/↓/→）、RSI、量能比、换手率、量价配合
 - **流动性**：成交额、市值、换手适中程度
-- **量价信号**：放量上涨=资金介入、缩量下跌=抛压减轻、放量下跌=主力出货、缩量上涨=量价背离
+- **波动率**：A 股低波动异象，低波动得高分
+- **红利**：股息率 + 分红连续性 + 分红率稳定性
+- **筹码**：股东户数变化率 + 融资融券趋势
+- **事件**：财报/解禁/业绩预告等事件驱动（6 策略各 0.05 灰度上线）
+- **分析师预期**：分析师评级与目标价一致度（当前权重 0.0，待调优）
+- （附）**周期**：第 10 个已注册因子（cyclical），默认权重 0，不进"9 因子"外宣口径
 
 ## 硬过滤（按板块差异化）
 
@@ -35,4 +44,4 @@
 
 - SKILL.md 中需要列出策略时，应写「详见 `../_shared/references/strategies.md`」
 - 不要在本目录以外的 SKILL.md / 脚本中重复定义策略阈值
-- 修改策略定义先改本文档，再改 `scripts/strategies/thresholds.py`
+- 修改策略清单先改本文档，再改 `scripts/strategies/registry.py`（新增/调整权重走 `register_strategy` API）

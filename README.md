@@ -21,7 +21,7 @@
 > "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
 > 核心 8 命令（quote/kline/finance/technical/stock/portfolio/screener/backtest）只需 stdlib + PyYAML；扩展功能（`/research` DCF、`/screener init full-market`、美股 yfinance、`/market full` 美股参考）按需 `pip install yfinance akshare efinance pytdx`。
 
-[![Version](https://img.shields.io/badge/version-1.23.0-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.23.1-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
@@ -243,6 +243,10 @@ python3 scripts/portfolio_web.py
 <summary><b>📊 单股五层分析示例</b> — <code>/stock 贵州茅台 quick</code></summary>
 
 ![单股快评 demo](docs/assets/stock-quick.gif)
+
+> 💡 以下为 LLM 合成演示输出（含估值/板块/风险收益比分层与目标价/止损）。
+> `scripts/stock.py` 实际渲染为 行业画像/技术面/财务/近 60 日回测/综合评分 结构；
+> 分层结论由模型按 [output-template](../skills/_shared/references/output-template.md) 合成。
 
 ```text
 🏢 贵州茅台 (sh600519) · 白酒龙头
@@ -787,7 +791,7 @@ MIT License © curtis
 
 ---
 
-**v1.23.0** · 2026-10-13 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.23.1** · 2026-10-13 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> 版本：v1.21.1 | 更新日期：2026-08-28
+> 版本：v1.23.1 | 更新日期：2026-10-19
 
 ## 项目概述
 
@@ -10,7 +10,7 @@ A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变
 
 **板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
 
-**整体任务超时（v1.20.1 新增；v1.21.0 调整为 1800s）**：screener 已接入 watchdog 线程，默认 1800s deadline（从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py:545-557` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中,实际极少触发。
+**整体任务超时（v1.20.1 新增；v1.21.0 调整为 1800s）**：screener 已接入 watchdog 线程，默认 1800s deadline（从 600s 升级以覆盖全市场 3323 只 K 线；可通过 `--deadline SEC` 或环境变量 `STOCK_SCREENER_DEADLINE` 自定义）。akshare 永久挂起时,watchdog 触发 `os._exit(2)` 并往 stderr 打一行 `⚠️ Watchdog timeout (Ns), exiting...`,stdout 不会有部分结果——这是真终止路径,不是软降级。`scripts/screener.py` 的 `sys.exit(2)` + JSON 分支需业务主动抛 `ScreenerTimeoutError` 才会命中（当前无调用方）,实际极少触发。
 
 **已合并命令**（排查"为什么没有这个命令"时参考）：`/technical` -> `/stock technical`；`/stock-init` -> `/screener init`；`/financial-analyst` + `/investment-researcher` -> `/research`。
 
@@ -79,8 +79,8 @@ scripts/
 
 ## 关键抽象
 
-- **BaseFetcher / DataFetcherManager** (`scripts/common/__init__.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker + RateLimiter
-- **CircuitBreaker** (`scripts/common/__init__.py`): 线程安全熔断器（closed/open/half-open）
+- **BaseFetcher / DataFetcherManager** (`scripts/common/fetcher_base.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker + RateLimiter（`common/__init__.py` 仅 re-export）
+- **CircuitBreaker** (`scripts/common/circuit_breaker.py`): 线程安全熔断器（closed/open/half-open）
 - **RateLimiter** (`scripts/common/rate_limiter.py`, 2026-07-21, v1.16.0 hardening): per-provider 并发信号量 + 429 指数退避；新增 `slot()` contextmanager 强制 try/finally 释放信号量（防 泄漏），新增 `is_provider_disabled()` 与 `CircuitBreaker` 编排（正交抑制）；模块级 helpers：`rate_limiter_slot()` / `is_provider_disabled()`
 - **silent_fallback** (`scripts/common/exceptions/silent_fallback.py`, v1.16.0): `log_silent_fallback()` 函数 + `@silent_fallback` 装饰器，对 11 处 HIGH/MEDIUM `except Exception:` 加显式 WARNING 日志（用 `extra={silent: True}` 便于 grep）
 - **lint_silent_excepts** (`scripts/dev/lint_silent_excepts.py`, v1.16.0): CI 阻断 lint（默认 advisory，CI 用 `--strict` 启用 exit 1）
@@ -91,7 +91,7 @@ scripts/
   - FinanceRecord 数值字段 `Optional[float]=None`（2026-07-21），区分"未披露"与"真为 0"
   - FinanceMeta 携带元信息：source/fallback_source/periods/is_degraded/cache_hit
 - **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
-- **OOS 验证状态机** (`scripts/strategies/oos_validation.py` + `registry.py:STRATEGY_VALIDATION`): 双层架构——registry 默认值（git tracked，立场默认怀疑 in_sample）+ `data/strategy_oos_validation.json` 运行时覆盖。`get_validation(name)` 合并两层；升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0 → oos_verified。`scripts/multi_stock_backtest.py --update-validation` 跑完自动写 JSON。`scripts/screener.py:_emit_json_with_validation` 与 `scripts/backtest/cli.py:_attach_validation` 透传 `_validation_status / _validation_note / win_rate_pct / n_stocks` 到 JSON 输出。20 项单元测试覆盖于 `tests/unit/test_oos_validation.py`。详见 [docs/strategy-validation.md](docs/strategy-validation.md)。
+- **OOS 验证状态机** (`scripts/strategies/oos_validation.py` + `registry.py:STRATEGY_VALIDATION`): 双层架构——registry 默认值（git tracked，立场默认怀疑 in_sample）+ `data/strategy_oos_validation.json` 运行时覆盖。`get_validation(name)` 合并两层；升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0 → oos_verified。`scripts/multi_stock_backtest.py --update-validation` 跑完自动写 JSON。`scripts/screener.py:_emit_json_with_validation` 与 `scripts/backtest/cli.py:_attach_validation` 透传 `_validation_status / _validation_note / win_rate_pct / n_stocks` 到 JSON 输出。24 项单元测试覆盖于 `tests/unit/test_oos_validation.py`。详见 [docs/strategy-validation.md](docs/strategy-validation.md)。
 - **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
 - **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）；人设配置在 `experts/yaml/*.yaml`，由 `registry.py` 注册；`decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 

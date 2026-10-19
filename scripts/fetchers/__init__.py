@@ -5,15 +5,15 @@
 v1.3.2 起按数据域分组（7 个数据域 × 35 个 fetcher 类），
 便于扩展时定位代码。子目录化后通过 __init__.py re-export 屏蔽 import 路径变更。
 
-数据域分块：
-  quote   - 实时行情        （10 个模块：tencent/eastmoney/sina/xueqiu/ths/efinance/akshare/tushare/pytdx/yfinance）
-  kline   - K 线            （9 个模块：sina/eastmoney/tencent/efinance/akshare/tushare/baostock/pytdx/yfinance）
-  finance - 财务            （2 个模块：eastmoney/akshare）
-  flow    - 资金流向        （3 个模块：eastmoney/sina/akshare）
-  lhb     - 龙虎榜          （2 个模块：eastmoney）
-  event   - 事件日历        （6 个模块：eastmoney/performance_forecast）
-  chip    - 融资融券/股东   （3 个模块：eastmoney）
-  _common - 内部辅助        （4 个模块：tushare_check/pytdx_pool/pytdx_meta 等，非 fetcher）
+数据域分块（文件数 / fetcher 类数）：
+  quote   - 实时行情        （10 文件 / 10 类：tencent/eastmoney/sina/xueqiu/ths/efinance/akshare/tushare/pytdx/yfinance）
+  kline   - K 线            （9 文件 / 9 类：sina/eastmoney/tencent/efinance/akshare/tushare/baostock/pytdx/yfinance）
+  finance - 财务            （2 文件 / 2 类：eastmoney/akshare；akshare_balance 为字段补全器，非 fetcher 类）
+  flow    - 资金流向        （2 文件 / 3 类：eastmoney 2 类 / sina 1 类）
+  lhb     - 龙虎榜          （1 文件 / 2 类：eastmoney）
+  event   - 事件日历        （2 文件 / 6 类：eastmoney 5 类 / performance_forecast 1 类）
+  chip    - 融资融券/股东   （1 文件 / 3 类：eastmoney）
+  _common - 内部辅助        （4 文件：tushare_check/pytdx_pool/pytdx_meta/akshare_probe，非 fetcher）
 """
 
 import logging

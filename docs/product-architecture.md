@@ -4,7 +4,7 @@
 > 🟡 **适用读者**：产品经理 / 投资人 / 二次开发者；纯终端用户可直接看 [quick-start.md](quick-start.md)。  
 > 🔴 **风险提示**：本文档描述产品能力；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
-> 版本：v1.23.0 | 更新日期：2026-08-03
+> 版本：v1.23.1 | 更新日期：2026-08-03
 >
 > **v1.16.0 重构**：finance 域 完成（删除 7 个死字段 + 全量 Optional[float]=None + 多字段零值检测 + get_finance() 返 (records, FinanceMeta) 元组 + 全局 RateLimiter + 429 退避 + 主板/科创板/北交所披露 board_overrides）；tests 框架重构（分 5 层：unit / contracts / integration / e2e / fixtures，v1.20.2 累计 1720 个 def test_）；止损破位 breakdown 信号新增；skill schema 清理（删除 `.agents/skills/` 陈旧副本、`.claude/.codex` git 跟踪遗留、sector/market 失效路径修正）；近 40 个 [Unreleased] 区块合并。详见 [CHANGELOG.md](../CHANGELOG.md)。
 
@@ -92,18 +92,18 @@
 
 ### 2.3 数据源矩阵
 
-> **统计口径**：fetcher 数 = 真实数据源 Python 文件数（`scripts/fetchers/` 下，不含 `_common/` helper）；查询类型数 = 该数据域覆盖的不同查询维度。
+> **统计口径**：fetcher 数 = 真实数据源 fetcher 类数（`scripts/fetchers/` 下，不含 `_common/` helper 与 `_base_bulk.py` 抽象基类）；查询类型数 = 该数据域覆盖的不同查询维度（约数，K 线/财务含聚合变体）。
 
 | 数据类型     | fetcher 数 | 查询类型数 | 主要来源                                                                              |
 | ------------ | ---------- | ---------- | ------------------------------------------------------------------------------------- |
 | **行情数据** | 10         | 1          | 腾讯、东财、新浪、雪球、同花顺、efinance、akshare、tushare、pytdx、yfinance          |
 | **K线数据**  | 9          | 5+         | 新浪、东财、腾讯、efinance、akshare、baostock、pytdx、tushare、yfinance               |
-| **财务数据** | 3          | 3+         | 东财、akshare（akshare_balance / akshare_finance / eastmoney_finance）               |
-| **资金面**   | 1          | 3          | 东财（融资融券 / 股东户数 / 十大流通股东）                                            |
-| **资金流向** | 2          | 2          | 东财（北向资金 / 个股资金流）、新浪                                                    |
-| **龙虎榜**   | 1          | 2          | 东财（明细 / 席位）                                                                    |
-| **事件日历** | 1          | 3          | 东财（财报披露 / 限售解禁 / 分红送转）                                                |
-| **合计**     | **27**     | **33**     | 7 个数据域（quote / kline / finance / chip / flow / lhb / event）                     |
+| **财务数据** | 2          | 3+         | 东财、akshare（akshare_balance 为字段补全器，非 fetcher 类）                          |
+| **资金面**   | 3          | 3          | 东财（融资融券 / 股东户数 / 十大流通股东）                                            |
+| **资金流向** | 3          | 2          | 东财（北向资金 / 个股资金流）、新浪                                                    |
+| **龙虎榜**   | 2          | 2          | 东财（明细 / 席位）                                                                    |
+| **事件日历** | 6          | 3          | 东财（财报日历 / 解禁 / 分红 / 股东变动 / 违规）、业绩预告                             |
+| **合计**     | **35**     | **19+**    | 7 个数据域（quote / kline / finance / chip / flow / lhb / event）                     |
 
 ### 2.4 行业差异化阈值
 
