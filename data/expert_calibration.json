@@ -1,11 +1,28 @@
 {
-  "predictions": [],
+  "predictions": [
+    {
+      "id": "pred_20261022_sh600989",
+      "stock": "sh600989",
+      "date": "2026-10-22",
+      "direction": "看空",
+      "composite_score": 45.9,
+      "expert_scores": {
+        "lynch": 79.2,
+        "soros": 41.0,
+        "value_institution": 86.3,
+        "sector_specialist": 68.9,
+        "risk_manager": 57.9,
+        "topic_leader": 22.4,
+        "emotion_tech": 29.7,
+        "momentum_trader": 22.8
+      },
+      "verified": false,
+      "verify_after": "2026-11-21",
+      "actual_return": null,
+      "actual_direction": null
+    }
+  ],
   "experts": {
-    "buffett": {
-      "events": 5,
-      "correct": 4,
-      "last_updated": "2026-06-16"
-    },
     "lynch": {
       "events": 5,
       "correct": 2,
@@ -16,28 +33,18 @@
       "correct": 2,
       "last_updated": "2026-06-16"
     },
-    "duan_yongping": {
-      "events": 5,
+    "value_institution": {
+      "events": 10,
+      "correct": 8,
+      "last_updated": "2026-06-16"
+    },
+    "emotion_tech": {
+      "events": 10,
       "correct": 4,
       "last_updated": "2026-06-16"
     },
-    "xu_xiang": {
-      "events": 5,
-      "correct": 1,
-      "last_updated": "2026-06-16"
-    },
-    "zhao_laoge": {
-      "events": 5,
-      "correct": 1,
-      "last_updated": "2026-06-16"
-    },
-    "chaogu_yangjia": {
-      "events": 5,
-      "correct": 2,
-      "last_updated": "2026-06-16"
-    },
-    "zuoshou_xinyi": {
-      "events": 5,
+    "topic_leader": {
+      "events": 10,
       "correct": 2,
       "last_updated": "2026-06-16"
     }
@@ -46,5 +53,6 @@
     "source": "backtest_2026-06-16",
     "market_state": "防御型",
     "note": "基于 60 天回测结论初始化：防守低波+12.61% vs 成长动量-9.46%，防御型市场下价值专家准确率高于成长/短线专家"
-  }
+  },
+  "_migrated": true
 }

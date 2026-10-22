@@ -32,7 +32,10 @@ except ImportError:
     _HAS_FCNTL = False
 
 # 项目根目录 data/
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+# experts/calibration.py 只有 2 层深（experts/ -> 仓库根），
+# 用 parent.parent 定位仓库根；parent.parent.parent 会多退一级，
+# 把校准数据写到仓库外的同级目录（沙箱内会 PermissionError）。
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CALIBRATION_FILE = _PROJECT_ROOT / "data" / "expert_calibration.json"
 
 # legacy 专家名 -> 合并后的 active 专家名。

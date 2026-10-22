@@ -46,6 +46,9 @@ scripts/data/market_snapshot.json
 scripts/data/macro_snapshot.json
 scripts/data/strategy_performance.json
 
+# 校准数据写入的 flock 锁文件（experts/calibration.py 落盘时生成，不自动清理）
+data/*.json.lock
+
 # pytest 覆盖率报告
 .coverage
 .coverage.*
