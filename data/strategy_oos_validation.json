@@ -1,0 +1,56 @@
+{
+  "balanced": {
+    "max_drawdown_pct": 6.55,
+    "n_stocks": 50,
+    "pool_type": "large",
+    "pools": {
+      "default": {
+        "max_drawdown_pct": 9.35,
+        "n_stocks": 55,
+        "sharpe_ratio": -0.03,
+        "total_return_pct": -4.64,
+        "win_rate_pct": 35.7
+      },
+      "large": {
+        "max_drawdown_pct": 6.55,
+        "n_stocks": 50,
+        "sharpe_ratio": 0.68,
+        "total_return_pct": -1.68,
+        "win_rate_pct": 42.9
+      }
+    },
+    "sharpe_ratio": 0.68,
+    "total_return_pct": -1.68,
+    "validated_at": "2026-10-22T10:33:53",
+    "validation_note": "双池 OOS 验证未全部达标（未达标池：default, large），保持 in_sample",
+    "validation_status": "in_sample",
+    "win_rate_pct": 42.9
+  },
+  "ma_volume_momentum": {
+    "max_drawdown_pct": 10.11,
+    "n_stocks": 50,
+    "pool_type": "large",
+    "pools": {
+      "default": {
+        "max_drawdown_pct": 12.01,
+        "n_stocks": 55,
+        "sharpe_ratio": -1.34,
+        "total_return_pct": -16.06,
+        "win_rate_pct": 21.4
+      },
+      "large": {
+        "max_drawdown_pct": 10.11,
+        "n_stocks": 50,
+        "sharpe_ratio": -0.49,
+        "total_return_pct": -6.38,
+        "win_rate_pct": 21.4
+      }
+    },
+    "sharpe_ratio": -0.49,
+    "total_return_pct": -6.38,
+    "validated_at": "2026-10-22T10:33:53",
+    "validation_note": "双池 OOS 验证未全部达标（未达标池：default, large），保持 in_sample",
+    "validation_status": "in_sample",
+    "win_rate_pct": 21.4
+  }
+}
