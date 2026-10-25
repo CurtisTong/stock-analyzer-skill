@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import threading
 import time
 from typing import Optional
@@ -74,8 +75,11 @@ class WatchdogContext:
         """
         self.timed_out = True
         self.done_event.set()
+        # v1.23.1: 超时消息固定走 stderr（此前为 stdout，与文档声称的
+        # "往 stderr 打一行"不一致，stderr 采集告警会漏接）
         print(
             f"\n⚠️ Watchdog timeout ({self.deadline_sec:.0f}s), exiting...",
+            file=sys.stderr,
             flush=True,
         )
         import os as _os
