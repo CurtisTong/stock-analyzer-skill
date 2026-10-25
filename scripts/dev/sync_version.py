@@ -213,6 +213,28 @@ def update_all(version: str, dry_run: bool = False) -> list[str]:
     return summaries
 
 
+def check_changelog_version(target_version: str) -> list[str]:
+    """检查 CHANGELOG.md 最新版本段与目标版本一致（v1.23.1 加入门禁）。
+
+    发版时若只 bump 版本号而漏写 CHANGELOG 段，--check 会失败，
+    防止"版本号三处一致但 CHANGELOG 停留在旧版本"的漂移（2026-10-19 实测）。
+    """
+    path = PKG_ROOT / "CHANGELOG.md"
+    if not path.exists():
+        return ["CHANGELOG.md 缺失"]
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError as e:
+        return [f"CHANGELOG.md 无法读取: {e}"]
+    m = re.search(r"(?m)^## \[(?P<ver>\d+\.\d+\.\d+)\]", content)
+    if not m:
+        return ["CHANGELOG.md 未找到版本段（## [x.y.z]）"]
+    latest = m.group("ver")
+    if latest != target_version:
+        return [f"CHANGELOG.md 最新段 [{latest}] != 目标版本 {target_version}"]
+    return []
+
+
 def check_versions(target_version: str) -> dict[str, list[str]]:
     """检查所有文件的版本一致性。"""
     result: dict[str, list[str]] = {"match": [], "mismatch": [], "missing": []}
@@ -230,6 +252,13 @@ def check_versions(target_version: str) -> dict[str, list[str]]:
         result["match"].extend(match)
         result["mismatch"].extend(mismatch)
         result["missing"].extend(missing)
+
+    # CHANGELOG 最新版本段（独立检查：不能靠 pattern 替换生成）
+    changelog_issues = check_changelog_version(target_version)
+    if changelog_issues:
+        result["mismatch"].extend(changelog_issues)
+    else:
+        result["match"].append("CHANGELOG.md (最新段)")
 
     return result
 
