@@ -302,9 +302,141 @@ class TestEvaluateMultiPool:
         assert status == "in_sample"
         assert "无任何池" in note
 
-    def test_single_pool_still_evaluated(self):
-        """单池也走联合判定（等价于 evaluate_oos）。"""
+    def test_single_pool_does_not_upgrade(self):
+        """单池不升级（v1.23.1 收紧：≥2 个池且全部达标才 oos_verified）。"""
         from strategies.oos_validation import evaluate_multi_pool
 
-        status, _ = evaluate_multi_pool({"default": (60.0, 210, 5.0)})
-        assert status == "oos_verified"
+        status, note = evaluate_multi_pool({"default": (60.0, 210, 5.0)})
+        assert status == "in_sample"
+        assert "单池" in note  # 点名单池无统计意义
+
+
+class TestUpdateValidationAlwaysMultiPool:
+    """v1.23.1：multi_stock_backtest._update_validation 默认强制多池联合判定。
+
+    回归 P1-2：默认路径曾允许单池达标即写 oos_verified（可"选对自己有利的池"
+    刷出验证）。现在单池跑只记录该池结果，最终状态一律走 evaluate_multi_pool：
+    全部记录池达标才升级。
+    """
+
+    def _run(self, capsys, results, *, n_codes=50, pool_type="default"):
+        from multi_stock_backtest import _update_validation
+
+        _update_validation(results, n_codes=n_codes, pool_type=pool_type)
+        out = capsys.readouterr().out
+        return out
+
+    def test_single_passing_pool_stays_in_sample(self, capsys):
+        """单池达标（默认参数、无 --require-all-pools）→ 保持 in_sample。"""
+        results = [
+            {
+                "strategy": "balanced",
+                "result": {
+                    "win_rate_pct": 60.0,
+                    "total_return_pct": 5.0,
+                    "sharpe_ratio": 0.5,
+                    "max_drawdown_pct": 8.0,
+                },
+            }
+        ]
+        self._run(capsys, results, n_codes=50, pool_type="default")
+
+        ov = load_oos_overrides()["balanced"]
+        assert ov["validation_status"] == "in_sample"
+        assert "单池" in ov["validation_note"]
+
+    def test_second_pool_passing_upgrades(self, capsys):
+        """default 达标后再跑 large 达标 → 双池联合判定升级 oos_verified。"""
+        from multi_stock_backtest import _update_validation
+
+        # 第一池（default）达标
+        results1 = [
+            {
+                "strategy": "balanced",
+                "result": {
+                    "win_rate_pct": 60.0,
+                    "total_return_pct": 5.0,
+                    "sharpe_ratio": 0.5,
+                    "max_drawdown_pct": 8.0,
+                },
+            }
+        ]
+        _update_validation(results1, n_codes=50, pool_type="default")
+        assert load_oos_overrides()["balanced"]["validation_status"] == "in_sample"
+
+        # 第二池（large）也达标 → 联合判定升级
+        results2 = [
+            {
+                "strategy": "balanced",
+                "result": {
+                    "win_rate_pct": 55.0,
+                    "total_return_pct": 3.0,
+                    "sharpe_ratio": 0.4,
+                    "max_drawdown_pct": 10.0,
+                },
+            }
+        ]
+        _update_validation(results2, n_codes=40, pool_type="large")
+        ov = load_oos_overrides()["balanced"]
+        assert ov["validation_status"] == "oos_verified"
+        assert "双池" in ov["validation_note"]
+
+    def test_failing_pool_blocks_upgrade(self, capsys):
+        """既有 oos_verified 后跑出失败池 → 回落到 in_sample（防刷分）。"""
+        from multi_stock_backtest import _update_validation
+
+        # 先构造双池全达标
+        self._run(
+            capsys,
+            [
+                {
+                    "strategy": "balanced",
+                    "result": {
+                        "win_rate_pct": 60.0,
+                        "total_return_pct": 5.0,
+                        "sharpe_ratio": 0.5,
+                        "max_drawdown_pct": 8.0,
+                    },
+                }
+            ],
+            n_codes=50,
+            pool_type="default",
+        )
+        self._run(
+            capsys,
+            [
+                {
+                    "strategy": "balanced",
+                    "result": {
+                        "win_rate_pct": 55.0,
+                        "total_return_pct": 3.0,
+                        "sharpe_ratio": 0.4,
+                        "max_drawdown_pct": 10.0,
+                    },
+                }
+            ],
+            n_codes=40,
+            pool_type="large",
+        )
+        assert load_oos_overrides()["balanced"]["validation_status"] == "oos_verified"
+
+        # 再次跑 default 池，收益为负 → 联合判定回落 in_sample
+        self._run(
+            capsys,
+            [
+                {
+                    "strategy": "balanced",
+                    "result": {
+                        "win_rate_pct": 20.0,
+                        "total_return_pct": -5.0,
+                        "sharpe_ratio": -0.5,
+                        "max_drawdown_pct": 20.0,
+                    },
+                }
+            ],
+            n_codes=55,
+            pool_type="default",
+        )
+        ov = load_oos_overrides()["balanced"]
+        assert ov["validation_status"] == "in_sample"
+        assert "default" in ov["validation_note"]

@@ -269,8 +269,8 @@ def main() -> None:
     parser.add_argument(
         "--require-all-pools",
         action="store_true",
-        help="双池联合判定：读取 JSON 中已有的全部池结果，所有池都达标才升级 "
-        "oos_verified（单池 OOS 受池构成影响极大，须双池一致）",
+        help="（v1.23.1 起为默认行为，本标志仅保留兼容）多池联合判定："
+        "读取 JSON 中已有的全部池结果，所有池都达标才升级 oos_verified",
     )
     args = parser.parse_args()
 
@@ -339,13 +339,17 @@ def _update_validation(
     """把本次回测结果写进 data/strategy_oos_validation.json。
 
     调用 scripts/strategies/oos_validation 的状态机：
-    - 股票池 ≥ 30 + 胜率 ≥ 50% + 累计收益 > 0 → oos_verified
-    - 否则 → in_sample（保留，但加备注说明原因）
+    - 单池结果先按 evaluate_oos 记录进 pools 嵌套结构（股票池 ≥ 30 +
+      胜率 ≥ 50% + 累计收益 > 0 → 该池达标）
+    - 随后**始终**调用 evaluate_multi_pool 做多池联合判定（v1.23.1 起默认）：
+      JSON 中已记录的全部池都达标才升级 oos_verified，任一池未达标保持
+      in_sample——防止"选一个对自己有利的池"刷出验证
 
-    require_all_pools=True 时改用 evaluate_multi_pool 联合判定：读取 JSON 中
-    已存在的全部池结果（含本次写入的），所有池均达标才升级 oos_verified。
+    require_all_pools 参数仅保留 CLI 向后兼容（已无行为差异：多池联合判定
+    为默认路径，无需显式开启）。
 
-    覆盖 registry 默认 STRATEGY_VALIDATION；删除 JSON 文件可恢复默认。
+    覆盖 registry 默认 STRATEGY_VALIDATION；JSON 被 git 跟踪，`git rm
+    data/strategy_oos_validation.json` 提交后可回落默认 in_sample。
     """
     from strategies.oos_validation import (
         build_oos_note,
@@ -366,15 +370,15 @@ def _update_validation(
         sharpe = float(result.get("sharpe_ratio", 0) or 0)
         max_dd = float(result.get("max_drawdown_pct", 0) or 0)
 
-        # 先按单池状态机判定并写入本池结果
-        status = evaluate_oos(win_rate, n_codes, total_ret)
+        # 1) 记录本池结果（accumulate 到 pools 嵌套结构）
+        pool_status = evaluate_oos(win_rate, n_codes, total_ret)
         note = build_oos_note(win_rate, n_codes, total_ret)
-        if status == "in_sample":
+        if pool_status == "in_sample":
             note += "（未达阈值，保持 in_sample）"
 
         save_oos_result(
             sname,
-            validation_status=status,
+            validation_status=pool_status,
             validation_note=note,
             win_rate_pct=win_rate,
             n_stocks=n_codes,
@@ -383,34 +387,33 @@ def _update_validation(
             extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
         )
 
-        # 双池联合判定：汇总 JSON 中该策略全部池的结果
-        if require_all_pools:
-            overrides = load_oos_overrides().get(sname, {})
-            pools = overrides.get("pools", {}) if isinstance(overrides, dict) else {}
-            if not pools:
-                pools = {pool_type: (win_rate, n_codes, total_ret)}
-            # pools 值为 dict（含 win_rate_pct/n_stocks/total_return_pct），
-            # 转成 evaluate_multi_pool 期望的元组
-            pool_results = {
-                pt: (
-                    float(p.get("win_rate_pct", 0) or 0),
-                    int(p.get("n_stocks", 0) or 0),
-                    float(p.get("total_return_pct", 0) or 0),
-                )
-                for pt, p in pools.items()
-                if isinstance(p, dict)
-            }
-            status, note = evaluate_multi_pool(pool_results)
-            save_oos_result(
-                strategy_name=sname,
-                validation_status=status,
-                validation_note=note,
-                win_rate_pct=win_rate,
-                n_stocks=n_codes,
-                total_return_pct=total_ret,
-                pool_type=pool_type,
-                extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
+        # 2) 多池联合判定（默认路径）：汇总 JSON 中该策略全部池的结果
+        overrides = load_oos_overrides().get(sname, {})
+        pools = overrides.get("pools", {}) if isinstance(overrides, dict) else {}
+        if not pools:
+            pools = {pool_type: (win_rate, n_codes, total_ret)}
+        # pools 值为 dict（含 win_rate_pct/n_stocks/total_return_pct），
+        # 转成 evaluate_multi_pool 期望的元组
+        pool_results = {
+            pt: (
+                float(p.get("win_rate_pct", 0) or 0),
+                int(p.get("n_stocks", 0) or 0),
+                float(p.get("total_return_pct", 0) or 0),
             )
+            for pt, p in pools.items()
+            if isinstance(p, dict)
+        }
+        status, note = evaluate_multi_pool(pool_results)
+        save_oos_result(
+            strategy_name=sname,
+            validation_status=status,
+            validation_note=note,
+            win_rate_pct=win_rate,
+            n_stocks=n_codes,
+            total_return_pct=total_ret,
+            pool_type=pool_type,
+            extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
+        )
         marker = "✅" if status == "oos_verified" else "⚠️ "
         print(f"   {marker} {sname}: {status} ({win_rate:.1f}% / {n_codes} 只)")
 

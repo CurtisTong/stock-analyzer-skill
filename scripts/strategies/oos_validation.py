@@ -137,20 +137,32 @@ def evaluate_oos(win_rate_pct: float, n_stocks: int, total_return_pct: float) ->
 def evaluate_multi_pool(
     pool_results: dict[str, tuple[float, int, float]],
 ) -> tuple[str, str]:
-    """多池联合判定：全部池达标才升级 oos_verified。
+    """多池联合判定：至少记录 2 个池，且每个池都达标才升级 oos_verified。
 
-    实测发现单池 OOS 受池构成影响极大（55 大票池 OOS 正 vs
-    210 sector 池 OOS 负），单池达标不足以支撑 CLAIM。本函数要求
-    **每个池**都满足 evaluate_oos 阈值，任一池不达标即整体 in_sample。
+    v1.21.1 复盘发现单池 OOS 受池构成影响极大（55 只跨板块大票池 OOS 正 vs
+    210 只 sector 池 OOS 负），选一个"对自己有利的池"即可刷出验证，单池
+    验证无统计意义。因此：
+
+    - 未记录任何池 → in_sample
+    - 仅记录 1 个池 → in_sample（禁止单池升级，v1.23.1 收紧）
+    - ≥2 个池但任一池未达标 → in_sample（note 点名未达标池）
+    - ≥2 个池且全部达标 → oos_verified
 
     Args:
         pool_results: {pool_type: (win_rate_pct, n_stocks, total_return_pct)}
 
     Returns:
-        (status, note)。note 标注各池结果，若未全部达标会点名未达标池。
+        (status, note)。note 标注各池结果，未达标时点名未达标池。
     """
     if not pool_results:
         return "in_sample", "无任何池的 OOS 验证结果"
+
+    if len(pool_results) < 2:
+        names = ", ".join(pool_results)
+        return (
+            "in_sample",
+            f"仅记录 {len(pool_results)} 个池（{names}），单池验证无统计意义，" "需跑第二个池且全部池达标才升级",
+        )
 
     statuses = {}
     for pool_type, (win_rate, n_stocks, total_return) in pool_results.items():
