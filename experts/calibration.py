@@ -53,9 +53,10 @@ _CALIBRATION_LEGACY_TO_MERGED = {
 
 
 def _get_all_expert_names() -> list:
-    """从注册表动态获取全部专家名。"""
-    from experts.registry import EXPERT_REGISTRY
+    """从注册表动态获取全部专家名（16 份：8 active + 8 legacy）。"""
+    from experts.registry import EXPERT_REGISTRY, _ensure_loaded
 
+    _ensure_loaded()  # EXPERT_REGISTRY 为惰性加载，直接 import 时为空
     return list(EXPERT_REGISTRY.keys())
 
 
@@ -76,9 +77,15 @@ def _get_calibration_threshold() -> float:
 
 
 def _empty_data() -> dict:
+    """空校准数据：仅 8 位 active 专家占位（legacy 不参与校准）。"""
+    from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+
+    _ensure_loaded()
     return {
         "predictions": [],
-        "experts": {name: {"events": 0, "correct": 0, "last_updated": None} for name in _get_all_expert_names()},
+        "experts": {
+            name: {"events": 0, "correct": 0, "last_updated": None} for name, p in EXPERT_REGISTRY.items() if p.active
+        },
     }
 
 
@@ -120,13 +127,38 @@ def _migrate_legacy_experts(data: dict) -> dict:
     return data
 
 
+def _ensure_active_experts(data: dict) -> dict:
+    """只保留 active 专家条目，并为缺失的 active 专家补齐占位（events=0/correct=0）。
+
+    v1.23.1 修复：迁移只处理 legacy 名 → active 名，从未跑过 legacy 的
+    active 专家（sector_specialist/risk_manager/momentum_trader）不会自然
+    长出条目；而 verify_predictions 用 `expert_name in data["experts"]`
+    过滤，缺条目 ⇒ 校准数据对这些专家**永远不更新**（闭环失效）。
+
+    同时把 legacy 占位条目清掉——legacy 8 人已合并迁移（_migrate_legacy_experts
+    会删除其键），不参与 debate，也不应出现在校准库/胜率卡片中。
+
+    补齐后：debate 胜率卡片可渲染全部 8 位 active 专家（无历史显示
+    "样本不足"而非缺行），到期验证也能给这 3 位专家累计数据。
+    """
+    from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+
+    _ensure_loaded()  # EXPERT_REGISTRY 为惰性加载，直接 import 时为空
+    active_names = {n for n, p in EXPERT_REGISTRY.items() if p.active}
+    experts = {n: r for n, r in data.get("experts", {}).items() if n in active_names}
+    for name in active_names:
+        experts.setdefault(name, {"events": 0, "correct": 0, "last_updated": None})
+    data["experts"] = experts
+    return data
+
+
 def _load() -> dict:
     if _CALIBRATION_FILE.exists():
         try:
             data = json.loads(_CALIBRATION_FILE.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return _empty_data()
-        return _migrate_legacy_experts(data)
+        return _ensure_active_experts(_migrate_legacy_experts(data))
     return _empty_data()
 
 

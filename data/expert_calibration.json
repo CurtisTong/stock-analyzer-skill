@@ -47,6 +47,21 @@
       "events": 10,
       "correct": 2,
       "last_updated": "2026-06-16"
+    },
+    "momentum_trader": {
+      "events": 0,
+      "correct": 0,
+      "last_updated": null
+    },
+    "risk_manager": {
+      "events": 0,
+      "correct": 0,
+      "last_updated": null
+    },
+    "sector_specialist": {
+      "events": 0,
+      "correct": 0,
+      "last_updated": null
     }
   },
   "_meta": {

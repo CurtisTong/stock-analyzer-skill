@@ -124,16 +124,22 @@ def format_debate_output(result: dict) -> str:
             compute_calibration_factor,
             compute_group_calibration,
         )
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
 
         calibration = get_calibration()
-        has_data = any(v.get("events", 0) > 0 for v in calibration.values())
+        # 只渲染 active 专家（v1.23.1：校准库补齐 16 个占位条目后，
+        # 必须按 active 过滤——legacy 8 人不参与 debate，不显示在卡片）
+        _ensure_loaded()
+        active_names = {n for n, p in EXPERT_REGISTRY.items() if p.active}
+        card_items = [(n, r) for n, r in calibration.items() if n in active_names]
+        has_data = any(v.get("events", 0) > 0 for _, v in card_items)
         if has_data:
             lines.append("")
             lines.append("## 📊 专家校准胜率")
             lines.append("")
             lines.append("| 专家 | 事件数 | 正确数 | 胜率 |")
             lines.append("|------|--------|--------|------|")
-            for name, rec in calibration.items():
+            for name, rec in card_items:
                 events = rec.get("events", 0)
                 correct = rec.get("correct", 0)
                 rate = f"{correct/events:.0%}" if events > 0 else "样本不足"
