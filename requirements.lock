@@ -1,14 +1,19 @@
 # Auto-generated lockfile derived from pyproject.toml [project.dependencies]
 # + [project.optional-dependencies.*] (full set)
 # Generated: 2026-07-28 by docs/audit-2026-07-28.md §D-B Batch 1.5
+# v1.23.1: 运行时收紧为 stdlib + PyYAML（httpx/typing-extensions 移除，
+# requests 转 optional http 组，与 pyproject.toml 声明对齐）
 # Format: pip freeze-compatible
 
-# Core runtime
-httpx>=0.24
-requests>=2.31
-urllib3>=2.0
-typing-extensions>=4.0
+# Core runtime（仅 stdlib + PyYAML）
 PyYAML>=6.0
+
+# HTTP (optional): requests 增强，缺失时降级 stdlib http.client
+requests>=2.31
+urllib3>=2.0  # requests 传递依赖
+
+# Quote (optional)
+yfinance>=0.2
 
 # China data sources (optional)
 akshare>=1.12
@@ -16,9 +21,6 @@ efinance>=0.16
 tushare>=1.4
 baostock>=0.8
 pytdx>=1.64
-
-# Quote (optional)
-yfinance>=0.2
 
 # Analysis (optional)
 pandas>=2.0
@@ -30,4 +32,6 @@ pytest-xdist>=3.0
 pytest-timeout>=2.0
 pytest-cov>=4.0
 hypothesis>=6.0
+requests>=2.31  # 测试走 requests 增强路径
 respx>=0.21
+jsonschema>=4.0

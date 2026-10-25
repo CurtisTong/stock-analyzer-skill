@@ -13,13 +13,15 @@ requires-python = ">=3.11"
 # 解决时机：等上游 py_mini_racer 发布适配 3.19 的版本后，用户升级即可。
 
 [project.dependencies]
-# 运行时装载从 stdlib + 第三方 4 段独立维度声明。
-# 4 类分类与 data_source.yaml.optional_dependencies 保持一一对应。
-# 下面 4 项是 docs/audit-2026-07-28.md §D-B 推荐的明确运行依赖：
-httpx = ">=0.24"
+# 运行时仅需 stdlib + PyYAML（配置加载）——"零依赖"口径以本声明为准。
+# 其余 HTTP/行情/分析能力均为可选 extras（见下），缺失时代码自动降级：
+# requests 缺失时 common/http.py 走 stdlib http.client 兜底（能力降级不崩溃）；
+# 可选 SDK（akshare/efinance 等）缺失时对应 fetcher 自动不可用。
+PyYAML = ">=6.0"
+
+[project.optional-dependencies.http]
+# requests 可选增强：连接池复用 + 自动编码 + 重试；缺失时降级 stdlib http.client。
 requests = ">=2.31"
-urllib3 = ">=2.0"
-typing-extensions = ">=4.0"  # for Python 3.10 compatibility
 
 [project.optional-dependencies.quote]
 yfinance = ">=0.2"
@@ -41,8 +43,9 @@ pytest-xdist = ">=3.0"
 pytest-timeout = ">=2.0"
 pytest-cov = ">=4.0"
 hypothesis = ">=6.0"
-pyyaml = ">=6.0"
+requests = ">=2.31"  # 测试走 requests 增强路径（与 http extra 相同版本口径）
 respx = ">=0.21"
+jsonschema = ">=4.0"  # 合约测试（test_contracts_path）
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
