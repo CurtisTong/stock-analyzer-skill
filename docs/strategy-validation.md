@@ -26,21 +26,27 @@ total_return_pct > 0      # 累计收益为正
 
 ### 双池联合判定（v1.21.1）
 
-> ⚠️ **单池 OOS 结论受池构成影响极大，禁止单池升级**。实测：
+> ⚠️ **单池 OOS 结论受池构成影响极大，禁止单池升级**。实测（2026-08-26 复盘）：
 > 同一批策略在 55 只跨板块大票池 walk-forward OOS 全部为正（+25.7%~+29.2%），
 > 在 210 只 sector 池上全部为负（-31.7%~-44.5%）。选一个"对自己有利的池"
 > 即可刷出 oos_verified，单池验证无统计意义。
+>
+> 最新实测（2026-10-22，`data/strategy_oos_validation.json`）：balanced 双池
+> 均为负（large -1.68% / 胜率 42.9% / 50 只；default -4.64% / 35.7% / 55 只），
+> ma_volume_momentum 同样双双负收益（large -6.38% / 21.4%；default -16.06% /
+> 21.4%）——6 个策略当前全部保持 in_sample，与"立场默认怀疑"一致。
 
-`scripts/strategies/oos_validation.py:evaluate_multi_pool` 要求**每个池**都满足
-`evaluate_oos` 阈值才返回 `oos_verified`，任一池不达标即整体 `in_sample`，
-note 点名未达标池。
+`scripts/strategies/oos_validation.py:evaluate_multi_pool` 要求**至少 2 个池**
+且**每个池**都满足 `evaluate_oos` 阈值才返回 `oos_verified`（v1.23.1 起：单池
+一律 in_sample，杜绝"只跑一个对自己有利的池"刷验证），任一池不达标即整体
+`in_sample`，note 点名未达标池。
 
 ```bash
 # 每个池分别跑一次，结果按 pool_type 累积到 JSON 的 pools 嵌套结构
 python3 scripts/multi_stock_backtest.py --update-validation --pool-type default   # 全量 sector 池
 python3 scripts/multi_stock_backtest.py --update-validation --pool-type large     # 跨板块大票池
-# 双池联合判定：全部池达标才升级
-python3 scripts/multi_stock_backtest.py --update-validation --pool-type large --require-all-pools
+# 多池联合判定为默认行为（v1.23.1 起，无需 --require-all-pools）：
+# JSON 中已记录的全部池达标才升级 oos_verified，任一池未达标保持 in_sample
 ```
 
 JSON 结构：
@@ -60,12 +66,12 @@ JSON 结构：
 ```
 registry.STRATEGY_VALIDATION（git tracked）
     ↓ get_validation() 函数内合并
-data/strategy_oos_validation.json（git ignored, 运行时）
+data/strategy_oos_validation.json（git tracked，2026-10-22 起；此前文档误称 git ignored）
 ```
 
-- 删 JSON 文件 → 所有策略回落到 `in_sample`
+- 删 JSON 文件 → 所有策略回落到 `in_sample`（因文件被 git 跟踪，正确做法是 `git rm data/strategy_oos_validation.json`，提交后即回落）
 - 不写 JSON → `get_validation()` 永远返回 registry 默认值
-- 升级须显式 opt-in：`multi_stock_backtest.py --update-validation`
+- 升级 = 多池联合判定默认路径（v1.23.1 起）：`multi_stock_backtest.py --update-validation` 单池只记录，**≥2 个池且全部达标**才升级 oos_verified
 
 ## 重新校准时机
 
@@ -84,8 +90,7 @@ data/strategy_oos_validation.json（git ignored, 运行时）
 `scripts/strategy_performance.py record` 强制 **MIN_POOL_SIZE = 30**：股票池小于
 30 只直接拒绝记录（CLI 报错），不再产生小池记录。
 
-> 背景：历史 442 条自校准记录中 441 条在 ≤3 只小池上运行，6 策略指标完全相同
-> （胜率 26.6% / 收益 -9.79%），小池回测无区分度，自校准链从未真正工作。
+> 背景：472 条自校准记录中 470 条是 ≤3 只小池的**失败记录**（`strategies.*.error = "回测失败，无有效数据"`，无任何指标），仅 2 条有效基线（2026-06-27 pool_size=126、2026-08-27 pool_size=30）。小池回测无区分度，自校准链从未真正工作。
 
 ## CLAIM 与证据分离
 
@@ -97,8 +102,8 @@ data/strategy_oos_validation.json（git ignored, 运行时）
 
 **禁止**：
 
-- ❌ 写"71.4% 胜率"等 in_sample 数字（CLAIM 已修复，见 commit `57844b2`）
-- ❌ 写"3 分钟拿到 5 层分析"等 SLA 时长（CLAIM 已修复，见 commit `57844b2`）
+- ❌ 写"71.4% 胜率"等 in_sample 数字（71.4%/+6.39% 是 5 只股票样本内拟合，仅允许带 ⚠️ 样本内披露出现；README 从未写过此数字，相关去营销见 commit `57844b2`）
+- ❌ 写"3 分钟拿到 5 层分析"等 SLA 时长（CLAIM 已修复，见 commit `57844b2`；该 commit 仅移除 README "3 分钟"/"16 专家"营销文案，与 71.4% 无直接关系）
 - ❌ 写"16 份专家"等营销虚高（CLAIM 已修复，见 commit `dd96bf8`）
 
 ## 校验链路

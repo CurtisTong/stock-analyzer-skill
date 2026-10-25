@@ -82,7 +82,7 @@ scripts/
 - **BaseFetcher / DataFetcherManager** (`scripts/common/fetcher_base.py`): 数据源抽象基类 + 优先级故障转移管理器，集成 CircuitBreaker + RateLimiter（`common/__init__.py` 仅 re-export）
 - **CircuitBreaker** (`scripts/common/circuit_breaker.py`): 线程安全熔断器（closed/open/half-open）
 - **RateLimiter** (`scripts/common/rate_limiter.py`, 2026-07-21, v1.16.0 hardening): per-provider 并发信号量 + 429 指数退避；新增 `slot()` contextmanager 强制 try/finally 释放信号量（防 泄漏），新增 `is_provider_disabled()` 与 `CircuitBreaker` 编排（正交抑制）；模块级 helpers：`rate_limiter_slot()` / `is_provider_disabled()`
-- **silent_fallback** (`scripts/common/exceptions/silent_fallback.py`, v1.16.0): `log_silent_fallback()` 函数 + `@silent_fallback` 装饰器，对 11 处 HIGH/MEDIUM `except Exception:` 加显式 WARNING 日志（用 `extra={silent: True}` 便于 grep）
+- **silent_fallback** (`scripts/common/exceptions/silent_fallback.py`, v1.16.0): `log_silent_fallback()` 函数（共 18 处调用 / 12 文件），对 11 处 HIGH/MEDIUM `except Exception:` 加显式 WARNING 日志（用 `extra={silent: True}` 便于 grep；@silent_fallback 装饰器与 SilentFallbackError 未实现，不要引用）
 - **lint_silent_excepts** (`scripts/dev/lint_silent_excepts.py`, v1.16.0): CI 阻断 lint（默认 advisory，CI 用 `--strict` 启用 exit 1）
 - **异常体系** (`scripts/common/exceptions/__init__.py`): `StockAnalyzerError` → `DataError` / `BusinessError`
 - **ConfigLoader** (`scripts/config/loader.py`): YAML 配置加载器，支持点分路径访问和缓存
@@ -91,7 +91,7 @@ scripts/
   - FinanceRecord 数值字段 `Optional[float]=None`（2026-07-21），区分"未披露"与"真为 0"
   - FinanceMeta 携带元信息：source/fallback_source/periods/is_degraded/cache_hit
 - **策略注册表** (`scripts/strategies/registry.py`): 6 种内置策略（balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum）
-- **OOS 验证状态机** (`scripts/strategies/oos_validation.py` + `registry.py:STRATEGY_VALIDATION`): 双层架构——registry 默认值（git tracked，立场默认怀疑 in_sample）+ `data/strategy_oos_validation.json` 运行时覆盖。`get_validation(name)` 合并两层；升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0 → oos_verified。`scripts/multi_stock_backtest.py --update-validation` 跑完自动写 JSON。`scripts/screener.py:_emit_json_with_validation` 与 `scripts/backtest/cli.py:_attach_validation` 透传 `_validation_status / _validation_note / win_rate_pct / n_stocks` 到 JSON 输出。24 项单元测试覆盖于 `tests/unit/test_oos_validation.py`。详见 [docs/strategy-validation.md](docs/strategy-validation.md)。
+- **OOS 验证状态机** (`scripts/strategies/oos_validation.py` + `registry.py:STRATEGY_VALIDATION`): 双层架构——registry 默认值（git tracked，立场默认怀疑 in_sample）+ `data/strategy_oos_validation.json` 运行时覆盖。`get_validation(name)` 合并两层；升级阈值 n_stocks ≥ 30 + win_rate ≥ 50 + total_return > 0 → oos_verified。多池联合判定为默认路径（v1.23.1 起）：`--update-validation` 单池只记录该池，**≥2 个池且全部达标**才升级（`evaluate_multi_pool` 强制，单池一律 in_sample）。`scripts/screener.py:_emit_json_with_validation` 与 `scripts/backtest/cli.py:_attach_validation` 透传 `_validation_status / _validation_note / win_rate_pct / n_stocks` 到 JSON 输出。27 项单元测试覆盖于 `tests/unit/test_oos_validation.py`。详见 [docs/strategy-validation.md](docs/strategy-validation.md)。
 - **模式策略** (`scripts/strategies/patterns/`): MA10/MA21 金叉 + 放量 2.5x 组合策略（⚠️ 71.4% 胜率、+6.39% 平均收益为**样本内拟合**，5 只股票平均 59.7%，未经外样本验证）+ 三阴一阳战法
 - **专家系统** (`experts/`): 16 份投资专家人设（8 legacy active=False + 8 active=True；含合并型 `value_anchor` / `topic_leader` / `emotion_tech` / `value_institution`，补盲区 `sector_specialist` / `risk_manager`，v2.2.0 新增 `momentum_trader`）；人设配置在 `experts/yaml/*.yaml`，由 `registry.py` 注册；`decide.md` 决策整合规则 + `vote_engine.py` 投票整合
 
@@ -140,7 +140,7 @@ scripts/
 - **SKILL.md 版本同步**：`scripts/dev/sync_skill_test_versions.py` 扫描所有 `skills/*/SKILL.md` 的 `version:` 字段，自动构建 `VERSION_OVERRIDES` 同步到 `tests/contracts/test_skill_metadata_sync.py::EXPECTED_SKILLS`；`--check` 模式作为提交前门禁
 - **pre-commit hook**（`.pre-commit-config.yaml`）：`sync-skill-test-versions`（pre-commit stage）自动同步；`check-skill-test-versions`（pre-commit stage）作为提交前验证
 - **GitHub Action**（`.github/actions/setup-test/action.yml`）：CI 测试 job 在 `pip install` 之后跑 `sync_skill_test_versions.py`，确保 release workflow 的 test job 不会因版本漂移而阻塞 publish
-- **三处版本号同步**：`scripts/dev/sync_version.py` 同步 `pyproject.toml` + `package.json` + README badge，避免发版时手动三处修改
+- **版本号同步（8 个目标）**：`scripts/dev/sync_version.py` 以 `package.json` 为单一版本源，同步 `pyproject.toml` + `plugin.json` + `marketplace.json` + `skills/*/SKILL.md` + `methodology.md` + README badge/footer + `docs/product-architecture.md` + 测试常量，另校验 CHANGELOG 最新段（`--check` 门禁，v1.23.1 起）；避免发版时手动多处修改
 - **手动验证**：`python3 scripts/dev/sync_skill_test_versions.py --check`
 
 ## 开发约定
@@ -156,7 +156,7 @@ scripts/
 ### Skill 开发
 
 - Skill 定义在 `skills/<name>/SKILL.md`，包含 YAML frontmatter（`name`、`description` 必填；`version`、`model`、`allowed-tools`、`disable-model-invocation` 可选）+ markdown 指令；详细格式见 `docs/developer-guide.md`
-- 通过符号链接同步到 `.claude/skills/` 和 `.codex/skills/`（均指向 `skills/`）
+- 通过符号链接同步到 `.claude/skills/` 和 `.codex/skills/`（均指向 `skills/`；目录非 git-tracked，以 `install.sh` 为准——发现缺链接/悬空链接时直接重跑即修复，install.sh 含 [3/6] 链接完整性自检与残留清理）
 - SKILL.md 中的路径不要使用相对 `cd` 命令，Claude Code 从项目根目录运行
 
 ### Git

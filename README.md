@@ -202,7 +202,7 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 | 📅 **事件日历**           | `python3 scripts/events.py sh600519`                                           | 财报披露、限售解禁、分红一目了然，避免踩雷           |
 | 📋 **统一输出模板**       | 12 个 skill 自动生效——首行结论 + 尾行数据源 + 时间戳                           | 格式一致可复盘，每次输出都带数据来源和时间           |
 | 🔄 **校准数据同步**       | `python3 scripts/calibration_sync.py --auto`（依赖 gh CLI）                    | 跨设备同步专家校准数据，GitHub Gist 双向同步         |
-| 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示每位专家历史胜率，可信度透明         |
+| 🏆 **专家胜率卡片**       | `/stock sh600519 debate` 自动附加                                              | 辩论报告尾部显示 8 位 active 专家的历史胜率（无历史显示"样本不足"），可信度透明 |
 | 📊 **回测胜率附加**       | `/stock sh600519 --with-backtest`                                              | 分析报告附加近 60 日回测（胜率/收益/夏普/回撤）      |
 | 📚 **mdBook 文档站**      | 本地 `mdbook build docs`，含 [完整演练教程](docs/tutorials/walkthrough-600519.md) | 新人友好：搜索 + 章节导航 + 12 skill 串联实战        |
 | 🛡️ **自审计 CI**          | 提交 PR 自动运行                                                               | SKILL.md 与 settings.json 一致性自动检查，阻断不一致 |
@@ -279,25 +279,27 @@ python3 scripts/portfolio_web.py
 </details>
 
 <details>
-<summary><b>👥 16 份专家人设圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
+<summary><b>👥 8 位活跃专家圆桌示例</b> — <code>/stock 贵州茅台 debate</code></summary>
 
-![16 份专家人设圆桌 demo](docs/assets/stock-debate.gif)
+![8 位活跃专家圆桌 demo](docs/assets/stock-debate.gif)
+
+> 动图为早期 16 份人设版本；v2.4.0 起 debate 仅 8 位 active 专家参与（legacy 已合并入 active）。
 
 ```text
-🎤 16 份专家人设圆桌 · 贵州茅台 (sh600519)
+🎤 8 位活跃专家圆桌 · 贵州茅台 (sh600519)
 ═══════════════════════════════════════
 
 【长线阵营】
-🟢 巴菲特    8.5/10  "31% ROE + 永续护城河，长期可持有"
 🟢 林奇      7.5/10  "PEG 0.8，增长消化估值，buy"
 🟡 索罗斯    6.0/10  "趋势中性，等待量能确认"
-🟢 段永平    9.0/10  "本就该买，跌了更买"
+🟢 价值机构  8.5/10  "31% ROE + 永续护城河，长期可持有"
+🟢 行业专家  7.0/10  "白酒景气企稳，量价齐升"
+🟡 风控官    5.5/10  "仓位集中度偏高，建议分散"
 
 【短线阵营】
-🟡 徐翔      5.5/10  "无明显涨停基因，非首选"
-🔴 赵老哥    4.0/10  "趋势钝化，不在我射程"
-🟡 养家      6.0/10  "情绪温和，板块二线"
-🟢 作手新一  7.5/10  "回踩 1620 是教科书低吸点"
+🟡 题材龙头  5.0/10  "无明显涨停基因，非首选"
+🟢 情绪技术  7.5/10  "回踩 1620 是教科书低吸点"
+🔴 动量派    4.0/10  "趋势钝化，不在我射程"
 
 ─────────────────────────────────────
 🗳️ 最终投票：4 买入 · 3 观望 · 1 回避
@@ -598,14 +600,14 @@ scripts/
 
 | 特性                      | 说明                                      |
 | :------------------------ | :---------------------------------------- |
-| 🪶 **零 Python 外部依赖** | 仅 `urllib` + `json` + `pathlib` + `yaml` |
+| 🪶 **零 Python 外部依赖** | 仅 stdlib + `yaml`（PyYAML 配置加载；HTTP 走 stdlib `http.client`，requests 可选增强） |
 | 🔁 **多数据源故障转移**   | 单 API 挂掉自动切下家（集成熔断器 + RateLimiter）|
 | 🛡️ **429 限流防护**     | v1.16.0 全局 RateLimiter（per-provider 信号量 + 指数退避；contextmanager 强制 try/finally 防泄漏）|
 | 🏛️ **三层架构**           | API 层 → 业务层 → 数据层，职责清晰易扩展  |
 | 📊 **finance 域 ** | v1.16.0 重构：财报表 `Optional[float]=None` 化、`get_finance` 返 `(records, FinanceMeta)` tuple、主板/科创板/北交所差异化披露 |
 | ⚙️ **配置外部化**         | 行业阈值 / 评分权重 / 数据端点全部 YAML   |
-| 🔍 **可观测性提升**      | v1.16.0 silent_fallback：14 处 HIGH/MEDIUM 静默吞错加显式 WARNING 日志 |
-| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1720 测试，v1.20.2 实测）|
+| 🔍 **可观测性提升**      | v1.16.0 silent_fallback：11 处 HIGH/MEDIUM 静默吞错加显式 WARNING 日志（共 18 处调用；另有 ~105 处 advisory 低危） |
+| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1989 passed / 13 skipped，v1.23.1 实测离线）|
 
 📖 详见 [开发者指南](docs/developer-guide.md) 和 [产品架构](docs/product-architecture.md)。
 
@@ -791,7 +793,7 @@ MIT License © curtis
 
 ---
 
-**v1.23.1** · 2026-10-13 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.23.1** · 2026-10-19 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 
