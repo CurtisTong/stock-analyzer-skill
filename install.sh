@@ -26,7 +26,7 @@ CODEX_LOCAL="$PKG_ROOT/.codex/skills"
 # 12 个 skill（v1.17.0 移除 monitor，v1.20.0 起稳定）
 SKILLS=(stock stock-technical market sector portfolio portfolio-web portfolio-natural screener backtest research learn stock-help)
 
-echo "==> [1/5] 创建项目级 .claude/skills/ 链接 (Claude 项目级技能)"
+echo "==> [1/6] 创建项目级 .claude/skills/ 链接 (Claude 项目级技能)"
 mkdir -p "$CLAUDE_LOCAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -39,7 +39,7 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [2/5] 创建项目级 .codex/skills/ 链接 (Codex 项目级技能)"
+echo "==> [2/6] 创建项目级 .codex/skills/ 链接 (Codex 项目级技能)"
 mkdir -p "$CODEX_LOCAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -52,7 +52,40 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [3/5] 同步到 Claude 全局 skills: $CLAUDE_GLOBAL"
+echo "==> [3/6] 校验项目级链接完整性（12 个有效链接、无悬空）"
+check_links() {
+  local dir="$1"
+  local missing=0 dangling=0
+  for s in "${SKILLS[@]}"; do
+    if [ ! -L "$dir/$s" ]; then
+      echo "  ⚠ 缺失链接: $dir/$s"
+      missing=$((missing + 1))
+    elif [ ! -e "$dir/$s" ]; then
+      echo "  ⚠ 悬空链接: $dir/$s（目标不存在）"
+      dangling=$((dangling + 1))
+    fi
+  done
+  # 清理目录中的残留链接（旧 skill 如 monitor 移除后留下的悬空项）
+  for entry in "$dir"/*; do
+    [ -L "$entry" ] || continue
+    base=$(basename "$entry")
+    case " ${SKILLS[*]} " in
+      *" $base "*) ;;
+      *) echo "  🧹 清理残留链接: $entry"
+         rm -f "$entry" ;;
+    esac
+  done
+  if [ "$missing" -eq 0 ] && [ "$dangling" -eq 0 ]; then
+    echo "  ✓ $dir: ${#SKILLS[@]} 个链接全部有效"
+  else
+    echo "  ⚠ $dir: 缺失 $missing / 悬空 $dangling —— 请重跑 install.sh 或检查 skills/ 源目录"
+  fi
+}
+check_links "$CLAUDE_LOCAL"
+check_links "$CODEX_LOCAL"
+
+echo
+echo "==> [4/6] 同步到 Claude 全局 skills: $CLAUDE_GLOBAL"
 mkdir -p "$CLAUDE_GLOBAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -65,7 +98,7 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [4/5] 同步到 Codex 全局 skills: $CODEX_GLOBAL"
+echo "==> [5/6] 同步到 Codex 全局 skills: $CODEX_GLOBAL"
 mkdir -p "$CODEX_GLOBAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -78,7 +111,7 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [5/5] 初始化股票池"
+echo "==> [6/6] 初始化股票池"
 INIT_SCRIPT="$PKG_ROOT/scripts/init_pool.py"
 if command -v python3 &>/dev/null; then
   python3 "$INIT_SCRIPT"
