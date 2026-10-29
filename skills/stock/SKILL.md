@@ -170,7 +170,7 @@ python3 scripts/events.py sh600989 [--days 60] [-j]
 **全模式标准流程**：
 
 1. **获取大盘数据**判断市场环境（牛市/熊市/震荡/冰点/亢奋）：`python3 scripts/quote.py sh000001,sh510300 -j`
-2. **每位专家独立打分**：对照 `experts/<name>.md` §九 评分矩阵，用步骤1/3的数据在各维度打分（0-100）。**量化基线（推荐）**：一键 `python3 scripts/dev/experts_cli.py <code> [--long|--short] [-j]` 自动收集数据+跑专家；量化分与 LLM 推理分差异 >15 分需在报告中说明原因。多股对比用 `python3 scripts/dev/multi_fetch.py technical <codes>` 保留完整技术字段（勿用 `--quick`，无数值字段）。**弃权规则（v1.24.0）**：价量/财务/题材信号均不可得时，该专家输出方向=`弃权`（abstain=True）并注明原因，不得硬猜分数——弃权不计入投票基数。
+2. **每位专家独立打分**：对照 `experts/<name>.md` §九 评分矩阵，用步骤1/3的数据在各维度打分（0-100）。**量化基线（推荐）**：一键 `python3 scripts/dev/experts_cli.py <code> [--long|--short] [-j]` 自动收集数据+跑专家；量化分与 LLM 推理分差异 >15 分需在报告中说明原因。多股对比用 `python3 scripts/dev/multi_fetch.py technical <codes>` 保留完整技术字段（勿用 `--quick`，无数值字段）。**弃权规则（v1.24.0）**：价量/财务/题材信号均不可得时，该专家输出方向=`弃权`（abstain=True）并注明原因，不得硬猜分数——弃权不计入投票基数。**反思教训注入（v1.25）**：打分前先跑 `python3 scripts/calibration.py lessons --limit 2`，把每位专家的近几条错误教训注入其打分上下文（"你上轮在 X 股上预测看多但实际下跌，教训是……；本轮评分时注意该盲区"）——教训必须**影响该专家的 reason 措辞与分数**，而不是只在报告尾部罗列。
 3. **投票汇总**：按 `experts/decide.md` 规则——分组计票、市场环境调整权重、冲突解决（巴菲特否决警示：不改方向仅降信心、养家情绪降权）。
 4. **输出**：按 `decide.md` §四 格式——评分表 + 方向 + 风险 + 仓位，计算信心指数。
 5. **记录校准数据**：debate 完成后 `run_debate` 编排器（自动回灌校准因子 + 落库预测）或手动 `calibration.py record`；定期 `calibration.py verify/factor` + `calibration_backfill.py status` 验证到期预测。

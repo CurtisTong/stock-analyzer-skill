@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-10-29T14:25:13Z",
+    "generated_at": "2026-10-29T15:24:35Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 40,
     "version": "2",
@@ -361,6 +361,7 @@
         "--quiet",
         "-j",
         "--json",
+        "--limit",
         "--sources",
         "--no-cache",
         "--debug"
@@ -438,6 +439,14 @@
           "required": false,
           "action": "store_true",
           "help": "输出 JSON"
+        },
+        {
+          "flags": [
+            "--limit"
+          ],
+          "required": false,
+          "type": "int",
+          "help": "每位专家最多显示的教训条数（默认全部）"
         },
         {
           "flags": [

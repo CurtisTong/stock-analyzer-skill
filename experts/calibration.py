@@ -799,6 +799,32 @@ def compute_group_calibration(group: str) -> float:
     return max(-1.0, min(1.0, (factor - 0.5) * 2))
 
 
+def get_lessons(limit: int | None = None) -> Dict[str, list]:
+    """获取各专家的反思教训（供 debate 打分环节注入，v1.25）。
+
+    v1.24.0 落地了反思记忆，但教训只被 decide.py 在**投票后**挂到结果里
+    渲染——从未进入打分环节。真正的回流需要打分前就能取到教训：
+    SKILL.md Step 4 在逐位专家打分前调用本函数（或 `calibration.py lessons`），
+    把该专家的近几条错误教训注入其打分上下文。
+
+    Args:
+        limit: 每位专家最多返回的教训条数（None = 全部保留的）
+
+    Returns:
+        {expert_name: [lesson dict, ...]}（仅含**有教训**的专家）
+    """
+    calibration = get_calibration()
+    out: Dict[str, list] = {}
+    for name, rec in calibration.items():
+        lessons = rec.get("lessons") or []
+        if not lessons:
+            continue
+        picked = lessons[-limit:] if limit else lessons
+        if picked:
+            out[name] = list(picked)
+    return out
+
+
 __all__ = [
     "record_prediction",
     "verify_predictions",
@@ -808,6 +834,7 @@ __all__ = [
     "compute_group_calibration",
     "get_kline_return",
     "get_calibration_report",
+    "get_lessons",
     "MIN_CALIBRATION_SAMPLES",
     "EXPERT_HORIZON_DAYS",
     "DEFAULT_HORIZON_DAYS",
