@@ -205,6 +205,14 @@ limit_up_sources:
     timeout: 10
     retry: 2
 
+# 新股日历数据源配置
+ipo_sources:
+  eastmoney:
+    priority: 5
+    enabled: true
+    timeout: 10
+    retry: 2
+
 # 熔断器配置
 circuit_breaker:
   failure_threshold: 5

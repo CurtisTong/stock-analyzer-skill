@@ -30,7 +30,7 @@ done
 ## 脚本清单
 
 <!-- BEGIN GENERATED: python3 scripts/dev/gen_script_catalog.py -->
-> 38 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
+> 39 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
 
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|
@@ -51,6 +51,7 @@ done
 | `python3 scripts/indicator_env_backtest.py` | 指标信号 × 市场环境 条件回测（逐日重放，与 technical 模块同源） | --codes、--datalen、--output、--json-out |
 | `python3 scripts/industry_beta.py` | 个股 beta 系数计算（v2.6.0 新增） | -j、--index、--window |
 | `python3 scripts/init_pool.py` | 首次安装初始化脚本 — 为每个板块拉取前 20 只股票 | -j、--force、--top、--default、--full-market |
+| `python3 scripts/ipo_calendar.py` | 新股/新债日历查询 | -j、--days |
 | `python3 scripts/kline.py` | K 线数据查询（多数据源自动切换） | -j、--days |
 | `python3 scripts/limit_up.py` | 涨停池与涨停原因归因查询 | -j、--date |
 | `python3 scripts/macro_indicators.py` | 宏观指标获取模块（v2.5.x 新增） | -j |
