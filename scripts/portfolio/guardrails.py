@@ -19,6 +19,17 @@ DEFAULT_CONSECUTIVE_LOSSES = 3  # 连亏 3 笔熔断
 DEFAULT_COOLDOWN_DAYS = 10  # 同票清仓后 10 个自然日冷却
 
 
+def _sort_trades_newest_first(trades: list[dict]) -> list[dict]:
+    """按卖出日期排序，最新在前。
+
+    TradeLog.query() 返回的是降序（最新在前，trade_log.py:196），而
+    本模块原实现用 reversed() 假设升序——同一批交易在两种顺序下结论相反
+    （连亏计数 2 vs 0、冷却期取到最老的一笔）。这里统一按日期降序，
+    不依赖调用方的顺序约定。
+    """
+    return sorted(trades, key=lambda t: t.get("sell_date", "") or "", reverse=True)
+
+
 def check_max_drawdown(
     equity_points: list[float],
     threshold_pct: float = DEFAULT_DRAWDOWN_PCT,
@@ -26,7 +37,7 @@ def check_max_drawdown(
     """回撤熔断：从权益序列峰谷计算当前回撤。
 
     Args:
-        equity_points: 权益/利润序列（时间顺序）
+        equity_points: 权益序列（时间顺序，绝对金额口径）
         threshold_pct: 熔断阈值（%）
 
     Returns:
@@ -39,10 +50,17 @@ def check_max_drawdown(
     for v in equity_points:
         if v > peak:
             peak = v
+        # 分母为峰值权益。峰值 <= 0（亏损账户，权益为负）时不能用 peak 做分母，
+        # 否则回撤恒为 0——"账户越亏越不会熔断"，方向完全反了。
+        # 负权益段改用绝对值口径衡量权益的进一步恶化。
         if peak > 0:
             dd = (peak - v) / peak * 100
-            if dd > max_dd:
-                max_dd = dd
+        elif peak < 0:
+            dd = (peak - v) / abs(peak) * 100
+        else:
+            dd = 0.0
+        if dd > max_dd:
+            max_dd = dd
     triggered = max_dd >= threshold_pct
     return {
         "triggered": triggered,
@@ -63,7 +81,7 @@ def check_consecutive_losses(
     if not trades:
         return None
     recent = 0
-    for t in reversed(trades):
+    for t in _sort_trades_newest_first(trades):
         if t.get("profit_pct", 0) < 0:
             recent += 1
         else:
@@ -88,7 +106,7 @@ def check_cooldown(
 ) -> Optional[dict]:
     """冷却期：该股最近清仓后是否仍在冷却窗口内。"""
     today = today or datetime.now().strftime("%Y-%m-%d")
-    for t in reversed(trades):
+    for t in _sort_trades_newest_first(trades):
         if t.get("code") != code:
             continue
         sell_date = t.get("sell_date", "")[:10]
@@ -115,13 +133,16 @@ def check_protections(
     trades: list[dict],
     position_pnl_pct: Optional[float] = None,
     cooldown_codes: Optional[list[str]] = None,
+    initial_capital: Optional[float] = None,
 ) -> dict:
     """聚合三件套检查（供 portfolio health 渲染）。
 
     Args:
-        trades: TradeLog records 列表（时间序）
+        trades: TradeLog records 列表（顺序不限，内部按 sell_date 排序）
         position_pnl_pct: 当前持仓整体盈亏%（并入回撤视角，简单口径）
         cooldown_codes: 需要检查冷却期的代码列表（如持仓/自选）
+        initial_capital: 账户初始资金（回撤按权益口径计算时需要；
+            缺省时退化为累计利润口径）
 
     Returns:
         {"drawdown": ..., "losses": ..., "cooldowns": {...},
@@ -129,12 +150,14 @@ def check_protections(
     """
     result: dict = {}
 
-    # 回撤：累计清仓利润序列（无持仓 pnl 时）
+    # 回撤：权益曲线（初始资金 + 累计清仓利润）。
+    # 原实现直接累加"利润"当权益，峰值 <= 0（亏损账户）时回撤恒为 0，
+    # 账户越亏越不会熔断——方向完全反了。有初始资金时用权益口径。
     equity = []
     acc = 0.0
-    for t in trades:
+    for t in sorted(trades, key=lambda x: x.get("sell_date", "") or ""):
         acc += t.get("profit", 0.0)
-        equity.append(acc)
+        equity.append((initial_capital + acc) if initial_capital else acc)
     dd = check_max_drawdown(equity) if equity else None
     result["drawdown"] = dd
 

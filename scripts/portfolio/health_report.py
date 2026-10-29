@@ -212,6 +212,38 @@ def _read_regime_state() -> dict:
     return result
 
 
+def _fetch_protections(positions: list, initial_capital: float | None) -> dict:
+    """计算组合保护机制三件套（回撤熔断/连亏熔断/冷却期）。
+
+    v1.24.0 落地了 guardrails 模块但从未接入任何生产路径——用户在
+    /portfolio 看不到任何保护提示。此处接入 health_report：
+    交易日志缺失时返回空 dict（无历史 ≠ 安全，只是无数据）。
+
+    Args:
+        positions: 当前持仓（用于冷却期代码检查）
+        initial_capital: 账户初始资金（回撤按权益口径计算时需要）
+
+    Returns:
+        guardrails.check_protections 的输出；无交易记录时返回 {}
+    """
+    try:
+        from portfolio.guardrails import check_protections
+        from portfolio.trade_log import TradeLog
+
+        trades = TradeLog().query()
+        if not trades:
+            return {}
+        cooldown_codes = [p.get("code", "") for p in positions if p.get("code")]
+        return check_protections(
+            trades,
+            cooldown_codes=cooldown_codes,
+            initial_capital=initial_capital or None,
+        )
+    except Exception as e:  # 保护机制是附加信息，失败不应影响健康报告主体
+        logger.debug("保护机制检查失败: %s", e)
+        return {}
+
+
 def _fetch_technical_features(positions: list, quotes_map: dict, kline_datalen: int = 60) -> dict:
     """批量调用 technical.py 拉取持仓技术特征（H1 集成）。
 
@@ -500,6 +532,10 @@ def health_report(
     else:
         screener_hint = "暂无持仓数据，screener 联动待定"
 
+    # 保护机制三件套（回撤熔断/连亏熔断/冷却期）——v1.24.0 落地但未接线，
+    # 此处接入：交易日志缺失时静默跳过（无历史不代表安全，只是无数据）。
+    protections = _fetch_protections(positions, total_cost)
+
     # M8 risk_rating 改自然语言摘要
     warnings = list(concentration.get("warnings", []))
     if breakdown_positions:
@@ -507,6 +543,8 @@ def health_report(
             0,
             f"⚠️ {len(breakdown_positions)} 只标的破位：" f"{', '.join(r['name'] for r in breakdown_positions)}",
         )
+    if protections and not protections.get("all_clear", True):
+        warnings.append(f"🛡️ {protections.get('summary', '保护机制触发')}")
     if not warnings:
         risk_rating = "组合处于安全区间"
     else:
@@ -549,6 +587,7 @@ def health_report(
         "regime": regime_info,
         "regime_hint": regime_hint,
         "screener_hint": screener_hint,
+        "protections": protections,
         "position_ratio": manager.compute_total_position_ratio(
             {
                 code: float(q.get("price", 0) or 0)
@@ -638,6 +677,23 @@ def health_report_markdown(report: dict) -> str:
         # 行情缺失
         lines.append(f"总成本 {totals.get('cost', 0):,.0f} | " f"总市值 ⚠️ 行情缺失 | 总盈亏 ⚠️ 行情缺失")
     lines.append("")
+
+    # 保护机制三件套（回撤熔断/连亏熔断/冷却期）
+    protections = report.get("protections") or {}
+    if protections:
+        lines.append("### 🛡️ 保护机制")
+        lines.append("")
+        dd = protections.get("drawdown") or {}
+        losses = protections.get("losses") or {}
+        if dd.get("message"):
+            emoji = "🔴" if dd.get("triggered") else "🟢"
+            lines.append(f"- {emoji} 回撤熔断: {dd['message']}")
+        if losses.get("message"):
+            emoji = "🔴" if losses.get("triggered") else "🟢"
+            lines.append(f"- {emoji} 连亏熔断: {losses['message']}")
+        for code, c in (protections.get("cooldowns") or {}).items():
+            lines.append(f"- 🔴 冷却期: {c.get('message', code)}")
+        lines.append("")
 
     # 破位独立汇总（如果存在）
     breakdown = report.get("breakdown_positions", [])
