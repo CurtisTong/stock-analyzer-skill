@@ -267,6 +267,21 @@ class DataFetcherManager:
         # _last_error 用 threading.Lock 保护读写，单例共享场景下避免跨线程竞争
         self._last_error: Exception | None = None
         self._last_error_lock = threading.Lock()
+        # v1.24.0 数据血缘：最近一次 fetch 的降级事件链
+        # [{"provider": str, "name": str, "event": "429|error|not_handled|empty", "detail": str}, ...]
+        self._fallback_chain: list[dict] = []
+        self._fallback_chain_lock = threading.Lock()
+
+    @property
+    def last_fallback_chain(self) -> list:
+        """最近一次 fetch 的降级事件链（只读副本）。"""
+        with self._fallback_chain_lock:
+            return list(self._fallback_chain)
+
+    def _record_fallback(self, provider: str, name: str, event: str, detail: str = "") -> None:
+        """记录一次降级事件（数据血缘：谁失败、为什么切）。"""
+        with self._fallback_chain_lock:
+            self._fallback_chain.append({"provider": provider, "name": name, "event": event, "detail": detail})
 
     @property
     def last_error(self) -> Exception | None:
@@ -309,6 +324,8 @@ class DataFetcherManager:
         if not code or not _SAFE_CODE_PATTERN.match(str(code)):
             return None
         self._set_last_error(None)
+        with self._fallback_chain_lock:
+            self._fallback_chain = []
 
         # 延迟导入避免循环依赖（fetcher_base → rate_limiter 不存在反向依赖）
         from common.rate_limiter import get_rate_limiter, is_provider_disabled
@@ -342,12 +359,14 @@ class DataFetcherManager:
                     fetcher.on_success()
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
+                self._record_fallback(fetcher.provider, fetcher.name, "empty", "无数据")
             except RateLimitError as e:
                 # 429 退避 + 重试主源一次，避免被切到数据更少的次源
                 self._set_last_error(e)
                 if fetcher.provider not in retried_429:
                     retried_429.add(fetcher.provider)
                     limiter.mark_429(fetcher.provider)
+                    self._record_fallback(fetcher.provider, fetcher.name, "429", str(e))
                     logger.debug(
                         "fetcher %s 触发 429，退避后重试主源: %s",
                         fetcher.name,
@@ -372,10 +391,12 @@ class DataFetcherManager:
                 # P2-H2(common): 4xx 业务错误（如 404 数据不存在）不计入熔断，
                 # 直接换下一个源尝试，避免误熔断数据源
                 self._set_last_error(e)
+                self._record_fallback(fetcher.provider, fetcher.name, "http_error", str(e))
                 continue
             except Exception as e:
                 fetcher.on_failure()
                 self._set_last_error(e)
+                self._record_fallback(fetcher.provider, fetcher.name, "error", str(e))
                 continue
         return None
 

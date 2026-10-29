@@ -81,6 +81,22 @@ def _reset_fetchers():
         _finance_manager = None
 
 
+def get_last_fallback_chain(domain: str = "quote") -> list:
+    """最近一次 fetch 的降级事件链（数据血缘，v1.24.0）。
+
+    domain: quote/kline/finance。空链 = 本轮无降级（主源直连）。
+    用于输出尾部展示"谁失败、为什么切"，比单纯最终源名更可追溯。
+    """
+    try:
+        _load_fetchers()
+        manager = {"quote": _quote_manager, "kline": _kline_manager, "finance": _finance_manager}.get(domain)
+        if manager is not None:
+            return manager.last_fallback_chain
+    except Exception:
+        pass
+    return []
+
+
 def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     """获取单只股票行情。"""
     _load_fetchers()

@@ -204,3 +204,31 @@ class TestCommandsContract:
         names = {c["name"] for c in data["commands"]}
         for core in ("stock", "screener", "backtest", "portfolio_correlation", "cb", "ipo_calendar"):
             assert core in names, f"契约缺核心命令 {core}"
+
+
+class TestFallbackChainBloodline:
+    """v1.24.0 数据血缘：降级事件链拼接。"""
+
+    def test_chain_appended_to_sources(self, monkeypatch):
+        from business import stock_analysis
+
+        def _fake_chain(domain="quote"):
+            return [
+                {"provider": "sina", "name": "SinaQuoteFetcher", "event": "429", "detail": "限流"},
+                {"provider": "xueqiu", "name": "XueqiuQuoteFetcher", "event": "empty", "detail": "无数据"},
+            ]
+
+        monkeypatch.setattr("data.get_last_fallback_chain", _fake_chain)
+        result = {"data_sources": ["行情[tencent]"]}
+        stock_analysis._attach_fallback_details(result, "quote")
+        assert "降级链" in result["data_sources"][0]
+        assert "429" in result["data_sources"][0]
+        assert "empty" in result["data_sources"][0]
+
+    def test_empty_chain_no_append(self, monkeypatch):
+        from business import stock_analysis
+
+        monkeypatch.setattr("data.get_last_fallback_chain", lambda domain="quote": [])
+        result = {"data_sources": ["行情[tencent]"]}
+        stock_analysis._attach_fallback_details(result, "quote")
+        assert "降级链" not in result["data_sources"][0]

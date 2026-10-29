@@ -19,6 +19,27 @@ from classifier import profile_stock
 
 logger = logging.getLogger(__name__)
 
+
+def _attach_fallback_details(result: dict, domain: str) -> None:
+    """拼接降级事件链到血缘行（v1.24.0 数据血缘增强）。
+
+    主源直连时链为空（无附加）；有降级时以
+    "（sina 429 → xueqiu 无数据 → tencent 命中）"形式附在域源名后，
+    让"切了哪个源、为什么切"可追溯（对标 OpenBB 凭证级 fallback
+    之上的运行时降级可视）。
+    """
+    try:
+        from data import get_last_fallback_chain
+
+        chain = get_last_fallback_chain(domain)
+        if chain:
+            parts = [f"{c['name'].replace('_', ' ')} {c['event']}" for c in chain if c.get("name")]
+            if parts and result["data_sources"]:
+                result["data_sources"][-1] += "（降级链: " + " → ".join(parts) + "）"
+    except Exception:
+        pass
+
+
 # 缠论分析最少需要 30 根 K 线
 _MIN_KLINE_DAYS = 30
 
@@ -118,6 +139,8 @@ def _analyze(
             # 透传真实数据源名（如 行情[tencent]），便于追溯数据质量问题
             src = getattr(quote, "source", "")
             result["data_sources"].append(f"行情[{src}]" if src else "行情")
+            # v1.24.0 数据血缘：拼降级事件链（谁失败、为什么切）
+            _attach_fallback_details(result, "quote")
     try:
         kline = f_kline.result(timeout=30)
     except Exception as e:
@@ -130,6 +153,7 @@ def _analyze(
             # 取最后一根 bar 的 source 代表整条 K 线数据来源
             src = getattr(kline[-1], "source", "") if kline else ""
             result["data_sources"].append(f"K线[{src}]" if src else "K线")
+            _attach_fallback_details(result, "kline")
     try:
         # (2026-07-21): get_finance 返回 (records, FinanceMeta) tuple
         finance_result = f_finance.result(timeout=45) if f_finance else None
@@ -147,6 +171,7 @@ def _analyze(
             # 透传财务数据源名
             src = getattr(finance[0], "source", "") if finance else ""
             result["data_sources"].append(f"财务[{src}]" if src else "财务")
+            _attach_fallback_details(result, "finance")
     # 大盘指数行情（不再用个股 quote 当指数 quote）
     index_quote = None
     try:
