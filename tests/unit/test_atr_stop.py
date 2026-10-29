@@ -68,9 +68,15 @@ class TestAtrStopLoss:
         assert atr_stop < fixed_stop
 
     def test_atr_stop_triggers_stop_loss(self):
-        """入场后大跌触及 ATR 止损线 → stop_loss。"""
+        """入场后大跌触及 ATR 止损线 → stop_loss。
+
+        注意 hold K 的收盘 9.5 高于理论跌停价（10.5×0.9=9.45）：
+        跌停价是当日可成交的最低价，收盘低于它属于不可能的行情。
+        （v1.24.0 复审修复：跌停日出场顺延，收盘价触及/低于跌停价时
+        该日不可成交，不会触发止损。）
+        """
         hist = _flat_bars(14) + [_Bar(10, 11.9, 9, 10.5)]
-        hold = [_Bar(10.5, 10.6, 9.0, 9.2)]
+        hold = [_Bar(10.5, 10.6, 9.0, 9.5)]
         bars = hist + hold
         ret, day, reason = _calc_return_with_stop_loss(bars, len(hist) - 1, 5, atr_multiplier=2.0)
         assert reason == "stop_loss"
@@ -81,14 +87,18 @@ class TestAtrStopLoss:
 
         回归：原实现 return stop_loss（-8%），而 ATR 止损价可宽于 -8%，
         返回固定值会少报亏损、高估回测收益。
+
+        数据约束（v1.24.0 复审修复后）：收盘价必须高于当日理论跌停价
+        （前收 10.0 → 跌停价 9.00）。跌停日无法成交，出场顺延，
+        因此当日触及止损也不会成交——这正是修复要还原的真实规则。
         """
-        # 16 根 ±10% 波动历史：bars[:15] 满足 period+1=15，ATR 才真正计算
-        hist = [_Bar(10, 11, 9, 10) for _ in range(16)]  # 每根 TR=2 → ATR=2
+        # 16 根 TR=0.5 的历史：bars[:15] 满足 period+1=15，ATR 真正计算
+        hist = [_Bar(10, 10.5, 9.5, 10) for _ in range(16)]  # 每根 TR=0.5 → ATR=0.5
         entry = 10.0
         atr = _calc_atr(hist)
-        stop_price = entry - 2 * atr  # 10 - 4 = 6.0，宽于固定 -8%
+        stop_price = entry - 2 * atr  # 10 - 1 = 9.0，宽于固定 -8%
         assert stop_price < entry * 0.92  # 确认 ATR 止损确实更宽
-        hold = [_Bar(10, 10.5, stop_price - 0.1, 6.2)]  # low 触及止损价
+        hold = [_Bar(10, 10.2, stop_price - 0.1, 9.1)]  # low 触及止损价，收盘高于跌停价
         ret, day, reason = _calc_return_with_stop_loss(hist + hold, 15, 5, atr_multiplier=2.0)
         assert reason == "stop_loss"
         assert day == 1

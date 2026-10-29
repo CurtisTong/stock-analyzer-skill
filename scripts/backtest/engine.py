@@ -539,7 +539,7 @@ def _calc_return_with_stop_loss(
         # 跌停日卖不出：A 股跌停封死时无法成交，出场必须顺延到下一个
         # 可交易日（与买入侧"涨停拒单"对称）。否则跌停日会被记为正常平仓，
         # 系统性高估回测收益。
-        if _is_limit_or_suspended(bars, idx, code):
+        if _is_limit_down(bars, idx, code):
             continue
         # 移动止盈：更新最高价（收盘确认），回撤超过 trailing_pct 即卖出
         if trailing_pct is not None:
@@ -569,7 +569,7 @@ def _calc_return_with_stop_loss(
     # 未触发止损止盈，持有到期，用末日收盘价
     # 若末日跌停无法卖出，顺延到之后第一个可交易日的收盘价
     exit_idx = min(start + holding_days, len(bars) - 1)
-    while exit_idx < len(bars) - 1 and _is_limit_or_suspended(bars, exit_idx, code):
+    while exit_idx < len(bars) - 1 and _is_limit_down(bars, exit_idx, code):
         exit_idx += 1
     exit_price = bars[exit_idx].close
     ret = (exit_price - entry_price) / entry_price
@@ -638,6 +638,24 @@ def _limit_price(prev_close: float, ratio: float, up: bool = True) -> float:
     base = Decimal(str(prev_close))
     factor = Decimal("1") + Decimal(str(ratio)) if up else Decimal("1") - Decimal(str(ratio))
     return float((base * factor).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
+def _is_limit_down(bars, idx, code="") -> bool:
+    """判断指定日期是否跌停（收盘触及理论跌停价）。
+
+    独立于 _is_limit_or_suspended：出场路径只需要"跌停卖不出"这一个信号，
+    不涉及成交量/停牌判定（部分测试用的 K 线结构没有 volume 字段）。
+    """
+    if idx <= 0 or idx >= len(bars):
+        return False
+    bar = bars[idx]
+    prev = bars[idx - 1]
+    prev_close = prev.close if hasattr(prev, "close") else prev.get("close", 0)
+    bar_close = bar.close if hasattr(bar, "close") else bar.get("close", 0)
+    if prev_close <= 0 or bar_close <= 0:
+        return False
+    limit_down_price = _limit_price(prev_close, _limit_ratio(code), up=False)
+    return bar_close <= limit_down_price + 1e-6
 
 
 def _is_limit_or_suspended(bars, idx, code=""):
