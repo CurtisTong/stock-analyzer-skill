@@ -208,3 +208,43 @@ class TestTwoGroupBoundaryMatrix:
         # avg = (62 + 39) / 2 = 50.5 → 中性，仓位 0.5
         assert r["direction"] == "中性"
         assert r["position_factor"] == 0.5
+
+
+class TestPositionClamp:
+    """v1.24.0 确定性仓位钳制层（ai-hedge-fund risk/limits 思路）。"""
+
+    def test_above_cap_is_clamped(self):
+        from experts.vote_engine import _clamp_position, POSITION_CAP_SINGLE_STOCK
+
+        r = _clamp_position(30, "强烈看多", 80)
+        assert r["position_pct"] == POSITION_CAP_SINGLE_STOCK * 100
+        assert r["clamped"] is True
+        assert len(r["events"]) == 1
+        assert "钳制" in r["events"][0]
+
+    def test_below_cap_untouched(self):
+        from experts.vote_engine import _clamp_position
+
+        r = _clamp_position(15, "看多", 60)
+        assert r["position_pct"] == 15
+        assert r["clamped"] is False
+        assert r["events"] == []
+
+    def test_aggregate_clamps_high_confidence(self):
+        """极高信心 + 看多 → 建议仓位被钳制到 20% 并带审计。"""
+        from experts.vote_engine import aggregate_votes, POSITION_CAP_SINGLE_STOCK
+
+        expert_results = [
+            _make_expert("value_institution", 95),
+            _make_expert("growth_institution", 95),
+            _make_expert("industry_specialist", 95),
+            _make_expert("risk_manager", 95),
+            _make_expert("fundamental_analyst", 95),
+            _make_expert("momentum_trader", 95),
+            _make_expert("yangjia", 95),
+            _make_expert("technical_trader", 95),
+        ]
+        result = aggregate_votes(expert_results, horizon="long")
+        assert result["position"]["position_pct"] == POSITION_CAP_SINGLE_STOCK * 100
+        assert "clamp_events" in result
+        assert "钳制" in result["clamp_events"][0]

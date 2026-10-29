@@ -391,6 +391,45 @@ def _compute_position(direction: str, confidence: float, position_factor: float)
 
 
 # ═══════════════════════════════════════════════════════════════
+# 确定性风险钳制层 (v1.24.0, ai-hedge-fund risk/limits 思路)
+# 　"Conviction requests, risk disposes"：LLM（专家圆桌）只提建议，
+# 　仓位上限由确定性代码硬钳制并留审计事件，防止乐观打分直接给出
+# 　不设上限的满仓建议。
+# ═══════════════════════════════════════════════════════════════
+
+# 硬性上限：方向可用于建仓的绝对仓位上限（单个股）
+POSITION_CAP_BULL = 0.8  # 强看多 80%
+POSITION_CAP_CAUTIOUS = 0.5  # 谨慎看多 50%
+POSITION_CAP_NEUTRAL = 0.3  # 中性 30%
+# 组合集中度上限：单只个股占组合比例（portfolio skill 层遵守）
+POSITION_CAP_SINGLE_STOCK = 0.2  # 20%
+
+
+def _clamp_position(position_pct: int, direction: str, confidence: float) -> dict:
+    """确定性仓位钳制（含审计事件）。
+
+    仅执行上限钳制（下限/仓位分配交给用户），与 _compute_position 的
+    建议结果叠加：position_pct 是"占组合比例"的百分比，因此按
+    单股集中度上限 POSITION_CAP_SINGLE_STOCK 钳制。
+
+    Returns:
+        {"position_pct": int, "clamped": bool, "events": [str, ...]}
+    """
+    cap = int(POSITION_CAP_SINGLE_STOCK * 100)  # 20%
+    original = position_pct
+    events: list = []
+
+    if position_pct > cap:
+        position_pct = cap
+        events.append(
+            f"确定性钳制：仓位 {original}% > 单股上限 {cap:.0f}% → {position_pct}% "
+            f"（ai-hedge-fund risk/limits：ML/专家建议受硬限额约束）"
+        )
+
+    return {"position_pct": position_pct, "clamped": bool(events), "events": events}
+
+
+# ═══════════════════════════════════════════════════════════════
 # 主入口：投票整合
 # ═══════════════════════════════════════════════════════════════
 
@@ -709,13 +748,19 @@ def aggregate_votes(
     # 仓位建议
     position = _compute_position(direction, confidence, position_factor)
 
+    # v1.24.0 确定性钳制：单股仓位硬上限（20%），审计事件进 clamp_events
+    clamp = _clamp_position(position["position_pct"], direction, confidence)
+    if clamp["clamped"]:
+        position["position_pct"] = clamp["position_pct"]
+        position["recommendation"] = f"{position['recommendation']}（被钳制至单股上限）"
+
     # 风险提示
     risk_notes = []
     for r in expert_results:
         if r["score"] <= 39:
             risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
 
-    return {
+    result = {
         "market_state": mkt,
         "long_weight": lw,
         "short_weight": sw,
@@ -732,6 +777,9 @@ def aggregate_votes(
         "risk_notes": risk_notes,
         "notes": notes,
     }
+    if clamp["events"]:
+        result["clamp_events"] = clamp["events"]
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════
