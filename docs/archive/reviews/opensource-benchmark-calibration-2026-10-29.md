@@ -118,6 +118,16 @@
 
 ### P0（低成本高确定性，建议 v1.24.0 落地）
 
+> **实施记录（2026-10-29，同日完成）**：七项全部落地——
+> ① horizon 分桶 `experts/calibration.py`（commit 4003254）；
+> ② 样本数强制 `experts/formatter.py`（df9ac6d）；
+> ③ 最低佣金 `backtest/engine.py`（a36674d）；
+> ④ 过拟合诊断 `backtest/cli.py` + `metrics.py`（7f455c6）；
+> ⑤ pytdx 降级 `data_source.yaml`（随并行 commit 57099e1 入库）；
+> ⑥ 新数据域 `fetchers/block_trade/` + `fetchers/limit_up/` + CLI（506b52f、ce71d51）；
+> ⑦ 缺值填 0 修复 `screening_service.py`（666ef2b）。
+> 全量测试 2082 passed / 13 skipped（基线 1989）。版本号未 bump，发版时 `sync_version --version 1.24.0`。
+
 1. **专家 horizon 分桶结算**：校准从统一 30 天改为按专家角色分窗（长线 120 日/短线 5-10 日/行业 60 日）——`experts/calibration.py` + verify 调度。
 2. **胜率卡片样本数强制**：n<10 显示「样本不足」，分离弃权/未结算。
 3. **回测最低佣金 5 元**：engine 成本模型一行。
