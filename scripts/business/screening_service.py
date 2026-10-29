@@ -608,6 +608,10 @@ def normalize_factors_batch(
     解决问题：Z-score 的均值/标准差受极值影响，在 5000 只股票截面上
     个别财务异常股会压缩大多数股票的分差，导致区分度不足。
 
+    缺失值处理（v1.24.0）：缺 key 或值为 None（dividend/dcf/cyclical 数据
+    不足时因子返回 None）不参与分布统计，归一化后统一填中性 50——与
+    compute_weighted_score 的缺失兜底口径一致，避免缺值股被排到最低分位。
+
     Args:
         parts_list: 候选股因子 dict 列表
 
@@ -625,29 +629,34 @@ def normalize_factors_batch(
     n = len(parts_list)
     use_quantile = n >= 30  # 大样本用分位数，小样本用 MAD
 
-    # 预计算每个因子的值序列
-    factor_values = {k: [p.get(k, 0) for p in parts_list] for k in keys}
+    # 缺失值（缺 key 或值为 None，如 dividend/dcf 数据不足时因子返回 None）
+    # 不参与分布统计，归一化后填中性 50 —— 与 compute_weighted_score 的
+    # "缺失因子按 50 处理"口径一致，避免缺值股被排到最低分位。
+    factor_values = {k: [p[k] for p in parts_list if p.get(k) is not None] for k in keys}
 
     if use_quantile:
-        # 分位数归一化：rank / (n+1) * 100
+        # 分位数归一化：rank / (m+1) * 100，m 为该因子非缺失样本数
         # 使用平均排名处理 ties
         factor_ranks = {}
         for k in keys:
-            vals = factor_values[k]
+            pairs = [(i, p[k]) for i, p in enumerate(parts_list) if p.get(k) is not None]
+            m = len(pairs)
+            if m == 0:
+                factor_ranks[k] = {}
+                continue
             # 排序后建立 value -> rank 映射（ties 取平均排名）
-            sorted_vals = sorted(enumerate(vals), key=lambda x: x[1])
-            ranks = [0.0] * n
+            sorted_pairs = sorted(pairs, key=lambda x: x[1])
+            ranks = {}
             i = 0
-            while i < n:
+            while i < m:
                 j = i
                 # 找到所有相同值的索引
-                while j + 1 < n and sorted_vals[j + 1][1] == sorted_vals[i][1]:
+                while j + 1 < m and sorted_pairs[j + 1][1] == sorted_pairs[i][1]:
                     j += 1
                 # 平均排名（1-based）
                 avg_rank = (i + 1 + j + 1) / 2
                 for idx in range(i, j + 1):
-                    original_idx = sorted_vals[idx][0]
-                    ranks[original_idx] = avg_rank
+                    ranks[sorted_pairs[idx][0]] = avg_rank
                 i = j + 1
             factor_ranks[k] = ranks
 
@@ -655,17 +664,24 @@ def normalize_factors_batch(
         for idx, p in enumerate(parts_list):
             normed = dict(p)
             for k in keys:
-                # rank / (n+1) * 100 -> [0, 100] 范围
-                normed[k] = max(0.0, min(100.0, factor_ranks[k][idx] / (n + 1) * 100))
+                if idx in factor_ranks[k]:
+                    # rank / (m+1) * 100 -> [0, 100] 范围
+                    m = len(factor_ranks[k])
+                    normed[k] = max(0.0, min(100.0, factor_ranks[k][idx] / (m + 1) * 100))
+                else:
+                    normed[k] = 50.0
             out.append(normed)
         return out
 
     else:
-        # 小样本降级：MAD 标准化
-        factor_medians = {k: statistics.median(vals) for k, vals in factor_values.items()}
-        factor_mads = {}
+        # 小样本降级：MAD 标准化（仅基于非缺失值）
+        factor_medians: Dict[str, float] = {k: statistics.median(vals) for k, vals in factor_values.items() if vals}
+        factor_mads: Dict[str, Optional[float]] = {}
         for k in keys:
             vals = factor_values[k]
+            if not vals:
+                factor_mads[k] = None
+                continue
             med = factor_medians[k]
             mad = statistics.median([abs(v - med) for v in vals])
             factor_mads[k] = mad if mad > 0 else 1.0
@@ -674,9 +690,14 @@ def normalize_factors_batch(
         for p in parts_list:
             normed = dict(p)
             for k in keys:
-                x = p.get(k, 0)
+                x = p.get(k)
+                factor_mad = factor_mads[k]
+                if x is None or factor_mad is None:
+                    # 缺失或该因子全截面缺失：中性 50
+                    normed[k] = 50.0
+                    continue
                 # MAD 标准化：50 + (x - median) / (1.4826 * MAD) * 15
-                z = (x - factor_medians[k]) / (1.4826 * factor_mads[k])
+                z = (x - factor_medians[k]) / (1.4826 * factor_mad)
                 normed[k] = max(0.0, min(100.0, 50 + z * 15))
             out.append(normed)
         return out
