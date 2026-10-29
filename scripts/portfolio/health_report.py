@@ -228,18 +228,15 @@ def _fetch_protections(positions: list, initial_capital: float | None, position_
         guardrails.check_protections 的输出；无交易记录时返回 {}
     """
     try:
-        from portfolio.guardrails import check_protections, sync_breakers
+        from portfolio.guardrails import check_protections
         from portfolio.trade_log import TradeLog
 
         trades = TradeLog().query()
         if not trades:
             return {}
         cooldown_codes = [p.get("code", "") for p in positions if p.get("code")]
-        # 熔断状态显式同步（写入），检查本身是纯读
-        try:
-            sync_breakers(trades, initial_capital=initial_capital or None)
-        except OSError:
-            pass
+        # 注意：这里只读。熔断状态的写入点在 crud._record_trade_log（清仓落账），
+        # 报告生成器不得有写副作用（实测会污染状态文件并造成跨测试污染）。
         return check_protections(
             trades,
             position_pnl_pct=position_pnl_pct,
