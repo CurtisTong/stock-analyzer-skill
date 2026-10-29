@@ -59,7 +59,7 @@ done
 | `python3 scripts/monitor.py` | 数据源健康检查和缓存监控 | --cache、--sources、--cleanup、--json |
 | `python3 scripts/multi_stock_backtest.py` | 外样本多股票回测 + 基准对比（PR-G：解决 71.4% CLAIM 单股过拟合问题） | -j、--codes、--top、--holding-days、--total-days |
 | `python3 scripts/perf_bench.py` | 性能压测脚本：测量 screener / backtest 端到端耗时 | -j、--codes、--rounds |
-| `python3 scripts/portfolio_correlation.py` | 组合相关性矩阵（v2.6.0 新增） | -j、--stock、--window、--list |
+| `python3 scripts/portfolio_correlation.py` | 组合相关性矩阵（v2.6.0 新增） | -j、--stock、--window、--list、--risk-weights |
 | `python3 scripts/portfolio_web.py` | 持仓录入 Web 服务（零依赖 stdlib http.server） | — |
 | `python3 scripts/quote.py` | 实时行情查询（多数据源自动切换） | -j |
 | `python3 scripts/refresh_pool.py` | 股票池自动刷新脚本 — 从东财 push2 API 拉取板块成分股 | -j、--sector |

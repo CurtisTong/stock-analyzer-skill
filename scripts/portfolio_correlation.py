@@ -601,6 +601,56 @@ def get_positions_full() -> list:
         return []
 
 
+def compute_inverse_volatility_weights(
+    codes: list[str],
+    window: int = 60,
+    cap_pct: float = 40.0,
+) -> dict:
+    """组合逆波动率加权建议（v1.24.0）。
+
+    与 risk_weights 模块的纯函数不同，此处负责拉真实 K 线：
+    每个持仓的日收益波动率（窗口内），逆波动率归一化。
+
+    Args:
+        codes: 持仓代码列表
+        window: K 线窗口（默认 60 交易日）
+        cap_pct: 单资产权重上限（%），默认 40%
+
+    Returns:
+        {"weights": {code: 权重%}, "volatilities": {code: 日波动率%},
+         "failed": [code], "equal": {code: 等权%}}
+    """
+    from portfolio.risk_weights import inverse_volatility_weights
+
+    vol_map: dict[str, float] = {}
+    failed: list[str] = []
+    for code in codes:
+        returns = _load_returns(code, window)
+        if not returns or len(returns) < 2:
+            failed.append(code)
+            continue
+        import statistics
+
+        vol = statistics.stdev(returns) * 100
+        if vol <= 0:
+            failed.append(code)
+            continue
+        vol_map[code] = vol
+
+    if not vol_map:
+        return {"weights": {}, "volatilities": {}, "failed": codes, "equal": {}}
+
+    weights = inverse_volatility_weights(vol_map, cap_pct=cap_pct)
+    n = len(weights)
+    equal = {k: round(100.0 / n, 2) for k in weights}
+    return {
+        "weights": weights,
+        "volatilities": {k: round(v, 2) for k, v in vol_map.items()},
+        "failed": failed,
+        "equal": equal,
+    }
+
+
 def compute_full_portfolio_correlation(
     stock_code: str | None = None,
     window: int = 60,
@@ -697,11 +747,40 @@ def main():
     parser.add_argument("--stock", default=None, help="候选个股（计算 vs_portfolio）")
     parser.add_argument("--window", type=int, default=60, help="K 线窗口")
     parser.add_argument("--list", action="store_true", help="仅列出持仓代码")
+    parser.add_argument(
+        "--risk-weights",
+        action="store_true",
+        help="输出持仓逆波动率加权建议（低波动资产占比更高）",
+    )
     args = parser.parse_args()
 
     if args.list:
         codes = get_portfolio_codes()
         print(f"持仓代码 ({len(codes)}): {codes}")
+        return
+
+    if args.risk_weights:
+        codes = get_portfolio_codes()
+        result = compute_inverse_volatility_weights(codes, window=args.window)
+        if args.json_output:
+            import json
+
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            return
+        print(f"⚖️  组合逆波动率加权建议 (window={args.window})")
+        print("=" * 60)
+        if not result["weights"]:
+            print(f"  ⚠️ 无可用波动率数据（失败 {result['failed']}），无法给出建议")
+            return
+        print("  代码        日波动率%   逆波动率权重%   等权%")
+        for code in result["weights"]:
+            print(
+                f"  {code:<12}{result['volatilities'].get(code, 0):<10.2f}"
+                f"{result['weights'][code]:<14.2f}{result['equal'].get(code, 0):.2f}"
+            )
+        print()
+        print("  解读: 低波动资产分配更高权重（等权 → 逆波动率），用于降低组合波动；")
+        print(f"        失败标的（无 K 线）: {result['failed'] or '无'}")
         return
 
     result = compute_full_portfolio_correlation(stock_code=args.stock, window=args.window)
