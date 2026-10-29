@@ -493,6 +493,25 @@ def aggregate_votes(
     # 污染调用方持有的原始评分（影响风险提示、A/B 对比、校准记录、二次渲染）。
     expert_results = [dict(r) for r in expert_results]
 
+    # ── 弃权过滤（v1.24.0 第四态）──
+    # 专家显式弃权（abstain=True 或 direction==ABSTAIN）不进入投票基数。
+    # 数据严重不足时"读不出来"不是审慎平衡，弃权防止沉默被当作中性票
+    # （对标 TradingAgents 的 REVIEW 哨兵：解析不出就标 REVIEW 而非 Hold）。
+    abstain_count = 0
+    active_experts = []
+    from experts.types import ABSTAIN
+
+    for r in expert_results:
+        if r.get("abstain") or r.get("direction") == ABSTAIN:
+            abstain_count += 1
+            continue
+        active_experts.append(r)
+    if abstain_count:
+        _logger_note = f"{abstain_count} 位专家弃权（数据不足），未计入投票基数"
+    else:
+        _logger_note = None
+    expert_results = active_experts
+
     # ── 风险分级机制（v2.5.0 Phase 2）──
     # 将原"一票否决->降至20"的硬性逻辑改造为两级体系：
     # - 刚性底线（risk_coeff=0.0）：评分归零（生存底线，如商誉/净资产>50%）
@@ -776,7 +795,10 @@ def aggregate_votes(
         "position": position,
         "risk_notes": risk_notes,
         "notes": notes,
+        "abstained": abstain_count,
     }
+    if _logger_note and _logger_note not in notes:
+        result["notes"] = notes + [_logger_note]
     if clamp["events"]:
         result["clamp_events"] = clamp["events"]
     return result

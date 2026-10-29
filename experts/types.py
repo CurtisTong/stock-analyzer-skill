@@ -43,6 +43,12 @@ DIRECTION_THRESHOLDS = [
     (0, "强烈看空"),
 ]
 
+# v1.24.0 弃权第四态（TradingAgents REVIEW 哨兵思路）：
+# 数据严重不足（价量/财务/题材信号均不可得）时专家应显式弃权，
+# 弃权不进入投票基数——"读不出来的判断不是中性票"，
+# 把沉默解读为中性会把无信息错当"审慎平衡"。
+ABSTAIN = "弃权"
+
 
 def direction_from_score(score: float) -> str:
     """把 0-100 总分映射到方向标签。"""

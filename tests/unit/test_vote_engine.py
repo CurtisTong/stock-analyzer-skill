@@ -248,3 +248,48 @@ class TestPositionClamp:
         assert result["position"]["position_pct"] == POSITION_CAP_SINGLE_STOCK * 100
         assert "clamp_events" in result
         assert "钳制" in result["clamp_events"][0]
+
+
+class TestAbstention:
+    """v1.24.0 弃权第四态：数据不足的专家不进入投票基数。"""
+
+    def test_abstained_expert_excluded(self):
+        from experts.vote_engine import aggregate_votes
+
+        experts = [
+            _make_expert("value_institution", 75),
+            _make_expert("risk_manager", 72),
+            _make_expert("momentum_trader", 65),
+            # 数据不足弃权（LLM 层显式标记）
+            {"name": "sector_specialist", "score": 0, "direction": "弃权", "abstain": True, "group": "long_term"},
+            {"name": "topic_leader", "score": 0, "direction": "弃权", "abstain": True, "group": "short_term"},
+        ]
+        result = aggregate_votes(experts, horizon="medium")
+        assert result["abstained"] == 2
+        assert any("弃权" in n for n in result["notes"])
+        names = {r["name"] for r in result["expert_results"]}
+        assert "sector_specialist" not in names
+        assert "topic_leader" not in names
+        assert "看多" in result["direction"]
+
+    def test_no_abstain_zero(self):
+        from experts.vote_engine import aggregate_votes
+
+        experts = [
+            _make_expert("value_institution", 75),
+            _make_expert("risk_manager", 72),
+        ]
+        result = aggregate_votes(experts, horizon="medium")
+        assert result["abstained"] == 0
+
+    def test_all_abstain_returns_neutral(self):
+        from experts.vote_engine import aggregate_votes
+
+        experts = [
+            {"name": "sector_specialist", "score": 0, "direction": "弃权", "abstain": True, "group": "long_term"},
+            {"name": "topic_leader", "score": 0, "direction": "弃权", "abstain": True, "group": "short_term"},
+        ]
+        result = aggregate_votes(experts, horizon="medium")
+        assert result["abstained"] == 2
+        # 无专家可投票 → 中性兜底
+        assert "中性" in result["direction"]
