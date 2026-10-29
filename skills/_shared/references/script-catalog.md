@@ -30,12 +30,13 @@ done
 ## 脚本清单
 
 <!-- BEGIN GENERATED: python3 scripts/dev/gen_script_catalog.py -->
-> 36 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
+> 38 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
 
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|
 | `python3 scripts/announcements.py` | 东方财富公告 + 研报 | -j |
 | `python3 scripts/backtest.py` | 多因子选股策略回测（thin wrapper） | — |
+| `python3 scripts/block_trade.py` | 大宗交易查询 | -j、--days |
 | `python3 scripts/calibration.py` | 专家校准数据管理 CLI | -j、--stock、--direction、--scores、--composite |
 | `python3 scripts/calibration_backfill.py` | 校准数据回填与管理 CLI（v2.4.3 引入） | -j、-v、--days、--no-price、--file |
 | `python3 scripts/calibration_sync.py` | 校准数据 GitHub Gist 双向同步 | -j、--pull、--push、--auto、--status |
@@ -51,6 +52,7 @@ done
 | `python3 scripts/industry_beta.py` | 个股 beta 系数计算（v2.6.0 新增） | -j、--index、--window |
 | `python3 scripts/init_pool.py` | 首次安装初始化脚本 — 为每个板块拉取前 20 只股票 | -j、--force、--top、--default、--full-market |
 | `python3 scripts/kline.py` | K 线数据查询（多数据源自动切换） | -j、--days |
+| `python3 scripts/limit_up.py` | 涨停池与涨停原因归因查询 | -j、--date |
 | `python3 scripts/macro_indicators.py` | 宏观指标获取模块（v2.5.x 新增） | -j |
 | `python3 scripts/market_anchor.py` | 市场环境锚定编排器（v2.5.0 新增） | -j、--no-sector、--no-portfolio、--no-rotation、--no-northbound |
 | `python3 scripts/market_breadth.py` | 市场宽度分析脚本 | --json |

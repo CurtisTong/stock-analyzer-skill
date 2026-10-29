@@ -14,8 +14,10 @@ from common.circuit_breaker import get_circuit_breaker
 logger = logging.getLogger(__name__)
 from common.exceptions import RateLimitError, HTTPStatusError
 
-# 股票代码安全白名单：允许字母、数字、下划线、点号、冒号、脱字符（美股指数如 us:^gspc）
-_SAFE_CODE_PATTERN = re.compile(r"^[a-zA-Z0-9_.:^]+$")
+# 股票代码安全白名单：允许字母、数字、下划线、点号、冒号、脱字符（美股指数如 us:^gspc）。
+# v1.24.0 修复：+ → *，允许空串——lhb/block_trade/limit_up 等域的空 code 语义是
+# "全市场查询"，此前被白名单静默拦截返回 None（空串不携带任何输入，无注入风险）。
+_SAFE_CODE_PATTERN = re.compile(r"^[a-zA-Z0-9_.:^]*$")
 
 # ---------- NOT_HANDLED 哨兵（可序列化） ----------
 
