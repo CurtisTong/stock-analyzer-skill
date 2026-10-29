@@ -594,17 +594,31 @@ def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
         return 0.0
 
 
+def _limit_ratio(code: str) -> float:
+    """按板块返回涨跌停幅度（v1.24.0 增加北交所 30cm）。"""
+    if code.startswith(("sz300", "sz301", "sh688", "sh689")):
+        return 0.20
+    if code.startswith("bj"):
+        return 0.30  # 北交所
+    return 0.10
+
+
 def _is_limit_or_suspended(bars, idx, code=""):
     """检查指定日期是否涨跌停或停牌。
 
-    涨跌停判断：当日涨跌幅接近 ±10%（普通股）或 ±20%（创业板/科创板）。
+    涨跌停判断（v1.24.0 精确化）：收盘价触及理论涨停/跌停价
+    round(prev_close × (1±ratio), 2)（A 股涨跌停价四舍五入到分）。
+    此前的"涨跌幅接近 ±9.5%"近似会把 9.5%~10% 之间的未涨停大涨
+    误判为涨停而跳过（回测少计可交易日）。
+
     停牌判断：成交量为 0。
 
     Args:
         bars: K 线数据
         idx: 当前索引
-        code: 股票代码（如 sz300001/sh688001），用于判断 20cm 涨跌幅板。
-            KlineBar 无 code 字段，须由调用方传入。
+        code: 股票代码（如 sz300001/sh688001/bj920001），用于区分
+            涨跌幅板（10cm/20cm/30cm）。KlineBar 无 code 字段，
+            须由调用方传入。
 
     Returns:
         True 表示应跳过该日
@@ -622,12 +636,13 @@ def _is_limit_or_suspended(bars, idx, code=""):
     if volume <= 0 and bar_close == prev_close:
         return True
 
-    # 涨跌停：涨跌幅接近 ±10% 或 ±20%
+    # 涨跌停：精确触及理论涨跌停价（epsilon 防浮点噪声）
     if prev_close > 0 and bar_close > 0:
-        change_pct = (bar_close - prev_close) / prev_close
-        # 创业板/科创板 20% 涨跌幅
-        limit = 0.195 if code.startswith(("sz300", "sz301", "sh688")) else 0.095
-        if abs(change_pct) >= limit:
+        ratio = _limit_ratio(code)
+        limit_up_price = round(prev_close * (1 + ratio), 2)
+        limit_down_price = round(prev_close * (1 - ratio), 2)
+        eps = 1e-6
+        if bar_close >= limit_up_price - eps or bar_close <= limit_down_price + eps:
             return True
 
     return False
