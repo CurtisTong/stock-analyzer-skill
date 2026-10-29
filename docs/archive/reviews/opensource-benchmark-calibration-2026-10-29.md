@@ -118,15 +118,25 @@
 
 ### P0（低成本高确定性，建议 v1.24.0 落地）
 
-> **实施记录（2026-10-29，同日完成）**：七项全部落地——
-> ① horizon 分桶 `experts/calibration.py`（commit 4003254）；
+> **实施记录（2026-10-29，同日完成）**：P0 七项全部落地——
+> ① horizon 分桶 `experts/calibration.py`（4003254）；
 > ② 样本数强制 `experts/formatter.py`（df9ac6d）；
 > ③ 最低佣金 `backtest/engine.py`（a36674d）；
 > ④ 过拟合诊断 `backtest/cli.py` + `metrics.py`（7f455c6）；
 > ⑤ pytdx 降级 `data_source.yaml`（随并行 commit 57099e1 入库）；
 > ⑥ 新数据域 `fetchers/block_trade/` + `fetchers/limit_up/` + CLI（506b52f、ce71d51）；
 > ⑦ 缺值填 0 修复 `screening_service.py`（666ef2b）。
-> 全量测试 2082 passed / 13 skipped（基线 1989）。版本号未 bump，发版时 `sync_version --version 1.24.0`。
+> 全量测试 2082 passed / 13 skipped。
+
+> **P2 实施记录（同日追加）**：六项落地——
+> ⑧ 涨跌停精确价判断 `backtest/engine.py`（6c23cf4，+北交所 30cm）；
+> ⑨ 反思记忆 `experts/calibration.py`（14839a1，错误结算生成 lesson → debate 注入"上轮教训"段）；
+> ⑩ 确定性仓位钳制 `experts/vote_engine.py`（0b8690e，单股 20% 上限 + ClampEvent 审计）；
+> ⑪ 形态扩充 `patterns/turtle_and_annual.py`（923e482，海龟突破+回踩年线）；
+> ⑫ 逆波动率加权 `portfolio/risk_weights.py` + `portfolio_correlation.py --risk-weights`（875fcef）；
+> ⑬ 打新日历 `fetchers/ipo/` + `scripts/ipo_calendar.py`（6852fba，东财 RPT_IPO_CALENDAR 实测）。
+> 全量测试 2172 passed / 13 skipped。
+> **本轮未做**（按报告 P2 列表有意跳过）：PIT 财报/历史成分（依赖公告日+版本链数据源，成本高）、MCP server（30+ CLI 转 MCP 是独立工程）、形态策略扩至 8-10（已 +2 起步）。
 
 1. **专家 horizon 分桶结算**：校准从统一 30 天改为按专家角色分窗（长线 120 日/短线 5-10 日/行业 60 日）——`experts/calibration.py` + verify 调度。
 2. **胜率卡片样本数强制**：n<10 显示「样本不足」，分离弃权/未结算。
