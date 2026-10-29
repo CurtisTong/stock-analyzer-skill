@@ -33,6 +33,8 @@ scripts/data/*.bak-*
 scripts/data/trade_log.json
 # 操作日志（含完整持仓快照，与 trade_log 同性质敏感数据）
 scripts/data/portfolio_oplog.json
+# 保护机制熔断状态（本地运行时状态，含用户交易状况）
+scripts/data/guardrails_state.json
 
 # 专家校准数据（用户本地运行时产生）
 scripts/data/expert_calibration.json

@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-10-29T13:36:37Z",
+    "generated_at": "2026-10-29T14:25:13Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 40,
     "version": "2",
@@ -74,6 +74,11 @@
         "--top",
         "--days",
         "--rounds",
+        "--capital",
+        "--commission",
+        "--stamp-tax",
+        "--slippage",
+        "--min-commission",
         "--codes",
         "--benchmark",
         "--scenarios",
@@ -168,6 +173,51 @@
           "default": 5,
           "type": "int",
           "help": "回测轮数"
+        },
+        {
+          "flags": [
+            "--capital"
+          ],
+          "required": false,
+          "default": 100000,
+          "type": "float",
+          "help": "账户初始资金（元，默认 100000）。单笔名义金额=本金/每轮买入数，决定最低佣金是否触发——小资金账户的交易成本占比显著更高"
+        },
+        {
+          "flags": [
+            "--commission"
+          ],
+          "required": false,
+          "default": 0.00025,
+          "type": "float",
+          "help": "佣金费率（默认 0.00025 = 0.025%%，双边）"
+        },
+        {
+          "flags": [
+            "--stamp-tax"
+          ],
+          "required": false,
+          "default": 0.001,
+          "type": "float",
+          "help": "印花税率（默认 0.001 = 0.1%%，仅卖出侧）"
+        },
+        {
+          "flags": [
+            "--slippage"
+          ],
+          "required": false,
+          "default": 0.001,
+          "type": "float",
+          "help": "滑点率（默认 0.001 = 0.1%%，双边）"
+        },
+        {
+          "flags": [
+            "--min-commission"
+          ],
+          "required": false,
+          "default": 5.0,
+          "type": "float",
+          "help": "单笔最低佣金（元，默认 5；传 0 关闭下限）"
         },
         {
           "flags": [
@@ -1994,6 +2044,7 @@
         "--window",
         "--list",
         "--risk-weights",
+        "--risk-weights-cap",
         "-j",
         "--json",
         "--sources",
@@ -2032,6 +2083,15 @@
           "required": false,
           "action": "store_true",
           "help": "输出持仓逆波动率加权建议（低波动资产占比更高）"
+        },
+        {
+          "flags": [
+            "--risk-weights-cap"
+          ],
+          "required": false,
+          "default": 40.0,
+          "type": "float",
+          "help": "逆波动率权重的单资产上限（%%，默认 40；100 = 不设限）"
         },
         {
           "flags": [

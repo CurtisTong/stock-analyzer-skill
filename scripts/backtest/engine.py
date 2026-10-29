@@ -204,6 +204,12 @@ def simulate_strategy(ctx: SimContext):
     if not kline_data:
         return {"error": "无法获取足够的 K 线数据"}
 
+    # ST 股识别（v1.25 复审修复）：ST 股涨跌停为 ±5%（主板），
+    # 而引擎此前只有 10/20/30 三档 —— ST 主板股的 ±5% 涨停不会被识别为涨停，
+    # 引擎会在"涨停板"上买入。ST 名单需实时行情取名（静态股票池只存代码），
+    # 拉取失败时降级为板块标准幅，不阻断回测。
+    st_codes = _detect_st_codes(list(kline_data.keys()))
+
     # 并行获取财务数据
     fin_cache = {}
     industry_cache = {}
@@ -270,7 +276,7 @@ def simulate_strategy(ctx: SimContext):
             # 跳过涨跌停和停牌日
             # 必须整段跳过（i += holding_days）而非 i += 1：逐日推进会让该股票的
             # 选股日相对其它股票永久错位，进而与基准的持有期切块错位。
-            if _is_limit_or_suspended(bars, i, code):
+            if _is_limit_or_suspended(bars, i, code, code in st_codes):
                 i += holding_days
                 continue
 
@@ -352,6 +358,7 @@ def simulate_strategy(ctx: SimContext):
                 atr_multiplier=atr_stop_multiplier,
                 trailing_pct=trailing_stop_pct,
                 code=code,
+                is_st=code in st_codes,
             )
             # 扣除交易成本：佣金(双向，含最低佣金) + 印花税(卖出) + 滑点(双向)
             trade_amount = initial_capital / max(top_n, 1)
@@ -499,6 +506,7 @@ def _calc_return_with_stop_loss(
     atr_multiplier=None,
     trailing_pct=None,
     code="",
+    is_st: bool = False,
 ):
     """计算带止损止盈的持有期收益。
 
@@ -551,7 +559,7 @@ def _calc_return_with_stop_loss(
         # 跌停日卖不出：A 股跌停封死时无法成交，出场必须顺延到下一个
         # 可交易日（与买入侧"涨停拒单"对称）。否则跌停日会被记为正常平仓，
         # 系统性高估回测收益。
-        if _is_limit_down(bars, idx, code):
+        if _is_limit_down(bars, idx, code, is_st):
             continue
         # 移动止盈：更新最高价（收盘确认），回撤超过 trailing_pct 即卖出
         if trailing_pct is not None:
@@ -581,7 +589,7 @@ def _calc_return_with_stop_loss(
     # 未触发止损止盈，持有到期，用末日收盘价
     # 若末日跌停无法卖出，顺延到之后第一个可交易日的收盘价
     exit_idx = min(start + holding_days, len(bars) - 1)
-    while exit_idx < len(bars) - 1 and _is_limit_down(bars, exit_idx, code):
+    while exit_idx < len(bars) - 1 and _is_limit_down(bars, exit_idx, code, is_st):
         exit_idx += 1
     exit_price = bars[exit_idx].close
     ret = (exit_price - entry_price) / entry_price
@@ -619,8 +627,50 @@ def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
         return 0.0
 
 
-def _limit_ratio(code: str) -> float:
+def _detect_st_codes(codes: list[str]) -> set[str]:
+    """识别 ST/*ST 股票（涨跌停幅度与普通股票不同）。
+
+    ST 股涨跌停限制：主板 ±5%、创业板/科创板 ST ±20%（同板块标准）。
+    静态股票池（all_stocks.json / sector_stocks.json）只存代码不存名称，
+    必须实时取行情名。取不到时返回空集（降级为板块标准幅），不阻断回测。
+
+    Args:
+        codes: 股票代码列表
+
+    Returns:
+        ST 股票代码集合
+    """
+    if not codes:
+        return set()
+
+    def _fetch_name(code):
+        try:
+            from data import get_quote
+
+            q = get_quote(code)
+            return getattr(q, "name", "") if q else ""
+        except Exception:
+            return ""
+
+    try:
+        names = parallel_fetch_dict(codes, _fetch_name, label="backtest:quote", timeout=45)
+    except Exception as e:
+        logger.debug("ST 名单获取失败，降级为标准涨跌停幅度: %s", e)
+        return set()
+
+    st_codes = set()
+    for code, name in names.items():
+        if name and "ST" in str(name).upper():
+            st_codes.add(code)
+    if st_codes:
+        logger.info("识别到 %d 只 ST 股（涨跌停按 ±5%% 处理）", len(st_codes))
+    return st_codes
+
+
+def _limit_ratio(code: str, is_st: bool = False) -> float:
     """按板块返回涨跌停幅度（v1.24.0 增加北交所 30cm）。
+
+    ST 股：主板 ±5%（ST 创业板/科创板仍为 ±20%，与板块标准一致）。
 
     代码必须先归一化：调用方传入的可能是 "300750" 这类裸代码，
     直接 startswith("sz300") 会漏判，创业板/科创板被按主板 10% 处理，
@@ -632,6 +682,11 @@ def _limit_ratio(code: str) -> float:
         code = normalize_quote_code(code)
     except Exception:
         pass
+    if is_st:
+        # ST 主板 ±5%；ST 创业板/科创板仍按板块 20%
+        if code.startswith(("sz300", "sz301", "sh688", "sh689")):
+            return 0.20
+        return 0.05
     if code.startswith(("sz300", "sz301", "sh688", "sh689")):
         return 0.20
     if code.startswith("bj"):
@@ -652,7 +707,7 @@ def _limit_price(prev_close: float, ratio: float, up: bool = True) -> float:
     return float((base * factor).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
-def _is_limit_down(bars, idx, code="") -> bool:
+def _is_limit_down(bars, idx, code="", is_st: bool = False) -> bool:
     """判断指定日期是否跌停（收盘触及理论跌停价）。
 
     独立于 _is_limit_or_suspended：出场路径只需要"跌停卖不出"这一个信号，
@@ -666,11 +721,11 @@ def _is_limit_down(bars, idx, code="") -> bool:
     bar_close = bar.close if hasattr(bar, "close") else bar.get("close", 0)
     if prev_close <= 0 or bar_close <= 0:
         return False
-    limit_down_price = _limit_price(prev_close, _limit_ratio(code), up=False)
+    limit_down_price = _limit_price(prev_close, _limit_ratio(code, is_st), up=False)
     return bar_close <= limit_down_price + 1e-6
 
 
-def _is_limit_or_suspended(bars, idx, code=""):
+def _is_limit_or_suspended(bars, idx, code="", is_st: bool = False):
     """检查指定日期是否涨跌停或停牌。
 
     涨跌停判断（v1.24.0 精确化）：收盘价触及理论涨停/跌停价
@@ -705,7 +760,7 @@ def _is_limit_or_suspended(bars, idx, code=""):
 
     # 涨跌停：精确触及理论涨跌停价（epsilon 防浮点噪声）
     if prev_close > 0 and bar_close > 0:
-        ratio = _limit_ratio(code)
+        ratio = _limit_ratio(code, is_st)
         limit_up_price = _limit_price(prev_close, ratio, up=True)
         limit_down_price = _limit_price(prev_close, ratio, up=False)
         eps = 1e-6

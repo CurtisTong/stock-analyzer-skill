@@ -1220,6 +1220,48 @@ class TestIsLimitExactPrice:
         assert _limit_price(78.85, 0.10, up=False) == 70.97
 
 
+class TestStLimitRatio:
+    """v1.25 复审修复：ST 股涨跌停为 ±5%（主板）。"""
+
+    def _bar(self, day, close, volume=1000):
+        return KlineBar(day=day, close=close, open=close, high=close, low=close, volume=volume)
+
+    def test_st_main_board_5pct(self):
+        from backtest.engine import _limit_ratio
+
+        assert _limit_ratio("sh600001", is_st=True) == 0.05
+        assert _limit_ratio("sz000001", is_st=True) == 0.05
+
+    def test_st_growth_board_keeps_20pct(self):
+        """ST 创业板/科创板仍为 ±20%（同板块标准）。"""
+        from backtest.engine import _limit_ratio
+
+        assert _limit_ratio("sz300001", is_st=True) == 0.20
+        assert _limit_ratio("sh688001", is_st=True) == 0.20
+
+    def test_st_limit_up_detected(self):
+        """ST 股 +5% 涨停必须被识别（修复前按 10% 判，会漏判）。"""
+        from backtest.engine import _is_limit_or_suspended
+
+        bars = [
+            self._bar("2025-01-01", 10.0),
+            self._bar("2025-01-02", 10.5),  # +5% = ST 涨停价
+        ]
+        assert _is_limit_or_suspended(bars, 1, "sh600001", is_st=True) is True
+        # 同一价格对非 ST 股（10% 限幅）不构成涨停
+        assert _is_limit_or_suspended(bars, 1, "sh600001", is_st=False) is False
+
+    def test_st_limit_down_detected(self):
+        from backtest.engine import _is_limit_down
+
+        bars = [
+            self._bar("2025-01-01", 10.0),
+            self._bar("2025-01-02", 9.5),  # -5% = ST 跌停价
+        ]
+        assert _is_limit_down(bars, 1, "sh600001", is_st=True) is True
+        assert _is_limit_down(bars, 1, "sh600001", is_st=False) is False
+
+
 class TestLimitExitAsymmetry:
     """v1.24.0 复审修复：跌停出场必须与买入侧拒单对称。"""
 

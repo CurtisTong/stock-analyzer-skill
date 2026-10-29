@@ -132,7 +132,18 @@ def detect_all_local_patterns(inp: PatternInput):
 
     # 只看最近出现的（idx 最大的）
     # v1.24.0 展示位 5 → 10：增设经典形态库（13 个）后，最近 5 个上限会挤掉多数形态
-    recent = deduped[-PATTERN_DISPLAY_LIMIT:] if len(deduped) > PATTERN_DISPLAY_LIMIT else deduped
+    #
+    # 方向性形态优先占位（v1.25 复审修复）：中性形态（十字星等）不产生买卖
+    # 信号，也不进 summary——却会挤占展示位（实测 10 个位置里 7 个是十字星，
+    # 真正的看涨/看跌形态只剩 3 个）。
+    directional = [p for p in deduped if p["type"] in ("看涨", "看跌")]
+    neutral = [p for p in deduped if p["type"] not in ("看涨", "看跌")]
+    if len(directional) >= PATTERN_DISPLAY_LIMIT:
+        recent = directional[-PATTERN_DISPLAY_LIMIT:]
+    else:
+        need = PATTERN_DISPLAY_LIMIT - len(directional)
+        recent = directional + (neutral[-need:] if need > 0 else [])
+        recent.sort(key=lambda p: p["idx"])
 
     bullish = [p["name"] for p in recent if p["type"] == "看涨"]
     bearish = [p["name"] for p in recent if p["type"] == "看跌"]
@@ -151,5 +162,5 @@ def detect_all_local_patterns(inp: PatternInput):
         # 未截断的检测总数（含被展示上限丢弃的早期形态）
         "detected_count": len(deduped),
         # 阈值必须与展示位上限一致（v1.24.0 展示位 5 → 10，此处未同步导致 6-10 条时误报截断）
-        "truncated": len(deduped) > 10,
+        "truncated": len(deduped) > PATTERN_DISPLAY_LIMIT,
     }

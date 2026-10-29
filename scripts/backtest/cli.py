@@ -126,6 +126,7 @@ def compare_strategies(
     rounds: int = 5,
     benchmark=None,
     scenarios: list = None,
+    **cost_kwargs,
 ):
     """比较所有策略的表现。
 
@@ -136,18 +137,19 @@ def compare_strategies(
         rounds: 回测轮数
         benchmark: 基准指数代码
         scenarios: 情景列表
+        **cost_kwargs: 成本模型参数（capital/commission/stamp_tax/slippage/min_commission）
     """
     results = {}
     for strategy_name in list_strategies():
         print(f"  回测策略: {get_strategy(strategy_name)['label']}...", flush=True)
-        report = run_backtest(strategy_name, codes, top_n, days, rounds, benchmark)
+        report = run_backtest(strategy_name, codes, top_n, days, rounds, benchmark, **cost_kwargs)
         if scenarios:
             scenario_results = {}
             for sc in scenarios:
                 label = sc.get("label", "未知")
                 sc_days = sc.get("days", days)
                 sc_rounds = sc.get("rounds", max(1, rounds // 2))
-                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark)
+                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark, **cost_kwargs)
                 scenario_results[label] = {
                     "total_return_pct": sr.get("total_return_pct"),
                     "sharpe_ratio": sr.get("sharpe_ratio"),
@@ -166,6 +168,7 @@ def optimize_weights(
     top_n: int = 5,
     days: int = 60,
     validate: bool = True,
+    **cost_kwargs,
 ):
     """
     简单网格搜索优化策略权重。
@@ -190,7 +193,7 @@ def optimize_weights(
     steps = [-0.05, 0, 0.05]
 
     print(f"  基准权重: {original_weights}", flush=True)
-    base_report = run_backtest(strategy_name, codes, top_n, days, 3)
+    base_report = run_backtest(strategy_name, codes, top_n, days, 3, **cost_kwargs)
     base_score = base_report.get("sharpe_ratio", 0)
     print(f"  基准夏普: {base_score:.2f}", flush=True)
 
@@ -203,7 +206,7 @@ def optimize_weights(
             test_weights = {k: v / total for k, v in test_weights.items()}
 
             # 通过 weights 参数传入，不修改全局 STRATEGIES（避免并发数据竞争）
-            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights)
+            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights, **cost_kwargs)
 
             # 回测失败（error）时该次试验无效，不计入试验分布：
             # 缺失的 sharpe_ratio 若按 0 计入会把 SR0 抬高、污染 DSR
@@ -257,7 +260,7 @@ def optimize_weights(
     if validate:
         validation = {}
         for vdays in (60, 120, 240):
-            vreport = run_backtest(strategy_name, codes, top_n, vdays, 3, weights=best_weights)
+            vreport = run_backtest(strategy_name, codes, top_n, vdays, 3, weights=best_weights, **cost_kwargs)
             validation[str(vdays)] = {
                 "total_return_pct": vreport.get("total_return_pct", 0),
                 "sharpe_ratio": vreport.get("sharpe_ratio", 0),
@@ -357,6 +360,37 @@ def main():
     parser.add_argument("--top", type=int, default=5, help="每轮买入数量")
     parser.add_argument("--days", type=int, default=60, help="回测天数")
     parser.add_argument("--rounds", type=int, default=5, help="回测轮数")
+    parser.add_argument(
+        "--capital",
+        type=float,
+        default=100000,
+        help="账户初始资金（元，默认 100000）。单笔名义金额=本金/每轮买入数，"
+        "决定最低佣金是否触发——小资金账户的交易成本占比显著更高",
+    )
+    parser.add_argument(
+        "--commission",
+        type=float,
+        default=0.00025,
+        help="佣金费率（默认 0.00025 = 0.025%%，双边）",
+    )
+    parser.add_argument(
+        "--stamp-tax",
+        type=float,
+        default=0.001,
+        help="印花税率（默认 0.001 = 0.1%%，仅卖出侧）",
+    )
+    parser.add_argument(
+        "--slippage",
+        type=float,
+        default=0.001,
+        help="滑点率（默认 0.001 = 0.1%%，双边）",
+    )
+    parser.add_argument(
+        "--min-commission",
+        type=float,
+        default=5.0,
+        help="单笔最低佣金（元，默认 5；传 0 关闭下限）",
+    )
     parser.add_argument("--codes", help="自定义股票代码（逗号分隔）")
     parser.add_argument(
         "--benchmark",
@@ -403,6 +437,19 @@ def main():
 
     if not codes:
         print("❌ 无可用股票池", file=sys.stderr)
+        sys.exit(1)
+
+    # 成本模型参数（v1.25：暴露为 CLI 参数——小资金账户的最低佣金占比显著更高，
+    # 此前 initial_capital/min_commission 硬编码在引擎里，用户无法调整）
+    cost_kwargs = {
+        "initial_capital": args.capital,
+        "commission": args.commission,
+        "stamp_tax": args.stamp_tax,
+        "slippage": args.slippage,
+        "min_commission": args.min_commission,
+    }
+    if args.capital <= 0:
+        print("❌ --capital 必须大于 0", file=sys.stderr)
         sys.exit(1)
 
     print(f"📊 回测股票池: {len(codes)} 只", flush=True)
@@ -457,7 +504,7 @@ def main():
 
     elif args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
-        result = optimize_weights(codes, args.strategy, args.top, args.days, validate=args.validate)
+        result = optimize_weights(codes, args.strategy, args.top, args.days, validate=args.validate, **cost_kwargs)
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
@@ -516,6 +563,7 @@ def main():
             args.rounds,
             benchmark=benchmark_arg,
             scenarios=scenarios,
+            **cost_kwargs,
         )
         if args.json:
             print(json.dumps(results, ensure_ascii=False, indent=2))
@@ -531,11 +579,15 @@ def main():
                 if "error" in report:
                     print(f"{name:<18} {'ERROR':>8}")
                 else:
+                    # information_ratio 可能为 None（样本不足算不出），
+                    # 用 "N/A" 而不是 0——0 会被误读成"零超额"
+                    ir_val = report.get("information_ratio")
+                    ir_display = f"{ir_val:>7.2f}" if ir_val is not None else f"{'N/A':>7}"
                     line = (
                         f"{name:<18} {report['total_return_pct']:>8.2f} "
                         f"{report['sharpe_ratio']:>6.2f} "
                         f"{report.get('sortino_ratio', 0):>7.2f} "
-                        f"{report.get('information_ratio', 0):>7.2f} "
+                        f"{ir_display} "
                         f"{report['max_drawdown_pct']:>8.2f} "
                         f"{report['win_rate_pct']:>6.1f}"
                     )
@@ -571,6 +623,7 @@ def main():
             args.days,
             args.rounds,
             benchmark=benchmark_arg,
+            **cost_kwargs,
         )
         _attach_validation(report)
         if args.json:
@@ -598,8 +651,10 @@ def main():
             if info_ratios:
                 for bm, ratio in info_ratios.items():
                     print(f"信息比率({bm}): {ratio:.2f}")
-            elif report.get("information_ratio"):
+            elif report.get("information_ratio") is not None:
                 print(f"信息比率: {report['information_ratio']:.2f}")
+            else:
+                print("信息比率: N/A（样本不足，无法计算）")
             print(f"最大回撤: {report['max_drawdown_pct']:.2f}%")
             print(f"卡玛比率: {report.get('calmar_ratio', 0):.2f}")
             print(f"盈亏比: {report.get('profit_loss_ratio', 0):.2f}")

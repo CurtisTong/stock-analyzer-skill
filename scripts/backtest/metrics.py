@@ -18,6 +18,11 @@ def run_backtest(
     atr_stop_multiplier=None,
     trailing_stop_pct=None,
     holding_days: int | None = None,
+    initial_capital: float = 100000,
+    commission: float = 0.00025,
+    stamp_tax: float = 0.001,
+    slippage: float = 0.001,
+    min_commission: float = 5.0,
 ):
     """
     运行滚动窗口回测。
@@ -37,6 +42,12 @@ def run_backtest(
         trailing_stop_pct: 移动止盈回撤比例（None = 固定 +20% 止盈）
         holding_days: 持有天数。None 时按 days//rounds 推导（历史行为）；
             传入时透传给 simulate_strategy（修复 multi_stock_backtest --holding-days 被忽略）
+        initial_capital: 账户初始资金（默认 10 万）。单笔名义金额 = 本金 / top_n，
+            决定最低佣金是否触发（本金越小、单笔越少，5 元最低佣金占比越高）
+        commission: 佣金费率（默认 0.025%）
+        stamp_tax: 印花税率（卖出侧，默认 0.1%）
+        slippage: 滑点率（双向，默认 0.1%）
+        min_commission: 单笔最低佣金（元，默认 5 元；传 0 可关闭下限）
 
     Returns:
         回测报告 dict
@@ -52,6 +63,11 @@ def run_backtest(
             weights=weights,
             atr_stop_multiplier=atr_stop_multiplier,
             trailing_stop_pct=trailing_stop_pct,
+            initial_capital=initial_capital,
+            commission=commission,
+            stamp_tax=stamp_tax,
+            slippage=slippage,
+            min_commission=min_commission,
         )
     )
 
@@ -207,10 +223,12 @@ def run_backtest(
                         strat_sharpe = (strat_mean - rf_period) / strat_std * (periods_per_year**0.5)
                         excess_sharpes[bm] = round(strat_sharpe - bm_sharpe, 2)
     # 兼容旧字段：取第一个基准（若存在）
-    information_ratio = next(iter(information_ratios.values()), 0)
-    alpha_value = next(iter(alphas.values()), 0)
-    beta_value = next(iter(betas.values()), 0)
-    excess_sharpe_value = next(iter(excess_sharpes.values()), 0)
+    # 样本不足（期数 ≤ 2 → 方差不可估）时输出 None 而非 0：
+    # 0 会被误读成"真实的零 beta/零 alpha"，None 才表达"算不出来"。
+    information_ratio = next(iter(information_ratios.values()), None)
+    alpha_value = next(iter(alphas.values()), None)
+    beta_value = next(iter(betas.values()), None)
+    excess_sharpe_value = next(iter(excess_sharpes.values()), None)
 
     # 换手率估算
     annual_turnover = (252 / holding_days) * top_n if holding_days > 0 else 0

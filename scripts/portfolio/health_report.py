@@ -212,7 +212,7 @@ def _read_regime_state() -> dict:
     return result
 
 
-def _fetch_protections(positions: list, initial_capital: float | None) -> dict:
+def _fetch_protections(positions: list, initial_capital: float | None, position_pnl_pct: float | None = None) -> dict:
     """计算组合保护机制三件套（回撤熔断/连亏熔断/冷却期）。
 
     v1.24.0 落地了 guardrails 模块但从未接入任何生产路径——用户在
@@ -222,20 +222,27 @@ def _fetch_protections(positions: list, initial_capital: float | None) -> dict:
     Args:
         positions: 当前持仓（用于冷却期代码检查）
         initial_capital: 账户初始资金（回撤按权益口径计算时需要）
+        position_pnl_pct: 当前持仓整体盈亏%（并入权益曲线，避免持仓浮亏时回撤看不到亏损）
 
     Returns:
         guardrails.check_protections 的输出；无交易记录时返回 {}
     """
     try:
-        from portfolio.guardrails import check_protections
+        from portfolio.guardrails import check_protections, sync_breakers
         from portfolio.trade_log import TradeLog
 
         trades = TradeLog().query()
         if not trades:
             return {}
         cooldown_codes = [p.get("code", "") for p in positions if p.get("code")]
+        # 熔断状态显式同步（写入），检查本身是纯读
+        try:
+            sync_breakers(trades, initial_capital=initial_capital or None)
+        except OSError:
+            pass
         return check_protections(
             trades,
+            position_pnl_pct=position_pnl_pct,
             cooldown_codes=cooldown_codes,
             initial_capital=initial_capital or None,
         )
@@ -534,7 +541,8 @@ def health_report(
 
     # 保护机制三件套（回撤熔断/连亏熔断/冷却期）——v1.24.0 落地但未接线，
     # 此处接入：交易日志缺失时静默跳过（无历史不代表安全，只是无数据）。
-    protections = _fetch_protections(positions, total_cost)
+    # total_pnl_pct 为当前持仓浮动盈亏——并入权益曲线，回撤才能反映浮亏。
+    protections = _fetch_protections(positions, total_cost, total_pnl_pct)
 
     # M8 risk_rating 改自然语言摘要
     warnings = list(concentration.get("warnings", []))
