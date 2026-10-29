@@ -128,14 +128,24 @@
 > ⑦ 缺值填 0 修复 `screening_service.py`（666ef2b）。
 > 全量测试 2082 passed / 13 skipped。
 
-> **P2 实施记录（同日追加）**：六项落地——
+> **P2 实施记录（同日追加）**：六项落地，全量测试 2172 passed / 13 skipped——
 > ⑧ 涨跌停精确价判断 `backtest/engine.py`（6c23cf4，+北交所 30cm）；
-> ⑨ 反思记忆 `experts/calibration.py`（14839a1，错误结算生成 lesson → debate 注入"上轮教训"段）；
+> ⑨ 反思记忆 `experts/calibration.py`（14839a1，规则式 lesson → debate 注入"上轮教训"段）；
 > ⑩ 确定性仓位钳制 `experts/vote_engine.py`（0b8690e，单股 20% 上限 + ClampEvent 审计）；
 > ⑪ 形态扩充 `patterns/turtle_and_annual.py`（923e482，海龟突破+回踩年线）；
 > ⑫ 逆波动率加权 `portfolio/risk_weights.py` + `portfolio_correlation.py --risk-weights`（875fcef）；
 > ⑬ 打新日历 `fetchers/ipo/` + `scripts/ipo_calendar.py`（6852fba，东财 RPT_IPO_CALENDAR 实测）。
-> 全量测试 2172 passed / 13 skipped。
+
+> **P1 实施记录（2026-10-29 追加）**：八项落地，全量测试 2210 passed / 13 skipped——
+> ⑭ slugging 赔率口径 `experts/calibration.py`（c33ad31，赢/输均收益 + 双侧样本数）；
+> ⑮ 弃权第四态 + 冲突消解纪律 `experts/decide.md`+`vote_engine.py`（4831efa，abstain 不入投票基数）；
+> ⑯ 经典 K 线形态库 `patterns/classic.py`（514a823，12 形态：吞没/锤子/晨暮星/孕线/三鸦等，展示位 5→10）；
+> ⑰ 回测超额指标 `backtest/metrics.py`（c0fc397，alpha/beta/excess_sharpe 每期对齐口径）；
+> ⑱ 可转债域 `fetchers/cb/` + `scripts/cb.py`（dc1a417，双低值排序，276 只实测）；
+> ⑲ 机器可读命令契约 `commands.json`（2ca3976，gen_script_catalog --emit-json，40 命令）；
+> ⑳ 保护机制三件套 `portfolio/guardrails.py`（6132595，回撤/连亏熔断 + 冷却期）；
+> ㉑ 数据血缘降级链 `fetcher_base.py`+`stock_analysis.py`（db71091，`行情[tencent]（降级链: sina 429 → …）`）。
+> **未做**（按报告 P1 列表）：情绪因子（赚钱效应/晋级率/连板天梯，依赖涨停池连续日数据，data 层需建库）、逐笔/集合竞价（push2 逐笔反爬风险高，需谨慎评估）。
 > **本轮未做**（按报告 P2 列表有意跳过）：PIT 财报/历史成分（依赖公告日+版本链数据源，成本高）、MCP server（30+ CLI 转 MCP 是独立工程）、形态策略扩至 8-10（已 +2 起步）。
 
 1. **专家 horizon 分桶结算**：校准从统一 30 天改为按专家角色分窗（长线 120 日/短线 5-10 日/行业 60 日）——`experts/calibration.py` + verify 调度。
