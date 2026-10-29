@@ -12,6 +12,8 @@ v1.3.2 起按数据域分组（7 个数据域 × 35 个 fetcher 类），
   flow    - 资金流向        （2 文件 / 3 类：eastmoney 2 类 / sina 1 类）
   lhb     - 龙虎榜          （1 文件 / 2 类：eastmoney）
   event   - 事件日历        （2 文件 / 6 类：eastmoney 5 类 / performance_forecast 1 类）
+  block_trade - 大宗交易    （1 文件 / 1 类：eastmoney）
+  limit_up - 涨停原因归因    （1 文件 / 1 类：ths）
   chip    - 融资融券/股东   （1 文件 / 3 类：eastmoney）
   _common - 内部辅助        （4 文件：tushare_check/pytdx_pool/pytdx_meta/akshare_probe，非 fetcher）
 """
@@ -267,6 +269,50 @@ def get_chip_fetchers() -> list:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 数据域: block_trade（大宗交易）
+# ═══════════════════════════════════════════════════════════════
+
+
+def get_block_trade_fetchers() -> list:
+    """获取所有可用的大宗交易数据源（缓存单例）。"""
+    if "block_trade" in _fetcher_cache:
+        return _fetcher_cache["block_trade"]
+    with _cache_lock:
+        if "block_trade" in _fetcher_cache:
+            return _fetcher_cache["block_trade"]
+        fetchers = []
+
+        from .block_trade.eastmoney_block_trade import BlockTradeFetcher
+
+        fetchers.append(BlockTradeFetcher())
+
+        _fetcher_cache["block_trade"] = fetchers
+        return fetchers
+
+
+# ═══════════════════════════════════════════════════════════════
+# 数据域: limit_up（涨停原因归因）
+# ═══════════════════════════════════════════════════════════════
+
+
+def get_limit_up_fetchers() -> list:
+    """获取所有可用的涨停原因数据源（缓存单例）。"""
+    if "limit_up" in _fetcher_cache:
+        return _fetcher_cache["limit_up"]
+    with _cache_lock:
+        if "limit_up" in _fetcher_cache:
+            return _fetcher_cache["limit_up"]
+        fetchers = []
+
+        from .limit_up.ths_limit_up import LimitUpReasonFetcher
+
+        fetchers.append(LimitUpReasonFetcher())
+
+        _fetcher_cache["limit_up"] = fetchers
+        return fetchers
+
+
+# ═══════════════════════════════════════════════════════════════
 # 数据域 → fetcher 工厂注册表（v1.3.2 新增）
 # ═══════════════════════════════════════════════════════════════
 
@@ -278,6 +324,8 @@ _DOMAIN_FACTORIES = {
     "lhb": get_lhb_fetchers,
     "event": get_event_fetchers,
     "chip": get_chip_fetchers,
+    "block_trade": get_block_trade_fetchers,
+    "limit_up": get_limit_up_fetchers,
 }
 
 
@@ -363,3 +411,11 @@ def get_event_manager() -> DataFetcherManager:
 
 def get_chip_manager() -> DataFetcherManager:
     return _get_or_create("chip", get_chip_fetchers, "chip_sources")
+
+
+def get_block_trade_manager() -> DataFetcherManager:
+    return _get_or_create("block_trade", get_block_trade_fetchers, "block_trade_sources")
+
+
+def get_limit_up_manager() -> DataFetcherManager:
+    return _get_or_create("limit_up", get_limit_up_fetchers, "limit_up_sources")
