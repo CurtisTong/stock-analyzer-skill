@@ -124,6 +124,17 @@ def _emit_json_with_validation(rows: list, strategy: str) -> None:
     print(json.dumps(enriched, ensure_ascii=False, indent=2))
 
 
+def _fmt_factor(row: dict, key: str) -> str:
+    """因子列格式化：因子不可得时值为 None（v1.24.0 复审修复——缺失不再伪装成 50）。"""
+    v = row.get(key)
+    if v is None:
+        return "N/A"
+    try:
+        return f"{float(v):.1f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+
 def render(rows, strategy, top, title=None, show_chip=True):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
@@ -153,19 +164,19 @@ def render(rows, strategy, top, title=None, show_chip=True):
         if show_chip:
             from business.risk_warning import chip_emoji
 
-            chip_val = r.get("chip", 50)
-            chip_display = f"{chip_emoji(chip_val)}{chip_val:>3}"
+            chip_val = r.get("chip")
+            chip_display = f"{chip_emoji(chip_val)}{_fmt_factor(r, 'chip'):>3}"
             print(
                 f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
-                f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
-                f"{r['momentum']:>5} | {r['liquidity']:>5} | {chip_display:>5} | {r['pe']:>6} | "
+                f"{r['score']:>5} | {_fmt_factor(r, 'quality'):>5} | {_fmt_factor(r, 'valuation'):>5} | "
+                f"{_fmt_factor(r, 'momentum'):>5} | {_fmt_factor(r, 'liquidity'):>5} | {chip_display:>5} | {r['pe']:>6} | "
                 f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
             )
         else:
             print(
                 f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | {r.get('industry', '默认'):<4} | {r['board']:<4} | "
-                f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
-                f"{r['momentum']:>5} | {r['liquidity']:>6} | {r['pe']:>6} | "
+                f"{r['score']:>5} | {_fmt_factor(r, 'quality'):>5} | {_fmt_factor(r, 'valuation'):>5} | "
+                f"{_fmt_factor(r, 'momentum'):>5} | {_fmt_factor(r, 'liquidity'):>6} | {r['pe']:>6} | "
                 f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
             )
         # 退潮板块高分标的加 ⚠️ 标记
@@ -217,8 +228,8 @@ def render_brief(rows, strategy, top, title=None):
         macd_icon = "↑" if r.get("macd_signal", 0) > 0 else "↓" if r.get("macd_signal", 0) < 0 else "→"
         print(
             f"{idx:>2} | {r['code']:<8} | {r['name']:<8} | "
-            f"{r['score']:>5} | {r['quality']:>5} | {r['valuation']:>5} | "
-            f"{r['momentum']:>5} | {r['trend']}{macd_icon}"
+            f"{r['score']:>5} | {_fmt_factor(r, 'quality'):>5} | {_fmt_factor(r, 'valuation'):>5} | "
+            f"{_fmt_factor(r, 'momentum'):>5} | {r['trend']}{macd_icon}"
         )
         # 退潮板块高分标的加 ⚠️ 标记
         if r.get("sector_momentum_warning"):
