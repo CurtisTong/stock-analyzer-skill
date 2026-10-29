@@ -173,3 +173,34 @@ class TestMarketAnchorNorthbound:
         assert "短期回流" in _interpret_northbound(5.0, "流入", "")
         assert "短期流出" in _interpret_northbound(-3.0, "流出", "")
         assert "方向不明" in _interpret_northbound(0, "震荡", "")
+
+
+class TestCommandsContract:
+    """v1.24.0 机器可读命令契约（commands.json）。"""
+
+    def test_contract_json_exists_and_parse(self):
+        import json
+
+        path = PROJECT_ROOT / "skills" / "_shared" / "references" / "commands.json"
+        assert path.exists(), "commands.json 缺失（运行 gen_script_catalog.py --emit-json）"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["_meta"]["count"] == len(data["commands"])
+        assert data["commands"], "命令列表为空"
+
+    def test_contract_entries_have_schema(self):
+        import json
+
+        path = PROJECT_ROOT / "skills" / "_shared" / "references" / "commands.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for cmd in data["commands"]:
+            assert {"name", "path", "description", "flags"} <= set(cmd)
+            assert cmd["path"].startswith("scripts/")
+
+    def test_contract_lists_core_commands(self):
+        import json
+
+        path = PROJECT_ROOT / "skills" / "_shared" / "references" / "commands.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        names = {c["name"] for c in data["commands"]}
+        for core in ("stock", "screener", "backtest", "portfolio_correlation", "cb", "ipo_calendar"):
+            assert core in names, f"契约缺核心命令 {core}"

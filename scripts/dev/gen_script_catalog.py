@@ -99,9 +99,44 @@ def list_scripts() -> list[dict]:
                 "path": f"scripts/{py.name}",
                 "description": desc or "（无描述）",
                 "flags": flags,
+                "flags_list": [f for f in flags.split("、") if f],
             }
         )
     return scripts
+
+
+# v1.24.0 机器可读命令契约：LLM 直接消费 command→params→schema
+CONTRACTS_PATH = PKG_ROOT / "skills" / "_shared" / "references" / "commands.json"
+
+
+def _emit_commands_json(_updated: str) -> None:
+    """写命令契约 JSON（command→params 清单 + 说明 + 受管 marker 校验）。"""
+    import json
+
+    from datetime import datetime, timezone
+
+    scripts = list_scripts()
+    payload = {
+        "_meta": {
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "tool": "gen_script_catalog.py --emit-json",
+            "count": len(scripts),
+            "version": "1",
+            # 与 script-catalog.md 同源，保证两份产物一致
+            "catalog_marker": "BEGIN/END 受管区域一致",
+        },
+        "commands": [
+            {
+                "name": s["name"],
+                "path": s["path"],
+                "description": s["description"],
+                "flags": s["flags_list"],
+            }
+            for s in scripts
+        ],
+    }
+    CONTRACTS_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(f"✅ 写命令契约 {len(scripts)} 个 -> {CONTRACTS_PATH.relative_to(PKG_ROOT)}")
 
 
 def build_region() -> str:
@@ -137,11 +172,23 @@ def main():
     parser = argparse.ArgumentParser(description="维护脚本目录的受管清单区域")
     parser.add_argument("--check", action="store_true", help="校验受管区域是否最新（CI 用）")
     parser.add_argument("--stdout", action="store_true", help="输出刷新后的全文到 stdout，不写文件")
+    # v1.24.0：机器可读命令契约（OpenBB --list-commands/--describe 同构）
+    parser.add_argument(
+        "--emit-json",
+        action="store_true",
+        help="写 skills/_shared/references/commands.json（command→params 契约，LLM 直接消费）",
+    )
     args = parser.parse_args()
 
     existing = CATALOG_PATH.read_text(encoding="utf-8") if CATALOG_PATH.exists() else ""
     region = build_region()
     updated = splice(existing, region)
+
+    if args.emit_json:
+        from datetime import datetime, timezone
+
+        _emit_commands_json(updated)
+        return
 
     if args.stdout:
         print(updated)
