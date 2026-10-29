@@ -163,10 +163,10 @@ def format_debate_output(result: dict) -> str:
             if short_cal < 0:
                 lines.append(f"  ⚠ 短线组校准为负（历史准确率低），信心扣 {short_cal * 10:+.1f} 分")
 
-            # v1.24.0：未结算预测数与胜率样本分离显示，避免误把"未到期"当"未验证失败"
+            # v1.24.0：未结算预测数与胜率样本分离显示，避免误把"待结算"当"未验证失败"
             pending = get_pending_predictions()
             if pending:
-                lines.append(f"  ℹ 另有 {len(pending)} 条预测未到验证窗口（未结算，不计入胜率）")
+                lines.append(f"  ℹ 另有 {len(pending)} 条预测到期待结算（未结算，不计入胜率）")
     except Exception as e:
         logger.debug("校准数据不可用，跳过胜率卡片: %s", e)
 

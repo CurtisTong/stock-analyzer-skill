@@ -71,7 +71,7 @@ class TestWinRateCardMinSamples:
         monkeypatch.setattr(cal_mod, "get_pending_predictions", lambda: [{"stock": "sh600519"}])
         out = active_experts.format_debate_output(_debate_result())
         assert "未结算" in out
-        assert "1 条预测未到验证窗口" in out
+        assert "1 条预测到期待结算" in out
 
 
 class TestCalibrationReportSamePolicy:

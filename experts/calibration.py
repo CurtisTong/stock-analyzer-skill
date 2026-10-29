@@ -42,6 +42,30 @@ _CALIBRATION_FILE = _PROJECT_ROOT / "data" / "expert_calibration.json"
 # 防止小样本胜率（如 3 战 3 胜 = 100%）被过度解读（对标 ai-hedge-fund scorecard 口径）。
 MIN_CALIBRATION_SAMPLES = 10
 
+# v1.24.0：按专家角色分桶的验证窗口（自然日），替换统一 30 天窗。
+# 用错误时间窗评价专家会让长线视角被短窗噪声误伤（价值机构 30 天胜率无意义），
+# 也会给短线视角发放过长免责期。口径对标 ai-hedge-fund 的 per-analyst horizon。
+# 长线价值/趋势 120 交易日 ≈ 180 自然日；行业景气/风险预算 60 交易日 ≈ 90；
+# 短线题材/情绪/动量 5-10 交易日 ≈ 14 自然日。
+EXPERT_HORIZON_DAYS = {
+    "lynch": 180,
+    "soros": 180,
+    "value_institution": 180,
+    "sector_specialist": 90,
+    "risk_manager": 90,
+    "topic_leader": 14,
+    "emotion_tech": 14,
+    "momentum_trader": 14,
+}
+# 未知专家名（含 legacy 旧记录回放）回退 30 天，与旧行为一致
+DEFAULT_HORIZON_DAYS = 30
+
+
+def _expert_horizon(name: str) -> int:
+    """单个专家的验证窗口（自然日）。"""
+    return EXPERT_HORIZON_DAYS.get(name, DEFAULT_HORIZON_DAYS)
+
+
 # legacy 专家名 -> 合并后的 active 专家名。
 # 校准数据历史上按 legacy 名记录（buffett/duan_yongping 等），但这些专家
 # 已合并进 active 专家（value_institution/emotion_tech/topic_leader）。
@@ -301,6 +325,15 @@ def record_prediction(
     # 归一化 expert_scores 键为 active 名（legacy 名 -> merged active 名）
     expert_scores = _normalize_expert_scores(expert_scores)
 
+    # v1.24.0 horizon 分桶：每位专家按自己的验证窗口算到期日；
+    # 顶层 verify_after 取所有专家中最短窗口（最早到期日），保持旧字段语义可用
+    expert_horizons = {
+        name: (datetime.strptime(date, "%Y-%m-%d") + timedelta(days=_expert_horizon(name))).strftime("%Y-%m-%d")
+        for name in expert_scores
+    }
+    if expert_horizons:
+        verify_after = min(verify_after, min(expert_horizons.values()))
+
     data = _load()
 
     # 去重：同日同股不重复记录
@@ -310,6 +343,9 @@ def record_prediction(
         existing[0]["direction"] = direction
         existing[0]["composite_score"] = composite_score
         existing[0]["verify_after"] = verify_after
+        existing[0]["expert_horizons"] = expert_horizons
+        existing[0]["settled_experts"] = []
+        existing[0]["verified"] = False
         _save(data)
         return pred_id
 
@@ -322,6 +358,8 @@ def record_prediction(
         "expert_scores": expert_scores,
         "verified": False,
         "verify_after": verify_after,
+        "expert_horizons": expert_horizons,
+        "settled_experts": [],
         "actual_return": None,
         "actual_direction": None,
     }
@@ -335,16 +373,21 @@ def verify_predictions(
     get_price_fn=None,
     mark_only: bool = False,
 ) -> Dict[str, Any]:
-    """验证到期的历史预测。
+    """验证到期的历史预测（v1.24.0 起按专家 horizon 分桶结算）。
+
+    每位专家按自己的验证窗口（EXPERT_HORIZON_DAYS）独立到期独立结算：
+    一条预测里短线专家（14 天）先结算，长线专家（180 天）到期后补结算。
+    全部专家结算完毕才置 ``verified=True``。旧记录无 ``expert_horizons``
+    字段时沿用顶层 ``verify_after`` 一次性结算，行为与旧版一致。
 
     Args:
-        days: 验证窗口天数（与 record_prediction 的 verify_days 对应）
+        days: 兼容参数（旧签名保留，实际窗口以记录内 expert_horizons 为准）
         get_price_fn: 可选的获取股票收益率函数。
             签名: get_price_fn(stock_code, start_date, end_date) -> float (收益率%)
             为 None 时跳过实际收益率计算。
         mark_only: 仅标记到期但不获取价格（无网络环境用）。
-            注意：mark_only=True 会将预测标记为 verified 但不更新专家校准数据，
-            且无法回滚--后续带 get_price_fn 的验证会跳过已标记记录。
+            注意：mark_only=True 会将到期专家标记为已结算但不更新校准数据，
+            且无法回滚--后续带 get_price_fn 的验证会跳过已标记专家。
 
     Returns:
         {"verified": int, "updated_experts": int, "skipped": int, "details": [...]}
@@ -355,34 +398,54 @@ def verify_predictions(
     skipped_count = 0
     details = []
 
+    from experts import direction_from_score
+
     for pred in data["predictions"]:
-        if pred["verified"] or pred["verify_after"] > today:
+        if pred.get("verified"):
             continue
 
-        # 计算实际收益率
-        actual_return = None
-        actual_direction = None
-        if get_price_fn is not None:
-            try:
-                actual_return = get_price_fn(pred["stock"], pred["date"], pred["verify_after"])
-                # v1.7.1 起阈值可配置：从 scripts/config/scoring.yaml 读取
-                threshold = _get_calibration_threshold()
-                if actual_return > threshold:
-                    actual_direction = "上涨"
-                elif actual_return < -threshold:
-                    actual_direction = "下跌"
-                else:
-                    actual_direction = "横盘"
-            except (KeyError, ValueError, TypeError) as e:
-                logging.getLogger(__name__).debug("获取 %s 实际收益率失败: %s", pred["stock"], e)
+        horizons = pred.get("expert_horizons") or {}
+        expert_scores = pred.get("expert_scores", {})
+        settled = set(pred.get("settled_experts", []))
 
-        # v2.4.3 修正：重验证 bug
-        # 原 get_price_fn=None 时仍置 verified=True，导致预测被永久锁死（无结果）。
-        # 现仅在以下情况标记 verified：
-        #   1. mark_only=True（显式仅标记，无网络环境）
-        #   2. actual_direction is not None（成功获取价格）
-        # 否则跳过该预测（skipped），等待后续带 get_price_fn 的验证。
-        if not mark_only and actual_direction is None:
+        if horizons:
+            # 新记录：按专家 horizon 找本轮到期且未结算的专家
+            due = {
+                name for name, end in horizons.items() if end <= today and name not in settled and name in expert_scores
+            }
+            if not due:
+                continue
+            all_experts = {n for n in horizons if n in expert_scores}
+        else:
+            # 旧记录：无分桶字段，沿用顶层 verify_after 一次性结算
+            if pred["verify_after"] > today:
+                continue
+            due = set(expert_scores)
+            all_experts = set(expert_scores)
+            horizons = {n: pred["verify_after"] for n in expert_scores}
+
+        # 按验证窗口分组获取实际方向（同一条预测最多 3 种窗口，避免重复拉价）
+        direction_by_window: Dict[str, Optional[str]] = {}
+        return_by_window: Dict[str, Optional[float]] = {}
+        if get_price_fn is not None and not mark_only:
+            threshold = _get_calibration_threshold()
+            for window_end in sorted({horizons[n] for n in due}):
+                try:
+                    actual_return = get_price_fn(pred["stock"], pred["date"], window_end)
+                    return_by_window[window_end] = actual_return
+                    if actual_return > threshold:
+                        direction_by_window[window_end] = "上涨"
+                    elif actual_return < -threshold:
+                        direction_by_window[window_end] = "下跌"
+                    else:
+                        direction_by_window[window_end] = "横盘"
+                except (KeyError, ValueError, TypeError) as e:
+                    logging.getLogger(__name__).debug("获取 %s 实际收益率失败: %s", pred["stock"], e)
+                    direction_by_window[window_end] = None
+                    return_by_window[window_end] = None
+
+        if not mark_only and all(direction_by_window.get(horizons[n]) is None for n in due):
+            # 本轮到期专家的价格全部获取失败：跳过等待下次验证（v2.4.3 语义）
             skipped_count += 1
             details.append(
                 {
@@ -397,35 +460,13 @@ def verify_predictions(
             )
             continue
 
-        pred["verified"] = True
-        pred["actual_return"] = actual_return
-        pred["actual_direction"] = actual_direction
-        verified_count += 1
-
-        # 更新专家校准数据：按每位专家自己的分数方向判定
-        from experts import direction_from_score
-
-        pred_direction = pred.get("direction", "")
-
-        # 预测级别正确性（用组合方向，保留兼容）
-        pred_correct = None
-        if actual_direction is not None:
-            if pred_direction in ("强烈看多", "看多") and actual_direction == "上涨":
-                pred_correct = True
-            elif pred_direction in ("看空", "强烈看空") and actual_direction == "下跌":
-                pred_correct = True
-            elif pred_direction == "中性" and actual_direction == "横盘":
-                pred_correct = True
-            else:
-                pred_correct = False
-
-        for expert_name, score in pred.get("expert_scores", {}).items():
-            # expert_name 为 active 名（record_prediction 写入），
-            # data["experts"] 键经 _migrate_legacy_experts 也为 active 名，
-            # 此 in 检查才能匹配（修复前 legacy 键导致新预测永远不更新）。
+        # 逐位专家按自己的窗口结算
+        for expert_name in sorted(due):
+            window_end = horizons[expert_name]
+            actual_direction = direction_by_window.get(window_end)
             if expert_name in data["experts"]:
                 if actual_direction is not None:
-                    expert_direction = direction_from_score(score)
+                    expert_direction = direction_from_score(expert_scores[expert_name])
                     is_correct = None
                     if expert_direction in ("强烈看多", "看多") and actual_direction == "上涨":
                         is_correct = True
@@ -439,15 +480,43 @@ def verify_predictions(
                     if is_correct:
                         data["experts"][expert_name]["correct"] += 1
                 data["experts"][expert_name]["last_updated"] = today
+            settled.add(expert_name)
 
+        # 主窗口（顶层 verify_after）方向用于预测级 correct 与兼容字段
+        main_window = pred.get("verify_after") or horizons.get(next(iter(due))) or ""
+        main_direction = direction_by_window.get(main_window)
+        main_return = return_by_window.get(main_window)
+
+        fully_settled = all_experts <= settled
+        if fully_settled:
+            pred["verified"] = True
+            pred["actual_return"] = main_return
+            pred["actual_direction"] = main_direction
+            verified_count += 1
+
+        pred_direction = pred.get("direction", "")
+        pred_correct = None
+        if main_direction is not None:
+            if pred_direction in ("强烈看多", "看多") and main_direction == "上涨":
+                pred_correct = True
+            elif pred_direction in ("看空", "强烈看空") and main_direction == "下跌":
+                pred_correct = True
+            elif pred_direction == "中性" and main_direction == "横盘":
+                pred_correct = True
+            else:
+                pred_correct = False
+
+        pred["settled_experts"] = sorted(settled)
         details.append(
             {
                 "id": pred["id"],
                 "stock": pred["stock"],
                 "direction": pred_direction,
-                "actual_return": actual_return,
-                "actual_direction": actual_direction,
+                "actual_return": main_return,
+                "actual_direction": main_direction,
                 "correct": pred_correct,
+                "settled_experts": sorted(due),
+                "fully_settled": fully_settled,
             }
         )
 
@@ -468,10 +537,26 @@ def get_calibration() -> Dict[str, dict]:
 
 
 def get_pending_predictions() -> List[dict]:
-    """返回尚未验证的预测记录。"""
+    """返回到期待结算的预测记录。
+
+    v1.24.0 分桶语义：任一专家的验证窗口已到且尚未结算即算 pending
+    （一条预测可能短线组已结算、长线组仍待结算）。旧记录沿用 verify_after。
+    """
     data = _load()
     today = datetime.now().strftime("%Y-%m-%d")
-    return [p for p in data.get("predictions", []) if not p.get("verified") and p.get("verify_after", "") <= today]
+    pending = []
+    for p in data.get("predictions", []):
+        if p.get("verified"):
+            continue
+        horizons = p.get("expert_horizons") or {}
+        settled = set(p.get("settled_experts", []))
+        if horizons:
+            due_exists = any(end <= today and name not in settled for name, end in horizons.items())
+        else:
+            due_exists = p.get("verify_after", "") <= today
+        if due_exists:
+            pending.append(p)
+    return pending
 
 
 def _calibration_factor_from_rates(rates: list[float]) -> float:
@@ -603,4 +688,6 @@ __all__ = [
     "get_kline_return",
     "get_calibration_report",
     "MIN_CALIBRATION_SAMPLES",
+    "EXPERT_HORIZON_DAYS",
+    "DEFAULT_HORIZON_DAYS",
 ]
