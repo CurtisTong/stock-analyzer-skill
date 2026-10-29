@@ -513,6 +513,13 @@ def verify_predictions(
                     data["experts"][expert_name]["events"] += 1
                     if is_correct:
                         data["experts"][expert_name]["correct"] += 1
+                        # v1.24.0 slugging 口径（ai-hedge-fund scorecard）：
+                        # 赢时结算的平均收益，仅统计方向性判断（中性正确不进入赔率）
+                        ret_win = return_by_window.get(window_end)
+                        if ret_win is not None and expert_direction not in ("中性",):
+                            rec = data["experts"][expert_name]
+                            rec["slug_win_sum"] = rec.get("slug_win_sum", 0.0) + ret_win
+                            rec["slug_win_n"] = rec.get("slug_win_n", 0) + 1
                     else:
                         # v1.24.0 反思记忆：错误结算生成结构化教训（滚动保留 MAX_LESSONS 条）
                         lesson = {
@@ -535,6 +542,12 @@ def verify_predictions(
                         lessons = data["experts"][expert_name].setdefault("lessons", [])
                         lessons.append(lesson)
                         del lessons[:-MAX_LESSONS]
+                        # slugging 输侧统计：输时结算的平均收益（方向性判断）
+                        ret_loss = return_by_window.get(window_end)
+                        if ret_loss is not None and expert_direction not in ("中性",):
+                            rec = data["experts"][expert_name]
+                            rec["slug_loss_sum"] = rec.get("slug_loss_sum", 0.0) + ret_loss
+                            rec["slug_loss_n"] = rec.get("slug_loss_n", 0) + 1
                 data["experts"][expert_name]["last_updated"] = today
             settled.add(expert_name)
 
@@ -634,6 +647,24 @@ def _calibration_factor_from_rates(rates: list[float]) -> float:
     return max(-1.0, min(1.0, factor))
 
 
+def _slugging_from_rec(rec: dict) -> float | None:
+    """slugging 赔率 = 赢时平均收益 / |输时平均收益|（ai-hedge-fund scorecard）。
+
+    赢/输均为方向性判断（中性正确/错误不进入赔率统计）。
+    双侧样本齐全（win_n>0 且 loss_n>0）才返回，否则 None。
+    """
+    win_n = rec.get("slug_win_n", 0)
+    loss_n = rec.get("slug_loss_n", 0)
+    if win_n == 0 or loss_n == 0:
+        return None
+    win_avg = rec.get("slug_win_sum", 0.0) / win_n
+    loss_avg = rec.get("slug_loss_sum", 0.0) / loss_n
+    if abs(loss_avg) < 1e-9:
+        return None
+    slug = win_avg / abs(loss_avg)
+    return round(slug, 2)
+
+
 def compute_calibration_factor() -> float:
     """计算校准因子（decide.md §六.2 公式，修正）。
 
@@ -668,8 +699,9 @@ def get_calibration_report() -> str:
     lines = ["## 专家校准报告", ""]
     lines.append(f"校准因子: {factor:+.3f} (范围 [-1, 1])")
     lines.append("")
-    lines.append("| 专家 | 事件数 | 正确数 | 校准率 |")
-    lines.append("|------|--------|--------|--------|")
+    # v1.24.0 赔率列：slugging = 赢时平均收益 / |输时平均收益|（>1 说明赢比输大）
+    lines.append("| 专家 | 事件数 | 正确数 | 校准率 | 赔率(slugging) |")
+    lines.append("|------|--------|--------|--------|----------------|")
 
     for name in _get_all_expert_names():
         rec = experts.get(name, {})
@@ -682,7 +714,13 @@ def get_calibration_report() -> str:
             rate = f"样本不足 (n={events})"
         else:
             rate = "无数据"
-        lines.append(f"| {name} | {events} | {correct} | {rate} |")
+        slug = _slugging_from_rec(rec)
+        slug_str = (
+            f"赢{rec.get('slug_win_n', 0)}输{rec.get('slug_loss_n', 0)} · {slug:.2f}"
+            if slug is not None
+            else "样本不足"
+        )
+        lines.append(f"| {name} | {events} | {correct} | {rate} | {slug_str} |")
 
     pending = get_pending_predictions()
     if pending:

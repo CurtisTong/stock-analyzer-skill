@@ -139,3 +139,51 @@ class TestDebateInjectionAndRender:
             }
         )
         assert "上轮教训" not in out
+
+
+class TestSlugging:
+    """v1.24.0 slugging 赔率统计。"""
+
+    def test_win_loss_recorded(self, store):
+        # 两笔：一笔看多上涨（赢），一笔看多下跌（输）
+        cal_mod.record_prediction("sh600519", _scores(70), "看多", timestamp=f"{_days_ago(200)} 10:00:00")
+        cal_mod.record_prediction("sz000001", _scores(70), "看多", timestamp=f"{_days_ago(200)} 10:00:00")
+
+        calls = {"c": 0}
+
+        def _price_fn(stock, start, end):
+            calls["c"] += 1
+            return 6.0 if stock == "sh600519" else -4.0
+
+        cal_mod.verify_predictions(get_price_fn=_price_fn)
+
+        for name in EXPERTS:
+            rec = store["experts"][name]
+            assert rec.get("slug_win_n", 0) == 1
+            assert rec.get("slug_loss_n", 0) == 1
+            assert rec.get("slug_win_sum", 0) == pytest.approx(6.0)
+            assert rec.get("slug_loss_sum", 0) == pytest.approx(-4.0)
+
+    def test_slugging_ratio(self, store):
+        from experts.calibration import _slugging_from_rec
+
+        rec = {"slug_win_sum": 12.0, "slug_win_n": 2, "slug_loss_sum": -4.0, "slug_loss_n": 2}
+        assert _slugging_from_rec(rec) == 3.0  # 赢均 6 / 输均 2
+
+        rec2 = {"slug_win_sum": 6.0, "slug_win_n": 1, "slug_loss_n": 1, "slug_loss_sum": -6.0}
+        assert _slugging_from_rec(rec2) == 1.0
+
+    def test_missing_side_returns_none(self, store):
+        from experts.calibration import _slugging_from_rec
+
+        assert _slugging_from_rec({"slug_win_sum": 6.0, "slug_win_n": 1}) is None
+        assert _slugging_from_rec({"slug_loss_sum": -6.0, "slug_loss_n": 1}) is None
+
+    def test_neutral_verdict_excluded_from_slugging(self, store):
+        # 中性预测 + 横盘 → correct，但不进 slugging（方向性判断才计赔率）
+        cal_mod.record_prediction("sh600519", _scores(50), "中性", timestamp=f"{_days_ago(200)} 10:00:00")
+        cal_mod.verify_predictions(get_price_fn=_price_fn(0.5))
+        for name in EXPERTS:
+            rec = store["experts"][name]
+            assert rec.get("slug_win_n", 0) == 0
+            assert rec.get("slug_loss_n", 0) == 0

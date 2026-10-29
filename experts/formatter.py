@@ -133,6 +133,7 @@ def format_debate_output(result: dict) -> str:
     try:
         from experts.calibration import (
             MIN_CALIBRATION_SAMPLES,
+            _slugging_from_rec,
             get_calibration,
             get_pending_predictions,
             compute_calibration_factor,
@@ -151,8 +152,8 @@ def format_debate_output(result: dict) -> str:
             lines.append("")
             lines.append("## 📊 专家校准胜率")
             lines.append("")
-            lines.append("| 专家 | 事件数 | 正确数 | 胜率 |")
-            lines.append("|------|--------|--------|------|")
+            lines.append("| 专家 | 事件数 | 正确数 | 胜率 | 赔率 |")
+            lines.append("|------|--------|--------|------|------|")
             for name, rec in card_items:
                 events = rec.get("events", 0)
                 correct = rec.get("correct", 0)
@@ -164,7 +165,10 @@ def format_debate_output(result: dict) -> str:
                     rate = "样本不足"
                 else:
                     rate = "无历史"
-                lines.append(f"| {name} | {events} | {correct} | {rate} |")
+                # v1.24.0 赔率（slugging）：赢时均收益/|输时均收益|，双侧齐全才显示
+                slug = _slugging_from_rec(rec)
+                slug_str = f"{slug:.2f}" if slug is not None else "样本不足"
+                lines.append(f"| {name} | {events} | {correct} | {rate} | {slug_str} |")
 
             # v2.4.3：校准因子（全局 + 分组）
             global_factor = compute_calibration_factor()
