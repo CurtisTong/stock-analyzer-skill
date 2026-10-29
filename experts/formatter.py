@@ -117,6 +117,18 @@ def format_debate_output(result: dict) -> str:
         for note in result["notes"]:
             lines.append(f"- {note}")
 
+    # v1.24.0 反思记忆段：本轮专家在最近结算中的错误教训（run_debate 注入）
+    lessons = result.get("_lessons") or {}
+    if lessons:
+        lines.append("")
+        lines.append("### 🧠 上轮教训（近 2 条错误结算）")
+        for name, items in lessons.items():
+            for item in items:
+                imp = item.get("improvement", "")
+                lines.append(f"- **{name}**: {item.get('lesson', '')}")
+                if imp:
+                    lines.append(f"  ↳ {imp}")
+
     # 校准胜率卡片
     try:
         from experts.calibration import (

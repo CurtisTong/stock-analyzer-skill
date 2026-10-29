@@ -100,6 +100,27 @@ def run_debate(
         risk_coefficients=risk_coefficients,
     )
 
+    # 2.5. 反思记忆注入（v1.24.0）：把每位参与专家的近期错误教训挂到
+    # 结果上（近 LESSON_INJECT_LIMIT 条），formatter 渲染成"上轮教训"段。
+    # 让下一轮 debate 能看到"这位专家上次在这类判断上栽在哪"。
+    lessons_by_expert: dict = {}
+    try:
+        from experts.calibration import get_calibration, LESSON_INJECT_LIMIT
+
+        calibration = get_calibration()
+        for r in expert_results:
+            name = r.get("name")
+            if not name:
+                continue
+            rec = calibration.get(name, {})
+            lessons = rec.get("lessons", [])[-LESSON_INJECT_LIMIT:]
+            if lessons:
+                lessons_by_expert[name] = lessons
+    except Exception as e:
+        _logger.debug("反思记忆读取失败（不影响 debate 结果）: %s", e)
+    if lessons_by_expert:
+        result["_lessons"] = lessons_by_expert
+
     # 3. 落库预测记录
     pred_id = None
     try:

@@ -60,10 +60,44 @@ EXPERT_HORIZON_DAYS = {
 # 未知专家名（含 legacy 旧记录回放）回退 30 天，与旧行为一致
 DEFAULT_HORIZON_DAYS = 30
 
+# v1.24.0 反思记忆：每位专家滚动保留的教训条数（对标 TradingAgents-CN
+# 分层反思——只存"为什么错"的结构化教训，debate 注入近 2 条）
+MAX_LESSONS = 5
+LESSON_INJECT_LIMIT = 2
+
 
 def _expert_horizon(name: str) -> int:
     """单个专家的验证窗口（自然日）。"""
     return EXPERT_HORIZON_DAYS.get(name, DEFAULT_HORIZON_DAYS)
+
+
+def _lesson_improvement(expert_name: str, direction: str, actual: str, score: float) -> str:
+    """由错误形态生成改进提示（规则式，无 LLM 依赖）。
+
+    按专家所在组（长线/短线）区分措辞：长线错误多为"证伪时滞"，
+    短线错误多为"信号衰减过快"，中性错误多为"缺波动率条件"。
+    """
+    from experts.registry import EXPERT_REGISTRY
+
+    group = ""
+    profile = EXPERT_REGISTRY.get(expert_name)
+    if profile is not None:
+        group = getattr(profile, "group", "")
+
+    if direction == "中性":
+        return "中性判断错过单边行情：横盘结论需要波动率/量能条件支撑，条件不足时降为观望并缩短复核周期"
+
+    bullish = direction in ("强烈看多", "看多")
+    went_down = actual in ("下跌", "横盘")
+    if bullish and went_down:
+        if group == "short_term":
+            return "题材/情绪信号在该窗口内衰减：提高入场门槛（量能/封板质量确认）或缩短持有预期"
+        return "低估证伪时滞：检查逻辑兑现所需窗口是否超过自身 horizon，或补充更硬的证伪条件"
+    if not bullish and not went_down:
+        if group == "short_term":
+            return "看空过早：强势标的的趋势惯性超出预期，需等待量价破坏信号再行动"
+        return "高估了负面因素权重：重新核验估值/基本面证据是否被短期动量压制"
+    return "方向与实际不符：复核打分依据中权重最高的证据项是否仍然成立"
 
 
 # legacy 专家名 -> 合并后的 active 专家名。
@@ -479,6 +513,28 @@ def verify_predictions(
                     data["experts"][expert_name]["events"] += 1
                     if is_correct:
                         data["experts"][expert_name]["correct"] += 1
+                    else:
+                        # v1.24.0 反思记忆：错误结算生成结构化教训（滚动保留 MAX_LESSONS 条）
+                        lesson = {
+                            "date": pred.get("date", ""),
+                            "stock": pred.get("stock", ""),
+                            "direction": expert_direction,
+                            "score": expert_scores[expert_name],
+                            "actual_direction": actual_direction,
+                            "actual_return": return_by_window.get(window_end),
+                            "window_days": _expert_horizon(expert_name),
+                            "lesson": (
+                                f"预测{expert_direction}({expert_scores[expert_name]:.0f}分)"
+                                f"但{_expert_horizon(expert_name)}日窗口实际{actual_direction}"
+                                f"（{return_by_window.get(window_end) or 0:+.1f}%）"
+                            ),
+                            "improvement": _lesson_improvement(
+                                expert_name, expert_direction, actual_direction, expert_scores[expert_name]
+                            ),
+                        }
+                        lessons = data["experts"][expert_name].setdefault("lessons", [])
+                        lessons.append(lesson)
+                        del lessons[:-MAX_LESSONS]
                 data["experts"][expert_name]["last_updated"] = today
             settled.add(expert_name)
 
