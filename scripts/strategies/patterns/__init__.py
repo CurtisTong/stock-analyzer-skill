@@ -27,6 +27,7 @@ from .shuangzhen import detect_shuangzhen
 from .zhangting import detect_zhangting
 from .duanban import detect_duanban
 from .dibu_shouban import detect_dibu_shouban
+from .turtle_and_annual import detect_turtle_breakout, detect_annual_line_pullback
 
 __all__ = [
     "PatternInput",
@@ -40,6 +41,8 @@ __all__ = [
     "detect_zhangting",
     "detect_duanban",
     "detect_dibu_shouban",
+    "detect_turtle_breakout",
+    "detect_annual_line_pullback",
     "detect_all_local_patterns",
 ]
 
@@ -100,6 +103,12 @@ def detect_all_local_patterns(inp: PatternInput):
 
     # 底部首板
     all_patterns.extend(detect_dibu_shouban(records, closes, highs, lows, volumes, code))
+
+    # 海龟突破（唐奇安通道 + 放量确认）
+    all_patterns.extend(detect_turtle_breakout(records, closes, highs, lows, volumes))
+
+    # 回踩年线企稳（趋势低吸）
+    all_patterns.extend(detect_annual_line_pullback(records, closes, highs, lows, volumes))
 
     # 按时间排序（最新的在后）
     all_patterns.sort(key=lambda p: p["idx"])
