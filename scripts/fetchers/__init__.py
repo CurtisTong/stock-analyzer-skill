@@ -15,6 +15,7 @@ v1.3.2 起按数据域分组（7 个数据域 × 35 个 fetcher 类），
   block_trade - 大宗交易    （1 文件 / 1 类：eastmoney）
   limit_up - 涨停原因归因    （1 文件 / 1 类：ths）
   ipo     - 新股日历         （1 文件 / 1 类：eastmoney）
+  cb      - 可转债行情       （1 文件 / 1 类：eastmoney）
   chip    - 融资融券/股东   （1 文件 / 3 类：eastmoney）
   _common - 内部辅助        （4 文件：tushare_check/pytdx_pool/pytdx_meta/akshare_probe，非 fetcher）
 """
@@ -270,6 +271,28 @@ def get_chip_fetchers() -> list:
 
 
 # ═══════════════════════════════════════════════════════════════
+# 数据域: cb（可转债行情）
+# ═══════════════════════════════════════════════════════════════
+
+
+def get_cb_fetchers() -> list:
+    """获取所有可用的可转债行情数据源（缓存单例）。"""
+    if "cb" in _fetcher_cache:
+        return _fetcher_cache["cb"]
+    with _cache_lock:
+        if "cb" in _fetcher_cache:
+            return _fetcher_cache["cb"]
+        fetchers = []
+
+        from .cb.eastmoney_cb import ConvertibleBondFetcher
+
+        fetchers.append(ConvertibleBondFetcher())
+
+        _fetcher_cache["cb"] = fetchers
+        return fetchers
+
+
+# ═══════════════════════════════════════════════════════════════
 # 数据域: ipo（新股日历）
 # ═══════════════════════════════════════════════════════════════
 
@@ -350,6 +373,7 @@ _DOMAIN_FACTORIES = {
     "block_trade": get_block_trade_fetchers,
     "limit_up": get_limit_up_fetchers,
     "ipo": get_ipo_fetchers,
+    "cb": get_cb_fetchers,
 }
 
 
@@ -447,3 +471,7 @@ def get_limit_up_manager() -> DataFetcherManager:
 
 def get_ipo_manager() -> DataFetcherManager:
     return _get_or_create("ipo", get_ipo_fetchers, "ipo_sources")
+
+
+def get_cb_manager() -> DataFetcherManager:
+    return _get_or_create("cb", get_cb_fetchers, "cb_sources")

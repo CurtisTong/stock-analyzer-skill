@@ -30,7 +30,7 @@ done
 ## 脚本清单
 
 <!-- BEGIN GENERATED: python3 scripts/dev/gen_script_catalog.py -->
-> 39 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
+> 40 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
 
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|
@@ -40,6 +40,7 @@ done
 | `python3 scripts/calibration.py` | 专家校准数据管理 CLI | -j、--stock、--direction、--scores、--composite |
 | `python3 scripts/calibration_backfill.py` | 校准数据回填与管理 CLI（v2.4.3 引入） | -j、-v、--days、--no-price、--file |
 | `python3 scripts/calibration_sync.py` | 校准数据 GitHub Gist 双向同步 | -j、--pull、--push、--auto、--status |
+| `python3 scripts/cb.py` | 可转债行情查询 | -j、--top |
 | `python3 scripts/chan.py` | 缠中说禅理论（缠论）实现 | — |
 | `python3 scripts/chip.py` | 资金面分析 CLI 入口 | -j、--margin、--holders、--top-holders、--chip |
 | `python3 scripts/chip_dist.py` | 成本分布（筹码分布）分析——获利盘/套牢盘、平均成本、主密集区、上方抛压 | -j、--codes、--pool、--window、--bins |
