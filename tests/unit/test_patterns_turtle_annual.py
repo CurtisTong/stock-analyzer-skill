@@ -81,7 +81,7 @@ class TestAllPatternsIntegration:
 
         closes = [10.0] * 257 + [10.5, 10.8, 11.2]  # 260 根，年线可算
         records = [_mk(f"2026-01-{idx + 1:02d}", c) for idx, c in enumerate(closes)]
-        volumes = [1000] * 260
+        volumes = [1000] * 257 + [1000, 2000, 3000]  # 末两根放量（量比 ≥1.5 过海龟确认）
 
         inp = PatternInput(
             records=records,
