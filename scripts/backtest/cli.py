@@ -12,7 +12,64 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import normalize_quote_code, DATA_DIR
 from strategies import get_strategy, list_strategies, get_validation
-from .metrics import run_backtest
+from .metrics import run_backtest, deflated_sharpe_ratio
+
+# v1.24.0 过拟合诊断阈值：同因子最优档与基准档的夏普差（尖峰），
+# 以及全局最优与试验中位数的夏普差（离群）
+SENSITIVITY_SPIKE_THRESHOLD = 0.5
+SENSITIVITY_OUTLIER_THRESHOLD = 1.0
+
+
+def _sensitivity_by_key(results: list, base_keys: list) -> dict:
+    """按扰动因子分组的夏普敏感性曲线。
+
+    Returns:
+        {factor_key: {"steps": [-0.05, 0, 0.05], "sharpes": [...]}}
+        同因子 3 档的夏普曲线——平缓的平台说明结果对该因子不敏感（可信度高），
+        尖峰说明最优解依赖恰好这一档参数（过拟合信号）。
+    """
+    sensitivity = {}
+    for key in base_keys:
+        rows = sorted((r for r in results if r.get("perturbed_key") == key), key=lambda r: r["step"])
+        if rows:
+            sensitivity[key] = {
+                "steps": [r["step"] for r in rows],
+                "sharpes": [r["sharpe"] for r in rows],
+            }
+    return sensitivity
+
+
+def _overfit_warnings(results: list, best_score: float, base_score: float) -> list:
+    """由网格试验形态产生过拟合警示（无警示返回空列表）。"""
+    import statistics
+
+    warnings = []
+
+    # 尖峰检测：最优试验所在因子，其最优档与基准档（step=0）的夏普差
+    best_row = max(results, key=lambda r: r["sharpe"], default=None)
+    if best_row and best_row.get("step") != 0:
+        same_key = [r for r in results if r.get("perturbed_key") == best_row["perturbed_key"]]
+        baseline_row = next((r for r in same_key if r.get("step") == 0), None)
+        if baseline_row:
+            spike = best_row["sharpe"] - baseline_row["sharpe"]
+            if spike > SENSITIVITY_SPIKE_THRESHOLD:
+                warnings.append(
+                    f"因子 {best_row['perturbed_key']} 出现尖峰：最优档夏普 "
+                    f"{best_row['sharpe']:.2f} 比基准档 {baseline_row['sharpe']:.2f} 高 {spike:.2f}，"
+                    "相邻档位差异大说明最优解依赖该档参数，建议扩大网格复验"
+                )
+
+    # 离群检测：全局最优显著高于试验分布中心
+    scores = [r["sharpe"] for r in results]
+    if len(scores) >= 5:
+        median = statistics.median(scores)
+        if best_score - median > SENSITIVITY_OUTLIER_THRESHOLD:
+            warnings.append(
+                f"最优夏普 {best_score:.2f} 高于试验中位数 {median:.2f} 超过 "
+                f"{SENSITIVITY_OUTLIER_THRESHOLD}，最优解疑似分布离群点"
+            )
+
+    return warnings
 
 
 def _attach_validation(report) -> None:
@@ -129,6 +186,8 @@ def optimize_weights(
                     "weights": {k: round(v, 3) for k, v in test_weights.items()},
                     "sharpe": score,
                     "return": report.get("total_return_pct", 0),
+                    "perturbed_key": key,
+                    "step": step,
                 }
             )
 
@@ -144,6 +203,20 @@ def optimize_weights(
         "improvement": round(best_score - base_score, 3),
         "all_results": results,
     }
+
+    # v1.24.0 过拟合诊断：敏感性平台 + deflated Sharpe。
+    # 网格寻优在 N 次试验里挑最大夏普，即使全部无效最大值也会"看起来不错"；
+    # 这两个指标把选择偏差显式报告出来，而不是只给一个漂亮的最优数字。
+    result["sensitivity"] = _sensitivity_by_key(results, base_keys)
+    result["overfit_warnings"] = _overfit_warnings(results, best_score, base_score)
+    dsr = deflated_sharpe_ratio([r["sharpe"] for r in results] + [base_score], best_score, days)
+    if dsr is not None:
+        result["deflated_sharpe"] = dsr
+        if dsr < 0.95:
+            result["overfit_warnings"].append(
+                f"deflated Sharpe={dsr:.3f} < 0.95：{days} 日窗口 × {len(results) + 1} 次试验下，"
+                "最优夏普很可能主要是选择偏差，不构成策略有效的证据"
+            )
 
     # 跨窗口验证：best_weights 在 60/120/240 日窗口的表现
     if validate:
@@ -368,6 +441,16 @@ def main():
                     print("✅ 优化权重通过跨窗口验证（三窗口均为正收益）")
                 else:
                     print("⚠️  优化权重未通过跨窗口验证（存在负收益窗口），" "不建议实盘使用——单窗口优化可能过拟合历史")
+            # v1.24.0 过拟合诊断输出
+            if result.get("deflated_sharpe") is not None:
+                print(f"\n🧪 Deflated Sharpe: {result['deflated_sharpe']:.4f}（>0.95 才能排除选择偏差）")
+            warnings = result.get("overfit_warnings") or []
+            if warnings:
+                print("⚠️  过拟合警示:")
+                for w in warnings:
+                    print(f"  - {w}")
+            else:
+                print("✅ 敏感性检查通过：无尖峰/离群警示")
             _print_report_meta(
                 {
                     "generated_at": datetime.now().isoformat(timespec="seconds"),

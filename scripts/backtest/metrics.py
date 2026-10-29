@@ -301,3 +301,52 @@ def _calc_sortino(daily_returns: list, annual_risk_free: float = 0.03) -> float:
         return 0
     mean_excess = sum(excess) / len(excess)
     return round(mean_excess / downside_std * (252**0.5), 2)
+
+
+def deflated_sharpe_ratio(
+    sharpe_trials: list,
+    best_sharpe: float,
+    n_obs: int,
+) -> float | None:
+    """Deflated Sharpe Ratio（Bailey & López de Prado 2014 简化版）。
+
+    参数寻优是在 N 次试验里挑最大夏普——即使全部策略都无效，最大值
+    也会"看起来不错"。DSR 回答：在 N 次试验、零假设（无技能）下，
+    观测到这个最大夏普的概率有多大。返回 Prob[SR* <= SR_best]，
+    低于 0.95 说明"最优夏普"很可能只是选择偏差。
+
+    简化口径：假设收益正态（无偏度/峰度校正）；输入为年化夏普，
+    内部换算回单期（日）口径后按 T = n_obs 个交易日计算。
+
+    Args:
+        sharpe_trials: 各次试验（含基准）的年化夏普列表
+        best_sharpe: 寻优选出的最大年化夏普
+        n_obs: 回测窗口交易日数
+
+    Returns:
+        DSR ∈ [0, 1]；试验数 < 2、夏普无离散度或样本不足时返回 None
+    """
+    import math
+    from statistics import NormalDist, mean, variance
+
+    trials = [s for s in sharpe_trials if s is not None]
+    if len(trials) < 2 or n_obs < 30:
+        return None
+
+    var_sr = variance(trials)
+    if var_sr <= 0:
+        return None
+
+    euler_mascheroni = 0.5772156649
+    z = NormalDist().inv_cdf
+    n = len(trials)
+    expected_max = math.sqrt(var_sr) * (
+        (1 - euler_mascheroni) * z(1 - 1 / n) + euler_mascheroni * z(1 - 1 / (n * math.e))
+    )
+
+    sqrt252 = 252**0.5
+    sr_best_daily = best_sharpe / sqrt252
+    sr0_daily = expected_max / sqrt252
+    denom = math.sqrt(max(1e-12, 1 - 0.5 * sr_best_daily**2))
+    dsr = NormalDist().cdf((sr_best_daily - sr0_daily) * math.sqrt(n_obs - 1) / denom)
+    return round(dsr, 4)
