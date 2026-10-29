@@ -571,6 +571,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -800,6 +801,13 @@
 - **release**: bump version to 1.23.1 (sync_version)
 
 ### Other
+- merge: integrate CI CHANGELOG auto-update
+
+### Fixed
+- **fetchers**: ths limit-up timestamps forced to Asia/Shanghai
+
+### Other
+- merge: timezone fix for release v1.24.0
 - merge: integrate CI CHANGELOG auto-update
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
