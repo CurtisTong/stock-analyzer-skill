@@ -30,6 +30,9 @@ from .dibu_shouban import detect_dibu_shouban
 from .turtle_and_annual import detect_turtle_breakout, detect_annual_line_pullback
 from .classic import detect_classic_patterns
 
+# 形态展示位上限（v1.24.0 由 5 提升到 10：增设经典形态库后 5 位会挤掉多数形态）
+PATTERN_DISPLAY_LIMIT = 10
+
 __all__ = [
     "PatternInput",
     "detect_ma_volume_signal",
@@ -129,7 +132,7 @@ def detect_all_local_patterns(inp: PatternInput):
 
     # 只看最近出现的（idx 最大的）
     # v1.24.0 展示位 5 → 10：增设经典形态库（12 个）后，最近 5 个上限会挤掉多数形态
-    recent = deduped[-10:] if len(deduped) > 10 else deduped
+    recent = deduped[-PATTERN_DISPLAY_LIMIT:] if len(deduped) > PATTERN_DISPLAY_LIMIT else deduped
 
     bullish = [p["name"] for p in recent if p["type"] == "看涨"]
     bearish = [p["name"] for p in recent if p["type"] == "看跌"]
@@ -145,7 +148,8 @@ def detect_all_local_patterns(inp: PatternInput):
         "patterns": recent,
         "summary": summary,
         "count": len(recent),
-        # 未截断的检测总数（含被"最近 5 个"展示上限丢弃的早期形态）
+        # 未截断的检测总数（含被展示上限丢弃的早期形态）
         "detected_count": len(deduped),
-        "truncated": len(deduped) > 5,
+        # 阈值必须与展示位上限一致（v1.24.0 展示位 5 → 10，此处未同步导致 6-10 条时误报截断）
+        "truncated": len(deduped) > 10,
     }
