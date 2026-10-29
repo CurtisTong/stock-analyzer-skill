@@ -107,6 +107,9 @@ class SimContext:
     commission: float = 0.00025
     stamp_tax: float = 0.001
     slippage: float = 0.001
+    # v1.24.0 最低佣金（元/笔，双向各一次）：单笔佣金 = max(比例佣金, 最低佣金)。
+    # 单笔金额按 initial_capital / top_n 估算；默认 5 元为行业最低佣金标准。
+    min_commission: float = 5.0
     weights: dict | None = None
     # v1.21.1 盈亏比修复：ATR 自适应止损 + 移动止盈。
     # 均为 None 时保持原固定阈值行为（-8% 止损 / +20% 止盈），不改变既有回测结果。
@@ -117,6 +120,25 @@ class SimContext:
     # 因子计算始终用 bars[:i] 全历史（无前瞻），仅评估区间受窗口限制。
     eval_start: int = 0
     eval_end: int | None = None
+
+
+def _total_cost_rate(
+    trade_amount: float,
+    commission: float,
+    stamp_tax: float,
+    slippage: float,
+    min_commission: float = 5.0,
+) -> float:
+    """单轮持有（一买一卖）的总成本率。
+
+    佣金双向各一次，单边 = max(比例佣金, 最低佣金) / 成交金额；
+    印花税卖出一次；滑点双向。A 股券商最低佣金约 5 元/笔，
+    小额单笔（initial_capital / top_n 较小）此前被系统性低估。
+    """
+    if trade_amount <= 0:
+        return 0.0
+    per_side = max(commission * trade_amount, min_commission) / trade_amount
+    return per_side * 2 + stamp_tax + slippage * 2
 
 
 def simulate_strategy(ctx: SimContext):
@@ -154,6 +176,8 @@ def simulate_strategy(ctx: SimContext):
     commission = ctx.commission
     stamp_tax = ctx.stamp_tax
     slippage = ctx.slippage
+    min_commission = ctx.min_commission
+    initial_capital = ctx.initial_capital
     weights = ctx.weights
     atr_stop_multiplier = ctx.atr_stop_multiplier
     trailing_stop_pct = ctx.trailing_stop_pct
@@ -326,8 +350,9 @@ def simulate_strategy(ctx: SimContext):
                 atr_multiplier=atr_stop_multiplier,
                 trailing_pct=trailing_stop_pct,
             )
-            # 扣除交易成本：佣金(双向) + 印花税(卖出) + 滑点(双向)
-            total_cost = commission * 2 + stamp_tax + slippage * 2
+            # 扣除交易成本：佣金(双向，含最低佣金) + 印花税(卖出) + 滑点(双向)
+            trade_amount = initial_capital / max(top_n, 1)
+            total_cost = _total_cost_rate(trade_amount, commission, stamp_tax, slippage, min_commission)
             ret -= total_cost
             if i < ctx.eval_start:
                 i += holding_days

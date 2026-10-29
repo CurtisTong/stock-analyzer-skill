@@ -1074,3 +1074,34 @@ class TestTwoStageBacktest:
         # 全部被硬过滤拒绝 → 无有效数据
         assert "error" in result
         assert "无法计算收益" in result["error"]
+
+
+class TestTotalCostRate:
+    """v1.24.0 最低佣金成本模型。"""
+
+    def test_large_amount_uses_rate_commission(self):
+        from backtest.engine import _total_cost_rate
+
+        # 20000 元 × 0.025% = 5 元，恰好等于最低佣金，双向 = 比例口径
+        rate = _total_cost_rate(20000, commission=0.00025, stamp_tax=0.001, slippage=0.001)
+        assert rate == pytest.approx(0.00025 * 2 + 0.001 + 0.001 * 2)
+
+    def test_small_amount_floor_at_min_commission(self):
+        from backtest.engine import _total_cost_rate
+
+        # 10000 元 × 0.025% = 2.5 元 < 5 元 → 提到 5 元
+        rate = _total_cost_rate(10000, commission=0.00025, stamp_tax=0.001, slippage=0.001)
+        expected = (5.0 / 10000) * 2 + 0.001 + 0.001 * 2
+        assert rate == pytest.approx(expected)
+        assert rate > 0.00025 * 2 + 0.001 + 0.001 * 2
+
+    def test_zero_amount_returns_zero(self):
+        from backtest.engine import _total_cost_rate
+
+        assert _total_cost_rate(0, 0.00025, 0.001, 0.001) == 0.0
+
+    def test_min_commission_zero_disables_floor(self):
+        from backtest.engine import _total_cost_rate
+
+        rate = _total_cost_rate(10000, commission=0.00025, stamp_tax=0.001, slippage=0.001, min_commission=0.0)
+        assert rate == pytest.approx(0.00025 * 2 + 0.001 + 0.001 * 2)
