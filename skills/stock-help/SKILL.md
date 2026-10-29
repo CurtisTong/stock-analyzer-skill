@@ -121,7 +121,7 @@ disable-model-invocation: false
 
 - 12 个 skill = 8 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
 - 所有分析仅供参考，不构成投资建议
-- 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（35 个 fetcher 类，熔断器自动故障转移）
+- 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（37 个 fetcher 类，熔断器自动故障转移）
 
 ## 🆘 获取更多帮助
 

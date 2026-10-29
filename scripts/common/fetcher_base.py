@@ -269,19 +269,42 @@ class DataFetcherManager:
         self._last_error_lock = threading.Lock()
         # v1.24.0 数据血缘：最近一次 fetch 的降级事件链
         # [{"provider": str, "name": str, "event": "429|error|not_handled|empty", "detail": str}, ...]
-        self._fallback_chain: list[dict] = []
+        #
+        # 按 code 分桶存储（v1.24.0 复审修复）：链原本挂在 manager 单例上、
+        # 每次 fetch 开头整体重置——个股行情与指数行情并发共用同一 manager 时，
+        # 指数的降级事件会被贴到个股的"行情[...]"行上，且缓存命中路径
+        # （根本不进 manager）会保留上一次请求的残留链，血缘不可信。
+        self._fallback_chains: dict[str, list[dict]] = {}
         self._fallback_chain_lock = threading.Lock()
+        # 当前 fetch 的链用 thread-local 隔离：并发 fetch 不同 code 时
+        # 各自的降级事件不能混进同一条链
+        self._fallback_local = threading.local()
 
     @property
     def last_fallback_chain(self) -> list:
-        """最近一次 fetch 的降级事件链（只读副本）。"""
+        """最近一次 fetch 的降级事件链（只读副本）。
+
+        兼容旧接口：无 code 上下文时返回最后一次 fetch 的链。
+        需要精确到标的时请用 fallback_chain(code)。
+        """
         with self._fallback_chain_lock:
-            return list(self._fallback_chain)
+            if not self._fallback_chains:
+                return []
+            # dict 保持插入序，最后一个即最近一次 fetch
+            return list(next(reversed(self._fallback_chains.values())))
+
+    def fallback_chain(self, code: str) -> list:
+        """取指定标的的降级事件链（只读副本）。"""
+        with self._fallback_chain_lock:
+            return list(self._fallback_chains.get(str(code), []))
 
     def _record_fallback(self, provider: str, name: str, event: str, detail: str = "") -> None:
         """记录一次降级事件（数据血缘：谁失败、为什么切）。"""
-        with self._fallback_chain_lock:
-            self._fallback_chain.append({"provider": provider, "name": name, "event": event, "detail": detail})
+        chain = getattr(self._fallback_local, "chain", None)
+        if chain is None:
+            chain = []
+            self._fallback_local.chain = chain
+        chain.append({"provider": provider, "name": name, "event": event, "detail": detail})
 
     @property
     def last_error(self) -> Exception | None:
@@ -324,8 +347,10 @@ class DataFetcherManager:
         if not code or not _SAFE_CODE_PATTERN.match(str(code)):
             return None
         self._set_last_error(None)
-        with self._fallback_chain_lock:
-            self._fallback_chain = []
+        # 本次 fetch 的降级链用 thread-local 隔离（并发 fetch 不同 code 时
+        # 各自的事件不能混进同一条链），结束时按 code 归档
+        self._fallback_local.chain = []
+        self._fallback_local.code = str(code)
 
         # 延迟导入避免循环依赖（fetcher_base → rate_limiter 不存在反向依赖）
         from common.rate_limiter import get_rate_limiter, is_provider_disabled
@@ -357,6 +382,7 @@ class DataFetcherManager:
                     continue
                 if result is not None:
                     fetcher.on_success()
+                    self._archive_fallback_chain()
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
                 self._record_fallback(fetcher.provider, fetcher.name, "empty", "无数据")
@@ -381,6 +407,7 @@ class DataFetcherManager:
                             limiter.release(fetcher.provider)
                         if result is not None and not isinstance(result, _NotHandled):
                             fetcher.on_success()
+                            self._archive_fallback_chain()
                             return result
                     except RateLimitError:
                         pass  # 重试仍 429，标记并继续切源
@@ -398,7 +425,17 @@ class DataFetcherManager:
                 self._set_last_error(e)
                 self._record_fallback(fetcher.provider, fetcher.name, "error", str(e))
                 continue
+        self._archive_fallback_chain()
         return None
+
+    def _archive_fallback_chain(self) -> None:
+        """把本次 fetch 的降级链按 code 归档（供按标的查询血缘）。"""
+        chain = getattr(self._fallback_local, "chain", None)
+        code = getattr(self._fallback_local, "code", None)
+        if not chain or code is None:
+            return
+        with self._fallback_chain_lock:
+            self._fallback_chains[code] = list(chain)
 
     def fetch_with_fallback(self, code: str, fallback: object = None, **kwargs: object) -> object:
         result = self.fetch(code, **kwargs)

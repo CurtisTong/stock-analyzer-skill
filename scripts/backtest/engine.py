@@ -395,6 +395,10 @@ def simulate_strategy(ctx: SimContext):
     # v1.22.1: 每期日收益分段（供分位置胜率按持有期统计，而非全局拼接）
     portfolio_period_daily_returns = []
     selection_details = []
+    # v1.24.0 复审修复：回传每期的日期区间，供基准按**同样的日期**切块。
+    # 原实现基准侧按固定 holding_days 切连续日线、策略侧按 date 分组，
+    # 两者只在网格严格对齐时等价——网格一变（涨停跳过等）就错位。
+    period_dates: list[dict] = []
 
     for date in sorted(valid_dates):
         group_list = sorted(date_groups[date], key=lambda x: x["score"], reverse=True)[:top_n]
@@ -411,6 +415,13 @@ def simulate_strategy(ctx: SimContext):
             portfolio_daily_returns.extend(period_daily)
             portfolio_period_daily_returns.append(period_daily)
         selection_details.extend(group_list)
+        # 该期的持有区间：选股日 + 实际持有天数（基准按同样区间切块）
+        period_dates.append(
+            {
+                "start": date,
+                "holding_days": max((s.get("holding_days") or holding_days) for s in group_list),
+            }
+        )
 
     if not portfolio_returns:
         return {"error": "回测失败，无有效数据"}
@@ -423,6 +434,7 @@ def simulate_strategy(ctx: SimContext):
         "returns": [round(r * 100, 2) for r in portfolio_returns],
         "daily_returns": portfolio_daily_returns,
         "period_daily_returns": portfolio_period_daily_returns,
+        "period_dates": period_dates,
         "avg_return_pct": round(avg_return, 2),
         "total_periods": len(portfolio_returns),
         "holding_days": holding_days,

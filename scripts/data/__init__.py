@@ -81,16 +81,24 @@ def _reset_fetchers():
         _finance_manager = None
 
 
-def get_last_fallback_chain(domain: str = "quote") -> list:
+def get_last_fallback_chain(domain: str = "quote", code: str | None = None) -> list:
     """最近一次 fetch 的降级事件链（数据血缘，v1.24.0）。
 
     domain: quote/kline/finance。空链 = 本轮无降级（主源直连）。
     用于输出尾部展示"谁失败、为什么切"，比单纯最终源名更可追溯。
+
+    code: 指定标的时返回**该标的**的链（v1.24.0 复审修复）。不传则返回
+    该域最近一次 fetch 的链（兼容旧行为）。
+
+    注意：缓存命中路径不经过 manager，不会产生新的降级事件——此时应传
+    code 查询该标的自己的历史链，而不是拿到别的标的的链。
     """
     try:
         _load_fetchers()
         manager = {"quote": _quote_manager, "kline": _kline_manager, "finance": _finance_manager}.get(domain)
         if manager is not None:
+            if code:
+                return manager.fallback_chain(code)
             return manager.last_fallback_chain
     except Exception:
         pass

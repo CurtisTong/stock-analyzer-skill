@@ -20,20 +20,35 @@ from classifier import profile_stock
 logger = logging.getLogger(__name__)
 
 
-def _attach_fallback_details(result: dict, domain: str) -> None:
+def _attach_fallback_details(result: dict, domain: str, code: str | None = None) -> None:
     """拼接降级事件链到血缘行（v1.24.0 数据血缘增强）。
 
     主源直连时链为空（无附加）；有降级时以
-    "（sina 429 → xueqiu 无数据 → tencent 命中）"形式附在域源名后，
+    "（sina 429 → xueqiu 无数据）"形式附在域源名后，
     让"切了哪个源、为什么切"可追溯（对标 OpenBB 凭证级 fallback
     之上的运行时降级可视）。
+
+    v1.24.0 复审修复：
+    - 按 code 取链：个股行情与指数行情并发共用同一 manager 时，
+      不按标的取会把指数的降级事件贴到个股行上（血缘不可信）。
+    - 用 provider + detail 渲染：原实现用 fetcher 名 + 事件码，
+      输出 "sina quote 429 → xueqiu quote empty"，与承诺的
+      "sina 429 → xueqiu 无数据"不符（detail 采集了却从不渲染）。
     """
     try:
         from data import get_last_fallback_chain
 
-        chain = get_last_fallback_chain(domain)
+        chain = get_last_fallback_chain(domain, code=code)
         if chain:
-            parts = [f"{c['name'].replace('_', ' ')} {c['event']}" for c in chain if c.get("name")]
+            parts = []
+            for c in chain:
+                provider = c.get("provider") or c.get("name", "")
+                detail = c.get("detail") or ""
+                if detail and detail != c.get("event"):
+                    parts.append(f"{provider} {detail}")
+                else:
+                    parts.append(f"{provider} {c.get('event', '')}")
+            parts = [p.strip() for p in parts if p.strip()]
             if parts and result["data_sources"]:
                 result["data_sources"][-1] += "（降级链: " + " → ".join(parts) + "）"
     except Exception:
@@ -140,7 +155,7 @@ def _analyze(
             src = getattr(quote, "source", "")
             result["data_sources"].append(f"行情[{src}]" if src else "行情")
             # v1.24.0 数据血缘：拼降级事件链（谁失败、为什么切）
-            _attach_fallback_details(result, "quote")
+            _attach_fallback_details(result, "quote", code=code)
     try:
         kline = f_kline.result(timeout=30)
     except Exception as e:
@@ -153,7 +168,7 @@ def _analyze(
             # 取最后一根 bar 的 source 代表整条 K 线数据来源
             src = getattr(kline[-1], "source", "") if kline else ""
             result["data_sources"].append(f"K线[{src}]" if src else "K线")
-            _attach_fallback_details(result, "kline")
+            _attach_fallback_details(result, "kline", code=code)
     try:
         # (2026-07-21): get_finance 返回 (records, FinanceMeta) tuple
         finance_result = f_finance.result(timeout=45) if f_finance else None
@@ -171,7 +186,7 @@ def _analyze(
             # 透传财务数据源名
             src = getattr(finance[0], "source", "") if finance else ""
             result["data_sources"].append(f"财务[{src}]" if src else "财务")
-            _attach_fallback_details(result, "finance")
+            _attach_fallback_details(result, "finance", code=code)
     # 大盘指数行情（不再用个股 quote 当指数 quote）
     index_quote = None
     try:

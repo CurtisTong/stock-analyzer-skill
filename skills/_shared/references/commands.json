@@ -1,406 +1,3085 @@
 {
   "_meta": {
-    "generated_at": "2026-10-29T01:30:12Z",
+    "generated_at": "2026-10-29T13:36:37Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 40,
-    "version": "1",
-    "catalog_marker": "BEGIN/END 受管区域一致"
+    "version": "2",
+    "catalog_marker": "BEGIN/END 受管区域一致",
+    "param_source": "ast-static-analysis"
   },
   "commands": [
     {
       "name": "announcements",
       "path": "scripts/announcements.py",
       "description": "东方财富公告 + 研报",
+      "cli": true,
       "flags": [
-        "-j"
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "backtest",
       "path": "scripts/backtest.py",
       "description": "多因子选股策略回测（thin wrapper）",
-      "flags": []
+      "cli": false,
+      "flags": [
+        "-v",
+        "--version",
+        "-h",
+        "--help",
+        "--strategy",
+        "--all",
+        "--optimize",
+        "--validate",
+        "--no-validate",
+        "--top",
+        "--days",
+        "--rounds",
+        "--codes",
+        "--benchmark",
+        "--scenarios",
+        "--walk-forward",
+        "--train-days",
+        "--test-days",
+        "--n-windows",
+        "-j",
+        "--json"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-v",
+            "--version"
+          ],
+          "required": false,
+          "action": "version"
+        },
+        {
+          "flags": [
+            "-h",
+            "--help"
+          ],
+          "required": false,
+          "action": "help"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "required": false,
+          "default": "balanced",
+          "help": "回测策略"
+        },
+        {
+          "flags": [
+            "--all"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "比较所有策略"
+        },
+        {
+          "flags": [
+            "--optimize"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "优化权重"
+        },
+        {
+          "flags": [
+            "--validate"
+          ],
+          "required": false,
+          "default": true,
+          "action": "store_true",
+          "help": "优化后对 best_weights 做 60/120/240 日跨窗口验证（默认开启）"
+        },
+        {
+          "flags": [
+            "--no-validate"
+          ],
+          "required": false,
+          "action": "store_false",
+          "help": "关闭跨窗口验证（不推荐）"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int",
+          "help": "每轮买入数量"
+        },
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 60,
+          "type": "int",
+          "help": "回测天数"
+        },
+        {
+          "flags": [
+            "--rounds"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int",
+          "help": "回测轮数"
+        },
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "help": "自定义股票代码（逗号分隔）"
+        },
+        {
+          "flags": [
+            "--benchmark"
+          ],
+          "required": false,
+          "help": "基准指数代码（如 sh000300 沪深300），多个用逗号分隔（如 sh000300,sh000016）"
+        },
+        {
+          "flags": [
+            "--scenarios"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "运行情景分析"
+        },
+        {
+          "flags": [
+            "--walk-forward"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "Walk-forward 回测（train+test 滚动窗口 OOS 验证）"
+        },
+        {
+          "flags": [
+            "--train-days"
+          ],
+          "required": false,
+          "default": 120,
+          "type": "int",
+          "help": "Walk-forward 训练段天数（默认 120）"
+        },
+        {
+          "flags": [
+            "--test-days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "Walk-forward 测试段天数（默认 30，OOS 窗口）"
+        },
+        {
+          "flags": [
+            "--n-windows"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int",
+          "help": "Walk-forward 窗口数量（默认 5）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 输出"
+        }
+      ]
     },
     {
       "name": "block_trade",
       "path": "scripts/block_trade.py",
       "description": "大宗交易查询",
+      "cli": true,
       "flags": [
+        "--days",
         "-j",
-        "--days"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "回看自然日（默认 30）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "calibration",
       "path": "scripts/calibration.py",
       "description": "专家校准数据管理 CLI",
+      "cli": true,
       "flags": [
-        "-j",
         "--stock",
         "--direction",
         "--scores",
-        "--composite"
+        "--composite",
+        "--verify-days",
+        "--days",
+        "--no-price",
+        "--quiet",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--stock"
+          ],
+          "required": true,
+          "help": "股票代码 (如 sh600989)"
+        },
+        {
+          "flags": [
+            "--direction"
+          ],
+          "required": true,
+          "help": "预测方向 (强烈看多/看多/中性/看空/强烈看空)"
+        },
+        {
+          "flags": [
+            "--scores"
+          ],
+          "required": true,
+          "help": "专家评分 JSON (如 '{\"buffett\":72,...}')"
+        },
+        {
+          "flags": [
+            "--composite"
+          ],
+          "required": false,
+          "default": 0.0,
+          "type": "float",
+          "help": "调整后综合分"
+        },
+        {
+          "flags": [
+            "--verify-days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "验证窗口天数 (默认30)"
+        },
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "验证窗口天数 (默认30)"
+        },
+        {
+          "flags": [
+            "--no-price"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅标记到期不获取价格（无网络环境），不更新专家校准数据"
+        },
+        {
+          "flags": [
+            "--quiet"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅输出一行摘要（适合定时任务自动化）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "输出 JSON"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "calibration_backfill",
       "path": "scripts/calibration_backfill.py",
       "description": "校准数据回填与管理 CLI（v2.4.3 引入）",
+      "cli": true,
       "flags": [
-        "-j",
-        "-v",
         "--days",
         "--no-price",
-        "--file"
+        "-v",
+        "--verbose",
+        "--file",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "验证窗口天数 (默认30)"
+        },
+        {
+          "flags": [
+            "--no-price"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅标记到期不获取价格"
+        },
+        {
+          "flags": [
+            "-v",
+            "--verbose"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "输出详情"
+        },
+        {
+          "flags": [
+            "--file"
+          ],
+          "required": true,
+          "help": "JSON 文件路径"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "calibration_sync",
       "path": "scripts/calibration_sync.py",
       "description": "校准数据 GitHub Gist 双向同步",
+      "cli": true,
       "flags": [
-        "-j",
         "--pull",
         "--push",
         "--auto",
-        "--status"
+        "--status",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--pull"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "从 gist 拉取校准数据"
+        },
+        {
+          "flags": [
+            "--push"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "推送本地校准数据到 gist"
+        },
+        {
+          "flags": [
+            "--auto"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "自动同步"
+        },
+        {
+          "flags": [
+            "--status"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "查看同步状态"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "cb",
       "path": "scripts/cb.py",
       "description": "可转债行情查询",
+      "cli": true,
       "flags": [
+        "--top",
         "-j",
-        "--top"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "展示条数（默认 30）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "chan",
       "path": "scripts/chan.py",
       "description": "缠中说禅理论（缠论）实现",
-      "flags": []
+      "cli": false,
+      "flags": [],
+      "params": []
     },
     {
       "name": "chip",
       "path": "scripts/chip.py",
       "description": "资金面分析 CLI 入口",
+      "cli": true,
       "flags": [
-        "-j",
         "--margin",
         "--holders",
         "--top-holders",
-        "--chip"
+        "--chip",
+        "--all",
+        "--days",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--margin"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅显示融资融券"
+        },
+        {
+          "flags": [
+            "--holders"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅显示股东户数"
+        },
+        {
+          "flags": [
+            "--top-holders"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅显示十大流通股东"
+        },
+        {
+          "flags": [
+            "--chip"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅显示筹码分布（暂未实现）"
+        },
+        {
+          "flags": [
+            "--all"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示全部（默认）"
+        },
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 20,
+          "type": "int",
+          "help": "融资融券天数（默认 20）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "chip_dist",
       "path": "scripts/chip_dist.py",
       "description": "成本分布（筹码分布）分析——获利盘/套牢盘、平均成本、主密集区、上方抛压",
+      "cli": true,
       "flags": [
-        "-j",
         "--codes",
         "--pool",
         "--window",
-        "--bins"
+        "--bins",
+        "--tier",
+        "--min-profit",
+        "--max-rebound",
+        "--limit",
+        "--sort",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "help": "批量代码，逗号分隔（如 sh600989,sz300274）"
+        },
+        {
+          "flags": [
+            "--pool"
+          ],
+          "required": false,
+          "help": "板块池名（逗号分隔可多选，如 军工,半导体）"
+        },
+        {
+          "flags": [
+            "--window"
+          ],
+          "required": false,
+          "type": "int",
+          "help": "回看窗口，默认 250"
+        },
+        {
+          "flags": [
+            "--bins"
+          ],
+          "required": false,
+          "type": "int",
+          "help": "价格分档数，默认 240"
+        },
+        {
+          "flags": [
+            "--tier"
+          ],
+          "required": false,
+          "help": "按档位筛选，逗号分隔（筹码在脚下/上方有墙/深度套牢）"
+        },
+        {
+          "flags": [
+            "--min-profit"
+          ],
+          "required": false,
+          "type": "float",
+          "help": "仅保留获利盘 ≥ 该值的标的（%%）"
+        },
+        {
+          "flags": [
+            "--max-rebound"
+          ],
+          "required": false,
+          "type": "float",
+          "help": "仅保留需反弹 ≤ 该值的标的（%%）"
+        },
+        {
+          "flags": [
+            "--limit"
+          ],
+          "required": false,
+          "type": "int",
+          "help": "最多输出 N 条"
+        },
+        {
+          "flags": [
+            "--sort"
+          ],
+          "required": false,
+          "default": "trapped",
+          "help": "批量排序键：trapped/rebound/wall/profit（默认 trapped）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "classifier",
       "path": "scripts/classifier.py",
       "description": "A 股个股类型分类器",
-      "flags": []
+      "cli": false,
+      "flags": [],
+      "params": []
     },
     {
       "name": "concept",
       "path": "scripts/concept.py",
       "description": "题材概念板块数据层",
+      "cli": true,
       "flags": [
-        "-j",
         "--top",
         "--board",
         "--arbitrage",
-        "--scan"
+        "--scan",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 20,
+          "type": "int",
+          "help": "返回数量（默认20）"
+        },
+        {
+          "flags": [
+            "--board"
+          ],
+          "required": false,
+          "default": "",
+          "type": "str",
+          "help": "概念板块BK代码，查看板内个股热度"
+        },
+        {
+          "flags": [
+            "--arbitrage"
+          ],
+          "required": false,
+          "default": "",
+          "type": "str",
+          "help": "看A做B：锚定股代码"
+        },
+        {
+          "flags": [
+            "--scan"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "套利扫描板块数（默认30）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "events",
       "path": "scripts/events.py",
       "description": "个股事件日历查询",
+      "cli": true,
       "flags": [
+        "--days",
         "-j",
-        "--days"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "查询天数（默认 30）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "finance",
       "path": "scripts/finance.py",
       "description": "财务数据查询（多数据源自动切换）",
+      "cli": true,
       "flags": [
-        "-j",
         "-c",
-        "--periods"
+        "--codes",
+        "--periods",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-c",
+            "--codes"
+          ],
+          "required": false,
+          "help": "批量代码（逗号分隔）"
+        },
+        {
+          "flags": [
+            "--periods"
+          ],
+          "required": false,
+          "default": 4,
+          "type": "int",
+          "help": "返回期数（默认 4 季；full/debate 模式建议 8 季）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "hot_rank",
       "path": "scripts/hot_rank.py",
       "description": "热度榜（活跃 Top N）",
+      "cli": true,
       "flags": [
-        "-j",
         "-v",
+        "--version",
         "--top",
         "--days",
-        "--merge"
+        "--merge",
+        "--min-appear",
+        "--historical",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-v",
+            "--version"
+          ],
+          "required": false,
+          "action": "store_true"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 100,
+          "type": "int",
+          "help": "输出 Top N（默认 100）"
+        },
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 1,
+          "type": "int",
+          "help": "N 日累计热度（默认 1=单日）"
+        },
+        {
+          "flags": [
+            "--merge"
+          ],
+          "required": false,
+          "default": 0,
+          "type": "int",
+          "help": "合并最近 N 个交易日快照（出现次数≥⌊N/2⌋+1）"
+        },
+        {
+          "flags": [
+            "--min-appear"
+          ],
+          "required": false,
+          "type": "int",
+          "help": "合并模式下最低出现次数"
+        },
+        {
+          "flags": [
+            "--historical"
+          ],
+          "required": false,
+          "help": "历史某日热度榜（用 K 线回放）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "indicator_env_backtest",
       "path": "scripts/indicator_env_backtest.py",
       "description": "指标信号 × 市场环境 条件回测（逐日重放，与 technical 模块同源）",
+      "cli": true,
       "flags": [
         "--codes",
         "--datalen",
         "--output",
         "--json-out"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "help": "逗号分隔股票代码（默认 5 只推演池）"
+        },
+        {
+          "flags": [
+            "--datalen"
+          ],
+          "required": false,
+          "default": 800,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "--output"
+          ],
+          "required": false,
+          "help": "markdown 报告输出路径"
+        },
+        {
+          "flags": [
+            "--json-out"
+          ],
+          "required": false,
+          "help": "原始样本 JSON 输出路径"
+        }
       ]
     },
     {
       "name": "industry_beta",
       "path": "scripts/industry_beta.py",
       "description": "个股 beta 系数计算（v2.6.0 新增）",
+      "cli": true,
       "flags": [
-        "-j",
         "--index",
-        "--window"
+        "--window",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--index"
+          ],
+          "required": false,
+          "help": "基准指数（None=动态选）"
+        },
+        {
+          "flags": [
+            "--window"
+          ],
+          "required": false,
+          "default": 60,
+          "type": "int",
+          "help": "K 线窗口（默认 60 日）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "init_pool",
       "path": "scripts/init_pool.py",
       "description": "首次安装初始化脚本 — 为每个板块拉取前 20 只股票",
+      "cli": true,
       "flags": [
-        "-j",
         "--force",
+        "-f",
         "--top",
+        "-n",
         "--default",
-        "--full-market"
+        "-d",
+        "--full-market",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--force",
+            "-f"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "强制重新初始化（忽略已有数据）"
+        },
+        {
+          "flags": [
+            "--top",
+            "-n"
+          ],
+          "required": false,
+          "default": 20,
+          "type": "int",
+          "help": "每板块取 Top N（默认 20）"
+        },
+        {
+          "flags": [
+            "--default",
+            "-d"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "使用预置默认数据（不访问 API，离线可用）"
+        },
+        {
+          "flags": [
+            "--full-market"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "初始化全市场股票池（all_stocks.json，约 5000 只）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "ipo_calendar",
       "path": "scripts/ipo_calendar.py",
       "description": "新股/新债日历查询",
+      "cli": true,
       "flags": [
+        "--days",
         "-j",
-        "--days"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "未来回看天数（默认 30）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "kline",
       "path": "scripts/kline.py",
       "description": "K 线数据查询（多数据源自动切换）",
+      "cli": true,
       "flags": [
+        "--days",
         "-j",
-        "--days"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "type": "int",
+          "help": "数据条数别名（等价于 datalen）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "limit_up",
       "path": "scripts/limit_up.py",
       "description": "涨停池与涨停原因归因查询",
+      "cli": true,
       "flags": [
+        "--date",
         "-j",
-        "--date"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--date"
+          ],
+          "required": false,
+          "default": "",
+          "help": "交易日 YYYYMMDD（默认今天）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "macro_indicators",
       "path": "scripts/macro_indicators.py",
       "description": "宏观指标获取模块（v2.5.x 新增）",
+      "cli": true,
       "flags": [
-        "-j"
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "market_anchor",
       "path": "scripts/market_anchor.py",
       "description": "市场环境锚定编排器（v2.5.0 新增）",
+      "cli": true,
       "flags": [
-        "-j",
         "--no-sector",
         "--no-portfolio",
         "--no-rotation",
-        "--no-northbound"
+        "--no-northbound",
+        "--index",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--no-sector"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过板块拉取（technical 模式用）"
+        },
+        {
+          "flags": [
+            "--no-portfolio"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过组合相关性（v2.6.0）"
+        },
+        {
+          "flags": [
+            "--no-rotation"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过题材轮动（v2.7.0）"
+        },
+        {
+          "flags": [
+            "--no-northbound"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过北向资金（v2.7.0）"
+        },
+        {
+          "flags": [
+            "--index"
+          ],
+          "required": false,
+          "default": "sh000300",
+          "help": "大盘指数代码（默认 sh000300）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "market_breadth",
       "path": "scripts/market_breadth.py",
       "description": "市场宽度分析脚本",
+      "cli": true,
       "flags": [
         "--json"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 输出"
+        }
       ]
     },
     {
       "name": "monitor",
       "path": "scripts/monitor.py",
       "description": "数据源健康检查和缓存监控",
+      "cli": true,
       "flags": [
         "--cache",
         "--sources",
         "--cleanup",
-        "--json"
+        "--json",
+        "--log-json"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示缓存状态"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示数据源状态（含健康度矩阵）"
+        },
+        {
+          "flags": [
+            "--cleanup"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "清理过期缓存"
+        },
+        {
+          "flags": [
+            "--json",
+            "--log-json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "输出结构化 JSON 日志（推荐 --json，--log-json 已废弃）"
+        }
       ]
     },
     {
       "name": "multi_stock_backtest",
       "path": "scripts/multi_stock_backtest.py",
       "description": "外样本多股票回测 + 基准对比（PR-G：解决 71.4% CLAIM 单股过拟合问题）",
+      "cli": true,
       "flags": [
-        "-j",
         "--codes",
         "--top",
         "--holding-days",
-        "--total-days"
+        "--total-days",
+        "--strategies",
+        "--output",
+        "--update-validation",
+        "--pool-type",
+        "--require-all-pools",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "help": "逗号分隔股票代码列表（默认 50 只跨板块）"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int",
+          "help": "每个时间点持有股票数"
+        },
+        {
+          "flags": [
+            "--holding-days"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "--total-days"
+          ],
+          "required": false,
+          "default": 60,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "--strategies"
+          ],
+          "required": false,
+          "default": "balanced,ma_volume_momentum",
+          "help": "逗号分隔策略列表"
+        },
+        {
+          "flags": [
+            "--output"
+          ],
+          "required": false,
+          "help": "报告输出路径（默认打印到 stdout）"
+        },
+        {
+          "flags": [
+            "--update-validation"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跑完后自动把结果写进 data/strategy_oos_validation.json，覆盖 STRATEGY_VALIDATION 默认 in_sample 状态"
+        },
+        {
+          "flags": [
+            "--pool-type"
+          ],
+          "required": false,
+          "default": "default",
+          "choices": [
+            "default",
+            "large"
+          ],
+          "help": "本次回测的池类型标识（default=全量 sector 池 / large=跨板块大票池），写入 validation JSON 供双池联合判定"
+        },
+        {
+          "flags": [
+            "--require-all-pools"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "（v1.23.1 起为默认行为，本标志仅保留兼容）多池联合判定：读取 JSON 中已有的全部池结果，所有池都达标才升级 oos_verified"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "perf_bench",
       "path": "scripts/perf_bench.py",
       "description": "性能压测脚本：测量 screener / backtest 端到端耗时",
+      "cli": true,
       "flags": [
-        "-j",
         "--codes",
-        "--rounds"
+        "--rounds",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "default": "sh600519,sh600989,sh600000,sh600036,sh601318"
+        },
+        {
+          "flags": [
+            "--rounds"
+          ],
+          "required": false,
+          "default": 3,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "portfolio_correlation",
       "path": "scripts/portfolio_correlation.py",
       "description": "组合相关性矩阵（v2.6.0 新增）",
+      "cli": true,
       "flags": [
-        "-j",
         "--stock",
         "--window",
         "--list",
-        "--risk-weights"
+        "--risk-weights",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--stock"
+          ],
+          "required": false,
+          "help": "候选个股（计算 vs_portfolio）"
+        },
+        {
+          "flags": [
+            "--window"
+          ],
+          "required": false,
+          "default": 60,
+          "type": "int",
+          "help": "K 线窗口"
+        },
+        {
+          "flags": [
+            "--list"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "仅列出持仓代码"
+        },
+        {
+          "flags": [
+            "--risk-weights"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "输出持仓逆波动率加权建议（低波动资产占比更高）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "portfolio_web",
       "path": "scripts/portfolio_web.py",
       "description": "持仓录入 Web 服务（零依赖 stdlib http.server）",
-      "flags": []
+      "cli": false,
+      "flags": [],
+      "params": []
     },
     {
       "name": "quote",
       "path": "scripts/quote.py",
       "description": "实时行情查询（多数据源自动切换）",
+      "cli": true,
       "flags": [
-        "-j"
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "refresh_pool",
       "path": "scripts/refresh_pool.py",
       "description": "股票池自动刷新脚本 — 从东财 push2 API 拉取板块成分股",
+      "cli": true,
       "flags": [
+        "--sector",
+        "-s",
         "-j",
-        "--sector"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--sector",
+            "-s"
+          ],
+          "required": false,
+          "help": "只刷新指定板块"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "screener",
       "path": "scripts/screener.py",
       "description": "A 股多因子选股器",
+      "cli": true,
       "flags": [
-        "-j",
         "-v",
+        "--version",
         "-h",
+        "--help",
+        "--strategy",
+        "--sector",
+        "--codes",
+        "--top",
+        "--min-amount",
+        "--min-cap",
+        "--exclude-loss",
+        "--no-constraints",
+        "--sector-cap",
+        "--full-market",
+        "--board-limit",
+        "--exclude-board",
+        "--no-normalize",
+        "--no-regime",
+        "--no-chip",
+        "--no-macro",
+        "--snapshot",
+        "--two-stage",
         "-q",
-        "--strategy"
+        "--quiet",
+        "--full",
+        "--board-strict",
+        "--no-board-strict",
+        "--exclude-sector-momentum",
+        "--deadline",
+        "--analyze",
+        "--analyze-top",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "-v",
+            "--version"
+          ],
+          "required": false,
+          "action": "version"
+        },
+        {
+          "flags": [
+            "-h",
+            "--help"
+          ],
+          "required": false,
+          "action": "help",
+          "help": "显示帮助"
+        },
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "required": false,
+          "default": "balanced"
+        },
+        {
+          "flags": [
+            "--sector"
+          ],
+          "required": false,
+          "help": "内置板块名称，支持模糊匹配"
+        },
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "help": "逗号分隔代码列表，优先于 --sector"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 10,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "--min-amount"
+          ],
+          "required": false,
+          "default": 5000,
+          "type": "float",
+          "help": "最低成交额，单位万元"
+        },
+        {
+          "flags": [
+            "--min-cap"
+          ],
+          "required": false,
+          "default": 40,
+          "type": "float",
+          "help": "最低总市值，单位亿元"
+        },
+        {
+          "flags": [
+            "--exclude-loss"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "剔除 EPS<=0 标的"
+        },
+        {
+          "flags": [
+            "--no-constraints"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用组合约束"
+        },
+        {
+          "flags": [
+            "--sector-cap"
+          ],
+          "required": false,
+          "default": 0.3,
+          "type": "float",
+          "help": "单板块最高占比"
+        },
+        {
+          "flags": [
+            "--full-market"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "全市场模式，从 data/all_stocks.json 加载"
+        },
+        {
+          "flags": [
+            "--board-limit"
+          ],
+          "required": false,
+          "default": 0,
+          "type": "int",
+          "help": "全市场模式下每板块最多保留 N 只（0=不限制）"
+        },
+        {
+          "flags": [
+            "--exclude-board"
+          ],
+          "required": false,
+          "default": "北交所",
+          "help": "排除指定板块（如 北交所,科创板），逗号分隔，默认排除北交所"
+        },
+        {
+          "flags": [
+            "--no-normalize"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用因子 z-score 标准化（保留 V1 原始评分）"
+        },
+        {
+          "flags": [
+            "--no-regime"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用市场状态 overlay（保留 V1 固定权重）"
+        },
+        {
+          "flags": [
+            "--no-chip"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用筹码因子（chip）评分"
+        },
+        {
+          "flags": [
+            "--no-macro"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用宏观安全垫检查"
+        },
+        {
+          "flags": [
+            "--snapshot"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "保存本次筛选快照到 data/snapshots/（review#16）"
+        },
+        {
+          "flags": [
+            "--two-stage"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "两阶段管线：Phase 1 无 K 线初筛 → Phase 2 仅对 Top N×3 拉 K 线精排"
+        },
+        {
+          "flags": [
+            "-q",
+            "--quiet"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "静默模式：禁用进度条输出（仅保留最终结果）"
+        },
+        {
+          "flags": [
+            "--full"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "完整模式：16 列因子详情（默认为精简模式）"
+        },
+        {
+          "flags": [
+            "--board-strict"
+          ],
+          "required": false,
+          "default": false,
+          "action": "store_true",
+          "help": "板块模式启用严格硬过滤（默认放宽松；--no-board-strict 等价默认行为）"
+        },
+        {
+          "flags": [
+            "--no-board-strict"
+          ],
+          "required": false,
+          "action": "store_false",
+          "help": "板块模式放宽硬过滤（默认行为）"
+        },
+        {
+          "flags": [
+            "--exclude-sector-momentum"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "剔除近 5 日板块 ETF 跌幅超阈值（5%%）的退潮板块标的（否则仅加 sector_momentum_warning 标记）"
+        },
+        {
+          "flags": [
+            "--deadline"
+          ],
+          "required": false,
+          "type": "float",
+          "help": "整体任务超时秒数（默认 1800s，也可由环境变量 STOCK_SCREENER_DEADLINE 设置）"
+        },
+        {
+          "flags": [
+            "--analyze"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "筛选完成后对 Top N 候选逐一执行五层深度分析（调 scripts/stock.py）"
+        },
+        {
+          "flags": [
+            "--analyze-top"
+          ],
+          "required": false,
+          "default": 3,
+          "type": "int",
+          "help": "--analyze 的候选数量（默认 3）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "sector",
       "path": "scripts/sector.py",
       "description": "板块查询——根据股票代码查找所属板块及板块内标的行情",
+      "cli": true,
       "flags": [
+        "--list",
         "-j",
-        "--list"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--list"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "列出所有板块"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "sector_etf_strength",
       "path": "scripts/sector_etf_strength.py",
       "description": "板块 ETF 横向强度对比 + 个股相对位置（RPS）",
+      "cli": true,
       "flags": [
+        "--no-index",
         "-j",
-        "--no-index"
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--no-index"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过大盘指数拉取"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "sector_momentum",
       "path": "scripts/sector_momentum.py",
       "description": "板块动量工具（v1.21.0 ）：基于行业 ETF 动量判断板块退潮",
-      "flags": []
+      "cli": false,
+      "flags": [],
+      "params": []
     },
     {
       "name": "sector_summary",
       "path": "scripts/sector_summary.py",
       "description": "板块涨跌幅汇总 CLI（v1.20.1 新增）",
+      "cli": true,
       "flags": [
-        "-j",
         "--source",
         "--top",
-        "--sector"
+        "--sector",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--source"
+          ],
+          "required": false,
+          "default": "auto",
+          "choices": [
+            "auto",
+            "ths",
+            "eastmoney"
+          ],
+          "help": "数据源优先级（默认 auto: ths → eastmoney）"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 30,
+          "type": "int",
+          "help": "输出 Top N（默认 30）"
+        },
+        {
+          "flags": [
+            "--sector"
+          ],
+          "required": false,
+          "default": "",
+          "help": "按板块名过滤（模糊匹配）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "snapshots",
       "path": "scripts/snapshots.py",
       "description": "选股快照系统（review#16）",
+      "cli": true,
       "flags": [
-        "-j",
         "--strategy",
-        "--limit"
+        "--limit",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "required": false,
+          "help": "按策略过滤"
+        },
+        {
+          "flags": [
+            "--limit"
+          ],
+          "required": false,
+          "default": 10,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "输出 JSON 格式"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "stock",
       "path": "scripts/stock.py",
       "description": "个股五层分析（v1.3.2 接入 business/StockAnalysisService）",
+      "cli": true,
       "flags": [
-        "-j",
         "--no-finance",
         "--no-technical",
         "--no-chan",
-        "--with-backtest"
+        "--with-backtest",
+        "--brief",
+        "--finance-periods",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--no-finance"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过财务分析"
+        },
+        {
+          "flags": [
+            "--no-technical"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过技术分析"
+        },
+        {
+          "flags": [
+            "--no-chan"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过缠论分析"
+        },
+        {
+          "flags": [
+            "--with-backtest"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "附加近 60 日回测胜率（需运行 backtest.py）"
+        },
+        {
+          "flags": [
+            "--brief"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "简要模式：一句话结论 + 关键数据 + 操作建议"
+        },
+        {
+          "flags": [
+            "--finance-periods"
+          ],
+          "required": false,
+          "default": 8,
+          "type": "int",
+          "help": "财务数据期数（默认 8 季，full/debate 模式推荐；最少 1 季）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "strategy_performance",
       "path": "scripts/strategy_performance.py",
       "description": "策略表现校准（review#17）：定期回测并记录到 strategy_performance.json",
+      "cli": true,
       "flags": [
-        "-j",
         "--days",
         "--top",
         "--codes",
-        "--month"
+        "--month",
+        "-j",
+        "--json",
+        "--metric",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 60,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int"
+        },
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "help": "逗号分隔股票代码"
+        },
+        {
+          "flags": [
+            "--month"
+          ],
+          "required": false,
+          "help": "YYYY-MM 格式"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true"
+        },
+        {
+          "flags": [
+            "--metric"
+          ],
+          "required": false,
+          "default": "sharpe_ratio",
+          "choices": [
+            "sharpe_ratio",
+            "total_return_pct",
+            "win_rate_pct",
+            "max_drawdown_pct"
+          ],
+          "help": "对比指标（默认夏普比率）"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     },
     {
       "name": "technical",
       "path": "scripts/technical.py",
       "description": "兼容入口：import technical 包后转发 CLI",
+      "cli": true,
       "flags": [
-        "-j",
         "--scale",
+        "-s",
         "--quick",
+        "-q",
         "--datalen",
-        "--classify"
+        "--classify",
+        "--no-chan",
+        "--market-index",
+        "--chip",
+        "--json",
+        "-j",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--scale",
+            "-s"
+          ],
+          "required": false,
+          "default": 240,
+          "type": "int",
+          "help": "K线周期: 240=日K, 60=60分钟, 30=30分钟, 15=15分钟, 5=5分钟"
+        },
+        {
+          "flags": [
+            "--quick",
+            "-q"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "快速摘要模式"
+        },
+        {
+          "flags": [
+            "--datalen"
+          ],
+          "required": false,
+          "default": 250,
+          "type": "int",
+          "help": "K线数量（默认250）"
+        },
+        {
+          "flags": [
+            "--classify"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "启用个股分类+缠论+本土战法+市场自适应"
+        },
+        {
+          "flags": [
+            "--no-chan"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "跳过缠论分析（仅与 --classify 配合）"
+        },
+        {
+          "flags": [
+            "--market-index"
+          ],
+          "required": false,
+          "type": "str",
+          "help": "市场环境参考指数（默认无，如 sh000001）"
+        },
+        {
+          "flags": [
+            "--chip"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "附加成本分布（筹码）：获利盘/套牢盘、主密集区、上方抛压（需额外取不复权 K 线）"
+        },
+        {
+          "flags": [
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 输出"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
       ]
     }
   ]

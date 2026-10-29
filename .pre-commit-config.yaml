@@ -148,6 +148,14 @@ repos:
         types: [python]
         stages: [pre-commit]
 
+      - id: check-command-contract
+        name: 命令契约 commands.json 校验（CI 镜像）
+        entry: python3 scripts/dev/gen_script_catalog.py --check-json
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-commit]
+
       - id: validate-contracts
         name: contracts schema 校验（CI 镜像）
         entry: python3 scripts/dev/validate_contracts.py

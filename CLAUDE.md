@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 35 个 fetcher 类（7 数据域）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 37 个 fetcher 类（11 数据域）跨 7 数据域故障转移。
 
 **板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
 
@@ -67,7 +67,7 @@ scripts/
 ├── common/       # 基础设施层（HTTP、编码、字段映射、BaseFetcher、CircuitBreaker）
 ├── config/       # 外部化配置（YAML）— scoring/data_source/limits/industry_thresholds
 ├── data/         # 数据类型（Quote, KlineBar, FinanceRecord）+ 磁盘缓存
-├── fetchers/     # 多数据源 Fetcher（35 个 fetcher 类 × 7 数据域，优先级故障转移）
+├── fetchers/     # 多数据源 Fetcher（37 个 fetcher 类 × 11 数据域，优先级故障转移）
 ├── strategies/   # 筛选策略系统（6 策略 × 9 因子维度 + 模式策略）
 ├── technical/    # 技术分析（MACD/KDJ/BOLL/RSI/均线/量能/缠论）
 ├── monitor/      # 消息推送（NotificationManager + 多通道适配器）

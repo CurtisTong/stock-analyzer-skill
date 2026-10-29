@@ -212,7 +212,8 @@ class TestFallbackChainBloodline:
     def test_chain_appended_to_sources(self, monkeypatch):
         from business import stock_analysis
 
-        def _fake_chain(domain="quote"):
+        # v1.24.0 复审修复：get_last_fallback_chain 新增 code 参数（按标的取链）
+        def _fake_chain(domain="quote", code=None):
             return [
                 {"provider": "sina", "name": "SinaQuoteFetcher", "event": "429", "detail": "限流"},
                 {"provider": "xueqiu", "name": "XueqiuQuoteFetcher", "event": "empty", "detail": "无数据"},
@@ -220,15 +221,16 @@ class TestFallbackChainBloodline:
 
         monkeypatch.setattr("data.get_last_fallback_chain", _fake_chain)
         result = {"data_sources": ["行情[tencent]"]}
-        stock_analysis._attach_fallback_details(result, "quote")
+        stock_analysis._attach_fallback_details(result, "quote", code="sh600519")
         assert "降级链" in result["data_sources"][0]
-        assert "429" in result["data_sources"][0]
-        assert "empty" in result["data_sources"][0]
+        # 渲染用 provider + detail（不是 fetcher 名 + 事件码）
+        assert "sina 限流" in result["data_sources"][0]
+        assert "xueqiu 无数据" in result["data_sources"][0]
 
     def test_empty_chain_no_append(self, monkeypatch):
         from business import stock_analysis
 
-        monkeypatch.setattr("data.get_last_fallback_chain", lambda domain="quote": [])
+        monkeypatch.setattr("data.get_last_fallback_chain", lambda domain="quote", code=None: [])
         result = {"data_sources": ["行情[tencent]"]}
-        stock_analysis._attach_fallback_details(result, "quote")
+        stock_analysis._attach_fallback_details(result, "quote", code="sh600519")
         assert "降级链" not in result["data_sources"][0]

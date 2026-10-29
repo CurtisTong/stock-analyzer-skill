@@ -65,12 +65,22 @@ def run_backtest(
     if total_periods == 0:
         return {"error": "回测失败，无有效数据"}
 
-    # 多基准：每个基准独立抓日收益并切分为每期持有期收益（连乘）
+    # 多基准：每个基准独立抓日收益（带日期），并按**策略期的实际日期区间**切块
     benchmark_list = benchmark if isinstance(benchmark, list) else ([benchmark] if benchmark else [])
     benchmark_period_returns_map = {}
+    period_dates = result.get("period_dates") or []
     for bm in benchmark_list:
-        bm_ret = _fetch_benchmark_returns(bm, days)
-        if bm_ret and len(bm_ret) > 1 and len(all_returns) > 1:
+        fetched = _fetch_benchmark_returns(bm, days)
+        if not fetched:
+            continue
+        bm_dates, bm_ret = fetched
+        if len(bm_ret) < 1 or len(all_returns) < 2:
+            continue
+        if period_dates:
+            # 按日期对齐：每期取基准在 [start, start+holding_days] 区间的收益
+            bp = _slice_benchmark_by_period(bm_dates, bm_ret, period_dates, holding_days)
+        else:
+            # 无日期信息（老数据）时退回固定切块
             n_bp = len(bm_ret) // max(1, holding_days)
             bp = []
             for k in range(n_bp):
@@ -79,6 +89,7 @@ def run_backtest(
                 for dr in seg:
                     cum *= 1 + dr
                 bp.append((cum - 1) * 100)
+        if bp:
             benchmark_period_returns_map[bm] = bp
 
     # 累计收益（各期收益连乘）
@@ -246,13 +257,16 @@ def run_backtest(
     }
 
 
-def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
-    """获取基准指数的日收益率序列。
+def _fetch_benchmark_returns(benchmark_code: str, days: int) -> tuple[list[str], list[float]] | None:
+    """获取基准指数的日收益率序列（带日期）。
 
     修复（v1.22.1）：原实现只拉 days+5 根且取最旧一段，与策略评估窗口
     （MIN_HISTORY 起）错位约半个持有期，信息比率在错位期上计算。现拉取与
     simulate_strategy 同深（MIN_HISTORY+days+10），并从 bars[MIN_HISTORY]
     起返回——策略第 1 期收益 = returns[MIN_HISTORY..]，两者逐期对齐。
+
+    v1.24.0 复审修复：同时返回日期序列，供基准按**策略期的实际日期区间**
+    切块（原先按固定 holding_days 切连续日线，网格一变就与策略错位）。
     """
     if not benchmark_code:
         return None
@@ -268,11 +282,13 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
         )
         if not bars or len(bars) < 2:
             return None
-        returns = []
+        dates: list[str] = []
+        returns: list[float] = []
         for i in range(1, len(bars)):
             if bars[i - 1].close > 0:
+                dates.append(bars[i].day)
                 returns.append((bars[i].close - bars[i - 1].close) / bars[i - 1].close)
-        return returns[MIN_HISTORY:]
+        return dates[MIN_HISTORY:], returns[MIN_HISTORY:]
     except Exception as e:
         # v1.16.0 HIGH: 基准收益计算失败直接影响回测指标——记录
         from common.exceptions import log_silent_fallback
@@ -284,6 +300,54 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> list | None:
             fallback_reason="基准收益数据获取/计算失败，回测指标返回 None",
         )
         return None
+
+
+def _slice_benchmark_by_period(
+    bm_dates: list[str],
+    bm_returns: list[float],
+    period_dates: list[dict],
+    fallback_holding_days: int,
+) -> list[float]:
+    """按策略期的**实际日期区间**切基准收益。
+
+    原实现按固定 holding_days 切连续日线块，策略侧却按 date 分组——
+    两者只在网格严格对齐时等价。实测策略第 3 期起点 07-31 被拿去与基准
+    第 3 块（08-13..08-26）相减，错位约两周。
+
+    Args:
+        bm_dates: 基准日收益对应的日期序列
+        bm_returns: 基准日收益率序列
+        period_dates: 引擎回传的每期信息 [{"start": date, "holding_days": n}, ...]
+        fallback_holding_days: 无日期信息时的回退持有期
+
+    Returns:
+        与 period_dates 等长的基准期收益列表（%）
+    """
+    if not bm_dates or not period_dates:
+        return []
+    date_index = {d: i for i, d in enumerate(bm_dates)}
+    out: list[float] = []
+    for period in period_dates:
+        start = period.get("start")
+        hold = period.get("holding_days") or fallback_holding_days
+        if not start:
+            out.append(0.0)
+            continue
+        idx = date_index.get(str(start))
+        if idx is None:
+            # 该期的选股日不在基准序列里（基准数据不足/停牌）——跳过该期，
+            # 而不是拿别的期的收益来充数（那会制造错位）
+            out.append(0.0)
+            continue
+        seg = bm_returns[idx : idx + hold]
+        if not seg:
+            out.append(0.0)
+            continue
+        cum = 1.0
+        for dr in seg:
+            cum *= 1 + dr
+        out.append((cum - 1) * 100)
+    return out
 
 
 def _calc_win_by_position(round_results: list, holding_days: int) -> dict:

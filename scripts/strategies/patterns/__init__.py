@@ -131,7 +131,7 @@ def detect_all_local_patterns(inp: PatternInput):
             deduped.append(p)
 
     # 只看最近出现的（idx 最大的）
-    # v1.24.0 展示位 5 → 10：增设经典形态库（12 个）后，最近 5 个上限会挤掉多数形态
+    # v1.24.0 展示位 5 → 10：增设经典形态库（13 个）后，最近 5 个上限会挤掉多数形态
     recent = deduped[-PATTERN_DISPLAY_LIMIT:] if len(deduped) > PATTERN_DISPLAY_LIMIT else deduped
 
     bullish = [p["name"] for p in recent if p["type"] == "看涨"]

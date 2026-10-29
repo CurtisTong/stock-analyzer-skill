@@ -50,6 +50,9 @@ jobs:
       - name: 脚本目录受管区域校验
         run: python3 scripts/dev/gen_script_catalog.py --check
 
+      - name: 命令契约 commands.json 校验（LLM 消费产物防腐化）
+        run: python3 scripts/dev/gen_script_catalog.py --check-json
+
       - name: 静默吞错 lint（v1.16.0 P1-2 治理）
         run: python3 scripts/dev/lint_silent_excepts.py
 
