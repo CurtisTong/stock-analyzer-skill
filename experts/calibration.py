@@ -38,6 +38,10 @@ except ImportError:
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _CALIBRATION_FILE = _PROJECT_ROOT / "data" / "expert_calibration.json"
 
+# v1.24.0：胜率卡片最小样本数。events 低于该值时胜率显示"样本不足"而非百分比，
+# 防止小样本胜率（如 3 战 3 胜 = 100%）被过度解读（对标 ai-hedge-fund scorecard 口径）。
+MIN_CALIBRATION_SAMPLES = 10
+
 # legacy 专家名 -> 合并后的 active 专家名。
 # 校准数据历史上按 legacy 名记录（buffett/duan_yongping 等），但这些专家
 # 已合并进 active 专家（value_institution/emotion_tech/topic_leader）。
@@ -530,7 +534,13 @@ def get_calibration_report() -> str:
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)
-        rate = f"{correct/events:.1%}" if events > 0 else "无数据"
+        # 与胜率卡片同口径：样本数低于 MIN_CALIBRATION_SAMPLES 不渲染百分比
+        if events >= MIN_CALIBRATION_SAMPLES:
+            rate = f"{correct/events:.1%}"
+        elif events > 0:
+            rate = f"样本不足 (n={events})"
+        else:
+            rate = "无数据"
         lines.append(f"| {name} | {events} | {correct} | {rate} |")
 
     pending = get_pending_predictions()
@@ -592,4 +602,5 @@ __all__ = [
     "compute_group_calibration",
     "get_kline_return",
     "get_calibration_report",
+    "MIN_CALIBRATION_SAMPLES",
 ]
