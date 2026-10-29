@@ -156,16 +156,37 @@ def run_backtest(
     import statistics
 
     information_ratios = {}
+    # v1.24.0 超额指标：alpha/beta/excess_sharpe（同口径，每期收益对齐）
+    alphas: dict[str, float] = {}
+    betas: dict[str, float] = {}
+    excess_sharpes: dict[str, float] = {}
+    periods_per_year = 252 / holding_days if holding_days > 0 else 0
     for bm, bp in benchmark_period_returns_map.items():
         n_periods = min(len(all_returns), len(bp))
         if n_periods > 1:
             excess = [all_returns[i] - bp[i] for i in range(n_periods)]
             mean_excess = sum(excess) / len(excess)
             te = statistics.stdev(excess)
-            periods_per_year = 252 / holding_days if holding_days > 0 else 0
             information_ratios[bm] = round(mean_excess / te * (periods_per_year**0.5), 2) if te > 0 else 0
+
+            # beta = Cov(strategy, benchmark) / Var(benchmark)（期收益口径）
+            bm_mean = sum(bp[:n_periods]) / n_periods
+            strat_mean = sum(all_returns[:n_periods]) / n_periods
+            var_bm = statistics.variance(bp[:n_periods]) if n_periods > 2 else 0
+            if var_bm > 0:
+                cov = sum((all_returns[i] - strat_mean) * (bp[i] - bm_mean) for i in range(n_periods)) / (n_periods - 1)
+                betas[bm] = round(cov / var_bm, 2)
+                # alpha = 组合平均超额（扣除 beta×基准均价），年化到每年
+                alpha_period = strat_mean - betas[bm] * bm_mean
+                alphas[bm] = round(alpha_period * periods_per_year, 2)
+            # excess Sharpe = 超额均值 / 超额标准差（年化）
+            if te > 0:
+                excess_sharpes[bm] = round(mean_excess / te * (periods_per_year**0.5), 2)
     # 兼容旧字段：取第一个基准（若存在）
     information_ratio = next(iter(information_ratios.values()), 0)
+    alpha_value = next(iter(alphas.values()), 0)
+    beta_value = next(iter(betas.values()), 0)
+    excess_sharpe_value = next(iter(excess_sharpes.values()), 0)
 
     # 换手率估算
     annual_turnover = (252 / holding_days) * top_n if holding_days > 0 else 0
@@ -187,6 +208,13 @@ def run_backtest(
         "sortino_ratio": sortino_ratio,
         "information_ratio": information_ratio,
         "information_ratios": information_ratios,
+        # v1.24.0 超额指标（基准同期期收益对齐口径）
+        "alpha": alpha_value,
+        "betas": betas,
+        "alphas": alphas,
+        "beta": beta_value,
+        "excess_sharpe": excess_sharpe_value,
+        "excess_sharpes": excess_sharpes,
         "max_drawdown_pct": round(max_drawdown * 100, 2),
         "calmar_ratio": calmar_ratio,
         "profit_loss_ratio": profit_loss_ratio,

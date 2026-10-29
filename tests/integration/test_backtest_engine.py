@@ -418,6 +418,9 @@ class TestMultiBenchmark:
         assert isinstance(result.get("information_ratios"), dict)
         # 兼容旧字段：取第一个基准的值
         assert "information_ratio" in result
+        # v1.24.0 超额指标：alpha/beta/excess_sharpe（每期收益对齐口径）
+        assert "alphas" in result and "betas" in result and "excess_sharpes" in result
+        assert "alpha" in result and "beta" in result and "excess_sharpe" in result
 
 
 class TestOptimizeWeights:
