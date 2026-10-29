@@ -72,6 +72,31 @@ class TestIpoCalendarFetcher:
         f = self._fetcher(monkeypatch, {"success": True, "result": {"pages": 1, "data": []}})
         assert f.fetch() is None
 
+    def test_truncated_when_pages_capped(self, monkeypatch):
+        """总页数超过 MAX_PAGES 时 truncated 必须为 True（off-by-one 回归锚点）。"""
+        import fetchers.ipo.eastmoney_ipo as mod
+        from fetchers.ipo.eastmoney_ipo import IpoCalendarFetcher
+
+        # 4 页数据，MAX_PAGES 压到 3 → 只取 150 条且必须告警截断
+        monkeypatch.setattr(mod, "MAX_PAGES", 3)
+        pages = {p: _response([_row(code=f"P{p}_{i}") for i in range(50)]) for p in range(1, 5)}
+        for p in pages:
+            pages[p]["result"]["pages"] = 4
+
+        def _http_get(url, timeout=10, max_retries=3):
+            page = int(url.split("pageNumber=")[1].split("&")[0])
+            return json.dumps(pages[page]).encode("utf-8")
+
+        monkeypatch.setattr(mod, "http_get", _http_get)
+        r = IpoCalendarFetcher().fetch()
+        assert len(r["items"]) == 150
+        assert r["truncated"] is True
+
+    def test_provider_matches_yaml_key(self):
+        from fetchers.ipo.eastmoney_ipo import IpoCalendarFetcher
+
+        assert IpoCalendarFetcher().provider == "eastmoney"
+
     def test_network_error_propagates(self, monkeypatch):
         import fetchers.ipo.eastmoney_ipo as mod
         from fetchers.ipo.eastmoney_ipo import IpoCalendarFetcher

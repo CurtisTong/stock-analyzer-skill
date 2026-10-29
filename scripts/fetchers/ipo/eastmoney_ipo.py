@@ -16,10 +16,11 @@ from common.exceptions import (
 
 MAX_PAGES = 3
 
-# 新股日历（TRADE_DATE 降序，pageNumber 由分页循环注入）
+# 新股日历（TRADE_DATE 升序：近期申购/中签事件排前——打新最关心近几天，
+# 倒序会让最远期的上市事件占满前几页，截断时先丢的恰是近期事件）
 IPO_CALENDAR_URL = (
     "https://datacenter-web.eastmoney.com/api/data/v1/get"
-    "?sortColumns=TRADE_DATE&sortTypes=-1&pageSize=50&pageNumber={page}"
+    "?sortColumns=TRADE_DATE&sortTypes=1&pageSize=50&pageNumber={page}"
     "&reportName=RPT_IPO_CALENDAR&columns=ALL"
     "&filter=(TRADE_DATE>='{start_date}')"
 )
@@ -29,7 +30,9 @@ class IpoCalendarFetcher(BaseFetcher):
     """新股日历数据源（打新日历：申购/中签/缴款/上市）。"""
 
     def __init__(self):
-        super().__init__("ipo_calendar", priority=5)
+        # provider 显式声明为 eastmoney：按 name 推断会得到 "ipo"，
+        # 与 data_source.yaml 的 ipo_sources.eastmoney 键不匹配导致配置失效
+        super().__init__("ipo_calendar", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取近期新股/新债日历事件。
@@ -40,10 +43,10 @@ class IpoCalendarFetcher(BaseFetcher):
         """
         from datetime import timedelta
 
-        from dev.clock import now
+        from dev.clock import market_now
 
         future_days = kwargs.get("days", 30)
-        today = now().date()
+        today = market_now().date()
         start_date = (today - timedelta(days=3)).strftime("%Y-%m-%d")
         end_date = (today + timedelta(days=future_days)).strftime("%Y-%m-%d")
 
@@ -73,7 +76,8 @@ class IpoCalendarFetcher(BaseFetcher):
                 break
             all_records.extend(records)
             page += 1
-        truncated = page - 1 > MAX_PAGES
+        # 页数达上限即截断（page-1 判断是 off-by-one：退出时 page == MAX_PAGES+1，恒 False）
+        truncated = total_pages > MAX_PAGES
 
         if not all_records:
             return None

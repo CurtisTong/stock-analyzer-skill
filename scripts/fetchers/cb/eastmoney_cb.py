@@ -1,7 +1,8 @@
 """可转债行情数据源（东财 push2 转债板块 b:MK0354）。
 
 字段（2026-10 实测）：f2 最新价、f3 涨跌幅、f12 代码、f14 名称、
-f127 转股溢价率%（双低值 = 价格 + 溢价率×100，越低性价比越高）。
+f127 转股溢价率（百分数数值，如 -6.81 = -6.81%）。
+双低值 = 价格 + 转股溢价率数值（集思录口径），越低性价比越高。
 """
 
 import json
@@ -27,7 +28,9 @@ class ConvertibleBondFetcher(BaseFetcher):
     """可转债行情数据源（全市场转债列表，含价格/溢价率/双低值）。"""
 
     def __init__(self):
-        super().__init__("cb_quote", priority=5)
+        # provider 显式声明为 eastmoney：按 name 推断会得到 "cb"，
+        # 与 data_source.yaml 的 cb_sources.eastmoney 键不匹配导致配置失效
+        super().__init__("cb_quote", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取可转债行情列表。
@@ -68,7 +71,8 @@ class ConvertibleBondFetcher(BaseFetcher):
                 break
             all_records.extend(diff)
             page += 1
-        truncated = page - 1 > MAX_PAGES
+        # 页数达上限即截断（page-1 判断是 off-by-one：退出时 page == MAX_PAGES+1，恒 False）
+        truncated = total_pages > MAX_PAGES
 
         if not all_records:
             return None
@@ -98,7 +102,8 @@ class ConvertibleBondFetcher(BaseFetcher):
             return None
 
         # 按双低值升序（性价比优先），缺失双低的排末尾
-        items.sort(key=lambda i: (i["double_low"] is None, i["double_low"] or 9999))
+        # （不能用 or 9999 兜底：值恰为 0.0 会被当成缺失）
+        items.sort(key=lambda i: (i["double_low"] is None, i["double_low"] if i["double_low"] is not None else 0))
         return {"type": "cb_quote", "items": items[:top], "total": len(items), "truncated": truncated}
 
 

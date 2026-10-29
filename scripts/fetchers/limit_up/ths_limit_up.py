@@ -46,7 +46,9 @@ class LimitUpReasonFetcher(BaseFetcher):
     """涨停原因归因数据源（同花顺涨停揭秘）。"""
 
     def __init__(self):
-        super().__init__("limit_up_reason", priority=5)
+        # provider 显式声明为 ths：按 name 推断会得到 "limit"，
+        # 与 data_source.yaml 的 limit_up_sources.ths 键不匹配导致配置失效
+        super().__init__("limit_up_reason", priority=5, provider="ths")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取当日（或指定交易日）涨停池与涨停原因。
@@ -57,9 +59,9 @@ class LimitUpReasonFetcher(BaseFetcher):
         """
         from datetime import timedelta
 
-        from dev.clock import now
+        from dev.clock import market_now
 
-        date = kwargs.get("date", "") or now().strftime("%Y%m%d")
+        date = kwargs.get("date", "") or market_now().strftime("%Y%m%d")
 
         items = []
         truncated = False
@@ -105,7 +107,8 @@ class LimitUpReasonFetcher(BaseFetcher):
                     "limit_up_type": r.get("limit_up_type", ""),
                     "high_days": r.get("high_days", ""),  # 首板 / N天N板
                     "open_num": int(to_float(r.get("open_num", 0))),  # 开板次数
-                    "is_again_limit": bool(r.get("is_again_limit", 0)),  # 回封
+                    # 回封：接口可能回 "0"/"1" 字符串，bool("0") is True 会全部误标回封
+                    "is_again_limit": int(to_float(r.get("is_again_limit"), 0)) == 1,
                     "limit_up_suc_rate": to_float(r.get("limit_up_suc_rate", 0)),
                     "first_time": _ts_to_hhmm(r.get("first_limit_up_time")),
                     "last_time": _ts_to_hhmm(r.get("last_limit_up_time")),

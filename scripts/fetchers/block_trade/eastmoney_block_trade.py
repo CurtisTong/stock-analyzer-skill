@@ -5,9 +5,7 @@
 PREMIUM_RATIO 为小数比率（-0.0182 = 溢价率 -1.82%）。
 """
 
-import json
-
-from common import BaseFetcher, http_get, to_float, strip_prefix
+from common import BaseFetcher, to_float, strip_prefix
 from common.exceptions import (
     NetworkError,
     RateLimitError,
@@ -16,7 +14,7 @@ from common.exceptions import (
 )
 from fetchers.lhb.eastmoney_lhb import _fetch_all_pages
 
-MAX_PAGES = 10
+# 分页上限复用 lhb 模块的 _fetch_all_pages（其 MAX_PAGES=20，pageSize=50 → 最多 1000 条）
 
 # 大宗交易明细（pageNumber 由分页循环注入）
 BLOCK_TRADE_URL = (
@@ -31,7 +29,9 @@ class BlockTradeFetcher(BaseFetcher):
     """大宗交易明细数据源。"""
 
     def __init__(self):
-        super().__init__("block_trade", priority=5)
+        # provider 显式声明为 eastmoney：按 name 推断会得到 "block"，
+        # 与 data_source.yaml 的 block_trade_sources.eastmoney 键不匹配导致配置失效
+        super().__init__("block_trade", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取大宗交易记录。code 为空时返回全市场近期记录。
@@ -42,11 +42,11 @@ class BlockTradeFetcher(BaseFetcher):
         """
         from datetime import timedelta
 
-        from dev.clock import now
+        from dev.clock import market_now
 
         days = kwargs.get("days", 7)
-        end_date = now().strftime("%Y-%m-%d")
-        start_date = (now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        end_date = market_now().strftime("%Y-%m-%d")
+        start_date = (market_now() - timedelta(days=days)).strftime("%Y-%m-%d")
 
         code_filter = f"(SECURITY_CODE='{strip_prefix(code)}')" if code else ""
         url = BLOCK_TRADE_URL.format(start_date=start_date, end_date=end_date, code_filter=code_filter, page="{page}")
@@ -67,7 +67,8 @@ class BlockTradeFetcher(BaseFetcher):
             if code and r.get("SECURITY_CODE", "") != strip_prefix(code):
                 continue
             trade_date = (r.get("TRADE_DATE") or "")[:10]
-            premium = r.get("PREMIUM_RATIO")
+            # 东财报表空值常用 "-" 占位，必须走 to_float，否则单行脏数据炸掉整次查询
+            premium_f = to_float(r.get("PREMIUM_RATIO"), default=None)
             items.append(
                 {
                     "code": r.get("SECURITY_CODE", ""),
@@ -79,8 +80,8 @@ class BlockTradeFetcher(BaseFetcher):
                     # 成交量单位为股，换算为万股便于展示
                     "deal_volume_wan": round(to_float(r.get("DEAL_VOLUME", 0)) / 1e4, 2),
                     "deal_amt": to_float(r.get("DEAL_AMT", 0)),
-                    # 小数比率 → 百分数（缺失为 None，不伪装成 0 溢价）
-                    "premium_ratio": round(premium * 100, 2) if premium is not None else None,
+                    # 小数比率 → 百分数（缺失/脏值为 None，不伪装成 0 溢价）
+                    "premium_ratio": round(premium_f * 100, 2) if premium_f is not None else None,
                     "buyer": r.get("BUYER_NAME", ""),
                     "seller": r.get("SELLER_NAME", ""),
                 }
