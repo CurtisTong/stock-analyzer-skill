@@ -28,6 +28,7 @@ from .zhangting import detect_zhangting
 from .duanban import detect_duanban
 from .dibu_shouban import detect_dibu_shouban
 from .turtle_and_annual import detect_turtle_breakout, detect_annual_line_pullback
+from .classic import detect_classic_patterns
 
 __all__ = [
     "PatternInput",
@@ -43,6 +44,7 @@ __all__ = [
     "detect_dibu_shouban",
     "detect_turtle_breakout",
     "detect_annual_line_pullback",
+    "detect_classic_patterns",
     "detect_all_local_patterns",
 ]
 
@@ -110,6 +112,9 @@ def detect_all_local_patterns(inp: PatternInput):
     # 回踩年线企稳（趋势低吸）
     all_patterns.extend(detect_annual_line_pullback(records, closes, highs, lows, volumes))
 
+    # 经典 K 线形态库（v1.24.0：12 个单/双/三 K 形态）
+    all_patterns.extend(detect_classic_patterns(records, closes))
+
     # 按时间排序（最新的在后）
     all_patterns.sort(key=lambda p: p["idx"])
 
@@ -123,7 +128,8 @@ def detect_all_local_patterns(inp: PatternInput):
             deduped.append(p)
 
     # 只看最近出现的（idx 最大的）
-    recent = deduped[-5:] if len(deduped) > 5 else deduped
+    # v1.24.0 展示位 5 → 10：增设经典形态库（12 个）后，最近 5 个上限会挤掉多数形态
+    recent = deduped[-10:] if len(deduped) > 10 else deduped
 
     bullish = [p["name"] for p in recent if p["type"] == "看涨"]
     bearish = [p["name"] for p in recent if p["type"] == "看跌"]
