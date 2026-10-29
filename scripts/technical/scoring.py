@@ -636,7 +636,7 @@ def composite_score(features, stock_type="普通股", market_state=None, market_
     }
 
 
-def detect_market_environment(index_quote=None, recent_quotes=None):
+def detect_market_environment(index_quote=None, recent_quotes=None, index_kline=None):
     """
     检测当前技术市场环境（强势/弱势/震荡/冰点/亢奋）。
 
@@ -646,10 +646,13 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
     Args:
         index_quote: 大盘指数行情 dict（可选）
         recent_quotes: 近期大盘行情列表（可选，用于多日均值判断）
+        index_kline: 大盘 K 线特征 dict（可选，{ma20, volumes}）。
+            传入后 detect_market_state 走 MA20/量比判定而非单日涨跌幅
+            fallback；无宽度数据时按退化规则（仅 MA20+量比）判定。
 
     Returns:
         {
-            "state": "弱势"|"震荡"|"冰点"|"亢奋",
+            "state": "强势"|"弱势"|"震荡"|"冰点"|"亢奋",
             "confidence": "高"|"中"|"低",
             "signals": [...],
             "weight_adjustments": {...},
@@ -675,8 +678,8 @@ def detect_market_environment(index_quote=None, recent_quotes=None):
             "weight_adjustments": adjustments,
         }
 
-    # 1. 统一判定：委托 market_detector（涨跌幅 fallback → 牛/震荡/冰点/亢奋/防御型）
-    base = _detect(index_quote=index_quote, allow_price_fallback=True)
+    # 1. 统一判定：委托 market_detector（有 kline 走 MA20/量比，否则涨跌幅 fallback）
+    base = _detect(index_quote=index_quote, kline_data=index_kline, allow_price_fallback=True)
     base_state = base["state"]
     signals.append(f"市场状态: {base_state}（{base['reason']}）")
 

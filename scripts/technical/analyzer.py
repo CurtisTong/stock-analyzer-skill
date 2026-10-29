@@ -45,23 +45,39 @@ from technical.report import render_report, render_quick
 from technical.moving_average import incremental_ma
 
 
-def _recent_index_quotes(market_index: str, window: int = 5) -> list | None:
-    """近 window 日指数涨跌幅列表（不含当日），供市场环境多日窗口判定。
+def _index_market_features(market_index: str, window: int = 5) -> tuple:
+    """拉取指数日 K，产出市场环境判定所需的（recent_quotes, kline_features）。
 
-    实盘原先只传单日行情，scoring.detect_market_environment 的 recent_quotes
-    多日窗口分支从未被触达，判定退化为当日涨跌幅（单日噪声大）。
-    change_pct 从收盘价自算（部分源 pct_chg 恒为 0）；失败返回 None，
-    调用方退化为单日判定。
+    - recent_quotes：近 window 日涨跌幅列表（不含当日），供多日窗口判定。
+      实盘原先只传单日行情，scoring.detect_market_environment 的 recent_quotes
+      多日窗口分支从未被触达，判定退化为当日涨跌幅（单日噪声大）。
+    - kline_features：{ma20, volumes}，供 detect_market_state 走 MA20/量比
+      判定（无宽度数据时的退化规则），替代单日涨跌幅 fallback。
+    change_pct 从收盘价自算（部分源 pct_chg 恒为 0）；失败返回 (None, None)，
+    调用方退化为单日涨跌幅判定。
     """
     try:
-        bars = fetch_kline(normalize_quote_code(market_index), 240, window + 1) or []
-        closes = [to_float(getattr(b, "close", 0)) for b in bars]
+        # kline.fetch 返回 dict 列表（兼容旧接口），非 KlineBar
+        bars = fetch_kline(normalize_quote_code(market_index), 240, 35) or []
+        closes = [to_float(b.get("close", 0)) for b in bars if isinstance(b, dict)]
+        volumes = [to_float(b.get("volume", 0)) for b in bars if isinstance(b, dict)]
         if len(closes) < 2 or any(c <= 0 for c in closes):
-            return None
-        return [{"change_pct": round((closes[i] / closes[i - 1] - 1) * 100, 2)} for i in range(1, len(closes))]
+            return None, None
+        recent = [
+            {"change_pct": round((closes[i] / closes[i - 1] - 1) * 100, 2)}
+            for i in range(max(1, len(closes) - window), len(closes))
+        ]
+        kline = None
+        if len(closes) >= 20:
+            kline = {
+                "ma20": round(sum(closes[-20:]) / 20, 2),
+                # compute_volume_ratio 只需最近 10 根，多备 5 根防缺失
+                "volumes": volumes[-15:],
+            }
+        return recent, kline
     except Exception as e:
         logger.debug("指数K线获取失败，市场环境退化为单日判定: %s", e)
-        return None
+        return None, None
 
 
 @dataclass
@@ -227,8 +243,9 @@ def _compute_all(inp: TechnicalInput):
             try:
                 idx_quotes = fetch_batch([normalize_quote_code(market_index)])
                 idx_quote = idx_quotes[0] if idx_quotes else None
+                recent_quotes, index_kline = _index_market_features(market_index)
                 features["market_environment"] = detect_market_environment(
-                    idx_quote, recent_quotes=_recent_index_quotes(market_index)
+                    idx_quote, recent_quotes=recent_quotes, index_kline=index_kline
                 )
             except Exception as e:
                 logger.debug("市场指数获取失败，使用默认检测: %s", e)

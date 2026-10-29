@@ -202,7 +202,7 @@
 | # | 发现 | 处置 |
 |---|------|------|
 | 1 | **P1：实盘市场环境判定只看单日**——analyzer.py 调 `detect_market_environment(idx_quote)` 未传 `recent_quotes`，scoring.py:701-748 的多日窗口实现（约 50 行）从未被实盘触达，判定退化为当日涨跌幅（噪声大） | 本次修复：analyzer.py 拉近 5 日指数 K 线传入 recent_quotes |
-| 2 | market_detector 在无市场宽度数据时全部条件分支不触发（默认 advance_ratio=0.5 恰好落在所有牛/熊阈值之外），technical 场景实际只走涨跌幅 fallback；且 fallback 路径的 reason 文案（"指数在均线上方，量能放大"）与实际判定依据（当日涨跌幅）不符 | 记录为开放问题：可向 detect_market_state 传指数 ma20/vol_ratio（kline_data），并让 fallback reason 如实标注"涨跌幅简易判定"，改动涉及 experts 接口，另行评审 |
+| 2 | market_detector 在无市场宽度数据时全部条件分支不触发（默认 advance_ratio=0.5 恰好落在所有牛/熊阈值之外），technical 场景实际只走涨跌幅 fallback；且 fallback 路径的 reason 文案（"指数在均线上方，量能放大"）与实际判定依据（当日涨跌幅）不符 | **已修复**：①无 breadth_data 时退化判定（仅 MA20 位置 + 量比，冰点/亢奋维持不可判）；②fallback 与退化路径 reason 如实标注（"涨跌幅简易判定…"/"MA20/量比退化判定…"）；③scoring.detect_market_environment 新增 index_kline 透传，analyzer 拉指数 MA20/量比传入。有宽度数据路径行为不变（单测锁定回归锚点）。22 个新单测（tests/unit/test_market_detector.py），实盘验证 signals 输出"MA20/量比退化判定（无宽度数据）" |
 | 3 | KDJ 钝化降权、BOLL 开口档（v1.23.1）经本次真实数据回测：前者验证有效，后者需叠加个股波动特征 | 见 §5.2 |
 | 4 | 横截面信号聚集可控：23 名义样本分布 20 个交易日、最高同日 2 股 | 已写入局限 |
 

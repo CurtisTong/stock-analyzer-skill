@@ -124,6 +124,8 @@ def detect_market_state(
     # fail-safe 原则：宁可防御市误判牛市，不可防御市放任短线。短线专家在防御市
     # 历史准确率仅 20%，无数据时按最保守假设处理。
     state = "防御型"
+    fallback_change_pct: Optional[float] = None
+    degraded_no_breadth = False
 
     # allow_price_fallback：无 kline/breadth 时用指数涨跌幅做简易判定
     # （technical 场景只有 index_quote + change_pct，无法算 ma20/宽度）
@@ -133,6 +135,7 @@ def detect_market_state(
         except ImportError:
             to_float = float
         change_pct = to_float(index_quote.get("change_pct") or 0)
+        fallback_change_pct = change_pct
         if change_pct > 2:
             state = "牛市"
         elif change_pct < -2:
@@ -163,53 +166,74 @@ def detect_market_state(
         above_ma20 = price > ma20 > 0
         below_ma20 = price < ma20 > 0
 
-        advance_ratio = breadth_data.get("advance_ratio", 0.5) if breadth_data else 0.5
-        high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0) if breadth_data else 1.0
-        limit_down = breadth_data.get("limit_down_count", 0) if breadth_data else 0
-        margin_ratio = breadth_data.get("margin_ratio", 0) if breadth_data else 0
-        pe_percentile = index_quote.get("pe_percentile", 50)
-
-        if (
-            advance_ratio < _MARKET_ICE_ADVANCE_RATIO
-            and limit_down > _MARKET_ICE_LIMIT_DOWN
-            and high_low_ratio < _MARKET_ICE_HIGH_LOW_RATIO
-        ):
-            state = "冰点"
-        elif (
-            pe_percentile > _MARKET_MANIA_PE_PERCENTILE
-            and advance_ratio > _MARKET_MANIA_ADVANCE_RATIO
-            and margin_ratio > _MARKET_MANIA_MARGIN_RATIO
-        ):
-            state = "亢奋"
-        elif (
-            above_ma20
-            and vol_ratio > _MARKET_BULL_VOL_RATIO
-            and advance_ratio > _MARKET_BULL_ADVANCE_RATIO
-            and high_low_ratio > _MARKET_BULL_HIGH_LOW_RATIO
-        ):
-            state = "牛市"
-        elif (
-            below_ma20
-            and vol_ratio < _MARKET_BEAR_VOL_RATIO
-            and advance_ratio < _MARKET_BEAR_ADVANCE_RATIO
-            and high_low_ratio < _MARKET_BEAR_HIGH_LOW_RATIO
-        ):
-            state = "熊市"
-        elif (
-            below_ma20
-            and vol_ratio < _MARKET_DEF_VOL_RATIO
-            and _MARKET_DEF_ADVANCE_LOW <= advance_ratio <= _MARKET_DEF_ADVANCE_HIGH
-        ):
-            state = "防御型"
+        if breadth_data is None:
+            # 无宽度数据退化判定（technical 场景）：宽度默认值 advance_ratio=0.5 /
+            # high_low_ratio=1.0 恰好落在所有牛/熊/防御阈值之外，完整条件永不触发，
+            # 结果恒为震荡。退化判定只用可得信号（MA20 位置 + 量比）；
+            # 冰点/亢奋依赖宽度/杠杆数据，不可判，维持不触发。
+            degraded_no_breadth = True
+            if above_ma20 and vol_ratio > _MARKET_BULL_VOL_RATIO:
+                state = "牛市"
+            elif below_ma20 and vol_ratio < _MARKET_BEAR_VOL_RATIO:
+                state = "熊市"
+            elif below_ma20 and vol_ratio < _MARKET_DEF_VOL_RATIO:
+                state = "防御型"
+            else:
+                state = "震荡"
         else:
-            state = "震荡"
+            advance_ratio = breadth_data.get("advance_ratio", 0.5)
+            high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0)
+            limit_down = breadth_data.get("limit_down_count", 0)
+            margin_ratio = breadth_data.get("margin_ratio", 0)
+            pe_percentile = index_quote.get("pe_percentile", 50)
+
+            if (
+                advance_ratio < _MARKET_ICE_ADVANCE_RATIO
+                and limit_down > _MARKET_ICE_LIMIT_DOWN
+                and high_low_ratio < _MARKET_ICE_HIGH_LOW_RATIO
+            ):
+                state = "冰点"
+            elif (
+                pe_percentile > _MARKET_MANIA_PE_PERCENTILE
+                and advance_ratio > _MARKET_MANIA_ADVANCE_RATIO
+                and margin_ratio > _MARKET_MANIA_MARGIN_RATIO
+            ):
+                state = "亢奋"
+            elif (
+                above_ma20
+                and vol_ratio > _MARKET_BULL_VOL_RATIO
+                and advance_ratio > _MARKET_BULL_ADVANCE_RATIO
+                and high_low_ratio > _MARKET_BULL_HIGH_LOW_RATIO
+            ):
+                state = "牛市"
+            elif (
+                below_ma20
+                and vol_ratio < _MARKET_BEAR_VOL_RATIO
+                and advance_ratio < _MARKET_BEAR_ADVANCE_RATIO
+                and high_low_ratio < _MARKET_BEAR_HIGH_LOW_RATIO
+            ):
+                state = "熊市"
+            elif (
+                below_ma20
+                and vol_ratio < _MARKET_DEF_VOL_RATIO
+                and _MARKET_DEF_ADVANCE_LOW <= advance_ratio <= _MARKET_DEF_ADVANCE_HIGH
+            ):
+                state = "防御型"
+            else:
+                state = "震荡"
 
     lw, sw = _MARKET_WEIGHTS[state]
+    if fallback_change_pct is not None:
+        reason = f"涨跌幅简易判定（缺K线/宽度数据，当日{fallback_change_pct:+.1f}%）"
+    elif degraded_no_breadth:
+        reason = f"MA20/量比退化判定（无宽度数据）：{_market_state_reason(state)}"
+    else:
+        reason = _market_state_reason(state)
     return {
         "state": state,
         "long_weight": lw,
         "short_weight": sw,
-        "reason": _market_state_reason(state),
+        "reason": reason,
     }
 
 

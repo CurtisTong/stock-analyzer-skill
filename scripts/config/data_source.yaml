@@ -23,12 +23,15 @@ quote_sources:
     retry: 2
 
   pytdx:
-    priority: 9
+    priority: 4
     enabled: true
     timeout: 5
     retry: 1
     # 局域网通达信端口直连，速度快、无限频
     # 需要：pip install pytdx + 本地通达信客户端开启 7709 端口
+    # v1.24.0 优先级 9 → 4：2026-09 通达信公开服务器行情命令已失效
+    # （实测记录见 a-stock-data #52），未配置局域网时默认连公开服务器必超时；
+    # 已配置局域网直连的用户可手动调回高优先级。
 
   sina:
     priority: 5
@@ -78,12 +81,13 @@ kline_sources:
     max_datalen: 1024
 
   pytdx:
-    priority: 9
+    priority: 5
     enabled: true
     timeout: 5
     max_datalen: 800
     # 局域网通达信端口直连，K 线全市场 + 历史回溯深度大
     # 需要：pip install pytdx + 本地通达信客户端开启 7709 端口
+    # v1.24.0 优先级 9 → 5：公开服务器行情命令失效风险，同 quote 域说明
 
   eastmoney:
     priority: 8
