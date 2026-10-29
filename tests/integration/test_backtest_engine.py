@@ -1116,35 +1116,32 @@ class TestIsLimitExactPrice:
     def _bars(self, prev_close, close):
         return [self._bar("2025-01-01", prev_close), self._bar("2025-01-02", close)]
 
+    def _is_limit(self, bars, idx, code):
+        from backtest.engine import _is_limit_or_suspended
+
+        return _is_limit_or_suspended(bars, idx, code)
+
     def test_980_pct_not_limit_up(self):
         """+9.8% 大涨未触及涨停价（10.98 < 11.00）→ 可交易，不再误判。"""
-        import backtest
-
-        assert backtest._is_limit_or_suspended(self._bars(10.0, 10.98), 1, "sh600001") is False
+        assert self._is_limit(self._bars(10.0, 10.98), 1, "sh600001") is False
 
     def test_exact_limit_up_price_detected(self):
         """收盘 = 理论涨停价 round(10×1.1, 2)=11.00 → 涨停。"""
-        import backtest
-
-        assert backtest._is_limit_or_suspended(self._bars(10.0, 11.0), 1, "sh600001") is True
+        assert self._is_limit(self._bars(10.0, 11.0), 1, "sh600001") is True
 
     def test_exact_limit_down_detected(self):
         """收盘 = 跌停价 round(10×0.9, 2)=9.00 → 跌停。"""
-        import backtest
-
-        assert backtest._is_limit_or_suspended(self._bars(10.0, 9.0), 1, "sh600001") is True
+        assert self._is_limit(self._bars(10.0, 9.0), 1, "sh600001") is True
 
     def test_bj_30cm_board(self):
         """北交所 bj 前缀 30cm：+15% 不涨停，+30% 涨停。"""
-        import backtest
-
-        assert backtest._is_limit_or_suspended(self._bars(10.0, 11.5), 1, "bj920001") is False
-        assert backtest._is_limit_or_suspended(self._bars(10.0, 13.0), 1, "bj920001") is True
+        assert self._is_limit(self._bars(10.0, 11.5), 1, "bj920001") is False
+        assert self._is_limit(self._bars(10.0, 13.0), 1, "bj920001") is True
 
     def test_limit_ratio_helper(self):
-        import backtest
+        from backtest.engine import _limit_ratio
 
-        assert backtest._limit_ratio("sh600001") == 0.10
-        assert backtest._limit_ratio("sz300001") == 0.20
-        assert backtest._limit_ratio("sh688001") == 0.20
-        assert backtest._limit_ratio("bj920001") == 0.30
+        assert _limit_ratio("sh600001") == 0.10
+        assert _limit_ratio("sz300001") == 0.20
+        assert _limit_ratio("sh688001") == 0.20
+        assert _limit_ratio("bj920001") == 0.30
