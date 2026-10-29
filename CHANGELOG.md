@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.23.1（2026-10-19）修复与数据记录：①修正专家校准数据落盘路径越界一层（`experts/calibration.py` 曾把校准数据写到仓库外目录，debate 校准闭环无法落库）②记录双池外样本回测结果（balanced/ma_volume_momentum 均未达阈值，如实保持 in_sample）③修复 release 时 package.json 版本未同步；v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
+> 🟢 **当前状态**：v1.24.0（2026-10-29）开源对标校准 21 项落地——①专家校准体系升级：按 horizon 分桶结算（长线 180d/行业·风控 90d/短线 14d）、胜率卡片强制样本数、slugging 赔率列、弃权第四态（abstain 不入投票基数）、反思记忆（错误 lesson 注入 debate）、确定性仓位钳制（单股 20% 上限+审计）；②4 个新数据域（均真实接口实测）：大宗交易、涨停原因归因、打新日历、可转债双低；③回测严谨性：最低佣金 5 元、alpha/beta/excess_sharpe 超额指标、deflated Sharpe 过拟合诊断、涨跌停精确价；④经典 K 线形态库 12 个 + 海龟/回踩年线；⑤组合保护三件套 + 逆波动率加权；⑥机器可读命令契约 commands.json + 数据血缘降级链；⑦screener 缺值填 0 缺陷修复。全量 2210 passed；v1.23.1（2026-10-19）修复与数据记录：①修正专家校准数据落盘路径越界一层（`experts/calibration.py` 曾把校准数据写到仓库外目录，debate 校准闭环无法落库）②记录双池外样本回测结果（balanced/ma_volume_momentum 均未达阈值，如实保持 in_sample）③修复 release 时 package.json 版本未同步；v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.24.0 | 2026-10-29 | 开源对标校准 P0+P1+P2 共 21 项：专家校准体系升级（horizon 分桶/样本数强制/slugging/弃权第四态/反思记忆/仓位钳制）+ 4 个新数据域（大宗/涨停归因/打新/可转债）+ 回测严谨性（最低佣金/超额指标/过拟合诊断/精确涨跌停）+ 经典形态库 + 保护三件套 + 命令契约/血缘降级链 |
 | 1.23.1 | 2026-10-19 | 修复：专家校准数据落盘路径越界（校准闭环恢复）+ 记录双池 OOS 回测结果保持 in_sample + release 版本同步修复（package.json） |
 | 1.23.0 | 2026-10-13 | 新增**成本分布（筹码）**分析维度：`scripts/chip_dist.py` + `technical/chip_distribution.py`（三角分布+换手衰减，不复权优先）+ `technical.py --chip` + stock/portfolio/stock-technical 技能接入 |
 | 1.22.1 | 2026-09-02 | 修复：portfolio health_report 未传行情自动拉实时价格（web/manager 双路径对齐，盈亏/破位判定恢复）+ backtest walk-forward 输出错误窗口具体原因 |
@@ -42,20 +43,43 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
-## [Unreleased]
+## [1.24.0] - 2026-10-29（开源对标校准 P0+P1+P2 共 21 项落地：专家校准体系升级 + 4 个新数据域 + 回测严谨性增强 + LLM 协作机制）
+
+### Added
+
+- **experts 校准体系（对标 ai-hedge-fund scorecard / TradingAgents）**：
+  - 按专家 horizon 分桶结算（长线 180 日/行业·风控 90 日/短线 14 日自然日），替换统一 30 天窗；旧记录完全兼容；
+  - 胜率卡片强制样本数（events < 10 显示"样本不足"），未结算预测与胜率分离显示；
+  - slugging 赔率列（赢时均收益/|输时均收益|，双侧样本数）；
+  - 弃权第四态：数据不足的专家输出 `abstain` 不进入投票基数（`abstained=N` 单独展示），decide.md 增补冲突消解纪律（冲突≠观望理由、不为果断而造方向）；
+  - 反思记忆：错误结算生成结构化 lesson（按长短线分组措辞），滚动保留 5 条，debate 注入"上轮教训"段；
+  - 确定性仓位钳制：单股建议仓位硬上限 20% + ClampEvent 审计（conviction requests, risk disposes）。
+- **新数据域（4 个 fetcher 域，全部真实接口实测）**：
+  - `block_trade` 大宗交易（东财 RPT_DATA_BLOCKTRADE：价量/金额/溢价率/买卖营业部）；
+  - `limit_up` 涨停原因归因（同花顺涨停揭秘：原因/板型/开板次数/回封/封板成功率）；
+  - `ipo` 打新日历（RPT_IPO_CALENDAR：申购/中签号/缴款日/上市，股票+转债）；
+  - `cb` 可转债行情（push2 b:MK0354：现价/溢价率/双低值，276 只活跃实测）；
+  - 配套 CLI：`block_trade.py` / `limit_up.py` / `ipo_calendar.py` / `cb.py`。
+- **回测严谨性**：最低佣金 5 元/笔（小额单边成本低估修复）；per-benchmark alpha/beta/excess_sharpe（每期收益对齐口径）；deflated Sharpe + 敏感性曲线/尖峰离群警示（寻优过拟合诊断）；涨跌停精确价判断替换 ±9.5% 近似（补北交所 30cm）。
+- **形态库**：本土战法新增海龟突破（唐奇安 20 日+放量）、回踩年线（MA250 向上+回踩企稳）；经典 K 线形态库 12 个（吞没/锤子/吊颈/射击之星/倒锤/十字星/曙光初现/乌云盖顶/孕线/晨暮星/三只乌鸦），展示位 5→10。
+- **组合层**：逆波动率加权建议（`portfolio_correlation.py --risk-weights`，40% 单票上限）；保护机制三件套（利润曲线回撤 15% 熔断/连亏 3 笔熔断/同票清仓 10 日冷却，`portfolio/guardrails.py`）。
+- **LLM 协作/可观测性**：机器可读命令契约 `commands.json`（gen_script_catalog --emit-json，40 命令）；数据血缘降级链（`行情[tencent]（降级链: sina 429 → …）`，仅降级域附加）；`_SAFE_CODE_PATTERN` 允许空 code（龙虎榜/大宗/涨停域"全市场查询"此前被静默拦截）。
+- 补充 coverage：新数据域/guardrails/pattern/契约/超额的单元测试，全量 **2210 passed / 13 skipped**。
 
 ### Fixed
 
 - **deps**: `pyproject.toml` 运行时依赖收紧为 stdlib + PyYAML（移除 httpx/urllib3/typing-extensions；`requests` 转 `http` 可选增强，缺失时降级 stdlib `http.client`），与 README/CLAUDE.md "零 Python 外部依赖" 口径对齐；`requirements.lock` 同步。测试组补 `requests` + `jsonschema`（解除 test_contracts_path 跳过）。
 - **validation**: `evaluate_multi_pool` 收紧为 **≥2 个池且全部达标**才升级 `oos_verified`（单池一律 in_sample）——此前单池达标即可升级，可"选一个对自己有利的池"刷出验证；`multi_stock_backtest --update-validation` 默认走多池联合判定，`--require-all-pools` 仅保留 CLI 兼容。
 - **experts**: 校准库 `_ensure_active_experts` 为缺失的 active 专家（sector_specialist/risk_manager/momentum_trader）补齐 events=0/correct=0 占位并清除 legacy 残留——此前 `verify_predictions` 的 `expert_name in data["experts"]` 过滤导致这 3 位专家校准数据**永远不更新**（闭环失效）；debate 胜率卡片现渲染全部 8 位 active 专家（无历史显示"样本不足"）。
+- **screener**: `normalize_factors_batch` 缺值填 0 缺陷——缺 key/None 因子被排到最低分位（且 None 直接进 `sorted` 会崩），改为不参与分布统计、归一化后填中性 50（与打分层兜底口径一致）。
 - **scripts**: screener watchdog 超时告警改走 **stderr**（此前打 stdout，与文档声称的"往 stderr 打一行"不一致，告警采集会漏接）。
 - **release**: `sync_version.py --check` 新增 CHANGELOG 最新版本段门禁（发版只 bump 版本号而漏写 CHANGELOG 段会被阻断）。
 
 ### Changed
 
+- **data-source**: pytdx 优先级下调（quote 9→4 / kline 9→5）——通达信公开服务器行情命令 2026-09 已失效（a-stock-data #52 实测），未配局域网时默认超时；局域网用户可在 `data_source.yaml` 调回。README/market SKILL.md 数字同步。
 - **scripts**: `install.sh` 新增 [3/6] 项目级链接完整性自检（12 个 skill 链接有效、无悬空、清理残留如 monitor 旧链接），重跑即修复。
-- **docs**: 数字与表述对齐——CLAUDE.md（silent_fallback 无装饰器、版本同步 8 目标、OOS ≥2 池语义、install.sh 权威）、README（http.client 兜底、11 处 HIGH/MEDIUM 已治理、1989 passed/13 skipped、debate 示例改 8 位活跃专家圆桌）、docs/strategy-validation.md（JSON git-tracked、复盘日期、472/470 实情、71.4% 归因修正）、docs/product-architecture.md 日期。
+- **docs**: 开源对标校准报告（30+ 项目四类调研）落 `docs/archive/reviews/opensource-benchmark-calibration-2026-10-29.md`，含 P0/P1/P2 实施记录；数字与表述对齐——CLAUDE.md（silent_fallback 无装饰器、版本同步 8 目标、OOS ≥2 池语义、install.sh 权威）、README（http.client 兜底、11 处 HIGH/MEDIUM 已治理、debate 示例改 8 位活跃专家圆桌）、docs/strategy-validation.md（JSON git-tracked、复盘日期、472/470 实情、71.4% 归因修正）、docs/product-architecture.md 日期。
 
 ## [1.23.1] - 2026-10-19（修复专家校准落盘路径 + 记录双池 OOS 结果保持 in_sample + release 版本同步修复）
 
