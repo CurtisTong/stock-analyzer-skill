@@ -32,11 +32,12 @@ MAX_PAGES = 5
 
 
 def _ts_to_hhmm(ts) -> str:
-    """秒级时间戳 → HH:MM；无效值返回空串。"""
+    """秒级时间戳 → HH:MM（固定北京时间 Asia/Shanghai，避免 CI 时区差异）；无效值返回空串。"""
     try:
-        from datetime import datetime
+        from datetime import datetime, timezone, timedelta
 
-        return datetime.fromtimestamp(int(ts)).strftime("%H:%M")
+        cst = timezone(timedelta(hours=8))
+        return datetime.fromtimestamp(int(ts), tz=cst).strftime("%H:%M")
     except (TypeError, ValueError, OSError, OverflowError):
         return ""
 
