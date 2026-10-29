@@ -161,9 +161,12 @@ def run_backtest(
     betas: dict[str, float] = {}
     excess_sharpes: dict[str, float] = {}
     periods_per_year = 252 / holding_days if holding_days > 0 else 0
+    annual_risk_free = 0.03  # 与本文件 Sharpe 口径一致
     for bm, bp in benchmark_period_returns_map.items():
         n_periods = min(len(all_returns), len(bp))
         if n_periods > 1:
+            # 无风险利率按期折算（期收益口径）
+            rf_period = annual_risk_free / periods_per_year if periods_per_year > 0 else 0.0
             excess = [all_returns[i] - bp[i] for i in range(n_periods)]
             mean_excess = sum(excess) / len(excess)
             te = statistics.stdev(excess)
@@ -175,13 +178,23 @@ def run_backtest(
             var_bm = statistics.variance(bp[:n_periods]) if n_periods > 2 else 0
             if var_bm > 0:
                 cov = sum((all_returns[i] - strat_mean) * (bp[i] - bm_mean) for i in range(n_periods)) / (n_periods - 1)
-                betas[bm] = round(cov / var_bm, 2)
-                # alpha = 组合平均超额（扣除 beta×基准均价），年化到每年
-                alpha_period = strat_mean - betas[bm] * bm_mean
+                beta = cov / var_bm
+                betas[bm] = round(beta, 2)
+                # alpha = CAPM 截距：策略超额 - beta × 基准超额（与 Sharpe 的 rf 口径一致）
+                alpha_period = (strat_mean - rf_period) - beta * (bm_mean - rf_period)
                 alphas[bm] = round(alpha_period * periods_per_year, 2)
-            # excess Sharpe = 超额均值 / 超额标准差（年化）
-            if te > 0:
-                excess_sharpes[bm] = round(mean_excess / te * (periods_per_year**0.5), 2)
+            # 超额夏普（excess Sharpe）：策略夏普 - 基准夏普（风险调整口径）
+            # 注意与信息比率（IR）区分：IR = 超额收益 / 跟踪误差，衡量"超额稳定性"；
+            # 超额夏普是两个夏普之差，衡量"风险调整后相对表现"。二者不可混用。
+            if te > 0 and var_bm > 0:
+                bm_excess = [bp[i] - rf_period for i in range(n_periods)]
+                bm_std = statistics.stdev(bm_excess)
+                if bm_std > 0:
+                    bm_sharpe = (bm_mean - rf_period) / bm_std * (periods_per_year**0.5)
+                    strat_std = statistics.stdev([all_returns[i] - rf_period for i in range(n_periods)])
+                    if strat_std > 0:
+                        strat_sharpe = (strat_mean - rf_period) / strat_std * (periods_per_year**0.5)
+                        excess_sharpes[bm] = round(strat_sharpe - bm_sharpe, 2)
     # 兼容旧字段：取第一个基准（若存在）
     information_ratio = next(iter(information_ratios.values()), 0)
     alpha_value = next(iter(alphas.values()), 0)
@@ -375,6 +388,9 @@ def deflated_sharpe_ratio(
     sqrt252 = 252**0.5
     sr_best_daily = best_sharpe / sqrt252
     sr0_daily = expected_max / sqrt252
-    denom = math.sqrt(max(1e-12, 1 - 0.5 * sr_best_daily**2))
+    # PSR 分母：sqrt(1 - γ3·SR + ((γ4-1)/4)·SR²)
+    # 正态收益下 γ3=0、γ4=3 → sqrt(1 + 0.5·SR²)（PLUS，不是 MINUS）
+    # 写成 MINUS 会在高 SR 时把分母钳到 ~0，把 DSR 强行推向 1.0（假阳性"通过"）。
+    denom = math.sqrt(max(1e-12, 1 + 0.5 * sr_best_daily**2))
     dsr = NormalDist().cdf((sr_best_daily - sr0_daily) * math.sqrt(n_obs - 1) / denom)
     return round(dsr, 4)

@@ -422,6 +422,55 @@ class TestMultiBenchmark:
         assert "alphas" in result and "betas" in result and "excess_sharpes" in result
         assert "alpha" in result and "beta" in result and "excess_sharpe" in result
 
+    def test_excess_sharpe_differs_from_information_ratio(self, monkeypatch):
+        """超额夏普 ≠ 信息比率。
+
+        v1.24.0 实现里两者是同一公式（超额均值/跟踪误差），数值恒等，
+        新增指标零信息量。修复后超额夏普 = 策略夏普 - 基准夏普。
+        """
+        import backtest
+        from datetime import datetime, timedelta
+        from data.types import KlineBar
+
+        finance_obj = _make_finance_obj()
+        monkeypatch.setattr(backtest.engine, "get_finance", lambda code: [finance_obj])
+        today = datetime.now()
+
+        def _mock_kline(code, scale=240, datalen=140):
+            n = max(datalen, 140)
+            bars = []
+            for i in range(n):
+                d = today - timedelta(days=n - i)
+                bars.append(
+                    KlineBar(
+                        day=d.strftime("%Y-%m-%d"),
+                        close=10 + i * 0.3,
+                        open=10 + i * 0.3,
+                        high=10 + i * 0.3,
+                        low=10 + i * 0.3,
+                        volume=1000,
+                    )
+                )
+            return bars
+
+        monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
+
+        result = backtest.run_backtest(
+            "balanced",
+            ["sh600519"],
+            top_n=1,
+            days=30,
+            rounds=3,
+            benchmark=["sh000300"],
+        )
+        assert "error" not in result
+        ir = result["information_ratio"]
+        excess = result["excess_sharpe"]
+        assert isinstance(ir, (int, float))
+        assert isinstance(excess, (int, float))
+        # 两者口径不同，数值不应恒等
+        assert ir != excess
+
 
 class TestOptimizeWeights:
     """权重优化测试。"""
@@ -1148,3 +1197,59 @@ class TestIsLimitExactPrice:
         assert _limit_ratio("sz300001") == 0.20
         assert _limit_ratio("sh688001") == 0.20
         assert _limit_ratio("bj920001") == 0.30
+
+    def test_limit_ratio_normalizes_bare_code(self):
+        """裸代码（无市场前缀）必须归一化后再判板，否则创业板按 10% 误判。"""
+        from backtest.engine import _limit_ratio
+
+        assert _limit_ratio("300750") == 0.20  # 创业板
+        assert _limit_ratio("688981") == 0.20  # 科创板
+        assert _limit_ratio("920765") == 0.30  # 北交所
+        assert _limit_ratio("600519") == 0.10  # 主板
+
+    def test_bare_code_limit_up_detected(self):
+        """裸代码 300750 的 +20% 涨停必须被识别（修复前按 10% 会漏判）。"""
+        assert self._is_limit(self._bars(10.0, 12.0), 1, "300750") is True
+        assert self._is_limit(self._bars(10.0, 11.0), 1, "300750") is False
+
+    def test_round_half_up_boundary(self):
+        """交易所口径 ROUND_HALF_UP：78.85×1.1=86.735 → 86.74（不是 86.73）。"""
+        from backtest.engine import _limit_price
+
+        assert _limit_price(78.85, 0.10, up=True) == 86.74
+        assert _limit_price(78.85, 0.10, up=False) == 70.97
+
+
+class TestLimitExitAsymmetry:
+    """v1.24.0 复审修复：跌停出场必须与买入侧拒单对称。"""
+
+    def _bar(self, day, close, volume=1000):
+        return KlineBar(day=day, close=close, open=close, high=close, low=close, volume=volume)
+
+    def test_limit_down_exit_defers_to_next_day(self):
+        """持有期内跌停：无法卖出，出场顺延到下一个可交易日。"""
+        from backtest.engine import _calc_return_with_stop_loss
+
+        bars = [
+            self._bar("2025-01-01", 10.0),
+            self._bar("2025-01-02", 9.0),  # 跌停（前收 10 → 跌停价 9.00）
+            self._bar("2025-01-03", 9.5),  # 可交易，未触及止损线 9.20
+        ]
+        ret, day, reason = _calc_return_with_stop_loss(bars, 0, 2, code="sh600001")
+        # 跌停日不可卖，顺延到 01-03 收盘 9.5 → -5%
+        assert ret == pytest.approx(-0.05)
+        assert reason == "normal"
+        assert day == 2
+
+    def test_stop_loss_on_limit_down_deferred(self):
+        """跌停日触及止损也不得按止损价成交（卖不出去）。"""
+        from backtest.engine import _calc_return_with_stop_loss
+
+        bars = [
+            self._bar("2025-01-01", 10.0),
+            self._bar("2025-01-02", 9.0),  # 跌停：low 9.0 <= 止损线 9.20，本会触发止损
+            self._bar("2025-01-03", 9.5),  # 可交易，未触及止损线
+        ]
+        ret, day, reason = _calc_return_with_stop_loss(bars, 0, 2, code="sh600001")
+        assert reason == "normal"  # 不是 stop_loss
+        assert ret == pytest.approx(-0.05)

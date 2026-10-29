@@ -39,6 +39,24 @@ def _sensitivity_by_key(results: list, base_keys: list) -> dict:
     return sensitivity
 
 
+def _distinct_trial_sharpes(results: list) -> list:
+    """按权重向量去重后的试验夏普列表（DSR 的试验次数口径）。
+
+    网格寻优里 step=0 对每个因子都产出与基准相同的权重向量，step=-0.05 对
+    权重本就为 0.05 的因子是 no-op——重复行会虚增试验次数 N，抬高期望最大
+    夏普（SR0），让 deflated Sharpe 失真。
+    """
+    seen = set()
+    sharpes = []
+    for r in results:
+        key = tuple(sorted((r.get("weights") or {}).items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        sharpes.append(r["sharpe"])
+    return sharpes
+
+
 def _overfit_warnings(results: list, best_score: float, base_score: float) -> list:
     """由网格试验形态产生过拟合警示（无警示返回空列表）。"""
     import statistics
@@ -58,6 +76,14 @@ def _overfit_warnings(results: list, best_score: float, base_score: float) -> li
                     f"{best_row['sharpe']:.2f} 比基准档 {baseline_row['sharpe']:.2f} 高 {spike:.2f}，"
                     "相邻档位差异大说明最优解依赖该档参数，建议扩大网格复验"
                 )
+
+    # 最优解相对基准的提升幅度：单一档位的偶然领先（相对基准无实质增益）
+    if base_score and best_score - base_score > SENSITIVITY_SPIKE_THRESHOLD:
+        warnings.append(
+            f"最优夏普 {best_score:.2f} 相对基准 {base_score:.2f} 提升 "
+            f"{best_score - base_score:.2f}，网格内单档扰动即有此幅度，"
+            "建议用独立窗口复核而非直接采信"
+        )
 
     # 离群检测：全局最优显著高于试验分布中心
     scores = [r["sharpe"] for r in results]
@@ -179,6 +205,10 @@ def optimize_weights(
             # 通过 weights 参数传入，不修改全局 STRATEGIES（避免并发数据竞争）
             report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights)
 
+            # 回测失败（error）时该次试验无效，不计入试验分布：
+            # 缺失的 sharpe_ratio 若按 0 计入会把 SR0 抬高、污染 DSR
+            if "error" in report:
+                continue
             score = report.get("sharpe_ratio", 0)
 
             results.append(
@@ -209,12 +239,17 @@ def optimize_weights(
     # 这两个指标把选择偏差显式报告出来，而不是只给一个漂亮的最优数字。
     result["sensitivity"] = _sensitivity_by_key(results, base_keys)
     result["overfit_warnings"] = _overfit_warnings(results, best_score, base_score)
-    dsr = deflated_sharpe_ratio([r["sharpe"] for r in results] + [base_score], best_score, days)
+    # DSR 的试验次数必须是"互不相同的权重向量"个数：
+    # step=0 对每个因子都等于基准权重、step=-0.05 对 0.05 权重因子是 no-op，
+    # 重复行会虚增 N、抬高期望最大夏普（SR0），让 DSR 失真。
+    distinct_trials = _distinct_trial_sharpes(results)
+    dsr = deflated_sharpe_ratio(distinct_trials + [base_score], best_score, days)
+    result["trial_count"] = len(distinct_trials) + 1
     if dsr is not None:
         result["deflated_sharpe"] = dsr
         if dsr < 0.95:
             result["overfit_warnings"].append(
-                f"deflated Sharpe={dsr:.3f} < 0.95：{days} 日窗口 × {len(results) + 1} 次试验下，"
+                f"deflated Sharpe={dsr:.3f} < 0.95：{days} 日窗口 × {result['trial_count']} 次试验下，"
                 "最优夏普很可能主要是选择偏差，不构成策略有效的证据"
             )
 
@@ -444,6 +479,10 @@ def main():
             # v1.24.0 过拟合诊断输出
             if result.get("deflated_sharpe") is not None:
                 print(f"\n🧪 Deflated Sharpe: {result['deflated_sharpe']:.4f}（>0.95 才能排除选择偏差）")
+            else:
+                # DSR 未计算（试验数不足/样本不足/夏普无离散度）时必须说明，
+                # 否则"没有警示"会被误读成"检查通过"
+                print("\n🧪 Deflated Sharpe: 未计算（有效试验数不足 2 或样本不足 30 日，无法排除选择偏差）")
             warnings = result.get("overfit_warnings") or []
             if warnings:
                 print("⚠️  过拟合警示:")

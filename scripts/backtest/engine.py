@@ -268,8 +268,10 @@ def simulate_strategy(ctx: SimContext):
                 continue
 
             # 跳过涨跌停和停牌日
+            # 必须整段跳过（i += holding_days）而非 i += 1：逐日推进会让该股票的
+            # 选股日相对其它股票永久错位，进而与基准的持有期切块错位。
             if _is_limit_or_suspended(bars, i, code):
-                i += 1
+                i += holding_days
                 continue
 
             # 仅使用交易日已披露的财务数据，消除前瞻偏差
@@ -349,6 +351,7 @@ def simulate_strategy(ctx: SimContext):
                 take_profit=0.20,
                 atr_multiplier=atr_stop_multiplier,
                 trailing_pct=trailing_stop_pct,
+                code=code,
             )
             # 扣除交易成本：佣金(双向，含最低佣金) + 印花税(卖出) + 滑点(双向)
             trade_amount = initial_capital / max(top_n, 1)
@@ -483,6 +486,7 @@ def _calc_return_with_stop_loss(
     take_profit=0.20,
     atr_multiplier=None,
     trailing_pct=None,
+    code="",
 ):
     """计算带止损止盈的持有期收益。
 
@@ -502,6 +506,7 @@ def _calc_return_with_stop_loss(
         take_profit: 固定止盈阈值（默认 +20%）
         atr_multiplier: ATR 止损倍数（None = 固定止损）
         trailing_pct: 移动止盈回撤比例（None = 固定止盈）
+        code: 股票代码（用于判断跌停日无法卖出）
 
     Returns:
         (return_pct, exit_day, exit_reason)
@@ -531,6 +536,11 @@ def _calc_return_with_stop_loss(
         if idx >= len(bars):
             break
         bar = bars[idx]
+        # 跌停日卖不出：A 股跌停封死时无法成交，出场必须顺延到下一个
+        # 可交易日（与买入侧"涨停拒单"对称）。否则跌停日会被记为正常平仓，
+        # 系统性高估回测收益。
+        if _is_limit_or_suspended(bars, idx, code):
+            continue
         # 移动止盈：更新最高价（收盘确认），回撤超过 trailing_pct 即卖出
         if trailing_pct is not None:
             if bar.high > trailing_peak:
@@ -557,7 +567,10 @@ def _calc_return_with_stop_loss(
                 return take_profit, day, "take_profit"
 
     # 未触发止损止盈，持有到期，用末日收盘价
+    # 若末日跌停无法卖出，顺延到之后第一个可交易日的收盘价
     exit_idx = min(start + holding_days, len(bars) - 1)
+    while exit_idx < len(bars) - 1 and _is_limit_or_suspended(bars, exit_idx, code):
+        exit_idx += 1
     exit_price = bars[exit_idx].close
     ret = (exit_price - entry_price) / entry_price
     return ret, holding_days, "normal"
@@ -595,12 +608,36 @@ def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
 
 
 def _limit_ratio(code: str) -> float:
-    """按板块返回涨跌停幅度（v1.24.0 增加北交所 30cm）。"""
+    """按板块返回涨跌停幅度（v1.24.0 增加北交所 30cm）。
+
+    代码必须先归一化：调用方传入的可能是 "300750" 这类裸代码，
+    直接 startswith("sz300") 会漏判，创业板/科创板被按主板 10% 处理，
+    其 ±20% 涨跌停日不会被识别（引擎会在涨停板上"买入"）。
+    """
+    from common.utils import normalize_quote_code
+
+    try:
+        code = normalize_quote_code(code)
+    except Exception:
+        pass
     if code.startswith(("sz300", "sz301", "sh688", "sh689")):
         return 0.20
     if code.startswith("bj"):
         return 0.30  # 北交所
     return 0.10
+
+
+def _limit_price(prev_close: float, ratio: float, up: bool = True) -> float:
+    """理论涨跌停价（交易所口径：四舍五入到分）。
+
+    不能用 Python 内置 round()：它是银行家舍入（ties-to-even）且含浮点误差，
+    会把"贴阈值"的涨停多判 1.5%、把真跌停漏判 4%。交易所用 ROUND_HALF_UP。
+    """
+    from decimal import Decimal, ROUND_HALF_UP
+
+    base = Decimal(str(prev_close))
+    factor = Decimal("1") + Decimal(str(ratio)) if up else Decimal("1") - Decimal(str(ratio))
+    return float((base * factor).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
 
 def _is_limit_or_suspended(bars, idx, code=""):
@@ -639,8 +676,8 @@ def _is_limit_or_suspended(bars, idx, code=""):
     # 涨跌停：精确触及理论涨跌停价（epsilon 防浮点噪声）
     if prev_close > 0 and bar_close > 0:
         ratio = _limit_ratio(code)
-        limit_up_price = round(prev_close * (1 + ratio), 2)
-        limit_down_price = round(prev_close * (1 - ratio), 2)
+        limit_up_price = _limit_price(prev_close, ratio, up=True)
+        limit_down_price = _limit_price(prev_close, ratio, up=False)
         eps = 1e-6
         if bar_close >= limit_up_price - eps or bar_close <= limit_down_price + eps:
             return True
