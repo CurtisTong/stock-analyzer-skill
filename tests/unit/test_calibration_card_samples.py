@@ -57,8 +57,10 @@ class TestWinRateCardMinSamples:
     def test_sufficient_sample_shows_rate(self, monkeypatch, active_experts):
         monkeypatch.setattr(cal_mod, "get_calibration", lambda: _calibration_entry(MIN_CALIBRATION_SAMPLES, 7))
         out = active_experts.format_debate_output(_debate_result())
+        # 胜率列达标渲染 70%
         assert "70%" in out
-        assert "样本不足" not in out
+        # v1.24.0 赔率列：无 slug 双侧样本时显示"样本不足"（与胜率列语义分离）
+        assert "| 样本不足 |" in out
 
     def test_zero_events_shows_no_history(self, monkeypatch, active_experts):
         monkeypatch.setattr(cal_mod, "get_calibration", lambda: _calibration_entry(0, 0))
