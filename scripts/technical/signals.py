@@ -107,7 +107,12 @@ def _generate_signals(features, market_breadth=None):
         else:
             buy.append("KDJ超卖区金叉")
     if boll.get("position", 0.5) < 0.2 and "收窄" in boll.get("bandwidth_desc", ""):
-        buy.append("BOLL下轨+收窄(变盘)")
+        # 回测落地：低波动股极度收窄无变盘放大（茅台/招行 3.4% vs 宁德 10.3%），
+        # 低波动时降级标注，避免把低波动收窄当强变盘信号
+        if boll.get("low_vol_squeeze"):
+            buy.append("BOLL下轨+收窄(低波动,变盘参考弱)")
+        else:
+            buy.append("BOLL下轨+收窄(变盘)")
     # RSI超卖：下跌趋势中降级
     if rsi_data.get("rsi", 50) < 35:
         if is_downtrend:

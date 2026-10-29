@@ -240,7 +240,7 @@ def _analyze_technical(kline: list) -> dict:
         kdj = kdj_full(closes, highs, lows) or {}
         result["kdj"] = kdj.get("signal", "")
 
-        boll = bollinger(closes)
+        boll = bollinger(closes, highs=highs, lows=lows)
         result["boll_position"] = boll.get("position", 0.5)
         result["rsi"] = indicators.get("rsi", 50)
         result["volume_signal"] = indicators.get("vol_price_signal", 0)

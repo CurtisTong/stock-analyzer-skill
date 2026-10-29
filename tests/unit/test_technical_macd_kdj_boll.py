@@ -355,3 +355,38 @@ class TestBollBranches:
         out = bollinger(closes)
         assert out["position"] == pytest.approx(0.281, abs=0.01)
         assert out["position_desc"] == "偏下轨"
+
+    def test_extreme_narrow_low_vol_squeeze_degraded(self):
+        """低波动（ATR% < 2%）+ 极度收窄 → 降级为"变盘信号弱"（回测 §5.2 落地）。"""
+        closes = [10.0] * 25
+        high = [10.01] * 25  # 日振幅 0.02 元 → ATR% ≈ 0.2% 低波动
+        low = [9.99] * 25
+        out = bollinger(closes, highs=high, lows=low)
+        assert out["squeeze"] is True
+        assert out["low_vol_squeeze"] is True
+        assert out["bandwidth_desc"] == "极度收窄(低波动,变盘信号弱)"
+
+    def test_extreme_narrow_high_vol_keeps_signal(self):
+        """高波动（ATR% >= 2%）+ 极度收窄 → 保持"变盘信号"语义。"""
+        closes = [10.0] * 25
+        high = [10.5] * 25  # 日振幅 0.5 元 → 相对 10 元 ATR% ≈ 5%
+        low = [9.5] * 25
+        out = bollinger(closes, highs=high, lows=low)
+        assert out["squeeze"] is True
+        assert out["low_vol_squeeze"] is False
+        assert out["bandwidth_desc"] == "极度收窄(变盘信号)"
+
+    def test_no_highs_lows_keeps_legacy_semantics(self):
+        """不传 highs/lows（旧调用方/回测脚本）→ 保持原语义且字段稳定。"""
+        closes = [10.0] * 25
+        out = bollinger(closes)
+        assert out["bandwidth_desc"] == "极度收窄(变盘信号)"
+        assert out["low_vol_squeeze"] is False
+        assert out["squeeze"] is True
+
+    def test_mismatched_highs_length_ignored(self):
+        """highs/lows 长度与 closes 不一致时安全回退（不崩溃、按原语义）。"""
+        closes = [10.0] * 25
+        out = bollinger(closes, highs=[10.01] * 3, lows=[9.99] * 3)
+        assert out["bandwidth_desc"] == "极度收窄(变盘信号)"
+        assert out["low_vol_squeeze"] is False

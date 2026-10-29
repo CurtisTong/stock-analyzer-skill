@@ -114,7 +114,7 @@ def _compute_all(inp: TechnicalInput):
     features["ma_system"] = ma_system(closes)
     features["macd"] = macd_full(closes)
     features["kdj"] = kdj_full(closes, highs, lows, board=board)
-    features["bollinger"] = bollinger(closes) or {}
+    features["bollinger"] = bollinger(closes, highs=highs, lows=lows) or {}
     features["rsi"] = rsi_features(closes)
     features["volume"] = volume_analysis(closes, volumes) or {}
     features["patterns"] = detect_candle_patterns(records)

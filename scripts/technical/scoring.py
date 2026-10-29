@@ -248,12 +248,16 @@ def _score_kdj(kdj: dict, type_w: dict, adj: dict, vol_signal: int = 0) -> float
 
 
 def _score_boll(boll: dict, type_w: dict) -> float:
-    """布林带评分（上限 15）。"""
+    """布林带评分（上限 15）。
+
+    回测落地：低波动股极度收窄无变盘放大（§5.2），低波动收窄不给加分档。
+    """
     pos = boll.get("position", 0.5)
     bw = boll.get("bandwidth_desc", "")
     boll_base = 7
     if pos < 0.3:
-        boll_base = 10 if "收窄" in bw else 6
+        # 低波动收窄视为普通位置（变盘参考弱），按 6 分而非 10 分
+        boll_base = 10 if ("收窄" in bw and not boll.get("low_vol_squeeze")) else 6
     elif 0.3 <= pos <= 0.7:
         boll_base = 7
     elif pos > 0.7:
