@@ -38,12 +38,28 @@ def format_text(days: int, result: dict) -> str:
     lines = [f"📅 新股/新债日历（未来 {days} 日，共 {len(items)} 条事件）", ""]
 
     type_order = ["申购", "中签号", "中签率", "缴款日", "上市"]
+    listed = set()
     for tp in type_order:
         if tp not in by_type:
             continue
+        listed.add(tp)
         lines.append(f"◆ {tp}")
         for i in sorted(by_type[tp], key=lambda x: x["date"])[:15]:
             lines.append(f"  {i['date']}  {i['name']}({i['code']}) [{i['security_type']}]")
+        extra = len(by_type[tp]) - 15
+        if extra > 0:
+            lines.append(f"  …其余 {extra} 条见 JSON 输出")
+        lines.append("")
+    # 白名单外的事件类型（如"股权登记"）不能静默消失——归入"其它"桶
+    others = [tp for tp in by_type if tp not in listed]
+    if others:
+        lines.append("◆ 其它事件")
+        for tp in sorted(others):
+            for i in sorted(by_type[tp], key=lambda x: x["date"])[:15]:
+                lines.append(f"  {i['date']}  {tp}  {i['name']}({i['code']}) [{i['security_type']}]")
+            extra = len(by_type[tp]) - 15
+            if extra > 0:
+                lines.append(f"  …其余 {extra} 条见 JSON 输出")
         lines.append("")
     if result.get("truncated"):
         lines.append("  ⚠ 事件超抓取上限，已截断")

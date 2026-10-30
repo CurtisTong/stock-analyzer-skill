@@ -48,6 +48,15 @@ def _record_trade_log(
             sell_price=sell_price or 0,
             reason=reason,
         )
+        # 熔断状态同步（v1.25）：清仓落账是保护机制的天然写入点——
+        # 连亏/回撤熔断只在真实成交发生时才可能触发。显式写在落账层
+        # 而非检查函数里（检查必须保持纯读、可重入）。
+        try:
+            from portfolio.guardrails import sync_breakers
+
+            sync_breakers(tl.query())
+        except Exception as e:
+            logger.debug("熔断状态同步失败: %s", e)
     except Exception as e:
         logger.debug("交易日志记录失败: %s", e)  # 交易日志失败不阻塞持仓操作
 

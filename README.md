@@ -16,12 +16,12 @@
 
 装进 Claude Code 后用 `/stock <代码>` 等 12 个斜杠命令做 A 股分析（基本面/估值/技术面/板块/风险收益比 5 层 + 8 人专家投票）。
 
-**8 位活跃专家圆桌** · **35 个 fetcher 类（7 数据域）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
+**8 位活跃专家圆桌** · **37 个 fetcher 类（11 数据域）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
 
 > "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
 > 核心 8 命令（quote/kline/finance/technical/stock/portfolio/screener/backtest）只需 stdlib + PyYAML；扩展功能（`/research` DCF、`/screener init full-market`、美股 yfinance、`/market full` 美股参考）按需 `pip install yfinance akshare efinance pytdx`。
 
-[![Version](https://img.shields.io/badge/version-1.24.0-2563eb?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.25.0-2563eb?style=flat-square)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](#-许可)
 [![Deps](https://img.shields.io/badge/python_deps-stdlib_%2B_pyyaml-10b981?style=flat-square)](pyproject.toml)
@@ -132,7 +132,7 @@
 
 ### 🔁 多源故障转移
 
-**35 个 fetcher 类（7 数据域）**<br>
+**37 个 fetcher 类（11 数据域）**<br>
 腾讯 · 东财 · 新浪<br>
 雪球 · 同花顺 · 通达信<br>
 AkShare · efinance · yfinance<br>
@@ -586,7 +586,7 @@ scripts/
 ├── common/        # 基础设施（HTTP、缓存、熔断器、异常体系）
 ├── config/        # 外部化配置（YAML：评分 / 数据源 / 行业阈值）
 ├── data/          # 数据类型 + 磁盘缓存 + 股票池
-├── fetchers/      # 35 个 fetcher 类（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
+├── fetchers/      # 37 个 fetcher 类（腾讯/东财/新浪/雪球/同花顺/AkShare/efinance/pytdx/...）
 ├── strategies/    # 6 种选股策略 + 因子库
 ├── technical/     # 技术指标（MACD/KDJ/BOLL/RSI/均线/缠论/本土战法）
 ├── monitor/       # 消息推送（NotificationManager + 多通道适配器）
@@ -793,7 +793,7 @@ MIT License © curtis
 
 ---
 
-**v1.24.0** · 2026-10-19 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.25.0** · 2026-10-19 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

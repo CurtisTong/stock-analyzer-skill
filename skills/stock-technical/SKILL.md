@@ -1,7 +1,7 @@
 ---
 name: stock-technical
 description: 纯技术分析子模块（从 /stock 拆分）。触发词：技术面分析 XX、纯技术角度看 XX、K 线分析 XX、缠论分析 XX、战法识别 XX。支持均线/MACD/KDJ/BOLL/RSI/缠论/本土战法。
-version: 1.24.0
+version: 1.25.0
 model: glm-5.2
 allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.py *) Read(./skills/_shared/references/*.md)
 ---
@@ -30,7 +30,7 @@ allowed-tools: Bash(python3 scripts/technical.py *) Bash(python3 scripts/kline.p
 - **量能**：量比、量价配合、OBV 背离、连续缩量
 - **成本分布（筹码）**：获利盘/套牢盘比例、平均成本、主密集区、收复密集区所需反弹幅度（`--chip` 时启用）。⚠️ 模型推算值（三角分布+换手衰减），非交易所观测数据；用于判断上方解套抛压
 - **缠论**：分型/笔/段/中枢（`--classify` 时启用，`--no-chan` 关闭）。⚠️ 非标准简化实现，买卖点信号可能与标准缠论软件有差异，仅供学习参考
-- **本土战法**：7 种 A 股经典形态（v2 优化：三阴一阳增加量化评分；最多展示最近 5 个形态，早于该窗口的检测在 summary 中不重复列出）
+- **本土战法**：本土 7 种形态 + 海龟突破/回踩年线 + 经典 K 线形态库（13 种：锤子/吊颈/射击之星/倒锤头/十字星/吞没×2/曙光/乌云/孕线/晨暮星/三鸦；v1.24.0 最多展示最近 10 个形态，早于该窗口的检测在 summary 中不重复列出）
   - 三阴一阳/三阳一阴：量比、跌幅、反弹比例三维评分
   - 老鸭头、美人肩、双针探底、涨停双响炮、断板反包、底部首板
 - **组合策略**：MA10/MA21 + 放量 2.5x + 突破前高（3 条件任意 2 条触发；单股最优 71.4% 胜率、+6.39% 平均收益，5 只平均 59.7%）

@@ -71,6 +71,18 @@ def _expert_horizon(name: str) -> int:
     return EXPERT_HORIZON_DAYS.get(name, DEFAULT_HORIZON_DAYS)
 
 
+def _directional_return(ret: float, expert_direction: str) -> float:
+    """按专家方向调整收益符号（slugging 赔率口径）。
+
+    看空专家"赢"意味着股价下跌（原始收益为负）。若直接用带符号收益，
+    看空专家的赔率会是负数（实测 -1.60），语义完全错乱。
+    此处统一折算为"相对专家方向的收益"：看多取原值，看空取相反数。
+    """
+    if expert_direction in ("看空", "强烈看空"):
+        return -ret
+    return ret
+
+
 def _lesson_improvement(expert_name: str, direction: str, actual: str, score: float) -> str:
     """由错误形态生成改进提示（规则式，无 LLM 依赖）。
 
@@ -518,7 +530,9 @@ def verify_predictions(
                         ret_win = return_by_window.get(window_end)
                         if ret_win is not None and expert_direction not in ("中性",):
                             rec = data["experts"][expert_name]
-                            rec["slug_win_sum"] = rec.get("slug_win_sum", 0.0) + ret_win
+                            rec["slug_win_sum"] = rec.get("slug_win_sum", 0.0) + _directional_return(
+                                ret_win, expert_direction
+                            )
                             rec["slug_win_n"] = rec.get("slug_win_n", 0) + 1
                     else:
                         # v1.24.0 反思记忆：错误结算生成结构化教训（滚动保留 MAX_LESSONS 条）
@@ -546,13 +560,26 @@ def verify_predictions(
                         ret_loss = return_by_window.get(window_end)
                         if ret_loss is not None and expert_direction not in ("中性",):
                             rec = data["experts"][expert_name]
-                            rec["slug_loss_sum"] = rec.get("slug_loss_sum", 0.0) + ret_loss
+                            rec["slug_loss_sum"] = rec.get("slug_loss_sum", 0.0) + _directional_return(
+                                ret_loss, expert_direction
+                            )
                             rec["slug_loss_n"] = rec.get("slug_loss_n", 0) + 1
                 data["experts"][expert_name]["last_updated"] = today
-            settled.add(expert_name)
+            # 只有取价成功（actual_direction 非 None）的专家才标记为已结算：
+            # 取价失败时标记 settled 会让该窗口样本永久丢失（不再重试）。
+            # mark_only=True 是"无网络环境只标记到期"的有意设计，仍照常标记。
+            if actual_direction is not None or mark_only:
+                settled.add(expert_name)
 
-        # 主窗口（顶层 verify_after）方向用于预测级 correct 与兼容字段
+        # 主窗口（顶层 verify_after）方向用于预测级 correct 与兼容字段。
+        # 多轮结算时顶层窗口可能不在本轮 due 集合内（direction_by_window 只含
+        # 本轮窗口），直接取会得到 None → 预测级 actual_return/correct 永久为空、
+        # updated_experts 归零。此处回退到本轮最短的可用窗口。
         main_window = pred.get("verify_after") or horizons.get(next(iter(due))) or ""
+        if main_window not in direction_by_window:
+            available = sorted(w for w in direction_by_window if direction_by_window.get(w) is not None)
+            if available:
+                main_window = available[0]
         main_direction = direction_by_window.get(main_window)
         main_return = return_by_window.get(main_window)
 
@@ -772,6 +799,32 @@ def compute_group_calibration(group: str) -> float:
     return max(-1.0, min(1.0, (factor - 0.5) * 2))
 
 
+def get_lessons(limit: int | None = None) -> Dict[str, list]:
+    """获取各专家的反思教训（供 debate 打分环节注入，v1.25）。
+
+    v1.24.0 落地了反思记忆，但教训只被 decide.py 在**投票后**挂到结果里
+    渲染——从未进入打分环节。真正的回流需要打分前就能取到教训：
+    SKILL.md Step 4 在逐位专家打分前调用本函数（或 `calibration.py lessons`），
+    把该专家的近几条错误教训注入其打分上下文。
+
+    Args:
+        limit: 每位专家最多返回的教训条数（None = 全部保留的）
+
+    Returns:
+        {expert_name: [lesson dict, ...]}（仅含**有教训**的专家）
+    """
+    calibration = get_calibration()
+    out: Dict[str, list] = {}
+    for name, rec in calibration.items():
+        lessons = rec.get("lessons") or []
+        if not lessons:
+            continue
+        picked = lessons[-limit:] if limit else lessons
+        if picked:
+            out[name] = list(picked)
+    return out
+
+
 __all__ = [
     "record_prediction",
     "verify_predictions",
@@ -781,6 +834,7 @@ __all__ = [
     "compute_group_calibration",
     "get_kline_return",
     "get_calibration_report",
+    "get_lessons",
     "MIN_CALIBRATION_SAMPLES",
     "EXPERT_HORIZON_DAYS",
     "DEFAULT_HORIZON_DAYS",

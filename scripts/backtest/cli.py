@@ -39,6 +39,24 @@ def _sensitivity_by_key(results: list, base_keys: list) -> dict:
     return sensitivity
 
 
+def _distinct_trial_sharpes(results: list) -> list:
+    """按权重向量去重后的试验夏普列表（DSR 的试验次数口径）。
+
+    网格寻优里 step=0 对每个因子都产出与基准相同的权重向量，step=-0.05 对
+    权重本就为 0.05 的因子是 no-op——重复行会虚增试验次数 N，抬高期望最大
+    夏普（SR0），让 deflated Sharpe 失真。
+    """
+    seen = set()
+    sharpes = []
+    for r in results:
+        key = tuple(sorted((r.get("weights") or {}).items()))
+        if key in seen:
+            continue
+        seen.add(key)
+        sharpes.append(r["sharpe"])
+    return sharpes
+
+
 def _overfit_warnings(results: list, best_score: float, base_score: float) -> list:
     """由网格试验形态产生过拟合警示（无警示返回空列表）。"""
     import statistics
@@ -58,6 +76,14 @@ def _overfit_warnings(results: list, best_score: float, base_score: float) -> li
                     f"{best_row['sharpe']:.2f} 比基准档 {baseline_row['sharpe']:.2f} 高 {spike:.2f}，"
                     "相邻档位差异大说明最优解依赖该档参数，建议扩大网格复验"
                 )
+
+    # 最优解相对基准的提升幅度：单一档位的偶然领先（相对基准无实质增益）
+    if base_score and best_score - base_score > SENSITIVITY_SPIKE_THRESHOLD:
+        warnings.append(
+            f"最优夏普 {best_score:.2f} 相对基准 {base_score:.2f} 提升 "
+            f"{best_score - base_score:.2f}，网格内单档扰动即有此幅度，"
+            "建议用独立窗口复核而非直接采信"
+        )
 
     # 离群检测：全局最优显著高于试验分布中心
     scores = [r["sharpe"] for r in results]
@@ -100,6 +126,7 @@ def compare_strategies(
     rounds: int = 5,
     benchmark=None,
     scenarios: list = None,
+    **cost_kwargs,
 ):
     """比较所有策略的表现。
 
@@ -110,18 +137,19 @@ def compare_strategies(
         rounds: 回测轮数
         benchmark: 基准指数代码
         scenarios: 情景列表
+        **cost_kwargs: 成本模型参数（capital/commission/stamp_tax/slippage/min_commission）
     """
     results = {}
     for strategy_name in list_strategies():
         print(f"  回测策略: {get_strategy(strategy_name)['label']}...", flush=True)
-        report = run_backtest(strategy_name, codes, top_n, days, rounds, benchmark)
+        report = run_backtest(strategy_name, codes, top_n, days, rounds, benchmark, **cost_kwargs)
         if scenarios:
             scenario_results = {}
             for sc in scenarios:
                 label = sc.get("label", "未知")
                 sc_days = sc.get("days", days)
                 sc_rounds = sc.get("rounds", max(1, rounds // 2))
-                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark)
+                sr = run_backtest(strategy_name, codes, top_n, sc_days, sc_rounds, benchmark, **cost_kwargs)
                 scenario_results[label] = {
                     "total_return_pct": sr.get("total_return_pct"),
                     "sharpe_ratio": sr.get("sharpe_ratio"),
@@ -140,6 +168,7 @@ def optimize_weights(
     top_n: int = 5,
     days: int = 60,
     validate: bool = True,
+    **cost_kwargs,
 ):
     """
     简单网格搜索优化策略权重。
@@ -164,7 +193,7 @@ def optimize_weights(
     steps = [-0.05, 0, 0.05]
 
     print(f"  基准权重: {original_weights}", flush=True)
-    base_report = run_backtest(strategy_name, codes, top_n, days, 3)
+    base_report = run_backtest(strategy_name, codes, top_n, days, 3, **cost_kwargs)
     base_score = base_report.get("sharpe_ratio", 0)
     print(f"  基准夏普: {base_score:.2f}", flush=True)
 
@@ -177,8 +206,12 @@ def optimize_weights(
             test_weights = {k: v / total for k, v in test_weights.items()}
 
             # 通过 weights 参数传入，不修改全局 STRATEGIES（避免并发数据竞争）
-            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights)
+            report = run_backtest(strategy_name, codes, top_n, days, 3, weights=test_weights, **cost_kwargs)
 
+            # 回测失败（error）时该次试验无效，不计入试验分布：
+            # 缺失的 sharpe_ratio 若按 0 计入会把 SR0 抬高、污染 DSR
+            if "error" in report:
+                continue
             score = report.get("sharpe_ratio", 0)
 
             results.append(
@@ -209,12 +242,17 @@ def optimize_weights(
     # 这两个指标把选择偏差显式报告出来，而不是只给一个漂亮的最优数字。
     result["sensitivity"] = _sensitivity_by_key(results, base_keys)
     result["overfit_warnings"] = _overfit_warnings(results, best_score, base_score)
-    dsr = deflated_sharpe_ratio([r["sharpe"] for r in results] + [base_score], best_score, days)
+    # DSR 的试验次数必须是"互不相同的权重向量"个数：
+    # step=0 对每个因子都等于基准权重、step=-0.05 对 0.05 权重因子是 no-op，
+    # 重复行会虚增 N、抬高期望最大夏普（SR0），让 DSR 失真。
+    distinct_trials = _distinct_trial_sharpes(results)
+    dsr = deflated_sharpe_ratio(distinct_trials + [base_score], best_score, days)
+    result["trial_count"] = len(distinct_trials) + 1
     if dsr is not None:
         result["deflated_sharpe"] = dsr
         if dsr < 0.95:
             result["overfit_warnings"].append(
-                f"deflated Sharpe={dsr:.3f} < 0.95：{days} 日窗口 × {len(results) + 1} 次试验下，"
+                f"deflated Sharpe={dsr:.3f} < 0.95：{days} 日窗口 × {result['trial_count']} 次试验下，"
                 "最优夏普很可能主要是选择偏差，不构成策略有效的证据"
             )
 
@@ -222,7 +260,7 @@ def optimize_weights(
     if validate:
         validation = {}
         for vdays in (60, 120, 240):
-            vreport = run_backtest(strategy_name, codes, top_n, vdays, 3, weights=best_weights)
+            vreport = run_backtest(strategy_name, codes, top_n, vdays, 3, weights=best_weights, **cost_kwargs)
             validation[str(vdays)] = {
                 "total_return_pct": vreport.get("total_return_pct", 0),
                 "sharpe_ratio": vreport.get("sharpe_ratio", 0),
@@ -322,6 +360,37 @@ def main():
     parser.add_argument("--top", type=int, default=5, help="每轮买入数量")
     parser.add_argument("--days", type=int, default=60, help="回测天数")
     parser.add_argument("--rounds", type=int, default=5, help="回测轮数")
+    parser.add_argument(
+        "--capital",
+        type=float,
+        default=100000,
+        help="账户初始资金（元，默认 100000）。单笔名义金额=本金/每轮买入数，"
+        "决定最低佣金是否触发——小资金账户的交易成本占比显著更高",
+    )
+    parser.add_argument(
+        "--commission",
+        type=float,
+        default=0.00025,
+        help="佣金费率（默认 0.00025 = 0.025%%，双边）",
+    )
+    parser.add_argument(
+        "--stamp-tax",
+        type=float,
+        default=0.001,
+        help="印花税率（默认 0.001 = 0.1%%，仅卖出侧）",
+    )
+    parser.add_argument(
+        "--slippage",
+        type=float,
+        default=0.001,
+        help="滑点率（默认 0.001 = 0.1%%，双边）",
+    )
+    parser.add_argument(
+        "--min-commission",
+        type=float,
+        default=5.0,
+        help="单笔最低佣金（元，默认 5；传 0 关闭下限）",
+    )
     parser.add_argument("--codes", help="自定义股票代码（逗号分隔）")
     parser.add_argument(
         "--benchmark",
@@ -368,6 +437,19 @@ def main():
 
     if not codes:
         print("❌ 无可用股票池", file=sys.stderr)
+        sys.exit(1)
+
+    # 成本模型参数（v1.25：暴露为 CLI 参数——小资金账户的最低佣金占比显著更高，
+    # 此前 initial_capital/min_commission 硬编码在引擎里，用户无法调整）
+    cost_kwargs = {
+        "initial_capital": args.capital,
+        "commission": args.commission,
+        "stamp_tax": args.stamp_tax,
+        "slippage": args.slippage,
+        "min_commission": args.min_commission,
+    }
+    if args.capital <= 0:
+        print("❌ --capital 必须大于 0", file=sys.stderr)
         sys.exit(1)
 
     print(f"📊 回测股票池: {len(codes)} 只", flush=True)
@@ -422,7 +504,7 @@ def main():
 
     elif args.optimize:
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
-        result = optimize_weights(codes, args.strategy, args.top, args.days, validate=args.validate)
+        result = optimize_weights(codes, args.strategy, args.top, args.days, validate=args.validate, **cost_kwargs)
         if args.json:
             print(json.dumps(result, ensure_ascii=False, indent=2))
         else:
@@ -444,6 +526,10 @@ def main():
             # v1.24.0 过拟合诊断输出
             if result.get("deflated_sharpe") is not None:
                 print(f"\n🧪 Deflated Sharpe: {result['deflated_sharpe']:.4f}（>0.95 才能排除选择偏差）")
+            else:
+                # DSR 未计算（试验数不足/样本不足/夏普无离散度）时必须说明，
+                # 否则"没有警示"会被误读成"检查通过"
+                print("\n🧪 Deflated Sharpe: 未计算（有效试验数不足 2 或样本不足 30 日，无法排除选择偏差）")
             warnings = result.get("overfit_warnings") or []
             if warnings:
                 print("⚠️  过拟合警示:")
@@ -477,6 +563,7 @@ def main():
             args.rounds,
             benchmark=benchmark_arg,
             scenarios=scenarios,
+            **cost_kwargs,
         )
         if args.json:
             print(json.dumps(results, ensure_ascii=False, indent=2))
@@ -492,11 +579,15 @@ def main():
                 if "error" in report:
                     print(f"{name:<18} {'ERROR':>8}")
                 else:
+                    # information_ratio 可能为 None（样本不足算不出），
+                    # 用 "N/A" 而不是 0——0 会被误读成"零超额"
+                    ir_val = report.get("information_ratio")
+                    ir_display = f"{ir_val:>7.2f}" if ir_val is not None else f"{'N/A':>7}"
                     line = (
                         f"{name:<18} {report['total_return_pct']:>8.2f} "
                         f"{report['sharpe_ratio']:>6.2f} "
                         f"{report.get('sortino_ratio', 0):>7.2f} "
-                        f"{report.get('information_ratio', 0):>7.2f} "
+                        f"{ir_display} "
                         f"{report['max_drawdown_pct']:>8.2f} "
                         f"{report['win_rate_pct']:>6.1f}"
                     )
@@ -532,6 +623,7 @@ def main():
             args.days,
             args.rounds,
             benchmark=benchmark_arg,
+            **cost_kwargs,
         )
         _attach_validation(report)
         if args.json:
@@ -559,8 +651,10 @@ def main():
             if info_ratios:
                 for bm, ratio in info_ratios.items():
                     print(f"信息比率({bm}): {ratio:.2f}")
-            elif report.get("information_ratio"):
+            elif report.get("information_ratio") is not None:
                 print(f"信息比率: {report['information_ratio']:.2f}")
+            else:
+                print("信息比率: N/A（样本不足，无法计算）")
             print(f"最大回撤: {report['max_drawdown_pct']:.2f}%")
             print(f"卡玛比率: {report.get('calmar_ratio', 0):.2f}")
             print(f"盈亏比: {report.get('profit_loss_ratio', 0):.2f}")

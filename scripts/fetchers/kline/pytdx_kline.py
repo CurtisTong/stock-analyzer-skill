@@ -17,6 +17,7 @@ from common.exceptions import (
 )
 from fetchers._common.pytdx_meta import DEFAULT_SERVERS, get_market as _get_market
 from fetchers._common.pytdx_pool import HAS_PYTDX, get_default_pool
+from fetchers._common.pytdx_probe import any_server_available
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,10 @@ class PytdxKlineFetcher(BaseFetcher):
 
     def fetch(self, code: str, **kwargs) -> list | None:
         if not HAS_PYTDX:
+            return None
+        # 探活：没有通达信服务时跳过（环境缺能力，不是数据源故障）
+        if not any_server_available(DEFAULT_SERVERS):
+            logger.debug("pytdx_kline: 无可用通达信服务，跳过")
             return None
         scale = kwargs.get("scale", 240)
         datalen = kwargs.get("datalen", 30)
@@ -66,8 +71,10 @@ class PytdxKlineFetcher(BaseFetcher):
         except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
             raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
-            logger.debug("pytdx_kline 请求 %s:%s 失败: %s", host, port, e)
-            return None
+            # 与 pytdx_quote 保持一致的失败语义：必须按失败上报，
+            # 否则熔断器不累计失败，连接池会重复尝试 8×5s 的服务器轮询
+            logger.warning("pytdx_kline 请求 %s:%s 失败: %s", host, port, e)
+            raise NetworkError(f"pytdx_kline {code}", str(e)) from e
         finally:
             # 异常时连接可能已损坏，不归还连接池避免污染后续请求
             if success:

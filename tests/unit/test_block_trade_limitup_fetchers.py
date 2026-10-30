@@ -92,6 +92,26 @@ class TestBlockTradeFetcher:
         moutai = next(i for i in result["items"] if i["code"] == "600519")
         assert moutai["premium_ratio"] is None
 
+    def test_dash_premium_does_not_crash(self, monkeypatch):
+        """东财空值 "-" 占位：必须安全转 None，不得 TypeError 炸掉整次查询。"""
+        resp = _page1_response()
+        resp["result"]["data"][0]["PREMIUM_RATIO"] = "-"
+        f = self._fetcher(monkeypatch, resp)
+        result = f.fetch()
+        assert result["items"][0]["premium_ratio"] is None
+
+    def test_string_premium_parsed(self, monkeypatch):
+        """数值字符串溢价率（东财实际返回形态之一）正常解析。"""
+        resp = _page1_response()
+        resp["result"]["data"][0]["PREMIUM_RATIO"] = "-0.018218"
+        f = self._fetcher(monkeypatch, resp)
+        assert f.fetch()["items"][0]["premium_ratio"] == -1.82
+
+    def test_provider_matches_yaml_key(self):
+        from fetchers.block_trade.eastmoney_block_trade import BlockTradeFetcher
+
+        assert BlockTradeFetcher().provider == "eastmoney"
+
     def test_code_filter(self, monkeypatch):
         f = self._fetcher(monkeypatch, _page1_response())
         result = f.fetch(code="sh600519", days=7)
@@ -195,6 +215,24 @@ class TestLimitUpReasonFetcher:
         result = LimitUpReasonFetcher().fetch()
         assert result["truncated"] is True
         assert len(result["items"]) == 100  # 只取到第一页内容
+
+    def test_again_limit_string_zero_not_flagged(self, monkeypatch):
+        """接口回 "0" 字符串时不得误标回封（bool("0") is True 回归锚点）。"""
+        item = self._pool_item()
+        item["is_again_limit"] = "0"
+        f = self._fetcher(monkeypatch, self._pool_response([item]))
+        assert f.fetch()["items"][0]["is_again_limit"] is False
+
+    def test_again_limit_string_one_flagged(self, monkeypatch):
+        item = self._pool_item()
+        item["is_again_limit"] = "1"
+        f = self._fetcher(monkeypatch, self._pool_response([item]))
+        assert f.fetch()["items"][0]["is_again_limit"] is True
+
+    def test_provider_matches_yaml_key(self):
+        from fetchers.limit_up.ths_limit_up import LimitUpReasonFetcher
+
+        assert LimitUpReasonFetcher().provider == "ths"
 
     def test_network_error_propagates(self, monkeypatch):
         from fetchers.limit_up.ths_limit_up import LimitUpReasonFetcher

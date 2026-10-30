@@ -92,3 +92,44 @@ class TestConvertibleBondFetcher:
         monkeypatch.setattr(mod, "http_get_with_headers", _boom)
         with pytest.raises(NetworkError):
             ConvertibleBondFetcher().fetch()
+
+    def test_truncated_when_pages_capped(self, monkeypatch):
+        """总页数超过 MAX_PAGES 时 truncated 必须为 True（off-by-one 回归锚点）。"""
+        import fetchers.cb.eastmoney_cb as mod
+        from fetchers.cb.eastmoney_cb import ConvertibleBondFetcher
+
+        # 3 页数据（total=300），MAX_PAGES 压到 2 → 只取 200 条且必须告警截断
+        monkeypatch.setattr(mod, "MAX_PAGES", 2)
+        pages = {
+            1: _resp([_row(code=f"P1{i}") for i in range(100)], total=300),
+            2: _resp([_row(code=f"P2{i}") for i in range(100)], total=300),
+            3: _resp([_row(code=f"P3{i}") for i in range(100)], total=300),
+        }
+
+        def _http_get(url, headers=None, timeout=10, max_retries=3):
+            page = int(url.split("pn=")[1].split("&")[0])
+            return json.dumps(pages[page]).encode("utf-8")
+
+        monkeypatch.setattr(mod, "http_get_with_headers", _http_get)
+        r = ConvertibleBondFetcher().fetch(top=500)
+        assert len(r["items"]) == 200
+        assert r["truncated"] is True
+
+    def test_zero_double_low_not_treated_as_missing(self, monkeypatch):
+        """双低值恰为 0.0 是极端合法值，不得被 or 兜底当成缺失挤到末尾。"""
+        f = self._fetcher(
+            monkeypatch,
+            _resp(
+                [
+                    _row(code="A", price=100.0, premium=-100.0),  # 双低 0.0
+                    _row(code="B", price=80.0, premium=-5.0),  # 双低 75
+                ]
+            ),
+        )
+        r = f.fetch(top=10)
+        assert [i["code"] for i in r["items"]] == ["A", "B"]
+
+    def test_provider_matches_yaml_key(self):
+        from fetchers.cb.eastmoney_cb import ConvertibleBondFetcher
+
+        assert ConvertibleBondFetcher().provider == "eastmoney"

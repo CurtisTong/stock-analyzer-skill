@@ -155,7 +155,11 @@ def _apply_factor_normalization(rows, strategy, regime=None):
     if len(valid_rows) < 3:
         return
     keys = get_factor_keys()  # 从注册表自动获取，与 normalize_factors_batch 同步
-    parts_list = [{k: r.get(k, 0) for k in keys} for r in valid_rows]
+    # 缺失因子必须保持缺失（None），不能预填 0：
+    # 预填 0 会让缺值股在分位数归一化中被排到该因子最低分位，
+    # 正是 v1.24.0 要修掉的"缺值当 0"缺陷——修复在归一化层做了，
+    # 但调用方预填后让该修复在生产路径上不可达。
+    parts_list = [{k: r.get(k) for k in keys} for r in valid_rows]
     normed = normalize_factors_batch(parts_list)
     for row, n in zip(valid_rows, normed):
         for k in keys:

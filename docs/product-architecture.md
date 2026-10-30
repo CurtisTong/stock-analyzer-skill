@@ -1,10 +1,10 @@
 # stock-analyzer-skill 产品架构文档
 
-> 🟢 **一句话**：把 16 份专家人设 + 35 个 fetcher 类 + 12 个 skill 串成 A 股分析框架。
+> 🟢 **一句话**：把 16 份专家人设 + 37 个 fetcher 类 + 12 个 skill 串成 A 股分析框架。
 > 🟡 **适用读者**：产品经理 / 投资人 / 二次开发者；纯终端用户可直接看 [quick-start.md](quick-start.md)。  
 > 🔴 **风险提示**：本文档描述产品能力；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
-> 版本：v1.24.0 | 更新日期：2026-10-19
+> 版本：v1.25.0 | 更新日期：2026-10-19
 >
 > **v1.16.0 重构**：finance 域 完成（删除 7 个死字段 + 全量 Optional[float]=None + 多字段零值检测 + get_finance() 返 (records, FinanceMeta) 元组 + 全局 RateLimiter + 429 退避 + 主板/科创板/北交所披露 board_overrides）；tests 框架重构（分 5 层：unit / contracts / integration / e2e / fixtures，v1.23.1 实测离线 1989 passed / 13 skipped）；止损破位 breakdown 信号新增；skill schema 清理（删除 `.agents/skills/` 陈旧副本、`.claude/.codex` git 跟踪遗留、sector/market 失效路径修正）；近 40 个 [Unreleased] 区块合并。详见 [CHANGELOG.md](../CHANGELOG.md)。
 
@@ -70,7 +70,7 @@
 │  └── screening_service.py - 选股服务                            │
 ├─────────────────────────────────────────────────────────────────┤
 │  📊 数据层 (scripts/)                                            │
-│  ├── fetchers/ - 多数据源适配器（35 个 fetcher 类 × 7 数据域 = 35 类）│
+│  ├── fetchers/ - 多数据源适配器（37 个 fetcher 类 × 11 数据域 = 37 类）│
 │  ├── common/ - 基础设施 (HTTP/缓存/异常/熔断器)                 │
 │  ├── config/ - YAML 配置外部化                                  │
 │  ├── strategies/ - 选股策略系统                                 │
@@ -78,15 +78,15 @@
 │  └── portfolio/ - 持仓管理模块                                  │
 └─────────────────────────────────────────────────────────────────┘
 
-> **数据源数量核对口径**：35 个真实数据源 fetcher 类（quote 10 + kline 9 + finance 2 + flow 3 + lhb 2 + event 6 + chip 3），按 7 个数据域覆盖。`scripts/fetchers/_common/` 下另有 4 个 helper 文件（`tushare_check` / `pytdx_pool` / `pytdx_meta` 等）属于基础设施而非数据源。
+> **数据源数量核对口径**：37 个真实数据源 fetcher 类（quote 8 + kline 9 + finance 2 + flow 3 + lhb 2 + event 6 + chip 3 + block_trade 1 + limit_up 1 + cb 1 + ipo 1），按 11 个数据域覆盖。`scripts/fetchers/_common/` 下另有若干 helper 文件（`tushare_check` / `pytdx_pool` / `pytdx_meta` / `pytdx_probe` 等）属于基础设施而非数据源；`scripts/fetchers/industry/akshare_industry.py` 是纯函数补全模块，不计入 fetcher 类数。
 
 ### 2.2 核心技术组件
 
 | 组件                   | 位置                             | 功能                   |
 | ---------------------- | -------------------------------- | ---------------------- |
-| **BaseFetcher**        | `scripts/common/__init__.py`     | 数据源抽象基类         |
+| **BaseFetcher**        | `scripts/common/fetcher_base.py` | 数据源抽象基类         |
 | **CircuitBreaker**     | `scripts/common/__init__.py`     | 线程安全熔断器（三态） |
-| **DataFetcherManager** | `scripts/common/__init__.py`     | 多源故障转移管理器     |
+| **DataFetcherManager** | `scripts/common/fetcher_base.py` | 多源故障转移管理器     |
 | **ConfigLoader**       | `scripts/config/loader.py`       | YAML 配置加载器        |
 | **StrategyRegistry**   | `scripts/strategies/registry.py` | 选股策略注册中心       |
 
@@ -96,14 +96,18 @@
 
 | 数据类型     | fetcher 数 | 查询类型数 | 主要来源                                                                              |
 | ------------ | ---------- | ---------- | ------------------------------------------------------------------------------------- |
-| **行情数据** | 10         | 1          | 腾讯、东财、新浪、雪球、同花顺、efinance、akshare、tushare、pytdx、yfinance          |
+| **行情数据** | 8          | 1          | 腾讯、东财、新浪、雪球、同花顺、efinance、akshare、pytdx、yfinance、tushare            |
 | **K线数据**  | 9          | 5+         | 新浪、东财、腾讯、efinance、akshare、baostock、pytdx、tushare、yfinance               |
 | **财务数据** | 2          | 3+         | 东财、akshare（akshare_balance 为字段补全器，非 fetcher 类）                          |
 | **资金面**   | 3          | 3          | 东财（融资融券 / 股东户数 / 十大流通股东）                                            |
 | **资金流向** | 3          | 2          | 东财（北向资金 / 个股资金流）、新浪                                                    |
 | **龙虎榜**   | 2          | 2          | 东财（明细 / 席位）                                                                    |
 | **事件日历** | 6          | 3          | 东财（财报日历 / 解禁 / 分红 / 股东变动 / 违规）、业绩预告                             |
-| **合计**     | **35**     | **19+**    | 7 个数据域（quote / kline / finance / chip / flow / lhb / event）                     |
+| **大宗交易** | 1          | 1          | 东财（成交价量 / 营业部 / 溢价率）                                                    |
+| **涨停归因** | 1          | 1          | 同花顺（涨停原因 / 板型 / 回封 / 封板质量）                                           |
+| **可转债**   | 1          | 1          | 东财（价格 / 转股溢价率 / 双低值）                                                    |
+| **打新日历** | 1          | 1          | 东财（申购 / 中签 / 缴款 / 上市）                                                     |
+| **合计**     | **37**     | **19+**    | 11 个数据域（quote / kline / finance / chip / flow / lhb / event / block_trade / limit_up / cb / ipo） |
 
 ### 2.4 行业差异化阈值
 
@@ -320,7 +324,7 @@
 
 | 能力域              | v1.16.0 已交付                                                                                                  |
 | ------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 数据源              | 35 个 fetcher 类 × 7 数据域 = 35 类查询；雪球/同花顺接入；yfinance 美股；pytdx 局域网                                  |
+| 数据源              | 37 个 fetcher 类 × 11 数据域 = 37 类查询；雪球/同花顺接入；yfinance 美股；pytdx 局域网                                  |
 | 分析引擎            | 五层分析（基本面/估值/技术/板块/风险收益）；缠论 9 模块；技术面 MACD/KDJ/BOLL/RSI/MA                            |
 | 专家系统            | 16 份专家人设（8 active + 8 legacy）；投票引擎；自校准；胜率卡片                                                 |
 | 选股                | 5 因子模型 + 1 模式策略（ma_volume_momentum）；市场状态自适应；快照；权重优化                                    |
@@ -400,7 +404,7 @@
 | 术语           | 解释                           |
 | -------------- | ------------------------------ |
 | Skill          | Claude Code 的技能命令，如 `/stock sh600519` |
-| BaseFetcher    | 数据源抽象基类，所有 35 个 fetcher 的父类 |
+| BaseFetcher    | 数据源抽象基类，所有 37 个 fetcher 的父类 |
 | CircuitBreaker | 熔断器，防止单点故障；threading.Lock 保护 |
 | 五层分析       | 基本面 → 估值 → 技术 → 板块 → 风险收益 |
 | 专家圆桌       | 16 份专家人设（8 active + 8 legacy）投票决策机制 |

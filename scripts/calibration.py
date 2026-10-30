@@ -35,6 +35,7 @@ from experts.calibration import (
     compute_calibration_factor,
     compute_group_calibration,
     get_kline_return,
+    get_lessons,
 )
 
 
@@ -163,6 +164,32 @@ def cmd_pending(args):
         print(f"  {p['stock']} ({p['date']}) → {p['direction']} " f"| 验证日期: {p['verify_after']}")
 
 
+def cmd_lessons(args):
+    """查看各专家反思教训（debate 打分环节注入用）。
+
+    v1.25 回流：SKILL.md Step 4 逐位专家打分前，把该专家的近几条教训
+    注入其打分上下文（"你上轮在 X 上错了，因为...；本轮注意..."），
+    而不是只在报告尾部渲染。
+    """
+    lessons = get_lessons(limit=args.limit)
+    if args.json_output:
+        import json as _json
+
+        print(_json.dumps({"count": len(lessons), "experts": lessons}, ensure_ascii=False, indent=2))
+        return
+    if not lessons:
+        print("无反思教训（校准数据中尚无错误结算）")
+        return
+    print(f"反思教训（{len(lessons)} 位专家）：")
+    for name, items in lessons.items():
+        print(f"\n◆ {name}")
+        for item in items:
+            print(f"  [{item.get('date', '')}] {item.get('stock', '')} {item.get('lesson', '')}")
+            imp = item.get("improvement", "")
+            if imp:
+                print(f"    ↳ {imp}")
+
+
 def main():
     parser = create_parser(description="专家校准数据管理")
     sub = parser.add_subparsers(dest="command", help="子命令")
@@ -202,6 +229,16 @@ def main():
     p_pending = sub.add_parser("pending", help="查看待验证预测")
     p_pending.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
 
+    # lessons（v1.25 反思记忆回流：打分环节注入）
+    p_lessons = sub.add_parser("lessons", help="查看各专家反思教训（debate 打分注入用）")
+    p_lessons.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="每位专家最多显示的教训条数（默认全部）",
+    )
+    p_lessons.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
+
     args = parser.parse_args()
     if args.command is None:
         parser.print_help()
@@ -213,6 +250,7 @@ def main():
         "report": cmd_report,
         "factor": cmd_factor,
         "pending": cmd_pending,
+        "lessons": cmd_lessons,
     }
     cmds[args.command](args)
 

@@ -626,7 +626,9 @@ def compute_inverse_volatility_weights(
     failed: list[str] = []
     for code in codes:
         returns = _load_returns(code, window)
-        if not returns or len(returns) < 2:
+        # 最少 20 个收益率才估波动率：2 个点算出的 σ 噪声极大，
+        # 会让逆波动率权重完全失真（v1.25 复审修复）
+        if not returns or len(returns) < 20:
             failed.append(code)
             continue
         import statistics
@@ -752,6 +754,12 @@ def main():
         action="store_true",
         help="输出持仓逆波动率加权建议（低波动资产占比更高）",
     )
+    parser.add_argument(
+        "--risk-weights-cap",
+        type=float,
+        default=40.0,
+        help="逆波动率权重的单资产上限（%%，默认 40；100 = 不设限）",
+    )
     args = parser.parse_args()
 
     if args.list:
@@ -761,7 +769,7 @@ def main():
 
     if args.risk_weights:
         codes = get_portfolio_codes()
-        result = compute_inverse_volatility_weights(codes, window=args.window)
+        result = compute_inverse_volatility_weights(codes, window=args.window, cap_pct=args.risk_weights_cap)
         if args.json_output:
             import json
 

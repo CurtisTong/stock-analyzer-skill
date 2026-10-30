@@ -590,7 +590,14 @@ def compute_weighted_score(parts, strategy, regime=None):
             )
 
     # 缺失因子使用 50（中性值）而非 0，避免因数据缺失严重拉低综合评分
-    return sum(parts.get(k, 50) * weights.get(k, 0) for k in all_keys)
+    # （None 也视为缺失——因子不可得时值为 None，与 key 不存在等价）
+    total_score = 0.0
+    for k in all_keys:
+        v = parts.get(k)
+        if v is None:
+            v = 50
+        total_score += v * weights.get(k, 0)
+    return total_score
 
 
 def normalize_factors_batch(
@@ -728,6 +735,17 @@ def compute_weighted_score_with_norm(
     return [compute_weighted_score(p, strategy) for p in normed]
 
 
+def _factor_out(parts: dict, key: str):
+    """因子输出值：缺失（key 不存在或值为 None）保留 None。
+
+    不能用 parts.get(key, 50) 把缺失伪装成 50——50 是**原始值空间**的中性值，
+    在分位数归一化里会被当作真实值参与排名（缺值股被排到 50 对应分位而非中性位）。
+    保留 None 才能让 normalize_factors_batch 识别为缺失并填中性分位 50。
+    """
+    v = parts.get(key)
+    return None if v is None else round(v, 1)
+
+
 def build_result_row(ctx: ResultRowContext):
     """装配标准化结果 dict。"""
     code = ctx.code
@@ -739,19 +757,12 @@ def build_result_row(ctx: ResultRowContext):
     parts = ctx.parts
     rejected = ctx.rejected
     bd = board_type(code)
-    return {
+    row = {
         "code": code,
         "name": quote_dict.get("name", ""),
         "board": bd,
         "industry": industry,
         "score": round(total, 1),
-        "quality": round(parts.get("quality", 50), 1),
-        "valuation": round(parts.get("valuation", 50), 1),
-        "momentum": round(parts.get("momentum", 50), 1),
-        "liquidity": round(parts.get("liquidity", 50), 1),
-        "volatility": round(parts.get("volatility", 50), 1),
-        "dividend": round(parts.get("dividend", 50), 1),
-        "chip": round(parts.get("chip", 50), 1),
         "price": quote_dict.get("price"),
         "change_pct": quote_dict.get("change_pct"),
         "pe": quote_dict.get("pe"),
@@ -766,6 +777,16 @@ def build_result_row(ctx: ResultRowContext):
         "vol_price": ScreeningService._vol_price_signal_desc(features.get("vol_price_signal", 0)),
         "rejected": rejected,
     }
+    # 固定展示的 7 个因子（缺失保留 None）
+    for key in ("quality", "valuation", "momentum", "liquidity", "volatility", "dividend", "chip"):
+        row[key] = _factor_out(parts, key)
+    # 其余因子（event/analyst/cyclical 等）也必须带出：它们在策略里有权重，
+    # 此前被 build_result_row 丢弃后由调用方 r.get(k, 0) 预填 0，在分位归一化里
+    # 被排到最低分位——因子真实区分度被抹平。
+    for key, value in parts.items():
+        if key not in row:
+            row[key] = _factor_out(parts, key)
+    return row
 
 
 # ---------- re-export：保持原有公开 API 导入路径不变 ----------

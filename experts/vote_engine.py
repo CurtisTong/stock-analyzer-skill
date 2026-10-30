@@ -114,10 +114,13 @@ def _resolve_conflict(
     # 极端两极分化检测（优先于其他分支）
     # 一组压倒性看多 + 另一组压倒性看空 = 最危险的分歧场景
     # 长线"压倒性"= bull>=n-1 且 bear==0；短线"全员反向"= 全员落在反向底线（原始计数）。
-    long_extreme_bull = long_votes["bull"] >= long_n - 1 and long_votes["bear"] == 0
-    long_extreme_bear = long_votes["bear"] >= long_n - 1 and long_votes["bull"] == 0
-    short_extreme_bull = short_votes["bull"] == short_n and short_votes["bear"] == 0
-    short_extreme_bear = short_votes["bear"] == short_n and short_votes["bull"] == 0
+    # 注意：整组弃权（n=0）不得被当成"压倒性反向"——弃权是"读不出来"，
+    # 不是"看空"信号。原实现 bull >= long_n-1 在 n=0 时恒真，把一致看多
+    # 翻成"两极分化→中性观望"。
+    long_extreme_bull = long_n > 0 and long_votes["bull"] >= long_n - 1 and long_votes["bear"] == 0
+    long_extreme_bear = long_n > 0 and long_votes["bear"] >= long_n - 1 and long_votes["bull"] == 0
+    short_extreme_bull = short_n > 0 and short_votes["bull"] == short_n and short_votes["bear"] == 0
+    short_extreme_bear = short_n > 0 and short_votes["bear"] == short_n and short_votes["bull"] == 0
     polarized = (long_extreme_bull and short_extreme_bear) or (long_extreme_bear and short_extreme_bull)
 
     if polarized:
@@ -337,6 +340,22 @@ def _apply_buffett_long_downweight(long_experts: List[dict]) -> float:
 # ═══════════════════════════════════════════════════════════════
 
 
+def _build_steps(position: int) -> str:
+    """按仓位生成分步建仓指令。
+
+    单独抽出以便仓位被确定性钳制后重建——否则卡片会同时出现
+    "推荐仓位 20%"（已钳制）与"分步建仓合计 50%"（按钳制前仓位生成）
+    这种自相矛盾的执行指令。
+    """
+    if position <= 0:
+        return "-"
+    if position >= 50:
+        return f"首笔{int(position*0.5)}% → 确认后{int(position*0.3)}% → 趋势延续{int(position*0.2)}%"
+    if position >= 30:
+        return f"首笔{int(position*0.6)}% → 确认后{int(position*0.4)}%"
+    return f"试探性{position}%"
+
+
 def _compute_position(direction: str, confidence: float, position_factor: float) -> dict:
     """基于方向和信心指数计算仓位建议。
 
@@ -374,19 +393,11 @@ def _compute_position(direction: str, confidence: float, position_factor: float)
             "steps": "-",
         }
 
-    # 分步建仓
-    if position >= 50:
-        steps = f"首笔{int(position*0.5)}% → 确认后{int(position*0.3)}% → 趋势延续{int(position*0.2)}%"
-    elif position >= 30:
-        steps = f"首笔{int(position*0.6)}% → 确认后{int(position*0.4)}%"
-    else:
-        steps = f"试探性{position}%"
-
     return {
         "recommendation": f"标准仓位×{position_factor:.1f}",
         "position_pct": position,
         "stop_loss": "技术支撑位或-8%",
-        "steps": steps,
+        "steps": _build_steps(position),
     }
 
 
@@ -771,6 +782,8 @@ def aggregate_votes(
     clamp = _clamp_position(position["position_pct"], direction, confidence)
     if clamp["clamped"]:
         position["position_pct"] = clamp["position_pct"]
+        # 重建分步指令：否则卡片同时出现"推荐仓位 20%"与"分步建仓合计 50%"
+        position["steps"] = _build_steps(clamp["position_pct"])
         position["recommendation"] = f"{position['recommendation']}（被钳制至单股上限）"
 
     # 风险提示
@@ -827,7 +840,11 @@ def aggregate_group_votes(
     Returns:
         与 aggregate_votes 类似的结构，但只有单组数据
     """
-    scores = [r["score"] for r in expert_results]
+    # 弃权第四态：弃权专家不计入投票基数（与双组模式一致）。
+    # 原单组模式未过滤弃权——全弃权会被判"强烈看空"并建议清仓。
+    valid_results = [r for r in expert_results if r.get("score") is not None]
+    abstain_count = len(expert_results) - len(valid_results)
+    scores = [r["score"] for r in valid_results]
     avg = statistics.mean(scores) if scores else 50
 
     # 空输入守卫：all([]) 恒真会让空组误判"强烈看多+满仓"（实测复现）
@@ -842,6 +859,7 @@ def aggregate_group_votes(
             "position": _compute_position("中性", 50.0, 0.0),
             "expert_results": expert_results,
             "risk_notes": ["无专家评分数据，方向中性"],
+            "abstained": abstain_count,
         }
 
     votes = _count_votes(scores)
@@ -896,12 +914,20 @@ def aggregate_group_votes(
 
     position = _compute_position(direction, confidence, position_factor)
 
+    # 确定性钳制（与双组模式一致）：单组模式此前完全绕过上限，
+    # 5 位长线高信心可产出 84% 仓位建议。
+    clamp = _clamp_position(position["position_pct"], direction, confidence)
+    if clamp["clamped"]:
+        position["position_pct"] = clamp["position_pct"]
+        position["steps"] = _build_steps(clamp["position_pct"])
+        position["recommendation"] = f"{position['recommendation']}（被钳制至单股上限）"
+
     risk_notes = []
     for r in expert_results:
-        if r["score"] <= 39:
+        if r.get("score") is not None and r["score"] <= 39:
             risk_notes.append(f"{r.get('display_name', r['name'])}({r['score']}分): {r.get('reason', '看空')}")
 
-    return {
+    result = {
         "group": group,
         "avg_score": round(avg, 1),
         "direction": direction,
@@ -911,4 +937,8 @@ def aggregate_group_votes(
         "position": position,
         "expert_results": expert_results,
         "risk_notes": risk_notes,
+        "abstained": abstain_count,
     }
+    if clamp["events"]:
+        result["clamp_events"] = clamp["events"]
+    return result

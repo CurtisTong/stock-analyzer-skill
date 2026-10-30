@@ -165,9 +165,18 @@ def format_debate_output(result: dict) -> str:
                     rate = "样本不足"
                 else:
                     rate = "无历史"
-                # v1.24.0 赔率（slugging）：赢时均收益/|输时均收益|，双侧齐全才显示
+                # v1.24.0 赔率（slugging）：赢时均收益/|输时均收益|，双侧齐全才显示。
+                # 每个比率都必须带样本数下限——否则同一行会出现"样本不足 | 1.50"
+                # 这种自相矛盾（赔率同样是小样本估计）。
                 slug = _slugging_from_rec(rec)
-                slug_str = f"{slug:.2f}" if slug is not None else "样本不足"
+                if slug is None:
+                    slug_str = "样本不足"
+                elif events < MIN_CALIBRATION_SAMPLES:
+                    slug_str = "样本不足"
+                else:
+                    win_n = rec.get("slug_win_n", 0)
+                    loss_n = rec.get("slug_loss_n", 0)
+                    slug_str = f"{slug:.2f}（赢{win_n}输{loss_n}）"
                 lines.append(f"| {name} | {events} | {correct} | {rate} | {slug_str} |")
 
             # v2.4.3：校准因子（全局 + 分组）

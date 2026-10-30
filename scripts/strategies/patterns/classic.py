@@ -1,15 +1,17 @@
 """经典 K 线形态库（v1.24.0 新增，对标 InStock 61 形态的子集）。
 
-12 个高频单/双/三 K 形态，输出与 ma_volume_strategy 一致的 signal dict：
-- 单 K：锤子线 / 吊颈线 / 射击之星 / 倒锤头 / 十字星
-- 双 K：看涨吞没 / 看跌吞没 / 曙光初现 / 乌云盖顶 / 孕线
-- 三 K：早晨之星 / 黄昏之星 / 三只乌鸦
+13 个高频单/双/三 K 形态，输出与 ma_volume_strategy 一致的 signal dict：
+- 单 K：锤子线 / 吊颈线 / 射击之星 / 倒锤头 / 十字星（5）
+- 双 K：看涨吞没 / 看跌吞没 / 曙光初现 / 乌云盖顶 / 孕线（5）
+- 三 K：早晨之星 / 黄昏之星 / 三只乌鸦（3）
 
 判定口径（K 线标准定义）：
 - 实体 = |close - open|；影线 = high - max(open, close) / min(open, close) - low
 - 锤子/吊颈：下影 ≥ 2×实体 且上影短（<1/3 实体）
 - 吞没：后 K 实体完全吞没前 K 实体（方向相反）
 - 晨/暮星：长阴/长阳 → 小实体（星）→ 反向长实体确认
+- 趋势前提：锤子/倒锤头须处于下跌趋势，吊颈/射击之星须处于上涨趋势
+  （无趋势前提时同一根 K 会同时产出看涨与看跌形态）
 """
 
 import sys
@@ -38,6 +40,28 @@ def _is_bull(bar):
 
 def _is_bear(bar):
     return bar["close"] < bar["open"]
+
+
+def _trend(closes, i, lookback: int = 5, buffer: float = 0.02):
+    """前期趋势（教科书形态的趋势前提）。
+
+    锤子线/倒锤头出现在**下跌趋势末端**，吊颈线/射击之星出现在**上涨趋势末端**。
+    只看单根 K 线几何无法区分同一根 K 上的看涨与看跌形态（实测同一根 K 同时
+    输出"锤子线(看涨)"与"吊颈线(看空)"），必须引入趋势前提。
+
+    Returns:
+        "up" / "down" / "flat"；可比数据不足时返回 None（调用方据此不加约束）
+    """
+    start = max(i - lookback, 0)
+    if i - 1 <= start:
+        return None  # 无可比数据
+    prev = closes[i - 1]
+    earlier = closes[start]
+    if prev < earlier * (1 - buffer):
+        return "down"
+    if prev > earlier * (1 + buffer):
+        return "up"
+    return "flat"
 
 
 def _mk_signal(records, idx, name, type_, conditions, desc, strength, confidence):
@@ -87,8 +111,10 @@ def detect_classic_patterns(records, closes):
         if body_c > 0:
             upper = _upper_shadow(cur)
             lower = _lower_shadow(cur)
+            trend = _trend(closes, i)
             # 锤子线（下跌末端长下影）: 下影 ≥ 2×实体，上影 < 实体/3
-            if lower >= 2 * body_c and upper <= body_c / 3:
+            # 趋势前提：须出现在下跌趋势（数据不足时不限）
+            if lower >= 2 * body_c and upper <= body_c / 3 and trend != "up":
                 signals.append(
                     _mk_signal(
                         records,
@@ -101,8 +127,8 @@ def detect_classic_patterns(records, closes):
                         confidence="中",
                     )
                 )
-            # 吊颈线（上涨末端长下影）——同上影线结构但出现在高位
-            if lower >= 2 * body_c and upper <= body_c / 3 and closes[i] > closes[i - 1]:
+            # 吊颈线（上涨末端长下影）——几何同锤子线，但须处于上涨趋势
+            if lower >= 2 * body_c and upper <= body_c / 3 and trend == "up":
                 signals.append(
                     _mk_signal(
                         records,
@@ -115,8 +141,8 @@ def detect_classic_patterns(records, closes):
                         confidence="中",
                     )
                 )
-            # 射击之星（高位长上影）
-            if upper >= 2 * body_c and lower <= body_c / 3:
+            # 射击之星（高位长上影）——须处于上涨趋势
+            if upper >= 2 * body_c and lower <= body_c / 3 and trend != "down":
                 signals.append(
                     _mk_signal(
                         records,
@@ -129,8 +155,8 @@ def detect_classic_patterns(records, closes):
                         confidence="中",
                     )
                 )
-            # 倒锤头（低位长上影，反转试探）
-            if upper >= 2 * body_c and lower <= body_c / 3 and not _is_bull(cur):
+            # 倒锤头（低位长上影，反转试探）——须处于下跌趋势
+            if upper >= 2 * body_c and lower <= body_c / 3 and trend == "down":
                 signals.append(
                     _mk_signal(
                         records,
@@ -200,9 +226,12 @@ def detect_classic_patterns(records, closes):
                     )
                 )
             # 孕线：后实体完全在前实体之内（方向反转预警）
+            # 方向相反才构成反转预警：_is_bull(cur) != _is_bull(prev)
+            # （原写法 _is_bull(cur) != _is_bear(prev) 在同为 bool 时只对同色 K 成立，
+            #   真正的前阴后阳（bullish harami）反被判漏）
             if (
                 body_c < body_p
-                and _is_bull(cur) != _is_bear(prev)
+                and _is_bull(cur) != _is_bull(prev)
                 and max(cur["open"], cur["close"]) <= max(prev["open"], prev["close"])
                 and min(cur["open"], cur["close"]) >= min(prev["open"], prev["close"])
             ):

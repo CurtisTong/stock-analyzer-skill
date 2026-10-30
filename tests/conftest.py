@@ -263,6 +263,24 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "network: 需要真实网络访问")
 
 
+@pytest.fixture(autouse=True)
+def _isolate_guardrails_state(tmp_path, monkeypatch):
+    """把保护机制熔断状态文件重定向到临时目录（每个测试独立）。
+
+    熔断状态（scripts/data/guardrails_state.json）是跨测试共享的全局文件：
+    任何触发连亏/回撤熔断的测试数据都会写入它，并让后续所有
+    check_protections/is_trading_allowed 测试读到别人的熔断（实测
+    health_report 示例数据触发回撤熔断 → test_all_clear 失败）。
+    autouse 重定向一次性根治，生产路径不受影响。
+    """
+    try:
+        from portfolio import guardrails
+
+        monkeypatch.setattr(guardrails, "_state_path", lambda: tmp_path / "guardrails_state.json")
+    except ImportError:
+        pass
+
+
 def pytest_addoption(parser):
     parser.addoption(
         "--run-network",

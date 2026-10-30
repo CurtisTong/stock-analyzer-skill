@@ -40,9 +40,13 @@
 
 本项目采用 **Apache 2.0** 协议开源。各数据源的配置优先级见 `scripts/config/data_source.yaml`：
 
-- **kline 主源**：sina(10) > pytdx(9) > eastmoney(8) > tencent(6)，baostock(1) 为最低优先级 fallback
-- **quote 主源**：tencent(10) > pytdx(9) > eastmoney(8) > xueqiu(8)
+- **kline 主源**：sina(10) > eastmoney(8) > tencent(6) > pytdx(5)，baostock(1) 为最低优先级 fallback
+- **quote 主源**：tencent(10) > eastmoney(8) > xueqiu(8) > yfinance(6) > sina(5) > pytdx(4)
 - **finance 主源**：eastmoney(10) > akshare(3)
+
+> pytdx 依赖本地通达信服务（默认 7709 端口），多数用户机器上没有该服务；
+> v1.24.0 起已下调其优先级并加入 TCP 探活（`scripts/fetchers/_common/pytdx_probe.py`），
+> 服务不可用时直接跳过，不计入降级链。
 
 ⚠️ **合规提示**：本项目作为个人量化投研工具使用时，各免费数据源均可正常使用。
 若计划商业分发或打包数据，**腾讯/东财/新浪等无明确商用授权的数据源需替换或取得授权**，

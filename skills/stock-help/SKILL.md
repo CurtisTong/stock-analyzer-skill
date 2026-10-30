@@ -1,7 +1,7 @@
 ---
 name: stock-help
 description: Stock Analyzer 帮助索引。触发词：新手、第一次用、怎么用、有哪些功能、能干嘛、使用说明、命令清单、技能列表、怎么开始。显示所有 12 个 skills 和使用说明。
-version: 1.24.0
+version: 1.25.0
 model: glm-5.2
 disable-model-invocation: false
 ---
@@ -121,7 +121,7 @@ disable-model-invocation: false
 
 - 12 个 skill = 8 核心 + 4 变体（`/technical` → `/stock technical`，`/stock-init` → `/screener init`，`/financial-analyst` + `/investment-researcher` → `/research`，旧命令仍可用）
 - 所有分析仅供参考，不构成投资建议
-- 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（35 个 fetcher 类，熔断器自动故障转移）
+- 数据源：腾讯 / 东财 / 新浪 / 雪球 / 同花顺 / 通达信 / AkShare / efinance（37 个 fetcher 类，熔断器自动故障转移）
 
 ## 🆘 获取更多帮助
 

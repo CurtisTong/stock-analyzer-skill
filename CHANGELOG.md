@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.24.0（2026-10-29）开源对标校准 21 项落地——①专家校准体系升级：按 horizon 分桶结算（长线 180d/行业·风控 90d/短线 14d）、胜率卡片强制样本数、slugging 赔率列、弃权第四态（abstain 不入投票基数）、反思记忆（错误 lesson 注入 debate）、确定性仓位钳制（单股 20% 上限+审计）；②4 个新数据域（均真实接口实测）：大宗交易、涨停原因归因、打新日历、可转债双低；③回测严谨性：最低佣金 5 元、alpha/beta/excess_sharpe 超额指标、deflated Sharpe 过拟合诊断、涨跌停精确价；④经典 K 线形态库 12 个 + 海龟/回踩年线；⑤组合保护三件套 + 逆波动率加权；⑥机器可读命令契约 commands.json + 数据血缘降级链；⑦screener 缺值填 0 缺陷修复。全量 2210 passed；v1.23.1（2026-10-19）修复与数据记录：①修正专家校准数据落盘路径越界一层（`experts/calibration.py` 曾把校准数据写到仓库外目录，debate 校准闭环无法落库）②记录双池外样本回测结果（balanced/ma_volume_momentum 均未达阈值，如实保持 in_sample）③修复 release 时 package.json 版本未同步；v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
+> 🟢 **当前状态**：v1.25.0（2026-10-29）v1.24.0 发版后独立复审 33 项 P1 全部闭环——screener 缺值修复生产可达化、回测跌停出场/网格对齐/DSR 符号/超额指标口径修复、数据血缘按 code 隔离、专家圆桌弃权与钳制修复、保护机制状态持久化+硬阻止、反思记忆回流打分、ST ±5% 涨跌停、成本参数 CLI 化；全量 2318 passed。此前：v1.24.0（2026-10-29）开源对标校准 21 项落地——①专家校准体系升级：按 horizon 分桶结算（长线 180d/行业·风控 90d/短线 14d）、胜率卡片强制样本数、slugging 赔率列、弃权第四态（abstain 不入投票基数）、反思记忆（错误 lesson 注入 debate）、确定性仓位钳制（单股 20% 上限+审计）；②4 个新数据域（均真实接口实测）：大宗交易、涨停原因归因、打新日历、可转债双低；③回测严谨性：最低佣金 5 元、alpha/beta/excess_sharpe 超额指标、deflated Sharpe 过拟合诊断、涨跌停精确价；④经典 K 线形态库 12 个 + 海龟/回踩年线；⑤组合保护三件套 + 逆波动率加权；⑥机器可读命令契约 commands.json + 数据血缘降级链；⑦screener 缺值填 0 缺陷修复。全量 2210 passed；v1.23.1（2026-10-19）修复与数据记录：①修正专家校准数据落盘路径越界一层（`experts/calibration.py` 曾把校准数据写到仓库外目录，debate 校准闭环无法落库）②记录双池外样本回测结果（balanced/ma_volume_momentum 均未达阈值，如实保持 in_sample）③修复 release 时 package.json 版本未同步；v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.25.0 | 2026-10-29 | 发版后独立复审 33 项 P1 全闭环：screener 缺值修复生产可达化 + 回测（跌停出场/网格对齐/DSR 符号/超额指标口径/ST 涨跌停/成本参数 CLI）+ 数据血缘按 code 隔离 + 专家（弃权极值/slugging 符号/钳制一致性/教训回流打分）+ 保护机制持久化+硬阻止 + 形态趋势前提/海龟出场 + commands.json AST 契约+CI 守卫 |
 | 1.24.0 | 2026-10-29 | 开源对标校准 P0+P1+P2 共 21 项：专家校准体系升级（horizon 分桶/样本数强制/slugging/弃权第四态/反思记忆/仓位钳制）+ 4 个新数据域（大宗/涨停归因/打新/可转债）+ 回测严谨性（最低佣金/超额指标/过拟合诊断/精确涨跌停）+ 经典形态库 + 保护三件套 + 命令契约/血缘降级链 |
 | 1.23.1 | 2026-10-19 | 修复：专家校准数据落盘路径越界（校准闭环恢复）+ 记录双池 OOS 回测结果保持 in_sample + release 版本同步修复（package.json） |
 | 1.23.0 | 2026-10-13 | 新增**成本分布（筹码）**分析维度：`scripts/chip_dist.py` + `technical/chip_distribution.py`（三角分布+换手衰减，不复权优先）+ `technical.py --chip` + stock/portfolio/stock-technical 技能接入 |
@@ -42,6 +43,70 @@
 | 1.12.0 | 2026-06-17 | V2 量化策略平台 + V2.1 维护（合并历史 tag） |
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
+
+## [1.25.0] - 2026-10-29（v1.24.0 发版后独立复审：33 项 P1 全部闭环——半落地修复 + 数据血缘可信化 + 保护机制持久化 + 反思记忆回流）
+
+### Fixed
+
+- **screener（最严重，生产不可达缺陷）**: v1.24.0 的"缺值填中性 50"修复在生产路径上从未生效——`build_result_row` 只输出 7 个硬编码因子（缺失伪装成 50 原始值），`screening_pipeline` 用 `r.get(k, 0)` 预填，`normalize_factors_batch` 的缺失分支不可达；有权重的 `event`（0.05）被填 0 排最低分位，区分度归零。修复：缺失保留 None、parts 全因子带出、None 按中性 50 分位，展示层 N/A。
+- **backtest**:
+  - 跌停出场未拒单（买入侧拒单、卖出侧不拒——跌停日按收盘价全额平仓，收益系统性高估）→ 出场顺延到下一个可交易日；
+  - 涨停跳过用 `i += 1` 逐日推进 → 持有期网格与基准切块永久错位（实测错位约 2 周）→ 整段跳过；
+  - `_limit_ratio` 收到未归一化裸代码（"300750"）→ 创业板/科创板按 10% 判 → 内部归一化；
+  - `round()` 银行家舍入 ≠ 交易所 ROUND_HALF_UP（涨停多判 1.5%/跌停漏判 4%）→ `_limit_price` 用 Decimal ROUND_HALF_UP；
+  - ST ±5% 涨跌停（新增实时 ST 名单识别，静态股票池只存代码不存名）；
+  - deflated Sharpe 分母符号错（`1−0.5·SR²` 应为 `1+0.5·SR²`，高 SR 时分母被钳到 ~0 → DSR 假通过）；
+  - `excess_sharpe` 与 `information_ratio` 公式完全相同恒等（零信息量）→ 超额夏普改为策略夏普−基准夏普；alpha 补 CAPM 无风险利率项（与 Sharpe 的 rf 口径一致）且不再代入已舍入的 beta；
+  - 基准期按**日期对齐**（原按固定 holding_days 切连续日线，网格一变即错位）；
+  - 网格寻优重复试验（step=0/no-op 行）虚增 DSR 试验数 → 按权重向量去重；失败回测不再按 0 计入试验分布；
+  - `beta`/`alpha`/`excess_sharpe`/`information_ratio` 样本不足时输出 None（原输出 0，会被误读成"真实的零值"）；
+  - DSR 未计算时 CLI 不再显示"✅ 敏感性检查通过"。
+- **experts**:
+  - 整组弃权被误判"两极分化"（`bull >= long_n-1` 在 n=0 恒真，一致看多被翻成中性观望）→ 极值判定加 n>0 前置；
+  - 看空专家 slugging 赔率为负（用带符号收益）→ 按专家方向折算（`_directional_return`）；
+  - 仓位钳制后分步建仓指令仍按钳制前仓位生成（卡片自相矛盾："推荐仓位 20%"+"分步合计 50%"）→ 钳制后重建 steps；
+  - 单组模式（debate 长线/短线）完全绕过钳制与弃权过滤（5 人 95 分可产出 84% 仓位、全弃权判"强烈看空"）→ 补齐；
+  - 多轮 horizon 结算时预测级 actual_return/correct 永久为 None、`updated_experts` 归零 → 主窗口回退到本轮可用窗口；
+  - 单窗口取价失败样本静默丢失（标记 settled 但不计 events）→ 仅取价成功才结算；
+  - 胜率卡片赔率列绕过样本数下限（同一行"样本不足 | 1.50"）→ 赔率列同样受 `MIN_CALIBRATION_SAMPLES` 约束并展示赢/输双侧样本数；
+  - **反思记忆回流打分环节**（v1.24.0 教训只进报告不进打分）：新增 `get_lessons()` + `calibration.py lessons` 子命令，SKILL.md Step 4 / decide.md §8.0 注入纪律（教训必须影响 reason 与分数，注入前后不变视为未注入）。
+- **fetchers**:
+  - cb/ipo `truncated` off-by-one 恒 False → **静默截断且不告警**（cb 天天触发）→ 改 `total_pages > MAX_PAGES`；
+  - block_trade `PREMIUM_RATIO` 遇 "-" 占位 TypeError → 整次查询失败伪装成"无数据"→ `to_float` 防御；
+  - limit_up `bool("0")` 回封全误标 → int 比较；双低排序 `or 9999` 把 0.0 当缺失；
+  - 四个新域 provider 推断与 yaml 键不匹配 → timeout/retry/enabled 全部失效 → 显式传 provider；
+  - "今天是哪天"取 runner 本地时区（与 aa1d43e 同根因，UTC 主机北京 00:00-08:00 错日）→ 新增 `dev.clock.market_now()` 统一收口；
+  - ipo 日历倒序 + 截断 → 近期申购事件最先被丢 → 改升序；
+  - pytdx quote 失败吞成 None → 熔断器永不开启而连接池每次重复 8×5s 阻塞 → 两域统一异常上抛 + TCP 探活（`pytdx_probe.py`，服务不可用直接跳过不进降级链）；
+  - **数据血缘按 code 隔离**（原挂 manager 单例：并发时指数降级事件贴到个股行、缓存命中残留旧链）→ `dict[code] → list` + thread-local 隔离 + `fallback_chain(code)`；渲染改 provider+detail。
+- **portfolio**:
+  - 逆波动率 cap 钳制不收敛（实测 40% 上限产出 40.75%）且全部超限时权重和丢失 → 水填充算法（按剩余容量分配）+ 舍入残差补回，权重和精确 100；
+  - guardrails 交易顺序假设与 `TradeLog.query()` 相反（同一批交易连亏计数 2 vs 0）→ 内部统一按 sell_date 排序；
+  - 回撤熔断用累计利润当权益 → 亏损账户回撤恒 0（越亏越不熔断）→ 权益口径（初始资金+累计利润+持仓浮动盈亏）+ 负权益绝对值分母；
+  - 保护机制状态持久化（`guardrails_state.json`）：熔断在冷却期内持续生效、跨重启保留、不因后续盈利自动解除；新增 `is_trading_allowed()` 硬阻止接口；写入点在清仓落账（检查/报告函数零写副作用）；
+  - 接入 health_report（protections 段 + Markdown 渲染）——v1.24.0 只落了库从未接线；
+  - 波动率估算要求 ≥20 样本（原 2 个样本即可算 σ）。
+- **patterns**:
+  - 经典形态无趋势前提 → 同一根 K 同时产出"锤子线(看涨)+吊颈线(看跌)"矛盾信号 → 反转形态加趋势前提（锤子/倒锤头须下跌趋势、吊颈/射击之星须上涨趋势）；
+  - 孕线方向布尔颠倒 → 真正的前阴后阳 harami 被漏判；
+  - truncated 阈值 5 与展示位 10 不同步 → 抽 `PATTERN_DISPLAY_LIMIT` 常量；
+  - 海龟补 10 日唐奇安下轨出场信号（连续跌破只发一次）；回踩年线对称容差把"高于年线 11.35%"判成回踩 → 非对称容差（破 12%/上 3%）；
+  - 中性形态（十字星）挤占展示位（10 位占 7）→ 方向性形态优先占位。
+- **文档口径**：fetcher 计数 35→37（11 数据域矩阵补 4 新域）、pytdx 优先级、形态 12→13、SKILL 展示位数同步。
+
+### Added
+
+- 回测成本模型参数暴露为 CLI：`--capital` / `--commission` / `--stamp-tax` / `--slippage` / `--min-commission`（小资金账户的最低佣金占比此前无法建模）；`portfolio_correlation.py --risk-weights-cap`。
+- `calibration.py lessons` 子命令（反思教训取数入口，debate 打分注入用）。
+- `commands.json` 参数契约完整化：AST 静态解析 argparse（screener 5→36 个 flag、backtest 0→21，thin-wrapper 跟随子包 parser，含 type/default/choices/help，库模块标注 `cli:false`）+ `--check-json` CI/pre-commit 守卫（防契约腐化）。
+- 熔断状态持久化 API：`record_breaker` / `clear_breakers` / `sync_breakers` / `is_trading_allowed` / `load_state`。
+- pytdx 探活模块 `scripts/fetchers/_common/pytdx_probe.py`（TCP 探测 + 5 分钟 TTL 缓存）。
+
+### Validation
+
+- 全量 **2318 passed / 13 skipped**（v1.24.0 基线 2210 → +约 90 项可证伪回归测试：数学锚点/边界值/排序无关性/端到端）；
+- 复审方法与全部证据见 `docs/archive/reviews/v1.24.0-post-release-review-2026-10-29.md`（4 轮修复，10 commit）；
+- ⚠️ 回测语义变更：跌停出场顺延、持有期网格整段跳过、基准按日期对齐——历史回测数字与 v1.24.0 前不再可比，正在使用的回测基线需重跑。
 
 ## [1.24.0] - 2026-10-29（开源对标校准 P0+P1+P2 共 21 项落地：专家校准体系升级 + 4 个新数据域 + 回测严谨性增强 + LLM 协作机制）
 
