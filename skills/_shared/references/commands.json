@@ -1,8 +1,8 @@
 {
   "_meta": {
-    "generated_at": "2026-10-30T08:50:01Z",
+    "generated_at": "2026-10-30T10:56:25Z",
     "tool": "gen_script_catalog.py --emit-json",
-    "count": 41,
+    "count": 42,
     "version": "2",
     "catalog_marker": "BEGIN/END 受管区域一致",
     "param_source": "ast-static-analysis"
@@ -1057,6 +1057,130 @@
           "default": 30,
           "type": "int",
           "help": "查询天数（默认 30）"
+        },
+        {
+          "flags": [
+            "-j",
+            "--json"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 格式输出"
+        },
+        {
+          "flags": [
+            "--sources"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "显示可用数据源"
+        },
+        {
+          "flags": [
+            "--no-cache"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "禁用缓存，强制实时获取"
+        },
+        {
+          "flags": [
+            "--debug"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "调试模式：异常时打印完整 traceback（设 STOCK_DEBUG=1 等效）"
+        }
+      ]
+    },
+    {
+      "name": "factor_ic",
+      "path": "scripts/factor_ic.py",
+      "description": "因子 IC 评估 CLI（v1.26 阶段 2）",
+      "cli": true,
+      "flags": [
+        "--strategy",
+        "--days",
+        "--rounds",
+        "--top",
+        "--universe",
+        "--codes",
+        "--benchmark",
+        "--save",
+        "-j",
+        "--json",
+        "--sources",
+        "--no-cache",
+        "--debug"
+      ],
+      "params": [
+        {
+          "flags": [
+            "--strategy"
+          ],
+          "required": false,
+          "default": "balanced",
+          "help": "策略名（默认 balanced）"
+        },
+        {
+          "flags": [
+            "--days"
+          ],
+          "required": false,
+          "default": 120,
+          "type": "int",
+          "help": "回测天数（默认 120）"
+        },
+        {
+          "flags": [
+            "--rounds"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int",
+          "help": "回测轮数（默认 5）"
+        },
+        {
+          "flags": [
+            "--top"
+          ],
+          "required": false,
+          "default": 5,
+          "type": "int",
+          "help": "每轮买入数量（默认 5）"
+        },
+        {
+          "flags": [
+            "--universe"
+          ],
+          "required": false,
+          "default": 20,
+          "type": "int",
+          "help": "默认股票池只数（默认 20）"
+        },
+        {
+          "flags": [
+            "--codes"
+          ],
+          "required": false,
+          "default": "",
+          "help": "自定义股票代码（逗号分隔）"
+        },
+        {
+          "flags": [
+            "--benchmark"
+          ],
+          "required": false,
+          "default": "",
+          "help": "基准指数（如 sh000300）"
+        },
+        {
+          "flags": [
+            "--save"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "保存 IC 到 data/factor_ic.json"
         },
         {
           "flags": [

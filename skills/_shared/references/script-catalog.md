@@ -30,7 +30,7 @@ done
 ## 脚本清单
 
 <!-- BEGIN GENERATED: python3 scripts/dev/gen_script_catalog.py -->
-> 41 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
+> 42 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
 
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|
@@ -47,6 +47,7 @@ done
 | `python3 scripts/classifier.py` | A 股个股类型分类器 | — |
 | `python3 scripts/concept.py` | 题材概念板块数据层 | -j、--top、--board、--arbitrage、--scan |
 | `python3 scripts/events.py` | 个股事件日历查询 | -j、--days、--json、--sources、--no-cache |
+| `python3 scripts/factor_ic.py` | 因子 IC 评估 CLI（v1.26 阶段 2） | -j、--strategy、--days、--rounds、--top |
 | `python3 scripts/finance.py` | 财务数据查询（多数据源自动切换） | -c、-j、--codes、--periods、--json |
 | `python3 scripts/hot_rank.py` | 热度榜（活跃 Top N） | -v、-j、--version、--top、--days |
 | `python3 scripts/indicator_env_backtest.py` | 指标信号 × 市场环境 条件回测（逐日重放，与 technical 模块同源） | --codes、--datalen、--output、--json-out |

@@ -266,6 +266,9 @@ def run_backtest(
         "benchmark": (benchmark if isinstance(benchmark, list) else (benchmark or "none")),
         "benchmark_returns_pct": {},
         "round_details": round_results,
+        # v1.26：透传逐笔选股明细（含 parts 因子分）——因子 IC 评估
+        # （strategies/factor/ic.py）需要全量 selections 而非前 20 条摘要。
+        "selections": result.get("all_selections", result.get("selections", [])),
         "meta": {
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "data_sources": result.get("data_sources", []),

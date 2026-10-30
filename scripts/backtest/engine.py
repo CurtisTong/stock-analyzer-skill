@@ -330,6 +330,12 @@ def simulate_strategy(ctx: SimContext):
             # 注意：event_score 涉及网络请求，回测中禁用以避免超时
             # 如需启用，请确保事件数据已预加载到缓存
 
+            # 情绪因子（v1.26 阶段 2）：按**历史时点**取快照（严格无前瞻）。
+            # 该日无快照（用户未采集过）时因子缺失 → 不参与加权（权重 0 或缺失）。
+            sentiment = _sentiment_score_at(code, bars[i].day)
+            if sentiment is not None:
+                parts["sentiment"] = sentiment
+
             # 策略权重应用 market regime overlay
             # 修复：v2.8 的指数级 regime 判定（_fetch_index_bars_for_backtest /
             # _classify_regime_from_index）此前无调用方，主路径仍用个股 bars 误判
@@ -340,8 +346,16 @@ def simulate_strategy(ctx: SimContext):
                 regime, extreme_drop = RegimeState.RANGE, False
             effective_weights = compute_overlay_weights(weights, regime, extreme_drop=extreme_drop)
 
+            # 打分：缺失因子按中性 50 计（不是 0）。
+            # 0 会让"因子不可得"的股票系统性低于"因子可得"的股票——权重越大
+            # 偏差越明显。screener 归一化层已是中性 50 口径（v1.25 统一），
+            # 这里对齐，否则回测与实盘打分口径不一致。
+            def _factor_value(key: str) -> float:
+                v = parts.get(key)
+                return 50.0 if v is None else float(v)
+
             score = sum(
-                parts.get(k, 0) * effective_weights.get(k, 0)
+                _factor_value(k) * effective_weights.get(k, 0)
                 for k in set(parts) | set(effective_weights)
                 if k not in ("label", "two_stage")
             )
@@ -376,6 +390,11 @@ def simulate_strategy(ctx: SimContext):
                     "daily_returns": _calc_daily_returns(bars, i, actual_days),
                     "exit_reason": exit_reason,
                     "holding_days": actual_days,
+                    # v1.26：把逐因子分值带进 selections——因子 IC 评估
+                    # （strategies/factor/ic.py）依赖 parts[factor]，此前引擎
+                    # 只算 parts 不输出，IC 链路整条空转。
+                    "parts": {k: round(v, 2) for k, v in parts.items() if isinstance(v, (int, float))},
+                    "regime": getattr(regime, "value", str(regime)),
                 }
             )
 
@@ -438,6 +457,9 @@ def simulate_strategy(ctx: SimContext):
     return {
         "strategy": strategy_name,
         "selections": selection_details[:20],
+        # v1.26：全量选股明细（含 parts 因子分）供因子 IC 评估使用
+        # （前 20 条只是给报告用的摘要，IC 需要全样本）
+        "all_selections": selection_details,
         "returns": [round(r * 100, 2) for r in portfolio_returns],
         "daily_returns": portfolio_daily_returns,
         "period_daily_returns": portfolio_period_daily_returns,
@@ -625,6 +647,21 @@ def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
         return dividend_score(hist_quote, fin, industry)
     except ImportError:
         return 0.0
+
+
+def _sentiment_score_at(code: str, day: str) -> float | None:
+    """取某历史时点的情绪因子分（严格无前瞻）。
+
+    快照按 YYYYMMDD 存储；K 线的 day 是 YYYY-MM-DD，需转换。
+    任何异常都按"因子缺失"处理（返回 None），不得让情绪因子拖垮回测。
+    """
+    try:
+        from strategies.factors.sentiment import sentiment_score_at
+
+        return sentiment_score_at(code, day.replace("-", ""))
+    except Exception as e:
+        logger.debug("情绪因子计算失败 %s@%s: %s", code, day, e)
+        return None
 
 
 def _detect_st_codes(codes: list[str]) -> set[str]:

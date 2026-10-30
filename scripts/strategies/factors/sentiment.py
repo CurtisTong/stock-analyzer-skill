@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -165,7 +166,10 @@ def _activity_score(hs: float | None) -> float:
 
 
 def sentiment_score(code: str) -> float | None:
-    """个股情绪强度分（0-100）。
+    """个股情绪强度分（0-100），用**最新**快照。
+
+    实时路径（screener）用本函数；回测路径必须用 `sentiment_score_at`，
+    否则会把今天的情绪用在历史时点上——未来函数。
 
     Args:
         code: 股票代码（sh/sz/bj 前缀或裸代码均可）
@@ -173,9 +177,30 @@ def sentiment_score(code: str) -> float | None:
     Returns:
         0-100 分值；该股不在涨停/炸板池（无情绪数据）时返回 None（缺失，非 0）
     """
-    from data.sentiment_panel import get_latest_snapshot, get_sector_heat, get_stock_sentiment
+    from data.sentiment_panel import get_latest_snapshot
 
-    snapshot = get_latest_snapshot()
+    return _score_with_snapshot(code, get_latest_snapshot())
+
+
+def sentiment_score_at(code: str, date: str) -> float | None:
+    """个股情绪强度分（0-100），用**指定日期**的快照（回测路径）。
+
+    Args:
+        code: 股票代码
+        date: 交易日 YYYYMMDD
+
+    Returns:
+        0-100 分值；该日无快照或该股不在池内时返回 None
+    """
+    from data.sentiment_panel import get_snapshot
+
+    return _score_with_snapshot(code, get_snapshot(date))
+
+
+def _score_with_snapshot(code: str, snapshot: Optional[dict]) -> float | None:
+    """按给定快照计算情绪分（快照为 None → 缺失）。"""
+    from data.sentiment_panel import get_sector_heat, get_stock_sentiment
+
     if not snapshot:
         return None
     entry = get_stock_sentiment(code, snapshot=snapshot)
@@ -242,4 +267,4 @@ def sentiment_details(code: str) -> dict | None:
     }
 
 
-__all__ = ["sentiment_score", "sentiment_details"]
+__all__ = ["sentiment_score", "sentiment_score_at", "sentiment_details"]

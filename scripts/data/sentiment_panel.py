@@ -285,6 +285,16 @@ def get_latest_snapshot() -> Optional[dict]:
     return snapshots[latest_key]
 
 
+def get_snapshot(date: str) -> Optional[dict]:
+    """取指定日期的快照（YYYYMMDD）。
+
+    回测必须按**历史时点**取快照——用最新快照计算历史因子是未来函数。
+    该日期无快照时返回 None（因子缺失）。
+    """
+    snapshots = load_snapshots().get("snapshots") or {}
+    return snapshots.get(date)
+
+
 def get_history(days: int = 5) -> list[dict]:
     """最近 N 个交易日的快照列表（按日期升序）。
 
@@ -378,6 +388,7 @@ __all__ = [
     "load_snapshots",
     "save_snapshot",
     "get_latest_snapshot",
+    "get_snapshot",
     "get_history",
     "get_stock_sentiment",
     "get_sector_heat",
