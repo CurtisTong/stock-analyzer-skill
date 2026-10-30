@@ -13,6 +13,7 @@ from .chip import chip_score_static, chip_score_dynamic, chip_details
 from .event import event_score
 from .analyst import analyst_expectation_score
 from .cyclical import cyclical_score, get_cycle_position
+from .sentiment import sentiment_score
 from .registry import (
     register_factor,
     get_factor_keys,
@@ -116,4 +117,17 @@ register_factor(
     args_style="fin_quote_features_industry_code",
     label="周期",
     default_weight=0.0,  # 默认 0，策略按需配置权重
+)
+
+# 情绪因子（v1.26 阶段 1）：个股级情绪强度（连板高度/封板质量/板块热度/活跃度）
+# 权重默认 0——先作为参考列可观测可验证，阶段 2 经 OOS 验证后仅给
+# growth_momentum 加权（见 docs/design/sentiment-factor-design.md）。
+# phase=1：涨停池/炸板池是全市场 2 次 HTTP，与股票池规模无关。
+register_factor(
+    "sentiment",
+    compute_fn=sentiment_score,
+    phase=1,
+    args_style="code",
+    label="情绪",
+    default_weight=0.0,
 )

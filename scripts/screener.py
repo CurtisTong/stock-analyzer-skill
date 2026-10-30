@@ -135,7 +135,7 @@ def _fmt_factor(row: dict, key: str) -> str:
         return "N/A"
 
 
-def render(rows, strategy, top, title=None, show_chip=True):
+def render(rows, strategy, top, title=None, show_chip=True, show_sentiment=False):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
     accepted.sort(key=lambda r: r["score"], reverse=True)
@@ -152,11 +152,23 @@ def render(rows, strategy, top, title=None, show_chip=True):
         except (TypeError, ValueError):
             return "N/A"
 
-    # 表头：根据 show_chip 决定是否显示筹码列
+    # 情绪列格式化（v1.26）：缺失（不在涨停/炸板池）显示 "-"，与 0 分区分
+    def _fmt_sentiment(row):
+        v = row.get("sentiment")
+        if v is None:
+            return "-"
+        try:
+            return f"{float(v):.1f}"
+        except (TypeError, ValueError):
+            return "-"
+
+    # 表头：根据 show_chip / show_sentiment 决定是否显示对应列
     if show_chip:
         header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动 | 筹码 | PE | ROE | RSI | 20日% | 趋势 | 量价"
     else:
         header = "排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价"
+    if show_sentiment:
+        header += " | 情绪  "
     print(header)
     print("-" * len(header))
     for idx, r in enumerate(accepted[:top], 1):
@@ -171,6 +183,8 @@ def render(rows, strategy, top, title=None, show_chip=True):
                 f"{r['score']:>5} | {_fmt_factor(r, 'quality'):>5} | {_fmt_factor(r, 'valuation'):>5} | "
                 f"{_fmt_factor(r, 'momentum'):>5} | {_fmt_factor(r, 'liquidity'):>5} | {chip_display:>5} | {r['pe']:>6} | "
                 f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
+                + (f" | {_fmt_sentiment(r):>5}" if show_sentiment else "")
+                + "\n"
             )
         else:
             print(
@@ -178,6 +192,8 @@ def render(rows, strategy, top, title=None, show_chip=True):
                 f"{r['score']:>5} | {_fmt_factor(r, 'quality'):>5} | {_fmt_factor(r, 'valuation'):>5} | "
                 f"{_fmt_factor(r, 'momentum'):>5} | {_fmt_factor(r, 'liquidity'):>6} | {r['pe']:>6} | "
                 f"{_fmt_roe(r['roe']):>5} | {r.get('rsi', 50):>4} | {r['ret20']:>5} | {r['trend']}{macd_icon} | {r.get('vol_price', '?')}"
+                + (f" | {_fmt_sentiment(r):>5}" if show_sentiment else "")
+                + "\n"
             )
         # 退潮板块高分标的加 ⚠️ 标记
         if r.get("sector_momentum_warning"):
@@ -379,6 +395,11 @@ def _build_parser():
         "--no-chip",
         action="store_true",
         help="禁用筹码因子（chip）评分",
+    )
+    parser.add_argument(
+        "--show-sentiment",
+        action="store_true",
+        help="输出情绪列（v1.26 阶段 1：情绪因子权重为 0，仅作参考列，不影响评分与排名）",
     )
     parser.add_argument(
         "--no-macro",
@@ -644,7 +665,15 @@ def _run_main(args):
         _print_mainline_deviation_warning(rows, args)
         if args.full:
             show_chip = not getattr(args, "no_chip", False)
-            render(rows, args.strategy, args.top, title=title, show_chip=show_chip)
+            show_sentiment = getattr(args, "show_sentiment", False)
+            render(
+                rows,
+                args.strategy,
+                args.top,
+                title=title,
+                show_chip=show_chip,
+                show_sentiment=show_sentiment,
+            )
         else:
             render_brief(rows, args.strategy, args.top, title=title)
 

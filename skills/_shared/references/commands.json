@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-10-29T15:24:35Z",
+    "generated_at": "2026-10-30T08:45:56Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 40,
     "version": "2",
@@ -2276,6 +2276,7 @@
         "--no-normalize",
         "--no-regime",
         "--no-chip",
+        "--show-sentiment",
         "--no-macro",
         "--snapshot",
         "--two-stage",
@@ -2432,6 +2433,14 @@
           "required": false,
           "action": "store_true",
           "help": "禁用筹码因子（chip）评分"
+        },
+        {
+          "flags": [
+            "--show-sentiment"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "输出情绪列（v1.26 阶段 1：情绪因子权重为 0，仅作参考列，不影响评分与排名）"
         },
         {
           "flags": [

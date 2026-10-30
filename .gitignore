@@ -35,6 +35,8 @@ scripts/data/trade_log.json
 scripts/data/portfolio_oplog.json
 # 保护机制熔断状态（本地运行时状态，含用户交易状况）
 scripts/data/guardrails_state.json
+# 情绪面板历史快照（本地运行时状态，含用户自选股情绪历史）
+scripts/data/sentiment_snapshots.json
 
 # 专家校准数据（用户本地运行时产生）
 scripts/data/expert_calibration.json
