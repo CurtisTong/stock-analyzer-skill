@@ -5,6 +5,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Optional
 
 from common import (
     to_float,
@@ -120,6 +121,9 @@ class SimContext:
     # 因子计算始终用 bars[:i] 全历史（无前瞻），仅评估区间受窗口限制。
     eval_start: int = 0
     eval_end: int | None = None
+    # v3.1：市场级情绪 overlay 第 5 层开关（默认关闭——阈值待快照样本校准）。
+    # 开启后按每期日期的快照计算封板率/晋级率/连板高度 → 情绪冰点或亢奋时压制动量。
+    use_sentiment_overlay: bool = False
 
 
 def _total_cost_rate(
@@ -344,7 +348,17 @@ def simulate_strategy(ctx: SimContext):
                 regime, extreme_drop = _classify_regime_from_index(index_bars, bars[i].day)
             else:
                 regime, extreme_drop = RegimeState.RANGE, False
-            effective_weights = compute_overlay_weights(weights, regime, extreme_drop=extreme_drop)
+            # v3.1：市场级情绪第 5 层（默认关闭——阈值待快照样本校准后启用）。
+            # 情绪指标按 bars[i].day 的快照计算（无前瞻）；无快照则不调整。
+            sentiment_mults = None
+            if ctx.use_sentiment_overlay:
+                sentiment_mults = _sentiment_overlay_multipliers(bars[i].day)
+            effective_weights = compute_overlay_weights(
+                weights,
+                regime,
+                extreme_drop=extreme_drop,
+                sentiment_multipliers=sentiment_mults,
+            )
 
             # 打分：缺失因子按中性 50 计（不是 0）。
             # 0 会让"因子不可得"的股票系统性低于"因子可得"的股票——权重越大
@@ -647,6 +661,28 @@ def _calc_dividend_score(hist_quote: dict, fin: dict, industry: str) -> float:
         return dividend_score(hist_quote, fin, industry)
     except ImportError:
         return 0.0
+
+
+def _sentiment_overlay_multipliers(day: str) -> Optional[dict]:
+    """市场级情绪 → overlay multiplier（按历史日期快照，严格无前瞻）。
+
+    无快照/无数据时返回 None（不调整权重）。
+    """
+    try:
+        from data.sentiment_panel import get_promotion_rate, get_snapshot
+        from strategies.regime.sentiment_overlay import (
+            market_sentiment_metrics,
+            sentiment_overlay_multipliers,
+        )
+
+        snapshot = get_snapshot(day.replace("-", ""))
+        if not snapshot:
+            return None
+        metrics = market_sentiment_metrics(snapshot, promotion_rate=get_promotion_rate(snapshot))
+        return sentiment_overlay_multipliers(metrics) or None
+    except Exception as e:
+        logger.debug("情绪 overlay 计算失败 %s: %s", day, e)
+        return None
 
 
 def _sentiment_score_at(code: str, day: str) -> float | None:

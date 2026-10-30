@@ -52,6 +52,11 @@ def cmd_show(args):
         get_promotion_rate,
         get_sector_heat,
     )
+    from strategies.regime.sentiment_overlay import (
+        market_sentiment_metrics,
+        sentiment_overlay_multipliers,
+        sentiment_state,
+    )
 
     snapshot = get_latest_snapshot()
     if not snapshot:
@@ -61,6 +66,12 @@ def cmd_show(args):
     heat = get_sector_heat(snapshot)
     top_sectors = sorted(heat.items(), key=lambda kv: -kv[1])[: args.top]
     promotion = get_promotion_rate(snapshot)
+
+    # 市场级情绪指标 + 状态判定（overlay 第 5 层的输入）
+    metrics = market_sentiment_metrics(snapshot, promotion_rate=promotion)
+    state = sentiment_state(metrics)
+    state_label = {"ice": "冰点", "hot": "亢奋", "normal": "正常"}[state]
+    mults = sentiment_overlay_multipliers(metrics)
 
     if args.json_output:
         print(
@@ -75,6 +86,9 @@ def cmd_show(args):
                     "promotion_rate": promotion,
                     "top_sectors": dict(top_sectors),
                     "stock_count": len(snapshot.get("stocks") or {}),
+                    "market_sentiment": metrics,
+                    "sentiment_state": state,
+                    "overlay_multipliers": mults,
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -93,6 +107,17 @@ def cmd_show(args):
     if dist:
         ladder = " → ".join(f"{k}板 {dist[k]}家" for k in sorted(dist, key=lambda x: int(x)))
         print(f"连板天梯: {ladder}")
+    print()
+    print("市场级情绪（overlay 第 5 层输入）:")
+    print(f"  封板率: {_fmt_pct(metrics['seal_rate'] * 100 if metrics['seal_rate'] is not None else None, 1)}")
+    print(
+        f"  板块集中度(top3): "
+        f"{_fmt_pct(metrics['sector_concentration'] * 100 if metrics['sector_concentration'] is not None else None, 1)}"
+    )
+    print(f"  情绪状态: {state_label}")
+    if mults:
+        detail = "、".join(f"{k}×{v}" for k, v in mults.items())
+        print(f"  overlay 调整: {detail}")
     if top_sectors:
         print()
         print("板块热度 Top:")

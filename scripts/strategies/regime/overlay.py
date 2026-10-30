@@ -205,6 +205,7 @@ def compute_overlay_weights(
     extreme_drop: bool = False,
     national_team: bool = False,
     ic_multipliers: Optional[Dict[str, float]] = None,
+    sentiment_multipliers: Optional[Dict[str, float]] = None,
 ) -> Dict[str, float]:
     """对原策略权重施加市场状态 overlay，返回归一化后的新权重。
 
@@ -216,10 +217,11 @@ def compute_overlay_weights(
     v2.8 新增 extreme_drop：极端跌幅时 momentum 强制 ×0.3
     v2.9 新增 national_team：国家队 ETF 放量时 chip multiplier 至少 0.6
     v3.0 新增 ic_multipliers：因子 IC 动态调整 multiplier（IC<0 衰减，floor 0.5）
+    v3.1 新增 sentiment_multipliers：市场级情绪第 5 层（冰点/亢奋时压制动量）
 
-    三个 v2.8+ 参数的叠加顺序：基础矩阵 → extreme_drop → national_team →
-    ic_multipliers。IC floor (0.5) 高于 extreme_drop (0.3)，故 IC 转换可
-    拉高 extreme_drop 的过度降权。
+    四个 v2.8+ 参数的叠加顺序：基础矩阵 → extreme_drop → national_team →
+    ic_multipliers → sentiment_multipliers。IC floor (0.5) 高于 extreme_drop (0.3)，
+    故 IC 转换可拉高 extreme_drop 的过度降权；情绪层在最后叠加（最细粒度）。
 
     Args:
         original_weights: 策略原权重 dict（含 quality/valuation/momentum/... ）
@@ -227,6 +229,7 @@ def compute_overlay_weights(
         extreme_drop: v2.8 是否触发极端跌幅降动量
         national_team: v2.9 是否触发国家队放量 chip 保底
         ic_multipliers: v3.0 {factor: ic_value} dict，IC ∈ [-1, 1]
+        sentiment_multipliers: v3.1 {factor: multiplier} dict（市场级情绪第 5 层）
 
     Returns:
         调节并归一化后的新权重 dict（和 = 1.0）
@@ -268,6 +271,13 @@ def compute_overlay_weights(
                 continue
             base_mult = multipliers[factor]
             multipliers[factor] = ic_to_multiplier(ic_val, base_mult, min_mult=0.5)
+
+    # v3.1: 市场级情绪第 5 层（冰点/亢奋时压制动量）。
+    # 覆盖式：与 IC 层一致，情绪信号是"当前状态"而非"历史统计"。
+    if sentiment_multipliers:
+        for factor, mult in sentiment_multipliers.items():
+            if factor in multipliers:
+                multipliers[factor] = multipliers[factor] * mult
 
     adjusted = {}
     for k, v in weights.items():
