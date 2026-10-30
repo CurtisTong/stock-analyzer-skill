@@ -763,13 +763,24 @@ class TestAutoTechnicalIntegration:
         result = _fetch_technical_features([], {})
         assert result == {}
 
-    def test_fetch_technical_features_skips_failures(self):
-        """_fetch_technical_features 单只失败不中断。"""
+    def test_fetch_technical_features_skips_failures(self, monkeypatch):
+        """_fetch_technical_features 单只失败不中断。
+
+        必须密封：mock get_kline 立即抛错，不得依赖"无效代码在真实接口
+        上失败"——CI 上东财响应慢时（3 次重试 × 15s）本测试曾超
+        pytest-timeout 60s（v1.25.0 首次发版即因此挂掉 release 流水线）。
+        """
+        import data as data_mod
+        from common.exceptions import NetworkError
+
+        def _boom(*args, **kwargs):
+            raise NetworkError("sh999999", "mock: unreachable")
+
+        monkeypatch.setattr(data_mod, "get_kline", _boom)
+
         from portfolio.health_report import _fetch_technical_features
 
-        # 不存在的 code 应被跳过（get_kline 抛错或返回空）
-        positions = [{"code": "sh999999"}]  # 不存在的代码
-        result = _fetch_technical_features(positions, {})
+        result = _fetch_technical_features([{"code": "sh999999"}], {})
         assert result == {}  # 全部失败 → 空 dict
 
 
