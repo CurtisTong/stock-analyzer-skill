@@ -277,15 +277,28 @@ national_team → ic_multipliers），新增第 5 层 `sentiment_multipliers`：
 
 ## 五、分期实施
 
-### 阶段 1：数据层 + 因子 + 只读展示（权重 0）
+### 阶段 1：数据层 + 因子 + 只读展示（权重 0）—— ✅ 已完成（2026-10-30）
 
-| 产出 | 验收 |
+| 产出 | 状态 |
 | --- | --- |
-| `scripts/data/sentiment_panel.py`：快照读写、涨停/炸板/题材聚合、晋级率计算 | 单测：晋级率数学锚点（构造昨日/今日池）、快照保留 60 天、首次运行降级标记 |
-| `scripts/strategies/factors/sentiment.py`：4 个子项 + 合成 | 单测：每个子项的锚点值（如 lbc=1→40、lbc=3→66.25）、缺失语义 |
-| 注册因子（phase=1），权重默认 0（与 analyst / cyclical 同待遇）| `get_factor_keys()` 含 sentiment；6 策略权重和仍为 1.0 |
-| screener 增加可选列 `--show-sentiment` | 不加列时输出与今天完全一致（回归保护）|
-| 快照落盘 + .gitignore | 快照文件不入库 |
+| `scripts/data/sentiment_panel.py`：快照读写、涨停/炸板/板块聚合、晋级率计算 | ✅ |
+| `scripts/strategies/factors/sentiment.py`：4 个子项 + 合成 | ✅ |
+| 注册因子（phase=1），权重默认 0（与 analyst / cyclical 同待遇）| ✅ |
+| screener 增加可选列 `--show-sentiment` | ✅ |
+| 快照落盘 + .gitignore | ✅ |
+| `scripts/sentiment_panel.py` CLI（refresh / show）| ✅（快照采集入口，原设计缺此项）|
+
+**实测验证（2026-10-30 真实数据）**：涨停 47 / 炸板 31 / 最高 5 连板；
+连板天梯 1板38 → 2板6 → 3板2 → 5板1；板块热度白酒Ⅱ 8.5% 居首；
+三连板个股得分 76.12 > 二连板 68.50；非池内股票返回 None。
+
+**单测**（27 项，全部数学锚点）：`tests/unit/test_sentiment_factor.py`（19）+
+`tests/unit/test_screener_sentiment_column.py`（8）。
+
+**实现期修正**：连板高度公式的初稿锚点（40/57.5/66.25/71.4）与公式
+`40+25×(1−0.7^(lbc−1))` 不符（实际给出 40/47.5/52.75/56.93）——设计文档里的
+"数学锚点"自己没手算复核，实现时才发现。已改为 `40+45×(1−0.5^(lbc−1))`，
+锚点 40/62.5/73.75/79.38 并复核。**教训：设计文档里的锚点也要自己算一遍。**
 
 **权重为 0 是刻意的**：加权重会改变所有策略的选股结果与回测基线。先让因子可观测、
 可验证，再用数据决定权重（阶段 2），避免拍脑袋定权重。

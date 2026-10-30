@@ -30,7 +30,7 @@ done
 ## 脚本清单
 
 <!-- BEGIN GENERATED: python3 scripts/dev/gen_script_catalog.py -->
-> 40 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
+> 41 个脚本，自动生成（`scripts/dev/gen_script_catalog.py`）。
 
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|
@@ -70,6 +70,7 @@ done
 | `python3 scripts/sector_etf_strength.py` | 板块 ETF 横向强度对比 + 个股相对位置（RPS） | -j、--no-index、--json、--sources、--no-cache |
 | `python3 scripts/sector_momentum.py` | 板块动量工具（v1.21.0 ）：基于行业 ETF 动量判断板块退潮 | — |
 | `python3 scripts/sector_summary.py` | 板块涨跌幅汇总 CLI（v1.20.1 新增） | -j、--source、--top、--sector、--json |
+| `python3 scripts/sentiment_panel.py` | 情绪面板 CLI（v1.26 阶段 1） | -j、--date、--top、--json、--sources |
 | `python3 scripts/snapshots.py` | 选股快照系统（review#16） | -j、--strategy、--limit、--json、--sources |
 | `python3 scripts/stock.py` | 个股五层分析（v1.3.2 接入 business/StockAnalysisService） | -j、--no-finance、--no-technical、--no-chan、--with-backtest |
 | `python3 scripts/strategy_performance.py` | 策略表现校准（review#17）：定期回测并记录到 strategy_performance.json | -j、--days、--top、--codes、--month |
