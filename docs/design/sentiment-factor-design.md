@@ -334,8 +334,17 @@ national_team → ic_multipliers），新增第 5 层 `sentiment_multipliers`：
    IC > 0.05 才给 `growth_momentum` 加 0.05；
 2. 或明确接受"未经验证"的风险，直接加权并用 OOS 回测兜底。
 
-**快照采集自动化**：`python3 scripts/sentiment_panel.py refresh` 可挂 cron
-（每交易日收盘后一次）。这是启用前置条件，未做。
+**快照采集自动化**：✅ 已启动——工作日 15:30 定时执行
+`python3 scripts/sentiment_panel.py refresh`（收盘后涨停池数据稳定）。
+非交易日/接口失败时命令自行跳过，不写快照。
+
+### 阶段 4（后续）：全链路闭环
+
+1. 快照积累 ≥20 个交易日 → 跑 `factor_ic.py` 得 sentiment 前瞻 IC；
+2. IC > 0.05 → 给 `growth_momentum` 加 0.05 权重；
+3. 用 ≥20 日封板率/晋级率分布校准 overlay 阈值 → 开启 `use_sentiment_overlay`；
+4. 两者都需 OOS 回测确认（`multi_stock_backtest --update-validation`），
+   退化则回退到默认关闭。
 
 ### 阶段 2 的一个副作用需要留意
 
@@ -347,10 +356,34 @@ national_team → ic_multipliers），新增第 5 层 `sentiment_multipliers`：
 缓解方向：情绪缺失时按**中性 50** 参与加权（与 screener 归一化层的口径统一，
 也是 v1.25 复审刚统一的缺失语义），而非 0。实现时需改 engine 的缺失处理。
 
-### 阶段 3：市场级维度接 regime
+### 阶段 3：市场级维度接 regime —— ✅ 基础设施已通（2026-10-30）
 
-- 赚钱效应/晋级率/连板分布进 `compute_overlay_weights` 第 5 层
-- 同样先只观察（输出 overlay 前后权重差异），确认方向合理再启用
+| 项 | 状态 |
+| --- | --- |
+| `scripts/strategies/regime/sentiment_overlay.py`：市场级指标 + 状态判定 + multiplier 映射 | ✅ |
+| `compute_overlay_weights` 新增第 5 层 `sentiment_multipliers`（叠在 IC 层之后，乘法叠加）| ✅ |
+| `SimContext.use_sentiment_overlay` 开关（**默认关闭**——阈值待样本校准）| ✅ |
+| `_sentiment_overlay_multipliers(day)`：按每期日期快照计算（无前瞻）| ✅ |
+| `sentiment_panel.py show` 展示市场级情绪（封板率/板块集中度/情绪状态/overlay 调整）| ✅ |
+| 单测 14 项（`tests/unit/test_sentiment_overlay.py`）| ✅ |
+
+**市场级指标口径**（全部从情绪面板快照算，无需新数据源）：
+
+| 指标 | 口径 | 今日实测 |
+| --- | --- | --- |
+| 封板率 | 涨停 / (涨停 + 炸板) | 60.3% |
+| 晋级率 | 昨日涨停 ∩ 今日涨停 ÷ 昨日涨停 | N/A（历史不足）|
+| 连板高度 | max_height | 5 |
+| 板块集中度 | top3 板块涨停家数 ÷ 全部涨停家数 | 21.3% |
+
+**状态判定与 multiplier**：
+- 冰点（封板率 < 0.50 或 晋级率 < 0.20）：momentum ×0.7、quality ×1.1、valuation ×1.1
+- 亢奋（封板率 > 0.75 **且** 连板高度 ≥ 6 **且** 板块集中度 ≥ 0.35）：momentum ×0.8
+- 正常：不调整
+
+⚠️ **阈值待校准**：现值为领域经验设定，快照样本积累后需按实际分布重设
+（今日实测封板率 60.3% 落在"正常"区间，但单日样本不能定分布）。
+校准前 `use_sentiment_overlay` 默认关闭。
 
 ---
 
