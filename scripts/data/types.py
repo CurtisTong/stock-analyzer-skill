@@ -121,7 +121,8 @@ class FinanceRecord:
     # 偿债能力 + 季度环比维度（东财主要指标已返回，原被丢弃）
     quick_ratio: Optional[float] = None  # 速动比率
     current_ratio: Optional[float] = None  # 流动比率
-    deducted_np_yoy: Optional[float] = None  # 扣非净利同比(%)
+    deducted_np_yoy: Optional[float] = None  # 扣非净利同比(%)——累计口径（年初至报告期末）
+    deducted_np_q_yoy: Optional[float] = None  # 扣非净利单季同比(%)——仅部分报告期有单季拆分
     revenue_qoq: Optional[float] = None  # 营收季度环比(%)
     profit_qoq: Optional[float] = None  # 净利季度环比(%)
     # 存货/营运能力（东财主要指标已返回 CHZZL/CHZZTS，原被丢弃）

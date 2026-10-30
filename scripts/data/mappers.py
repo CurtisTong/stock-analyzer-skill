@@ -123,12 +123,20 @@ FINANCE_FIELD_MAP = {
     # 偿债能力 + 季度环比维度
     "quick_ratio": ["SD", "速动比率", "quick_ratio"],
     "current_ratio": ["LD", "流动比率", "current_ratio"],
+    # 扣非净利同比：KCFJCXSYJLRTZ=累计口径，DJD_DEDUCTDPNP_YOY=单季口径。
+    # 累计口径必须排在前面：财报语义是"年初至报告期末"，
+    # 取单季口径会让 Q3 单季同比冒充累计同比（2026 三季报实测中信 -20.69% vs +34.47%）。
     "deducted_np_yoy": [
-        "DJD_DEDUCTDPNP_YOY",
         "KCFJCXSYJLRTZ",
         "扣非净利同比",
         "扣除非经常性损益净利润同比增长率",
         "deducted_np_yoy",
+    ],
+    # 扣非净利单季同比（DJD 前缀 = 单季），仅在三季报/中报等有单季拆分时有值
+    "deducted_np_q_yoy": [
+        "DJD_DEDUCTDPNP_YOY",
+        "扣非净利单季同比",
+        "deducted_np_q_yoy",
     ],
     "revenue_qoq": ["DJD_TOI_QOQ", "营收环比", "营业收入环比", "revenue_qoq"],
     "profit_qoq": ["DJD_DPNP_QOQ", "净利环比", "归母净利润环比", "profit_qoq"],

@@ -46,6 +46,7 @@ def render_table(records: list) -> str:
         ("revenue_yoy", "营收同比%"),
         ("net_profit_yoy", "净利同比%"),
         ("deducted_np_yoy", "扣非同比%"),
+        ("deducted_np_q_yoy", "扣非单季同比%"),
         ("gross_margin", "毛利率%"),
         ("net_margin", "净利率%"),
         ("debt_ratio", "负债率%"),

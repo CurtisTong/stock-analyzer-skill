@@ -589,6 +589,7 @@ def _dict_to_finance(d: dict) -> FinanceRecord:
         quick_ratio=(None if (v := _maybe_float(FIELD_MAP["quick_ratio"])) is None else round(v, 2)),
         current_ratio=(None if (v := _maybe_float(FIELD_MAP["current_ratio"])) is None else round(v, 2)),
         deducted_np_yoy=(None if (v := _maybe_float(FIELD_MAP["deducted_np_yoy"])) is None else round(v, 2)),
+        deducted_np_q_yoy=(None if (v := _maybe_float(FIELD_MAP["deducted_np_q_yoy"])) is None else round(v, 2)),
         revenue_qoq=(None if (v := _maybe_float(FIELD_MAP["revenue_qoq"])) is None else round(v, 2)),
         profit_qoq=(None if (v := _maybe_float(FIELD_MAP["profit_qoq"])) is None else round(v, 2)),
         # 存货/营运能力
