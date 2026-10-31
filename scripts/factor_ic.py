@@ -64,6 +64,9 @@ def cmd_evaluate(args):
 
     ic_all = compute_all_factor_ic(selections)
     ic_by_regime = compute_ic_by_regime(selections)
+    from strategies.factor.ic import compute_factor_ic_stats
+
+    ic_stats = {f: compute_factor_ic_stats(selections, f) for f in ic_all}
 
     if args.json_output:
         print(
@@ -72,6 +75,7 @@ def cmd_evaluate(args):
                     "strategy": args.strategy,
                     "samples": len(selections),
                     "ic": ic_all,
+                    "ic_stats": ic_stats,
                     "ic_by_regime": ic_by_regime,
                 },
                 ensure_ascii=False,
@@ -83,16 +87,22 @@ def cmd_evaluate(args):
     print()
     print(f"样本数: {len(selections)}")
     print()
-    print(f"{'因子':<14} {'IC':>8}  判读")
-    print("-" * 46)
+    print(f"{'因子':<14} {'IC':>8} {'ICIR':>7} {'天':>4} {'样本':>6}  判读")
+    print("-" * 60)
     for factor, ic in sorted(ic_all.items(), key=lambda kv: -abs(kv[1])):
+        stats = ic_stats.get(factor, {})
         if ic > 0.05:
             verdict = "有效（正向）"
         elif ic < -0.05:
             verdict = "反向（高因子分 → 低收益）"
         else:
             verdict = "无明显预测力"
-        print(f"{factor:<14} {ic:>8.3f}  {verdict}")
+        if stats.get("days", 0) < 5 and stats.get("samples", 0) > 0:
+            verdict += " ⚠️样本少，参考性弱"
+        print(
+            f"{factor:<14} {ic:>8.3f} {stats.get('icir', 0):>7.2f} "
+            f"{stats.get('days', 0):>4} {stats.get('samples', 0):>6}  {verdict}"
+        )
 
     if args.save:
         save_ic(ic_by_regime)

@@ -112,12 +112,18 @@ class TestIcPipelineConnected:
         from strategies.factor.ic import compute_all_factor_ic
 
         selections = [
-            {"parts": {"momentum": 10 + i, "quality": 50 + i}, "return_pct": i * 0.5, "regime": "bull"}
+            {
+                "date": f"2026-10-{d:02d}",
+                "parts": {"momentum": 10 + i, "quality": 50 + i},
+                "return_pct": i * 0.5,
+                "regime": "bull",
+            }
+            for d in range(1, 3)
             for i in range(10)
         ]
         ic = compute_all_factor_ic(selections)
         assert "momentum" in ic
-        assert ic["momentum"] > 0.9  # 完全正相关
+        assert ic["momentum"] > 0.9  # 两个截面日各自完全正相关
         assert ic["quality"] > 0.9
 
     def test_ic_cli_exists(self):
@@ -133,7 +139,91 @@ class TestIcPipelineConnected:
         assert hasattr(module, "cmd_evaluate")
 
 
-class TestEngineSentimentPart:
+class TestFactorIcCrossSectional:
+    """P0-4 回归：IC 必须逐日**截面**计算（混池会污染截面相关性）。"""
+
+    def test_level_shift_between_dates_not_polluting(self):
+        """两日截面关系相同（各 +1.0），仅第二日收益整体平移——逐日 IC 不受漂移污染。"""
+        from strategies.factor.ic import compute_factor_ic
+
+        selections = []
+        for d, shift in (("2026-10-01", 0.0), ("2026-10-02", 10.0)):
+            for i in range(10):
+                selections.append(
+                    {
+                        "date": d,
+                        "parts": {"momentum": float(i)},
+                        "return_pct": i * 0.5 + shift,  # 第二日收益整体 +10
+                    }
+                )
+        ic = compute_factor_ic(selections, "momentum")
+        assert ic == pytest.approx(1.0, abs=1e-4), f"截面关系被日期间水平漂移污染: {ic}"
+
+    def test_insufficient_cross_section_returns_zero(self):
+        """单日样本 < 5 不算 IC（此前混池后弱相关也会给非零值）。"""
+        from strategies.factor.ic import compute_factor_ic
+
+        selections = []
+        for d in range(10):
+            for i in range(4):  # 每天只有 4 只 → 全部剔除
+                selections.append({"date": f"2026-11-{d:02d}", "parts": {"momentum": float(i)}, "return_pct": i})
+        assert compute_factor_ic(selections, "momentum") == 0.0
+
+    def test_daily_monotone_relation_survives_pooling(self):
+        """每天单调关系保持（IC≈1），与旧混池实现区分度验证。"""
+        from strategies.factor.ic import compute_factor_ic
+
+        selections = []
+        for d in range(3):
+            for i in range(8):
+                selections.append(
+                    {"date": f"2026-12-{d:02d}", "parts": {"quality": float(i)}, "return_pct": float(i) * 2}
+                )
+        assert compute_factor_ic(selections, "quality") == pytest.approx(1.0, abs=1e-4)
+
+    def test_ic_stats_reports_days_and_samples(self):
+        from strategies.factor.ic import compute_factor_ic_stats
+
+        selections = []
+        for d in range(3):
+            for i in range(8):
+                selections.append({"date": f"2026-12-{d:02d}", "parts": {"m": float(i)}, "return_pct": float(i)})
+        stats = compute_factor_ic_stats(selections, "m")
+        assert stats["days"] == 3
+        assert stats["samples"] == 24
+        assert stats["ic"] == pytest.approx(1.0, abs=1e-4)
+
+
+class TestIcToMultiplierFloor:
+    """P1-2 回归：IC 衰减的下限必须是**相对**基础值，不能是绝对地板。"""
+
+    def test_ic_negative_does_not_lift_depressed_base(self):
+        from strategies.factor.ic import ic_to_multiplier
+
+        # base 已被 extreme_drop 压到 0.24；IC<0 时衰减不得把权重拉回
+        base = 0.24
+        mult = ic_to_multiplier(-0.5, base)
+        assert mult <= base  # 修复前 max(0.5, 0.24*0.5)=0.5 > base（权重被拉高）
+
+    def test_floor_is_relative_to_base(self):
+        from strategies.factor.ic import ic_to_multiplier
+
+        base = 1.0
+        # ic=-1 → decay=0 → 下限 0.5×base
+        assert ic_to_multiplier(-1.0, base) == pytest.approx(0.5)
+        # 大 base 时下限按比例放大，不是固定 0.5
+        assert ic_to_multiplier(-1.0, 2.0) == pytest.approx(1.0)
+
+    def test_positive_ic_keeps_base(self):
+        from strategies.factor.ic import ic_to_multiplier
+
+        assert ic_to_multiplier(0.3, 0.8) == pytest.approx(0.8)
+
+    def test_zero_ic_keeps_base(self):
+        from strategies.factor.ic import ic_to_multiplier
+
+        assert ic_to_multiplier(0.0, 0.8) == pytest.approx(0.8)
+
     def test_engine_uses_historical_snapshot(self):
         """engine 的情绪因子按 bars[i].day 取快照（无前瞻）。"""
         import inspect

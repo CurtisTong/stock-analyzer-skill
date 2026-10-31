@@ -479,9 +479,10 @@ def simulate_strategy(ctx: SimContext):
     return {
         "strategy": strategy_name,
         "selections": selection_details[:20],
-        # v1.26：全量选股明细（含 parts 因子分）供因子 IC 评估使用
-        # （前 20 条只是给报告用的摘要，IC 需要全样本）
-        "all_selections": selection_details,
+        # v1.26：全量**候选**明细（每个评估日全部股票，含未入选 top_n 的）供
+        # 因子 IC 评估——IC 需要全截面逐日计算；若只给被选出的 top_n，
+        # 因子分与"是否入选"的排序相关性会自我实现（自证循环，P0-4）。
+        "all_selections": all_selections,
         "returns": [round(r * 100, 2) for r in portfolio_returns],
         "daily_returns": portfolio_daily_returns,
         "period_daily_returns": portfolio_period_daily_returns,
