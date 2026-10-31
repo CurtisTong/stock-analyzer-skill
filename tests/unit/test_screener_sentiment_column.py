@@ -101,3 +101,97 @@ class TestSentimentWeightIsZero:
         base = compute_weighted_score({"quality": 80.0, "momentum": 60.0}, "balanced")
         with_sent = compute_weighted_score({"quality": 80.0, "momentum": 60.0, "sentiment": 99.0}, "balanced")
         assert base == pytest.approx(with_sent)
+
+
+class TestSentimentColumnProductionReachability:
+    """P0-3 回归：参考列必须在生产路径有真实值（此前恒 50.0 常量列）。"""
+
+    def test_attach_writes_real_value(self, monkeypatch):
+        from business.screening_service import attach_sentiment_reference
+
+        import strategies.factors.sentiment as sentiment_mod
+
+        monkeypatch.setattr(sentiment_mod, "sentiment_score", lambda code: 77.5)
+        parts = {}
+        attach_sentiment_reference(parts, "sh600519")
+        assert parts["sentiment"] == pytest.approx(77.5)
+
+    def test_attach_keeps_missing_on_failure(self, monkeypatch):
+        """快照缺失/异常时保持缺失（None → 渲染 "-"），不伪装成 0 或 50。"""
+        from business.screening_service import attach_sentiment_reference
+
+        import strategies.factors.sentiment as sentiment_mod
+
+        def _boom(code):
+            raise RuntimeError("snapshot broken")
+
+        monkeypatch.setattr(sentiment_mod, "sentiment_score", _boom)
+        parts = {}
+        attach_sentiment_reference(parts, "sh600519")
+        assert "sentiment" not in parts
+
+    def test_normalization_preserves_real_sentiment(self):
+        """归一化不得把真实情绪参考值改写成中性 50（此前恒 50）。"""
+        from business.screening_pipeline import _apply_factor_normalization
+
+        rows = []
+        for i in range(30):
+            rows.append(
+                {
+                    "code": f"sh6000{i:03d}",
+                    "score": 50.0,
+                    "quality": float(i),
+                    "momentum": float(i),
+                    "sentiment": 77.5 if i % 2 == 0 else None,
+                }
+            )
+        _apply_factor_normalization(rows, "balanced")
+        for i, r in enumerate(rows):
+            if i % 2 == 0:
+                assert r["sentiment"] == pytest.approx(77.5), r["sentiment"]
+            else:
+                assert r["sentiment"] is None, r["sentiment"]
+
+    def test_analyze_stock_carries_sentiment(self, monkeypatch):
+        """生产路径端到端：_analyze_stock 输出的 row 带真实情绪值。"""
+        from business.screening_service import AnalyzeContext, ScreeningService
+
+        import strategies.factors.sentiment as sentiment_mod
+
+        monkeypatch.setattr(
+            ScreeningService,
+            "_compute_features",
+            lambda self, code, bars: {
+                "ret20": 1.0,
+                "rsi": 50,
+                "macd_signal": 0,
+                "vol_price_signal": 0,
+                "trend": 0,
+                "volume_ratio": 1.5,
+            },
+        )
+        monkeypatch.setattr(sentiment_mod, "sentiment_score", lambda code: 81.25)
+        quote = {
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "price": 1500.0,
+            "amount": 5e7,
+            "total_cap": 2000.0,
+            "change_pct": 1.0,
+            "pe": 25.0,
+            "pb": 7.0,
+        }
+        ctx = AnalyzeContext(
+            code="sh600519",
+            quote=quote,
+            fin_records=[{}],
+            strategy="balanced",
+            filters={"min_amount": 0, "min_cap": 0, "exclude_loss": False},
+            kline_bars=[],
+            phase1=True,
+            regime=None,
+            no_chip=False,
+        )
+        row = ScreeningService()._analyze_stock(ctx)
+        assert row.get("rejected") == []
+        assert row["sentiment"] == pytest.approx(81.2)  # build_result_row 保留 1 位小数

@@ -286,6 +286,8 @@ class ScreeningService:
         parts = compute_factor_parts(fin, quote_dict, features, industry, weights=get_strategy(ctx.strategy))
         if ctx.no_chip:
             parts["chip"] = 50
+        # 情绪参考列（v1.26 阶段 1）：权重 0 不影响评分，只作参考
+        attach_sentiment_reference(parts, ctx.code)
 
         # 两阶段策略：Stage 1 硬条件过滤（review#2）
         # 走锁内 API 而非直读 STRATEGIES
@@ -744,6 +746,22 @@ def _factor_out(parts: dict, key: str):
     """
     v = parts.get(key)
     return None if v is None else round(v, 1)
+
+
+def attach_sentiment_reference(parts: dict, code: str) -> None:
+    """给 parts 补情绪参考值（v1.26 阶段 1）：权重 0 不影响评分，只作参考列。
+
+    此前情绪因子权重为 0 被 compute_factor_parts 跳过，归一化层又按注册表
+    全键把缺失填成中性 50——`--show-sentiment` 恒显 50.0 常量列（零信息，
+    CHANGELOG 声称的"参考列"实际不存在）。sentiment_score 只读本地快照
+    文件（无网络请求）；快照缺失/不在池/异常时保持缺失（None → 渲染 "-"）。
+    """
+    try:
+        from strategies.factors.sentiment import sentiment_score
+
+        parts["sentiment"] = sentiment_score(code)
+    except Exception as e:
+        logger.debug("情绪参考值计算失败 %s: %s", code, e)
 
 
 def build_result_row(ctx: ResultRowContext):

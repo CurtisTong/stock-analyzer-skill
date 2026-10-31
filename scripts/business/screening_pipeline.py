@@ -154,7 +154,10 @@ def _apply_factor_normalization(rows, strategy, regime=None):
     valid_rows = [r for r in rows if not r.get("rejected")]
     if len(valid_rows) < 3:
         return
-    keys = get_factor_keys()  # 从注册表自动获取，与 normalize_factors_batch 同步
+    # 情绪是参考列（0-100 绝对分，权重恒 0），不做分位归一化——归一化会把
+    # "绝对情绪强度"变成"截面分位"，且让缺失值误填成中性 50（此前
+    # --show-sentiment 恒显 50.0 常量列，零信息）。
+    keys = [k for k in get_factor_keys() if k != "sentiment"]
     # 缺失因子必须保持缺失（None），不能预填 0：
     # 预填 0 会让缺值股在分位数归一化中被排到该因子最低分位，
     # 正是 v1.24.0 要修掉的"缺值当 0"缺陷——修复在归一化层做了，
