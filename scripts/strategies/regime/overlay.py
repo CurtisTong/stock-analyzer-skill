@@ -206,6 +206,7 @@ def compute_overlay_weights(
     national_team: bool = False,
     ic_multipliers: Optional[Dict[str, float]] = None,
     sentiment_multipliers: Optional[Dict[str, float]] = None,
+    use_persisted_ic: bool = True,
 ) -> Dict[str, float]:
     """对原策略权重施加市场状态 overlay，返回归一化后的新权重。
 
@@ -230,6 +231,8 @@ def compute_overlay_weights(
         national_team: v2.9 是否触发国家队放量 chip 保底
         ic_multipliers: v3.0 {factor: ic_value} dict，IC ∈ [-1, 1]
         sentiment_multipliers: v3.1 {factor: multiplier} dict（市场级情绪第 5 层）
+        use_persisted_ic: v1.26 是否自动读取 data/factor_ic.json 的 IC
+            （实盘 True；回测必须显式 False，避免当前校准 IC 套历史窗口）
 
     Returns:
         调节并归一化后的新权重 dict（和 = 1.0）
@@ -263,6 +266,12 @@ def compute_overlay_weights(
         multipliers["chip"] = max(multipliers["chip"], 0.6)
 
     # v3.0: IC 动态 multiplier（覆盖式，floor 0.5）
+    # P1-3 修复：ic_multipliers 此前唯一的传入点是 RegimeSmoother（无人实例化），
+    # load_ic 一直是零调用方——消费端空转。无显式传入时自动读取 data/factor_ic.json
+    # （7 天 TTL，陈旧/缺失视为无 IC）。回测路径必须显式 use_persisted_ic=False：
+    # 实盘用"发布物"IC 合理，回测把当前校准的 IC 套到历史窗口会引入超前信息。
+    if ic_multipliers is None and use_persisted_ic:
+        ic_multipliers = _load_fresh_ic(str(regime))
     if ic_multipliers:
         from strategies.factor.ic import ic_to_multiplier
 
@@ -293,6 +302,43 @@ def compute_overlay_weights(
     # 先归一化保证总和精确为 1.0，再 round 到 4 位
     normalized = {k: v / total for k, v in adjusted.items()}
     return {k: round(v, 4) for k, v in normalized.items()}
+
+
+def _load_fresh_ic(regime: str) -> Optional[Dict[str, float]]:
+    """读取持久化 IC（7 天 TTL）供 overlay 消费（P1-3 消费端接通）。
+
+    返回 {factor: ic_value}；文件缺失/陈旧/损坏返回 None（视为无 IC，不调整）。
+    精确 regime 缺失时回退任一份（历史兼容）。
+    """
+    import json
+    from datetime import datetime, timedelta
+
+    from strategies.factor.ic import IC_FILE
+
+    try:
+        if not IC_FILE.exists():
+            return None
+        raw = json.loads(IC_FILE.read_text(encoding="utf-8"))
+        updated = str(raw.get("updated", ""))
+        if updated:
+            try:
+                ts = datetime.fromisoformat(updated)
+                if datetime.now() - ts > timedelta(days=7):
+                    logger.debug("IC 已陈旧（%s），不应用", updated)
+                    return None
+            except ValueError:
+                return None
+        ic_by_regime = raw.get("ic", {})
+        if not isinstance(ic_by_regime, dict) or not ic_by_regime:
+            return None
+        if regime in ic_by_regime:
+            return ic_by_regime[regime]
+        for ic in ic_by_regime.values():
+            return ic
+        return None
+    except Exception as e:
+        logger.debug("IC 读取失败: %s", e)
+        return None
 
 
 def _blend_strategy_weights(

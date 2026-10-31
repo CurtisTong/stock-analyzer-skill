@@ -444,3 +444,52 @@ class TestSentimentObservableInBacktest:
             "情绪因子在回测中不可达（P0-2 回归）"
         )
         assert 0 < hit[0]["parts"]["sentiment"] <= 100
+
+
+class TestIcConsumerWired:
+    """P1-3 回归：持久化 IC 必须被 overlay 消费（load_ic 不再是零调用方）。"""
+
+    def _write_ic(self, monkeypatch, tmp_path, updated, ic_by_regime):
+
+        from strategies.factor import ic as ic_mod
+
+        p = tmp_path / "factor_ic.json"
+        p.write_text(json.dumps({"updated": updated, "ic": ic_by_regime}), encoding="utf-8")
+        monkeypatch.setattr(ic_mod, "IC_FILE", p)
+        return p
+
+    def test_fresh_negative_ic_applies_decay(self, monkeypatch, tmp_path):
+        """新鲜 IC<0 → 无显式传参也应用衰减（消费端接通）。"""
+        from datetime import datetime, timedelta
+
+        from strategies.regime.classifier import RegimeState
+        from strategies.regime.overlay import compute_overlay_weights
+
+        updated = (datetime.now() - timedelta(hours=1)).isoformat()
+        self._write_ic(monkeypatch, tmp_path, updated, {"range": {"momentum": -0.5}})
+        weights = {"quality": 0.3, "valuation": 0.2, "momentum": 0.2, "liquidity": 0.1, "volatility": 0.1}
+        base = compute_overlay_weights(weights, RegimeState.RANGE, use_persisted_ic=False)
+        adjusted = compute_overlay_weights(weights, RegimeState.RANGE)
+        assert adjusted["momentum"] < base["momentum"]
+
+    def test_stale_ic_not_applied(self, monkeypatch, tmp_path):
+        """7 天前的 IC 视为过期，不应用。"""
+        from datetime import datetime, timedelta
+
+        from strategies.regime.classifier import RegimeState
+        from strategies.regime.overlay import compute_overlay_weights
+
+        updated = (datetime.now() - timedelta(days=10)).isoformat()
+        self._write_ic(monkeypatch, tmp_path, updated, {"range": {"momentum": -0.5}})
+        weights = {"quality": 0.3, "valuation": 0.2, "momentum": 0.2, "liquidity": 0.1, "volatility": 0.1}
+        base = compute_overlay_weights(weights, RegimeState.RANGE, use_persisted_ic=False)
+        assert compute_overlay_weights(weights, RegimeState.RANGE) == base
+
+    def test_missing_ic_file_noop(self, monkeypatch, tmp_path):
+        """无 IC 文件 → 行为与关闭一致。"""
+        from strategies.regime.classifier import RegimeState
+        from strategies.regime.overlay import compute_overlay_weights
+
+        weights = {"quality": 0.3, "valuation": 0.2, "momentum": 0.2, "liquidity": 0.1, "volatility": 0.1}
+        base = compute_overlay_weights(weights, RegimeState.RANGE, use_persisted_ic=False)
+        assert compute_overlay_weights(weights, RegimeState.RANGE) == base

@@ -309,7 +309,7 @@ national_team → ic_multipliers），新增第 5 层 `sentiment_multipliers`：
 
 | 项 | 状态 |
 | --- | --- |
-| engine 按**历史时点**计算 sentiment parts（`sentiment_score_at(code, day)`）| ✅ 无前瞻 |
+| engine 按**历史时点**计算 sentiment parts（`sentiment_score_at(code, bars[i-1].day)`，**T-1 语义**：决策日用前一交易日快照——涨停池为收盘后数据，当日快照用于当日决策有半个前视；且当日涨停个股被跳过规则排除，其分数永不可观测）| ✅ 无前瞻 + 可观测 |
 | engine 把 `parts` 写进 selections | ✅ **修掉了 v3.0 的空转**——此前引擎算了 parts 不输出，`compute_all_factor_ic`/`save_ic`/`load_ic` 全无调用方，IC 机制整条链路是纸面的 |
 | metrics 透传全量 selections | ✅（原只有前 20 条摘要，IC 样本不足）|
 | `scripts/factor_ic.py` IC 评估 CLI | ✅ 可跑：`python3 scripts/factor_ic.py --strategy growth_momentum --days 90` |
@@ -363,7 +363,7 @@ national_team → ic_multipliers），新增第 5 层 `sentiment_multipliers`：
 | `scripts/strategies/regime/sentiment_overlay.py`：市场级指标 + 状态判定 + multiplier 映射 | ✅ |
 | `compute_overlay_weights` 新增第 5 层 `sentiment_multipliers`（叠在 IC 层之后，乘法叠加）| ✅ |
 | `SimContext.use_sentiment_overlay` 开关（**默认关闭**——阈值待样本校准）| ✅ |
-| `_sentiment_overlay_multipliers(day)`：按每期日期快照计算（无前瞻）| ✅ |
+| `_sentiment_overlay_multipliers(day)`：按每期**前一交易日**快照计算（与个股情绪因子同因：收盘后数据 + 涨停跳过）| ✅ 无前瞻 |
 | `sentiment_panel.py show` 展示市场级情绪（封板率/板块集中度/情绪状态/overlay 调整）| ✅ |
 | 单测 14 项（`tests/unit/test_sentiment_overlay.py`）| ✅ |
 

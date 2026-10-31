@@ -9,6 +9,22 @@ from common import to_float, clamp
 from strategies.thresholds import get_industry_threshold
 
 
+def _cumulative_scale(fin: dict) -> float:
+    """累计口径 → 年度口径缩放系数（P1-6 修复）。
+
+    季报的 EPS/ROE 是年初至今**累计**值（三季报 = 前 9 个月）；与年度行业
+    阈值（roe_excellent 等）比较前必须按报告期折算，否则累计 ROE 与年度
+    基准比较会系统性偏低——同一家公司三季报分数显著低于年报分数。
+    年报（12 月）返回 1.0；日期无法解析时保守返回 1.0（不缩放）。
+    """
+    report_date = str(fin.get("report_date", "") or "")
+    if len(report_date) >= 7 and report_date[5:7].isdigit():
+        month = int(report_date[5:7])
+        if 1 <= month <= 11:
+            return 12.0 / month
+    return 1.0
+
+
 def quality_score(fin: dict, industry: str = "默认") -> float:
     """质量因子评分（行业差异化）。满分 100。
     fin 可包含多期数据（roe_trend 列表），用于 ROE 趋势判断。
@@ -33,8 +49,9 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
         return 50.0
 
     score = 0
-    # ROE：相对于行业优秀值评分
-    score += clamp(roe / roe_excellent * 28)
+    # ROE：相对于行业优秀值评分（累计口径按报告期缩放到年度）
+    roe_scale = _cumulative_scale(fin)
+    score += clamp(roe * roe_scale / roe_excellent * 28)
 
     # ROE 趋势：review#4 修复
     # 旧逻辑要求全序列严格单调（单期波动即打破），改为"下降期占比"

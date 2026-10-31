@@ -142,6 +142,83 @@ class TestVisibleFin:
         assert result == fin
 
 
+class TestVisibleFinPreciseDeadline:
+    """P1-7 回归：披露日按法定截止日计算（三季报 10-31 而非 90 天后）。"""
+
+    def test_q3_visible_after_oct31(self):
+        """三季报 10-31 截止：11 月初即可见（修复前的 90 天窗口要等到 12-29）。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-09-30", "eps": 2.5}
+        assert _visible_fin(fin, "2025-11-05") == fin
+
+    def test_q3_hidden_before_oct31(self):
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-09-30", "eps": 2.5}
+        assert _visible_fin(fin, "2025-10-25") == {}
+
+    def test_annual_deadline_next_april30(self):
+        """年报截止次年 4-30。"""
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2024-12-31", "eps": 2.5}
+        assert _visible_fin(fin, "2025-04-30") == fin
+        assert _visible_fin(fin, "2025-04-25") == {}
+
+    def test_h1_deadline_aug31(self):
+        from backtest.engine import _visible_fin
+
+        fin = {"report_date": "2025-06-30", "eps": 2.5}
+        assert _visible_fin(fin, "2025-08-31") == fin
+        assert _visible_fin(fin, "2025-08-01") == {}
+
+
+class TestVisibleFinRecordsFallback:
+    """P1-7 回归：最新期未披露时必须回退到上一期已披露财报。"""
+
+    def _records(self):
+        return [
+            {"report_date": "2024-12-31", "eps": 2.5, "period": "FY2024"},
+            {"report_date": "2025-09-30", "eps": 3.0, "period": "Q3-2025"},
+        ]
+
+    def test_latest_period_when_both_visible(self):
+        from backtest.engine import _visible_fin_records
+
+        # 2025-11-05：Q3 已披露 → 选最新期
+        fin = _visible_fin_records(self._records(), "2025-11-05")
+        assert fin.get("period") == "Q3-2025"
+
+    def test_falls_back_to_prev_period(self):
+        from backtest.engine import _visible_fin_records
+
+        # 2025-10-25：Q3 未到 10-31 截止，回退到已披露的 FY2024
+        fin = _visible_fin_records(self._records(), "2025-10-25")
+        assert fin.get("period") == "FY2024"
+
+    def test_no_visible_period_returns_empty(self):
+        from backtest.engine import _visible_fin_records
+
+        # 2025-01-05：两份财报都未披露 → {}
+        assert _visible_fin_records(self._records(), "2025-01-05") == {}
+
+    def test_accepts_finance_record_objects(self):
+        """兼容 to_dict() 对象（get_finance 返回的 FinanceRecord）。"""
+        from backtest.engine import _visible_fin_records
+
+        class _Rec:
+            def __init__(self, d):
+                self._d = d
+
+            def to_dict(self):
+                return self._d
+
+        records = [_Rec({"report_date": "2024-12-31", "eps": 2.5, "period": "FY2024"})]
+        fin = _visible_fin_records(records, "2025-05-01")
+        assert fin.get("period") == "FY2024"
+
+
 class TestSimulateStrategy:
     """策略模拟测试。"""
 

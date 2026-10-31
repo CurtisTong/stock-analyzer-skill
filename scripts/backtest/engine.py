@@ -69,30 +69,92 @@ def _build_hist_quote(bars, i, fin, code):
     }
 
 
-# A 股财报披露延迟（天）。季报/年报在报告截止日后的法定披露窗口：
-#   一季报 4/30、半年报 8/31、三季报 10/31、年报 4/30。
-#   取 90 天作为保守上限，确保回测中仅使用已公开披露的财务数据。
-_FINANCE_DISCLOSURE_LAG_DAYS = 90
+# A 股财报法定披露截止日（报告期 → 最晚披露日）：
+#   年报 12-31 → 次年 4-30；一季报 03-31 → 4-30；
+#   半年报 06-30 → 8-31；三季报 09-30 → 10-31。
+# 此前统一用 90 天保守窗口：三季报实际 10 月底已披露，引擎却要到 12 月底
+# 才放行——两个月窗口内该公司 quality 因子恒为缺失（中性 50）（P1-7）。
+_FINANCE_DISCLOSURE_LAG_DAYS = 90  # 异常 report_date 的回退值
+
+
+def _disclosure_deadline(report_date: str):
+    """财报法定披露截止日（datetime）；report_date 无法识别时返回 None。"""
+    from datetime import datetime
+
+    try:
+        rd = datetime.strptime(report_date[:10], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        return None
+    month = rd.month
+    if month == 12:  # 年报 → 次年 4-30
+        return datetime(rd.year + 1, 4, 30)
+    if month == 3:  # 一季报 → 4-30
+        return datetime(rd.year, 4, 30)
+    if month == 6:  # 半年报 → 8-31
+        return datetime(rd.year, 8, 31)
+    if month == 9:  # 三季报 → 10-31
+        return datetime(rd.year, 10, 31)
+    return None
+
+
+def _fin_visible(fin: dict, trade_day: str) -> bool:
+    """该财报在 trade_day 时是否已公开披露（按法定截止日判断）。"""
+    if not isinstance(fin, dict):
+        return False
+    report_date = fin.get("report_date", "")
+    if not report_date or not trade_day:
+        return True  # 无 report_date 保留原行为（保守可见）
+    try:
+        from datetime import datetime, timedelta
+
+        rd = datetime.strptime(report_date[:10], "%Y-%m-%d")
+        td = datetime.strptime(trade_day[:10], "%Y-%m-%d")
+        deadline = _disclosure_deadline(report_date)
+        if deadline is None:
+            deadline = rd + timedelta(days=_FINANCE_DISCLOSURE_LAG_DAYS)
+        return td >= deadline
+    except (ValueError, TypeError):
+        return True  # 日期解析失败，保守可见
 
 
 def _visible_fin(fin: dict, trade_day: str) -> dict:
     """返回交易日 trade_day 时已公开披露的财务数据。
 
-    若 fin.report_date + 披露延迟 > trade_day，说明该财报在交易日
-    尚未公开，返回空 dict 消除前瞻偏差。否则返回完整 fin。
+    若 fin 尚未到法定披露截止日，返回空 dict 消除前瞻偏差；否则返回完整 fin。
+    兼容旧签名：单期 dict 入口（engine 主路径已改用多期回退版本）。
     """
-    report_date = fin.get("report_date", "") if isinstance(fin, dict) else ""
-    if not report_date or not trade_day:
-        # 无 report_date 或 trade_day 信息，保守返回 fin（维持原行为）
-        return fin if isinstance(fin, dict) else {}
-    try:
-        rd = datetime.strptime(report_date[:10], "%Y-%m-%d")
-        td = datetime.strptime(trade_day[:10], "%Y-%m-%d")
-        if rd + timedelta(days=_FINANCE_DISCLOSURE_LAG_DAYS) > td:
-            return {}  # 财报尚未披露，消除前瞻
-    except (ValueError, TypeError):
-        pass  # 日期解析失败，保守返回 fin
-    return fin if isinstance(fin, dict) else {}
+    return fin if _fin_visible(fin, trade_day) else {}
+
+
+def _visible_fin_records(fin_records: list, trade_day: str) -> dict:
+    """从多期财报中选择 trade_day 时已披露的**最新一期**（P1-7 修复）。
+
+    此前只取 fin_records[0]（最新报告期）：Q3 报告披露但未到 90 天窗口时
+    返回空 dict，且不**回退到上一期已披露的年报**——质量因子长时间缺失。
+    披露日精确化后仍可能"最新期未披露、上一期已披露"（如 11 月跑 10-31
+    截止的三季报之前），此时必须用上一期。
+    """
+    best = None
+    from datetime import datetime
+
+    def _rd(f):
+        try:
+            return datetime.strptime(str(f.get("report_date", ""))[:10], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            return None
+
+    for rec in fin_records:
+        fin = rec.to_dict() if hasattr(rec, "to_dict") else rec
+        if not _fin_visible(fin, trade_day):
+            continue
+        rd = _rd(fin)
+        if best is None:
+            best = fin  # 无 report_date 的可见记录也兜底入选（不伪装缺失）
+            continue
+        best_rd = _rd(best) if best else None
+        if rd is not None and (best_rd is None or rd > best_rd):
+            best = fin
+    return best or {}
 
 
 @dataclass
@@ -225,14 +287,15 @@ def simulate_strategy(ctx: SimContext):
         try:
             # 解构 (records, meta) tuple
             fin_records, _meta = get_finance(normalize_finance_code(code))
-            fin = fin_records[0].to_dict() if fin_records else {}
+            # v1.26 多期保留：_visible_fin_records 需要全部报告期做"已披露"
+            # 回退（最新期未披露时用上一期已披露的财报），不再只留最新一期。
             if _meta is not None:
                 source = getattr(_meta, "source", None)
                 is_degraded = getattr(_meta, "is_degraded", False)
         except Exception as e:
             logger.warning("获取财务数据失败 %s: %s", code, e)
-            fin = {}
-        return industry, fin, source, is_degraded
+            fin_records = []
+        return industry, fin_records, source, is_degraded
 
     finance_sources = set()
     finance_degraded = False
@@ -240,14 +303,14 @@ def simulate_strategy(ctx: SimContext):
     for code, payload in fin_results.items():
         # 兼容旧签名（无 source/is_degraded）
         if len(payload) == 2:
-            industry, fin = payload
+            industry, fin_records = payload
         else:
-            industry, fin, src, deg = payload
+            industry, fin_records, src, deg = payload
             if src:
                 finance_sources.add(src)
             finance_degraded = finance_degraded or deg
         industry_cache[code] = industry
-        fin_cache[code] = fin
+        fin_cache[code] = fin_records
 
     # 指数级 regime 判定数据源（复用 kline_data，缺失时拉取一次）
     index_bars = _fetch_index_bars_for_backtest(kline_data)
@@ -266,7 +329,7 @@ def simulate_strategy(ctx: SimContext):
         if len(bars) < min_history + holding_days:
             continue
 
-        fin_raw = fin_cache.get(code, {})
+        fin_raw = fin_cache.get(code, [])
         industry = industry_cache.get(code, "manufacturing")
 
         i = min_history
@@ -284,8 +347,9 @@ def simulate_strategy(ctx: SimContext):
                 i += holding_days
                 continue
 
-            # 仅使用交易日已披露的财务数据，消除前瞻偏差
-            fin = _visible_fin(fin_raw, bars[i].day)
+            # 仅使用交易日已披露的财务数据，消除前瞻偏差（多期回退：最新期未
+            # 披露时用上一期已披露的财报，避免质量因子长时间缺失）
+            fin = _visible_fin_records(fin_raw, bars[i].day)
             hist_quote = _build_hist_quote(bars, i, fin, code)
 
             # 评分同源化：与 screener 的 compute_all_factors 同一套因子
@@ -366,6 +430,9 @@ def simulate_strategy(ctx: SimContext):
                 regime,
                 extreme_drop=extreme_drop,
                 sentiment_multipliers=sentiment_mults,
+                # 回测不读持久化 IC：实盘 IC 是"当前校准发布物"，套到历史
+                # 窗口会引入超前信息（P1-3）。
+                use_persisted_ic=False,
             )
 
             # 打分：缺失因子按中性 50 计（不是 0）。

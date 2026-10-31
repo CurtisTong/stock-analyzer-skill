@@ -100,23 +100,52 @@ BENCHMARKS = [
 ]
 
 
-def load_codes(arg_codes: str | None) -> list[str]:
-    """加载股票代码：CLI 参数 → 默认 50+ 只。
+def _dedup_codes(codes: list[str]) -> list[str]:
+    """去重（跨类别有重复）。"""
+    seen = set()
+    deduped = []
+    for c in codes:
+        if c not in seen:
+            seen.add(c)
+            deduped.append(c)
+    return deduped
+
+
+def _load_sector_pool() -> list[str]:
+    """全量 sector 池（scripts/data/sector_stocks.json，14 板块 × 20 = 280 只）。"""
+    import json
+
+    path = Path(__file__).resolve().parent / "data" / "sector_stocks.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    codes = []
+    for value in data.values():
+        if isinstance(value, list):
+            codes.extend(value)
+    return _dedup_codes(codes)
+
+
+def load_codes(arg_codes: str | None, pool_type: str = "default") -> list[str]:
+    """加载股票代码：CLI 参数 → 按 pool_type 绑定真实 universe（P1-1 修复）。
+
+    --pool-type 此前只作为字符串写进 validation JSON，两个池跑的是同一批
+    55 只代码——"双池联合判定"变成同一结果自我验证（2026-08-26 池效应
+    复盘的核心问题）。现在：
+      default → 全量 sector 池（~280 只）
+      large   → 跨板块大票池（DEFAULT_CODES 55 只）
 
     空字符串或仅 ',' 时也走默认（防止 CLI 传空参数意外跑空股票池）。
+    sector 池读取失败时回退 DEFAULT_CODES（不阻断回测）。
     """
     if arg_codes:
         parsed = [c.strip() for c in arg_codes.split(",") if c.strip()]
         if parsed:
             return parsed
-    # 去重（DEFAULT_CODES 跨类别有重复）
-    seen = set()
-    deduped = []
-    for c in DEFAULT_CODES:
-        if c not in seen:
-            seen.add(c)
-            deduped.append(c)
-    return deduped
+    if pool_type == "large":
+        return _dedup_codes(DEFAULT_CODES)
+    return _load_sector_pool() or _dedup_codes(DEFAULT_CODES)
 
 
 def run_one_strategy(
@@ -274,7 +303,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    codes = load_codes(args.codes)
+    codes = load_codes(args.codes, args.pool_type)
     strategies = [s.strip() for s in args.strategies.split(",") if s.strip()]
 
     print(f"📊 股票池: {len(codes)} 只")

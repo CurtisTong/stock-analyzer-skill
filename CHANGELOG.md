@@ -50,7 +50,7 @@
 ### Added
 
 - **情绪因子（三阶段落地，设计文档 `docs/design/sentiment-factor-design.md`，股票池端点经 5 股实证校准）**：
-  - **个股级情绪因子**：`scripts/strategies/factors/sentiment.py`（北向资金/融资余额/换手率/涨停生态等情绪度量）+ 历史面板 `scripts/data/sentiment_panel.py`（385 行快照级存储，增量累积）；screener 输出新增情绪因子参考列；
+  - **个股级情绪因子**：`scripts/strategies/factors/sentiment.py`（连板高度/封板质量/封单强度/板块热度/换手率等情绪度量，数据源为东财涨停池+炸板池）+ 历史面板 `scripts/data/sentiment_panel.py`（385 行快照级存储，增量累积）；screener 输出新增情绪因子参考列；
   - **回测 factor IC 链路接通**：`scripts/factor_ic.py` 与 backtest engine 打通——v3.0 的 IC 管线段此前从未真正执行（整条空转），本次实现面板读取 → 因子生成 → IC 计算的完整数据流；backtest 新增时点情绪评分（point-in-time：只用截至决策日的快照，防前视偏差）；
   - **市场级情绪 overlay 层**：`scripts/strategies/regime/sentiment_overlay.py`（regime 策略第 5 层），用市场情绪/赚钱效应等时序指标生成 overlay 信号，指标按日逐点计算（不依赖截面快照）；
   - **快照定时采集**：工作日 15:30 定时任务自动采集情绪面板。

@@ -120,8 +120,10 @@ class TestOverlayFifthLayer:
         from strategies.regime.classifier import RegimeState
         from strategies.regime.overlay import compute_overlay_weights
 
-        base = compute_overlay_weights(self._weights(), RegimeState.RANGE)
-        adjusted = compute_overlay_weights(self._weights(), RegimeState.RANGE, sentiment_multipliers={"momentum": 0.5})
+        base = compute_overlay_weights(self._weights(), RegimeState.RANGE, use_persisted_ic=False)
+        adjusted = compute_overlay_weights(
+            self._weights(), RegimeState.RANGE, sentiment_multipliers={"momentum": 0.5}, use_persisted_ic=False
+        )
         assert adjusted["momentum"] < base["momentum"]
 
     def test_layer_absent_is_noop(self):
@@ -129,8 +131,10 @@ class TestOverlayFifthLayer:
         from strategies.regime.classifier import RegimeState
         from strategies.regime.overlay import compute_overlay_weights
 
-        base = compute_overlay_weights(self._weights(), RegimeState.RANGE)
-        same = compute_overlay_weights(self._weights(), RegimeState.RANGE, sentiment_multipliers=None)
+        base = compute_overlay_weights(self._weights(), RegimeState.RANGE, use_persisted_ic=False)
+        same = compute_overlay_weights(
+            self._weights(), RegimeState.RANGE, sentiment_multipliers=None, use_persisted_ic=False
+        )
         assert base == same
 
     def test_weights_sum_to_one(self):
@@ -142,6 +146,7 @@ class TestOverlayFifthLayer:
             self._weights(),
             RegimeState.RANGE,
             sentiment_multipliers={"momentum": 0.5, "quality": 1.2},
+            use_persisted_ic=False,
         )
         assert sum(w.values()) == pytest.approx(1.0, abs=1e-3)
 

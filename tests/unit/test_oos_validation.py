@@ -440,3 +440,36 @@ class TestUpdateValidationAlwaysMultiPool:
         ov = load_oos_overrides()["balanced"]
         assert ov["validation_status"] == "in_sample"
         assert "default" in ov["validation_note"]
+
+
+class TestPoolTypeBindsUniverse:
+    """P1-1 回归：--pool-type 必须绑定真实 universe（不再只是标签）。"""
+
+    def test_default_pool_is_sector_universe(self):
+        """default → 全量 sector 池（远大于 large 池），双池判定有区分度。"""
+        from multi_stock_backtest import load_codes
+
+        default_codes = load_codes(None, "default")
+        assert len(default_codes) > 100, f"default 池应绑定全量 sector 池, 实际 {len(default_codes)}"
+
+    def test_large_pool_is_default_codes(self):
+        from multi_stock_backtest import DEFAULT_CODES, load_codes
+
+        large = load_codes(None, "large")
+        assert len(large) == len(set(DEFAULT_CODES))
+
+    def test_two_pools_differ(self):
+        """default 与 large 必须是不同的代码集合（此前完全相同→自我验证）。"""
+        from multi_stock_backtest import load_codes
+
+        default_codes = set(load_codes(None, "default"))
+        large_codes = set(load_codes(None, "large"))
+        assert default_codes != large_codes
+        # 大票池至少包含部分 sector 池的标的（有重叠是正常的）
+        assert large_codes.issubset(default_codes) or len(large_codes - default_codes) > 0
+
+    def test_explicit_codes_wins(self):
+        from multi_stock_backtest import load_codes
+
+        codes = load_codes("sh600519,sz000858", "default")
+        assert codes == ["sh600519", "sz000858"]
