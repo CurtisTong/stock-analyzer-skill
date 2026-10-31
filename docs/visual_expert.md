@@ -4,7 +4,7 @@
 >
 > 与 [user_expert.md](./user_expert.md) 的关系：用户专家决定"用户愿不愿 + 会不会"，视觉专家决定"用户看着累不累 + 记住什么"。两份文档串联使用，用户专家 ✅ 后再过视觉专家。
 >
-> 状态：active（v2.2.0 起沉淀为独立审查方法论）
+> 状态：active（v2.2.0 起沉淀为独立审查方法论；2026-10-31 季度审查修订）
 >
 > 数据单位：审查结果用 ✅/⚠️/❌ 三态，呈现指标以 px / 字符数 / 对比度计。
 
@@ -146,13 +146,13 @@ flowchart LR
 | 标点       | 优先用半角 `,.;:` ，标点不空格                                             | 中文逗号/全角数字配半角空格   |
 | 数字格式   | 千分位逗号（`1,650`），百分号空格后接（`+18%`），货币符号前缀（`¥1,652`） | 数字无单位（"现价 1,652"）  |
 
-> 详细首尾两行模板见 [methodology.md §四 输出模板](../methodology.md)。
+> 详细首尾两行模板见 [skills/_shared/references/output-template.md](../skills/_shared/references/output-template.md)。
 
 ## 六、代表场景（v2.2.0 案例）
 
 | 场景                  | 视角作用            | 优化前                                     | 优化后                                                          |
 | --------------------- | ------------------- | ------------------------------------------ | --------------------------------------------------------------- |
-| README 全面重构（v1.3.3）| 信息密度 -58%，眼一眼可懂 | 20638 bytes，5 屏首屏，结构松散         | ~8700 bytes，Hero 三件套 + 5 min path + 4 场景 + 13 skill 速查表 |
+| README 全面重构（v1.3.3）| 信息密度 -58%，眼一眼可懂 | 20638 bytes，5 屏首屏，结构松散         | ~8700 bytes，Hero 三件套 + 5 min path + 4 场景 + 13 个 skill 速查表（当时 13 个，现 12 个） |
 | 12 个 Skill 速查表（v1.3.3）| 类别分组 + emoji icon | 12 个平铺链接                          | 7 大类分组（决策/环境/选股/组合/技术/验证/研究/学习/辅助）     |
 | 5 个 mermaid 流程图（v1.5+）| 场景流程可视化  | 文字"先 X 再 Y"                          | 每个典型场景一张 flowchart LR 图                                |
 | 终端输出首尾两行（v1.8.0）| 一眼抓住结论 + 数据源| 5 屏长文                             | 首行结论 + 尾行数据源 + 时间戳                                  |
@@ -160,13 +160,17 @@ flowchart LR
 | `<details>` 折叠（v1.5+）| 主信息全展开，次信息折叠 | 全部平铺再长                          | details/summary 把次要信息折叠                                  |
 | Status badge 视觉强调（v1.8.0）| 关键指标在 Hero 显示 | 无徽章                                  | 5 个 badge（version / python / license / deps / skills）    |
 | 🌟 视觉强调 stock-debate（v1.3.3）| 招牌功能高亮       | 12 个 skill 平铺                         | `stock-debate` 独立成行 + 🌟 emoji + 加粗 + 加大字号              |
+| brief emoji 评级对齐（2026-10-31）| 颜色语义 4 象限落地到首行 | 首行 emoji 按当日涨跌取色，"谨慎回避"评级却配 🟢 | 按评级定调：≥75 🟢 / ≥55 🟡 / 其余 🔴（涨跌用 +/-% 数字表达）    |
+| ★ 星标清理（2026-10-31）  | 遵守 output-template 禁星规则 | sector/portfolio 表格用 ★★★★★ 评分符号 | 改字母 A/B + 🟢/🟡/🔴 状态（output-template.md 禁用 ⭐）          |
+| 形态字段防泄露（2026-10-31）| 终端不出现原始 dict | 技术形态直接打印 dict repr，用户看天书 | 展示 name/type，未知回落"未知形态"                              |
 
 ## 七、引用来源
 
 - 项目历史角色定义见 [CHANGELOG.md §"v1.3.3"](../CHANGELOG.md)：「本包最独特的卖点」+「stock-debate 独立成行 + 🌟 视觉强调」
 - 三方审查背景见 [implementation-plan-2026-q3-q4.md §"概览"](./archive/designs/implementation-plan-2026-q3-q4.md#概览)
 - 视觉与用户双视角串联使用见 [docs/user_expert.md](./user_expert.md)
-- 输出模板首尾两行见 [methodology.md §四](../methodology.md)
+- 输出模板首尾两行见 [skills/_shared/references/output-template.md](../skills/_shared/references/output-template.md)
+- 2026-10-31 季度审查：状态行补修订日期、输出模板错指修正（methodology.md §四 → output-template.md）、13→12 skill 注记、补 2026-10 三个代表案例
 - 不重写前端约束见 [implementation-plan-2026-q3-q4.md §"不做清单"](./archive/designs/implementation-plan-2026-q3-q4.md#不做清单防止范围蔓延)
 - WCAG 对比度标准见 [W3C WCAG 2.1 §1.4.3](https://www.w3.org/WAI/WCAG21/Understanding/contrast-minimum.html)
 
