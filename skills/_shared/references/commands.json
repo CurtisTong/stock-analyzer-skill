@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-10-30T10:56:25Z",
+    "generated_at": "2026-10-31T10:02:42Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -1106,6 +1106,7 @@
         "--universe",
         "--codes",
         "--benchmark",
+        "--min-samples",
         "--save",
         "-j",
         "--json",
@@ -1173,6 +1174,15 @@
           "required": false,
           "default": "",
           "help": "基准指数（如 sh000300）"
+        },
+        {
+          "flags": [
+            "--min-samples"
+          ],
+          "required": false,
+          "default": 0,
+          "type": "int",
+          "help": "因子的最小样本数门槛：低于该值的因子判读为'无统计意义'（默认 0 = 不限制）"
         },
         {
           "flags": [

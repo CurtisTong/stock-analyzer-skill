@@ -7,7 +7,7 @@
   安装 → /screener init default → /stock 贵州茅台 quick
 ```
 
-## 装进 Claude Code，`/stock <代码>` 3 分钟拿到 5 层分析 + 专家圆桌
+## 装进 Claude Code 用 `/stock` 等 12 个斜杠命令做 A 股分析——3 分钟拿到 5 层分析 + 专家圆桌
 
 **8 位活跃专家圆桌** · **37 个 fetcher 类（11 数据域）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
 

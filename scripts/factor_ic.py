@@ -76,6 +76,12 @@ def cmd_evaluate(args):
                     "samples": len(selections),
                     "ic": ic_all,
                     "ic_stats": ic_stats,
+                    "min_samples": args.min_samples,
+                    "warnings": [
+                        f"{f}: 样本 {ic_stats[f]['samples']} < 门槛 {args.min_samples}，IC 无统计意义"
+                        for f in ic_all
+                        if ic_stats[f]["samples"] < args.min_samples
+                    ],
                     "ic_by_regime": ic_by_regime,
                 },
                 ensure_ascii=False,
@@ -85,7 +91,7 @@ def cmd_evaluate(args):
         return 0
 
     print()
-    print(f"样本数: {len(selections)}")
+    print(f"样本数: {len(selections)}（--min-samples 门槛: {args.min_samples}）")
     print()
     print(f"{'因子':<14} {'IC':>8} {'ICIR':>7} {'天':>4} {'样本':>6}  判读")
     print("-" * 60)
@@ -97,8 +103,10 @@ def cmd_evaluate(args):
             verdict = "反向（高因子分 → 低收益）"
         else:
             verdict = "无明显预测力"
-        if stats.get("days", 0) < 5 and stats.get("samples", 0) > 0:
-            verdict += " ⚠️样本少，参考性弱"
+        if stats.get("samples", 0) < args.min_samples:
+            verdict += f" ⚠️样本少于门槛({args.min_samples})，IC 无统计意义"
+        elif stats.get("days", 0) < 5 and stats.get("samples", 0) > 0:
+            verdict += " ⚠️截面天数少，参考性弱"
         print(
             f"{factor:<14} {ic:>8.3f} {stats.get('icir', 0):>7.2f} "
             f"{stats.get('days', 0):>4} {stats.get('samples', 0):>6}  {verdict}"
@@ -121,6 +129,12 @@ def main():
     parser.add_argument("--universe", type=int, default=20, help="默认股票池只数（默认 20）")
     parser.add_argument("--codes", default="", help="自定义股票代码（逗号分隔）")
     parser.add_argument("--benchmark", default="", help="基准指数（如 sh000300）")
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=0,
+        help="因子的最小样本数门槛：低于该值的因子判读为'无统计意义'（默认 0 = 不限制）",
+    )
     parser.add_argument("--save", action="store_true", help="保存 IC 到 data/factor_ic.json")
     # -j/--json 由 create_parser 统一提供
     args = parser.parse_args()

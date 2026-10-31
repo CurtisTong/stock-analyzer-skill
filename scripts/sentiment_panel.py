@@ -79,6 +79,7 @@ def cmd_show(args):
                 {
                     "date": snapshot.get("date"),
                     "limit_up_count": snapshot.get("limit_up_count"),
+                    "limit_down_count": snapshot.get("limit_down_count"),
                     "broken_count": snapshot.get("broken_count"),
                     "max_height": snapshot.get("max_height"),
                     "height_distribution": snapshot.get("height_distribution"),
@@ -99,9 +100,11 @@ def cmd_show(args):
     print(f"📊 情绪面板（{snapshot.get('date')}）")
     print()
     print(f"涨停家数: {snapshot.get('limit_up_count')}")
+    if snapshot.get("limit_down_count") is not None:
+        print(f"跌停家数: {snapshot.get('limit_down_count')}")
     print(f"炸板家数: {snapshot.get('broken_count')}")
     print(f"最高连板: {snapshot.get('max_height')}")
-    print(f"涨停中位涨幅: {_fmt_pct(snapshot.get('median_chg_pct'), 2)}")
+    print(f"涨停/炸板中位涨幅: {_fmt_pct(snapshot.get('median_chg_pct'), 2)}")
     print(f"晋级率: {_fmt_pct(promotion * 100 if promotion is not None else None)}")
     dist = snapshot.get("height_distribution") or {}
     if dist:

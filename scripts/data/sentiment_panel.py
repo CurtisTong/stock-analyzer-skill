@@ -132,13 +132,15 @@ def refresh_panel(date: str = "") -> Optional[dict]:
     """
     global _cache, _cache_ts
 
-    if not date and _cache and (time.time() - _cache_ts) < _CACHE_TTL:
-        return _cache
-
+    # 缓存语义统一（P2-1）：无论显式 date 还是默认当日，都按 date 为 key
+    # 做 TTL 缓存——此前只有 date="" 写缓存，显式历史日走旁路，同一份数据
+    # 的缓存行为按参数分叉。
     if not date:
         from datetime import datetime
 
         date = datetime.now().strftime("%Y%m%d")
+    if date in _cache and (time.time() - _cache_ts) < _CACHE_TTL:
+        return _cache[date]
 
     limit_pool = _fetch_pool("getTopicZTPool", date)
     broken_pool = _fetch_pool("getTopicZBPool", date)
@@ -183,6 +185,19 @@ def refresh_panel(date: str = "") -> Optional[dict]:
     limit_up_count = sum(1 for e in stocks.values() if e["status"] == "limit_up")
     broken_count = sum(1 for e in stocks.values() if e["status"] == "broken")
 
+    # 跌停家数（P2-2）：设计文档 §4.2 "赚钱效应"公式引用的字段此前从未采集。
+    # 复用 market_breadth 的现成东财跌停池通道；失败/降级时留 None（诚实缺失，
+    # 不伪装成 0——0 会被读成"无跌停"的市场状态）。
+    limit_down_count = None
+    try:
+        from market_breadth import get_limit_data
+
+        limit_data = get_limit_data()
+        if not limit_data.get("_degraded", False):
+            limit_down_count = int(limit_data.get("limit_down_count", 0) or 0)
+    except Exception as e:
+        logger.debug("跌停家数获取失败: %s", e)
+
     chg_values = [e["zdp"] for e in stocks.values() if e.get("zdp") is not None]
     median_chg = None
     if chg_values:
@@ -193,6 +208,7 @@ def refresh_panel(date: str = "") -> Optional[dict]:
     panel = {
         "date": date,
         "limit_up_count": limit_up_count,
+        "limit_down_count": limit_down_count,
         "broken_count": broken_count,
         "max_height": max_height,
         "height_distribution": height_distribution,
@@ -201,9 +217,8 @@ def refresh_panel(date: str = "") -> Optional[dict]:
         "stocks": stocks,
     }
 
-    if not date:
-        _cache = panel
-        _cache_ts = time.time()
+    _cache[date] = panel
+    _cache_ts = time.time()
     return panel
 
 
