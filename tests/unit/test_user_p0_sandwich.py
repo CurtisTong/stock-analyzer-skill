@@ -95,3 +95,63 @@ class TestDataBlackoutGuard:
 
         # 只有 1 类失败（如仅财务挂）→ 仍渲染（降级正常）
         assert stock._check_data_blackout(self._result(price=12.3, failed=["财务"]), "sh600519") is None
+
+
+class TestBriefVerdictEmoji:
+    """user-P2：brief 首行 emoji 必须按评级定调（不再是涨跌方向）。"""
+
+    def test_low_score_red_emoji_even_if_up(self):
+        import stock
+
+        result = {
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "price": 100.0,
+            "change_pct": 2.5,
+            "score": {"score": 42.1, "grade": "中性"},
+            "technical": {},
+            "finance": {},
+        }
+        out = stock.render_brief(result)
+        # 涨 2.5% 但评级低 → 首行必须是 🔴 而非 🟢（此前按涨跌取 🟢）
+        assert out.startswith("🎯 🔴"), out[:80]
+
+    def test_high_score_green(self):
+        import stock
+
+        result = {
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "price": 100.0,
+            "change_pct": -1.0,
+            "score": {"score": 82.0, "grade": "强势"},
+            "technical": {},
+            "finance": {},
+        }
+        out = stock.render_brief(result)
+        assert out.startswith("🎯 🟢"), out[:80]
+
+    def test_pattern_repr_not_leaked(self):
+        """形态不输出 Python dict repr（dict 无 name 时用 type 字段）。"""
+        import stock
+
+        result = {
+            "code": "sh600519",
+            "name": "贵州茅台",
+            "price": 100.0,
+            "change_pct": 0.5,
+            "score": {"score": 60.0, "grade": "中性"},
+            "technical": {
+                "ma": "多头",
+                "rsi": 50,
+                "macd_signal": 0,
+                "kdj": 50,
+                "boll_position": 0.5,
+                "volume_signal": 0,
+                "patterns": [{"date": "2026-10-29", "type": "锤子线(底部反转)", "position": "T-1"}],
+            },
+            "finance": {},
+        }
+        out = stock.render_text(result)
+        assert "锤子线(底部反转)" in out
+        assert "{'date'" not in out and "dict" not in out.split("形态:")[1][:60]

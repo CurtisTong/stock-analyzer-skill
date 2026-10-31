@@ -80,7 +80,9 @@ def render_text(result: dict) -> str:
         )
         lines.append(f"   BOLL 位置 {t.get('boll_position', 0.5):.2f}  " f"量价 {t.get('volume_signal', 0):+d}")
         if t.get("patterns"):
-            lines.append(f"   形态: {', '.join(p.get('name', str(p)) for p in t['patterns'][:3])}")
+            lines.append(
+                f"   形态: {', '.join((p.get('name') or p.get('type') or '未知形态') for p in t['patterns'][:3])}"
+            )
 
     # 4. 财务摘要
     if "finance" in result:
@@ -181,8 +183,9 @@ def render_brief(result: dict) -> str:
         action = "关注买入"
     elif sell and not buy:
         action = "谨慎回避"
-    direction = result.get("change_pct", 0) >= 0
-    trend_icon = "🟢" if direction else "🔴"
+    # 首行 emoji 按评级定调（涨跌已用 +/-% 数字表达）——此前按涨跌取 🟢/🔴，
+    # 评分为"谨慎回避"时前面却是 🟢，用户误读为多头方向。
+    trend_icon = "🟢" if score_val >= 75 else "🟡" if score_val >= 55 else "🔴"
     conclusion = (
         f"{trend_icon} {name}（{code}）现价 {price:.2f}（{change_pct:+.2f}%）｜"
         f"综合评分 {score_val:.1f}（{grade}）｜{action}"

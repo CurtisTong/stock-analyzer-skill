@@ -24,7 +24,7 @@ claude plugins marketplace add . && claude plugins install stock-analyzer
 ### 方式二：install.sh（git clone）
 
 ```bash
-cd ~/Documents/curtis/stock-analyzer-skill
+cd <你的克隆路径>
 ./install.sh
 ```
 
@@ -118,7 +118,7 @@ curl -s "https://qt.gtimg.cn/q=sh600989" | iconv -f GBK -t UTF-8 | head -1
 
 ```bash
 # 确保在项目根目录运行
-cd ~/Documents/curtis/stock-analyzer-skill
+cd <你的克隆路径>
 ./tests/smoke_test.sh
 
 # 如果仍有问题，检查 Python 版本

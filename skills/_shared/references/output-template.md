@@ -1,6 +1,6 @@
 # 统一输出规范（v2）
 
-> 14 个 skill 共用，按需加载。`common/formatters.py` 提供程序化支持。
+> 12 个 skill 共用，按需加载。`common/formatters.py` 提供程序化支持。
 > 本规范是阅读侧契约；生成侧护栏详见
 > [`./guardrails.md`](./guardrails.md)。
 
