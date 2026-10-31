@@ -117,15 +117,18 @@ def _sector_strength_score(share_pct: float | None) -> float:
     return 100.0
 
 
-def _sector_rotation_bonus(sector: str, snapshot: dict) -> float:
+def _sector_rotation_bonus(sector: str, snapshot: dict, as_of: Optional[str] = None) -> float:
     """板块轮动加分：近 5 日涨停家数均值 vs 前 5 日均值的环比。
 
     环比 > 1.5 → +15；1.0~1.5 → +8；< 1.0 → 0
     历史不足（< 10 个交易日快照）→ 0（不做时序比较）。
+
+    as_of: YYYYMMDD —— 历史窗口只取**不晚于**该日期的快照（防前视）；
+    None 时取全文件最新窗口（实时路径）。
     """
     from data.sentiment_panel import get_history
 
-    history = get_history(days=11)
+    history = get_history(days=11, as_of=as_of)
     if len(history) < 10:
         return 0.0
 
@@ -203,15 +206,16 @@ def _score_with_snapshot(code: str, snapshot: Optional[dict]) -> float | None:
 
     if not snapshot:
         return None
+    as_of = snapshot.get("date")
     entry = get_stock_sentiment(code, snapshot=snapshot)
     if not entry:
         return None
 
-    # 板块热度：板块涨停家数占比 + 轮动加分
+    # 板块热度：板块涨停家数占比 + 轮动加分（轮动窗口按快照日期截断，防前视）
     heat_map = get_sector_heat(snapshot)
     sector = entry.get("sector") or ""
     base_sector = _sector_strength_score(heat_map.get(sector))
-    bonus = _sector_rotation_bonus(sector, snapshot) if sector else 0.0
+    bonus = _sector_rotation_bonus(sector, snapshot, as_of) if sector else 0.0
     sector_score = min(100.0, base_sector + bonus)
 
     total = (
@@ -244,7 +248,7 @@ def sentiment_details(code: str) -> dict | None:
     heat_map = get_sector_heat(snapshot)
     sector = entry.get("sector") or ""
     base_sector = _sector_strength_score(heat_map.get(sector))
-    bonus = _sector_rotation_bonus(sector, snapshot) if sector else 0.0
+    bonus = _sector_rotation_bonus(sector, snapshot, snapshot.get("date")) if sector else 0.0
     sector_score = min(100.0, base_sector + bonus)
 
     components = {

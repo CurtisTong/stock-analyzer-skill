@@ -334,9 +334,16 @@ def simulate_strategy(ctx: SimContext):
             # 注意：event_score 涉及网络请求，回测中禁用以避免超时
             # 如需启用，请确保事件数据已预加载到缓存
 
-            # 情绪因子（v1.26 阶段 2）：按**历史时点**取快照（严格无前瞻）。
-            # 该日无快照（用户未采集过）时因子缺失 → 不参与加权（权重 0 或缺失）。
-            sentiment = _sentiment_score_at(code, bars[i].day)
+            # 情绪因子（v1.26 阶段 2）：**T-1 语义**，严格无前瞻。
+            # 两个原因：① 涨停池/炸板池是收盘后（15:30）采集的数据——当日快照
+            # 用于当日决策本身就有半个前视；② 当日触及涨停的个股被上面的跳过
+            # 规则排除（当日买不到），其当日情绪分在回测中**永不可观测**（连板
+            # 高度等核心信号结构性缺失）。改用前一根 K 线（前一个交易日）快照：
+            # T-1 封板的股票在 T 日仍可交易时，其连板/封板质量才对买入有决策
+            # 意义；连续封板的股票持续被跳过 → 买不到，符合实盘语义。
+            sentiment = None
+            if i >= 1:
+                sentiment = _sentiment_score_at(code, bars[i - 1].day)
             if sentiment is not None:
                 parts["sentiment"] = sentiment
 
@@ -349,10 +356,11 @@ def simulate_strategy(ctx: SimContext):
             else:
                 regime, extreme_drop = RegimeState.RANGE, False
             # v3.1：市场级情绪第 5 层（默认关闭——阈值待快照样本校准后启用）。
-            # 情绪指标按 bars[i].day 的快照计算（无前瞻）；无快照则不调整。
+            # 情绪指标按**前一个交易日**的快照计算：与个股情绪因子同因（收盘后
+            # 数据 + 当日涨停跳过），T-1 快照才无前视且可观测。
             sentiment_mults = None
-            if ctx.use_sentiment_overlay:
-                sentiment_mults = _sentiment_overlay_multipliers(bars[i].day)
+            if ctx.use_sentiment_overlay and i >= 1:
+                sentiment_mults = _sentiment_overlay_multipliers(bars[i - 1].day)
             effective_weights = compute_overlay_weights(
                 weights,
                 regime,
@@ -688,6 +696,8 @@ def _sentiment_overlay_multipliers(day: str) -> Optional[dict]:
 def _sentiment_score_at(code: str, day: str) -> float | None:
     """取某历史时点的情绪因子分（严格无前瞻）。
 
+    day 是**决策日 T**；由调用方传入 T-1 的真实交易日（bars[i-1].day）——
+    情绪快照是收盘后数据，且涨停日当日被跳过，T-1 语义才可观测且无前视。
     快照按 YYYYMMDD 存储；K 线的 day 是 YYYY-MM-DD，需转换。
     任何异常都按"因子缺失"处理（返回 None），不得让情绪因子拖垮回测。
     """

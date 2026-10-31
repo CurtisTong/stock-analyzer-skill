@@ -295,11 +295,13 @@ def get_snapshot(date: str) -> Optional[dict]:
     return snapshots.get(date)
 
 
-def get_history(days: int = 5) -> list[dict]:
+def get_history(days: int = 5, as_of: Optional[str] = None) -> list[dict]:
     """最近 N 个交易日的快照列表（按日期升序）。
 
     Args:
         days: 取最近几个交易日
+        as_of: YYYYMMDD —— 只取**不晚于**该日期的快照（回测路径防前视）；
+            None 时取全文件最新窗口（实时路径）
 
     Returns:
         [快照, ...]（升序）；无历史时返回空列表
@@ -307,7 +309,10 @@ def get_history(days: int = 5) -> list[dict]:
     snapshots = load_snapshots().get("snapshots") or {}
     if not snapshots:
         return []
-    keys = sorted(snapshots.keys())[-days:]
+    keys = sorted(snapshots.keys())
+    if as_of:
+        keys = [k for k in keys if k <= as_of]
+    keys = keys[-days:]
     return [snapshots[k] for k in keys]
 
 
