@@ -3,18 +3,11 @@
 <div align="center">
 
 ```text
-   ███████╗████████╗ ██████╗  ██████╗██╗  ██╗
-   ██╔════╝╚══██╔══╝██╔═══██╗██╔════╝██║ ██╔╝
-   ███████╗   ██║   ██║   ██║██║     █████╔╝
-   ╚════██║   ██║   ██║   ██║██║     ██╔═██╗
-   ███████║   ██║   ╚██████╔╝╚██████╗██║  ██╗
-   ╚══════╝   ╚═╝    ╚═════╝  ╚═════╝╚═╝  ╚═╝
-        A N A L Y Z E R   ·   S K I L L
+  📈 stock-analyzer-skill · A 股分析 Claude Code 插件
+  安装 → /screener init default → /stock 贵州茅台 quick
 ```
 
-## A 股分析 Claude Code 插件
-
-装进 Claude Code 后用 `/stock <代码>` 等 12 个斜杠命令做 A 股分析（基本面/估值/技术面/板块/风险收益比 5 层 + 8 人专家投票）。
+## 装进 Claude Code，`/stock <代码>` 3 分钟拿到 5 层分析 + 专家圆桌
 
 **8 位活跃专家圆桌** · **37 个 fetcher 类（11 数据域）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
 
@@ -168,7 +161,7 @@ git clone https://github.com/CurtisTong/stock-analyzer-skill.git && cd stock-ana
 <summary>其他安装方式（npm）</summary>
 
 ```bash
-# npm 全局（自动运行 install.sh）
+# npm 全局（postinstall 走 plugin marketplace 注册，不创建 ~/.claude/skills 软链）
 npm install -g stock-analyzer-skill
 ```
 
@@ -193,6 +186,16 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 ```
 
 > 完整脚本：[`scripts/demo.sh`](scripts/demo.sh) · 9 个 GIF 演示：[docs/assets/](docs/assets/)
+
+## 🆕 v1.26.0 新增能力
+
+| 新能力                              | 怎么用                                                                                       | 价值                                   |
+| ----------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------- |
+| 📈 **情绪因子（三阶段）**           | `/screener --show-sentiment`；`python3 scripts/sentiment_panel.py`                           | 涨停/炸板生态（连板高度/封板质量/板块热度）逐日快照 + 回测 IC 链路 + 市场级 overlay 第 5 层 |
+| 🧊 **情绪面板 CLI**                 | `python3 scripts/sentiment_panel.py <代码>`                                                  | 查询单股情绪面板与历史快照             |
+| ⏰ **快照定时采集**                 | 工作日 15:30 自动执行（无需手动）                                                            | 情绪历史逐日积累，供前瞻 IC 评估       |
+
+> 📖 看不懂 **PE / PB / ROE / 夏普** 等术语？[`methodology.md`](methodology.md) 附录有术语速查表，或在 Claude Code 里用 `/learn` 随时提问。
 
 ## 🆕 v1.8.0 新增能力
 
@@ -249,32 +252,18 @@ python3 scripts/portfolio_web.py
 > 分层结论由模型按 [output-template](../skills/_shared/references/output-template.md) 合成。
 
 ```text
-🏢 贵州茅台 (sh600519) · 白酒龙头
+🎯 🟢 贵州茅台（sh600519）现价 1392.05（+2.81%）｜综合评分 42.1（中性）｜谨慎回避
 ─────────────────────────────────────
-💰 现价 ¥1,652.30   📈 +0.85%   💎 PE 22.1   📊 PB 6.8
-
-【第 1 层 · 基本面】 ⭐⭐⭐⭐  评分 85/100
-  ROE 31.2%（行业 Top 1）│ 毛利率 91.5% │ 净利率 53.6%
-  ✅ 业绩持续 5 年正增长，现金流充沛
-
-【第 2 层 · 估值】 ⭐⭐⭐⭐  评分 78/100
-  PE 22.1 vs 历史中位 28 │ 处于近 5 年 23% 分位
-  ✅ 当前估值偏低，安全边际充足
-
-【第 3 层 · 技术面】 ⭐⭐⭐  评分 65/100
-  MA20 上行 │ MACD 金叉初现 │ KDJ 超买
-  ⚠️ 短期回踩 1620 概率较大
-
-【第 4 层 · 板块】 ⭐⭐⭐⭐  评分 80/100
-  白酒板块近 30 日资金净流入 38 亿，强于大盘
-
-【第 5 层 · 风险收益比】 1 : 3.2 ⭐⭐⭐⭐
-  目标价 ¥1,950（+18%）│ 止损 ¥1,560（-5.6%）
-
-🎯 综合结论：可分批介入，回踩 1620 加仓
+【基本面】ROE 24.5%（行业Top）│ 毛利率 91.5% │ 净利YoY -0%（EPS口径:累计 2026-09-30）
+【估值】PE 22.1 │ 近5年估值分位 23%
+【技术面】MA 多头排列 │ MACD 0 │ RSI 70 │ KDJ超买区(J=98)
+【风险收益】观察上沿 ~1480 ｜ 观察下沿 ~1320（非目标价/止损位）
+─────────────────────────────────────
+📊 数据时间戳: 2026-10-31T12:27 | 数据源: 行情[tencent], K线[sina], 财务[eastmoney] | 数据 TTL: 900s
+📜 本输出为量化研判参考，不构成投资建议，据此操作风险自负
 ```
 
-> 📖 看不懂 **PE / PB / ROE / 夏普** 等术语？[`methodology.md`](methodology.md) 有完整术语表，或在 Claude Code 里用 `/learn` 随时提问。
+> 📖 看不懂 **PE / PB / ROE / 夏普** 等术语？[`methodology.md`](methodology.md) 附录有术语速查表，或在 Claude Code 里用 `/learn` 随时提问。
 
 </details>
 
@@ -511,7 +500,7 @@ flowchart LR
 | 📚 **学习** | [learn](skills/learn/SKILL.md)                         | `/learn <概念>`                                  | 学习助手：PE/ROE/MACD/K 线/缠论/新手入门     |
 | ❓ **辅助** | [stock-help](skills/stock-help/SKILL.md)               | `/stock-help`                                    | 显示所有 skills 和使用说明                   |
 
-> 📌 **已合并命令**：`/help` → `/stock-help`、`/technical` → `/stock technical`、`/stock-init` → `/screener init`、`/financial-analyst` → `/research financial`、`/investment-researcher` → `/research report`（旧命令仍可用，自动跳转）
+> 📌 **已合并命令**：`/help` → `/stock-help`、`/technical` → `/stock technical`、`/stock-init` → `/screener init`、`/financial-analyst` → `/research financial`、`/investment-researcher` → `/research report`（旧命令名已并入新命令，不再单独可用）
 
 > 📌 **股票代码格式**：`sh600519`（沪） / `sz000858`（深） / `600519`（自动推断） / `贵州茅台`（按名称模糊匹配）— **用代码最稳**，名称匹配在多个相似名时可能错配。
 
@@ -790,7 +779,7 @@ MIT License © curtis
 
 ---
 
-**v1.26.0** · 2026-10-19 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.26.0** · 2026-10-30 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

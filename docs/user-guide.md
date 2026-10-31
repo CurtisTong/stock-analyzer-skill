@@ -11,7 +11,7 @@
 | 🔍 找几只值得买的股票    | `/screener`                           | 6 策略 × 9 因子维度 → 候选池 + 跟踪清单  |
 | 📊 看今天大盘涨跌        | `/market quick`                       | 三大指数 + 板块 Top3 + 一句话策略        |
 | 💼 看看我的持仓          | `/portfolio`                          | 涨跌 + 板块集中度 + 风险预警 + 调仓建议  |
-| 🎯 分析一只股票          | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 16 份专家圆桌 / 纯技术面 |
+| 🎯 分析一只股票          | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 8 位专家圆桌 / 纯技术面 |
 | 🌐 某个板块怎么样        | `/sector <板块>`                      | 板块全景 + 标的对比 + 板块内筛选         |
 | 🔬 深度研究一只股票      | `/research <任务>`                    | 财务建模 + 排雷 + DCF + 投资建议         |
 | 🧪 验证选股策略          | `/backtest`                           | 胜率 + 收益 + 夏普 + 回撤 + 基准对比     |
@@ -40,7 +40,7 @@ portfolio → stock → technical
 ```
 
 1. `/portfolio health` — 持仓健康度（涨跌 + 板块集中度 + 风险）
-2. `/stock <持仓股> debate` — 听 16 份专家辩论
+2. `/stock <持仓股> debate` — 听 8 位 active 专家辩论
 3. `/stock <持仓股> technical` — 确认技术面是否破位
 
 ### 场景 C：挖掘板块机会
@@ -59,7 +59,7 @@ market → sector → screener
 stock debate → research financial → research report
 ```
 
-1. `/stock <代码> debate` — 16 份专家圆桌 + 最终方向
+1. `/stock <代码> debate` — 8 位专家圆桌 + 最终方向
 2. `/research financial <任务>` — 财务建模 / 杜邦 / DCF
 3. `/research report <任务>` — 全维度投资研究报告
 
@@ -97,7 +97,7 @@ stock debate → research financial → research report
 >
 > - ¹ **五层框架**：基本面/估值/技术面/板块/风险收益比，详见 [../methodology.md](../methodology.md)
 > - ² **专家圆桌**：16 份专家人设（8 active + 8 legacy），`debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）；8 位 legacy 已合并入 active 视角
-> - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板≥3500万）、低市值（主板≥40亿、创业板≥24亿）标的
+> - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板/科创板≥3000万、北交所≥1000万）、低市值（主板≥40亿、创业板/科创板≥20亿、北交所≥10亿）标的
 > - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
 > - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
 
@@ -277,6 +277,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 | growth_momentum | 进攻行情/主线题材 | 成长动量 |
 | defensive       | 缩量弱市/避险     | 防守低波 |
 | turning_point   | 超跌修复/拐点     | 拐点修复 |
+| ma_volume_momentum | 量价配合/趋势跟涨 | 量价动量 |
 
 ### 参数说明
 
@@ -434,8 +435,8 @@ python3 scripts/monitor.py --cleanup     # 清理过期缓存
 选股器默认排除：
 
 - ST 股（风险警示）
-- 成交额低于阈值（主板≥5000万，创业板≥3500万）
-- 市值低于阈值（主板≥40亿，创业板≥24亿）
+- 成交额低于阈值（主板≥5000万，创业板/科创板≥3000万，北交所≥1000万）
+- 市值低于阈值（主板≥40亿，创业板/科创板≥20亿，北交所≥10亿）
 
 如需包含这些股票，可使用 `--codes` 参数手动指定。
 

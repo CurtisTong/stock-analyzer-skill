@@ -50,7 +50,6 @@ try {
   console.log("  /sector <板块>    - 板块分析");
   console.log("  /screener         - 选股策略（含 init 子命令）");
   console.log("  /portfolio        - 持仓管理");
-  console.log("  /monitor          - 盘中监控");
   console.log("  /backtest         - 策略回测");
   console.log("  /research         - 深度研究（financial/report 子命令）");
   console.log("  /help             - 帮助");
