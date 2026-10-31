@@ -728,17 +728,14 @@ python3 scripts/monitor.py --cleanup
 <details>
 <summary><b>Q：想卸载怎么办？</b></summary>
 
-`install.sh` 只创建软链、不写系统文件，卸载只需两步：
+一条命令卸载全部（`~/.claude/skills` + `~/.codex/skills` + 项目级软链 + plugin 注册）：
 
 ```bash
-# 1. 删除全局软链（12 个 skill，花括号展开一次删除）
-rm -f ~/.claude/skills/{stock,stock-technical,stock-help,market,sector,portfolio,portfolio-web,portfolio-natural,screener,backtest,research,learn}
-
-# 2. 删除项目目录（项目级 .claude/skills 软链随仓库一并清除）
-rm -rf ~/Documents/curtis/stock-analyzer-skill
+./uninstall.sh          # 普通模式：清空全部 skill 软链
+./uninstall.sh --all    # 完整模式：额外卸载 npm 全局包 + 运行缓存（逐项确认）
 ```
 
-> 软链指向项目目录，删掉项目目录后软链即失效；缓存数据随项目目录一并删除。
+> 之后删除项目目录即 100% 移除：`rm -rf <你的克隆路径>`。
 
 </details>
 

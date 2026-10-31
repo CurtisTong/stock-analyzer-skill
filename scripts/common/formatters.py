@@ -91,6 +91,7 @@ def format_footer(
     failed_sources: Optional[List[str]] = None,
     ttl_sec: Optional[int] = None,
     degraded: bool = False,
+    include_disclaimer: bool = True,
 ) -> str:
     """仅生成尾行（数据源 + 时间戳 + 降级警示）。
 
@@ -98,6 +99,8 @@ def format_footer(
         degraded: 是否处于数据降级状态（如有 data_failed 或 data_warnings）。
             True 时 footer 头部加 ⚠️ 警示标记，让 SKILL 渲染层和 LLM
             caller 能立即识别降级（避免误读"业务正常但字段缺失"）。
+        include_disclaimer: 是否在尾行下追加免责声明行（user-P0-4：
+            默认开启——任何含研判结论的输出必须带"不构成投资建议"）。
     """
     footer_parts = []
     if data_time:
@@ -111,7 +114,10 @@ def format_footer(
     if not footer_parts:
         return ""
     prefix = "⚠️ 数据降级 | " if degraded else "📊 "
-    return "─" * 40 + "\n" + prefix + " | ".join(footer_parts)
+    lines = "─" * 40 + "\n" + prefix + " | ".join(footer_parts)
+    if include_disclaimer:
+        lines += "\n📜 本输出为量化研判参考，不构成投资建议，据此操作风险自负"
+    return lines
 
 
 def now_str() -> str:

@@ -116,6 +116,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/sector.py *
 - 对无法确认的主题概念，明确标注“标的库未覆盖”并使用用户给出的标的。
 - 不要给出确定性涨幅目标；用情景区间、触发条件和止损位表达。
 
+- 任何含"买/卖/止损/仓位/介入/规避"结论的输出，最末行**必须**附带免责声明：「本工具为量化研判参考，不构成投资建议，据此操作风险自负」——与 output-template.md 的"卡片下斜体 + 护栏条 + 页脚"三处冗余保持同一措辞。
 ## 辅助专家引用
 
 行业差异化阈值（消费/科技/医药/周期/金融 5 大类 ROE/PE/毛利率/增速门槛）参考 [experts/sector_specialist.md](../../experts/sector_specialist.md) 与 [methodology.md §二.6](../../methodology.md#二五层分析框架)；周期股 PE 反向逻辑（顶部前 PE 高为买入信号）见 [experts/sector_specialist.md](../../experts/sector_specialist.md) §决策逻辑。

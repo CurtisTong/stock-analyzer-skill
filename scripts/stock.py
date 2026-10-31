@@ -229,6 +229,59 @@ def render_brief(result: dict) -> str:
     )
 
 
+def _known_code(code: str) -> bool:
+    """代码是否在本地任意已知池（all_stocks.json / sector_stocks.json）。
+
+    仅用于"代码不存在"判定兜底：本地池没有 ≠ 一定不存在（预置池可能过期），
+    但配合行情 0 价 + 全部数据降级，足以区分"输错代码"与"数据源临时故障"。
+    """
+    import json
+
+    digits = "".join(ch for ch in code.lower() if ch.isdigit())
+    data_dir = Path(__file__).resolve().parent / "data"
+    for fname in ("all_stocks.json", "sector_stocks.json", "sector_stocks.default.json"):
+        p = data_dir / fname
+        if not p.exists():
+            continue
+        try:
+            data = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for value in (data.values() if isinstance(data, dict) else []):
+            if isinstance(value, dict):
+                value = value.get("codes", value.get("stocks", []))
+            if isinstance(value, list):
+                for c in value:
+                    if "".join(ch for ch in str(c).lower() if ch.isdigit()) == digits:
+                        return True
+    return False
+
+
+def _check_data_blackout(result: dict, raw_code: str):
+    """假研判防护（user-P0-2）：行情 0 价 + 主要数据全部降级时返回错误文案。
+
+    区分"代码不存在"与"数据源临时故障"：本地已知池没有该代码 → 大概率
+    输错/已退市；在池内 → 数据源问题。返回 None 表示可正常渲染。
+    """
+    price = result.get("price", 0)
+    failed = result.get("data_failed", [])
+    if price not in (None, 0) or len(failed) < 2:
+        return None
+    if not _known_code(raw_code):
+        return (
+            "未找到该股票的任何数据：代码可能不存在、已退市，或输入有误\n"
+            "【根因】行情/财务/K线三类数据全部失败，且本地股票池未收录该代码\n"
+            "【下一步】① 核对代码（支持 sh600519 / 600519 / 贵州茅台 三种写法）"
+            "；② 先跑 /screener 看当前可交易标的；③ 确认真代码仍报错 → 数据源故障，稍后重试"
+        )
+    return (
+        "数据源全部不可用，暂时无法分析该股票\n"
+        "【根因】行情/财务/K线数据请求全部失败（限频或网络）\n"
+        "【下一步】① 等 60 秒再试；② /screener init default 走离线预置数据；"
+        "③ 加 --debug 查看具体失败链"
+    )
+
+
 def main():
     from common.cache import cleanup_tmp_files
 
@@ -265,6 +318,12 @@ def main():
         include_chan=not args.no_chan,
         finance_periods=args.finance_periods,
     )
+
+    # 假研判防护（user-P0-2）：数据全降级时输出三明治错误而非 🟢 综合评分
+    blackout_msg = _check_data_blackout(result, args.code)
+    if blackout_msg:
+        print(f"❌ {blackout_msg}", file=sys.stderr)
+        sys.exit(2)
 
     # 附加回测胜率（直接函数调用，避免 subprocess 开销）
     if args.with_backtest:

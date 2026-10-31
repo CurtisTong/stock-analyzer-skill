@@ -114,7 +114,17 @@ echo
 echo "==> [6/6] 初始化股票池"
 INIT_SCRIPT="$PKG_ROOT/scripts/init_pool.py"
 if command -v python3 &>/dev/null; then
-  python3 "$INIT_SCRIPT"
+  # PyYAML 是脚本硬依赖（scripts/config/loader.py 顶层 import）。
+  # macOS 系统自带 python3 通常没有 PyYAML——缺失时给出安装指引，
+  # 而不是让 init_pool.py 裸报 ImportError 且 set -e 中断整个安装
+  # （此前全新机器 100% 卡在这一步，连"安装完成"都打印不出来）。
+  if python3 -c "import yaml" 2>/dev/null; then
+    python3 "$INIT_SCRIPT"
+  else
+    echo "  ⚠ Python3 缺少 PyYAML，跳过股票池初始化（其余安装不受影响）"
+    echo "    └ 安装命令: python3 -m pip install PyYAML"
+    echo "    └ 装好后重跑: python3 $INIT_SCRIPT"
+  fi
 else
   echo "  ⚠ Python3 未安装，跳过初始化"
 fi

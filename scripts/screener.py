@@ -261,10 +261,13 @@ def render_brief(rows, strategy, top, title=None):
     watch = [r for r in top_rows if max(p50, 50) <= r["score"] < max(p75, 50)]
     if strong:
         names = ", ".join(f"{r['name']}" for r in strong[:3])
-        print(f"→ 建议关注: {names}")
+        print(f"→ 观察: {names}")
     if watch:
         names = ", ".join(f"{r['name']}" for r in watch[:3])
         print(f"→ 可观望: {names}")
+    # 尾行免责（user-P0-4）：screener 输出常含仓位/止损类结论，必须带免责，
+    # 与 stock.py 的 format_footer 免责行保持同一措辞。
+    print("📜 本输出为量化研判参考，不构成投资建议，据此操作风险自负")
 
 
 def _print_reject_reasons(rejected):

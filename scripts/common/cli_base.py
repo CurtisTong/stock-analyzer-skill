@@ -71,14 +71,65 @@ def handle_errors():
 
             traceback.print_exc()
         else:
-            from common.exceptions import format_error
-
-            print(f"❌ {format_error(e)}", file=sys.stderr)
-            print(
-                "  (提示: 加 --debug 或设 STOCK_DEBUG=1 可查看完整 traceback)",
-                file=sys.stderr,
-            )
+            print(sandwich_error(e), file=sys.stderr)
         sys.exit(1)
+
+
+# 错误"三明治"结构（user_expert §3.3）：[症状 | 根因 | 下一步]。
+# 每个异常类型给"下一步该做什么"，而不是只扔一行消息。
+_SANDWICH_HINTS = {
+    "NetworkError": (
+        "数据源请求失败（交易所限频或本地网络断开）",
+        [
+            "① 等 60 秒再试（限频多数会自动恢复）",
+            "② 用 /screener init default 走离线预置数据",
+            "③ 仍失败 → 提交 issue 并附 --debug 输出",
+        ],
+    ),
+    "RateLimitError": (
+        "请求频率超过数据源限制",
+        ["① 等 60 秒再试", "② 减少 --codes 数量或分批跑", "③ 数据为缓存时可加 --no-cache 跳过"],
+    ),
+    "ValidationError": (
+        "输入未通过校验（代码格式/日期格式）",
+        [
+            "① 股票代码支持 sh600989 / 600989 / 贵州茅台 三种写法",
+            "② 日期用 2024-01-01 格式",
+            "③ 不确定代码时用 /screener 或 /market 找标的",
+        ],
+    ),
+    "InsufficientDataError": (
+        "数据不足，无法生成完整分析（K 线/财务缺失）",
+        ["① 换全市场大票试（小票数据源覆盖少）", "② 数据源恢复后重试", "③ /stock-help 查看可用命令"],
+    ),
+    "ScreenerTimeoutError": (
+        "选股超时——标的多或数据源慢",
+        [
+            "① 减少候选池（--codes 或 --top）",
+            "② 用 --no-regime / --no-macro 跳过重计算",
+            "③ 重跑一次（首轮缓存暖身后通常更快）",
+        ],
+    ),
+}
+
+
+def sandwich_error(error: Exception) -> str:
+    """把异常格式化为 [❌ 消息 / 症状 / 根因 / 下一步] 三明治结构。"""
+    from common.exceptions import format_error
+
+    lines = [f"❌ {format_error(error)}"]
+    hint = None
+    for cls in type(error).__mro__:
+        if cls.__name__ in _SANDWICH_HINTS:
+            hint = _SANDWICH_HINTS[cls.__name__]
+            break
+    if hint:
+        reason, actions = hint
+        lines.append(f"【根因】{reason}")
+        lines.append("【下一步】" + " ".join(actions))
+    else:
+        lines.append("【下一步】加 --debug 或设 STOCK_DEBUG=1 可查看完整 traceback 并上报")
+    return "\n".join(lines)
 
 
 def print_sources_table(domains: dict) -> None:

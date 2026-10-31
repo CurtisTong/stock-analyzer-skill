@@ -71,3 +71,13 @@ class TestFormatFooter:
         result = format_footer(sources=["行情"])
         assert "数据源: 行情" in result
         assert "数据时间戳" not in result
+
+    def test_disclaimer_present_by_default(self):
+        """user-P0-4：默认尾行必须带"不构成投资建议"。"""
+        result = format_footer(data_time="2026-08-07 10:30", sources=["行情"])
+        assert "不构成投资建议" in result
+
+    def test_disclaimer_can_be_disabled(self):
+        """需要纯净尾行的调用方可关闭免责（如内部脚本复用）。"""
+        result = format_footer(data_time="2026-08-07 10:30", include_disclaimer=False)
+        assert "不构成投资建议" not in result
