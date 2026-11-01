@@ -53,13 +53,18 @@ def aligned_macd(closes, fast=12, slow=26, signal=9):
     """计算对齐的 DIF/DEA 序列，统一偏移量处理。
 
     解决 beichi.py / macd.py 各自计算 DIF/DEA 偏移量导致的重复和不一致。
-    所有序列末尾对齐 closes 末尾（最新价），便于按索引取值。
+    所有序列**末尾**对齐 closes 末尾（最新价），便于按索引取值。
+
+    索引契约（v1.28.0 明确）：
+    - dif_series[i] 与 dea_series[i] 指向**同一根** K 线（closes[dea_offset + i]）；
+      两者都从 DEA 可用的起点开始（DEA 需要 signal 根 DIF 才能起算）。
+    - dea_offset = len(closes) - len(dea_series)：dea_series[0] 对应的 closes 索引。
 
     Returns:
         dict with:
-            dif_series: DIF 序列（已对齐到 dea 时间范围）
+            dif_series: DIF 序列（已对齐到 DEA 的时间范围）
             dea_series: DEA 序列
-            dea_offset: dea_series[0] 对应的 closes 索引偏移量
+            dea_offset: dif_series[0]/dea_series[0] 对应的 closes 索引偏移量
     """
     if len(closes) < slow:
         return {"dif_series": [], "dea_series": [], "dea_offset": 0}
@@ -69,11 +74,20 @@ def aligned_macd(closes, fast=12, slow=26, signal=9):
     offset = len(ema_fast) - len(ema_slow)
     dif_series = [ema_fast[offset + i] - ema_slow[i] for i in range(len(ema_slow))]
     dea_series = _ema_series(dif_series, signal)
+
+    # v1.28.0 修复：DEA 不足以起算时（26 ≤ n < 34），原实现
+    # `dif_series[-len(dea_series):]` = `dif_series[-0:]` = `dif_series[0:]`
+    # ——不截断，而 dea_offset = len(closes) - 0 = n，声称的 closes 索引越界，
+    # 与 dif_series[0] 实际对应的 closes[25] 差 n-25 根。
+    # 现在：DEA 为空则两条序列都返回空（没有 DEA 就没有可比的 MACD），
+    # 避免调用方把"无 DEA"的数据当有效 MACD 用。
+    if not dea_series:
+        return {"dif_series": [], "dea_series": [], "dea_offset": 0}
+
     dea_offset = len(closes) - len(dea_series)
 
-    # 将 dif_series 对齐到 dea_series 的时间范围
-    if len(dea_series) < len(dif_series):
-        dif_series = dif_series[-len(dea_series) :]
+    # 将 dif_series 对齐到 dea_series 的时间范围（两者起点相同）
+    dif_series = dif_series[-len(dea_series) :]
 
     return {
         "dif_series": dif_series,

@@ -338,11 +338,22 @@ class TestVolatility:
 
     def test_compute_atr_normal(self):
         """正常 ATR 计算（29-46 行）。"""
+        # v1.28.0：ATR 需 period 根 TR 才可用（与 backtest/engine._calc_atr
+        # "不足则返回 0"口径一致）——此前用不足 period 的部分窗口求平均并
+        # 当作 ATR 返回，使 atr_tolerance 文档写的"ATR 不可用时回退 2%"
+        # 永不触发。
+        highs = [10.0, 11.0, 12.0, 11.5, 10.5] * 4
+        lows = [9.0, 10.0, 11.0, 10.5, 9.5] * 4
+        closes = [9.5, 10.5, 11.5, 11.0, 10.0] * 4
+        out = compute_atr(highs, lows, closes, period=14)
+        assert out > 0
+
+    def test_compute_atr_insufficient_returns_zero(self):
+        """TR 数量不足 period → 返回 0（ATR 不可用，由调用方回退）。"""
         highs = [10.0, 11.0, 12.0, 11.5, 10.5]
         lows = [9.0, 10.0, 11.0, 10.5, 9.5]
         closes = [9.5, 10.5, 11.5, 11.0, 10.0]
-        out = compute_atr(highs, lows, closes, period=14)
-        assert out > 0
+        assert compute_atr(highs, lows, closes, period=14) == 0.0
 
     def test_atr_tolerance_with_data(self):
         """有 highs/lows → ATR*k（68-71 行）。"""
@@ -576,9 +587,15 @@ class TestVolume:
 
 class TestTrend:
     def test_support_resistance_short(self):
-        """数据不足 → 空列表（14 行）。"""
+        """数据不足 → 空列表 + 齐全的键（14 行）。
+
+        v1.28.0：早退分支此前只返回 supports/resistances 两个键，而
+        report.py 用 sr["nearest_support"] 直接下标 → KeyError 风险。
+        """
         out = support_resistance([1.0] * 5, [1.0] * 5, [1.0] * 5, {})
-        assert out == {"supports": [], "resistances": []}
+        assert out["supports"] == [] and out["resistances"] == []
+        for key in ("nearest_support", "nearest_resistance", "breakout_target"):
+            assert key in out
 
     def test_support_resistance_normal(self):
         """正常支撑阻力（16-80 行）。"""
@@ -596,13 +613,27 @@ class TestTrend:
             "ma_resistances": [("MA5", 55.5)],
         }
         out = support_resistance(closes, highs, lows, ma_info)
-        assert out["nearest_support"] == 53.0
+        # v1.28.0：前低支撑改为**对 lows 单独求摆动低点**——原实现拿 highs
+        # 序列的极小值索引去索引 lows（两个坐标系无关），取到的是随机位。
+        # 此处 lows 的真实摆动低点是 51.0(idx16) / 50.0(idx6)。
+        assert out["nearest_support"] == 52.0  # MA20 支撑（高于两个前低）
         assert out["nearest_resistance"] == 55.5
-        # 前高阻力(47 行) + 整数关口支撑(52-56 行) + 前低支撑(43 行)
+        # 前高阻力 + 均线支撑 + 前低支撑（真实摆动低点）
+        # v1.28.0：前低改为对 lows 单独求摆动低点后，"整数关口"不再必然挤进
+        # 前几名——旧断言只能靠"前低坐标系错位"产生的垃圾值才成立。
+        # 整数关口的判定另行单独验证（见 test_integer_levels_present）。
         sources = {s["source"] for s in out["supports"]} | {s["source"] for s in out["resistances"]}
         assert "前高" in sources
-        assert "整数关口" in sources
         assert "前低" in sources
+
+    def test_integer_levels_present(self):
+        """整数关口必须出现在支撑/阻力中（锚点与步长口径一致）。"""
+        closes = [45.0] * 30
+        highs = [46.0] * 30
+        lows = [44.0] * 30
+        out = support_resistance(closes, highs, lows, {"ma_supports": [], "ma_resistances": []})
+        sources = {s["source"] for s in out["supports"]} | {r["source"] for r in out["resistances"]}
+        assert "整数关口" in sources
 
     def test_support_resistance_low_price(self):
         """last<50 → 整数关口阻力含最近关口（修复：原跳过 50 从 51 起）。"""

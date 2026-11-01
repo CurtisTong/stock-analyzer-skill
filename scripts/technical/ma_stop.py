@@ -4,8 +4,10 @@
 - 条件A：股价不再新低 + 收盘站上 5 日线
 - 条件B：回踩 20 日线不破（前期上升趋势中回踩支撑）
 
-"不再新低"判断：回看期内最低点出现在左半段（已度过最低点），
-配合收盘站上 MA5 且收盘回升确认止跌。
+"不再新低"判断：最近 10 根的最低点落在窗口**内部**（既不是最老端"一路走高、
+无下探"，也不是最新端"今日仍在跌"），配合收盘站上 MA5 且收盘回升确认止跌。
+（v1.28.0 修正：原实现要求最低点在回看期"左半段"，方向与止跌买点意图相反——
+ 上涨趋势中最小值恒在最左端，导致买点几乎恒真。）
 
 依赖: core (sma)
 """
@@ -54,11 +56,26 @@ def ma_stop_buy(closes, highs, lows, mas):
     prev_close = closes[-2]
 
     # ── 条件A：不再新低 + 收盘站上5日线 ──
+    # v1.28.0 修复：「不再新低」的判定方向反了。
+    # 原实现 min_idx = 最近 10 根里最低点的位置，`min_idx < 5` 意为"最低点
+    # 发生在 5 根之前"——上涨趋势中 recent_lows 的最小值**永远**在 index 0
+    # （最老），min_idx=0 恒成立 → 条件 A 在任何稳态上涨中几乎恒真
+    # （实测 109 根里 101 根触发买点，93%）。
+    # 真正的 V 型反转（低点刚出现 2~4 根）反而被漏掉（实测要等 7 根才触发）。
+    #
+    # 正确语义："不再新低"= 窗口内最低点落在**内部**，即：
+    #   - index 0（最老端）→ 窗口内一路走高，根本没有下探，不是止跌事件；
+    #   - index len-1（最新端）→ 今日就是最低点，还在跌，没止跌；
+    #   - 内部 → 曾经下探、此后回升且未再创新低 → 止跌确认成立。
+    # 原实现 min_idx < lookback//2 意为"最低点在 5 根之前"——上涨趋势中
+    # recent_lows 的最小值**永远**在 index 0（最老），min_idx=0 恒成立
+    # → 条件 A 在任何稳态上涨中几乎恒真（实测 109 根里 101 根触发，93%），
+    # 而真正的 V 型反转（低点刚出现 2~4 根）反而被漏掉。
     cond_a = False
     recent_lows = lows[-lookback:]
-    min_idx = recent_lows.index(min(recent_lows))  # 最低点在回看期内的位置
-    # 最低点在左半段 = 已度过最低点 = 不再新低
-    no_new_low = min_idx < lookback // 2
+    min_val = min(recent_lows)
+    min_idx = recent_lows.index(min_val)  # 0 = 最老，lookback-1 = 最近
+    no_new_low = 0 < min_idx < len(recent_lows) - 1
     above_ma5 = today_close > ma5
     close_rebounding = today_close > prev_close
     if no_new_low and above_ma5 and close_rebounding:

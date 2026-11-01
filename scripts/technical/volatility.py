@@ -20,7 +20,13 @@ def compute_atr(highs: list, lows: list, closes: list, period: int = 14) -> floa
         period: 计算周期（默认 14）
 
     Returns:
-        ATR 值，数据不足时返回 0
+        ATR 值；**数据不足 period 根时返回 0**（表示 ATR 不可用），
+        调用方据此回退到各自的兜底口径。
+
+    v1.28.0 修复：此前数据不足时用**少于 period 根**的 TR 求平均并当作 ATR
+    返回（实测 3 根 → 0.5），与 backtest/engine._calc_atr 的"不足则返回 0"
+    口径不一致；且 atr_tolerance 文档写的"ATR 不可用时回退到收盘价 2%"
+    因 ATR 从不返回 0 而**永不触发**——短历史股票的回踩容忍度被放大 2.5 倍。
     """
     n = len(closes)
     if n < 2 or period < 1:
@@ -38,12 +44,12 @@ def compute_atr(highs: list, lows: list, closes: list, period: int = 14) -> floa
         )
         trs.append(tr)
 
-    if not trs:
+    # TR 数量需达到 period 才认为 ATR 可用（与 backtest/engine._calc_atr 对齐：
+    # 那边要求 len(bars) >= period + 1，即 TR 至少 period 根）
+    if len(trs) < period:
         return 0.0
 
-    # 取最近 period 个 TR 的平均
-    window = trs[-period:] if len(trs) >= period else trs
-    return sum(window) / len(window) if window else 0.0
+    return sum(trs[-period:]) / period
 
 
 def atr_tolerance(

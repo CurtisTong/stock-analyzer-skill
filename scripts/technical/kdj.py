@@ -84,19 +84,28 @@ def kdj_full(closes, highs, lows, n=9, board="主板"):
             kdj_signal = "死叉"
 
     # 超买超卖区（差异化阈值）
+    # v1.28.0 修复：超买超卖判定改用 **K 值**（阈值本就按 K 值口径设定：
+    # 主板 80/20、20cm 85/15、30cm 88/12），原实现施加在 J 值上
+    # （J = 3K − 2D，波动远大于 K 且可为负）——实测随机游走下
+    # "超买/超卖区"命中率高达 53.7%（J 值范围 -16 ~ 117），指标几乎恒在极值区。
+    # 通达信/同花顺口径：K ≥ 80 超买、K ≤ 20 超卖。
     zone = ""
-    if j_now > overbought:
-        zone = f"超买区(J={j_now:.0f})"
-    elif j_now < oversold:
-        zone = f"超卖区(J={j_now:.0f})"
+    if k_now > overbought:
+        zone = f"超买区(K={k_now:.0f})"
+    elif k_now < oversold:
+        zone = f"超卖区(K={k_now:.0f})"
 
-    # 组合信号：金叉+超卖 或 死叉+超买
+    # 组合信号：金叉+超卖 / 死叉+超买 等
+    # v1.28.0 修复：原实现只有三个分支，"金叉且处于超买区"（如 J=84 的高位
+    # 金叉）三个分支全不命中 → 超买标记被**完全丢弃**，评分侧按"金叉"给
+    # 偏多分（*0.8），而带超买的分支只给 *0.3 —— 高位金叉被当正面信号。
+    # 现在保留全部组合，超买信息不再丢失。
     if zone:
-        if kdj_signal == "金叉" and j_now < oversold:
-            kdj_signal = "金叉+超卖"
-        elif kdj_signal == "死叉" and j_now > overbought:
-            kdj_signal = "死叉+超买"
-        elif kdj_signal == "正常":
+        if kdj_signal == "金叉":
+            kdj_signal = "金叉+超卖" if k_now < oversold else "金叉+超买"
+        elif kdj_signal == "死叉":
+            kdj_signal = "死叉+超买" if k_now > overbought else "死叉+超卖"
+        else:
             kdj_signal = zone
 
     # 钝化检测（差异化阈值和周期）

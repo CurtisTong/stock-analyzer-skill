@@ -6,7 +6,7 @@
 > ⚫ **文档数**：9 份核心指南 + 1 份合规 + 31 份历史归档（designs/reviews/reports/releases） = 41 份
 > 📦 投资方法论新版见 [../methodology.md](../methodology.md)（已从 docs/ 移到仓库根目录）
 
-> 适用文档：stock-analyzer-skill v1.29.0
+> 适用文档：stock-analyzer-skill v1.30.0
 > 索引目的：解决 docs/ 目录下"找不到入口"问题
 > 上次重构：2026-08-20（docs/methodology.md 重复清理 + 历史归档分层）
 

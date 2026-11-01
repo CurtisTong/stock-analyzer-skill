@@ -11,7 +11,16 @@ from .core import _find_swing_points
 def support_resistance(closes, highs, lows, ma_info):
     """关键支撑/阻力位。"""
     if len(highs) < 10 or len(lows) < 10:
-        return {"supports": [], "resistances": []}
+        # v1.28.0：早退分支补齐键——report.py 用 sr["nearest_support"] 直接下标，
+        # 缺键会 KeyError（此前只有 supports/resistances 两个键）。
+        return {
+            "supports": [],
+            "resistances": [],
+            "nearest_support": None,
+            "nearest_resistance": None,
+            "recent_swing_highs": [],
+            "breakout_target": None,
+        }
 
     last = closes[-1]
 
@@ -21,7 +30,13 @@ def support_resistance(closes, highs, lows, ma_info):
     recent_lows = lows[-lookback:]
 
     # 找局部摇摆点
-    ph, pl = _find_swing_points(recent_highs, window=3)
+    # v1.28.0 修复：摆动低点必须**单独对 lows 调用**。
+    # 原实现只对 highs 调一次 _find_swing_points，然后拿返回的 pl（highs 序列
+    # 自身的局部极小值索引）去索引 recent_lows —— 两个坐标系无关，取到的是
+    # 随机位（实测输出"前低 18.0"而真实摆动低点是 10.0）。
+    # 前低支撑标 strength="强"，并直接进入报告的"关键支撑"与止损百分比。
+    ph, _pl_highs = _find_swing_points(recent_highs, window=3)
+    _ph_lows, pl = _find_swing_points(recent_lows, window=3)
     all_swing_highs = sorted(set(round(recent_highs[i], 2) for i in ph))
     swing_highs = [h for h in all_swing_highs if h > last]
     swing_lows = sorted(set(round(recent_lows[i], 2) for i in pl if recent_lows[i] < last), reverse=True)
@@ -46,14 +61,20 @@ def support_resistance(closes, highs, lows, ma_info):
         supports.append({"level": lv, "source": "前低", "strength": "强"})
 
     # 前高阻力
-    for hv in swing_highs[-2:]:
+    # v1.28.0 修复：取**最近**的 2 个，与前低支撑口径对称。
+    # 原实现用 swing_highs[-2:]（升序取末尾 = 最高 = 离现价最远的两个），
+    # 把真正的最近阻力丢掉（实测 nearest_resistance=28 而真实最近前高 23.0）。
+    for hv in sorted(swing_highs)[:2]:
         resistances.append({"level": hv, "source": "前高", "strength": "强"})
 
     # 整数关口
-    # 修复：原实现两侧都跳过最近的整数位（last=15 → 阻力从 21 而非 20；
-    # last=12 → 支撑从 9 而非 10），最近支撑/阻力整体偏移一格。
-    round_num = round(last, -1 if last >= 10 else 0)
+    # v1.28.0 修复：锚点与步长口径一致。
+    # 原实现锚点取十位（round(last,-1)）而 10<=last<50 时步长取 1，
+    # 于是"最近的整数关口"被整体跳过（last=15 → 只给 20/21/22，跳过 16），
+    # 且 round() 是 banker&apos;s rounding（round(25,-1)=20、round(35,-1)=40）行为不连续。
+    # 现在锚点按步长对齐（向下取整），保证最近的关口不会被跳过。
     step = 10 if last >= 50 else 1
+    round_num = round(last / step) * step if step > 1 else int(last)
     if round_num < last:
         # 最近整数关口在价格下方 → 支撑（含关口本身）
         base = round_num
@@ -74,15 +95,28 @@ def support_resistance(closes, highs, lows, ma_info):
             )
 
     # 去重排序
-    supports = sorted(supports, key=lambda x: x["level"], reverse=True)[:5]
-    resistances = sorted(resistances, key=lambda x: x["level"])[:5]
+    # v1.28.0：同价位去重——前低 50.0 与整数关口 50.0 是同一个价格点，
+    # 两条来源重复列出（报告里出现两行同一价位）。保留强度更高的那条。
+    def _dedup_by_level(items):
+        seen = set()
+        out = []
+        for it in items:
+            lv = it["level"]
+            if lv in seen:
+                continue
+            seen.add(lv)
+            out.append(it)
+        return out
+
+    supports = _dedup_by_level(sorted(supports, key=lambda x: x["level"], reverse=True))[:5]
+    resistances = _dedup_by_level(sorted(resistances, key=lambda x: x["level"]))[:5]
 
     nearest_support = supports[0]["level"] if supports else None
     nearest_resistance = resistances[0]["level"] if resistances else None
 
     return {
-        "supports": supports[:3],
-        "resistances": resistances[:3],
+        "supports": supports[:4],
+        "resistances": resistances[:4],
         "nearest_support": nearest_support,
         "nearest_resistance": nearest_resistance,
         "recent_swing_highs": all_swing_highs,

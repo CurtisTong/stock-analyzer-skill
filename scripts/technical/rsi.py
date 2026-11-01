@@ -5,9 +5,15 @@ RSI 指标（Wilder 平滑方法）。
 
 
 def _rsi_wilder(closes, period):
-    """Wilder RSI 单周期计算（与通达信/同花顺 RSI 平滑口径一致）。
+    """Wilder RSI 单周期计算。
 
     数据不足 period + 1 根时返回 None。
+
+    v1.28.0：docstring 更正口径说明——本实现是 **Wilder 平滑**（分母用
+    平均跌幅 avg_loss），与通达信/同花顺的 SMA(MAX(C-LC,0),N,1) /
+    SMA(ABS(C-LC),N,1)（分母用**绝对涨跌**）不同。实测两者在 30/70 阈值上
+    约 0.44% 的样本判定相反（用户会看到与第三方软件不同的结论），
+    属已知口径差异，非缺陷。
     """
     if len(closes) < period + 1:
         return None

@@ -23,15 +23,22 @@ def macd_full(closes):
     dea_series = _ema_series(dif_series, 9)
     dea = dea_series[-1] if dea_series else dif
     prev_dif = dif_series[-2] if len(dif_series) >= 2 else dif
-    prev_dea = dea_series[-2] if len(dea_series) >= 2 else dea
+    # v1.28.0 修复：DEA 序列只有 1 个元素时（n=34，DEA 恰好起算），原实现把
+    # prev_dea 回退到**当前** dea，而 prev_dif 取的是前一根 —— 金叉/死叉判定
+    # 变成"前一根 DIF vs 当前 DEA"，坐标系错位。
+    # 实测 n=34 时随机序列有 33/400 报出无意义的金叉/死叉。
+    # 现在：DEA 不足 2 个元素 → 无前值可比 → 不判定金叉死叉（signal=0）。
+    has_prev_dea = len(dea_series) >= 2
+    prev_dea = dea_series[-2] if has_prev_dea else dif
     macd_bar = (dif - dea) * 2
 
     # 金叉死叉检测（使用 epsilon 避免浮点噪声）
     signal = 0
-    if prev_dif < prev_dea - _EPS and dif > dea + _EPS:
-        signal = 1
-    elif prev_dif > prev_dea + _EPS and dif < dea - _EPS:
-        signal = -1
+    if has_prev_dea:
+        if prev_dif < prev_dea - _EPS and dif > dea + _EPS:
+            signal = 1
+        elif prev_dif > prev_dea + _EPS and dif < dea - _EPS:
+            signal = -1
 
     # 柱状图趋势
     prev_bar = (prev_dif - prev_dea) * 2
