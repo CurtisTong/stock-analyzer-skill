@@ -258,8 +258,17 @@ class SentimentCalculator:
                 "level": str,           # 情绪等级
                 "components": dict,     # 各指标得分
                 "interpretation": str,  # 解读
+                "degraded": bool,       # 数据降级（分数无意义）
             }
         """
+        # v1.28.0 修复：降级数据不得当作真实情绪计分。
+        # 降级输入是全 0（akshare 与东财均失败），此前 calculate() 不检查
+        # _degraded 标记 → broken_rate=0 走 _calc_broken_score 末档拿到**最高分 80**
+        # （"没有炸板=情绪稳定"），把总分从真实极冷市场的 34 拉到 42，
+        # 且输出看起来与正常行情无异（format_sentiment 也不渲染降级标记）。
+        # 现在降级时：分数标记为无意义，解读明确说明数据缺失。
+        degraded = bool(market_data.get("_degraded", False))
+
         # 计算各指标得分
         limit_up_score = self._calc_limit_up_score(market_data.get("limit_up_count", 0))
         height_score = self._calc_height_score(market_data.get("continuous_limit_height", 0))
@@ -281,10 +290,16 @@ class SentimentCalculator:
 
         # 生成解读
         interpretation = self._generate_interpretation(total_score, level, market_data)
+        if degraded:
+            level = "数据缺失"
+            interpretation = (
+                "情绪数据获取失败（涨停池/炸板池/两融均不可用），" "本次分数不代表真实市场情绪，不可用于决策"
+            )
 
         return {
             "score": total_score,
             "level": level,
+            "degraded": degraded,
             "components": {
                 "limit_up": {
                     "value": market_data.get("limit_up_count", 0),
@@ -458,6 +473,11 @@ def format_sentiment(result: dict) -> str:
         "",
         f"情绪指数：{score}/100（{level_icon} {level}）",
         f"[{bar}] {score}%",
+    ]
+    # v1.28.0：降级时明确标注——分数不代表真实市场情绪
+    if result.get("degraded"):
+        lines.insert(2, "⚠️ 数据降级：以下分数不代表真实市场情绪，不可用于决策")
+    lines += [
         "",
         "## 指标明细",
         "",

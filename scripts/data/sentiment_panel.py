@@ -72,14 +72,19 @@ def _fetch_pool(endpoint: str, date: str) -> list[dict]:
 
 
 def _normalize_code(raw_code: str) -> str:
-    """东财纯数字代码 → sh/sz/bj 前缀格式。"""
+    """东财纯数字代码 → sh/sz/bj 前缀格式。
+
+    v1.28.0 修复：补北交所 920 号段（bj920001）。此前只认 8/4 前缀，
+    920xxx 原样返回 → 与项目其他位置（backtest/engine 的 bj920001 口径）
+    不一致，北交所新号段标的的情绪因子恒为 None（静默缺失）。
+    """
     if not raw_code or not raw_code.isdigit():
         return raw_code
     if raw_code.startswith("6"):
         return f"sh{raw_code}"
     if raw_code.startswith("0") or raw_code.startswith("3"):
         return f"sz{raw_code}"
-    if raw_code.startswith("8") or raw_code.startswith("4"):
+    if raw_code.startswith("8") or raw_code.startswith("4") or raw_code.startswith("92"):
         return f"bj{raw_code}"
     return raw_code
 
@@ -132,12 +137,14 @@ def refresh_panel(date: str = "") -> Optional[dict]:
     """
     global _cache, _cache_ts
 
+    # v1.28.0：datetime 在函数体内是局部名（下方有 from datetime import datetime），
+    # 提前到函数开头导入，避免 UnboundLocalError。
+    from datetime import datetime
+
     # 缓存语义统一（P2-1）：无论显式 date 还是默认当日，都按 date 为 key
     # 做 TTL 缓存——此前只有 date="" 写缓存，显式历史日走旁路，同一份数据
     # 的缓存行为按参数分叉。
     if not date:
-        from datetime import datetime
-
         date = datetime.now().strftime("%Y%m%d")
     if date in _cache and (time.time() - _cache_ts) < _CACHE_TTL:
         return _cache[date]
@@ -188,15 +195,24 @@ def refresh_panel(date: str = "") -> Optional[dict]:
     # 跌停家数（P2-2）：设计文档 §4.2 "赚钱效应"公式引用的字段此前从未采集。
     # 复用 market_breadth 的现成东财跌停池通道；失败/降级时留 None（诚实缺失，
     # 不伪装成 0——0 会被读成"无跌停"的市场状态）。
+    #
+    # v1.28.0 修复：get_limit_data() 内部用 datetime.now() 取**今天**的跌停池，
+    # 回填历史日期的快照时会把"今天的跌停家数"写进历史快照（存档数据被污染，
+    # 且该文件是回测/IC 的数据源，后续接上赚钱效应因子即成真前视）。
+    # 现在只有采集当日才取该字段；历史回填一律留 None（诚实缺失）。
     limit_down_count = None
-    try:
-        from market_breadth import get_limit_data
+    _today = datetime.now().strftime("%Y%m%d")
+    if date == _today:
+        try:
+            from market_breadth import get_limit_data
 
-        limit_data = get_limit_data()
-        if not limit_data.get("_degraded", False):
-            limit_down_count = int(limit_data.get("limit_down_count", 0) or 0)
-    except Exception as e:
-        logger.debug("跌停家数获取失败: %s", e)
+            limit_data = get_limit_data()
+            if not limit_data.get("_degraded", False):
+                limit_down_count = int(limit_data.get("limit_down_count", 0) or 0)
+        except Exception as e:
+            logger.debug("跌停家数获取失败: %s", e)
+    else:
+        logger.debug("历史快照 %s：不取当日跌停家数（get_limit_data 只有今天的数据）", date)
 
     chg_values = [e["zdp"] for e in stocks.values() if e.get("zdp") is not None]
     median_chg = None

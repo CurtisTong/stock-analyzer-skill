@@ -78,9 +78,14 @@ def cmd_evaluate(args):
                     "ic_stats": ic_stats,
                     "min_samples": args.min_samples,
                     "warnings": [
-                        f"{f}: 样本 {ic_stats[f]['samples']} < 门槛 {args.min_samples}，IC 无统计意义"
+                        # v1.28.0：零样本单独告警——IC 未计算 ≠ 因子无效
+                        (
+                            f"{f}: 无有效样本（IC 未计算，不能据此判定因子有效性）"
+                            if ic_stats.get(f, {}).get("samples", 0) == 0
+                            else f"{f}: 样本 {ic_stats[f]['samples']} < 门槛 {args.min_samples}，IC 无统计意义"
+                        )
                         for f in ic_all
-                        if ic_stats[f]["samples"] < args.min_samples
+                        if ic_stats.get(f, {}).get("samples", 0) == 0 or ic_stats[f]["samples"] < args.min_samples
                     ],
                     "ic_by_regime": ic_by_regime,
                 },
@@ -97,20 +102,27 @@ def cmd_evaluate(args):
     print("-" * 60)
     for factor, ic in sorted(ic_all.items(), key=lambda kv: -abs(kv[1])):
         stats = ic_stats.get(factor, {})
-        if ic > 0.05:
+        n_samples = stats.get("samples", 0)
+        n_days = stats.get("days", 0)
+        if n_samples == 0:
+            # v1.28.0 修复：零样本必须显式告警。
+            # ic.py 要求单日截面 ≥5 只才纳入 IC 计算，而情绪因子只在涨停/炸板池内
+            # 才有值（覆盖率约 1.3%）→ 回测池与情绪池交集常为 0~4 只 →
+            # samples=0、IC=0。此前因 --min-samples 默认 0（samples<0 为 False），
+            # 零样本因子**不产生任何告警**，输出"无明显预测力"——与"真实测得
+            # IC=0"完全无法区分，把"链路空转"伪装成"因子无效"。
+            verdict = "⚠️无有效样本（IC 未计算，非因子无效）"
+        elif ic > 0.05:
             verdict = "有效（正向）"
         elif ic < -0.05:
             verdict = "反向（高因子分 → 低收益）"
         else:
             verdict = "无明显预测力"
-        if stats.get("samples", 0) < args.min_samples:
+        if n_samples and n_samples < args.min_samples:
             verdict += f" ⚠️样本少于门槛({args.min_samples})，IC 无统计意义"
-        elif stats.get("days", 0) < 5 and stats.get("samples", 0) > 0:
+        elif n_samples and n_days < 5:
             verdict += " ⚠️截面天数少，参考性弱"
-        print(
-            f"{factor:<14} {ic:>8.3f} {stats.get('icir', 0):>7.2f} "
-            f"{stats.get('days', 0):>4} {stats.get('samples', 0):>6}  {verdict}"
-        )
+        print(f"{factor:<14} {ic:>8.3f} {stats.get('icir', 0):>7.2f} " f"{n_days:>4} {n_samples:>6}  {verdict}")
 
     if args.save:
         save_ic(ic_by_regime)

@@ -143,13 +143,24 @@ def classify_tier(profit_ratio: float, contains_price: bool, rebound_to_main_pct
     """按筹码结构分档。
 
     阈值以初始样本（7 只持仓 + 中际旭创）标定，**未经校准**，后续按实际分布调整。
+
+    v1.28.0 修复：判定顺序与文档口径对齐。
+    文档（skills/portfolio/SKILL.md、skills/_shared/references/five-layer.md）规定
+    **处理优先级：深度套牢 > 上方有墙 > 筹码在脚下**；原实现把"筹码在脚下"放最前，
+    导致 98% 套牢的股票被判为"筹码在脚下"（实测：获利盘 6.5% / 套牢 93.5% 报脚下），
+    与实际风险状态相反——深度套牢是风险最高的档位，必须优先命中。
     """
-    if contains_price or profit_ratio >= _TIER_FOOT_PROFIT:
-        return "筹码在脚下"
+    # 深度套牢优先（套牢盘 ≥97% 或需反弹 ≥15%）
     if profit_ratio <= _TIER_DEEP_PROFIT or (
         rebound_to_main_pct is not None and rebound_to_main_pct >= _TIER_DEEP_REBOUND
     ):
         return "深度套牢"
+    # 上方有墙：套牢盘 85–97% 且需反弹 <15%
+    if not contains_price and profit_ratio < _TIER_FOOT_PROFIT:
+        return "上方有墙"
+    # 筹码在脚下：密集区含现价 或 获利盘 ≥15%
+    if contains_price or profit_ratio >= _TIER_FOOT_PROFIT:
+        return "筹码在脚下"
     return "上方有墙"
 
 

@@ -103,15 +103,40 @@ class TestSnapshotSchema:
         # 降级通道 → None（诚实缺失，不伪装成 0）
         assert snapshot["limit_down_count"] is None
 
-    def test_limit_down_count_from_breadth(self, pool_data, monkeypatch):
+    def test_limit_down_count_not_taken_for_historical_backfill(self, monkeypatch):
+        """历史回填不得写入"今天"的跌停家数（v1.28.0 修复）。
+
+        get_limit_data() 内部用 datetime.now() 取当天的跌停池，回填历史日期时
+        会把今天的跌停家数写进历史快照——存档数据被污染，且该文件是
+        回测/IC 的数据源，后续接上赚钱效应因子即成真前视。
+        现在只有采集当日才取该字段，历史回填一律留 None（诚实缺失）。
+        """
         import data.sentiment_panel as panel
         import market_breadth as breadth
+
+        called = {"n": 0}
+
+        def ok_limit_data():
+            called["n"] += 1
+            return {"_degraded": False, "limit_down_count": 7}
+
+        monkeypatch.setattr(breadth, "get_limit_data", ok_limit_data)
+        snapshot = panel.refresh_panel(date="20261020")
+        assert snapshot["limit_down_count"] is None
+        assert called["n"] == 0, "历史回填不应调用只返回今天数据的通道"
+
+    def test_limit_down_count_taken_for_today(self, monkeypatch):
+        """当日采集仍应取跌停家数（字段要真的有值）。"""
+        import data.sentiment_panel as panel
+        import market_breadth as breadth
+        from datetime import datetime
 
         def ok_limit_data():
             return {"_degraded": False, "limit_down_count": 7}
 
         monkeypatch.setattr(breadth, "get_limit_data", ok_limit_data)
-        snapshot = panel.refresh_panel(date="20261020")
+        today = datetime.now().strftime("%Y%m%d")
+        snapshot = panel.refresh_panel(date=today)
         assert snapshot["limit_down_count"] == 7
 
 
