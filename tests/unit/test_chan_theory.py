@@ -59,17 +59,38 @@ def _fx(fx_type, high, low, idx, date=""):
     return {"type": fx_type, "bar": _bar(high, low, idx, date), "idx": idx}
 
 
-def _bi(direction, s_idx, e_idx, s_low, s_high, e_low, e_high, date_s="", date_e=""):
-    """手工笔（beichi/maidian 输入形状）。"""
+def _bi(direction, s_idx, e_idx, s_low, s_high, e_low, e_high, date_s=None, date_e=None):
+    """手工笔（beichi/maidian 输入形状）。
+
+    date 默认按 idx 生成（f"d{idx}"），与 _date_map 配合走 beichi 的
+    date→closes 索引真实映射路径（P2-C3 修复后的生产路径）。
+    """
     return {
-        "start": _fx("底" if direction == "up" else "顶", s_high, s_low, s_idx, date_s),
-        "end": _fx("顶" if direction == "up" else "底", e_high, e_low, e_idx, date_e),
+        "start": _fx(
+            "底" if direction == "up" else "顶",
+            s_high,
+            s_low,
+            s_idx,
+            date_s if date_s is not None else f"d{s_idx}",
+        ),
+        "end": _fx(
+            "顶" if direction == "up" else "底",
+            e_high,
+            e_low,
+            e_idx,
+            date_e if date_e is not None else f"d{e_idx}",
+        ),
         "direction": direction,
         "high": max(s_high, e_high),
         "low": min(s_low, e_low),
         "start_idx": s_idx,
         "end_idx": e_idx,
     }
+
+
+def _date_map(closes):
+    """{date: closes_index} 映射，与 _bi 的默认 date 生成规则配套。"""
+    return {f"d{i}": i for i in range(len(closes))}
 
 
 # 缠论教材走势：上涨段（回调低点抬高）→ 深跌转折 → 下跌段（反弹高点降低）
@@ -258,29 +279,50 @@ class TestChanBi:
 
 
 class TestChanXianduan:
-    """线段：3 笔重叠 + 特征序列破坏判断。"""
+    """线段：3 笔重叠 + 特征序列分型破坏（v2.5.0 重构口径）。"""
 
     def _zigzag_bis(self):
-        """上升段：up(10→12) down(12→11) up(11→13) down(13→11.5，破坏)。"""
+        """上升段延续：回调低点抬高（11 → 11.5）→ 特征序列无顶分型 → 4 笔 1 段。"""
         return [
             _bi("up", 0, 5, 10, 10.2, 12, 12.2),
-            _bi("down", 5, 8, 11, 11.2, 12, 12.2),
+            _bi("down", 5, 8, 11, 11.2, 12, 12.2),  # S1=[12.2, 11]
             _bi("up", 8, 12, 11, 11.2, 13, 13.2),
-            _bi("down", 12, 18, 10.5, 10.8, 13, 13.2),  # low 10.5 < 特征序列最低 11
+            _bi("down", 12, 18, 11.5, 11.8, 13, 13.2),  # S2=[13.2, 11.5] 回调抬高，无破坏
+        ]
+
+    def _break_bis(self):
+        """上升段破坏：S2 起点为段顶（13.2），确认笔跌破分型低点 11。"""
+        return [
+            _bi("up", 0, 5, 10, 10.2, 12, 12.2),  # up1
+            _bi("down", 5, 8, 11, 11.2, 12, 12.2),  # S1=[12.2, 11]
+            _bi("up", 8, 12, 11, 11.2, 13, 13.2),  # 段顶 13.2
+            _bi("down", 12, 18, 11.5, 11.8, 13, 13.2),  # S2=[13.2, 11.5] 顶分型中间元素
+            _bi("up", 18, 22, 11.5, 11.8, 12.8, 13.0),  # 反弹不创新高
+            _bi("down", 22, 26, 11.4, 11.6, 12.8, 13.0),  # S3=[13.0, 11.4]
+            _bi("up", 26, 30, 11.4, 11.6, 11.9, 12.1),
+            _bi("down", 30, 34, 10.5, 10.8, 11.9, 12.1),  # 确认笔 low 10.5 < 11
         ]
 
     def test_three_overlapping_bis_form_segment(self):
         xd = chan_xianduan(self._zigzag_bis())
         assert len(xd) == 1
         assert xd[0]["direction"] == "up"  # 第一笔方向
-        assert xd[0]["bi_count"] == 3
-        assert (xd[0]["start_bi"], xd[0]["end_bi"]) == (0, 2)
+        # 回调低点抬高 → 特征序列无顶分型 → 线段延续至末尾（v2.5.0 行为）
+        assert xd[0]["bi_count"] == 4
+        assert (xd[0]["start_bi"], xd[0]["end_bi"]) == (0, 3)
 
-    def test_feature_seq_break_ends_segment(self):
-        """第 4 笔 low 跌破特征序列最低（11）→ 线段被破坏。"""
-        xd = chan_xianduan(self._zigzag_bis())
-        # 破坏后从 bi1 重新扫描：down(11→10.5)+up? 剩余不足 3 笔 → 仍 1 段但 bi_count=3
-        assert xd[0]["bi_count"] == 3
+    def test_feature_seq_fenxing_break_ends_segment(self):
+        """特征序列顶分型 + 确认笔跌破分型低点 → 线段结束于分型中间元素前一笔。"""
+        xd = chan_xianduan(self._break_bis())
+        assert len(xd) >= 1
+        first = xd[0]
+        assert first["direction"] == "up"
+        # 顶分型中间元素 = bi3（S2），线段终点 = bi2（up2 的段顶 13.2）
+        assert (first["start_bi"], first["end_bi"]) == (0, 2)
+        assert first["bi_count"] == 3
+        assert first["high"] == 13.2
+        # 破坏后从 bi3 重新起段
+        assert xd[1]["start_bi"] == 3
 
     def test_no_overlap_no_segment(self):
         bis = [
@@ -306,63 +348,72 @@ class TestChanXianduan:
 
 
 class TestChanZhongshu:
-    """中枢：3 线段重叠 + GG/DD + 重叠合并（交集语义）。"""
+    """中枢：笔中枢（v2.5.0 起，连续 3 笔重叠区间 + 延伸）。"""
 
-    def _three_overlapping_segments(self):
+    def _three_overlapping_bis(self):
+        """up[10,12.2] / down[11,12.2] / up[11,13.2] → 中枢 [11, 12.2]。"""
         return [
-            {"direction": "up", "bi_count": 3, "start_bi": 0, "end_bi": 2, "high": 12.0, "low": 10.0},
-            {"direction": "down", "bi_count": 3, "start_bi": 3, "end_bi": 5, "high": 11.5, "low": 10.5},
-            {"direction": "up", "bi_count": 4, "start_bi": 6, "end_bi": 9, "high": 12.5, "low": 10.2},
+            _bi("up", 0, 5, 10, 10.2, 12, 12.2),
+            _bi("down", 5, 8, 11, 11.2, 12, 12.2),
+            _bi("up", 8, 12, 11, 11.2, 13, 13.2),
         ]
 
-    def test_overlapping_segments_form_zhongshu(self):
-        zs = chan_zhongshu(self._three_overlapping_segments())
+    def test_overlapping_bis_form_zhongshu(self):
+        zs = chan_zhongshu(self._three_overlapping_bis())
         assert len(zs) == 1
         z = zs[0]
-        assert z["zg"] == 11.5  # min(highs)
-        assert z["zd"] == 10.5  # max(lows)
-        assert z["gg"] == 12.5
+        assert z["zg"] == 12.2  # min(三笔高点)
+        assert z["zd"] == 11.0  # max(三笔低点)
+        assert z["gg"] == 13.2
         assert z["dd"] == 10.0
-        assert z["mid"] == 11.0
-        assert (z["bi_start"], z["bi_end"]) == (0, 9)
+        assert z["mid"] == 11.6
+        assert (z["bi_start"], z["bi_end"]) == (0, 2)
+
+    def test_extension_overlapping_bi_extends_range(self):
+        """第 4 笔与 [ZD, ZG] 有重叠 → 中枢延伸，bi_end/GG/DD 更新。"""
+        bis = self._three_overlapping_bis()
+        bis.append(_bi("down", 12, 18, 11.5, 11.8, 12.5, 12.8))  # 与中枢重叠
+        zs = chan_zhongshu(bis)
+        assert len(zs) == 1
+        assert zs[0]["bi_end"] == 3
+        assert zs[0]["gg"] == 13.2  # GG/DD 随延伸笔更新
+
+    def test_exit_bi_ends_zhongshu(self):
+        """第 4 笔完全离开中枢区间 → 中枢止于前 3 笔，离开笔不并入。"""
+        bis = self._three_overlapping_bis()
+        bis.append(_bi("down", 12, 18, 14.0, 14.2, 15.0, 15.2))  # low 14 > zg 12.2
+        zs = chan_zhongshu(bis)
+        assert len(zs) == 1
+        assert zs[0]["bi_end"] == 2
+        assert zs[0]["bi_end"] < len(bis) - 1
 
     def test_no_overlap_no_zhongshu(self):
-        segs = [
-            {"direction": "up", "bi_count": 3, "start_bi": 0, "end_bi": 2, "high": 12.0, "low": 10.0},
-            {"direction": "down", "bi_count": 3, "start_bi": 3, "end_bi": 5, "high": 15.0, "low": 13.0},
-            {"direction": "up", "bi_count": 4, "start_bi": 6, "end_bi": 9, "high": 18.0, "low": 16.0},
+        bis = [
+            _bi("up", 0, 5, 10, 10.2, 20, 20.2),
+            _bi("down", 5, 8, 25, 25.2, 30, 30.2),
+            _bi("up", 8, 12, 29, 29.2, 35, 35.2),
         ]
-        assert chan_zhongshu(segs) == []
+        assert chan_zhongshu(bis) == []
 
-    def test_touching_edges_not_zhongshu(self):
-        """区间仅相切（zd == zg）不构成中枢。"""
-        segs = [
-            {"direction": "up", "bi_count": 3, "start_bi": 0, "end_bi": 2, "high": 12.0, "low": 10.0},
-            {"direction": "down", "bi_count": 3, "start_bi": 3, "end_bi": 5, "high": 12.0, "low": 12.0},
-            {"direction": "up", "bi_count": 4, "start_bi": 6, "end_bi": 9, "high": 12.0, "low": 10.0},
+    def test_two_separate_zhongshu(self):
+        """两个不重叠的 3 笔重叠区 → 两个独立中枢，由离开笔分隔。"""
+        bis = [
+            _bi("up", 0, 5, 10, 10.2, 12, 12.2),
+            _bi("down", 5, 8, 11, 11.2, 12, 12.2),
+            _bi("up", 8, 12, 11, 11.2, 13, 13.2),
+            _bi("down", 12, 18, 14.0, 14.2, 15.0, 15.2),  # 离开（向上）
+            _bi("up", 18, 22, 14.0, 14.2, 16.5, 16.8),  # 新重叠区第 2 笔
+            _bi("down", 22, 26, 14.2, 14.5, 16.0, 16.2),  # 新重叠区第 3 笔
         ]
-        assert chan_zhongshu(segs) == []
+        zs = chan_zhongshu(bis)
+        assert len(zs) == 2
+        assert zs[0]["bi_start"] == 0 and zs[0]["bi_end"] == 2
+        assert zs[1]["bi_start"] == 3
+        # 第二中枢区间在第一中枢上方
+        assert zs[1]["zd"] > zs[0]["zg"] or zs[1]["zd"] >= 14.0
 
-    def test_overlapping_zhongshu_merge_intersects(self):
-        """相邻重叠中枢合并取交集，GG/DD 取并集。"""
-        segs = [
-            {"direction": "up", "bi_count": 3, "start_bi": 0, "end_bi": 2, "high": 12.0, "low": 10.0},
-            {"direction": "down", "bi_count": 3, "start_bi": 3, "end_bi": 5, "high": 11.5, "low": 10.5},
-            {"direction": "up", "bi_count": 4, "start_bi": 6, "end_bi": 9, "high": 12.5, "low": 10.2},
-            {"direction": "down", "bi_count": 3, "start_bi": 10, "end_bi": 12, "high": 12.0, "low": 10.8},
-            {"direction": "up", "bi_count": 4, "start_bi": 13, "end_bi": 16, "high": 13.0, "low": 11.0},
-        ]
-        zs = chan_zhongshu(segs)
-        assert len(zs) == 1  # 中枢[0-2]与[2-4]线段重叠且连续 → 合并
-        z = zs[0]
-        assert z["zg"] == 11.5  # 交集高点 = min(11.5, 12.0)
-        assert z["zd"] == 11.0  # 交集低点 = max(10.5, 11.0)
-        assert z["gg"] == 13.0
-        assert z["dd"] == 10.0
-        assert (z["xd_start"], z["xd_end"]) == (0, 4)
-
-    def test_insufficient_segments(self):
-        assert chan_zhongshu(self._three_overlapping_segments()[:2]) == []
+    def test_insufficient_bis(self):
+        assert chan_zhongshu(self._three_overlapping_bis()[:2]) == []
 
 
 class TestMacdArea:
@@ -375,6 +426,17 @@ class TestMacdArea:
         dif = [-1.0, -2.0]
         dea = [0.0, 0.0]
         assert _macd_area(dif, dea, 0, 1) == 3.0
+
+    def test_side_up_counts_only_positive(self):
+        """side="up" 只累计红柱（DIF>DEA），翻色区不混淆多空动能。"""
+        dif = [1.0, -2.0, 3.0]
+        dea = [0.0, 0.0, 0.0]
+        assert _macd_area(dif, dea, 0, 2, side="up") == 1.0 + 3.0
+
+    def test_side_down_counts_only_negative(self):
+        dif = [1.0, -2.0, 3.0]
+        dea = [0.0, 0.0, 0.0]
+        assert _macd_area(dif, dea, 0, 2, side="down") == 2.0
 
     def test_invalid_range_returns_zero(self):
         dif, dea = [1.0, 2.0], [0.5, 0.5]
@@ -424,8 +486,8 @@ class TestChanBeichi:
         closes = self._beichi_closes()
         bis = self._beichi_inputs(closes)
         zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
-        r = chan_beichi(bis, zs, closes)
-        # 进入段大跌（面积大），离开段缓跌同创新低（面积小）→ 底背驰
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
+        # 进入段大跌（绿柱面积大），离开段缓跌同创新低（面积小）→ 底背驰
         assert r["trend_beichi"] == "底背驰(看涨)"
         assert "底背驰" in r["summary"]
 
@@ -435,37 +497,121 @@ class TestChanBeichi:
         bis = self._beichi_inputs(closes)
         bis[-1]["low"] = 86.0  # 离开段低点高于进入段低点 85
         zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
-        r = chan_beichi(bis, zs, closes)
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
         assert r["trend_beichi"] is None
 
     def test_no_beichi_when_exit_area_larger(self):
         """离开段力度更强（面积更大）→ 无背驰。"""
         closes = self._beichi_closes()
-        # 颠倒力度：把中枢震荡改成大波动（entry 相对小）
         bis = self._beichi_inputs(closes)
-        # entry 段压缩到缓跌（idx 映射不变，用 close 幅度控制不了——改为缩短 entry 面积）
-        bis[1] = _bi("down", 39, 44, 97, 100, 100, 101)  # entry 只跌 5 根
+        # entry 段压缩到 5 根缓跌（面积小于 exit 的 18 根）
+        bis[1] = _bi("down", 39, 44, 97, 100, 100, 101)
         zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
-        r = chan_beichi(bis, zs, closes)
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
         assert r["trend_beichi"] is None
 
     def test_no_zhongshu_no_trend_beichi(self):
         closes = self._beichi_closes()
         bis = self._beichi_inputs(closes)
-        r = chan_beichi(bis, [], closes)
+        r = chan_beichi(bis, [], closes, date_to_close_idx=_date_map(closes))
         assert r["trend_beichi"] is None
         assert r["summary"] == "当前无明确背驰信号"
 
-    def test_range_beichi_above_zg(self):
-        """中枢上方离开 + 力度衰减 → 盘整背驰(看跌)。"""
+    def test_missing_date_skips_not_falls_back(self):
+        """date 缺失时诚实降级（不判背驰），不再回退错位坐标系。"""
         closes = self._beichi_closes()
         bis = self._beichi_inputs(closes)
-        # 中枢抬高到 88-93，使末根 close(≈82) 不满足——反转：中枢下移让 close 在上方
-        # 直接构造：末段 close 高于 zg：把 closes 尾部抬高
-        closes_hi = closes[:-5] + [95.0] * 5
-        zs = [{"zg": 88, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
-        r = chan_beichi(bis, zs, closes_hi, range_tolerance=0.99)
-        # exit 面积 < entry×0.99 且 last_close(95) > zg(88) → 盘整背驰(看跌)
+        for b in bis:  # 抹掉 date
+            b["start"]["bar"]["date"] = ""
+            b["end"]["bar"]["date"] = ""
+        zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
+        assert r["trend_beichi"] is None
+
+    def test_zero_entry_area_not_beichi(self):
+        """进入段无同色动能柱（面积 0）→ 不判背驰（无动能≠力度衰减）。"""
+        closes = [100.0] * 60  # 横盘：entry 段无展开的同色柱
+        bis = [
+            _bi("up", 20, 39, 99, 101, 100, 101),
+            _bi("down", 39, 55, 100, 101, 100, 101),
+            _bi("up", 55, 62, 100, 101, 100, 101),
+            _bi("down", 62, 70, 100, 101, 100, 101),
+            _bi("up", 70, 77, 100, 101, 100, 101),
+            _bi("down", 77, 95, 100, 101, 100, 101),
+        ]
+        zs = [{"zg": 101, "zd": 99, "bi_start": 2, "bi_end": 4}]
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
+        assert r["trend_beichi"] is None
+        assert r["range_beichi"] == []
+
+    def test_zero_exit_area_not_beichi(self):
+        """离开段无同色动能柱（面积 0）→ 不判背驰（无动能≠力度衰减）。
+
+        回归锚点：宝丰 600989 曾出现"面积比0.00"的假盘整背驰并连锁触发一买。
+        """
+        closes = [100.0] * 40
+        c = 100.0
+        for _ in range(15):  # 大跌（entry 有绿柱动能）
+            c -= 1.0
+            closes.append(round(c, 3))
+        for i in range(22):  # 中枢震荡
+            c = 85.0 + (8.0 if i % 4 < 2 else 0.0)
+            closes.append(round(c, 3))
+        # exit 段：价格继续跌但 MACD 已翻红（DIF>DEA，绿柱面积为 0）
+        for i in range(18):
+            c -= 0.45
+            closes.append(round(c, 3))
+        bis = [
+            _bi("up", 20, 39, 99, 101, 100, 102),
+            _bi("down", 39, 55, 85, 100, 100, 101),
+            _bi("up", 55, 62, 85, 86, 92, 92.5),
+            _bi("down", 62, 70, 85.5, 86, 92, 92.5),
+            _bi("up", 70, 77, 85.5, 86, 90, 90.5),
+            _bi("down", 77, 94, 82.0, 89.5, 90, 90.5),
+        ]
+        zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
+        # 若 exit 段确有绿柱则判底背驰；若无（面积 0）则不判
+        # 断言：不存在面积为 0 的背驰记录
+        for rb in r["range_beichi"]:
+            assert "面积比0.00" not in rb["desc"]
+        assert r["trend_beichi"] in (None, "底背驰(看涨)")
+
+    def test_range_beichi_down_exit_is_bullish(self):
+        """向下离开力度衰减 → 盘整背驰(看涨)，与当前价无关（v2.5.0 口径）。"""
+        closes = self._beichi_closes()
+        bis = self._beichi_inputs(closes)
+        zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes))
+        # exit(down) 面积 < entry(down) × 0.8 → 看涨盘整背驰
+        assert any(rb["type"] == "盘整背驰(看涨)" for rb in r["range_beichi"])
+
+    def test_range_beichi_up_exit_is_bearish(self):
+        """向上离开力度衰减 → 盘整背驰(看跌)。"""
+        # closes 构造：铺垫 → 暴涨进入段(40-55, 红柱大) → 中枢震荡 → 缓涨离开段
+        # (77-94, 红柱小但创新高)，与 up 笔方向一致
+        closes = [100.0] * 40
+        c = 100.0
+        for _ in range(15):
+            c += 1.5
+            closes.append(round(c, 3))
+        for i in range(22):
+            c = 122.5 + (3.0 if i % 4 < 2 else 0.0)
+            closes.append(round(c, 3))
+        c = 125.0
+        for _ in range(18):
+            c += 0.35
+            closes.append(round(c, 3))
+        bis = [
+            _bi("down", 20, 39, 99, 100, 100, 101),
+            _bi("up", 39, 55, 100, 101, 122, 123),  # 暴涨进入段
+            _bi("down", 55, 62, 115, 116, 122, 123),
+            _bi("up", 62, 70, 115, 116, 121, 122),
+            _bi("down", 70, 77, 115, 116, 121, 122),
+            _bi("up", 77, 94, 122, 123, 131, 132),  # 缓涨创新高
+        ]
+        zs = [{"zg": 92, "zd": 85.5, "bi_start": 2, "bi_end": 4}]
+        r = chan_beichi(bis, zs, closes, date_to_close_idx=_date_map(closes), range_tolerance=0.99)
         assert any(rb["type"] == "盘整背驰(看跌)" for rb in r["range_beichi"])
 
 
@@ -562,6 +708,88 @@ class TestChanMaidian:
         third = [p for p in r["buy_points"] if p["type"] == "三买"]
         assert len(third) == 1
 
+    def test_first_buy_survives_merged_idx_offset(self):
+        """P1 回归锚点：merged bar idx 是原始 records 索引（含合并偏移）时一买仍触发。
+
+        真实 chan_merge_inclusions 输出中 bar["idx"]=原始索引（> 列表位置），
+        修复前 last_idx 取该原始索引导致一买/一卖窗口判断恒 False。
+        """
+        merged = [{"idx": i + 100, "high": 0, "low": 0, "date": f"d{i}", "open": 0, "close": 0} for i in range(100)]
+        bis = [
+            _bi("up", 20, 39, 90, 91, 100, 101),
+            _bi("down", 39, 60, 88, 89, 100, 101),
+            _bi("up", 60, 70, 88, 89, 94, 95),
+            _bi("down", 70, 80, 87, 88, 94, 95),
+            _bi("up", 80, 90, 87, 88, 93, 94),
+            _bi("down", 90, 99, 86.5, 87, 93, 94),  # end_idx=99 = merged 列表末位（刚结束）
+        ]
+        r = chan_maidian(
+            merged,
+            bis,
+            [self._zs()],
+            self._closes_below(),
+            beichi={"trend_beichi": "底背驰(看涨)"},
+        )
+        assert any(p["type"] == "一买" and p["confidence"] == "中" for p in r["buy_points"])
+
+    def test_third_buy_pullback_into_zhongshu_rejected(self):
+        """P2 回归锚点：回踩笔 low 落入中枢（分型 K 线低点破 ZG）→ 不构成三买。"""
+        closes = [94.0] * 40 + [96.5] * 50 + [96.2] * 5 + [97.0] * 5
+        merged = self._merged_bars(len(closes))
+        bis = [
+            _bi("up", 20, 39, 90, 91, 94, 95),
+            _bi("down", 39, 60, 91, 92, 94, 95),
+            _bi("up", 60, 70, 91, 92, 96, 97),  # 突破
+            _bi("down", 70, 80, 95.5, 96, 97, 97.5),
+            _bi("up", 80, 90, 95.5, 96, 98, 98.5),
+            _bi("down", 90, 99, 94.5, 96.2, 98, 98.5),  # 回踩笔 low 94.5 < ZG=95：落入中枢
+        ]
+        r = chan_maidian(merged, bis, [self._zs()], closes, beichi={"trend_beichi": None})
+        assert not any(p["type"] == "三买" for p in r["buy_points"])
+
+    def test_third_buy_pullback_bi_low_stays_above(self):
+        """回踩笔 low 高于 ZG + 存在回踩动作 → 三买（笔口径正例）。"""
+        closes = [94.0] * 40 + [96.5] * 50 + [97.5] * 10
+        merged = self._merged_bars(len(closes))
+        bis = [
+            _bi("up", 20, 39, 90, 91, 94, 95),
+            _bi("down", 39, 60, 91, 92, 94, 95),
+            _bi("up", 60, 70, 91, 92, 96, 97),  # 突破
+            _bi("down", 70, 80, 95.5, 96, 97, 97.5),
+            _bi("up", 80, 90, 95.5, 96, 98, 98.5),
+            _bi("down", 90, 99, 95.8, 96.2, 98, 98.5),  # 回踩笔 low 95.8 > ZG=95
+        ]
+        r = chan_maidian(merged, bis, [self._zs()], closes, beichi={"trend_beichi": None})
+        third = [p for p in r["buy_points"] if p["type"] == "三买"]
+        assert len(third) == 1
+        assert "95.8" in third[0]["desc"]
+
+    def test_first_buy_desc_states_beichi_source(self):
+        """描述必须写清背驰来源：盘整底背驰不能说成"底背驰"。"""
+        merged = self._merged_bars(100)
+        bis = [
+            _bi("up", 20, 39, 90, 91, 100, 101),
+            _bi("down", 39, 60, 88, 89, 100, 101),
+            _bi("up", 60, 70, 88, 89, 94, 95),
+            _bi("down", 70, 80, 87, 88, 94, 95),
+            _bi("up", 80, 90, 87, 88, 93, 94),
+            _bi("down", 90, 99, 86.5, 87, 93, 94),
+        ]
+        zs = [self._zs()]
+        r = chan_maidian(merged, bis, zs, self._closes_below(), beichi={"trend_beichi": None, "range_beichi": []})
+        assert not any(p["type"].startswith("一买") for p in r["buy_points"])
+
+        r2 = chan_maidian(
+            merged,
+            bis,
+            zs,
+            self._closes_below(),
+            beichi={"trend_beichi": None, "range_beichi": [{"type": "盘整背驰(看涨)"}]},
+        )
+        first = [p for p in r2["buy_points"] if p["type"] == "一买"]
+        assert len(first) == 1
+        assert "盘整底背驰" in first[0]["desc"]
+
     def test_first_sell_with_top_beichi(self):
         """一卖镜像：中枢上方 + 顶背驰 + 上涨笔结束。"""
         merged = self._merged_bars(100)
@@ -627,10 +855,11 @@ class TestChanFullAnalysis:
         assert r["bi_count"] >= 3
         assert r["up_bi"] + r["down_bi"] == r["bi_count"]
         assert r["fenxing_count"] >= 2
-        assert r["zhongshu_count"] == 1
-        z = r["zhongshu_list"][0]
-        assert z["zd"] < z["zg"] and z["dd"] <= z["zd"] and z["gg"] >= z["zg"]
-        # 教材走势末期在中枢上方 → 三买
+        # v2.5.0 笔中枢口径：教材走势出现 2 个笔中枢（原线段中枢为 1 个）
+        assert r["zhongshu_count"] == 2
+        for z in r["zhongshu_list"]:
+            assert z["zd"] < z["zg"] and z["dd"] <= z["zd"] and z["gg"] >= z["zg"]
+        # 教材走势末期在中枢上方 + 回踩笔 low 不落入 → 三买（笔口径）
         assert r["current_position"].startswith("中枢上方")
         assert any(p["type"] == "三买" for p in r["maidian"]["buy_points"])
 

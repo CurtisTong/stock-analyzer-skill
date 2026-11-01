@@ -1,81 +1,71 @@
-"""中枢识别。"""
+"""中枢识别（笔中枢）。
+
+v2.5.0 重构：中枢改由**笔**（而非线段）重叠构成——缠论笔中枢口径，
+与下游 beichi/maidian 以 bi_list 定位进入/离开笔的操作层级一致。
+
+原线段中枢的问题：日线上 250 根 K 线仅 2-4 个线段，中枢识别率极低；
+且三线段重叠区可能覆盖巨幅走势（GG 与 ZG 相差数倍），中枢退化为
+"全年区间"，位置/买卖点判断全部失真。
+
+定义：连续 3 笔的价格重叠区间构成中枢，ZG = min(三笔高点)，
+ZD = max(三笔低点)；后续笔与中枢区间 [ZD, ZG] 有重叠则中枢延伸，
+首个完全离开的笔结束该中枢（GG/DD 随延伸笔更新）。
+相邻中枢之间由离开/进入笔自然分隔，无需额外合并。
+"""
 
 
-def chan_zhongshu(xd_list):
+def chan_zhongshu(bi_list):
     """
-    从线段列表识别中枢。
-    中枢 = 连续3段线段的重叠区间：ZG = min(线段高点), ZD = max(线段低点)。
-    相邻中枢有重叠时合并为扩展中枢。
+    从笔列表识别笔中枢。
+
+    Returns:
+        中枢列表（按时间升序），每个中枢含 zg/zd/mid/width/gg/dd 与
+        bi_start/bi_end（bi_list 索引范围，含延伸笔）。
     """
-    if len(xd_list) < 3:
+    if len(bi_list) < 3:
         return []
 
     zs_list = []
-    for i in range(len(xd_list) - 2):
-        x0, x1, x2 = xd_list[i], xd_list[i + 1], xd_list[i + 2]
+    i = 0
+    n = len(bi_list)
+    while i <= n - 3:
+        b0, b1, b2 = bi_list[i], bi_list[i + 1], bi_list[i + 2]
 
-        # 两两重叠校验：每对线段必须有共同区间
-        if not (
-            max(x0["low"], x1["low"]) < min(x0["high"], x1["high"])
-            and max(x1["low"], x2["low"]) < min(x1["high"], x2["high"])
-            and max(x0["low"], x2["low"]) < min(x0["high"], x2["high"])
-        ):
+        zg = min(b0["high"], b1["high"], b2["high"])
+        zd = max(b0["low"], b1["low"], b2["low"])
+
+        if zd >= zg:
+            # 前三笔无重叠 → 从下一笔重新尝试
+            i += 1
             continue
 
-        zg = min(x0["high"], x1["high"], x2["high"])
-        zd = max(x0["low"], x1["low"], x2["low"])
+        gg = max(b0["high"], b1["high"], b2["high"])
+        dd = min(b0["low"], b1["low"], b2["low"])
 
-        if zd < zg:
-            # 补充 GG/DD 边界（中枢内最高高点和最低低点）
-            gg = max(x0["high"], x1["high"], x2["high"])
-            dd = min(x0["low"], x1["low"], x2["low"])
-            zs_list.append(
-                {
-                    "zg": round(zg, 3),
-                    "zd": round(zd, 3),
-                    "mid": round((zg + zd) / 2, 3),
-                    "width": round(zg - zd, 3),
-                    "gg": round(gg, 3),
-                    "dd": round(dd, 3),
-                    "xd_start": i,
-                    "xd_end": i + 2,
-                    # bi_list 索引范围：供 beichi.py 直接定位进入/离开笔，
-                    # 避免将 xd_list 索引误当作 merged-bar 索引比较
-                    "bi_start": xd_list[i]["start_bi"],
-                    "bi_end": xd_list[i + 2]["end_bi"],
-                }
-            )
+        # 中枢延伸：后续笔与 [ZD, ZG] 有重叠则并入，直到完全离开
+        j = i + 3
+        while j < n:
+            b = bi_list[j]
+            if b["low"] <= zg and b["high"] >= zd:
+                gg = max(gg, b["high"])
+                dd = min(dd, b["low"])
+                j += 1
+            else:
+                break
 
-    # 合并重叠中枢
-    if len(zs_list) <= 1:
-        return zs_list
-
-    merged_zs = [zs_list[0]]
-    for zs in zs_list[1:]:
-        last = merged_zs[-1]
-        # 有重叠（新中枢的低点 < 旧中枢的高点）且线段索引连续
-        index_continuous = zs["xd_start"] <= last["xd_end"] + 1
-        if zs["zd"] < last["zg"] and zs["zg"] > last["zd"] and index_continuous:
-            # 交集：取较低的高点、较高的低点，与初始构建（zg=min, zd=max）一致
-            # 缠论中枢合并应保持交集而非并集（并集会扩大中枢范围，违反定义）
-            new_zg = min(last["zg"], zs["zg"])
-            new_zd = max(last["zd"], zs["zd"])
-            # 合并时 GG/DD 取并集（最高高点/最低低点）
-            new_gg = max(last.get("gg", last["zg"]), zs.get("gg", zs["zg"]))
-            new_dd = min(last.get("dd", last["zd"]), zs.get("dd", zs["zd"]))
-            merged_zs[-1] = {
-                "zg": round(new_zg, 3),
-                "zd": round(new_zd, 3),
-                "mid": round((new_zg + new_zd) / 2, 3),
-                "width": round(new_zg - new_zd, 3),
-                "gg": round(new_gg, 3),
-                "dd": round(new_dd, 3),
-                "xd_start": last["xd_start"],
-                "xd_end": zs["xd_end"],
-                "bi_start": last["bi_start"],
-                "bi_end": zs["bi_end"],
+        zs_list.append(
+            {
+                "zg": round(zg, 3),
+                "zd": round(zd, 3),
+                "mid": round((zg + zd) / 2, 3),
+                "width": round(zg - zd, 3),
+                "gg": round(gg, 3),
+                "dd": round(dd, 3),
+                "bi_start": i,
+                "bi_end": j - 1,
             }
-        else:
-            merged_zs.append(zs)
+        )
+        # 下一个中枢从离开笔开始扫描（离开笔可能与后续笔构成新中枢）
+        i = j
 
-    return merged_zs
+    return zs_list

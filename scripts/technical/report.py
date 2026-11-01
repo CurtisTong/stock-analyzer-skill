@@ -163,6 +163,9 @@ def _render_chan_section(features):
     if sell_pts:
         sp_desc = "; ".join(sp["type"] + "(" + sp.get("confidence", "") + ")" for sp in sell_pts)
         lines.append(f"  卖点: {sp_desc}")
+    if buy_pts and sell_pts:
+        # 买卖点并存（如中枢上方宽幅震荡同时满足三买与二卖）：提示信号冲突
+        lines.append("  ⚠️ 缠论买卖点并存，多空信号冲突（简化实现的中枢可能偏宽），" "以更高级别走势与止损纪律为准")
     if not buy_pts and not sell_pts:
         lines.append("  买卖点: 当前无明确缠论买卖点")
     lines.append(f"  当前位置: {chan.get('current_position', '-')}")

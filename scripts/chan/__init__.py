@@ -2,13 +2,14 @@
 缠中说禅理论（缠论）模块。
 包含：K线包含处理 → 分型 → 笔 → 线段 → 中枢 → 买卖点 → 背驰检测。
 
-⚠️ 非标准实现声明（2026-07 更新）：
+⚠️ 非标准实现声明（2026-11 更新）：
 本模块为缠论的简化实现，多处核心算法与缠论标准定义不一致：
-- 线段划分已启用特征序列（chan/xianduan.py:45, use_feature_seq=True），
-  但线段结束判定仍可能提前/延迟（简化实现）；
-- 中枢已计算 GG/DD 边界（chan/zhongshu.py，修复）；
-- 背驰检测的索引坐标系曾存在错位（chan/beichi.py，已修复 C3）；
-- 一买/一卖现已依赖背驰结果（chan/maidian.py，已修复 C4）。
+- 线段划分已采用特征序列分型判定（chan/xianduan.py，v2.5.0 重构），
+  但不区分第一种/第二种情况（缺口二次确认），线段划分偏严格；
+- 中枢为笔中枢（chan/zhongshu.py，v2.5.0 起由连续 3 笔重叠构成，
+  与 beichi/maidian 的笔级别操作一致），非线段中枢；
+- 背驰检测比较同向笔的同色 MACD 柱面积（chan/area.py side 参数）；
+- 一买/一卖依赖背驰结果（chan/maidian.py，P2-C4）。
 因此输出的买卖点信号可能与标准缠论软件（通达信缠论指标等）结果有差异。
 仅供学习参考，不作为交易依据。完整标准实现待后续重构。
 """
@@ -63,14 +64,16 @@ def chan_full_analysis(records):
     # 4. 线段
     xd_list = chan_xianduan(bi_list)
 
-    # 5. 中枢
-    zs_list = chan_zhongshu(xd_list)
+    # 5. 中枢（笔中枢：连续 3 笔重叠区间，与 beichi/maidian 的 bi_list 操作层级一致）
+    zs_list = chan_zhongshu(bi_list)
 
     # 6. 背驰
     beichi = chan_beichi(bi_list, zs_list, closes, date_to_close_idx)
 
-    # 7. 买卖点
-    maidain = chan_maidian(merged, bi_list, zs_list, closes, beichi)
+    # 7. 买卖点（传入 highs/lows：启用 ATR 动态回踩容差与 low/high 回踩口径）
+    highs = [to_float(r.get("high")) for r in records]
+    lows = [to_float(r.get("low")) for r in records]
+    maidain = chan_maidian(merged, bi_list, zs_list, closes, beichi, highs=highs, lows=lows)
 
     # 8. 当前位置描述
     last_close = closes[-1]

@@ -40,7 +40,10 @@ def chan_fenxing(merged_bars, equal_eps: float = 0.0):
         ):
             fenxing_list.append({"type": "底", "bar": b1, "idx": i})
 
-    # 去重：连续同类型分型保留最强的
+    # 去重：连续同类型分型保留首个。
+    # 审查注记：相邻两窗同为顶要求 H1≥H2 且 H2≥H1（即等高），故下方
+    # "保留更强"的替换分支（fx.high > last.high）实际不可达，属防御性
+    # 死代码——实际行为是同类型保留先出现的那个（与 chan_bi 的预合并语义一致）。
     deduped = []
     for fx in fenxing_list:
         if not deduped:

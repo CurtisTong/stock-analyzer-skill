@@ -25,6 +25,11 @@ def chan_maidian(
     I9: 回踩容忍度优先基于 ATR 动态计算（半个 ATR），
     未提供 highs/lows 时回退到 pullback_pct 百分比。
 
+    三买/三卖的回踩/反弹判定用**笔口径**：回踩低点 = 离开中枢后最近
+    向下笔的 low（分型 bar 的 K 线低点），反弹高点 = 最近向上笔的 high。
+    笔 low/high 天然是 K 线极值口径，盘中破位收盘拉回不构成"不落入"；
+    highs/lows 参数仅用于 ATR 置信度容差。
+
     Args:
         beichi: chan_beichi 的返回结果。P2-C4 修复：一买/一卖必须依赖背驰结果，
             无背驰不构成一买/一卖（缠论标准定义）。未提供 beichi 时仅退化为
@@ -35,14 +40,20 @@ def chan_maidian(
 
     last_zs = zs_list[-1]
     last_close = closes[-1]
-    # bi 的 end_idx 基于 merged_bars 的 idx 字段，用 merged_bars 最后一个 idx 作为参考
-    last_idx = merged_bars[-1]["idx"] if merged_bars else len(closes) - 1
+    # bi 的 start_idx/end_idx 是分型在 merged_bars 中的**列表位置**（fenxing 的 idx），
+    # 不是 merged bar 携带的原始 records 索引——两者在发生包含合并后必然不同，
+    # 时效窗口必须与分型同一坐标系（原用 merged_bars[-1]["idx"] 导致一买/一卖恒失效）。
+    last_idx = len(merged_bars) - 1 if merged_bars else len(closes) - 1
 
     trend_beichi = (beichi or {}).get("trend_beichi")
     range_beichi = (beichi or {}).get("range_beichi", [])
     # 盘整底背驰也算一买的背驰确认
     has_bottom_beichi = trend_beichi == "底背驰(看涨)" or any("看涨" in rb.get("type", "") for rb in range_beichi)
     has_top_beichi = trend_beichi == "顶背驰(看跌)" or any("看跌" in rb.get("type", "") for rb in range_beichi)
+    # 背驰来源标注：趋势背驰（力度对比中枢前后走势）强于盘整背驰（力度对比中枢前后段），
+    # 描述里必须写清是哪一种，避免把盘整背驰说成"底背驰"。
+    bottom_source = "趋势底背驰" if trend_beichi == "底背驰(看涨)" else ("盘整底背驰" if has_bottom_beichi else "")
+    top_source = "趋势顶背驰" if trend_beichi == "顶背驰(看跌)" else ("盘整顶背驰" if has_top_beichi else "")
 
     buy_points = []
     sell_points = []
@@ -58,7 +69,7 @@ def chan_maidian(
                     buy_points.append(
                         {
                             "type": "一买",
-                            "desc": f"离开中枢(ZD={last_zs['zd']})后底背驰结束",
+                            "desc": f"离开中枢(ZD={last_zs['zd']})后{bottom_source}结束",
                             "confidence": "中",
                         }
                     )
@@ -89,11 +100,13 @@ def chan_maidian(
                 )
 
     # ── 三买：突破中枢后回踩不入 ──
+    # 缠论口径：回踩是"离开中枢后的向下笔"，回踩低点（笔 low）不落入中枢（> ZG）。
+    # 笔 low 来自分型 bar 的 K 线低点，天然是 low 口径（盘中破位收盘拉回的分型不成立）。
     above_zs = closes[-1] > last_zs["zg"]
-    recent_low = min(closes[-5:]) if len(closes) >= 5 else closes[-1]
-    # 缠论标准：三买要求回踩低点不落入中枢，即高于 ZG（中枢上沿）
-    if above_zs and recent_low > last_zs["zg"]:
-        # I9: 回踩容差优先用 ATR 动态计算（需提供 highs/lows），否则回退百分比
+    bi_end = last_zs.get("bi_end", len(bi_list) - 1)
+    pullback_bis = [b for b in bi_list[bi_end + 1 :] if b["direction"] == "down"]
+    if above_zs and pullback_bis and pullback_bis[-1]["low"] > last_zs["zg"]:
+        # I9: 置信度容差优先用 ATR 动态计算（需提供 highs/lows），否则回退百分比
         if highs and lows:
             from technical.volatility import compute_atr
 
@@ -101,15 +114,14 @@ def chan_maidian(
             tolerance = atr * 0.5 if atr > 0 else last_zs["zg"] * pullback_pct
         else:
             tolerance = last_zs["zg"] * pullback_pct
-        near_zs = any(abs(c - last_zs["zg"]) <= tolerance for c in closes[-10:])
-        if near_zs:
-            buy_points.append(
-                {
-                    "type": "三买",
-                    "desc": f"突破中枢上沿(ZG={last_zs['zg']})后回踩不落入",
-                    "confidence": ("高" if last_close > last_zs["zg"] + tolerance else "中"),
-                }
-            )
+        pullback_low = pullback_bis[-1]["low"]
+        buy_points.append(
+            {
+                "type": "三买",
+                "desc": f"突破中枢上沿(ZG={last_zs['zg']})后回踩({pullback_low})不落入",
+                "confidence": ("高" if last_close > last_zs["zg"] + tolerance else "中"),
+            }
+        )
 
     # ── 一卖：离开中枢的顶背驰段结束 ──
     # P2-C4: 同一买，需顶背驰确认
@@ -122,7 +134,7 @@ def chan_maidian(
                     sell_points.append(
                         {
                             "type": "一卖",
-                            "desc": f"离开中枢(ZG={last_zs['zg']})后顶背驰",
+                            "desc": f"离开中枢(ZG={last_zs['zg']})后{top_source}",
                             "confidence": "中",
                         }
                     )
@@ -152,11 +164,11 @@ def chan_maidian(
                 )
 
     # ── 三卖：跌破中枢后反弹不入 ──
+    # 缠论口径：反弹是"离开中枢后的向上笔"，反弹高点（笔 high）不落入中枢（< ZD）。
     below_zs = closes[-1] < last_zs["zd"]
-    recent_high = max(closes[-5:]) if len(closes) >= 5 else closes[-1]
-    # 缠论标准：三卖要求反弹高点不落入中枢，即低于 ZD（中枢下沿）
-    if below_zs and recent_high < last_zs["zd"]:
-        # 判断是否有反弹动作：近期价格曾接近 ZD（反弹痕迹）
+    rebound_bis = [b for b in bi_list[bi_end + 1 :] if b["direction"] == "up"]
+    if below_zs and rebound_bis and rebound_bis[-1]["high"] < last_zs["zd"]:
+        # I9: 置信度容差优先用 ATR 动态计算（需提供 highs/lows），否则回退百分比
         if highs and lows:
             from technical.volatility import compute_atr
 
@@ -164,15 +176,14 @@ def chan_maidian(
             tolerance = atr * 0.5 if atr > 0 else last_zs["zd"] * pullback_pct
         else:
             tolerance = last_zs["zd"] * pullback_pct
-        near_zs = any(abs(c - last_zs["zd"]) <= tolerance for c in closes[-10:])
-        if near_zs:
-            sell_points.append(
-                {
-                    "type": "三卖",
-                    "desc": f"跌破中枢下沿(ZD={last_zs['zd']})后反弹不入",
-                    "confidence": ("高" if last_close < last_zs["zd"] - tolerance else "中"),
-                }
-            )
+        rebound_high = rebound_bis[-1]["high"]
+        sell_points.append(
+            {
+                "type": "三卖",
+                "desc": f"跌破中枢下沿(ZD={last_zs['zd']})后反弹({rebound_high})不入",
+                "confidence": ("高" if last_close < last_zs["zd"] - tolerance else "中"),
+            }
+        )
 
     summary_parts = []
     if buy_points:
