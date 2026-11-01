@@ -39,6 +39,15 @@ _SCORE_MAX_DEFAULT: dict[str, float] = {
 _SCORE_LOCAL_MIN = -5
 _SCORE_LOCAL_MAX = 10
 
+# v1.27.0：可正可负子项的**负向下限**（绝对值）。
+# 归一化改用以 raw=0 为中性锚点的分段线性映射（见 composite_score），
+# 消除"真实利好（limit 首板 / chip 融资净买入）得分低于完全无信号"的倒挂。
+_SCORE_NEGATIVE_MIN = {
+    "local": 5,  # _SCORE_LOCAL_MIN = -5
+    "limit": 3,  # limit 量程 [-3, 15]
+    "chip": 5,  # chip 量程 [-5, 10]
+}
+
 # H2: 可选子评分模块（chan/local/limit/chip）"无信号"（raw == 0）时，
 # 归一化直接给中性 50，而不是 0/16.7/33.3 的地板分。
 # 原实现把"未计算/数据不足/无信号"当作看空信号：
@@ -310,17 +319,61 @@ def _score_volume(vol: dict, type_w: dict) -> float:
     return clamp(vol_score, 0, 20)
 
 
+def _pattern_rank(pattern: dict) -> tuple:
+    """形态的新鲜度排序键：(结束日期, 形态跨度)。
+
+    detect_candle_patterns 的输出顺序是"单根(T-2,T-1,T-0) → A股(T-0) →
+    双根(T-1~0) → 三根(T-2~0)"，与时间先后不完全对应——"最后一条胜出"
+    既不等价于"最新信号胜出"，换个顺序结果就变。
+    这里改用显式排序：结束日期越晚越新；同日则跨度大的完整形态更可靠
+    （同一根 K 线上的三根早晨之星比单根锤子线信号更强）。
+    """
+    pos = str(pattern.get("position", ""))
+    span = 1
+    if "~" in pos:
+        try:
+            span = int(pos.split("~")[0].split("-")[1]) + 1
+        except (IndexError, ValueError):
+            span = 1
+    return (str(pattern.get("date", "")), span)
+
+
 def _score_patterns(patterns: list, type_w: dict, adj: dict) -> float:
-    """K线形态评分（上限 25）。"""
+    """K线形态评分（上限 25）。
+
+    v1.27.0 修复：判定依据从"列表顺序"改为"最新形态"——
+    原实现用 max/min 遍历，同一组形态换个顺序结果就变
+    （[早晨之星, 黄昏之星] → 3.0；[黄昏之星, 早晨之星] → 13.0，
+     综合分相差 3.3 分）。现在按 (结束日期, 跨度) 取最新的看涨/看跌形态，
+    再比两者谁更新；同日同跨度则取**看跌**（保守，同市场环境判定的
+    fail-safe 原则一致：宁可误判熊市，不可误判牛市）。
+    """
     bullish_patterns = ["早晨之星", "阳包阴", "锤子线", "红三兵", "假阴真阳"]
     bearish_patterns = ["黄昏之星", "阴包阳", "倒锤子", "三只乌鸦", "假阳真阴"]
-    pattern_score = 7
+    best_bull = None
+    best_bear = None
     for p in patterns:
         ptype = p.get("type", "")
+        rank = _pattern_rank(p)
         if any(b in ptype for b in bullish_patterns):
-            pattern_score = max(pattern_score, 13)
+            if best_bull is None or rank > best_bull[0]:
+                best_bull = (rank, ptype)
         if any(b in ptype for b in bearish_patterns):
-            pattern_score = min(pattern_score, 3)
+            if best_bear is None or rank > best_bear[0]:
+                best_bear = (rank, ptype)
+
+    pattern_score = 7
+    if best_bull and best_bear:
+        if best_bull[0] > best_bear[0]:
+            pattern_score = 13
+        elif best_bear[0] > best_bull[0]:
+            pattern_score = 3
+        else:
+            pattern_score = 3  # 同新鲜度 → 保守取看跌
+    elif best_bull:
+        pattern_score = 13
+    elif best_bear:
+        pattern_score = 3
     return clamp(pattern_score * type_w["pattern"] * adj.get("bullish_bias", 1.0), 0, 25)
 
 
@@ -329,6 +382,11 @@ def _score_chan(chan_data: dict, type_w: dict, adj: dict) -> float:
 
     问题 5 修复：补乘 type_w["chan"]，与其他子评分口径一致，
     让缠论评分的动态范围随股票类型权重缩放（周期股 chan=1.3 vs 题材股 chan=0.5）。
+
+    v1.27.0 修复：背驰方向改用结构化字段判定，不再依赖 summary 字符串匹配。
+    原实现 `if summary.startswith("检测到底背驰") or "盘整背驰" in summary`
+    把**任何**盘整背驰（含看跌）都算成看涨加分——看跌的盘整背驰被反向解读
+    成底背驰，既加 8 分又污染买入信号，同时顶背驰的卖出信号被挤掉。
     """
     chan_bonus = 0
     if chan_data.get("valid"):
@@ -343,10 +401,15 @@ def _score_chan(chan_data: dict, type_w: dict, adj: dict) -> float:
             elif bpt == "三买":
                 chan_bonus += 8 * adj.get("buy_point_3", 1.0)
         beichi = chan_data.get("beichi", {})
-        summary = beichi.get("summary", "")
-        # 趋势底背驰 + 盘整背驰（range_beichi）均计入看涨加分（两处消费口径一致）
-        if summary.startswith("检测到底背驰") or "盘整背驰" in summary:
+        # 趋势底背驰：结构化字段精确判定
+        if beichi.get("trend_beichi") == "底背驰(看涨)":
             chan_bonus += 8 * adj.get("divergence_bottom", 1.0)
+        # 盘整背驰：按**方向**分别计入——看涨加分，看跌不加分
+        for rb in beichi.get("range_beichi", []):
+            rbt = rb.get("type", "")
+            if "看涨" in rbt:
+                chan_bonus += 8 * adj.get("divergence_bottom", 1.0)
+            # 看跌的盘整背驰不加分（评分项只表达看涨动能；看跌方向由信号层表达）
     chan_score = chan_bonus * type_w.get("chan", 1.0)
     return clamp(chan_score, 0, 15)
 
@@ -415,10 +478,20 @@ def _score_local(local_patterns_data: dict) -> float:
     """本土战法加分（上限 10）。
 
     v2 优化：三阴一阳使用量化指标（量比、跌幅、反弹比例）动态评分。
+
+    v1.27.0 修复：同名形态只取**最近一次**触发，与 signals 层口径对齐。
+    原实现把同名形态的历次触发全部累加（老鸭头触发 3 次 → 8+8+8），
+    而 signals 层按 name 去重只报最近一次——同一份数据两条消费路径
+    给出不同结论，且几个月前的老鸭头仍按当前信号计满分。
+    patterns 已按 idx 升序（最新在后），dict 覆盖天然保留最后一例。
     """
     local_bonus: float = 0
+    # 同名形态只取最近一次（与 signals 层 dedup 口径一致）
+    latest: dict = {}
     for lp in local_patterns_data.get("patterns", []):
-        pname = lp.get("name", "")
+        latest[lp.get("name", "")] = lp
+
+    for pname, lp in latest.items():
         pconf = lp.get("confidence", "中")
         metrics = lp.get("metrics", {})
         bonus: float = 0
@@ -463,6 +536,15 @@ def _score_local(local_patterns_data: dict) -> float:
             bonus = 6
         elif pname == "双针探底":
             bonus = 5
+        elif pname == "海龟突破":
+            # v1.27.0 补齐：海龟突破此前无对应分支 → _score_local 恒 0，
+            # 而 signals 层照常输出"海龟突破"买入信号（评分认不出该形态）。
+            # strength 由检测器给出（放量 2x+ → 5，否则 3），是顶层字段。
+            bonus = float(lp.get("strength", 0) or 0) or 3
+        elif pname == "回踩年线":
+            bonus = 4
+        elif pname == "海龟通道跌破":
+            bonus = -4
 
         # 置信度调整
         if pconf == "高":
@@ -583,20 +665,28 @@ def composite_score(features, stock_type="普通股", market_state=None, market_
     normalized = {}
     for key, val in raw.items():
         max_val = _SCORE_MAX[key]
-        if key in _NEUTRAL_KEYS and val == 0:
+        if key in ("local", "limit", "chip"):
+            # v1.27.0 修复：可正可负的子项用**以 raw=0 为中性锚点**的分段线性映射，
+            # 消除"真实利好反而低于无信号"的倒挂。
+            # 原实现：raw==0 走"无信号=中性 50"特例，raw>0 走连续映射
+            # (val-min)/(max-min)*100——两套口径的中性点不一致：
+            #   limit 量程 [-3,15]：raw=5(首板) → 44.4 < 无信号 50
+            #   chip  量程 [-5,10]：raw=2(融资净买入) → 46.7 < 无信号 50
+            # 即"明确利好"让综合分低于"完全没信号"的股票。
+            # 现在：负半区 [min,0] → [0,50]，正半区 [0,max] → [50,100]，
+            # raw=0 恒为 50（与无信号特例一致），且整条曲线单调。
+            neg_span = -_SCORE_NEGATIVE_MIN.get(key, 0)  # 负向下限的绝对值
+            if neg_span > 0:
+                if val <= 0:
+                    normalized[key] = clamp(50.0 + val / neg_span * 50.0, 0, 100)
+                else:
+                    normalized[key] = clamp(50.0 + val / max_val * 50.0, 0, 100)
+            else:
+                normalized[key] = clamp(50.0 + val / max_val * 50.0, 0, 100)
+        elif key in _NEUTRAL_KEYS and val == 0:
             # H2: 可选模块"无信号"（未计算/数据不足/无信号）→ 中性 50，
             # 避免缺失被当作看空信号（原 0/16.7/33.3 地板分）。
             normalized[key] = 50.0
-        elif key == "chip":
-            # chip 范围 [-5, 10]，归一化到 [0, 100]
-            normalized[key] = clamp((val + 5) / 15 * 100, 0, 100)
-        elif key == "local":
-            # local 范围 [_SCORE_LOCAL_MIN(-5), _SCORE_LOCAL_MAX(10)]，归一化到 [0, 100]
-            span = _SCORE_LOCAL_MAX - _SCORE_LOCAL_MIN
-            normalized[key] = clamp((val - _SCORE_LOCAL_MIN) / span * 100, 0, 100)
-        elif key == "limit":
-            # limit 范围 [-3, 15]，归一化到 [0, 100]
-            normalized[key] = clamp((val + 3) / 18 * 100, 0, 100)
         else:
             normalized[key] = clamp(val / max_val * 100, 0, 100) if max_val > 0 else 0
 
@@ -707,13 +797,37 @@ def detect_market_environment(index_quote=None, recent_quotes=None, index_kline=
 
         if has_multi_day:
             recent_changes = [to_float(q.get("change_pct")) for q in recent_quotes]
-            recent_turnovers = [to_float(q.get("turnover")) for q in recent_quotes]
+            # v1.27.0 修复：换手率只按**有值的样本**求均值。
+            # 原实现对全部样本（含无换手率的）求均值 → 有值时也被稀释到
+            # 阈值以下（0.57%/5 天 → 0.114%），"高换手率/极度缩量"永不触发。
+            # 无任何换手率样本时 avg_turnover 保持 0（不参与判定）。
+            _to_values = [to_float(q.get("turnover")) for q in recent_quotes]
+            _to_values = [v for v in _to_values if v > 0]
             avg_change = sum(recent_changes) / len(recent_changes)
-            avg_turnover = sum(recent_turnovers) / len(recent_turnovers)
+            avg_turnover = sum(_to_values) / len(_to_values) if _to_values else 0.0
             window_days = len(recent_quotes)
             signals.append(f"近{window_days}日均涨跌{avg_change:.2f}%")
-            # 多日窗口覆盖基础映射（平滑单日噪声）
-            if avg_change > 1.5:
+            # v1.27.0 修复：多日窗口**不得覆盖** market_detector 的权威判定。
+            # market_detector 的判定层级是：市场宽度 > K线 MA20/量比 > 单日涨跌幅。
+            # 原实现无条件用多日均值改写 state——指数在 MA20 下方且量能萎缩
+            # （权威判定=熊市）时，仅因近 5 日均涨 0.6% 就被翻成"强势"，
+            # 权重随之从"弱势"调到"强势"，与判定完全相反；
+            # 同时 signals 里两条矛盾结论并存，报告只渲染最终 state，矛盾被隐藏。
+            # 现在只在**单日涨跌幅 fallback**（无 kline 数据）这一最弱路径下
+            # 用多日窗口修正状态——此时多日均值确实比单日噪声更可信。
+            if index_kline:
+                # 有 K 线数据：保持 market_detector 的权威判定，仅记录均值信号
+                if avg_change > 1.5:
+                    signals.append(f"持续上涨(均值{avg_change:.1f}%)")
+                elif avg_change < -1.5:
+                    signals.append(f"持续下跌(均值{avg_change:.1f}%)")
+                elif avg_change > 0.5:
+                    signals.append(f"温和上涨(均值{avg_change:.1f}%)")
+                elif avg_change < -0.5:
+                    signals.append(f"温和下跌(均值{avg_change:.1f}%)")
+                else:
+                    signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
+            elif avg_change > 1.5:
                 state = "强势"
                 confidence = "高" if avg_change > 2.5 else "中"
                 signals.append(f"持续上涨(均值{avg_change:.1f}%)")

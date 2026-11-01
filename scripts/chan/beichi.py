@@ -135,7 +135,18 @@ def chan_beichi(bi_list, zs_list, closes, date_to_close_idx=None, range_toleranc
     if result["trend_beichi"]:
         summary_parts.append(result["trend_beichi"])
     if result["range_beichi"]:
-        summary_parts.append(f"{len(result['range_beichi'])}个中枢盘整背驰")
+        # summary 必须带上**方向**——下游 scoring.py / signals.py 只对 summary 做
+        # 字符串匹配，此前这里只写"N个中枢盘整背驰"（方向信息全丢），
+        # 导致看跌的盘整背驰被下游当作看涨底背驰加分并输出买入信号，
+        # 同时把顶背驰卖出信号挤掉（elif 分支永不可达）。
+        bull = sum(1 for rb in result["range_beichi"] if "看涨" in rb.get("type", ""))
+        bear = sum(1 for rb in result["range_beichi"] if "看跌" in rb.get("type", ""))
+        detail = []
+        if bull:
+            detail.append(f"{bull}个看涨")
+        if bear:
+            detail.append(f"{bear}个看跌")
+        summary_parts.append(f"{len(result['range_beichi'])}个中枢盘整背驰({','.join(detail)})")
     if summary_parts:
         result["summary"] = "检测到" + "、".join(summary_parts)
     else:

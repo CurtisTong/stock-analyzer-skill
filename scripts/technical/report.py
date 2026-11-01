@@ -22,7 +22,7 @@ def _render_header(meta):
 
 def _render_score_section(features, score):
     """渲染综合评分段落。"""
-    sr = features.get("support_resistance", {})
+    sr = features.get("support_resistance") or {}
     lines = []
     lines.append(f"\n## 综合评分: {score['score']}/100 -- {score['grade']}")
     if score["buy_signals"]:
@@ -236,7 +236,7 @@ def _render_trend_section(features):
     """渲染趋势结构段落。"""
     wave = features.get("wave", "")
     box = features.get("box")
-    breakout = features.get("breakout", {})
+    breakout = features.get("breakout") or {}
     lines = []
     lines.append("\n## 趋势结构")
     lines.append(f"  波浪状态: {wave}")
@@ -305,7 +305,7 @@ def _render_risk_section(features, meta):
     此时止损位已失效。破位时不输出虚假的"距现价 -X%"，而是显式警示，
     并说明该支撑已转为阻力，需参考下一档更低支撑或提示无有效下方支撑。
     """
-    sr = features.get("support_resistance", {})
+    sr = features.get("support_resistance") or {}
     supports = sr.get("supports", [])
     lines = []
     lines.append("\n## 仓位参考（技术面）")
@@ -359,13 +359,13 @@ def render_report(features, score, signals, meta):
     lines = []
 
     # 提取子结构
-    ma = features.get("ma_system", {})
+    ma = features.get("ma_system") or {}
     macd = features.get("macd") or {}
     kdj = features.get("kdj") or {}
     boll = features.get("bollinger") or {}
-    rsi_data = features.get("rsi", {})
+    rsi_data = features.get("rsi") or {}
     vol = features.get("volume") or {}
-    sr = features.get("support_resistance", {})
+    sr = features.get("support_resistance") or {}
     patterns = features.get("patterns", [])
 
     # 头部
@@ -406,10 +406,10 @@ def render_report(features, score, signals, meta):
 
 def render_quick(features, score, meta):
     """快速技术摘要。"""
-    ma = features.get("ma_system", {})
+    ma = features.get("ma_system") or {}
     macd = features.get("macd") or {}
     vol = features.get("volume") or {}
-    sr = features.get("support_resistance", {})
+    sr = features.get("support_resistance") or {}
     limit_data = features.get("limit_analysis") or {}
 
     lines = []

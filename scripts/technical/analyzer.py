@@ -67,6 +67,22 @@ def _index_market_features(market_index: str, window: int = 5) -> tuple:
             {"change_pct": round((closes[i] / closes[i - 1] - 1) * 100, 2)}
             for i in range(max(1, len(closes) - window), len(closes))
         ]
+        # v1.27.0 修复：补 turnover（换手率）字段。
+        # 原实现 recent_quotes 只有 change_pct，scoring 的多日窗口分支从
+        # recent_quotes 取 avg_turnover → 恒为 0 → "高换手率/极度缩量"
+        # 及其派生的"亢奋/冰点"状态在 CLI 路径**永不触发**（未接线的修复）。
+        # 换手率来自指数行情接口（K 线只有成交量 volume，不是换手率）。
+        # 只挂在**末项（当日）**：历史各日换手率无数据源，
+        # 不得用当日值伪装成历史均值——scoring 侧按"有值才计入"求均值。
+        try:
+            from data import get_quote
+
+            _q = get_quote(normalize_quote_code(market_index))
+            _turnover = to_float(getattr(_q, "turnover", 0)) if _q else 0.0
+        except Exception:
+            _turnover = 0.0
+        if _turnover > 0 and recent:
+            recent[-1]["turnover"] = _turnover
         kline = None
         if len(closes) >= 20:
             kline = {
@@ -118,7 +134,7 @@ def _compute_all(inp: TechnicalInput):
     features["rsi"] = rsi_features(closes)
     features["volume"] = volume_analysis(closes, volumes) or {}
     features["patterns"] = detect_candle_patterns(records)
-    features["support_resistance"] = support_resistance(closes, highs, lows, features["ma_system"])
+    features["support_resistance"] = support_resistance(closes, highs, lows, features["ma_system"]) or {}
     features["box"] = box_detection(highs, lows, closes)
     # 突破检测：目标是现价下方最近的摆动高点（"突破前高"），
     # 而非 nearest_resistance（恒在现价上方，传入会导致突破分支不可达）。

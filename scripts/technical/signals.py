@@ -142,11 +142,20 @@ def _generate_signals(features, market_breadth=None):
         for sp in maidain.get("sell_points", []):
             sell.append(f"缠论{sp['type']}")
         beichi = chan_data.get("beichi", {})
-        summary = beichi.get("summary", "")
-        if summary.startswith("检测到底背驰") or "盘整背驰" in summary:
-            buy.append("缠论底背驰" + ("(盘整)" if "盘整背驰" in summary else ""))
-        elif "顶背驰" in summary:
+        # v1.27.0 修复：背驰方向改用结构化字段判定，不再依赖 summary 字符串匹配。
+        # 原实现 `"盘整背驰" in summary` 会把**看跌**的盘整背驰当作看涨底背驰
+        # 输出买入信号，且 elif 分支（顶背驰卖出信号）永远不可达。
+        trend_beichi = beichi.get("trend_beichi")
+        if trend_beichi == "底背驰(看涨)":
+            buy.append("缠论底背驰")
+        elif trend_beichi == "顶背驰(看跌)":
             sell.append("缠论顶背驰")
+        for rb in beichi.get("range_beichi", []):
+            rbt = rb.get("type", "")
+            if "看涨" in rbt:
+                buy.append("缠论底背驰(盘整)")
+            elif "看跌" in rbt:
+                sell.append("缠论顶背驰(盘整)")
 
     # 本土战法信号：同一形态多次触发（不同日期）只报最近一次，避免重复噪音。
     # patterns 已按 idx 升序（最新在后），dict 覆盖天然保留最后一例。
