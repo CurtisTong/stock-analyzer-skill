@@ -243,20 +243,37 @@ def chip_details(code: str) -> dict:
 # ---------- 内部工具函数 ----------
 
 
+# 股东户数进程内记忆化缓存：key = (code, periods)
+# v1.30.0：get_holders 实际每次都发网络请求（data/chip.py 无缓存层），
+# 而 chip_score_static 在回测中按 (代码 × 每根 K 线) 调用 →
+# 一次网格寻优实测发出 **660 次** HTTP 请求（占 25 秒里的 20 秒），
+# CI 上直接触发 60s 超时。股东户数数据与 trade_day 无关（时点过滤在
+# chip_score_static 内做），按 (code, periods) 记忆化在语义上安全。
+_HOLDERS_MEMO: dict = {}
+_HOLDERS_MEMO_MAX = 512
+
+
 def _get_cached_holders(code: str, periods: int = 4) -> list:
-    """从缓存获取股东户数数据（不触发网络请求）。
+    """获取股东户数数据（进程内记忆化，避免重复网络请求）。
 
     Args:
         code: 股票代码
         periods: 获取期数。回测时点过滤需要更多期数（默认 4，时点过滤用 12）
     """
+    key = (code, periods)
+    if key in _HOLDERS_MEMO:
+        return _HOLDERS_MEMO[key]
     try:
         from data.chip import get_holders
 
-        return get_holders(code, periods=periods)
+        holders = get_holders(code, periods=periods)
     except Exception as e:
         logger.debug("get_holders 失败 %s: %s", code, e)
-        return []
+        holders = []
+    if len(_HOLDERS_MEMO) >= _HOLDERS_MEMO_MAX:
+        _HOLDERS_MEMO.clear()
+    _HOLDERS_MEMO[key] = holders
+    return holders
 
 
 def _get_margin_data(code: str, days: int = 5) -> list:

@@ -254,6 +254,12 @@ class TestSimulateStrategy:
 
         monkeypatch.setattr(backtest.engine, "get_kline", _mock_kline)
 
+        # v1.30.0：mock 筹码因子（股东户数）——此前该因子走真实网络
+        # （data/chip 无缓存层），一次网格寻优实测发出 660 次 HTTP 请求，
+        # 占 25 秒里的 20 秒，CI 上直接触发 60s 超时（flaky）。
+        # 单元测试不应依赖网络：mock 成固定中性分即可。
+        monkeypatch.setattr(backtest.engine, "_chip_score", lambda code, trade_day=None: 50.0)
+
     def test_returns_all_fields(self, monkeypatch, sample_finance, kline_uptrend):
         import backtest
 

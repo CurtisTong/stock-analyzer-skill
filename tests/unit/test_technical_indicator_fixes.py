@@ -265,3 +265,53 @@ class TestMacdSignalAlignment:
             if out and out.get("signal") != 0:
                 signals += 1
         assert signals == 0
+
+
+class TestHoldersMemoCache:
+    """股东户数进程内记忆化（v1.30.0）。
+
+    data/chip 无缓存层，chip_score_static 在回测中按 (代码 × 每根 K 线) 调用
+    → 一次网格寻优实测发出 660 次 HTTP 请求（25 秒里的 20 秒），CI 上触发
+    60s 超时。股东户数与 trade_day 无关（时点过滤在上层做），按
+    (code, periods) 记忆化在语义上安全。
+    """
+
+    def test_repeated_calls_hit_cache(self, monkeypatch):
+        from strategies.factors import chip as chip_factor
+
+        calls = {"n": 0}
+
+        def _fake_get_holders(code, periods=4):
+            calls["n"] += 1
+            return [{"holder_num_change": -1.0, "end_date": "2026-01-01"}]
+
+        import data.chip as data_chip
+
+        monkeypatch.setattr(data_chip, "get_holders", _fake_get_holders)
+        chip_factor._HOLDERS_MEMO.clear()
+        try:
+            for _ in range(10):
+                chip_factor._get_cached_holders("sh600519", periods=12)
+            assert calls["n"] == 1, "重复调用未命中记忆化缓存"
+        finally:
+            chip_factor._HOLDERS_MEMO.clear()
+
+    def test_different_periods_are_separate_keys(self, monkeypatch):
+        from strategies.factors import chip as chip_factor
+
+        calls = []
+
+        def _fake_get_holders(code, periods=4):
+            calls.append(periods)
+            return []
+
+        import data.chip as data_chip
+
+        monkeypatch.setattr(data_chip, "get_holders", _fake_get_holders)
+        chip_factor._HOLDERS_MEMO.clear()
+        try:
+            chip_factor._get_cached_holders("sh600519", periods=4)
+            chip_factor._get_cached_holders("sh600519", periods=12)
+            assert sorted(calls) == [4, 12]
+        finally:
+            chip_factor._HOLDERS_MEMO.clear()
