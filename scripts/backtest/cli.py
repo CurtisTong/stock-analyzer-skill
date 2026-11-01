@@ -678,7 +678,16 @@ def main():
                 print()
                 print(render_return_curve(returns, width=50, height=10))
                 print()
-                print(render_drawdown_chart(returns, width=50, height=6))
+                # v1.27.0 修复：回撤图与标题的"最大回撤"必须同口径。
+                # 标题用日收益序列算回撤（metrics.run_backtest 的 max_drawdown_pct，
+                # 反映真实的日级回撤路径），而回撤图原先用**期收益**序列算，
+                # 两者数值不同（如 32.17% vs 28.72%）——用户看到两个数会误判。
+                # 现在图改用日收益序列，与标题一致；图上标注口径。
+                daily_returns = round_details[0].get("daily_returns", []) if round_details else []
+                if daily_returns:
+                    print(render_drawdown_chart(daily_returns, width=50, height=6, is_daily=True))
+                else:
+                    print(render_drawdown_chart(returns, width=50, height=6))
             except Exception:
                 pass  # 可视化失败不影响主流程
 

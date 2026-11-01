@@ -68,6 +68,58 @@ class TestSliceBenchmarkByPeriod:
         assert out[1] == pytest.approx((1.01**4 - 1) * 100, abs=1e-3)
 
 
+class TestSliceBenchmarkOffByOne:
+    """基准期起点口径（v1.27.0 修复）。
+
+    策略在**选股日收盘**入场（entry_price = bars[start].close），持有 N 天
+    覆盖的是选股日**次日**起的 N 个日收益。选股日当天的收益发生在入场
+    之前，不属于持仓期。原实现从选股日当天起切，使基准期整体前移一天
+    （实测单期偏差可达 3pp、方向可翻转），污染 IR/alpha/beta/超额夏普。
+    """
+
+    def _series(self):
+        """构造可区分的基准序列：每天收益各不相同。
+
+        dates[i] 对应的收益 returns[i] 是**该日当天**的日收益。
+        """
+        dates = [f"2026-07-{d:02d}" for d in range(1, 8)]
+        returns = [0.10, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06]
+        return dates, returns
+
+    def test_period_starts_from_day_after_selection(self):
+        """选股日当天的收益不计入该期基准。"""
+        from backtest.metrics import _slice_benchmark_by_period
+
+        dates, returns = self._series()
+        periods = [{"start": "2026-07-02", "holding_days": 3}]
+        out = _slice_benchmark_by_period(dates, returns, periods, fallback_holding_days=3)
+        # 正确口径：选股日 07-02 次日起 3 天 = 07-03, 07-04, 07-05
+        expected = ((1 + returns[2]) * (1 + returns[3]) * (1 + returns[4]) - 1) * 100
+        assert out[0] == pytest.approx(expected, abs=1e-6)
+
+    def test_selection_day_return_excluded(self):
+        """选股日当天收益（returns[idx]）必须被排除——它是入场前的涨跌。"""
+        from backtest.metrics import _slice_benchmark_by_period
+
+        dates, returns = self._series()
+        periods = [{"start": "2026-07-02", "holding_days": 2}]
+        out = _slice_benchmark_by_period(dates, returns, periods, fallback_holding_days=2)
+        # 若错误地包含选股日（+10%），结果会明显更高
+        wrong = ((1 + returns[1]) * (1 + returns[2]) - 1) * 100
+        assert out[0] != pytest.approx(wrong, abs=1e-3)
+        assert out[0] == pytest.approx(((1 + returns[2]) * (1 + returns[3]) - 1) * 100, abs=1e-6)
+
+    def test_last_day_of_benchmark_series(self):
+        """选股日靠近序列末端时，取到实际可用的天数，不越界报错。"""
+        from backtest.metrics import _slice_benchmark_by_period
+
+        dates, returns = self._series()
+        periods = [{"start": "2026-07-06", "holding_days": 3}]
+        out = _slice_benchmark_by_period(dates, returns, periods, fallback_holding_days=3)
+        # 07-06 次日起只有 07-07 一天可用
+        assert out[0] == pytest.approx(returns[6] * 100, abs=1e-6)
+
+
 class TestEnginePeriodDates:
     def test_simulate_returns_period_dates(self):
         """引擎回传每期的 start + holding_days（基准对齐的前提）。"""

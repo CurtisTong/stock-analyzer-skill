@@ -78,16 +78,23 @@ def render_drawdown_chart(
     returns: list[float],
     width: int = 60,
     height: int = 8,
+    is_daily: bool = False,
 ) -> str:
     """渲染回撤图 ASCII。
 
     Args:
-        returns: 各期收益率列表（百分比）
+        returns: 收益率列表。is_daily=True 时为**日收益率（小数）**，
+            否则为**各期收益率（百分比）**。
         width: 图表宽度
         height: 图表高度
+        is_daily: 输入是否为日收益率（小数形式）
 
     Returns:
         ASCII 回撤图字符串
+
+    注：v1.27.0 起 CLI 的回撤图改用日收益序列渲染，与标题"最大回撤"
+    （metrics.run_backtest 的 max_drawdown_pct，同为日收益口径）保持一致——
+    原先图用期收益、标题用日收益，两个数值不同会让用户误判。
     """
     if not returns:
         return "(无收益数据)"
@@ -95,7 +102,7 @@ def render_drawdown_chart(
     # 计算回撤序列
     cumulative = [1.0]
     for r in returns:
-        cumulative.append(cumulative[-1] * (1 + r / 100))
+        cumulative.append(cumulative[-1] * (1 + (r if is_daily else r / 100)))
 
     peak = cumulative[0]
     drawdowns = []
@@ -131,7 +138,7 @@ def render_drawdown_chart(
         lines.append(f"  {label} │{row}│")
 
     lines.append("  " + " " * 7 + "└" + "─" * width + "┘")
-    lines.append(f"  最大回撤: {max_dd:.2f}%")
+    lines.append(f"  最大回撤: {max_dd:.2f}%" + ("（日收益口径）" if is_daily else "（期收益口径）"))
 
     return "\n".join(lines)
 

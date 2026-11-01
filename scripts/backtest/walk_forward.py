@@ -66,6 +66,7 @@ class WalkForwardResult:
     config: WalkForwardConfig
     windows: list = field(default_factory=list)  # 每个窗口的 {train, test, returns}
     oos_returns: list = field(default_factory=list)  # 所有 OOS 期收益
+    is_returns: list = field(default_factory=list)  # 所有 IS 期收益（与 OOS 同口径汇总）
     oos_total_return: float = 0.0
     oos_avg_return: float = 0.0
     oos_win_rate: float = 0.0
@@ -193,11 +194,6 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             result.windows.append({**window_info, "status": "is_error"})
             continue
         is_returns = is_result.get("returns", [])
-        is_sharpe = _calc_sharpe(is_returns, holding_days=config.holding_days)
-        is_total = 1.0
-        for r in is_returns:
-            is_total *= 1 + r / 100
-        is_total = (is_total - 1) * 100
 
         # OOS（测试段）回测——评估 [train_end, test_end)，因子历史含 train 段
         # （修复：原实现不传窗口边界，OOS 数据被 IS 见过，无样本外意义）
@@ -221,17 +217,26 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
         oos_returns = oos_result.get("returns", [])
 
         result.oos_returns.extend(oos_returns)
-        result.is_sharpe += is_sharpe
-        result.is_total_return += is_total
+        # IS 指标改为**汇总后**计算（原先逐窗口算夏普再取算术平均）。
+        # IS 与 OOS 必须同口径才可比：OOS 是全窗口期收益拼接后算一次夏普，
+        # 若 IS 用"各窗口夏普的算术平均"（= mean of Sharpes），两者差异既来自
+        # 样本外本身、也来自聚合方式，IS/OOS 对比失去意义。
+        result.is_returns.extend(is_returns)
         result.n_valid_windows += 1
+
+        # 单窗口明细仍按本窗口自身收益计算（仅用于逐窗展示，不参与汇总口径）
+        win_is_total = 1.0
+        for r in is_returns:
+            win_is_total *= 1 + r / 100
+        win_is_total = (win_is_total - 1) * 100
 
         result.windows.append(
             {
                 **window_info,
                 "status": "ok",
                 "is_returns": is_returns,
-                "is_sharpe": round(is_sharpe, 2),
-                "is_total_return_pct": round(is_total, 2),
+                "is_sharpe": round(_calc_sharpe(is_returns, holding_days=config.holding_days), 2),
+                "is_total_return_pct": round(win_is_total, 2),
                 "oos_returns": oos_returns,
                 "oos_avg_return_pct": round(sum(oos_returns) / len(oos_returns) if oos_returns else 0, 2),
                 "oos_win_rate_pct": round(
@@ -253,8 +258,12 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
         result.oos_sharpe = _calc_sharpe(result.oos_returns, holding_days=config.holding_days)
         result.oos_max_drawdown = _calc_max_drawdown(result.oos_returns)
 
-    if result.n_valid_windows > 0:
-        result.is_sharpe /= result.n_valid_windows
-        result.is_total_return /= result.n_valid_windows
+    # IS 指标与 OOS 同口径：全窗口期收益拼接后算一次（不是各窗口夏普的平均）
+    if result.is_returns:
+        is_total = 1.0
+        for r in result.is_returns:
+            is_total *= 1 + r / 100
+        result.is_total_return = (is_total - 1) * 100
+        result.is_sharpe = _calc_sharpe(result.is_returns, holding_days=config.holding_days)
 
     return result

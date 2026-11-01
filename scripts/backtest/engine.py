@@ -683,20 +683,38 @@ def _calc_return_with_stop_loss(
                     # 按移动止盈价成交（保守估计）
                     ret = (trail_stop - entry_price) / entry_price
                     return ret, day, "take_profit"
-        # 日内触及止损（最低价跌破止损线）→ 按止损价成交。
+        # 日内触及止损（最低价跌破止损线）→ 按**实际可成交价**成交。
         # v1.22.1 修复：ATR 模式下返回实际止损价收益（stop_price-entry）/entry。
         # ATR 止损价可宽于固定 -8%，原实现恒返回 stop_loss（-8%）会系统性
-        # 少报亏损、高估回测收益。固定模式（atr_multiplier=None）保持返回
-        # stop_loss 原值，不改变既有回测结果。
+        # 少报亏损、高估回测收益。
+        # v1.27.0 修复：跳空低开时按止损价成交会高估收益——开盘已低于止损价
+        # （A 股跌停/隔夜利空最常见）时，实际只能以开盘价附近成交。
+        # 取 min(stop_price, open) 作为成交价：跳空跌破时按开盘价（更贴近真实），
+        # 盘中触及时按止损价（不变，不影响既有回测结果）。
         if bar.low <= stop_price:
+            fill_price = stop_price
+            bar_open = getattr(bar, "open", 0) or 0
+            if 0 < bar_open < fill_price:
+                fill_price = bar_open  # 跳空低开：按开盘价成交
             if atr_multiplier is not None:
-                return (stop_price - entry_price) / entry_price, day, "stop_loss"
-            return stop_loss, day, "stop_loss"
+                return (fill_price - entry_price) / entry_price, day, "stop_loss"
+            # 固定模式：盘中触发（未跳空）时保持返回 stop_loss 常量，
+            # 与既有回测结果完全一致（避免浮点误差改变历史数值）
+            if fill_price == stop_price:
+                return stop_loss, day, "stop_loss"
+            return (fill_price - entry_price) / entry_price, day, "stop_loss"
         # 固定止盈（仅非移动止盈模式）
         if trailing_pct is None:
             take_price = entry_price * (1 + take_profit)
             if bar.high >= take_price:
-                return take_profit, day, "take_profit"
+                # 跳空高开时实际以开盘价成交（高于止盈价），与止损侧对称处理
+                fill_price = take_price
+                bar_open = getattr(bar, "open", 0) or 0
+                if bar_open > fill_price:
+                    fill_price = bar_open
+                if fill_price == take_price:
+                    return take_profit, day, "take_profit"
+                return (fill_price - entry_price) / entry_price, day, "take_profit"
 
     # 未触发止损止盈，持有到期，用末日收盘价
     # 若末日跌停无法卖出，顺延到之后第一个可交易日的收盘价

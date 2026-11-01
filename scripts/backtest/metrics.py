@@ -335,6 +335,9 @@ def _slice_benchmark_by_period(
     两者只在网格严格对齐时等价。实测策略第 3 期起点 07-31 被拿去与基准
     第 3 块（08-13..08-26）相减，错位约两周。
 
+    另修 off-by-one：策略在选股日**收盘**入场，基准期须从选股日**次日**起算；
+    原实现从选股日当天起算（该日收益发生在入场之前），使基准期整体前移一天。
+
     Args:
         bm_dates: 基准日收益对应的日期序列
         bm_returns: 基准日收益率序列
@@ -360,7 +363,12 @@ def _slice_benchmark_by_period(
             # 而不是拿别的期的收益来充数（那会制造错位）
             out.append(0.0)
             continue
-        seg = bm_returns[idx : idx + hold]
+        # 策略在**选股日收盘**入场（entry_price = bars[start].close），
+        # 持有 hold 天 → 覆盖选股日**次日**起的 hold 个日收益。
+        # bm_returns[idx] 是选股日当天的收益（发生在入场之前），必须跳过，
+        # 否则基准期整体前移一天（实测单期偏差可达 3pp、方向可翻转），
+        # 污染 IR/alpha/beta/超额夏普。
+        seg = bm_returns[idx + 1 : idx + 1 + hold]
         if not seg:
             out.append(0.0)
             continue
