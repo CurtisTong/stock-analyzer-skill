@@ -781,6 +781,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1018,6 +1019,25 @@
 ### Other
 - merge: timezone fix for release v1.24.0
 - merge: integrate CI CHANGELOG auto-update
+
+### Fixed
+- **technical-indicators**: swing-low coords, macd contract, streak threshold
+- **sentiment,chip**: IC zero-sample warning, tier priority, snapshot pollution
+- **technical**: beichi direction, report None-crash, market state authority
+- **backtest**: realistic fill prices, benchmark off-by-one, IS/OOS symmetry
+- **chan**: coordinate-system, feature-sequence segments, bi-level zhongshu
+- **ux**: verdict-aligned emoji, pattern repr, star ratings, misc P2
+- **sentiment**: unify panel cache semantics, add limit_down_count, honest labels
+- **ux**: PyYAML install guard, sandwich errors, uninstall.sh, disclaimer footers
+- **finance**: report-period scaling, precise disclosure deadlines, wire IC consumer
+- **factor-ic**: cross-sectional daily IC instead of pooled correlation
+- **screener**: sentiment reference column now carries real values
+- **regime**: eliminate sentiment look-ahead and make sentiment observable in backtest
+
+### Documentation
+- **chan**: v1.27.0 release notes, algorithm spec, version sync
+- **experts**: quarterly review of user/visual expert archives
+- **user-p1**: reconcile drift, broken links, banned phrasings, v1.26 discoverability
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
