@@ -71,12 +71,29 @@ def classify_market_state(
     判定优先级：完整数据（均线+宽度）→ 指数涨跌 → 涨跌停家数 → 防御型兜底。
     """
     # 1. 完整数据：均线 + 市场宽度（detect_market_state 完整逻辑）
+    # （v1.26.0）只要宽度数据可得就走完整判定——原实现要求 index_quote
+    # 与 kline_data 同时存在，导致"有宽度、无 K 线"时宽度被静默丢弃，
+    # 冰点信号（advance_ratio 极低 + 跌停家数多）无法触发，退回涨跌停
+    # 家数分支后冰点条件（limit_down>50）常被跳过。
+    if breadth_data is not None:
+        return detect_market_state(
+            index_quote=index_quote,
+            kline_data=kline_data,
+            breadth_data=breadth_data,
+        )["state"]
     if index_quote and kline_data:
         return detect_market_state(index_quote=index_quote, kline_data=kline_data, breadth_data=breadth_data)["state"]
     # 2. 指数涨跌（technical 场景）
-    if index_quote is not None or change_pct is not None:
-        q = index_quote or {"change_pct": change_pct}
+    # （v1.26.0）只有 change_pct 真正可得才走价格兜底——原实现只要
+    # index_quote 非空就进入该分支，而 detect_market_state 内部把缺失的
+    # change_pct 当 0 处理，输出"震荡"（0.55/0.45）而非承诺的
+    # fail-safe"防御型"（0.65/0.35）。缺数据时不得比震荡更乐观。
+    if change_pct is not None:
+        q = dict(index_quote or {})
+        q["change_pct"] = change_pct
         return detect_market_state(index_quote=q, allow_price_fallback=True)["state"]
+    if index_quote is not None and index_quote.get("change_pct") is not None:
+        return detect_market_state(index_quote=index_quote, allow_price_fallback=True)["state"]
     # 3. 涨跌停家数（情绪场景）
     if limit_up is not None or limit_down is not None:
         if (limit_down or 0) > 50:
@@ -146,6 +163,33 @@ def detect_market_state(
             state = "熊市"
         else:
             state = "震荡"
+
+    if breadth_data is not None and not (index_quote and kline_data):
+        # （v1.26.0）仅宽度数据可得（无 K 线）时，冰点/亢奋仍可判定——
+        # 这两个状态只依赖宽度/杠杆信号。原实现把宽度判定整体嵌在
+        # "index_quote and kline_data" 分支内，宽度被静默丢弃，
+        # 冰点信号（上涨家数极低 + 跌停大量）永远无法触发。
+        advance_ratio = breadth_data.get("advance_ratio", 0.5)
+        high_low_ratio = breadth_data.get("new_high_low_ratio", 1.0)
+        limit_down = breadth_data.get("limit_down_count", 0)
+        margin_ratio = breadth_data.get("margin_ratio", 0)
+        pe_percentile = (index_quote or {}).get("pe_percentile", 50)
+
+        if (
+            advance_ratio < _MARKET_ICE_ADVANCE_RATIO
+            and limit_down > _MARKET_ICE_LIMIT_DOWN
+            and high_low_ratio < _MARKET_ICE_HIGH_LOW_RATIO
+        ):
+            state = "冰点"
+        elif (
+            pe_percentile > _MARKET_MANIA_PE_PERCENTILE
+            and advance_ratio > _MARKET_MANIA_ADVANCE_RATIO
+            and margin_ratio > _MARKET_MANIA_MARGIN_RATIO
+        ):
+            state = "亢奋"
+        else:
+            # 牛/熊/防御型需要 MA20 与量比，缺 K 线不可判 → fail-safe 防御型
+            state = "防御型"
 
     if index_quote and kline_data:
         price = index_quote.get("price", 0)

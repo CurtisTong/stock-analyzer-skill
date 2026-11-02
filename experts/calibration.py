@@ -250,11 +250,40 @@ def _ensure_active_experts(data: dict) -> dict:
     return data
 
 
-def _load() -> dict:
+def _load(strict: bool = False) -> dict:
+    """读取校准数据。
+
+    Args:
+        strict: True 表示这是**写路径**（record/verify），文件损坏时抛错中止，
+            防止后续 _save() 用空结构覆盖历史；False 表示只读路径（报告/因子），
+            损坏时降级为空数据并告警，不阻断调用方。
+    """
     if _CALIBRATION_FILE.exists():
         try:
-            data = json.loads(_CALIBRATION_FILE.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+            raw = _CALIBRATION_FILE.read_text(encoding="utf-8")
+        except OSError:
+            return _empty_data()
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            # （v1.26.0）文件损坏时不得静默返回空数据——后续任何一次 _save()
+            # 都会用空结构覆盖原文件，历史永久丢失且无告警。现在：
+            # 1) 把损坏文件备份为 .corrupted-<时间戳>，保留现场可人工修复；
+            # 2) 写路径抛错中止（不会覆盖历史），只读路径降级告警。
+            backup = _CALIBRATION_FILE.with_suffix(f".corrupted-{datetime.now().strftime('%Y%m%d%H%M%S')}.json")
+            try:
+                backup.write_text(raw, encoding="utf-8")
+                backup_desc = str(backup)
+            except OSError:
+                backup_desc = "(备份失败)"  # 备份失败不掩盖原始错误
+            logger = logging.getLogger(__name__)
+            logger.error(
+                "校准文件损坏（%s），已备份至 %s；请人工修复后重试",
+                e,
+                backup_desc,
+            )
+            if strict:
+                raise ValueError(f"校准文件损坏，已中止写操作以防覆盖历史: {_CALIBRATION_FILE}") from e
             return _empty_data()
         return _ensure_active_experts(_migrate_legacy_experts(data))
     return _empty_data()
@@ -425,18 +454,27 @@ def record_prediction(
     if expert_horizons:
         verify_after = min(verify_after, min(expert_horizons.values()))
 
-    data = _load()
+    data = _load(strict=True)
 
     # 去重：同日同股不重复记录
     existing = [p for p in data["predictions"] if p["id"] == pred_id]
     if existing:
-        existing[0]["expert_scores"] = expert_scores
-        existing[0]["direction"] = direction
-        existing[0]["composite_score"] = composite_score
-        existing[0]["verify_after"] = verify_after
-        existing[0]["expert_horizons"] = expert_horizons
-        existing[0]["settled_experts"] = []
-        existing[0]["verified"] = False
+        prev = existing[0]
+        prev["expert_scores"] = expert_scores
+        prev["direction"] = direction
+        prev["composite_score"] = composite_score
+        prev["verify_after"] = verify_after
+        prev["expert_horizons"] = expert_horizons
+        # （v1.26.0）保留已结算状态，不清空。
+        # 原实现把 settled_experts 重置为 [] 且 verified=False，但专家的
+        # events/correct 计数不回滚——下次 verify 会把同一次预测再结算一遍，
+        # 胜率被重复计入（实测 lynch events 1→2）。
+        # 触发路径：calibration_backfill import 重复执行、calibration_sync
+        # pull 覆盖本地后再次 verify。
+        # 已结算的专家保持结算（不重复计数），未结算的按新分数等待结算。
+        settled = set(prev.get("settled_experts", []))
+        prev["settled_experts"] = sorted(settled & set(expert_scores))
+        prev["verified"] = bool(prev.get("verified")) and set(prev["settled_experts"]) >= set(expert_scores)
         _save(data)
         return pred_id
 
@@ -483,7 +521,7 @@ def verify_predictions(
     Returns:
         {"verified": int, "updated_experts": int, "skipped": int, "details": [...]}
     """
-    data = _load()
+    data = _load(strict=True)
     today = datetime.now().strftime("%Y-%m-%d")
     verified_count = 0
     skipped_count = 0
@@ -731,6 +769,13 @@ def compute_calibration_factor() -> float:
 
     v2.4.1 修正：仅使用 active 专家（8 人）的校准数据，
     legacy 专家（8 人）不参与 debate 也不应稀释校准因子。
+
+    v1.26.0：样本门槛与胜率卡片口径对齐（MIN_CALIBRATION_SAMPLES）。
+    原实现把"无历史数据"按 0.5 充数参与计算，且不设门槛——1 条样本的
+    专家就能把因子推到 ±0.086（信心 ∓0.8 分），而卡片同时显示"样本不足"。
+    现在：样本数低于门槛的专家按**中性 0.5** 计入——与"完全无历史数据"
+    口径一致，rates 长度恒为 active 专家数（CV 计算稳定），且样本不足的
+    专家不会把因子拉偏（其真实胜率不可信，但按 0.5 中性比按真实率更稳）。
     """
     from experts.registry import EXPERT_REGISTRY
 
@@ -741,10 +786,11 @@ def compute_calibration_factor() -> float:
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)
-        if events > 0:
+        if events >= MIN_CALIBRATION_SAMPLES:
             rates.append(correct / events)
         else:
-            rates.append(0.5)  # 无历史数据取 0.5
+            # 无历史数据（events=0）或样本不足（0<events<门槛）：按中性计入
+            rates.append(0.5)
 
     return _calibration_factor_from_rates(rates)
 
@@ -793,8 +839,9 @@ def get_calibration_report() -> str:
 def compute_group_calibration(group: str) -> float:
     """计算指定组的校准因子（v2.4.3 引入）。
 
-    与 compute_calibration_factor 相同的公式，但仅用该组 active 专家的校准数据。
-    用于定向惩罚低准确率组（如短线组 20%）而非全局平均稀释。
+    与 compute_calibration_factor 相同的公式（(mean-0.5)×2×(1-cv)），
+    但仅用该组 active 专家的校准数据。用于定向惩罚低准确率组
+    （如短线组 20%）而非全局平均稀释。
 
     Args:
         group: "long_term" 或 "short_term"
@@ -812,22 +859,21 @@ def compute_group_calibration(group: str) -> float:
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)
-        if events > 0:
+        if events >= MIN_CALIBRATION_SAMPLES:
             rates.append(correct / events)
         else:
+            # 无历史数据或样本不足：按中性计入（口径与全局一致）
             rates.append(0.5)
 
     if not rates:
         return 0.0
 
-    mean_rate = statistics.mean(rates)
-    if mean_rate > 0:
-        cv = statistics.stdev(rates) / mean_rate if len(rates) > 1 else 0
-    else:
-        cv = 1.0
-
-    factor = mean_rate * (1 - min(cv, 0.5))
-    return max(-1.0, min(1.0, (factor - 0.5) * 2))
+    # （v1.26.0）与 compute_calibration_factor 用同一公式：
+    #   factor = (mean_rate - 0.5) × 2 × (1 - min(cv, 0.5))
+    # 原实现写成 mean_rate × (1-cv) 再 (factor-0.5)×2，等价于少了
+    # (1-cv) 的一半——同一份数据下分组因子与全局因子口径不一致，
+    # 短线组惩罚被放大（实测 -0.1556 vs -0.5722）。
+    return _calibration_factor_from_rates(rates)
 
 
 def get_lessons(limit: int | None = None) -> Dict[str, list]:
