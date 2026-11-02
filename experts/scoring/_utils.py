@@ -168,20 +168,29 @@ def _score_fundamentals(fin: dict) -> float:
 
 def _score_valuation(quote: dict, fin: dict, industry: str = "默认") -> float:
     """估值维度：PE + PEG。PE 段使用统一的 pe_percentile 行业差异化估值。"""
+
+    def _fallback_pe_percentile(pe: float, industry: str = "默认") -> float:
+        """strategies 模块不可用时的简化 PE 分位估算。"""
+        if pe <= 0:
+            return 50.0
+        if pe <= 15:
+            return 20.0
+        if pe <= 25:
+            return 40.0
+        if pe <= 40:
+            return 60.0
+        return 80.0
+
+    pe_percentile_fn = _fallback_pe_percentile
     try:
-        from strategies.factors.common import pe_percentile as _pe_percentile
+        # （v1.26.0）修正导入路径：模块实为 strategies.factors.score_utils，
+        # 原 strategies.factors.common 从不存在，ImportError 被静默吞掉后
+        # 永远走简化 PE 档位——行业差异化阈值全部丢失。
+        from strategies.factors.score_utils import pe_percentile
+
+        pe_percentile_fn = pe_percentile
     except ImportError:
-        # strategies 模块不可用时，使用简单 PE 分位估算
-        def _pe_percentile(pe, industry="默认"):
-            if pe <= 0:
-                return 50
-            if pe <= 15:
-                return 20
-            if pe <= 25:
-                return 40
-            if pe <= 40:
-                return 60
-            return 80
+        pass
 
     if not quote:
         return 50.0
@@ -192,10 +201,10 @@ def _score_valuation(quote: dict, fin: dict, industry: str = "默认") -> float:
     if pe <= 0 and pb <= 0:
         return 50.0
 
-    score = 0
+    score = 0.0
     if pe > 0:
-        # _pe_percentile 返回 0-100（越高越贵），反转为价值分（越高越便宜）
-        score += 100 - _pe_percentile(pe, industry)
+        # pe_percentile 返回 0-100（越高越贵），反转为价值分（越高越便宜）
+        score += 100 - pe_percentile_fn(pe, industry)
     if pb > 0 and pb <= 2:
         score += 20
     elif pb > 0 and pb <= 5:
