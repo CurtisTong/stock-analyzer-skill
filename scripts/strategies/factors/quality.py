@@ -25,16 +25,36 @@ def _cumulative_scale(fin: dict) -> float:
     return 1.0
 
 
+def _first_present(fin: dict, *keys):
+    """返回第一个非 None 的字段值（全缺返回 None）。
+
+    dict.get(key, fallback) 在 key 存在但值为 None 时不回退，
+    这里显式逐键探测（2026-11-02 审查修复）。
+    """
+    for k in keys:
+        v = fin.get(k)
+        if v is not None:
+            return v
+    return None
+
+
 def quality_score(fin: dict, industry: str = "默认") -> float:
     """质量因子评分（行业差异化）。满分 100。
     fin 可包含多期数据（roe_trend 列表），用于 ROE 趋势判断。
     """
     # 支持标准化字段名（data层）和原始东财字段名（兼容）
-    roe = to_float(fin.get("roe", fin.get("ROEJQ")))
-    profit_growth = to_float(fin.get("net_profit_yoy", fin.get("PARENTNETPROFITTZ")))
-    revenue_growth = to_float(fin.get("revenue_yoy", fin.get("TOTALOPERATEREVETZ")))
-    gross_margin = to_float(fin.get("gross_margin", fin.get("XSMLL")))
-    debt = to_float(fin.get("debt_ratio", fin.get("ZCFZL")))
+    # 缺失语义（2026-11-02 审查修复）：字段缺失按子维度中性分计，
+    # 不再按 0 参与打分——0 值让"负债率未知"拿满分 12（debt 越低越好）
+    roe_raw = _first_present(fin, "roe", "ROEJQ")
+    profit_raw = _first_present(fin, "net_profit_yoy", "PARENTNETPROFITTZ")
+    revenue_raw = _first_present(fin, "revenue_yoy", "TOTALOPERATEREVETZ")
+    margin_raw = _first_present(fin, "gross_margin", "XSMLL")
+    debt_raw = _first_present(fin, "debt_ratio", "ZCFZL")
+    roe = to_float(roe_raw) if roe_raw is not None else 0.0
+    profit_growth = to_float(profit_raw) if profit_raw is not None else 0.0
+    revenue_growth = to_float(revenue_raw) if revenue_raw is not None else 0.0
+    gross_margin = to_float(margin_raw) if margin_raw is not None else 0.0
+    debt = to_float(debt_raw) if debt_raw is not None else 0.0
     eps = to_float(fin.get("eps", fin.get("EPSJB")))
     cashflow = to_float(fin.get("ocf_per_share", fin.get("MGJYXJJE")))
 
@@ -48,10 +68,13 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
     if not fin:
         return 50.0
 
-    score = 0
-    # ROE：相对于行业优秀值评分（累计口径按报告期缩放到年度）
+    score = 0.0
+    # ROE：相对于行业优秀值评分（累计口径按报告期缩放到年度）；缺失 → 中性 14
     roe_scale = _cumulative_scale(fin)
-    score += clamp(roe * roe_scale / roe_excellent * 28)
+    if roe_raw is not None:
+        score += clamp(roe * roe_scale / roe_excellent * 28)
+    else:
+        score += 14.0
 
     # ROE 趋势：review#4 修复
     # 旧逻辑要求全序列严格单调（单期波动即打破），改为"下降期占比"
@@ -66,16 +89,27 @@ def quality_score(fin: dict, industry: str = "默认") -> float:
             score += 5  # 基本面改善
 
     profit_growth_base = get_industry_threshold(industry, "profit_growth_excellent", 40)
-    score += clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
+    if profit_raw is not None:
+        score += clamp(profit_growth / profit_growth_base * 22) if profit_growth_base > 0 else 0
+    else:
+        score += 11.0  # 缺失 → 中性
     revenue_growth_base = get_industry_threshold(industry, "revenue_growth_excellent", 30)
-    score += clamp(revenue_growth / revenue_growth_base * 16) if revenue_growth_base > 0 else 0
-    # 毛利率：相对于行业最低值评分
-    if gross_margin_min > 0:
+    if revenue_raw is not None:
+        score += clamp(revenue_growth / revenue_growth_base * 16) if revenue_growth_base > 0 else 0
+    else:
+        score += 8.0  # 缺失 → 中性
+    # 毛利率：相对于行业最低值评分；缺失 → 中性
+    if margin_raw is None:
+        score += 8.0
+    elif gross_margin_min > 0:
         score += clamp(gross_margin / (gross_margin_min * 2) * 16)
     else:
         score += clamp(gross_margin / 40 * 16)
-    # 负债率：相对于行业上限评分
-    score += clamp((debt_max + 10 - debt) / (debt_max + 10) * 12)
+    # 负债率：相对于行业上限评分；缺失不再当 0 拿满分
+    if debt_raw is not None:
+        score += clamp((debt_max + 10 - debt) / (debt_max + 10) * 12)
+    else:
+        score += 6.0  # 缺失 → 中性
     if eps > 0 and cashflow > 0:
         score += clamp((cashflow / eps) * 6, 0, 6)
 

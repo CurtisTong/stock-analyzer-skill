@@ -207,7 +207,7 @@ python3 scripts/stock.py <代码> -j                   # 9. ★ 综合评分（�
 
 | 冲突类型 | 正向信号 | 负向信号 |
 | --- | --- | --- |
-| **类型A：业绩 vs 技术** | events 预增 +50% 以上 | technical KDJ J >= 90 超买 / BOLL 触及上轨 / stock.py 卖出信号 |
+| **类型A：业绩 vs 技术** | events 预增 +50% 以上 | technical KDJ 超买（v1.28 口径按 K 值判定：主板 K≥80，创业板/科创板 85，北交所 88）/ BOLL 触及上轨 / stock.py 卖出信号 |
 | **类型B：基本面 vs 综合** | finance 营收/净利 YoY > 50% | stock.py 综合评分 < 50 / 系统评级"中性" |
 | **类型C：市场 vs 个股** | market_anchor regime=bull 或强势板块 | stock.py 综合评分 < 40 |
 
@@ -226,7 +226,7 @@ python3 scripts/stock.py <代码> -j                   # 9. ★ 综合评分（�
 + KDJ 超买          类型A中等
 + BOLL 上轨
 预增 +50%但       ⚠️ 类型A中等      🔴 类型A高       🔴 双重高
-+ KDJ J≥100        → HOLD上限      → 等待           → observe
++ KDJ 超买(K≥80)   → HOLD上限      → 等待           → observe
 ```
 
 **强制声明**：报告必须包含 `## 信号冲突声明` 章节，判定后给出"无冲突 / 中等冲突 / 高冲突"结论。

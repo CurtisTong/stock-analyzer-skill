@@ -112,7 +112,7 @@ def dcf_valuation(
     price: float,
     fin: dict,
     growth_rate: float = None,
-    discount_rate: float = 0.10,
+    discount_rate: float = None,
     terminal_growth: float = 0.03,
     years_high: int = 5,
     years_transition: int = 5,
@@ -126,7 +126,9 @@ def dcf_valuation(
         fin: 财务 dict（需含 eps/ocf_per_share/capex 等）
         growth_rate: 预期增长率（小数，如 0.15 = 15%）。None 则自动推断
         industry: 行业类型（用于差异化资本支出系数）
-        discount_rate: 折现率（WACC 近似，默认 10%）
+        discount_rate: 折现率（WACC 近似）。None（默认）时走 CAPM/行业字典
+            三级优先级；显式传入（含 0.10）按用户指定生效，不再被静默替换
+            （v1.31 修复：旧实现用 ==0.10 当"未指定"哨兵，用户传 10% 会被吞）
         terminal_growth: 永续增长率（默认 3%）
         years_high: 高增长期年数（默认 5）
         years_transition: 过渡期年数（默认 5）
@@ -160,12 +162,12 @@ def dcf_valuation(
     capex_ratio = _CAPEX_RATIO.get(industry, _CAPEX_RATIO["默认"])
 
     # v2.7.1: 折现率三级优先级
-    # 1. 用户显式传入（discount_rate != 0.10）-> "用户传入"
+    # 1. 用户显式传入（discount_rate 非 None）-> "用户传入"
     # 2. stock_code 传入 -> CAPM 动态 WACC -> "CAPM"
     # 3. 回退 -> 行业字典 -> "行业字典"
     wacc_source = "用户传入"
-    if discount_rate == 0.10:
-        # 默认值，尝试 CAPM
+    if discount_rate is None:
+        # 未指定，尝试 CAPM
         if stock_code:
             capm_result = _compute_capm_wacc(stock_code)
             if capm_result is not None:
@@ -229,7 +231,11 @@ def dcf_valuation(
         total_value += pv
         current_fcf *= 1 + transition_growth
 
-    # 永续价值（Gordon Growth Model）
+    # 永续价值（Gordon Growth Model）：r <= g 时除零/负值无经济意义，
+    # 钳制永续增长率到折现率 - 1pt（v1.31 修复：discount_rate=0.03 且
+    # terminal_growth=0.03 曾直接 ZeroDivisionError）
+    if discount_rate <= terminal_growth:
+        terminal_growth = discount_rate - 0.01
     terminal_value = current_fcf / (discount_rate - terminal_growth)
     terminal_pv = terminal_value / ((1 + discount_rate) ** (years_high + years_transition))
     total_value += terminal_pv
