@@ -20,13 +20,13 @@ CRUD 操作在 `scripts/portfolio/crud.py`，`PortfolioManager` 仅作 facade。
 
 | 操作 | 函数 | 入参关键约束 | 返回类型 |
 | --- | --- | --- | --- |
-| 买入/加仓 | `add_position(manager, code, name, cost, quantity, buy_date="", tags=None, auto_save=True, cost_source="user_input")` | `cost > 0`、`quantity > 0`、code 自动 normalize | `dict`（已存在则加权平均成本；截图自动置 `cost_source="screenshot"`，加权平均后自动置 `"calculated"`） |
-| 减仓 | `reduce_position(manager, code, quantity, auto_save=True)` | `quantity > 0` 且 ≤ 当前持仓 | `dict`（清空则 `None`） |
+| 买入/加仓 | `add_position(manager, code, name, cost, quantity, buy_date="", tags=None, auto_save=True, cost_source="user_input", force=False)` | `cost >= 0`（0 = 未知成本价）、`quantity > 0`、code 自动 normalize；熔断/冷却期默认**硬阻止**（`force=True` 知情越过） | `dict`（已存在则加权平均成本；截图自动置 `cost_source="screenshot"`，加权平均后自动置 `"calculated"`） |
+| 减仓 | `reduce_position(manager, code, quantity, auto_save=True, sell_price=None)` | `quantity > 0`；**超量自动全部清仓**（不报错，走清仓落账） | `dict`（清空则 `None`） |
 | 清仓 | `remove_position(manager, code, auto_save=True)` | — | `bool` |
-| 更新字段 | `update_position(manager, code, auto_save=True, **fields)` | fields 允许 `cost/name/quantity/buy_date/tags` | `dict` |
-| 加自选 | `add_watch(manager, code, name="", note="", auto_save=True)` | code 自动 normalize | `dict` |
+| 更新字段 | `update_position(manager, code, auto_save=True, **fields)` | fields 允许 `cost/name/quantity/buy_date/tags/cost_source` | `dict \| None`（未找到返回 `None`） |
+| 加自选 | `add_watch(manager, code, name="", target_buy=0, target_sell=0, auto_save=True)` | code 自动 normalize（无 `note` 参数） | `dict` |
 
-**读取侧契约**：`get_positions() -> list[dict]`；`get_watchlist() -> list[dict]`；`get_position(code) -> dict | None`（未找到返回 `None`，**不是空 dict**）；`is_virtual() -> bool`。
+**读取侧契约**：`get_positions() -> list[dict]`；`get_watchlist() -> list[dict]`；`get_position(code) -> dict | None`（未找到返回 `None`，**不是空 dict**）；`is_virtual`（**property**，非方法调用——`pm.is_virtual` 而非 `pm.is_virtual()`）。
 
 > **错配历史（避免回归）**：`add_position` 返回 `dict` 而 `get_positions` 返回 `list` 是符合各操作语义的（CRUD 返回变更后的实体，读取返回集合），**不要统一成同一种类型**。`cost_source` 显式列为入参，加仓产生加权平均成本时自动置 `"calculated"`。详见 `scripts/portfolio/crud.py` 顶部 docstring。
 

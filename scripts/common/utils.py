@@ -36,6 +36,11 @@ def split_codes(arg: str) -> list[str]:
 def plain_code(code: str) -> str:
     """返回 6 位证券代码。"""
     c = code.strip().lower()
+    # 后缀容错：600989.SH / 000001.SZ / 430047.BJ（code-prefix.md 声称的写法）
+    if "." in c:
+        stem, _, suffix = c.partition(".")
+        if suffix in ("sh", "sz", "bj"):
+            c = stem
     if c.startswith(("sh", "sz", "bj")):
         c = c[2:]
     return c.upper()

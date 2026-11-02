@@ -52,6 +52,12 @@ class TestPlainCode:
             ("sz000001", "000001"),
             ("bj430047", "430047"),
             ("600519", "600519"),  # 无前缀
+            # 后缀容错（code-prefix.md 声称 600989.SH 等价写法）：
+            # 2026-11-02 审查发现 normalize_quote_code('600989.SH') 曾返回
+            # 'sh600989.SH'（后缀被当代码一部分），quote 链路查无此股
+            ("600519.SH", "600519"),
+            ("000001.SZ", "000001"),
+            ("430047.BJ", "430047"),
         ],
     )
     def test_strips_prefix(self, raw, expected):

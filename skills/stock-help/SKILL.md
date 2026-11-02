@@ -61,7 +61,7 @@ disable-model-invocation: false
 | `/stock`     | `<代码或名称> [quick\|full\|debate\|technical]`  | 单股 5 层分析 / 8 人圆桌辩论（16 份人设中 8 active = 5 长线 + 3 短线） |
 | `/market`    | `[full\|quick\|intraday]`                        | 大盘复盘（指数/板块/风格/资金）       |
 | `/sector`    | `<板块> [overview\|compare\|stock]`              | 板块全景 / 标的对比 / 板块内筛选      |
-| `/portfolio` | `[health\|rebalance\|compare\|web]`              | 持仓健康 / 调仓 / 模拟盘 / Web 录入   |
+| `/portfolio` | `[health\|rebalance]`                            | 持仓健康 / 调仓（compare 未实现，web 见 /portfolio-web） |
 | `/screener`  | `[--sector 板块] [--strategy 策略]`              | 6 策略 × 9 因子批量选股 + 股票池 init |
 | `/research`  | `[financial\|report] <任务>`                     | 财务建模 / 全维度研究报告             |
 | `/backtest`  | `[--strategy 策略] [--all]`                      | 策略历史胜率 + 收益 + 夏普 + 回撤     |
@@ -76,7 +76,7 @@ disable-model-invocation: false
 | `/portfolio-natural` | `<自然语言>`                | 自然语言 → 命令映射               |
 | `/stock-help`        |                             | 本帮助页（meta 索引）             |
 
-> 📌 股票代码格式：`sh600519`（沪）/ `sz000858`（深）/ `600519`（自动推断）/ `贵州茅台`（名称模糊匹配）
+> 📌 股票代码格式：`sh600519`（沪）/ `sz000858`（深）/ `bj920001`（北交所）/ `600519`（自动推断）/ `600519.SH`（后缀容错）。名称写法（"贵州茅台"）暂不支持直接入参。
 
 ## 4 个组合使用流程
 
@@ -137,7 +137,7 @@ disable-model-invocation: false
 
 1. 识别用户意图：是想开始 / 想看命令清单 / 想知道怎么学。
 2. 新手 → 引用 `../_shared/references/welcome.md` 输出欢迎卡 + 给出"按目标选入口"表。
-3. 老手 → 直接给下方 9 个 skill 命令清单表。
+3. 老手 → 直接给下方 12 个 skill 命令清单表。
 4. 路径不明的提问 → 给出"按目标选入口"段。
 
 不修改任何持仓/数据；不调用任何 `scripts/*.py`；不向外部 API 发送请求。

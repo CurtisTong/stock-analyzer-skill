@@ -1,6 +1,6 @@
-# 9 个核心 Skill 命令清单
+# 12 个 Skill 命令清单
 
-> help skill 的子文件。help 触发时按需加载本文件，不需要把 9 段命令重复加载到主上下文。
+> help skill 的子文件。help 触发时按需加载本文件，不需要把 12 段命令重复加载到主上下文。
 
 ## 1. 单股分析 - `/stock`
 
@@ -82,6 +82,42 @@
 /backtest --all                  # 比较所有策略
 /backtest --days 120             # 回测 120 天
 /backtest --codes 600519,000858  # 指定股票池
+```
+
+
+## 8. 纯技术面 - `/stock-technical`
+
+```text
+/stock-technical <代码>            # 技术面快扫（均线/MACD/KDJ/BOLL/RSI/缠论/战法）
+/stock-technical <代码> 指标       # 指标详解
+/stock-technical <代码> 战法       # 本土战法（打板/低吸/一进二）
+```
+
+## 9. Web 录入 - `/portfolio-web`
+
+```text
+/portfolio-web                     # 启动 Web 服务（默认 127.0.0.1:8765）
+/portfolio-web --port 9000         # 指定端口
+/portfolio-web --virtual           # 虚拟持仓模式
+```
+
+API 需 Bearer token（`~/.config/stock-analyzer/portfolio_web.token`），详见其 SKILL.md。
+
+## 10. 自然语言持仓 - `/portfolio-natural`
+
+```text
+/portfolio-natural 我买了1000股宝丰能源 成本18.5
+/portfolio-natural 减仓一半贵州茅台
+```
+
+NL → `/portfolio` 标准命令映射；执行仍由 `/portfolio` 完成。
+
+## 11. 学习路径 - `/learn`
+
+```text
+/learn basics                      # 新手入门（PE/ROE/PB/EPS）
+/learn valuation                   # 估值方法
+/learn technical                   # 技术指标（MA/MACD/KDJ）
 ```
 
 ## 进阶场景对照
