@@ -11,7 +11,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/finance.py 
 持仓组合管理与健康检查——增删改查 + 实时盈亏 + 板块分布 + 风险监控 + 调仓建议。
 
 > 本 skill 是 **持仓 CRUD 主流程**；两个子模块共享同一 `portfolio_web.py` 入口（非独立进程）：
-> - Web 服务操作（`web` / `--port` / `--open` / `--stop`）见 [`/portfolio-web`](./../portfolio-web/SKILL.md)
+> - Web 服务操作（`--port` / `--no-open` / `--virtual`，无 `--stop`——前台进程 Ctrl-C 终止）见 [`/portfolio-web`](./../portfolio-web/SKILL.md)
 > - 自然语言触发词典（"我买了 XX" / "减仓" / "清仓" 等）见 [`/portfolio-natural`](./../portfolio-natural/SKILL.md)
 
 ## API 契约（关键不变量）
@@ -68,7 +68,8 @@ CRUD 操作在 `scripts/portfolio/crud.py`，`PortfolioManager` 仅作 facade。
 `--virtual` 参数启动虚拟持仓模式，数据存 `scripts/data/portfolio_virtual.json`（与实盘隔离），支持所有 CRUD，适合练习与策略验证：
 
 ```bash
-python3 scripts/portfolio_web.py --virtual
+# Web 服务前台阻塞运行（serve_forever），会话内启动必须放后台：
+nohup python3 scripts/portfolio_web.py --virtual >/tmp/portfolio_web.log 2>&1 &
 /portfolio health --virtual
 ```
 
