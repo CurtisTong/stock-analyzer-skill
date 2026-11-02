@@ -107,6 +107,39 @@ class TestAnalyticsRiskAndAttribution:
         text = attribution_report(portfolio_mgr)
         assert isinstance(text, str)
 
+    def test_attribution_report_zero_cost_position_no_crash(self, tmp_path: Path):
+        """cost=0（未知成本）且无行情的持仓不得让归因报告崩溃。
+
+        回归背景（2026-11-02 skill 审查 P1）：零价值持仓形成 0 权重
+        归因桶，加权平均收益 0/0 → ZeroDivisionError。
+        """
+        import json as _json
+
+        from portfolio.analytics import attribution_report
+        from portfolio.manager import PortfolioManager
+
+        data_file = tmp_path / "portfolio.json"
+        data_file.write_text(
+            _json.dumps(
+                {
+                    "version": 2,
+                    "positions": [
+                        {"code": "sh600519", "name": "贵州茅台", "quantity": 100, "cost": 1500.0, "tags": ["长线"]},
+                        # 未知成本价（0）且不在 quotes 里 → 价值 0
+                        {"code": "sz300274", "name": "阳光电源", "quantity": 200, "cost": 0, "tags": ["长线"]},
+                    ],
+                    "watchlist": [],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        pm = PortfolioManager(str(data_file))
+
+        text = attribution_report(pm, quotes={"sh600519": 1900.0})
+        assert isinstance(text, str)
+        assert "贵州茅台" in text or "归因" in text
+
 
 class TestRebalance:
     def test_target_ratio_1_returns_empty(self, portfolio_mgr):

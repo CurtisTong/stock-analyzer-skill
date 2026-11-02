@@ -193,6 +193,10 @@ def brinson_from_holdings(
         if qty <= 0:
             continue
         weight = current * qty / total_value
+        if weight <= 0:
+            # cost=0（未知成本）且无行情的持仓价值为 0：不构成归因桶，
+            # 否则下方加权平均收益对该桶 0/0 除零（ZeroDivisionError）
+            continue
         # Brinson 公式要求"当期收益率"（t-1→t），而非"当前/成本"的累计浮盈。
         # 持仓文件只存成本基准，无上期价数据；此处无法计算真实当期收益，
         # 保守地以 0 兜底（避免累计浮盈污染归因），实际场景应从 K 线传入 period_returns。
