@@ -336,6 +336,11 @@ class PortfolioManager:
         with _file_lock(self._path):
             # 重新加载最新数据（_load 内部不获取锁，避免死锁）
             self._data = self._load(acquire_lock=False)
+            # 示例回退数据只读：目标文件不存在时从空仓起步，
+            # 防止首条写操作把 portfolio_example.json 的示例持仓带进真实文件
+            if self._is_example and not self._path.exists():
+                self._data = {"version": 2, "positions": [], "watchlist": []}
+                self._is_example = False
             # 执行更新
             self._data = updater(self._data)
             # 写回（使用 _raw_write，因为已持锁）
@@ -347,7 +352,11 @@ class PortfolioManager:
             from portfolio.oplog import OpLog
 
             ol = OpLog()
-            ol.push(op, code=code, snapshot_before=dict(self._data), extra=extra or None)
+            snapshot = dict(self._data)
+            if self._is_example and not self._path.exists():
+                # 示例回退状态不可作为恢复点：否则 undo 会把示例快照写进真实持仓文件
+                snapshot = {"version": 2, "positions": [], "watchlist": []}
+            ol.push(op, code=code, snapshot_before=snapshot, extra=extra or None)
         except Exception as e:
             logger.debug("操作日志记录失败: %s", e)
 
