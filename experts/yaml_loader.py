@@ -81,9 +81,17 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
 
     # 维度名归一化--把"情绪/资金"等别名映射到标准"情绪"，
     # 使 profile.weights 的键与 scoring 层期望的标准维度名一致，
-    # 避免投票/维度 breakdown 因别名键错位。归一化可能合并同维度权重，
-    # 需在加和校验后执行（合并后加和不变，因别名互斥）。
-    weights = {normalize_dim(k): v for k, v in weights.items()}
+    # 避免投票/维度 breakdown 因别名键错位。
+    #
+    # 合并语义（不是覆盖）：别名与标准名可能同时出现在同一份 YAML 里
+    # （如 {"情绪": 30, "情绪/资金": 10}），二者指向同一维度，权重应当
+    # 求和而非后者覆盖前者——覆盖会静默丢掉前者权重（加和 100 变成 70）。
+    # 求和保持总权重不变，因此上面的加和校验依然成立。
+    merged_weights: Dict[str, float] = {}
+    for k, v in weights.items():
+        std = normalize_dim(k)
+        merged_weights[std] = merged_weights.get(std, 0.0) + v
+    weights = merged_weights
 
     return ExpertProfile(
         name=data["name"],
@@ -102,6 +110,11 @@ def load_expert_from_yaml(path: Path) -> ExpertProfile:
 def load_all_experts() -> Dict[str, ExpertProfile]:
     """从 experts/yaml/ 目录加载所有 ExpertProfile。
 
+    注册表键取**文件名**（path.stem），并强制校验 YAML 内的 name 字段与
+    文件名一致——否则复制一份 yaml 改 name 就能静默顶替另一位专家
+    （原实现以 profile.name 为键，改 name 后总人数/active 数不变量仍通过，
+    被顶替的专家计两票、原专家凭空消失）。
+
     Returns:
         {expert_name: ExpertProfile} 字典
     """
@@ -110,7 +123,16 @@ def load_all_experts() -> Dict[str, ExpertProfile]:
     result: Dict[str, ExpertProfile] = {}
     for path in sorted(YAML_DIR.glob("*.yaml")):
         profile = load_expert_from_yaml(path)
-        result[profile.name] = profile
+        # name 必须与文件名一致——注册表按文件名索引，name 不一致会导致
+        # 复制一份 yaml 改 name 就静默顶替另一位专家（总人数/active 数
+        # 不变量仍通过，被顶替者计两票、原专家消失）。
+        stem = path.stem
+        if profile.name != stem:
+            raise ValueError(
+                f"{path}: name 字段 ({profile.name!r}) 与文件名 ({stem!r}) 不一致——"
+                "注册表按文件名索引，改名会导致专家被顶替"
+            )
+        result[stem] = profile
     return result
 
 

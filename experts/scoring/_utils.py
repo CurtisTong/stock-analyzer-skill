@@ -7,7 +7,7 @@
 import threading
 from typing import Dict, Optional
 
-from ..types import ExpertProfile, DIMENSION_ALIASES as _DIM_ALIASES, normalize_dim
+from ..types import ExpertProfile, DIMENSION_ALIASES as _DIM_ALIASES, normalize_dim, normalize_dim_scores
 
 # ═══════════════════════════════════════════════════════════════
 # 延迟导入辅助
@@ -93,12 +93,16 @@ def score_from_dimensions(profile: ExpertProfile, dim_scores: Dict[str, float]) 
     Returns:
         0-100 之间的总分
     """
+    # 归一化维度分一侧：score() 返回的别名键（"情绪/反身性"等）归一到标准名，
+    # 使其能与 profile.weights 的标准键对上（权重键加载时已归一化）。
+    normalized = normalize_dim_scores(dim_scores)
     total = 0.0
     for dim, weight in profile.weights.items():
-        # I19: 维度名别名映射--允许专家用"情绪/资金"等非标准名
-        score = dim_scores.get(dim)
+        # 权重键可能仍是别名（手动构造 ExpertProfile 而非 yaml_loader 加载），
+        # 此时二次归一化兜底。
+        score = normalized.get(dim)
         if score is None:
-            score = dim_scores.get(_normalize_dim_name(dim), 50.0)
+            score = normalized.get(_normalize_dim_name(dim), 50.0)
         score = max(0.0, min(100.0, float(score)))
         total += score * (weight / 100.0)
     return max(0.0, min(100.0, total))
@@ -109,9 +113,12 @@ def dimension_breakdown(profile: ExpertProfile, dim_scores: Dict[str, float]) ->
 
     与 score_from_dimensions 一致，对输入分值做 0-100 钳制。
     """
+    normalized = normalize_dim_scores(dim_scores)
     breakdown = {}
     for dim, weight in profile.weights.items():
-        score = dim_scores.get(dim, 50.0)
+        score = normalized.get(dim)
+        if score is None:
+            score = normalized.get(_normalize_dim_name(dim), 50.0)
         score = max(0.0, min(100.0, float(score)))
         breakdown[dim] = round(score * (weight / 100.0), 2)
     return breakdown
@@ -207,7 +214,7 @@ def _score_technical(kline_features: dict) -> float:
     if not kline_features:
         return 50.0
     score = 50
-    trend = kline_features.get("trend", 0)
+    trend = _safe_float(kline_features.get("trend"))
     if trend > 0:
         score += 20
     elif trend < 0:

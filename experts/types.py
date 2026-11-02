@@ -43,6 +43,16 @@ DIRECTION_THRESHOLDS = [
     (0, "强烈看空"),
 ]
 
+# 方向标签全集（7 级，与 debate.schema.json 的 enum 一致）。
+# 注意：DIRECTION_THRESHOLDS 只覆盖 5 级——"谨慎看多"/"谨慎看空"由
+# vote_engine 的冲突解决路径产出（分歧场景），不走阈值映射。
+# 任何"按方向判断涨跌"的逻辑必须用这两个集合，不能只写 5 级词表，
+# 否则谨慎方向的预测会被判为永远错误。
+BULLISH_DIRECTIONS = ("强烈看多", "看多", "谨慎看多")
+BEARISH_DIRECTIONS = ("强烈看空", "看空", "谨慎看空")
+NEUTRAL_DIRECTION = "中性"
+ALL_DIRECTIONS = BULLISH_DIRECTIONS + (NEUTRAL_DIRECTION,) + BEARISH_DIRECTIONS
+
 # v1.24.0 弃权第四态（TradingAgents REVIEW 哨兵思路）：
 # 数据严重不足（价量/财务/题材信号均不可得）时专家应显式弃权，
 # 弃权不进入投票基数——"读不出来的判断不是中性票"，
@@ -90,3 +100,35 @@ def normalize_dim(name: str) -> str:
     返回的人设特色维度名（保持叙事）在聚合时按同一标准维度合并。
     """
     return DIMENSION_ALIASES.get(name, name)
+
+
+def normalize_dim_scores(dim_scores: Dict[str, float]) -> Dict[str, float]:
+    """把维度分 dict 的键归一到标准维度名。
+
+    归一化的对象是**维度分一侧**（score() 返回的人设特色键，如"情绪/反身性"、
+    "情绪/资金"、"情绪/题材"），而非权重一侧。权重键在 yaml_loader 加载时
+    已归一化，若此处仍归一化权重侧，会导致两个维度对不上号，别名维度分被
+    静默丢弃并回落到 50 中性分（见 v1.26.0 修复）。
+
+    合并语义：标准名优先于别名（标准名已存在时不被别名覆盖）；
+    多个别名映射到同一标准名时取第一个。
+
+    Args:
+        dim_scores: 原始维度分 dict
+
+    Returns:
+        键为标准维度名的全新 dict（不修改入参）
+    """
+    if not dim_scores:
+        return {}
+    normalized: Dict[str, float] = {}
+    alias_values: Dict[str, float] = {}
+    for name, value in dim_scores.items():
+        std = normalize_dim(name)
+        if std == name:
+            normalized[std] = value
+        else:
+            alias_values.setdefault(std, value)
+    for std, value in alias_values.items():
+        normalized.setdefault(std, value)
+    return normalized

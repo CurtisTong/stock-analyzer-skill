@@ -22,6 +22,15 @@ import statistics
 from typing import Callable, Dict, List, Optional
 
 from .. import ExpertProfile, direction_from_score
+from ..types import ABSTAIN, normalize_dim, normalize_dim_scores
+from .availability import (
+    SIGNAL_FINANCE,
+    SIGNAL_PRICE_VOLUME,
+    SIGNAL_SENTIMENT,
+    missing_signals,
+    neutral_missing_dims,
+    should_abstain,
+)
 
 # 从子模块导入通用工具
 from ._utils import (
@@ -127,6 +136,43 @@ _EXPERT_SCORING_FUNCTIONS: Dict[str, Callable[[dict], Dict[str, float]]] = {
     "topic_leader": topic_leader.score,
     "emotion_tech": emotion_tech.score,
     "momentum_trader": momentum_trader.score,
+}
+
+
+# ═══════════════════════════════════════════════════════════════
+# 各专家的核心信号依赖（v1.26.0）
+#
+# 用于弃权判定：当一位专家**赖以判断的核心信号全部不可得**时，
+# 该专家应显式弃权（direction=弃权, abstain=True），不进入投票基数。
+# 只要核心信号还有一项可得，专家就应基于可得信息给出判断——
+# 弃权是"读不出来"，不是"数据不全就退出"。
+#
+# 信号类别见 experts/scoring/availability.py：
+#   SIGNAL_PRICE_VOLUME 价量（K 线/技术指标）
+#   SIGNAL_FINANCE      财务（基本面/盈利/杠杆）
+#   SIGNAL_SENTIMENT    题材（涨跌停/情绪/板块联动）
+# ═══════════════════════════════════════════════════════════════
+
+_EXPERT_REQUIRED_SIGNALS: Dict[str, List[str]] = {
+    # 长线 5 人
+    "lynch": [SIGNAL_FINANCE, SIGNAL_PRICE_VOLUME],
+    "soros": [SIGNAL_PRICE_VOLUME, SIGNAL_FINANCE],
+    "value_institution": [SIGNAL_FINANCE],
+    "sector_specialist": [SIGNAL_FINANCE, SIGNAL_PRICE_VOLUME],
+    "risk_manager": [SIGNAL_FINANCE],
+    # 短线 3 人
+    "topic_leader": [SIGNAL_SENTIMENT, SIGNAL_PRICE_VOLUME],
+    "emotion_tech": [SIGNAL_SENTIMENT],
+    "momentum_trader": [SIGNAL_PRICE_VOLUME],
+    # legacy 专家（保留供回放/A-B 对比）
+    "buffett": [SIGNAL_FINANCE],
+    "duan_yongping": [SIGNAL_FINANCE],
+    "value_anchor": [SIGNAL_FINANCE],
+    "institution": [SIGNAL_FINANCE],
+    "xu_xiang": [SIGNAL_SENTIMENT, SIGNAL_PRICE_VOLUME],
+    "zhao_laoge": [SIGNAL_SENTIMENT, SIGNAL_PRICE_VOLUME],
+    "chaogu_yangjia": [SIGNAL_SENTIMENT],
+    "zuoshou_xinyi": [SIGNAL_PRICE_VOLUME],
 }
 
 
@@ -236,6 +282,7 @@ def score_expert_precise(
         return {
             "score": round(total, 1),
             "direction": direction_from_score(total),
+            "abstain": False,
             "breakdown": dimension_breakdown(profile, dim_scores),
             "dim_scores": dim_scores,
             "method": "proxy_fallback",
@@ -243,15 +290,42 @@ def score_expert_precise(
 
     dim_scores = scoring_fn(stock_data)
 
-    # 确保所有权重维度都有评分
+    # ── 弃权判定（v1.26.0）──
+    # 该专家赖以判断的核心信号全部不可得时，显式弃权——不进入投票基数。
+    # decide.md §一.2：把读不出来的沉默登记为中性票，等于把"无信息"
+    # 当成"审慎平衡"，会系统性稀释投票。
+    required = _EXPERT_REQUIRED_SIGNALS.get(profile.name, [])
+    if should_abstain(stock_data, required):
+        missing = missing_signals(stock_data)
+        return {
+            "score": None,
+            "direction": ABSTAIN,
+            "abstain": True,
+            "breakdown": {},
+            "dim_scores": {},
+            "method": "precise",
+            "abstain_reason": f"核心信号不可得（缺失: {', '.join(missing) or '全部'}）",
+        }
+
+    # 不可得信号对应的维度分回落到中性 50——
+    # 部分专家把缺失数据写成 0 分（"缺数据=最差信号"），会隐性惩罚
+    # 单纯因接口失败而缺数据的标的。
+    dim_scores = neutral_missing_dims(stock_data, dim_scores)
+
+    # 确保所有权重维度都有评分。
+    # 先归一化维度分一侧（别名键→标准名），再判断哪些维度确实缺失——
+    # 否则当 score() 返回"情绪/反身性"而权重键是"情绪"时，会先补进
+    # dim_scores["情绪"]=50.0，标准名反过来盖掉别名里的真实分。
+    normalized = normalize_dim_scores(dim_scores)
     for dim in profile.weights:
-        if dim not in dim_scores:
+        if dim not in normalized and normalize_dim(dim) not in normalized:
             dim_scores[dim] = 50.0
 
     total = score_from_dimensions(profile, dim_scores)
     return {
         "score": round(total, 1),
         "direction": direction_from_score(total),
+        "abstain": False,
         "breakdown": dimension_breakdown(profile, dim_scores),
         "dim_scores": dim_scores,
         "method": "precise",
