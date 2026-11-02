@@ -38,7 +38,14 @@ class TestAbstainNotExtreme:
     """弃权是"读不出来"，不是"看空"信号。"""
 
     def test_all_long_abstain_not_polarized(self):
-        """长线组全弃权 + 短线一致看多 → 不得判为"两极分化→中性"。"""
+        """长线组全弃权 + 短线一致看多 → 不得判为"两极分化"。
+
+        （v1.26.0）方向改为断言"中性"：decide.md §一.2 与 §三 裁决表两处
+        明确规定「整组全部弃权 → 方向中性、仓位 0，不得把"沉默"解读为
+        看空信号」。原断言（方向不应为中性）与该规则直接冲突——短线
+        一致看多也不构成"长线看空"，两极分化同样不成立，因此中性是
+        唯一自洽的结论。
+        """
         results = [
             _abstain("lynch"),
             _abstain("soros"),
@@ -52,8 +59,9 @@ class TestAbstainNotExtreme:
         r = aggregate_votes(results, horizon="short")
         notes = " ".join(r.get("notes", []))
         assert "两极分化" not in notes, r.get("notes")
-        # 短线一致看多，长线弃权不应把方向翻成中性
-        assert r["direction"] != "中性"
+        # decide.md：整组全部弃权 → 方向中性、仓位 0
+        assert r["direction"] == "中性"
+        assert r["position"]["position_pct"] == 0
 
     def test_no_abstain_polarized_still_detected(self):
         """真实的极端分歧（长线全看多 + 短线全看空）仍必须识别。"""

@@ -1,0 +1,506 @@
+"""experts 模块 v1.26.0 P1 修复的不变量测试。
+
+锁定 2026-11-02 深度审查发现的 P1 修复行为。这些用例在修复前失败，
+现在必须全部通过——防止回归。
+
+对应修复：
+- P1 弃权对称（单组模式排除显式弃权）
+- P1 整组弃权 → 中性/仓位 0
+- P1 veto_results 与 risk_coefficients 并行生效
+- P1 弱信号 fallback 与 composite 同口径
+- P1 校准落库用原始判断分（不被风险折扣污染）
+- P1 校准全局/分组公式一致
+- P1 校准因子样本门槛
+- P1 同日重录不重复结算
+- P1 校准文件损坏不覆盖历史
+- P1 长线组校准因子参与信心计算
+- P1 market_detector 缺 change_pct → 防御型
+- P1 market_detector 宽度数据不被丢弃
+- P1 buffett_sub_score / yangjia_sub_score 路径可达
+- P1 估值维度使用行业差异化 PE 分位
+"""
+
+import json
+import logging
+
+import pytest
+
+from experts.types import ExpertProfile
+
+logging.disable(logging.CRITICAL)
+
+_MARKET_STATE = {"state": "震荡", "long_weight": 0.5, "short_weight": 0.5, "reason": "t"}
+
+
+def _expert(name, score, group="long_term", **kw):
+    result = {
+        "name": name,
+        "group": group,
+        "score": score,
+        "direction": "看多" if score >= 60 else "中性",
+    }
+    result.update(kw)
+    return result
+
+
+def _abstain(name, group="long_term"):
+    return {"name": name, "group": group, "score": None, "direction": "弃权", "abstain": True}
+
+
+# ═══════════════════════════════════════════════════════════════
+# 弃权对称性
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestAbstainSymmetry:
+    """单组与双组模式的弃权处理必须一致。"""
+
+    def test_single_group_excludes_explicit_abstain(self):
+        """单组模式必须排除 abstain=True 的专家（与双组一致）。"""
+        from experts.vote_engine import aggregate_group_votes
+
+        results = [
+            _expert("a", 80),
+            _expert("b", 75),
+            _expert("c", 80, abstain=True),
+        ]
+        out = aggregate_group_votes(results, group="long_term")
+        assert out["abstained"] == 1
+        assert out["votes"]["total"] == 2
+
+    def test_single_group_matches_dual_group(self):
+        """同一输入，单组与双组的弃权计数一致。"""
+        from experts.vote_engine import aggregate_group_votes, aggregate_votes
+
+        results = [
+            _expert("a", 80),
+            _expert("b", 75),
+            _expert("c", 80, abstain=True),
+        ]
+        single = aggregate_group_votes(results, group="long_term")
+        dual = aggregate_votes(results, market_state=_MARKET_STATE)
+        assert single["abstained"] == dual["abstained"] == 1
+        assert single["votes"]["total"] == dual["long_votes"]["total"] == 2
+
+    def test_whole_group_abstain_is_neutral_zero_position(self):
+        """整组全部弃权 → 方向中性、仓位 0（decide.md §一.2 与 §三 裁决表）。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            _abstain("a"),
+            _abstain("b"),
+            _expert("c", 80, group="short_term"),
+        ]
+        out = aggregate_votes(results, market_state=_MARKET_STATE)
+        assert out["direction"] == "中性"
+        assert out["position"]["position_pct"] == 0
+
+    def test_whole_group_abstain_not_polarized(self):
+        """整组弃权不得判为"两极分化"。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            _abstain("a"),
+            _abstain("b"),
+            _expert("c", 85, group="short_term"),
+            _expert("d", 80, group="short_term"),
+            _expert("e", 82, group="short_term"),
+        ]
+        out = aggregate_votes(results, market_state=_MARKET_STATE)
+        notes = " ".join(out.get("notes", []))
+        assert "两极分化" not in notes
+
+
+# ═══════════════════════════════════════════════════════════════
+# 风险通道并行
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestRiskChannelsParallel:
+    """risk_coefficients 与 veto_results 是两条独立通道，不应互相吞并。"""
+
+    def test_veto_not_swallowed_by_risk_coefficients(self):
+        """同时传入两者时，veto_results 仍必须生效。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            _expert("a", 80),
+            _expert("b", 80),
+            _expert("c", 80, group="short_term"),
+        ]
+        out = aggregate_votes(
+            results,
+            market_state=_MARKET_STATE,
+            risk_coefficients={"a": 0.5},
+            veto_results={"b": {"ROE<10%": True}},
+        )
+        notes = " ".join(out.get("notes", []))
+        assert "风险折扣" in notes
+        assert "一票否决" in notes
+
+    def test_veto_takes_stricter_result(self):
+        """刚性底线（0 分）不得被 veto 的 20 分抬回。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [_expert("a", 80)]
+        out = aggregate_votes(
+            results,
+            market_state=_MARKET_STATE,
+            risk_coefficients={"a": 0.0},
+            veto_results={"a": {"ROE<10%": True}},
+        )
+        scored = out["expert_results"][0]
+        assert scored["score"] == 0.0
+
+
+# ═══════════════════════════════════════════════════════════════
+# 方向与综合分同源
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestDirectionMatchesComposite:
+    """方向判定必须与 composite 同口径，不得自相矛盾。"""
+
+    def test_weak_signal_fallback_uses_weighted_average(self):
+        """弱信号兜底的方向必须与 composite 同为加权口径。"""
+        from experts.vote_engine import aggregate_votes
+
+        market_state = {"state": "震荡", "long_weight": 0.4, "short_weight": 0.6, "reason": "t"}
+        results = [
+            _expert("a", 55),
+            _expert("b", 45),
+            _expert("c", 50),
+            _expert("d", 52),
+            _expert("e", 48),
+            _expert("f", 40, group="short_term"),
+        ]
+        out = aggregate_votes(results, market_state=market_state)
+        composite = out["composite_score"]
+        direction = out["direction"]
+        # 方向与 composite 必须落在同一阈值区间
+        if composite >= 60:
+            assert direction in ("看多", "强烈看多")
+        elif composite >= 40:
+            assert direction in ("中性", "谨慎看多", "谨慎看空")
+        else:
+            assert direction in ("看空", "强烈看空", "谨慎看空")
+
+
+# ═══════════════════════════════════════════════════════════════
+# 校准落库不被风险折扣污染
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestCalibrationUsesOriginalScore:
+    """落库的专家分必须是原始判断分，不是风险折扣分。"""
+
+    def test_original_score_preserved(self):
+        """风险折扣后仍保留 _original_score。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [_expert("a", 80)]
+        out = aggregate_votes(results, market_state=_MARKET_STATE, risk_coefficients={"a": 0.5})
+        scored = out["expert_results"][0]
+        assert scored["score"] == 40.0
+        assert scored["_original_score"] == 80.0
+
+    def test_record_prediction_uses_original_score(self, tmp_path, monkeypatch):
+        """decide.record_prediction 落库用 _original_score。"""
+        import experts.calibration as cal_mod
+        import experts.decide as decide_mod
+
+        saved = {}
+
+        def _fake_record(**kwargs):
+            saved.update(kwargs)
+            return "pred-1"
+
+        monkeypatch.setattr(cal_mod, "record_prediction", _fake_record)
+        monkeypatch.setattr("experts.registry._ensure_loaded", lambda: None)
+
+        results = [_expert("a", 80)]
+        out = decide_mod.run_debate(
+            "sh600000",
+            results,
+            market_state=_MARKET_STATE,
+        )
+        assert out["_pred_id"] == "pred-1"
+        assert saved["expert_scores"]["a"] == 80.0
+
+
+# ═══════════════════════════════════════════════════════════════
+# 校准公式与样本门槛
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestCalibrationFormulaConsistency:
+    """全局与分组因子必须同公式；样本不足不参与计算。"""
+
+    def test_group_formula_matches_global(self, monkeypatch):
+        """分组因子必须用与全局相同的公式（对同一组数据逐一比对）。"""
+        from experts import calibration as cal_mod
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+
+        _ensure_loaded()
+        experts = {
+            "lynch": {"events": 20, "correct": 14},
+            "soros": {"events": 20, "correct": 12},
+        }
+        monkeypatch.setattr(cal_mod, "get_calibration", lambda: experts)
+
+        # 长线组 active 专家的胜率序列（无数据的按中性 0.5 计入）
+        long_names = [n for n, p in EXPERT_REGISTRY.items() if p.active and p.group == "long_term"]
+        rates = []
+        for name in long_names:
+            rec = experts.get(name, {})
+            events = rec.get("events", 0)
+            rates.append(rec.get("correct", 0) / events if events >= cal_mod.MIN_CALIBRATION_SAMPLES else 0.5)
+
+        expected = cal_mod._calibration_factor_from_rates(rates)
+        group = cal_mod.compute_group_calibration("long_term")
+        assert abs(group - expected) < 1e-9
+
+    def test_small_sample_excluded(self, monkeypatch):
+        """样本数低于门槛的专家不参与因子计算。"""
+        from experts import calibration as cal_mod
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+
+        _ensure_loaded()
+        # lynch 只有 1 条样本且全错；若参与计算会显著拉低因子
+        experts = {
+            "lynch": {"events": 1, "correct": 0},
+            "soros": {"events": 30, "correct": 24},
+        }
+        monkeypatch.setattr(cal_mod, "get_calibration", lambda: experts)
+
+        rates = []
+        for name, profile in EXPERT_REGISTRY.items():
+            if not profile.active:
+                continue
+            rec = experts.get(name, {})
+            events = rec.get("events", 0)
+            if events >= cal_mod.MIN_CALIBRATION_SAMPLES:
+                rates.append(rec.get("correct", 0) / events)
+            else:
+                rates.append(0.5)  # 无数据或样本不足 → 中性
+
+        expected = cal_mod._calibration_factor_from_rates(rates)
+        factor = cal_mod.compute_calibration_factor()
+        assert abs(factor - expected) < 1e-9
+        # lynch 的 1 样本未按 0% 计入（否则 rates 里会是 0.0）
+        assert 0.0 not in rates
+
+
+# ═══════════════════════════════════════════════════════════════
+# 同日重录不重复结算
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestNoDoubleSettlement:
+    """同日同股重录不得导致同一次预测被结算两遍。"""
+
+    def test_rerecord_preserves_settled_state(self, tmp_path, monkeypatch):
+        """重录保留已结算标记，不清空。"""
+        import experts.calibration as cal_mod
+
+        state = {
+            "predictions": [
+                {
+                    "id": "sh600000-2026-01-01",
+                    "stock": "sh600000",
+                    "date": "2026-01-01",
+                    "direction": "看多",
+                    "composite_score": 70.0,
+                    "expert_scores": {"lynch": 70.0},
+                    "verified": True,
+                    "verify_after": "2026-07-01",
+                    "expert_horizons": {"lynch": "2026-07-01"},
+                    "settled_experts": ["lynch"],
+                    "actual_return": 10.0,
+                    "actual_direction": "上涨",
+                }
+            ],
+            "experts": {"lynch": {"events": 1, "correct": 1}},
+            "_migrated": True,
+        }
+        monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
+        monkeypatch.setattr(cal_mod, "_save", lambda data: None)
+
+        cal_mod.record_prediction(
+            "sh600000",
+            {"lynch": 75.0},
+            "看多",
+            timestamp="2026-01-01 10:00:00",
+        )
+        pred = state["predictions"][0]
+        # 已结算的 lynch 不得被清空（否则会二次结算，events 1→2）
+        assert pred["settled_experts"] == ["lynch"]
+        assert pred["verified"] is True
+
+
+# ═══════════════════════════════════════════════════════════════
+# 校准文件损坏
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestCorruptCalibrationFile:
+    """损坏文件不得被静默覆盖。"""
+
+    def test_write_path_raises_and_backs_up(self, tmp_path, monkeypatch):
+        """写路径遇损坏文件必须抛错，并保留备份。"""
+        import experts.calibration as cal_mod
+
+        corrupt = tmp_path / "expert_calibration.json"
+        corrupt.write_text('{"predictions": [ broken', encoding="utf-8")
+        monkeypatch.setattr(cal_mod, "_CALIBRATION_FILE", corrupt)
+
+        with pytest.raises(ValueError, match="损坏"):
+            cal_mod._load(strict=True)
+
+        backups = list(tmp_path.glob("*.corrupted-*.json"))
+        assert backups, "损坏文件应被备份"
+        assert backups[0].read_text(encoding="utf-8").startswith("{")
+
+    def test_read_path_degrades(self, tmp_path, monkeypatch):
+        """只读路径降级为空数据，不抛错。"""
+        import experts.calibration as cal_mod
+
+        corrupt = tmp_path / "expert_calibration.json"
+        corrupt.write_text("not json", encoding="utf-8")
+        monkeypatch.setattr(cal_mod, "_CALIBRATION_FILE", corrupt)
+
+        data = cal_mod._load()
+        assert data["predictions"] == []
+
+
+# ═══════════════════════════════════════════════════════════════
+# 长线组校准因子参与计算
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestLongGroupCalibrationConsumed:
+    """长线组校准因子必须参与信心计算，不能只展示。"""
+
+    def test_long_group_penalty_applied(self, monkeypatch):
+        """长线组校准为负时应扣减信心指数并留下说明。"""
+        import experts.vote_engine as ve
+
+        monkeypatch.setattr(
+            "experts.calibration.compute_group_calibration",
+            lambda group: -0.5 if group == "long_term" else 0.0,
+        )
+        results = [
+            _expert("a", 75),
+            _expert("b", 75),
+            _expert("c", 75, group="short_term"),
+        ]
+        out = ve.aggregate_votes(results, market_state=_MARKET_STATE)
+        notes = " ".join(out.get("notes", []))
+        assert "长线组校准惩罚" in notes
+
+
+# ═══════════════════════════════════════════════════════════════
+# market_detector fail-safe
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestMarketDetectorFailSafe:
+    """缺数据时不得比"防御型"更乐观。"""
+
+    def test_missing_change_pct_is_defensive(self):
+        """index_quote 无 change_pct → 防御型（修复前是"震荡"）。"""
+        from experts.market_detector import classify_market_state
+
+        assert classify_market_state(index_quote={"price": 3000}) == "防御型"
+
+    def test_breadth_only_can_detect_ice(self):
+        """仅宽度数据可得时，冰点信号仍应触发。"""
+        from experts.market_detector import classify_market_state
+
+        ice = {"advance_ratio": 0.08, "limit_down_count": 80, "new_high_low_ratio": 0.15}
+        assert classify_market_state(breadth_data=ice) == "冰点"
+
+
+# ═══════════════════════════════════════════════════════════════
+# 子评分路径可达
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestSubScorePaths:
+    """合并型专家的子评分必须能被 vote_engine 读到。"""
+
+    def test_yangjia_sub_score_in_dim_scores(self):
+        """yangjia_sub_score 在 dim_scores 里也要能读到。"""
+        from experts.vote_engine import _get_yangjia_emotion_score
+
+        yangjia = {
+            "name": "emotion_tech",
+            "score": 60,
+            "breakdown": {"情绪": 10},
+            "dim_scores": {"情绪": 50, "yangjia_sub_score": 100},
+        }
+        assert _get_yangjia_emotion_score(yangjia) == 100.0
+
+    def test_buffett_sub_score_triggers_warning(self):
+        """dim_scores 里的 buffett_sub_score 应触发巴菲特否决警示。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            _expert("value_institution", 70, dim_scores={"buffett_sub_score": 30, "情绪": 50}),
+            _expert("topic_leader", 70, group="short_term"),
+        ]
+        out = aggregate_votes(results, market_state=_MARKET_STATE, horizon="medium")
+        notes = " ".join(out.get("notes", []))
+        assert "巴菲特" in notes
+
+
+# ═══════════════════════════════════════════════════════════════
+# 估值维度使用行业差异化 PE 分位
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestValuationUsesIndustryPercentile:
+    """估值维度必须使用 strategies.factors.score_utils 的行业差异化分位。"""
+
+    def test_industry_differentiation_active(self):
+        """不同行业的同一 PE 应给出不同估值分。"""
+        from experts.scoring._utils import _score_valuation
+
+        default = _score_valuation({"pe": 30, "pb": 2}, {})
+        bank = _score_valuation({"pe": 30, "pb": 2}, {}, industry="银行")
+        assert default != bank, "行业差异化阈值未生效（导入路径错误或被静默兜底）"
+
+    def test_import_path_exists(self):
+        """strategies.factors.score_utils 必须可导入。"""
+        import strategies.factors.score_utils as su
+
+        assert callable(su.pe_percentile)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 专家维度权重镜像
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestExpertWeightMirror:
+    """md §九 权重表与 YAML 必须一致（守护存在）。"""
+
+    def test_weight_sync_contract_exists(self):
+        """TestWeightSync 类必须真实存在（此前只是注释里的虚构引用）。"""
+        import importlib
+
+        mod = importlib.import_module("tests.contracts.test_expert_weight_sync")
+        assert hasattr(mod, "TestWeightSync")
+
+    def test_md_weights_parse(self):
+        """能从专家 md 解析出维度权重。"""
+        import importlib
+        from pathlib import Path
+
+        mod = importlib.import_module("tests.contracts.test_expert_weight_sync")
+        md = Path("experts/buffett.md")
+        if not md.exists():
+            pytest.skip("md 不存在")
+        weights = mod._parse_md_weights(md)
+        assert weights, "buffett.md 应能解析出维度权重"
+        assert abs(sum(weights.values()) - 100.0) <= 1.0

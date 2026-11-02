@@ -33,7 +33,7 @@ def _empty_data():
 def store(monkeypatch):
     """_load/_save 重定向到内存 dict（save 捕获最新快照）。"""
     state = _empty_data()
-    monkeypatch.setattr(cal_mod, "_load", lambda: state)
+    monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
     monkeypatch.setattr(cal_mod, "_save", lambda d: state.update(d))
     return state
 

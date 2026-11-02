@@ -31,7 +31,7 @@ def _empty_data():
 @pytest.fixture
 def store(monkeypatch):
     state = _empty_data()
-    monkeypatch.setattr(cal_mod, "_load", lambda: state)
+    monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
     monkeypatch.setattr(cal_mod, "_save", lambda d: state.update(d))
     return state
 
