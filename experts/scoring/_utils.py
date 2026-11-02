@@ -147,6 +147,52 @@ __all__ = [
 # ═══════════════════════════════════════════════════════════════
 
 
+# 金融业（银行/保险/券商/信托等）的负债率天然极高——银行负债率 92% 是
+# 监管资本约束下的常态，不是财务风险信号。通用阈值（<30% 充裕 / ≥50%
+# 不足）会把所有银行判成"安全边际不足"，与专家档案里明写的
+# "ROE < 10% 或负债率 > 70%（**金融业除外**）"直接矛盾。
+#
+# （v1.26.0）此处提供统一豁免：金融业改用"资产质量 + 资本充足"视角的
+# 宽松阈值，避免行业特性被当成公司缺陷。
+_FINANCIAL_INDUSTRIES = ("银行", "保险", "证券", "券商", "信托", "金融", "资管", "期货")
+
+# 金融业的负债率阈值（远高于通用阈值——只看是否极端）
+
+
+def is_financial_industry(stock_data: dict) -> bool:
+    """判断标的是否属于金融业（银行/保险/券商等）。
+
+    优先取 stock_data["industry"]（experts_cli 由 classifier.infer_industry
+    推断），其次看公司名关键词。
+    """
+    if not isinstance(stock_data, dict):
+        return False
+    industry = str(stock_data.get("industry") or "")
+    if industry and any(key in industry for key in _FINANCIAL_INDUSTRIES):
+        return True
+    name = str((stock_data.get("quote") or {}).get("name") or "")
+    return any(key in name for key in _FINANCIAL_INDUSTRIES)
+
+
+def debt_ratio_score(debt: float, financial: bool = False) -> float:
+    """按行业特性给负债率打分（0-100）。
+
+    通用行业：<30% 充裕(100) / <50% 一般(60) / ≥50% 不足(0)
+    金融业：≤92% 视为正常(100) / ≤95% 一般(60) / >95% 不足(0)
+    """
+    if financial:
+        if debt <= 92.0:
+            return 100.0
+        if debt <= 95.0:
+            return 60.0
+        return 0.0
+    if debt < 30:
+        return 100.0
+    if debt < 50:
+        return 60.0
+    return 0.0
+
+
 def _score_fundamentals(fin: dict) -> float:
     """基本面维度：ROE + 净利增速 + 营收增速 + 毛利率。"""
     if not fin:

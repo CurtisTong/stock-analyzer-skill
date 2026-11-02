@@ -15,7 +15,7 @@ v2.1.2：实现"长期主义 + 深度尽调代理"完整版
 
 from typing import Dict
 
-from ._utils import _safe_float
+from ._utils import _safe_float, is_financial_industry
 
 
 def score(stock_data: dict) -> Dict[str, float]:
@@ -32,7 +32,19 @@ def score(stock_data: dict) -> Dict[str, float]:
     gross_margin = _safe_float(fin.get("XSMLL") or fin.get("gross_margin"))
 
     # ROE 是机构最看重的指标
-    if roe >= 25:
+    # （v1.26.0）金融业豁免：银行 ROE 约 7% 是监管资本约束下的常态，
+    # 通用门槛（<10% → 15 分）会把所有银行判成"不达机构门槛"。
+    financial = is_financial_industry(stock_data)
+    if financial:
+        if roe >= 11:
+            institution_fundamental = 100
+        elif roe >= 9:
+            institution_fundamental = 90
+        elif roe >= 6:
+            institution_fundamental = 70
+        else:
+            institution_fundamental = 45
+    elif roe >= 25:
         institution_fundamental = 100
     elif roe >= 20:
         institution_fundamental = 90
@@ -44,7 +56,12 @@ def score(stock_data: dict) -> Dict[str, float]:
         institution_fundamental = 15  # 不达机构门槛
 
     # 净利增速调整（高 ROE + 持续高增速 = 真龙头）
-    if profit_yoy >= 20 and roe >= 15:
+    if financial:
+        if profit_yoy >= 10 and roe >= 8:
+            institution_fundamental = min(100, institution_fundamental + 10)
+        elif profit_yoy < 0 and roe >= 8:
+            institution_fundamental = max(0, institution_fundamental - 15)
+    elif profit_yoy >= 20 and roe >= 15:
         institution_fundamental = min(100, institution_fundamental + 10)
     elif profit_yoy < 0 and roe >= 15:
         institution_fundamental = max(0, institution_fundamental - 15)  # 增收不增利警示
@@ -97,12 +114,15 @@ def score(stock_data: dict) -> Dict[str, float]:
         institution_sentiment = 50  # 缺数据，回退中性
 
     # ── 安全边际：FCF/股 + 低负债 ──
+    # （v1.26.0）金融业豁免：银行负债率 92% 是监管资本约束下的常态，
+    # 通用阈值（<30/<50）会把所有银行打成"高杠杆 + 弱现金流"（15 分）。
     fcf_per_share = _safe_float(fin.get("MGJYXJJE") or fin.get("ocf_per_share"))
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"), 50)
+    debt_ok = (debt <= 92.0) if financial else (debt < 50)
 
-    if fcf_per_share > 0 and debt < 30:
+    if fcf_per_share > 0 and (debt <= 30 if not financial else debt <= 92.0):
         margin_of_safety = 90
-    elif fcf_per_share > 0 and debt < 50:
+    elif fcf_per_share > 0 and debt_ok:
         margin_of_safety = 70
     elif fcf_per_share > 0:
         margin_of_safety = 50

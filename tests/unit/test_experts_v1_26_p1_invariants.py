@@ -1002,3 +1002,81 @@ class TestDegradedMarketData:
         result = score_expert_precise(EXPERT_REGISTRY["emotion_tech"], self._degraded_stock_data())
         assert result["abstain"] is True
         assert result["direction"] == "弃权"
+
+
+class TestFinancialIndustryExemption:
+    """金融业豁免：行业特性不得被当成公司缺陷。"""
+
+    def _bank_data(self):
+        return {
+            "code": "sh601398",
+            "industry": "银行",
+            "quote": {
+                "pe": 8.06,
+                "pb": 0.77,
+                "price": 8.69,
+                "circulating_cap": 30971.7,
+                "pe_percentile": None,
+                "name": "工商银行",
+                "amount": 4.2e9,
+            },
+            "finance": {
+                "roe": 6.9975,
+                "net_profit_yoy": 5.83,
+                "debt_ratio": 92.39,
+                "eps": 0.78,
+                "ocf_per_share": 4.33,
+            },
+            "kline_features": {"trend": 1, "rsi": 45, "macd_signal": 1},
+            "market_features": {
+                "limit_up_count": 125,
+                "limit_down_count": 0,
+                "advance_ratio": 0.85,
+                "break_rate": 0.66,
+                "limit_up_30d_count": None,
+                "sector_limit_up_count": None,
+            },
+        }
+
+    def test_is_financial_industry_detects(self):
+        from experts.scoring._utils import is_financial_industry
+
+        assert is_financial_industry(self._bank_data())
+        assert not is_financial_industry({"industry": "消费", "quote": {"name": "贵州茅台"}})
+
+    def test_bank_detected_by_name_only(self):
+        """行业字段缺失时按公司名兜底识别。"""
+        from experts.scoring._utils import is_financial_industry
+
+        assert is_financial_industry({"quote": {"name": "招商银行"}})
+
+    def test_debt_ratio_score_financial_vs_general(self):
+        """金融业 92% 负债率算充裕，通用行业算不足。"""
+        from experts.scoring._utils import debt_ratio_score
+
+        assert debt_ratio_score(92.0, financial=True) == 100.0
+        assert debt_ratio_score(92.0, financial=False) == 0.0
+        assert debt_ratio_score(40.0, financial=False) == 60.0
+
+    def test_bank_value_institution_not_penalized(self):
+        """银行股不应因高负债被判"安全边际不足"。"""
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+        from experts.scoring import score_expert_precise
+
+        _ensure_loaded()
+        result = score_expert_precise(EXPERT_REGISTRY["value_institution"], self._bank_data())
+        dims = result["dim_scores"]
+        assert dims["安全边际"] > 0, "银行的安全边际不应为 0（负债率 92% 是常态）"
+        assert dims["基本面"] > 0, "银行的 ROE 约 7% 不应被打成 0 分"
+
+    def test_non_financial_unaffected(self):
+        """非金融行业不受豁免影响（高负债仍扣分）。"""
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+        from experts.scoring import score_expert_precise
+
+        _ensure_loaded()
+        data = self._bank_data()
+        data["industry"] = "消费"
+        data["quote"]["name"] = "某消费股"
+        result = score_expert_precise(EXPERT_REGISTRY["value_institution"], data)
+        assert result["dim_scores"]["安全边际"] == 0.0, "非金融行业高负债仍应扣分"

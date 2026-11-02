@@ -7,7 +7,7 @@
 
 from typing import Dict
 
-from ._utils import _safe_float, _get_clamp
+from ._utils import _safe_float, _get_clamp, debt_ratio_score, is_financial_industry
 
 
 def score(stock_data: dict) -> Dict[str, float]:
@@ -17,8 +17,21 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline = stock_data.get("kline_features") or {}
 
     # 基本面：ROE 阶梯
+    # （v1.26.0）金融业豁免：银行 ROE 约 7% 是监管资本约束下的常态
+    # （资本充足率要求限制了杠杆与分红），通用阈值（<10% → 0 分）会把
+    # 所有银行判成基本面极差——与"金融业除外"的精神一致。
+    financial = is_financial_industry(stock_data)
     roe = _safe_float(fin.get("ROEJQ") or fin.get("roe"))
-    if roe >= 20:
+    if financial:
+        if roe >= 11:
+            base = 100
+        elif roe >= 9:
+            base = 75
+        elif roe >= 6:
+            base = 40
+        else:
+            base = 0
+    elif roe >= 20:
         base = 100
     elif roe >= 15:
         base = 75
@@ -67,11 +80,16 @@ def score(stock_data: dict) -> Dict[str, float]:
         sent = 50
 
     # 安全边际：负债率 + FCF
+    # （v1.26.0）金融业豁免：银行负债率 92% 是监管资本约束下的常态，
+    # 用通用阈值会把所有银行判成"安全边际不足"——与本专家档案明写的
+    # "ROE < 10% 或负债率 > 70%（金融业除外）"矛盾。
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"))
     eps = _safe_float(fin.get("EPSJB") or fin.get("eps"))
     ocf = _safe_float(fin.get("MGJYXJJE") or fin.get("ocf_per_share"))
     fcf_ratio = ocf / max(abs(eps), 0.01) if eps > 0 else 0
-    if debt < 30 and fcf_ratio > 0.8:
+    if financial:
+        margin = debt_ratio_score(debt, financial=True)
+    elif debt < 30 and fcf_ratio > 0.8:
         margin = 100
     elif debt < 50:
         margin = 60

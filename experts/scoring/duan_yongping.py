@@ -11,7 +11,7 @@
 
 from typing import Dict
 
-from ._utils import _safe_float
+from ._utils import _safe_float, is_financial_industry
 
 
 def score(stock_data: dict) -> Dict[str, float]:
@@ -61,10 +61,14 @@ def score(stock_data: dict) -> Dict[str, float]:
         sent = 50
 
     # 安全边际：FCF + 管理层
+    # （v1.26.0）金融业豁免：银行负债率 92% 是监管资本约束下的常态，
+    # 通用阈值（debt<50）会把所有银行的安全边际打成 50/0。
+    financial = is_financial_industry(stock_data)
     eps = _safe_float(fin.get("EPSJB") or fin.get("eps"))
     ocf = _safe_float(fin.get("MGJYXJJE") or fin.get("ocf_per_share"))
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"))
-    if eps > 0 and ocf > eps * 0.8 and debt < 50:
+    debt_ok = (debt <= 92.0) if financial else (debt < 50)
+    if eps > 0 and ocf > eps * 0.8 and debt_ok:
         margin = 100
     elif eps > 0 and ocf > 0:
         margin = 50
