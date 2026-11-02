@@ -308,11 +308,12 @@ def _fetch_liquidity_volatility(stock_code: str | None, index_code: str = "sh000
                     source_tag = "amount"
                 else:
                     # sina fetcher amount 字段常为 0，用 volume × close 估算
-                    # A 股 volume 单位是"手"（100 股），close 是元
-                    # amount(元) ≈ volume(手) × 100 × close(元) / 1e8 = 亿元
-                    est_amounts = [
-                        (k.volume * k.close * 100) / 1e8 for k in stock_klines if k.volume > 0 and k.close > 0
-                    ]
+                    # 数据层契约：KlineBar.volume 已按源归一化为"股"（types.py +
+                    # _dict_to_kline_bar，腾讯手×100/新浪原值），close 是元
+                    # amount(元) ≈ volume(股) × close(元)。不要再 ×100——那是
+                    # "手"口径，会放大 100 倍（2026-11-02 审查实测：100 万股
+                    # × 10 元被算成 10 亿，真实 0.1 亿）
+                    est_amounts = [(k.volume * k.close) / 1e8 for k in stock_klines if k.volume > 0 and k.close > 0]
                     if est_amounts:
                         avg_amount = statistics.mean(est_amounts)
                         source_tag = "volume*close(估算)"

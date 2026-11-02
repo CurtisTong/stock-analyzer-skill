@@ -81,7 +81,10 @@ def _normalize_eastmoney_row(rank: int, item: dict) -> dict:
         "rank": rank,
         "code": str(item.get("f12", "")),
         "name": str(item.get("f14", "")),
-        # 东财 f3 是小数 ×100（原始 6.95 表示 6.95%），需除以 100
+        # 东财 f3：本请求未带 fltt=2（仓库其余 clist 调用均带），无 fltt 时
+        # 服务端返回 ×100 整数（原始 695 表示 6.95%），故 /100 还原百分比。
+        # ⚠️ 量纲未经真实请求实测（push2 2026-11 对本机拒连）；若日后改为
+        # fltt=2 对齐 concept.py/pool.py，须同步删掉这里的 /100
         "change_pct": _to_float(item.get("f3")) / 100.0 if item.get("f3") else 0.0,
         "lead_stock": str(item.get("f104", "") or ""),
         "lead_change_pct": (_to_float(item.get("f105")) / 100.0 if item.get("f105") else 0.0),
