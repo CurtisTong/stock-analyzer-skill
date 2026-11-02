@@ -58,8 +58,12 @@ _data_file = None
 _virtual_mode = False
 
 # 跨域白名单：只接受 127.0.0.1 / localhost 来源的请求（防 CSRF / 跨站攻击）
-# 空 Origin 头（如 curl）放行；带 Origin 但不在白名单则 403
-_ALLOWED_ORIGINS = frozenset(
+# 空 Origin 头（如 curl）放行；带 Origin 但不在白名单则 403。
+# 白名单由 make_server 按实际绑定端口重建——硬编码 8765 会让自定义端口
+# （--port 9000）下页面同源提交全部 403（2026-11-02 skill 审查 P1）。
+# 公网绑定（host 0.0.0.0）时置 None：Origin 不再作为屏障，
+# 所有端点仍强制 Bearer token（纵深防御不变）。
+_ALLOWED_ORIGINS: Optional[frozenset] = frozenset(
     (
         "http://127.0.0.1:8765",
         "http://localhost:8765",
@@ -67,6 +71,18 @@ _ALLOWED_ORIGINS = frozenset(
         "https://localhost:8765",
     )
 )
+
+
+def _rebuild_allowed_origins(host: str, port: int) -> None:
+    """按实际绑定地址/端口重建 Origin 白名单。"""
+    global _ALLOWED_ORIGINS
+    if host == "0.0.0.0":
+        _ALLOWED_ORIGINS = None
+        return
+    _ALLOWED_ORIGINS = frozenset(
+        f"{scheme}://{host_name}:{port}" for scheme in ("http", "https") for host_name in ("127.0.0.1", "localhost")
+    )
+
 
 # 简单滑动窗口限流：每个 IP 每秒最多 N 个请求；超出返回 429
 # 默认 100 req/s：覆盖浏览器并发 (6-8) + 一次性脚本测试 (15-30)；模块级可被测试改写
@@ -143,7 +159,7 @@ class Handler(BaseHTTPRequestHandler):
             if path in ("/api/health", "/favicon.ico"):
                 return True  # 公开端点免认证
             return self._check_auth()
-        if origin not in _ALLOWED_ORIGINS:
+        if _ALLOWED_ORIGINS is not None and origin not in _ALLOWED_ORIGINS:
             self._write_json(
                 HTTPStatus.FORBIDDEN,
                 _err("forbidden_origin", 403, f"origin {origin!r} not in allowlist"),
@@ -492,6 +508,7 @@ def make_server(host: str, port: int, data_file: Optional[str] = None, virtual: 
     utils._data_file = data_file
     utils._virtual_mode = virtual
     _reset_pm_for_tests()
+    _rebuild_allowed_origins(host, port)
     ThreadingHTTPServer.allow_reuse_address = True
     return ThreadingHTTPServer((host, port), Handler)
 
