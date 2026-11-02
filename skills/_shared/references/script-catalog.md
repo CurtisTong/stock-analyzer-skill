@@ -65,7 +65,7 @@ done
 | `python3 scripts/portfolio_correlation.py` | 组合相关性矩阵（v2.6.0 新增） | -j、--stock、--window、--list、--risk-weights |
 | `python3 scripts/portfolio_web.py` | 持仓录入 Web 服务（零依赖 stdlib http.server） | — |
 | `python3 scripts/quote.py` | 实时行情查询（多数据源自动切换） | -j、--json、--sources、--no-cache、--debug |
-| `python3 scripts/refresh_pool.py` | 股票池自动刷新脚本 — 从东财 push2 API 拉取板块成分股 | -s、-j、--sector、--json、--sources |
+| `python3 scripts/refresh_pool.py` | 股票池自动刷新脚本 — 从东财 push2 API 拉取板块成分股 | -s、-n、-j、--sector、--top |
 | `python3 scripts/screener.py` | A 股多因子选股器 | -v、-h、-q、-j、--version |
 | `python3 scripts/sector.py` | 板块查询——根据股票代码查找所属板块及板块内标的行情 | -j、--list、--json、--sources、--no-cache |
 | `python3 scripts/sector_etf_strength.py` | 板块 ETF 横向强度对比 + 个股相对位置（RPS） | -j、--no-index、--json、--sources、--no-cache |

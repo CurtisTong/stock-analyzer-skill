@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-11-02T08:19:00Z",
+    "generated_at": "2026-11-02T17:04:32Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -2335,6 +2335,13 @@
       "flags": [
         "--sector",
         "-s",
+        "--top",
+        "-n",
+        "--sort",
+        "--dry-run",
+        "--diff",
+        "--default",
+        "--full-market",
         "-j",
         "--json",
         "--sources",
@@ -2349,6 +2356,62 @@
           ],
           "required": false,
           "help": "只刷新指定板块"
+        },
+        {
+          "flags": [
+            "--top",
+            "-n"
+          ],
+          "required": false,
+          "default": 20,
+          "type": "int",
+          "help": "每板块取 Top N（默认 20）"
+        },
+        {
+          "flags": [
+            "--sort"
+          ],
+          "required": false,
+          "default": "amount",
+          "choices": [
+            "amount",
+            "cap",
+            "pe",
+            "turnover"
+          ],
+          "help": "排序方式（默认 amount 成交额）"
+        },
+        {
+          "flags": [
+            "--dry-run"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "只打印不写入"
+        },
+        {
+          "flags": [
+            "--diff"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "对比当前池显示变更"
+        },
+        {
+          "flags": [
+            "--default"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "使用预置默认数据初始化（不访问 API）"
+        },
+        {
+          "flags": [
+            "--full-market"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "拉取全市场 A 股列表（约 5000 只），保存到 all_stocks.json"
         },
         {
           "flags": [
