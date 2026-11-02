@@ -278,11 +278,30 @@ capped = max(0, min(100, 一致性分))
 
 ```json
 {
-  "buffett": {"events": 50, "correct": 32, "last_updated": "2026-06-01"},
-  "lynch": {"events": 45, "correct": 27, "last_updated": "2026-06-01"},
-  ...
+  "predictions": [
+    {
+      "id": "pred_20261102_sh600989",
+      "stock": "sh600989",
+      "date": "2026-11-02",
+      "direction": "看多",
+      "expert_scores": {"lynch": 87.5, "soros": 55.0},
+      "verify_after": "2026-11-16",
+      "expert_horizons": {"lynch": "2027-05-01", "soros": "2027-05-01"},
+      "settled_experts": [],
+      "verified": false
+    }
+  ],
+  "experts": {
+    "lynch": {"events": 50, "correct": 32, "last_updated": "2026-06-01"}
+  },
+  "_meta": {"source": "..."},
+  "_migrated": true
 }
 ```
+
+> 顶层分四块：`predictions`（待结算的预测记录）、`experts`（每位专家的
+> 累计胜率/赔率/教训）、`_meta`（数据来源说明）、`_migrated`（legacy 专家
+> 迁移标记）。专家条目按 active 集过滤，legacy 8 人不参与校准。
 
 每次 debate 模式运行后，Claude Code 应将后续验证结果回写到此文件。
 

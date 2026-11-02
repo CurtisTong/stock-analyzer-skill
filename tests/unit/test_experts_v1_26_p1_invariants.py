@@ -621,3 +621,185 @@ class TestNoneSafeScoring:
         for profile in list_active_experts():
             result = score_expert_precise(profile, data)
             assert result["score"] is None or isinstance(result["score"], (int, float))
+
+
+# ═══════════════════════════════════════════════════════════════
+# P2/P3 修复（v1.26.0 二次审查）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestDefensiveKeyAccess:
+    """公共 API 不应因调用方漏字段而崩溃。"""
+
+    def test_missing_score_key_treated_as_abstain(self):
+        """缺 score 键 → 按弃权处理，不抛 KeyError。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            {"name": "a", "group": "long_term", "direction": "看多"},  # 无 score
+            _expert("b", 70),
+        ]
+        out = aggregate_votes(results, market_state=_MARKET_STATE)
+        assert out["abstained"] == 1
+
+    def test_none_score_treated_as_abstain(self):
+        """score=None 但无 abstain 标记 → 按弃权处理。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            {"name": "a", "group": "long_term", "score": None, "direction": "看多"},
+            _expert("b", 70),
+        ]
+        out = aggregate_votes(results, market_state=_MARKET_STATE)
+        assert out["abstained"] == 1
+
+    def test_missing_direction_defaults_from_score(self):
+        """缺 direction 键 → 由分数推导，不抛 KeyError。"""
+        from experts.vote_engine import aggregate_votes
+
+        results = [
+            {"name": "a", "group": "long_term", "score": 75},  # 无 direction
+            _expert("b", 70),
+        ]
+        out = aggregate_votes(results, market_state=_MARKET_STATE)
+        assert out["direction"] in ("看多", "强烈看多", "中性")
+
+
+class TestGroupCalibrationIsolation:
+    """分组校准的单组失败不得影响另一组。"""
+
+    def test_one_group_failure_does_not_block_other(self, monkeypatch):
+        """短线组抛错时，长线组惩罚仍应生效。"""
+        import experts.vote_engine as ve
+
+        def _boom(group):
+            if group == "short_term":
+                raise RuntimeError("boom")
+            return -0.5
+
+        monkeypatch.setattr("experts.calibration.compute_group_calibration", _boom)
+        results = [_expert("a", 75), _expert("b", 75), _expert("c", 75, group="short_term")]
+        out = ve.aggregate_votes(results, market_state=_MARKET_STATE)
+        notes = " ".join(out.get("notes", []))
+        assert "长线组校准惩罚" in notes
+
+
+class TestPartialCalibrationEntry:
+    """残缺校准条目不得中断整轮 verify。"""
+
+    def test_missing_events_key_does_not_crash(self, tmp_path, monkeypatch):
+        """专家条目缺 events 键 → 从 0 起算，不抛 KeyError。"""
+        import experts.calibration as cal_mod
+
+        state = {
+            "predictions": [
+                {
+                    "id": "pred_x",
+                    "stock": "sh600000",
+                    "date": "2026-01-01",
+                    "direction": "看多",
+                    "expert_scores": {"lynch": 70.0},
+                    "verified": False,
+                    "verify_after": "2026-01-15",
+                    "expert_horizons": {"lynch": "2026-01-15"},
+                    "settled_experts": [],
+                }
+            ],
+            # lynch 条目缺 events 键
+            "experts": {"lynch": {"correct": 3}},
+            "_migrated": True,
+        }
+        monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
+        monkeypatch.setattr(cal_mod, "_save", lambda data: None)
+
+        result = cal_mod.verify_predictions(get_price_fn=lambda *a: 10.0)
+        assert result["verified"] == 1
+        assert state["experts"]["lynch"]["events"] == 1
+
+
+class TestVetoEvaluatorMissingness:
+    """数据缺失判定须用键存在性，不能把合法值当缺失。"""
+
+    def test_loss_making_company_not_treated_as_missing(self):
+        """ROE=0（亏损）不应被判为"数据缺失"而跳过风险折扣。"""
+        from experts.veto_evaluator import _check_roe_low
+
+        result = _check_roe_low({"finance": {"roe": 0.0, "debt_ratio": 30.0}})
+        assert result.evaluable is True
+        assert result.triggered is True
+
+
+class TestFcfConsecutive:
+    """FCF 连续 2 年为负 → 0.3 档（而非恒 0.6）。"""
+
+    def test_single_year_negative_is_0_6(self):
+        from experts.veto_evaluator import _check_fcf_negative
+
+        result = _check_fcf_negative({"finance": {"ocf_per_share": -0.5}})
+        assert result.risk_coeff == 0.6
+
+    def test_two_consecutive_negative_is_0_3(self):
+        from experts.veto_evaluator import _check_fcf_negative
+
+        result = _check_fcf_negative(
+            {
+                "finance": {"ocf_per_share": -0.5},
+                "finance_records": [{"ocf_per_share": -0.5}, {"ocf_per_share": -0.3}],
+            }
+        )
+        assert result.risk_coeff == 0.3
+
+
+class TestReasoningChainWeights:
+    """推理链的别名维度权重不得显示 0%。"""
+
+    def test_alias_dimension_weight_resolved(self):
+        """soros 的"情绪/反身性"应显示 30% 而非 0%。"""
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+        from experts.scoring._utils import generic_score_with_reasoning
+
+        _ensure_loaded()
+        profile = EXPERT_REGISTRY["soros"]
+        result = generic_score_with_reasoning(
+            profile,
+            lambda d: {"情绪/反身性": 80.0},
+            {},
+        )
+        dim = result["dimensions"]["情绪/反身性"]
+        assert dim["weight"] > 0, "别名维度权重不得为 0"
+
+
+class TestNoDoubleComputation:
+    """合并型专家的子专家不得被重复计算。"""
+
+    def test_value_institution_scores_sub_experts_once(self, monkeypatch):
+        """value_institution.score_with_reasoning 只算一次子专家。"""
+        from experts.registry import _ensure_loaded
+        from experts.scoring import institution, value_anchor
+        from experts.scoring.value_institution import score_with_reasoning
+
+        _ensure_loaded()
+        calls = {"va": 0, "inst": 0}
+        orig_va, orig_inst = value_anchor.score, institution.score
+
+        def _va(d):
+            calls["va"] += 1
+            return orig_va(d)
+
+        def _inst(d):
+            calls["inst"] += 1
+            return orig_inst(d)
+
+        monkeypatch.setattr(value_anchor, "score", _va)
+        monkeypatch.setattr(institution, "score", _inst)
+
+        score_with_reasoning(
+            {
+                "quote": {"pe": 20, "pb": 2, "circulating_cap": 80},
+                "finance": {"roe": 15, "net_profit_yoy": 10, "debt_ratio": 40, "eps": 0.5},
+                "kline_features": {"trend": 1, "rsi": 50, "macd_signal": 1},
+                "market_features": {"limit_up_count": 30, "advance_ratio": 0.5},
+            }
+        )
+        assert calls["va"] == 1
+        assert calls["inst"] == 1

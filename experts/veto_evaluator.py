@@ -148,10 +148,16 @@ def _check_roe_low(stock_data: dict) -> ConditionResult:
     - ROE < 10% 或负债率 > 70%：risk_coeff=0.5（中等风险）
     """
     fin = _get_fin(stock_data)
+    # （v1.26.0）缺失判定改用**键存在性**而非数值：原实现用
+    # "roe == 0 and debt == 50" 判定数据缺失，而 ROE=0 是合法的亏损信号
+    # （亏损公司）、负债率=50 也是合法值——两者同时成立时亏损公司被误判为
+    # "数据缺失"，风险折扣不触发（evaluable=False, coeff=1.0）。
+    has_roe = "ROEJQ" in fin or "roe" in fin
+    has_debt = "ZCFZL" in fin or "debt_ratio" in fin
+    if not has_roe and not has_debt:
+        return ConditionResult(evaluable=False, detail="ROE和负债率数据缺失")
     roe = _safe_float(fin.get("ROEJQ") or fin.get("roe"))
     debt = _safe_float(fin.get("ZCFZL") or fin.get("debt_ratio"), 50)
-    if roe == 0 and debt == 50:
-        return ConditionResult(evaluable=False, detail="ROE和负债率数据缺失")
 
     triggered = roe < 10 or debt > 70
     if not triggered:
@@ -177,18 +183,55 @@ def _check_fcf_negative(stock_data: dict) -> ConditionResult:
     单年 FCF 为负可能是暂时性资本支出，连续为负才是结构性问题。
     - FCF < 0：risk_coeff=0.6
     - 连续2年负（需多期数据）：risk_coeff=0.3
+
+    （v1.26.0）实现连续 2 年判定：原实现只有单年分支，docstring 承诺的
+    0.3 永远不会触发——YAML 里 "FCF 连续 2 年为负" 条件命中的实际是
+    单年 0.6 档。现从 stock_data["finance_records"] 取多期数据判定。
     """
     fin = _get_fin(stock_data)
     fcf = _safe_float(fin.get("MGJYXJJE") or fin.get("ocf_per_share"))
     if fcf == 0 and not fin.get("MGJYXJJE"):
         return ConditionResult(evaluable=False, detail="FCF数据缺失")
     if fcf < 0:
+        # 连续 2 年为负 -> 更严厉的 0.3 档（结构性问题）
+        consecutive = _consecutive_negative_fcf(stock_data)
+        if consecutive >= 2:
+            return ConditionResult(
+                triggered=True,
+                risk_coeff=0.3,
+                detail=f"FCF/股={fcf:.2f}<0（连续 {consecutive} 年为负）",
+            )
         return ConditionResult(
             triggered=True,
             risk_coeff=0.6,
             detail=f"FCF/股={fcf:.2f}<0",
         )
     return ConditionResult(detail=f"FCF/股={fcf:.2f}>=0")
+
+
+def _consecutive_negative_fcf(stock_data: dict) -> int:
+    """统计连续为负的 FCF 年数（最多看最近若干期）。
+
+    数据源：stock_data["finance_records"]（多期财务记录列表，每项含
+    MGJYXJJE / ocf_per_share）。无多期数据时返回 1（只能确认当年为负）。
+    """
+    records = stock_data.get("finance_records")
+    if not isinstance(records, list) or len(records) < 2:
+        return 1
+    count = 0
+    for record in records[:5]:  # 最多看最近 5 期
+        if not isinstance(record, dict):
+            break
+        value = record.get("MGJYXJJE")
+        if value is None:
+            value = record.get("ocf_per_share")
+        if value is None:
+            break
+        if _safe_float(value) < 0:
+            count += 1
+        else:
+            break  # 遇到非负即中断（只统计连续段）
+    return max(1, count)
 
 
 def _check_peg_high(stock_data: dict) -> ConditionResult:

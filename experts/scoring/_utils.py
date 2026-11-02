@@ -325,6 +325,7 @@ def generic_score_with_reasoning(
     profile: "ExpertProfile",
     score_fn,
     stock_data: dict,
+    precomputed: Optional[Dict[str, float]] = None,
 ) -> Dict[str, object]:
     """通用 score_with_reasoning（v2.2.0）。
 
@@ -336,6 +337,9 @@ def generic_score_with_reasoning(
         profile: 专家人设（含 5 维度权重 + display_name + group）
         score_fn: 专家的 score(stock_data) -> Dict[dim, 0-100]
         stock_data: 股票数据 dict
+        precomputed: 已算好的 score 结果（v1.26.0）。传入可避免重复调用
+            score_fn——合并型专家的 score() 内部已算过子专家，调用方若还需
+            子评分就会重复计算（实测 value_anchor/institution 各被算 2 次）。
 
     Returns:
         {
@@ -346,12 +350,18 @@ def generic_score_with_reasoning(
             "expert_id": str,
         }
     """
-    scores = score_fn(stock_data)
+    scores = precomputed if precomputed is not None else score_fn(stock_data)
     reasoning = []
     dimensions = {}
 
     for dim, score in scores.items():
-        weight = profile.weights.get(dim, 0.0) / 100.0
+        # （v1.26.0）权重查找要兼容别名维度：profile.weights 加载时已归一化
+        # （"情绪/资金"→"情绪"），而 score() 返回的仍是别名原键——直接
+        # get(dim) 会返回 0.0，推理链显示"权重 0%"，对用户是误导。
+        weight = profile.weights.get(dim)
+        if weight is None:
+            weight = profile.weights.get(normalize_dim(dim), 0.0)
+        weight = weight / 100.0
         label = _score_to_reason_label(score)
         reason = f"{label}：{dim}维度分 {score:.0f}/100（权重 {weight:.0%}）"
         reasoning.append(reason)

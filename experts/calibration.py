@@ -169,7 +169,10 @@ def _get_calibration_threshold() -> float:
 
         cfg = ConfigLoader.load("scoring.yaml")
         return float(cfg.get("calibration", {}).get("calibration_threshold_pct", 5.0))
-    except (KeyError, ValueError, TypeError) as e:
+    except (KeyError, ValueError, TypeError, ImportError, ModuleNotFoundError) as e:
+        # （v1.26.0）白名单补 ImportError：config.loader 位于 scripts/ 下，
+        # experts 包对它有隐式 sys.path 依赖——路径未就绪时抛 ModuleNotFoundError，
+        # 原白名单不含它，异常会冲出 verify_predictions 整体崩溃。
         logging.getLogger(__name__).debug("校准阈值配置加载失败，使用默认 5.0%%: %s", e)
         return 5.0
 
@@ -598,9 +601,13 @@ def verify_predictions(
                     expert_direction = direction_from_score(expert_scores[expert_name])
                     is_correct = None
                     is_correct = direction_matches(expert_direction, actual_direction)
-                    data["experts"][expert_name]["events"] += 1
+                    # （v1.26.0）残缺条目兜底：老数据/手工编辑可能缺 events 键，
+                    # 直接 += 会抛 KeyError 中断**整轮 verify**（_save 不执行，
+                    # 所有专家零进度）。改为从 0 起算。
+                    rec = data["experts"][expert_name]
+                    rec["events"] = rec.get("events", 0) + 1
                     if is_correct:
-                        data["experts"][expert_name]["correct"] += 1
+                        rec["correct"] = rec.get("correct", 0) + 1
                         # v1.24.0 slugging 口径（ai-hedge-fund scorecard）：
                         # 赢时结算的平均收益，仅统计方向性判断（中性正确不进入赔率）
                         ret_win = return_by_window.get(window_end)

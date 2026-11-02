@@ -20,31 +20,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _get_buffett_weights() -> Dict[str, float]:
-    """从注册表动态获取巴菲特的维度权重。"""
-    from experts.registry import EXPERT_REGISTRY
-
-    buffett_profile = EXPERT_REGISTRY.get("buffett")
-    if buffett_profile is not None:
-        return {dim: w / 100.0 for dim, w in buffett_profile.weights.items()}
-    return {
-        "基本面": 0.42,
-        "估值": 0.28,
-        "技术面": 0.05,
-        "情绪": 0.05,
-        "安全边际": 0.20,
-    }
-
-
-def _compute_buffett_sub_score(buffett_dims: Dict[str, float]) -> float:
-    """用巴菲特的权重计算加权总分。"""
-    weights = _get_buffett_weights()
-    return round(
-        sum(buffett_dims.get(dim, 0) * w for dim, w in weights.items()),
-        1,
-    )
-
-
 def score(stock_data: dict) -> Dict[str, float]:
     """价值机构锚：value_anchor 0.5 + institution 0.5 加权平均。
 
@@ -97,26 +72,20 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     """
     from experts.registry import EXPERT_REGISTRY
     from ._utils import generic_score_with_reasoning
-    from . import value_anchor, institution
 
     profile = EXPERT_REGISTRY["value_institution"]
-    result = generic_score_with_reasoning(profile, score, stock_data)
 
-    # 透传双子评分
-    va_dims = value_anchor.score(stock_data)
-    _bs = va_dims.get("buffett_sub_score")
+    # （v1.26.0）只算一次：score() 已算出子评分，把结果传给 generic 模板复用。
+    # 原实现 generic_score_with_reasoning 内部调一次 score，此处又调一遍
+    # value_anchor.score() 与 institution.score()——子专家各被算 2 次。
+    scored = score(stock_data)
+    result = generic_score_with_reasoning(profile, score, stock_data, precomputed=scored)
+
+    _bs = scored.get("buffett_sub_score")
     if _bs is None:
         logger.warning("buffett_sub_score 缺失（reasoning 路径），回退 35")
         _bs = 35.0
     result["buffett_sub_score"] = _bs
-
-    inst_dims = institution.score(stock_data)
-    inst_profile = EXPERT_REGISTRY.get("institution")
-    if inst_profile is not None:
-        inst_weights = {dim: w / 100.0 for dim, w in inst_profile.weights.items()}
-        inst_sub = sum(inst_dims.get(dim, 0) * w for dim, w in inst_weights.items())
-        result["institution_sub_score"] = round(inst_sub, 1)
-    else:
-        result["institution_sub_score"] = 50.0
+    result["institution_sub_score"] = scored.get("institution_sub_score", 50.0)
 
     return result

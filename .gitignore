@@ -40,6 +40,10 @@ scripts/data/sentiment_snapshots.json
 
 # 专家校准数据（用户本地运行时产生）
 scripts/data/expert_calibration.json
+# 实际校准库路径（v1.26.0 修正）：旧规则只忽略了 scripts/data/ 下的路径，
+# 而真实文件在仓库根 data/ 下——运行时数据入库会产生每次 debate 的
+# git diff 噪声，且与 calibration_sync 的 gist 同步通道双写冲突。
+data/expert_calibration.json
 # 用户本地维护的股票代码列表（无脚本引用）
 scripts/data/securities_codes.txt
 

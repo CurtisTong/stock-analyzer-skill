@@ -9,7 +9,7 @@
                "topic_leader":45,"risk_manager":50,"emotion_tech":40,"momentum_trader":55}'
 
   # 验证到期预测（默认30天窗口）
-  python3 scripts/calibration.py verify --days 30
+  python3 scripts/calibration.py verify            # 窗口由各专家 horizon 决定
 
   # 查看校准报告
   python3 scripts/calibration.py report
@@ -56,7 +56,21 @@ def cmd_record(args):
     )
     print(f"已记录预测: {pred_id}")
     print(f"股票: {args.stock} | 方向: {args.direction}")
-    print(f"验证日期: {args.verify_days} 天后")
+    # （v1.26.0）打印**实际写入的**验证日期：record_prediction 内部会把
+    # 顶层 verify_after 取为 min(verify_days, 各专家 horizon 最短值)——
+    # 短线专家 horizon=14 天，故实际是 14 天后而非 --verify-days 的 30 天后。
+    actual_verify_after = ""
+    try:
+        for p in get_pending_predictions():
+            if p.get("id") == pred_id:
+                actual_verify_after = p.get("verify_after", "")
+                break
+    except Exception:
+        pass
+    if actual_verify_after:
+        print(f"验证日期: {actual_verify_after}（取各专家 horizon 最短窗口）")
+    else:
+        print(f"验证日期: {args.verify_days} 天后")
 
 
 def cmd_verify(args):
@@ -204,7 +218,12 @@ def main():
 
     # verify
     p_verify = sub.add_parser("verify", help="验证到期预测")
-    p_verify.add_argument("--days", type=int, default=30, help="验证窗口天数 (默认30)")
+    p_verify.add_argument(
+        "--days",
+        type=int,
+        default=30,
+        help="[已废弃] 验证窗口改由各专家 horizon 决定（长线 180 日 / 短线 14 日），此参数不再生效",
+    )
     p_verify.add_argument(
         "--no-price",
         action="store_true",

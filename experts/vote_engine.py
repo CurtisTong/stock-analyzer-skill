@@ -1,7 +1,7 @@
 """投票统计与冲突解决。"""
 
 import statistics
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from config import get_scoring_config
 from experts import direction_from_score
@@ -552,6 +552,14 @@ def aggregate_votes(
         if r.get("abstain") or r.get("direction") == ABSTAIN:
             abstain_count += 1
             continue
+        # （v1.26.0）防御缺键/None：下游多处直接 r["score"] / r["direction"]，
+        # 缺键会抛 KeyError、score=None 会让 statistics.mean 抛 TypeError。
+        # 公共 API 不应因调用方漏字段而崩溃——无法评分者按弃权处理。
+        score = r.get("score")
+        if score is None:
+            abstain_count += 1
+            continue
+        r.setdefault("direction", direction_from_score(score))
         active_experts.append(r)
     if abstain_count:
         _logger_note = f"{abstain_count} 位专家弃权（数据不足），未计入投票基数"
@@ -822,19 +830,28 @@ def aggregate_votes(
     # （v1.26.0）长线组同样消费分组因子——原实现只算 short_term，
     # 长线组因子（生产值 -0.2886）仅在 formatter 里展示而不影响任何决策，
     # 等于"算了不用"。现在两组对称。
+    # （v1.26.0）按组独立 try/except：原实现整个 for 循环包在一个 try 里，
+    # 任一组抛异常会跳过后续所有组——短线组出错时长线组的惩罚也一起丢失。
+    group_calibration_fn: Optional[Callable[[str], float]] = None
     try:
         from experts.calibration import compute_group_calibration
 
+        group_calibration_fn = compute_group_calibration
+    except Exception:
+        pass  # 校准模块不可用时静默跳过
+
+    if group_calibration_fn is not None:
         for group_name, label in (("short_term", "短线组"), ("long_term", "长线组")):
-            group_cal = compute_group_calibration(group_name)
+            try:
+                group_cal = group_calibration_fn(group_name)
+            except Exception:
+                continue  # 单组失败不影响另一组
             if group_cal < 0:
                 # 组校准为负 -> 信心扣分（最多 -10 分，对应 group_cal ∈ [-1, 0)）
                 penalty = group_cal * 10  # group_cal=-1 -> -10
                 confidence = max(0, confidence + penalty)
                 if penalty < -2:
                     notes.append(f"{label}校准惩罚：信心 {penalty:+.0f}（{label}历史准确率低）")
-    except Exception:
-        pass  # 校准模块不可用时静默跳过，不影响主流程
 
     # 巴菲特否决警示效果：降低信心指数而非改变方向
     # v2.4.0：原否决权改为警示，保留信号但不推翻投票共识

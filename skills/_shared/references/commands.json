@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-10-31T10:02:42Z",
+    "generated_at": "2026-11-02T08:07:40Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -413,7 +413,7 @@
           "required": false,
           "default": 30,
           "type": "int",
-          "help": "验证窗口天数 (默认30)"
+          "help": "[已废弃] 验证窗口改由各专家 horizon 决定（长线 180 日 / 短线 14 日），此参数不再生效"
         },
         {
           "flags": [
