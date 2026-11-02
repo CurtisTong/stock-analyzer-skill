@@ -71,8 +71,12 @@ def score(stock_data: dict) -> Dict[str, float]:
         tech = 0
 
     # 情绪/题材：板块联动 + 封单强度
-    sector_limits = market.get("sector_limit_up_count", 0)
-    seal_ratio = market.get("seal_to_circ_ratio", 0)
+    # （v1.26.0）字段可能为 None（上游无数据源时显式置 None），
+    # 比较前必须归一化——直接比较会抛 TypeError 崩掉整个专家。
+    sector_limits = market.get("sector_limit_up_count")
+    sector_limits = _safe_float(sector_limits, 0) if sector_limits is not None else 0
+    seal_ratio = market.get("seal_to_circ_ratio")
+    seal_ratio = _safe_float(seal_ratio, 0) if seal_ratio is not None else 0
     if sector_limits >= 3 and seal_ratio > 0.01:
         sent = 100
     elif sector_limits >= 2:

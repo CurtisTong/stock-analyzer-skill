@@ -25,6 +25,9 @@ from pathlib import Path
 # 让脚本能 import 项目根目录的模块
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
+# experts 层的 vote_engine/calibration 依赖 scripts/ 下的 config/data/common
+# （experts 包对 scripts/ 有隐式 sys.path 依赖，见 experts/calibration.py 注释）
+sys.path.insert(0, str(ROOT / "scripts"))
 
 from experts import list_active_experts  # noqa: E402
 from experts.scoring import score_expert_precise  # noqa: E402
@@ -245,15 +248,120 @@ def render_table(results: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def run_debate_for_stock(code: str, group_filter: str | None = None, record: bool = True) -> dict:
+    """跑完整 debate 闭环（v1.26.0 新增）。
+
+    把量化评分接到 `experts.decide.run_debate` 编排器上，闭合此前断掉的
+    校准回路：
+
+        量化评分 → 市场环境判定 → run_debate（回灌校准因子 → 投票聚合 →
+        风险分级 → 落库预测）→ 格式化输出
+
+    此前 `run_debate` 全仓无生产调用方——校准因子算了没人用、预测没人
+    落库，整套自校准机制在生产上是空转的。SKILL.md 步骤 5 只说"用
+    run_debate 编排器"却没给命令，agent 无法接线。
+
+    Args:
+        code: 股票代码
+        group_filter: "long"/"short"/None（None = 全部 8 人）
+        record: 是否落库预测（False = 试跑不污染校准库）
+
+    Returns:
+        run_debate 的结果 dict + code/stock_data
+    """
+    from experts.decide import run_debate
+
+    stock_data, raw_meta = build_stock_data(code)
+    profiles = list_active_experts()
+    if group_filter == "long":
+        profiles = [p for p in profiles if p.group == "long_term"]
+    elif group_filter == "short":
+        profiles = [p for p in profiles if p.group == "short_term"]
+
+    expert_results = []
+    for p in profiles:
+        res = score_expert_precise(p, stock_data)
+        expert_results.append(
+            {
+                "name": p.name,
+                "display_name": p.display_name,
+                "group": p.group,
+                "score": res["score"],
+                "direction": res["direction"],
+                "abstain": res.get("abstain", False),
+                "abstain_reason": res.get("abstain_reason", ""),
+                "method": res["method"],
+                "dim_scores": res.get("dim_scores", {}),
+                "breakdown": res.get("breakdown", {}),
+            }
+        )
+
+    # 市场环境：直接用 market_anchor 已判定的 regime（它内部走
+    # experts.market_detector 唯一权威口径）。缺数据 → 防御型 fail-safe。
+    market_state = None
+    anchor = raw_meta.get("market_anchor") or {}
+    if isinstance(anchor, dict) and not anchor.get("error") and anchor.get("regime"):
+        market_state = {
+            "state": anchor["regime"],
+            "long_weight": anchor.get("long_weight", 0.55),
+            "short_weight": anchor.get("short_weight", 0.45),
+            "reason": anchor.get("regime_reason", ""),
+        }
+
+    result = run_debate(
+        code.lower(),
+        expert_results,
+        market_state=market_state,
+        stock_data=stock_data,
+        record=record,
+    )
+    result["code"] = code.upper()
+    result["stock_data"] = stock_data
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="8 位 active 专家量化评分 CLI")
     parser.add_argument("codes", nargs="+", help="股票代码列表")
     parser.add_argument("--long", action="store_true", help="仅长线 5 人")
     parser.add_argument("--short", action="store_true", help="仅短线 3 人")
+    parser.add_argument(
+        "--debate",
+        action="store_true",
+        help="跑完整 debate 闭环（回灌校准因子 + 投票聚合 + 落库预测 + 格式化输出）",
+    )
+    parser.add_argument(
+        "--no-record",
+        action="store_true",
+        help="debate 模式下不落库预测（试跑不污染校准历史）",
+    )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
     group = "long" if args.long else ("short" if args.short else None)
+
+    # debate 模式：走 run_debate 编排器，闭合校准回路
+    if args.debate:
+        from experts.formatter import format_debate_output
+
+        out = []
+        for code in args.codes:
+            try:
+                out.append(run_debate_for_stock(code, group_filter=group, record=not args.no_record))
+            except Exception as e:  # noqa: BLE001
+                out.append({"code": code.upper(), "error": str(e)})
+
+        if args.json:
+            print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+            return 0
+
+        for r in out:
+            if r.get("error"):
+                print(f"\n# {r['code']} 失败: {r['error']}")
+                continue
+            print(f"\n{'=' * 60}\n# {r['code']}")
+            print(format_debate_output(r))
+        return 0
 
     out = []
     for code in args.codes:

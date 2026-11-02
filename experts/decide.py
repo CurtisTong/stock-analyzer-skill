@@ -37,6 +37,7 @@ def run_debate(
     prefer_horizon: bool = False,
     veto_results: Optional[dict] = None,
     stock_data: Optional[dict] = None,
+    record: bool = True,
 ) -> dict:
     """运行完整 debate 流程：校准因子回灌 + 风险分级 + 投票聚合 + 预测落库。
 
@@ -56,10 +57,13 @@ def run_debate(
         veto_results: 否决条件字典（向后兼容，优先级低于 risk_coefficients）
         stock_data: 股票数据 dict（含 finance/quote/kline_features），
                     传入时自动评估 veto_conditions 生成 risk_coefficients
+        record: 是否把本次预测落库到校准库（默认 True）。
+                探索/试跑场景可传 False——落库会参与未来的校准因子计算与
+                胜率统计，临时数据不应污染真实校准历史。
 
     Returns:
         aggregate_votes 的返回 dict，附加：
-        - _pred_id: 预测记录 ID（落库失败为 None）
+        - _pred_id: 预测记录 ID（落库失败或 record=False 时为 None）
         - _calibration_factor: 使用的校准因子
         - _risk_coefficients: 使用的风险系数（如有）
     """
@@ -123,26 +127,27 @@ def run_debate(
 
     # 3. 落库预测记录
     pred_id = None
-    try:
-        from experts.calibration import record_prediction
+    if record:
+        try:
+            from experts.calibration import record_prediction
 
-        # 兼容双组/单组返回结构
-        composite = result.get("composite_score") or result.get("avg_score", 0.0)
-        # 落库用**原始判断分**（_original_score），而非被风险折扣/否决改写后的
-        # score——校准评估的是专家自己的判断，折价分会让胜率失去意义。
-        expert_scores = {
-            r.get("name"): r.get("_original_score", r.get("score", 50.0))
-            for r in result.get("expert_results", [])
-            if r.get("name")
-        }
-        pred_id = record_prediction(
-            stock_code=stock_code,
-            expert_scores=expert_scores,
-            direction=result.get("direction", "中性"),
-            composite_score=float(composite),
-        )
-    except Exception as e:
-        _logger.warning("记录预测失败（不影响 debate 结果）: %s", e)
+            # 兼容双组/单组返回结构
+            composite = result.get("composite_score") or result.get("avg_score", 0.0)
+            # 落库用**原始判断分**（_original_score），而非被风险折扣/否决改写后的
+            # score——校准评估的是专家自己的判断，折价分会让胜率失去意义。
+            expert_scores = {
+                r.get("name"): r.get("_original_score", r.get("score", 50.0))
+                for r in result.get("expert_results", [])
+                if r.get("name")
+            }
+            pred_id = record_prediction(
+                stock_code=stock_code,
+                expert_scores=expert_scores,
+                direction=result.get("direction", "中性"),
+                composite_score=float(composite),
+            )
+        except Exception as e:
+            _logger.warning("记录预测失败（不影响 debate 结果）: %s", e)
 
     # 自动检查到期待验证预测数（不拉价格，不标记 verified），
     # 提示用户有 pending 预测需手动 `calibration verify` 拉价验证

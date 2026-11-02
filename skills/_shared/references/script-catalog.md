@@ -87,6 +87,7 @@ done
 | 脚本 | 用途 | 常用参数 |
 |------|------|----------|
 | `python3 scripts/dev/multi_fetch.py` | 批量取数 helper：串行调用 finance/kline/technical/market_anchor/events 并合并为单 JSON dict | `finance`/`kline`/`technical`/`market_anchor`/`events` 子命令 |
-| `python3 scripts/dev/experts_cli.py` | 8 位 active 专家量化评分 CLI（debate 模式基线）：自动取数 + 跑 score_expert_precise + 跨股对比 | `--long`/`--short`/`-j` |
+| `python3 scripts/dev/experts_cli.py` | 8 位 active 专家量化评分 CLI：自动取数 + 跑 score_expert_precise + 跨股对比 | `--long`/`--short`/`-j` |
+| `python3 scripts/dev/experts_cli.py <code> --debate` | 完整 debate 闭环：量化评分 → 市场环境 → run_debate（回灌校准因子 + 投票聚合 + 落库预测）→ decide.md §四 格式化报告 | `--no-record`（试跑不落库）/`--long`/`--short`/`-j` |
 
 > 这些脚本是 SKILL.md 推荐用法的"快捷方式"，上层 skill 可直接调用。
