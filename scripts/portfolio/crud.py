@@ -61,6 +61,24 @@ def _record_trade_log(
         logger.debug("交易日志记录失败: %s", e)  # 交易日志失败不阻塞持仓操作
 
 
+def _enforce_trading_allowed(code: str) -> None:
+    """保护机制硬阻止（v1.31 接线）：熔断/冷却期内拒绝加仓。
+
+    任何失败（guardrails 不可用、状态文件异常）都放行——保护机制
+    是提示增强层，不得因自身故障阻塞持仓操作。
+    """
+    try:
+        from portfolio.guardrails import is_trading_allowed
+
+        allowed, reason = is_trading_allowed(code, cooldown_codes=[code])
+        if not allowed:
+            raise ValueError(f"保护机制硬阻止：{reason}；确认知情后可加 force=True 越过")
+    except ValueError:
+        raise
+    except Exception as e:
+        logger.debug("保护机制检查跳过: %s", e)
+
+
 def _position_cost(manager: "PortfolioManager", code: str) -> Optional[float]:
     """返回持仓当前成本价（变更对比用），无持仓返回 None。"""
     code = normalize_code(code)
@@ -80,17 +98,25 @@ def add_position(
     tags: list = None,
     auto_save: bool = True,
     cost_source: str = "user_input",
+    force: bool = False,
 ) -> dict:
     """添加持仓。如果已存在则加仓（加权平均成本）。
 
     cost_source 记录成本来源（user_input / screenshot / calculated），
     加仓产生加权平均成本时自动置为 calculated，保留可追溯性。
+
+    force=True 可越过保护机制硬阻止（熔断/清仓冷却），仅限明确
+    知情的手工操作；Web 录入路径不透传 force，始终受保护。
     """
     code = normalize_code(code)
     if cost < 0:
         raise ValueError("cost must be >= 0（0 = 未知成本价）")
     if quantity <= 0:
         raise ValueError("quantity must be positive")
+    if not force:
+        # v1.31 接线：is_trading_allowed 此前面世即孤儿（仅测试调用），
+        # 熔断/冷却状态落了盘却拦不住任何一次真实加仓（审查 P1）
+        _enforce_trading_allowed(code)
     cost_before = _position_cost(manager, code)
     manager._push_oplog("add_position", code=code, cost_before=cost_before, cost_source=cost_source)
     result_holder: dict[str, Any] = {}

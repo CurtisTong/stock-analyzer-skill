@@ -265,18 +265,31 @@ def pytest_configure(config):
 
 @pytest.fixture(autouse=True)
 def _isolate_guardrails_state(tmp_path, monkeypatch):
-    """把保护机制熔断状态文件重定向到临时目录（每个测试独立）。
+    """把保护机制状态文件重定向到临时目录（每个测试独立）。
 
     熔断状态（scripts/data/guardrails_state.json）是跨测试共享的全局文件：
     任何触发连亏/回撤熔断的测试数据都会写入它，并让后续所有
     check_protections/is_trading_allowed 测试读到别人的熔断（实测
     health_report 示例数据触发回撤熔断 → test_all_clear 失败）。
     autouse 重定向一次性根治，生产路径不受影响。
+
+    v1.31 补口：guardrails.is_trading_allowed 接线进 crud.add_position 后，
+    加仓路径会查询真实 trade_log.json（开发者本机的真实清仓记录 →
+    冷却期判定），测试必须连同 trade_log/oplog 的 data_dir 一起重定向，
+    否则测试结果依赖开发者本机持仓历史。
     """
     try:
         from portfolio import guardrails
 
         monkeypatch.setattr(guardrails, "_state_path", lambda: tmp_path / "guardrails_state.json")
+    except ImportError:
+        pass
+    try:
+        import portfolio.oplog as _oplog
+        import portfolio.trade_log as _trade_log
+
+        monkeypatch.setattr(_trade_log, "data_dir", lambda: tmp_path)
+        monkeypatch.setattr(_oplog, "data_dir", lambda: tmp_path)
     except ImportError:
         pass
 
