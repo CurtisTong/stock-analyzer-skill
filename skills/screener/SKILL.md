@@ -20,12 +20,13 @@ A 股选股策略系统：先排雷，再打分，最后给可执行跟踪清单
 /screener init full-market  # 初始化全市场股票池（约 5000 只）
 ```
 
-默认使用精简模式（一句话结论 + 核心表格 + 操作建议）。如需完整 16 列因子详情，加 `--full`。
+默认使用精简模式（一句话结论 + 核心表格 + 操作建议）。如需完整 17 列因子详情（含筹码列；`--show-sentiment` 再加情绪列），加 `--full`。
 
 ## 高级选项（Sprint 2-5）
 
 ```text
---full            完整模式：16 列因子详情（默认为精简模式）
+--full            完整模式：17 列因子详情（默认为精简模式）
+--show-sentiment  完整模式下附加市场情绪列（仅 --full 生效，详见 ../_shared/references/strategies.md）
 --no-regime       禁用市场状态 overlay（保留 V1 固定权重）
 --no-normalize    禁用因子 z-score 标准化（保留 V1 原始分数）
 --snapshot        保存本次筛选快照到 data/snapshots/<strategy>/<date>/<hash>.json
@@ -131,21 +132,24 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 - `--full-market`：使用全市场股票池（~5000只），而非主题板块池（~280只）。需先运行 `python3 scripts/init_pool.py --full-market` 初始化
 - `--full-market --sector 创业板`：全市场模式下只筛选创业板
-- `--min-amount 5000`：主板最低成交额（万元），创业板/科创板自动 ×0.7，北交所 ×1.5
-- `--min-cap 40`：主板最低市值（亿元），创业板/科创板自动 ×0.6，北交所 ×0.4
+- `--min-amount 5000`：主板最低成交额基准（万元）；创业板/科创板/北交所阈值以 `scripts/config/limits.yaml` 为准（3000/3000/1000 万），CLI 参数只覆盖主板基准
+- `--min-cap 40`：主板最低市值基准（亿元）；板块差异化阈值以 limits.yaml 为准（创业板/科创板 20 亿、北交所 10 亿）
 - `--exclude-loss`：剔除 EPS<=0 标的
 
 策略含义详见 [`../_shared/references/strategies.md`](../_shared/references/strategies.md)。
 
 ### Step 2: 解释评分
 
-脚本输出四个因子桶和三个技术信号：
+脚本输出**因子分数（以 balanced 权重为例共 9 维）**+ 技术信号：
 
-- 质量：ROE、净利增速、营收增速、毛利率、负债率、经营现金流/EPS。
-- 估值：PE、PB、PEG、PE/ROE。
-- 动量：20 日收益、均线结构、MACD 金叉/死叉（↑/↓/→）、RSI、量能比、换手率、量价配合。
-- 流动性：成交额、市值、换手适中程度。
+- 质量（0.28）：ROE、净利增速、营收增速、毛利率、负债率、经营现金流/EPS。
+- 估值（0.19）：PE、PB、PEG、PE/ROE。
+- 动量（0.14）：20 日收益、均线结构、MACD 金叉/死叉（↑/↓/→）、RSI、量能比、换手率、量价配合。
+- 流动性（0.05）：成交额、市值、换手适中程度。
+- 波动率（0.14）、红利（0.05）、筹码（0.10）、事件（0.05，灰度）：参与加权，`--full` 表格有对应列；解释"因子分"时不要漏掉这四维（合计约 1/4 权重）。
 - 量价信号：放量上涨=资金介入、缩量下跌=抛压减轻、放量下跌=主力出货、缩量上涨=量价背离。
+
+> 各策略权重以 `../_shared/references/strategies.md` 与 `scripts/strategies/registry.py` 为唯一事实源。
 
 硬过滤（自动，按板块差异化；阈值为当前值，修改需同步 `scripts/strategies/thresholds.py`）：
 
@@ -166,7 +170,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 - 剔除/回避:
 
 ## 分数表
-| 排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | PE | ROE | RSI | 20日% | 趋势 | 量价 |
+| 排名 | 代码 | 名称 | 行业 | 板块 | 总分 | 质量 | 估值 | 动量 | 流动性 | 波动率 | 红利 | 筹码 | PE | ROE | RSI | 20日% | 趋势 | 量价 |
 
 ## 跟踪条件
 - 买入触发:

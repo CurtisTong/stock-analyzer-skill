@@ -119,6 +119,24 @@ def _attach_validation(report) -> None:
     report["_validation_note"] = val["validation_note"]
 
 
+def _print_validation_line(report: dict) -> None:
+    """文本模式透出 OOS 验证状态。
+
+    _attach_validation 注入的字段此前只在 -j 模式存在，文档声称
+    "用户看到 in_sample 警告"但默认文本路径不可达（2026-11-02 审查）。
+    """
+    status = report.get("_validation_status")
+    if not status or status == "oos_verified":
+        return
+    if status == "in_sample":
+        print("⚠️ 验证状态: in_sample（权重未经样本外 OOS 验证，回测数字为拟合内表现，勿当实盘预期）")
+    elif status == "unknown":
+        print("⚠️ 验证状态: unknown（无 OOS 验证记录）")
+    note = str(report.get("_validation_note") or "")
+    if note:
+        print(f"   {note[:110]}")
+
+
 def compare_strategies(
     codes: list,
     top_n: int = 5,
@@ -640,6 +658,7 @@ def main():
                 }
             )
         else:
+            _print_validation_line(report)
             print(f"\n总收益: {report['total_return_pct']:.2f}%")
             print(f"平均收益: {report['avg_return_pct']:.2f}%")
             print(f"最大收益: {report['max_return_pct']:.2f}%")

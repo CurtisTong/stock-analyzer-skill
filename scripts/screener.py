@@ -135,6 +135,32 @@ def _fmt_factor(row: dict, key: str) -> str:
         return "N/A"
 
 
+def _print_validation_warning(strategy: str) -> None:
+    """文本模式透出 OOS 验证状态（fail-silent）。
+
+    此前 _validation_status 仅在 -j 模式存在，文档声称"用户看到
+    in_sample 警告"但默认文本路径不可达（2026-11-02 审查）。
+    """
+    if not strategy:
+        return
+    try:
+        from strategies.registry import get_validation
+
+        val = get_validation(strategy)
+    except Exception:
+        return
+    status = val.get("validation_status")
+    if status == "oos_verified":
+        return
+    if status == "in_sample":
+        print("⚠️ 验证状态: in_sample（权重未经样本外 OOS 验证，回测数字为拟合内表现，勿当实盘预期）")
+    elif status == "unknown":
+        print("⚠️ 验证状态: unknown（无 OOS 验证记录）")
+    note = str(val.get("validation_note") or "")
+    if note and status != "oos_verified":
+        print(f"   {note[:110]}")
+
+
 def render(rows, strategy, top, title=None, show_chip=True, show_sentiment=False):
     accepted = [r for r in rows if not r["rejected"]]
     rejected = [r for r in rows if r["rejected"]]
@@ -143,6 +169,7 @@ def render(rows, strategy, top, title=None, show_chip=True, show_sentiment=False
     label = title or get_strategy(strategy)["label"]
     print(f"策略: {label} ({strategy})")
     print(f"入选: {len(accepted)} | 剔除: {len(rejected)}")
+    _print_validation_warning(strategy)
     print()
 
     # ROE 格式化辅助：避免 str(x)[:6] 截断效果不可预测（v1.14.2 修复）
@@ -234,6 +261,7 @@ def render_brief(rows, strategy, top, title=None):
         f"策略 {label} | 📦 候选池 {total} → 硬过滤后 {len(accepted)} → 显示 Top {len(top_rows)} | "
         f"硬过滤剔除 {len(rejected)} | 首选 {best['code']} {best['name']} (评分 {best['score']})"
     )
+    _print_validation_warning(strategy)
     _print_reject_reasons(rejected)
 
     # 精简表格（仅核心列）
