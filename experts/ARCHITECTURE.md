@@ -17,14 +17,14 @@ experts/ 是**专家人设 + 决策引擎**的独立子系统，承载两件事�
 experts/
 ├── *.md                 # 人设内容资产（哲学档案）——16 份
 ├── registry.py          # 注册表：16 人 active/legacy 标记 + 元数据
-├── decide.py / decide.md # 对外主入口：run_debate(stock_data, mode)
+├── decide.py / decide.md # 对外主入口：run_debate(stock_code, expert_results, market_state, ...)
 ├── vote_engine.py       # aggregate_votes(expert_results, ...)——5 长 + 3 短投票
 ├── scoring/             # 各专家独立 score() 函数 + weighted_merge 合并
-├── calibration.py       # 专家历史准确率自校准（clibration_factor ± 0.1）
+├── calibration.py       # 专家历史准确率自校准（calibration_factor ∈ [-1,1]，贡献 ±10 分）
 ├── market_detector.py   # 市场环境指数（regime）→ 长短线权重
 ├── veto_evaluator.py    # 否决条件评估器
 ├── formatter.py         # 输出格式化（decide.md 文本模板）
-├── yaml/                # expert 配置可 YAML 化（实验性）
+├── yaml/                # expert 配置（v2.0 起为唯一机器可读数据源）
 ├── types.py             # ExpertProfile dataclass
 ├── __init__.py          # 公开 API 入口（list_active_experts 等）
 ├── ARCHITECTURE.md      # 本文档
@@ -37,12 +37,11 @@ experts/ **不依赖 skills/ 与 scripts/ 业务层**即可工作：
 
 ```bash
 # 不启动 stock 分析，直接跑专家投票
-python3 -c "from experts.decide import run_debate; print(run_debate({'code': 'sh600519'}, mode='quick'))"
+python3 -c "from experts.decide import run_debate; print(run_debate('sh600519', expert_results, market_state))"
 
 # 校准自跑（不依赖业务层）
 python3 scripts/calibration.py record   # 记录投票结果
-python3 scripts/calibration.py verify   # 验证 30 日后准确率
-python3 scripts/calibration.py report   # 输出 calibration_factor
+python3 scripts/calibration.py verify   # 按各专家 horizon 验证准确率（长线 180 日 / 短线 14 日）
 ```
 
 **因此 experts/ 是独立可运行的子系统**，对外可作为 Python 包单独 import，不依赖 SKILL.md 加载流程。
