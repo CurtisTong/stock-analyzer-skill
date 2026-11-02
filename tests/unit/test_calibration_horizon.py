@@ -34,7 +34,7 @@ def store(monkeypatch):
     """_load/_save 重定向到内存 dict（save 捕获最新快照）。"""
     state = _empty_data()
     monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
-    monkeypatch.setattr(cal_mod, "_save", lambda d: state.update(d))
+    monkeypatch.setattr(cal_mod, "_save", lambda d, assume_locked=False: state.update(d))
     return state
 
 
@@ -160,11 +160,24 @@ class TestLegacyCompat:
         assert result2["verified"] == 1
 
     def test_mark_only_settles_without_calibration_update(self, store):
+        """mark_only 只标记到期，不更新校准数据。
+
+        （v1.26.0）mark_only **不再**把专家标记为已结算——原实现会加入
+        settled，导致后续带价格的验证跳过这些专家，样本永久无法结算。
+        现在只记入 marked_experts（提示用），样本仍可被正常结算。
+        """
         cal_mod.record_prediction("sh600519", SCORES, "看多", timestamp=f"{_days_ago(200)} 10:00:00")
         cal_mod.verify_predictions(mark_only=True)
         pred = store["predictions"][0]
-        assert pred["verified"] is True
+        # 校准数据未更新
         assert all(store["experts"][n]["events"] == 0 for n in ALL_EXPERTS)
+        # 但未标记为已结算 → 后续带价格的验证仍能正常结算
+        assert pred.get("settled_experts", []) == []
+        assert pred.get("marked_experts")
+
+        result = cal_mod.verify_predictions(get_price_fn=_price_fn())
+        assert result["verified"] == 1
+        assert any(store["experts"][n]["events"] > 0 for n in ALL_EXPERTS)
 
 
 class TestPendingByHorizon:

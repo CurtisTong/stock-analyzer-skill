@@ -32,7 +32,7 @@ def _empty_data():
 def store(monkeypatch):
     state = _empty_data()
     monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
-    monkeypatch.setattr(cal_mod, "_save", lambda d: state.update(d))
+    monkeypatch.setattr(cal_mod, "_save", lambda d, assume_locked=False: state.update(d))
     return state
 
 

@@ -100,6 +100,10 @@ def _check_goodwill_ratio(stock_data: dict) -> ConditionResult:
 
     商誉占比过高意味着并购溢价大、减值风险高，是真正的生存底线。
     数据来源：finance.goodwill / GOODWILL, net_assets / TOTAL_EQUITY。
+
+    （v1.26.0 现状说明）**预留能力**：16 份专家 YAML 均未声明含"商誉"的
+    veto_conditions，故本检查当前不会被任何专家命中。评估器与数据接口
+    已就绪，待专家档案或数据源接入后即生效——不是缺陷。
     """
     fin = _get_fin(stock_data)
     goodwill = _safe_float(fin.get("goodwill") or fin.get("GOODWILL"))
@@ -121,6 +125,9 @@ def _check_fraud(stock_data: dict) -> ConditionResult:
 
     此条件无法从财务数据自动判定（需公告/监管信息），标记不可评估。
     但提供 quote.fraud_flag 或 stock_data.fraud_flag 接口供外部注入。
+
+    （v1.26.0 现状说明）**预留能力**：注入接口已就绪，等公告/监管数据源
+    接入后即生效——不是缺陷。
     """
     fraud_flag = stock_data.get("fraud_flag") or _get_quote(stock_data).get("fraud_flag")
     if fraud_flag is None:

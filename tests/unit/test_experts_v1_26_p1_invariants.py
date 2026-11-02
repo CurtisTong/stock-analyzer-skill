@@ -246,7 +246,8 @@ class TestCalibrationFormulaConsistency:
             "lynch": {"events": 20, "correct": 14},
             "soros": {"events": 20, "correct": 12},
         }
-        monkeypatch.setattr(cal_mod, "get_calibration", lambda: experts)
+        # （v1.26.0）因子计算改为从 _load 读取（需同时判断是否有真实样本）
+        monkeypatch.setattr(cal_mod, "_load", lambda strict=False: {"experts": experts, "_meta": {"source": "live"}})
 
         # 长线组 active 专家的胜率序列（无数据的按中性 0.5 计入）
         long_names = [n for n, p in EXPERT_REGISTRY.items() if p.active and p.group == "long_term"]
@@ -271,7 +272,7 @@ class TestCalibrationFormulaConsistency:
             "lynch": {"events": 1, "correct": 0},
             "soros": {"events": 30, "correct": 24},
         }
-        monkeypatch.setattr(cal_mod, "get_calibration", lambda: experts)
+        monkeypatch.setattr(cal_mod, "_load", lambda strict=False: {"experts": experts, "_meta": {"source": "live"}})
 
         rates = []
         for name, profile in EXPERT_REGISTRY.items():
@@ -324,7 +325,7 @@ class TestNoDoubleSettlement:
             "_migrated": True,
         }
         monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
-        monkeypatch.setattr(cal_mod, "_save", lambda data: None)
+        monkeypatch.setattr(cal_mod, "_save", lambda data, assume_locked=False: None)
 
         cal_mod.record_prediction(
             "sh600000",
@@ -710,7 +711,7 @@ class TestPartialCalibrationEntry:
             "_migrated": True,
         }
         monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
-        monkeypatch.setattr(cal_mod, "_save", lambda data: None)
+        monkeypatch.setattr(cal_mod, "_save", lambda data, assume_locked=False: None)
 
         result = cal_mod.verify_predictions(get_price_fn=lambda *a: 10.0)
         assert result["verified"] == 1
@@ -803,3 +804,128 @@ class TestNoDoubleComputation:
         )
         assert calls["va"] == 1
         assert calls["inst"] == 1
+
+
+# ═══════════════════════════════════════════════════════════════
+# 剩余项修复（v1.26.0 第三批）
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestMarkOnlyDoesNotDestroySamples:
+    """mark_only 不得让样本永久无法结算。"""
+
+    def test_mark_only_keeps_sample_settleable(self, tmp_path, monkeypatch):
+        """mark_only 后仍能用真实价格结算该样本。"""
+        import experts.calibration as cal_mod
+
+        state = {
+            "predictions": [
+                {
+                    "id": "pred_x",
+                    "stock": "sh600000",
+                    "date": "2026-01-01",
+                    "direction": "看多",
+                    "expert_scores": {"lynch": 70.0},
+                    "verified": False,
+                    "verify_after": "2026-01-15",
+                    "expert_horizons": {"lynch": "2026-01-15"},
+                    "settled_experts": [],
+                }
+            ],
+            "experts": {"lynch": {"events": 0, "correct": 0}},
+            "_meta": {"source": "live"},
+            "_migrated": True,
+        }
+        monkeypatch.setattr(cal_mod, "_load", lambda strict=False: state)
+        monkeypatch.setattr(cal_mod, "_save", lambda data, assume_locked=False: None)
+
+        cal_mod.verify_predictions(mark_only=True)
+        assert state["predictions"][0]["settled_experts"] == []
+        assert state["predictions"][0].get("marked_experts") == ["lynch"]
+
+        result = cal_mod.verify_predictions(get_price_fn=lambda *a: 10.0)
+        assert result["verified"] == 1
+        assert state["experts"]["lynch"]["events"] == 1
+
+
+class TestSyntheticSamplesExcluded:
+    """合成（回测初始化）样本不得参与校准。"""
+
+    def test_synthetic_library_detected(self):
+        from experts.calibration import is_synthetic_calibration
+
+        assert is_synthetic_calibration({"_meta": {"source": "backtest_2026-06-16"}})
+        assert not is_synthetic_calibration({"_meta": {"source": "live"}})
+
+    def test_synthetic_migration_separates_counters(self):
+        """合成胜率迁移到 synthetic_* 字段，events/correct 归零。"""
+        import experts.calibration as cal_mod
+
+        data = {
+            "experts": {"lynch": {"events": 10, "correct": 8}},
+            "_meta": {"source": "backtest_2026-06-16"},
+        }
+        migrated = cal_mod._migrate_synthetic_experts(data)
+        rec = migrated["experts"]["lynch"]
+        assert rec["synthetic_events"] == 10
+        assert rec["synthetic_correct"] == 8
+        assert rec["events"] == 0
+        assert rec["correct"] == 0
+
+    def test_migration_is_idempotent(self):
+        import experts.calibration as cal_mod
+
+        data = {
+            "experts": {"lynch": {"events": 10, "correct": 8}},
+            "_meta": {"source": "backtest_2026-06-16"},
+        }
+        once = cal_mod._migrate_synthetic_experts(dict(data))
+        twice = cal_mod._migrate_synthetic_experts(once)
+        assert twice["experts"]["lynch"]["synthetic_events"] == 10
+        assert twice["experts"]["lynch"]["events"] == 0
+
+    def test_no_real_samples_means_no_calibration(self, monkeypatch):
+        """没有真实结算样本时因子为 0（不做校准）。"""
+        import experts.calibration as cal_mod
+
+        monkeypatch.setattr(
+            cal_mod,
+            "_load",
+            lambda strict=False: {
+                "experts": {"lynch": {"events": 0, "correct": 0}},
+                "_meta": {"source": "live"},
+            },
+        )
+        assert cal_mod.compute_calibration_factor() == 0.0
+        assert cal_mod.compute_group_calibration("long_term") == 0.0
+
+
+class TestCalibrationLocking:
+    """读-改-写必须在跨进程排他锁内完成。"""
+
+    def test_lock_context_manager_available(self):
+        """_calibration_lock 必须存在（_save 的 assume_locked 依赖它）。"""
+        from experts import calibration as cal_mod
+
+        assert hasattr(cal_mod, "_calibration_lock")
+
+    def test_save_accepts_assume_locked(self):
+        """_save 支持 assume_locked（避免同进程双 flock 死锁）。"""
+        import inspect
+
+        from experts.calibration import _save
+
+        assert "assume_locked" in inspect.signature(_save).parameters
+
+
+class TestIndustryPassedToVeto:
+    """行业分类须传给周期位置否决。"""
+
+    def test_stock_data_carries_industry(self):
+        """experts_cli 构造的 stock_data 必须带 industry。"""
+        import inspect
+
+        import scripts.dev.experts_cli as cli
+
+        src = inspect.getsource(cli.build_stock_data)
+        assert '"industry"' in src

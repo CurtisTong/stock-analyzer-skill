@@ -13,6 +13,7 @@ YAML 是唯一数据源。experts/*.md 仅保留叙事（§九 weights 表作为
 """
 
 import logging
+import threading
 from typing import Dict
 
 from experts.types import ExpertProfile
@@ -20,6 +21,9 @@ from experts.types import ExpertProfile
 logger = logging.getLogger(__name__)
 
 EXPERT_REGISTRY: Dict[str, ExpertProfile] = {}
+
+# （v1.26.0）注册表加载锁——防止多线程首次并发调用时读到半填充状态
+_LOAD_LOCK = threading.Lock()
 
 # LEGACY_ALIAS / get_display_name 已删除（零运行时调用方，
 # 运行时显示名统一从 ExpertProfile.display_name 读取）。
@@ -45,15 +49,22 @@ def _ensure_loaded() -> None:
     - topic_leader = xu_xiang(0.5) + zhao_laoge(0.5)
     - emotion_tech = chaogu_yangjia(0.5) + zuoshou_xinyi(0.5)
     合并实现位于 experts/scoring/{value_institution,topic_leader,emotion_tech}.py。
+
+    （v1.26.0）加锁：注册表是模块级可变 dict，多线程首次并发调用时
+    一个线程可能读到**部分填充**的注册表（专家数不足 → 硬错误误抛，
+    或投票基数算错）。当前全仓无并发调用方，属防御性加固。
     """
     if EXPERT_REGISTRY:
         return  # 已加载，避免重复
 
-    from experts.yaml_loader import load_all_experts
+    with _LOAD_LOCK:
+        if EXPERT_REGISTRY:
+            return  # 双重检查：可能已被其他线程加载
+        from experts.yaml_loader import load_all_experts
 
-    yaml_experts = load_all_experts()
-    for name, profile in yaml_experts.items():
-        EXPERT_REGISTRY[name] = profile
+        yaml_experts = load_all_experts()
+        # 先构建后整体替换——避免其他线程读到半填充状态
+        EXPERT_REGISTRY.update(yaml_experts)
 
     total = len(EXPERT_REGISTRY)
     active_count = sum(1 for p in EXPERT_REGISTRY.values() if p.active)

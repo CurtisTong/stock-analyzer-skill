@@ -22,6 +22,7 @@ import statistics
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
+from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
 from experts.types import BEARISH_DIRECTIONS, BULLISH_DIRECTIONS, NEUTRAL_DIRECTION
@@ -190,6 +191,36 @@ def _empty_data() -> dict:
     }
 
 
+def _migrate_synthetic_experts(data: dict) -> dict:
+    """把合成（回测初始化）的胜率统计与真实结算统计分开（幂等）。
+
+    **问题**：校准库可用 `calibration_backfill.py` 从回测结论初始化，
+    写入的 experts[].events/correct 是**回测合成的胜率**，不是真实预测的
+    结算结果。二者若混在同一字段里，真实样本结算后无法区分——因子计算
+    会把合成胜率与真实胜率一起算，生产 short_term=-0.5722 就是这样一个
+    合成产物（来自 60 天回测），它让每次 debate 的信心被扣最多 5.7 分。
+
+    **迁移**：合成来源的库首次加载时，把现有 events/correct 移到
+    `synthetic_events`/`synthetic_correct`，events/correct 归零——
+    之后 verify 的真实结算只累加 events/correct，因子计算自然只看到
+    真实样本。
+
+    幂等：以 `synthetic_events` 字段是否存在为标记。
+    """
+    if not is_synthetic_calibration(data):
+        return data
+    for rec in (data.get("experts") or {}).values():
+        if not isinstance(rec, dict):
+            continue
+        if "synthetic_events" in rec:
+            continue  # 已迁移
+        rec["synthetic_events"] = rec.get("events", 0)
+        rec["synthetic_correct"] = rec.get("correct", 0)
+        rec["events"] = 0
+        rec["correct"] = 0
+    return data
+
+
 def _migrate_legacy_experts(data: dict) -> dict:
     """将 legacy 专家名记录合并到对应的 active 专家名（幂等）。
 
@@ -288,16 +319,24 @@ def _load(strict: bool = False) -> dict:
             if strict:
                 raise ValueError(f"校准文件损坏，已中止写操作以防覆盖历史: {_CALIBRATION_FILE}") from e
             return _empty_data()
-        return _ensure_active_experts(_migrate_legacy_experts(data))
+        return _ensure_active_experts(_migrate_synthetic_experts(_migrate_legacy_experts(data)))
     return _empty_data()
 
 
-def _save(data: dict) -> None:
+def _save(data: dict, assume_locked: bool = False) -> None:
+    """原子写入校准文件。
+
+    Args:
+        data: 校准数据
+        assume_locked: 调用方已通过 `_calibration_lock()` 持锁。
+            必须为 True，否则**同进程不同 fd 对同一 lock 文件 flock EX 会
+            阻塞死锁**（flock 锁的是 open file description）。
+    """
     _CALIBRATION_FILE.parent.mkdir(parents=True, exist_ok=True)
     lock_path = _CALIBRATION_FILE.with_suffix(".json.lock")
     lock_fd = None
     try:
-        if _HAS_FCNTL:
+        if _HAS_FCNTL and not assume_locked:
             lock_fd = open(lock_path, "w")
             fcntl.flock(lock_fd, fcntl.LOCK_EX)
         fd, tmp = tempfile.mkstemp(dir=_CALIBRATION_FILE.parent, suffix=".tmp")
@@ -310,6 +349,33 @@ def _save(data: dict) -> None:
             if os.path.exists(tmp):
                 os.unlink(tmp)
             raise
+    finally:
+        if lock_fd is not None:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
+
+
+@contextmanager
+def _calibration_lock():
+    """校准库的跨进程排他锁，覆盖整个 read-modify-write。
+
+    （v1.26.0）原实现只在 `_save` 内部加锁——锁只覆盖"写"这一瞬，
+    "读 → 改 → 写"整体不是原子的：两个进程并发时都读到旧数据，
+    各自改完各自写，后写者覆盖先写者（丢更新）。现在锁覆盖整个事务。
+
+    用法：
+        with _calibration_lock():
+            data = _load(strict=True)
+            ... 修改 data ...
+            _save(data, assume_locked=True)
+    """
+    lock_path = _CALIBRATION_FILE.with_suffix(".json.lock")
+    lock_fd = None
+    try:
+        if _HAS_FCNTL:
+            lock_fd = open(lock_path, "w")
+            fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
     finally:
         if lock_fd is not None:
             fcntl.flock(lock_fd, fcntl.LOCK_UN)
@@ -457,47 +523,50 @@ def record_prediction(
     if expert_horizons:
         verify_after = min(verify_after, min(expert_horizons.values()))
 
-    data = _load(strict=True)
+    # （v1.26.0）整个"读 → 改 → 写"在跨进程排他锁内完成——原实现只锁写，
+    # 并发时后写者会覆盖先写者（丢更新）。
+    with _calibration_lock():
+        data = _load(strict=True)
 
-    # 去重：同日同股不重复记录
-    existing = [p for p in data["predictions"] if p["id"] == pred_id]
-    if existing:
-        prev = existing[0]
-        prev["expert_scores"] = expert_scores
-        prev["direction"] = direction
-        prev["composite_score"] = composite_score
-        prev["verify_after"] = verify_after
-        prev["expert_horizons"] = expert_horizons
-        # （v1.26.0）保留已结算状态，不清空。
-        # 原实现把 settled_experts 重置为 [] 且 verified=False，但专家的
-        # events/correct 计数不回滚——下次 verify 会把同一次预测再结算一遍，
-        # 胜率被重复计入（实测 lynch events 1→2）。
-        # 触发路径：calibration_backfill import 重复执行、calibration_sync
-        # pull 覆盖本地后再次 verify。
-        # 已结算的专家保持结算（不重复计数），未结算的按新分数等待结算。
-        settled = set(prev.get("settled_experts", []))
-        prev["settled_experts"] = sorted(settled & set(expert_scores))
-        prev["verified"] = bool(prev.get("verified")) and set(prev["settled_experts"]) >= set(expert_scores)
-        _save(data)
+        # 去重：同日同股不重复记录
+        existing = [p for p in data["predictions"] if p["id"] == pred_id]
+        if existing:
+            prev = existing[0]
+            prev["expert_scores"] = expert_scores
+            prev["direction"] = direction
+            prev["composite_score"] = composite_score
+            prev["verify_after"] = verify_after
+            prev["expert_horizons"] = expert_horizons
+            # （v1.26.0）保留已结算状态，不清空。
+            # 原实现把 settled_experts 重置为 [] 且 verified=False，但专家的
+            # events/correct 计数不回滚——下次 verify 会把同一次预测再结算一遍，
+            # 胜率被重复计入（实测 lynch events 1→2）。
+            # 触发路径：calibration_backfill import 重复执行、calibration_sync
+            # pull 覆盖本地后再次 verify。
+            # 已结算的专家保持结算（不重复计数），未结算的按新分数等待结算。
+            settled = set(prev.get("settled_experts", []))
+            prev["settled_experts"] = sorted(settled & set(expert_scores))
+            prev["verified"] = bool(prev.get("verified")) and set(prev["settled_experts"]) >= set(expert_scores)
+            _save(data, assume_locked=True)
+            return pred_id
+
+        record = {
+            "id": pred_id,
+            "stock": stock_code,
+            "date": date,
+            "direction": direction,
+            "composite_score": composite_score,
+            "expert_scores": expert_scores,
+            "verified": False,
+            "verify_after": verify_after,
+            "expert_horizons": expert_horizons,
+            "settled_experts": [],
+            "actual_return": None,
+            "actual_direction": None,
+        }
+        data["predictions"].append(record)
+        _save(data, assume_locked=True)
         return pred_id
-
-    record = {
-        "id": pred_id,
-        "stock": stock_code,
-        "date": date,
-        "direction": direction,
-        "composite_score": composite_score,
-        "expert_scores": expert_scores,
-        "verified": False,
-        "verify_after": verify_after,
-        "expert_horizons": expert_horizons,
-        "settled_experts": [],
-        "actual_return": None,
-        "actual_direction": None,
-    }
-    data["predictions"].append(record)
-    _save(data)
-    return pred_id
 
 
 def verify_predictions(
@@ -518,12 +587,27 @@ def verify_predictions(
             签名: get_price_fn(stock_code, start_date, end_date) -> float (收益率%)
             为 None 时跳过实际收益率计算。
         mark_only: 仅标记到期但不获取价格（无网络环境用）。
-            注意：mark_only=True 会将到期专家标记为已结算但不更新校准数据，
-            且无法回滚--后续带 get_price_fn 的验证会跳过已标记专家。
+            注意：mark_only=True 不更新校准数据（events/correct 不变），
+            且**不**把专家标记为已结算——只记入 marked_experts 供提示。
+            （v1.26.0 修正）原实现把 mark_only 也加入 settled，导致后续
+            带 get_price_fn 的验证会跳过这些专家，样本永久无法结算。
 
     Returns:
         {"verified": int, "updated_experts": int, "skipped": int, "details": [...]}
     """
+    # （v1.26.0）整个"读 → 改 → 写"在跨进程排他锁内完成——原实现只锁写，
+    # 并发 verify 时后写者会覆盖先写者（丢更新）。
+    with _calibration_lock():
+        result = _verify_predictions_locked(days=days, get_price_fn=get_price_fn, mark_only=mark_only)
+    return result
+
+
+def _verify_predictions_locked(
+    days: int = 30,
+    get_price_fn=None,
+    mark_only: bool = False,
+) -> Dict[str, Any]:
+    """verify_predictions 的实现体（调用方须已持有 _calibration_lock）。"""
     data = _load(strict=True)
     today = datetime.now().strftime("%Y-%m-%d")
     verified_count = 0
@@ -539,6 +623,8 @@ def verify_predictions(
         horizons = pred.get("expert_horizons") or {}
         expert_scores = pred.get("expert_scores", {})
         settled = set(pred.get("settled_experts", []))
+        # mark_only 标记过的专家（仅提示"已到期待补价"，不影响结算资格）
+        marked = set(pred.get("marked_experts", []))
 
         if horizons:
             # 新记录：按专家 horizon 找本轮到期且未结算的专家
@@ -650,9 +736,17 @@ def verify_predictions(
                 data["experts"][expert_name]["last_updated"] = today
             # 只有取价成功（actual_direction 非 None）的专家才标记为已结算：
             # 取价失败时标记 settled 会让该窗口样本永久丢失（不再重试）。
-            # mark_only=True 是"无网络环境只标记到期"的有意设计，仍照常标记。
-            if actual_direction is not None or mark_only:
+            #
+            # （v1.26.0）mark_only 不再标记 settled：原实现把它也加入
+            # settled，导致后续带 get_price_fn 的验证会跳过这些专家——
+            # 该样本**永久无法结算**（数据丢失）。mark_only 的用途是
+            # "无网络环境下先标记到期、稍后补算"，标记 settled 与该意图
+            # 直接矛盾。现在 mark_only 只记入 marked_experts（提示用），
+            # settled 保持不变，样本仍可被后续带价格的验证正常结算。
+            if actual_direction is not None:
                 settled.add(expert_name)
+            elif mark_only:
+                marked.add(expert_name)
 
         # 主窗口（顶层 verify_after）方向用于预测级 correct 与兼容字段。
         # 多轮结算时顶层窗口可能不在本轮 due 集合内（direction_by_window 只含
@@ -679,6 +773,10 @@ def verify_predictions(
             pred_correct = direction_matches(pred_direction, main_direction)
 
         pred["settled_experts"] = sorted(settled)
+        if marked:
+            pred["marked_experts"] = sorted(marked)
+        else:
+            pred.pop("marked_experts", None)
         details.append(
             {
                 "id": pred["id"],
@@ -692,7 +790,7 @@ def verify_predictions(
             }
         )
 
-    _save(data)
+    _save(data, assume_locked=True)
     updated = sum(1 for d in details if d.get("correct") is not None)
     return {
         "verified": verified_count,
@@ -706,6 +804,32 @@ def get_calibration() -> Dict[str, dict]:
     """返回每位专家的校准数据。"""
     data = _load()
     return data.get("experts", {})
+
+
+# 合成数据来源标记前缀——回测初始化生成的校准库不是真实预测样本
+_SYNTHETIC_SOURCE_PREFIXES = ("backtest", "synthetic", "seed")
+
+
+def is_synthetic_calibration(data: Optional[dict] = None) -> bool:
+    """判断当前校准库是否为合成（回测初始化）数据。
+
+    **为什么需要区分**：校准库可用 `calibration_backfill.py import` 从
+    回测结论初始化（当前 `_meta.source = "backtest_2026-06-16"`），
+    其中的 events/correct 是**回测合成的胜率**，不是真实预测的结算结果。
+    若把它当真实样本参与因子计算，就会用合成胜率去校准真实决策——
+    生产值 short_term=-0.5722（来自 60 天回测）就是这样一个合成产物，
+    它让每次 debate 的信心指数被扣最多 5.7 分。
+
+    Args:
+        data: 已加载的校准数据；None 时内部加载
+
+    Returns:
+        True 表示数据源是合成/回测初始化
+    """
+    if data is None:
+        data = _load()
+    source = str((data.get("_meta") or {}).get("source", "")).strip().lower()
+    return any(source.startswith(prefix) for prefix in _SYNTHETIC_SOURCE_PREFIXES)
 
 
 def get_pending_predictions() -> List[dict]:
@@ -786,18 +910,27 @@ def compute_calibration_factor() -> float:
     """
     from experts.registry import EXPERT_REGISTRY
 
-    experts = get_calibration()
+    # （v1.26.0）合成胜率与真实结算分开统计：_migrate_synthetic_experts 已把
+    # 回测初始化的 events/correct 迁到 synthetic_* 字段，此处 events/correct
+    # 只含真实预测结算结果。若库里一个真实样本都没有 → 不校准（返回 0.0）。
+    data = _load()
+    experts = data.get("experts", {})
     rates = []
     active_names = [n for n, p in EXPERT_REGISTRY.items() if p.active]
+    real_events = 0
     for name in active_names:
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)
+        real_events += events
         if events >= MIN_CALIBRATION_SAMPLES:
             rates.append(correct / events)
         else:
             # 无历史数据（events=0）或样本不足（0<events<门槛）：按中性计入
             rates.append(0.5)
+
+    if real_events == 0:
+        return 0.0  # 尚无真实结算样本，不做校准
 
     return _calibration_factor_from_rates(rates)
 
@@ -809,10 +942,17 @@ def get_calibration_report() -> str:
 
     lines = ["## 专家校准报告", ""]
     lines.append(f"校准因子: {factor:+.3f} (范围 [-1, 1])")
+    # （v1.26.0）标注数据来源：合成（回测初始化）数据的胜率不参与校准，
+    # 报告里必须能看出因子为何为 0，避免误读为"无历史数据"。
+    source = str((_load().get("_meta") or {}).get("source", "") or "unknown")
+    if is_synthetic_calibration():
+        lines.append(f"数据来源: {source}（**合成数据，校准因子不生效**）")
+    else:
+        lines.append(f"数据来源: {source}")
     lines.append("")
     # v1.24.0 赔率列：slugging = 赢时平均收益 / |输时平均收益|（>1 说明赢比输大）
-    lines.append("| 专家 | 事件数 | 正确数 | 校准率 | 赔率(slugging) |")
-    lines.append("|------|--------|--------|--------|----------------|")
+    lines.append("| 专家 | 事件数 | 正确数 | 校准率 | 赔率(slugging) | 合成样本 |")
+    lines.append("|------|--------|--------|--------|----------------|---------|")
 
     for name in _get_all_expert_names():
         rec = experts.get(name, {})
@@ -831,7 +971,10 @@ def get_calibration_report() -> str:
             if slug is not None
             else "样本不足"
         )
-        lines.append(f"| {name} | {events} | {correct} | {rate} | {slug_str} |")
+        # 合成样本单列（不参与校准，仅供追溯）
+        synth = rec.get("synthetic_events", 0)
+        synth_str = f"{synth} 笔" if synth else "-"
+        lines.append(f"| {name} | {events} | {correct} | {rate} | {slug_str} | {synth_str} |")
 
     pending = get_pending_predictions()
     if pending:
@@ -858,19 +1001,26 @@ def compute_group_calibration(group: str) -> float:
     """
     from experts.registry import EXPERT_REGISTRY
 
-    experts = get_calibration()
+    # （v1.26.0）口径与 compute_calibration_factor 一致：只用真实结算样本
+    data = _load()
+    experts = data.get("experts", {})
     rates = []
+    real_events = 0
     for name, profile in EXPERT_REGISTRY.items():
         if not profile.active or profile.group != group:
             continue
         rec = experts.get(name, {})
         events = rec.get("events", 0)
         correct = rec.get("correct", 0)
+        real_events += events
         if events >= MIN_CALIBRATION_SAMPLES:
             rates.append(correct / events)
         else:
             # 无历史数据或样本不足：按中性计入（口径与全局一致）
             rates.append(0.5)
+
+    if real_events == 0:
+        return 0.0  # 该组尚无真实结算样本，不做校准
 
     if not rates:
         return 0.0

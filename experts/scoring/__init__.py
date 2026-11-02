@@ -39,6 +39,7 @@ from ._utils import (
     _get_scoring_config,
     score_from_dimensions,
     dimension_breakdown,
+    format_generic_reasoning,
     _score_fundamentals,
     _score_valuation,
     _score_technical,
@@ -406,6 +407,7 @@ __all__ = [
     "score_expert",
     "score_expert_precise",
     "score_expert_with_reasoning",
+    "format_generic_reasoning",
     "compute_confidence_index",
     "consistency_from_scores",
 ]

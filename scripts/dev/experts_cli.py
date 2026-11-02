@@ -129,7 +129,21 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
     # 数据缺失一律置 None（不填 0/50 兜底）——
     # 评分层会区分"不可得"与"可得但差"：置 0 会让缺失被当成最差信号，
     # 置 50 会把无信息伪装成中性票（见 experts/scoring/availability.py）。
+    # 行业分类——周期位置否决（veto_evaluator._check_cycle_position）需要它
+    # 推断周期股。行情 API 的 industry 字段常为空（akshare 补全失败时），
+    # 用 classifier.infer_industry 的关键词兜底推断。
+    industry = quote.get("industry") or ""
+    if not industry:
+        try:
+            from classifier import infer_industry
+
+            industry = infer_industry(quote.get("name") or "", code, "")
+        except Exception:
+            industry = ""
+
     stock_data = {
+        "code": code_upper,
+        "industry": industry,
         "quote": {
             "pe": quote.get("pe"),
             "pb": quote.get("pb"),
@@ -320,6 +334,32 @@ def run_debate_for_stock(code: str, group_filter: str | None = None, record: boo
     return result
 
 
+def render_reasoning(code: str, group_filter: str | None = None) -> str:
+    """渲染每位专家的评分明细（含三元组：原始分 × 权重 = 贡献值）。
+
+    SKILL.md 发言规则要求「展示维度拆分（breakdown）时，必须输出
+    `原始分 × 权重 = 贡献值` 三元组」——此前该能力（experts/scoring 的
+    reasoning 链）无任何生产入口，agent 只能自行拼装。本函数把它接上。
+    """
+    from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+    from experts.scoring import format_generic_reasoning, score_expert_with_reasoning
+
+    _ensure_loaded()
+    stock_data, _ = build_stock_data(code)
+    profiles = list_active_experts()
+    if group_filter == "long":
+        profiles = [p for p in profiles if p.group == "long_term"]
+    elif group_filter == "short":
+        profiles = [p for p in profiles if p.group == "short_term"]
+
+    blocks = []
+    for p in profiles:
+        profile = EXPERT_REGISTRY.get(p.name, p)
+        result = score_expert_with_reasoning(profile, stock_data)
+        blocks.append(format_generic_reasoning(result))
+    return "\n\n".join(blocks)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="8 位 active 专家量化评分 CLI")
     parser.add_argument("codes", nargs="+", help="股票代码列表")
@@ -335,10 +375,22 @@ def main() -> int:
         action="store_true",
         help="debate 模式下不落库预测（试跑不污染校准历史）",
     )
+    parser.add_argument(
+        "--reasoning",
+        action="store_true",
+        help="输出每位专家的评分明细（三元组：原始分 × 权重 = 贡献值）",
+    )
     parser.add_argument("-j", "--json", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
     group = "long" if args.long else ("short" if args.short else None)
+
+    # reasoning 模式：输出维度拆分明细（SKILL.md 三元组展示规则）
+    if args.reasoning:
+        for code in args.codes:
+            print(f"\n{'=' * 60}\n# {code.upper()}")
+            print(render_reasoning(code, group_filter=group))
+        return 0
 
     # debate 模式：走 run_debate 编排器，闭合校准回路
     if args.debate:

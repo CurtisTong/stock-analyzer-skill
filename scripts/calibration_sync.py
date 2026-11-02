@@ -186,7 +186,13 @@ def pull() -> bool:
     # 原子写入远程数据（tempfile + os.replace，避免崩溃时文件损坏）
     from common import atomic_write_json
 
-    atomic_write_json(_CALIBRATION_FILE, remote_data)
+    # （v1.26.0）取校准库的排他锁——pull 整体覆盖文件，与本地
+    # record/verify 的"读-改-写"并发时后者会丢更新。锁与
+    # experts.calibration 用同一个 lock 文件。
+    from experts.calibration import _calibration_lock
+
+    with _calibration_lock():
+        atomic_write_json(_CALIBRATION_FILE, remote_data)
 
     pred_count = len(remote_data.get("predictions", []))
     expert_count = sum(1 for v in remote_data.get("experts", {}).values() if v.get("events", 0) > 0)
