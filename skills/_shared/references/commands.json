@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-11-02T17:04:32Z",
+    "generated_at": "2026-11-02T17:16:27Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -2931,7 +2931,7 @@
           ],
           "required": false,
           "default": "",
-          "help": "按板块名过滤（模糊匹配）"
+          "help": "按板块名过滤（模糊匹配；启用时拉取全榜再过滤，不受 --top 截断影响）"
         },
         {
           "flags": [

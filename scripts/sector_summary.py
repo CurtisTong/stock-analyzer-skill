@@ -206,15 +206,29 @@ def main():
         help="数据源优先级（默认 auto: ths → eastmoney）",
     )
     parser.add_argument("--top", type=int, default=30, help="输出 Top N（默认 30）")
-    parser.add_argument("--sector", default="", help="按板块名过滤（模糊匹配）")
+    parser.add_argument(
+        "--sector",
+        default="",
+        help="按板块名过滤（模糊匹配；启用时拉取全榜再过滤，不受 --top 截断影响）",
+    )
     args = parser.parse_args()
 
-    result = fetch_sector_summary(source=args.source, top=args.top)
+    # --sector 必须在截断前过滤：目标板块可能不在 Top N 内，
+    # 先 head(top) 再过滤会静默返回空列表（2026-11-02 skill 审查 P1）
+    fetch_top = max(args.top, 500) if args.sector else args.top
+    result = fetch_sector_summary(source=args.source, top=fetch_top)
     if args.sector:
+        board_size = len(result["items"])
         result["items"] = filter_by_name(result["items"], args.sector)
         # 重排 rank
         for i, it in enumerate(result["items"], start=1):
             it["rank"] = i
+        # 机器可读的过滤元信息：空结果不再无解释
+        result["filter"] = {
+            "sector": args.sector,
+            "matched": len(result["items"]),
+            "board_size": board_size,
+        }
 
     if args.json_output:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -222,6 +236,8 @@ def main():
 
     # 文本表格输出
     print(f"📊 板块涨跌幅榜 ({result['as_of']})  来源: {result['source']}")
+    if args.sector and not result["items"]:
+        print(f"⚠️ 板块「{args.sector}」模糊匹配无命中（全榜 {result.get('filter', {}).get('board_size', 0)} 个板块）")
     if result["data_quality"].get("degraded_fields"):
         print(
             f"⚠️ 数据降级: {result['data_quality']['degraded_fields']} "
