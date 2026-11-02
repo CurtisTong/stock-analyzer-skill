@@ -29,6 +29,7 @@ from .availability import (
     SIGNAL_SENTIMENT,
     missing_signals,
     neutral_missing_dims,
+    normalize_market_features,
     should_abstain,
 )
 
@@ -288,6 +289,15 @@ def score_expert_precise(
             "dim_scores": dim_scores,
             "method": "proxy_fallback",
         }
+
+    # （v1.26.0）降级数据规范化：上游 market_anchor 在指数 API 异常时会把
+    # breadth 字段填 0 并置 _degraded=True——"0 家涨停"不是真实市场状态。
+    # 原样传入会让养家情绪维得 0 分，再被 merge veto 放大成整维度归零，
+    # 整个短线组被系统性打成看空（实测 emotion_tech 49.8 → 12.1）。
+    original_market = stock_data.get("market_features") if isinstance(stock_data, dict) else None
+    normalized_market = normalize_market_features(stock_data)
+    if normalized_market != (original_market or {}):
+        stock_data = {**stock_data, "market_features": normalized_market}
 
     dim_scores = scoring_fn(stock_data)
 

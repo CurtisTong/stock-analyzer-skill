@@ -99,12 +99,53 @@ def available_signals(stock_data: Dict) -> Set[str]:
     # 题材：市场特征块存在且至少一个字段有值
     if _section_present(stock_data, "market_features"):
         market = stock_data["market_features"]
-        if any(
+        if is_degraded_market_data(market):
+            # 宽度数据整体降级（上游指数 API 异常）——字段值是占位 0，
+            # 不是真实的"0 家涨停"，不得当作题材信号
+            pass
+        elif any(
             _has_number(market.get(k)) for k in ("limit_up_count", "limit_down_count", "advance_ratio", "break_rate")
         ):
             signals.add(SIGNAL_SENTIMENT)
 
     return signals
+
+
+def is_degraded_market_data(market: Dict) -> bool:
+    """判断市场特征块是否为降级数据（字段值是占位而非真实值）。
+
+    上游 market_anchor 在指数 API 异常时会把 breadth 各字段填 0 并置
+    `_degraded=True`。若不识别，"0 家涨停"会被当成真实的市场状态——
+    养家情绪维得 0 分，再被 weighted_merge 的 veto 阈值放大成整维度归零，
+    整个短线组被系统性打成看空（实测 emotion_tech 49.8 → 12.1）。
+    """
+    if not isinstance(market, dict):
+        return False
+    return bool(market.get("_degraded"))
+
+
+# 降级时不可信的题材字段（其余字段保留）
+_DEGRADED_UNTRUSTED_FIELDS = (
+    "limit_up_count",
+    "limit_down_count",
+    "advance_ratio",
+    "break_rate",
+)
+
+
+def normalize_market_features(stock_data: Dict) -> Dict[str, float]:
+    """把降级的市场特征字段置为 None（表示不可得），其余原样返回。
+
+    降级时上游填的 0 是占位值，若原样传给评分层会被当成"真的 0 家涨停"
+    → 情绪维 0 分 → merge veto → 短线组系统性看空。
+    """
+    market = stock_data.get("market_features") if isinstance(stock_data, dict) else None
+    if not isinstance(market, dict) or not is_degraded_market_data(market):
+        return dict(market or {})
+    normalized = dict(market)
+    for field in _DEGRADED_UNTRUSTED_FIELDS:
+        normalized[field] = None
+    return normalized
 
 
 def missing_signals(stock_data: Dict) -> List[str]:

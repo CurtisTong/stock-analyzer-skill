@@ -929,3 +929,76 @@ class TestIndustryPassedToVeto:
 
         src = inspect.getsource(cli.build_stock_data)
         assert '"industry"' in src
+
+
+class TestDegradedMarketData:
+    """上游降级的市场宽度数据不得被当成真实值。"""
+
+    def _degraded_stock_data(self):
+        return {
+            "quote": {
+                "pe": 25,
+                "pb": 3,
+                "price": 10,
+                "circulating_cap": 80,
+                "pe_percentile": 50,
+                "name": "测试",
+                "amount": 8e9,
+            },
+            "finance": {"roe": 15, "net_profit_yoy": 20, "debt_ratio": 40, "eps": 0.8},
+            "kline_features": {"trend": 1, "rsi": 45, "macd_signal": 1},
+            "market_features": {
+                "limit_up_count": 0,
+                "limit_down_count": 0,
+                "advance_ratio": 0.5,
+                "break_rate": 0,
+                "limit_up_30d_count": None,
+                "sector_limit_up_count": None,
+                "_degraded": True,
+                "_degraded_reason": "指数 API 异常",
+            },
+        }
+
+    def test_degraded_detected(self):
+        from experts.scoring.availability import is_degraded_market_data
+
+        assert is_degraded_market_data(self._degraded_stock_data()["market_features"])
+        assert not is_degraded_market_data({"limit_up_count": 125})
+
+    def test_degraded_fields_neutralized(self):
+        """降级字段被置 None（不可得），不再是占位 0。"""
+        from experts.scoring.availability import normalize_market_features
+
+        data = self._degraded_stock_data()
+        normalized = normalize_market_features(data)
+        assert normalized["limit_up_count"] is None
+        assert normalized["advance_ratio"] is None
+        # 降级标记本身保留
+        assert normalized["_degraded"] is True
+
+    def test_non_degraded_unchanged(self):
+        """未降级时字段原样保留。"""
+        from experts.scoring.availability import normalize_market_features
+
+        data = self._degraded_stock_data()
+        data["market_features"] = {"limit_up_count": 125, "advance_ratio": 0.85}
+        normalized = normalize_market_features(data)
+        assert normalized["limit_up_count"] == 125
+        assert normalized["advance_ratio"] == 0.85
+
+    def test_sentiment_signal_absent_when_degraded(self):
+        """降级时题材信号不可得。"""
+        from experts.scoring.availability import available_signals, SIGNAL_SENTIMENT
+
+        signals = available_signals(self._degraded_stock_data())
+        assert SIGNAL_SENTIMENT not in signals
+
+    def test_emotion_tech_abstains_on_degraded(self):
+        """降级时短线情绪专家弃权（而非被打成强烈看空）。"""
+        from experts.registry import EXPERT_REGISTRY, _ensure_loaded
+        from experts.scoring import score_expert_precise
+
+        _ensure_loaded()
+        result = score_expert_precise(EXPERT_REGISTRY["emotion_tech"], self._degraded_stock_data())
+        assert result["abstain"] is True
+        assert result["direction"] == "弃权"

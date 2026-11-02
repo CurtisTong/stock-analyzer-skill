@@ -174,6 +174,13 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             # 近30日涨停次数与板块涨停数当前无数据源，留 None
             "limit_up_30d_count": breadth.get("limit_up_30d_count"),
             "sector_limit_up_count": breadth.get("sector_limit_up_count"),
+            # （v1.26.0）标记宽度数据是否降级——market_anchor 在指数 API 异常时
+            # 会把 breadth 各字段填 0 并置 _degraded=True。若不区分，
+            # "0 家涨停"会被当成真实值：养家情绪=0 → merge veto → 整个短线组
+            # 被系统性打成看空（实测 emotion_tech 从 49.8 掉到 12.1）。
+            # 降级时这些字段置 None，由评分层按"数据不可得"处理。
+            "_degraded": bool(breadth.get("_degraded")),
+            "_degraded_reason": breadth.get("_degraded_reason", ""),
         },
     }
     return stock_data, raw_meta
