@@ -157,7 +157,7 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # ── 情绪/资金：板块共振 + 量能 + 涨停家数 ──
     sentiment = 50
-    limit_up = market.get("limit_up_count", 0) or 0
+    limit_up = _safe_float(market.get("limit_up_count"))
     # （v1.26.0）板块涨停数缺失时不扣分——把"数据不可得"当成"孤立突破"
     # 是隐性惩罚，方向会因接口失败而偏移。
     sector_limit_up = market.get("sector_limit_up_count")

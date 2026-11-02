@@ -87,8 +87,9 @@ def score(stock_data: dict) -> Dict[str, float]:
         sent = 10
 
     # 风险：大盘趋势 + 炸板率 + 监管
-    idx_above_ma20 = market.get("index_above_ma20", True)
-    limit_up_total = market.get("limit_up_count", 0)
+    idx_above_ma20 = market.get("index_above_ma20")
+    idx_above_ma20 = True if idx_above_ma20 is None else bool(idx_above_ma20)
+    limit_up_total = _safe_float(market.get("limit_up_count"))
     if idx_above_ma20 and limit_up_total > 50:
         risk = 100
     elif not idx_above_ma20 or limit_up_total < 20:

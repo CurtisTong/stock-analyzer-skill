@@ -57,7 +57,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         tech = 80 if trend > 0 else (40 if trend == 0 else 10)
 
     # 情绪/反身性：逆向——极度悲观=机会，高度一致看多=风险
-    limit_up = market.get("limit_up_count", 0)
+    limit_up = _safe_float(market.get("limit_up_count"))
     adv = market.get("advance_ratio")
     if limit_up > 80 or (adv is not None and adv > 0.7):
         sent = 40  # 亢奋，一致性过高
@@ -67,8 +67,8 @@ def score(stock_data: dict) -> Dict[str, float]:
         sent = 100  # 冰点，反向机会
 
     # 风险：流动性 + 政策
-    total_amount = market.get("total_amount", 0)
-    limit_down = market.get("limit_down_count", 0)
+    total_amount = _safe_float(market.get("total_amount"))
+    limit_down = _safe_float(market.get("limit_down_count"))
     cfg = _get_scoring_config()
     liquidity_floor = cfg("experts.soros.market_liquidity_floor_yi", _SOROS_LIQUIDITY_FLOOR_DEFAULT)
     if total_amount > 0 and total_amount < liquidity_floor:

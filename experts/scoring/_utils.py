@@ -229,7 +229,7 @@ def _score_technical(kline_features: dict) -> float:
     elif trend < 0:
         score -= 20
 
-    rsi = kline_features.get("rsi", 50)
+    rsi = _safe_float(kline_features.get("rsi"), 50.0)
     if 30 <= rsi <= 70:
         score += 5
     elif rsi > 80:
@@ -237,7 +237,7 @@ def _score_technical(kline_features: dict) -> float:
     elif rsi < 20:
         score -= 5
 
-    macd = kline_features.get("macd_signal", 0)
+    macd = _safe_float(kline_features.get("macd_signal"))
     if macd > 0:
         score += 10
     elif macd < 0:
@@ -272,7 +272,7 @@ def _score_sentiment(market_features: dict) -> float:
         elif nh_nl_ratio < 0.5:
             score -= 10
 
-    limit_up_count = market_features.get("limit_up_count", 0)
+    limit_up_count = _safe_float(market_features.get("limit_up_count"))
     if limit_up_count > 80:
         score += 15
     elif limit_up_count > 50:
@@ -282,7 +282,7 @@ def _score_sentiment(market_features: dict) -> float:
     elif limit_up_count < 15:
         score -= 15
 
-    limit_down_count = market_features.get("limit_down_count", 0)
+    limit_down_count = _safe_float(market_features.get("limit_down_count"))
     if limit_down_count > 50:
         score -= 25
     elif limit_down_count > 20:

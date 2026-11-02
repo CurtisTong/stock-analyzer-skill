@@ -33,7 +33,7 @@ def score(stock_data: dict) -> Dict[str, float]:
     val = 100 if 0 < circ_cap < 200 else 50
 
     # 技术面：市场温度计
-    limit_up = market.get("limit_up_count", 0)
+    limit_up = _safe_float(market.get("limit_up_count"))
     if limit_up > 80:
         tech = 100
     elif limit_up >= 40:
@@ -42,8 +42,8 @@ def score(stock_data: dict) -> Dict[str, float]:
         tech = 0
 
     # 情绪：情绪周期阶段（核心维度）
-    limit_down = market.get("limit_down_count", 0)
-    break_rate = market.get("break_rate", 0)
+    limit_down = _safe_float(market.get("limit_down_count"))
+    break_rate = _safe_float(market.get("break_rate"))
     if limit_down > 50 and break_rate > 0.6:
         sent = 100  # 冰点转折
     elif limit_up > 80 and break_rate < 0.2:

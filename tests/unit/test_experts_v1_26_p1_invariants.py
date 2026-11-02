@@ -504,3 +504,120 @@ class TestExpertWeightMirror:
         weights = mod._parse_md_weights(md)
         assert weights, "buffett.md 应能解析出维度权重"
         assert abs(sum(weights.values()) - 100.0) <= 1.0
+
+
+# ═══════════════════════════════════════════════════════════════
+# debate 生产闭环
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestDebateProductionLoop:
+    """run_debate 必须有生产调用方，且落库可控。"""
+
+    def test_cli_exposes_debate_mode(self):
+        """experts_cli 必须提供 --debate 入口（此前 run_debate 无生产调用方）。"""
+        import importlib
+        import inspect
+
+        mod = importlib.import_module("scripts.dev.experts_cli")
+        assert hasattr(mod, "run_debate_for_stock"), "缺少 debate 闭环入口"
+        sig = inspect.signature(mod.run_debate_for_stock)
+        assert "record" in sig.parameters, "run_debate_for_stock 应支持关闭落库"
+
+    def test_run_debate_supports_record_flag(self):
+        """experts.decide.run_debate 必须支持 record=False（试跑不落库）。"""
+        import inspect
+
+        from experts.decide import run_debate
+
+        sig = inspect.signature(run_debate)
+        assert "record" in sig.parameters
+        assert sig.parameters["record"].default is True
+
+    def test_record_false_does_not_write(self, tmp_path, monkeypatch):
+        """record=False 时不得写校准库。"""
+        import experts.calibration as cal_mod
+        from experts.decide import run_debate
+
+        called = []
+        monkeypatch.setattr(cal_mod, "record_prediction", lambda **kw: called.append(kw) or "x")
+
+        results = [_expert("a", 70), _expert("b", 70, group="short_term")]
+        run_debate("sh600000", results, market_state=_MARKET_STATE, record=False)
+        assert not called, "record=False 时不应调用 record_prediction"
+
+    def test_record_true_writes_original_scores(self, monkeypatch):
+        """record=True 时落库的是原始判断分。"""
+        import experts.calibration as cal_mod
+        from experts.decide import run_debate
+
+        captured = {}
+        monkeypatch.setattr(cal_mod, "record_prediction", lambda **kw: captured.update(kw) or "pred-1")
+
+        results = [_expert("a", 80)]
+        out = run_debate("sh600000", results, market_state=_MARKET_STATE)
+        # 无风险折扣时落库分 = 原始分
+        assert captured["expert_scores"]["a"] == 80.0
+        assert out["_pred_id"] == "pred-1"
+
+
+class TestNoneSafeScoring:
+    """上游把缺失字段显式置 None 时，专家不得崩溃。"""
+
+    def test_xu_xiang_handles_none_market_fields(self):
+        """sector_limit_up_count / seal_ratio 为 None 时不崩。"""
+        from experts.scoring import xu_xiang
+
+        data = {
+            "quote": {"pe": 20.0, "pb": 2.0, "circulating_cap": 80.0},
+            "finance": {"eps": 0.5},
+            "market_features": {
+                "limit_up_count": None,
+                "limit_down_count": None,
+                "sector_limit_up_count": None,
+                "seal_to_circ_ratio": None,
+                "advance_ratio": None,
+                "index_above_ma20": None,
+            },
+            "kline_data": {},
+        }
+        result = xu_xiang.score(data)  # 不得抛 TypeError
+        assert isinstance(result, dict)
+        assert all(isinstance(v, (int, float)) for v in result.values() if v is not None)
+
+    def test_all_active_experts_survive_none_market_fields(self):
+        """8 位 active 专家在 None 字段下均不崩溃。"""
+        from experts import list_active_experts
+        from experts.scoring import score_expert_precise
+
+        data = {
+            "quote": {
+                "pe": None,
+                "pb": None,
+                "price": None,
+                "circulating_cap": None,
+                "pe_percentile": None,
+                "name": None,
+                "amount": None,
+            },
+            "finance": {
+                "roe": None,
+                "net_profit_yoy": None,
+                "debt_ratio": None,
+                "eps": None,
+                "ocf_per_share": None,
+            },
+            "kline_features": {"trend": None, "rsi": None, "macd_signal": None},
+            "kline_data": {},
+            "market_features": {
+                "limit_up_count": None,
+                "limit_down_count": None,
+                "advance_ratio": None,
+                "break_rate": None,
+                "limit_up_30d_count": None,
+                "sector_limit_up_count": None,
+            },
+        }
+        for profile in list_active_experts():
+            result = score_expert_precise(profile, data)
+            assert result["score"] is None or isinstance(result["score"], (int, float))
