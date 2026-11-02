@@ -244,6 +244,18 @@ def _analyze(
     return result
 
 
+def _valid_kline_bars(kline: list) -> list:
+    """与 technical.pipeline.compute_indicators 同口径过滤 K 线（M3，v1.31 补口）。
+
+    五字段（close/open/high/low/volume）全 > 0 才保留，确保本函数内
+    closes/highs/lows 数组与 compute_indicators 的 K 线条数一致——
+    原实现只过滤 close/volume 两字段，存在 open/high/low 为零的 K 线时
+    RSI/MACD/量能（pipeline 口径）与 MA/KDJ/BOLL/形态（本函数口径）
+    错位一根。
+    """
+    return [b for b in kline if b.close > 0 and b.open > 0 and b.high > 0 and b.low > 0 and b.volume > 0]
+
+
 def _analyze_technical(kline: list) -> dict:
     """技术分析（接收 KlineBar 对象列表）。
 
@@ -261,10 +273,9 @@ def _analyze_technical(kline: list) -> dict:
     result = {}
     try:
         indicators = compute_indicators(kline)
-        # M3 修复：与 technical.pipeline.compute_indicators 同口径过滤（close/volume > 0），
-        # 确保 closes/highs/lows 数组对齐（原实现 highs/lows 未过滤零值记录，
-        # 存在零值 K 线时 KDJ 索引错位；形态识别也使用同一批 valid_kline）
-        valid_kline = [b for b in kline if b.close > 0 and b.volume > 0]
+        # 与 compute_indicators 同口径过滤（见 _valid_kline_bars），
+        # 确保 closes/highs/lows 数组对齐；形态识别也使用同一批 valid_kline
+        valid_kline = _valid_kline_bars(kline)
         closes = [b.close for b in valid_kline]
         highs = [b.high for b in valid_kline]
         lows = [b.low for b in valid_kline]

@@ -232,6 +232,34 @@ def render_brief(result: dict) -> str:
     )
 
 
+def _attach_backtest(result: dict, code: str) -> None:
+    """附加近 60 日回测胜率（--with-backtest，直接函数调用避免 subprocess 开销）。
+
+    run_backtest 的文档化失败路径返回 {"error": ...}，必须走 backtest_error
+    降级展示（render_text 的 "⚠ 回测失败" 分支 + data_failed 护栏条），
+    不得把缺字段渲染成 0% 胜率——回测失败与"没跑赢"必须可区分。
+    """
+    try:
+        from backtest.metrics import run_backtest
+
+        bt = run_backtest("balanced", [code], days=60)
+        if "error" in bt:
+            result["backtest_error"] = str(bt["error"])
+            result.setdefault("data_failed", []).append("回测胜率")
+        else:
+            result["backtest"] = {
+                "win_rate": bt.get("win_rate_pct"),
+                "total_return": bt.get("total_return_pct"),
+                "sharpe": bt.get("sharpe_ratio"),
+                "max_drawdown": bt.get("max_drawdown_pct"),
+            }
+    except Exception as e:
+        # M4: --with-backtest 失败时显式标 data_failed，
+        # 让 render_footer 在 SKILL.md 约定的"数据护栏条"中体现降级。
+        result["backtest_error"] = str(e)
+        result.setdefault("data_failed", []).append("回测胜率")
+
+
 def _known_code(code: str) -> bool:
     """代码是否在本地任意已知池（all_stocks.json / sector_stocks.json）。
 
@@ -328,23 +356,9 @@ def main():
         print(f"❌ {blackout_msg}", file=sys.stderr)
         sys.exit(2)
 
-    # 附加回测胜率（直接函数调用，避免 subprocess 开销）
+    # 附加回测胜率（--with-backtest）
     if args.with_backtest:
-        try:
-            from backtest.metrics import run_backtest
-
-            bt = run_backtest("balanced", [args.code], days=60)
-            result["backtest"] = {
-                "win_rate": bt.get("win_rate_pct"),
-                "total_return": bt.get("total_return_pct"),
-                "sharpe": bt.get("sharpe_ratio"),
-                "max_drawdown": bt.get("max_drawdown_pct"),
-            }
-        except Exception as e:
-            # M4: --with-backtest 失败时显式标 data_failed，
-            # 让 render_footer 在 SKILL.md 约定的"数据护栏条"中体现降级。
-            result["backtest_error"] = str(e)
-            result.setdefault("data_failed", []).append("回测胜率")
+        _attach_backtest(result, args.code)
 
     if args.json_output:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
