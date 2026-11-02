@@ -27,14 +27,22 @@ PKG_ROOT = Path(__file__).resolve().parent.parent.parent
 SKILLS_DIR = PKG_ROOT / "skills"
 SETTINGS_FILE = PKG_ROOT / ".claude" / "settings.json"
 
-# 匹配 `python3 scripts/xxx.py` 内联命令
-_CMD_INLINE_RE = re.compile(r"`(python3\s+scripts/[^\s`]+)`")
+# 匹配 `python3 scripts/xxx.py [args...]` 内联命令（v1.31 修复：旧正则
+# `[^\s`]+` 不允许反引号内出现空格，所有带参命令全部漏检——假阳性"全部通过"）
+_CMD_INLINE_RE = re.compile(r"`(python3\s+scripts/[^`\n]+)`")
+# 内联 python3 -c 命令（portfolio CRUD 的文档化执行路径）
+_CMD_PYC_INLINE_RE = re.compile(r"`(python3\s+-c\s+[^`\n]+)`")
 # 匹配代码块内的 python3 scripts/ 命令（去掉行首 $ 或 # 提示符）
 _CMD_BLOCK_RE = re.compile(r"^\s*[$#]?\s*(python3\s+scripts/\S+)", re.MULTILINE)
+# 代码块内的 python3 -c 命令（单行）
+_CMD_PYC_BLOCK_RE = re.compile(r"^\s*[$#]?\s*(python3\s+-c\s+\S[^\n]*)$", re.MULTILINE)
 # 匹配 Read(...) 路径
 _READ_RE = re.compile(r"Read\(([^)]+)\)")
 # 匹配 fenced code blocks
 _CODE_BLOCK_RE = re.compile(r"```(?:bash|shell|text)?\n(.*?)```", re.DOTALL)
+# frontmatter 块与 allowed-tools 行
+_FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
+_ALLOWED_TOOLS_RE = re.compile(r"^allowed-tools:\s*(.+)$", re.MULTILINE)
 
 
 def load_settings():
@@ -47,22 +55,42 @@ def load_settings():
 
 
 def parse_skill_commands(skill_md_path):
-    """从 SKILL.md 提取所有 python3 scripts/ 命令和 Read(...) 路径。"""
+    """从 SKILL.md 提取所有 python3 scripts/ 与 python3 -c 命令和 Read(...) 路径。"""
     text = skill_md_path.read_text(encoding="utf-8")
 
-    # 1. 内联反引号命令
+    # 1. 内联反引号命令（含参数）
     cmds = set(_CMD_INLINE_RE.findall(text))
+    cmds.update(_CMD_PYC_INLINE_RE.findall(text))
 
     # 2. 代码块内的命令（fenced code blocks）
     for block_match in _CODE_BLOCK_RE.finditer(text):
         block = block_match.group(1)
         for cmd_match in _CMD_BLOCK_RE.finditer(block):
             cmds.add(cmd_match.group(1).strip())
+        for cmd_match in _CMD_PYC_BLOCK_RE.finditer(block):
+            cmds.add(cmd_match.group(1).strip())
 
     # 提取 Read(...) 路径（去重）
     reads = sorted(set(_READ_RE.findall(text)))
 
     return sorted(cmds), reads
+
+
+def parse_frontmatter_patterns(skill_md_path):
+    """提取 SKILL.md frontmatter allowed-tools 中的 Bash(...) 模式列表。
+
+    skill 激活时工具层按 frontmatter 拦截——settings.json 全局放行但
+    frontmatter 缺失的命令，在 skill 会话内依然会被拒（闭环校验用）。
+    """
+    text = skill_md_path.read_text(encoding="utf-8")
+    fm = _FRONTMATTER_RE.search(text)
+    if not fm:
+        return []
+    at = _ALLOWED_TOOLS_RE.search(fm.group(1))
+    if not at:
+        return []
+    # 返回与 load_settings 相同契约（Bash(...) 包裹），match_command_to_allow 依赖它
+    return [f"Bash({p})" for p in re.findall(r"Bash\(([^)]*)\)", at.group(1))]
 
 
 def match_command_to_allow(cmd, allow_patterns):
@@ -113,6 +141,11 @@ def check_path_exists(path_str, skill_dir):
 def main():
     parser = argparse.ArgumentParser(description="SKILL.md vs settings.json 自审计")
     parser.add_argument("--ci", action="store_true", help="CI 模式：有遗漏时 exit 1")
+    parser.add_argument(
+        "--strict-frontmatter",
+        action="store_true",
+        help="frontmatter 缺授权也视为错误（默认仅警告）",
+    )
     args = parser.parse_args()
 
     allow_patterns = load_settings()
@@ -135,12 +168,21 @@ def main():
     for skill_md in skill_files:
         skill_name = skill_md.parent.name
         cmds, reads = parse_skill_commands(skill_md)
+        fm_patterns = parse_frontmatter_patterns(skill_md)
 
         for cmd in cmds:
-            if match_command_to_allow(cmd, allow_patterns):
-                ok_count += 1
-            else:
+            if not match_command_to_allow(cmd, allow_patterns):
                 errors.append(f"  ❌ [{skill_name}] {cmd}")
+                continue
+            # settings 已授权：再查 skill 自身 frontmatter（skill 激活时按其拦截）
+            if fm_patterns and not match_command_to_allow(cmd, fm_patterns):
+                msg = f"  ⚠️  [{skill_name}] settings 已授权但 frontmatter 缺失: {cmd}"
+                if args.strict_frontmatter:
+                    errors.append(msg)
+                else:
+                    warnings.append(msg)
+                continue
+            ok_count += 1
 
         for path_str in reads:
             if not check_path_exists(path_str, skill_md.parent):

@@ -77,11 +77,12 @@ def _generate_signals(features, market_breadth=None):
     shrink_desc = vol.get("shrink_desc", "")
 
     # 市场宽度信号（徐翔、赵老哥、养家建议）
+    # v1.31.0：整体失败时 up_ratio 为 None（不可用），跳过涨跌比信号而非崩溃/误判
     if market_breadth:
         limit_up = market_breadth.get("limit_up_count", 0)
         limit_down = market_breadth.get("limit_down_count", 0)
         continuous_height = market_breadth.get("continuous_limit_height", 0)
-        up_ratio = market_breadth.get("up_ratio", 0)
+        up_ratio = market_breadth.get("up_ratio")
 
         # 涨停/跌停信号
         for desc in _signal_limit_up_down(limit_up, limit_down).values():
@@ -91,9 +92,10 @@ def _generate_signals(features, market_breadth=None):
         for desc in _signal_continuous_height(continuous_height).values():
             sell.append(desc)
 
-        # 涨跌比信号
-        for desc in _signal_advance_decline(up_ratio).values():
-            buy.append(desc)
+        # 涨跌比信号（None=宽度不可用，无方向信号）
+        if up_ratio is not None:
+            for desc in _signal_advance_decline(up_ratio).values():
+                buy.append(desc)
 
     # 买入信号
     if macd.get("signal") == 1:

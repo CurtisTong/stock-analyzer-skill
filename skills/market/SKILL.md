@@ -1,7 +1,7 @@
 ---
 name: market
 description: 大盘复盘。触发词：今天大盘怎么样、市场今天如何、行情怎么样、今天涨跌、大盘分析、市场复盘、今日行情、美股昨晚怎么样。用于市场快评/完整复盘/盘中分时、指数/板块ETF/风格轮动/资金偏好判断、美股收盘参考。
-version: 1.30.0
+version: 1.31.0
 model: glm-5.2
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/sector_summary.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
 ---
@@ -112,13 +112,23 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 ### 数据降级硬约束
 
-当 `market_breadth` 返回的 `breadth._degraded == true`（`limit_up_count == 0 且 limit_down_count == 0` 且 token 未配置/接口异常）时：
+当 `market_breadth` 返回的 `breadth._degraded == true` 时，**先区分两种降级**（v1.31.0 起，以 `breadth.up_count` 是否为 `null` 判别）：
 
-1. **不得**将 `market_state.state`（"退潮"/"冰点"等）作为核心结论层层引用。降级时 state 已改为"偏强(宽度)"/"偏弱(宽度)"/"震荡(宽度)"后缀，置信度为"低"。
-2. 改用 `breadth.up_ratio`（涨跌比）+ `up_count/down_count` 重新定性情绪，**明确标注**"⚠️ 涨跌停数据降级，情绪状态待确认"。
-3. 操作建议中**不得**引用基于降级值的约束（如"退潮期内不加仓涨停股"）。涨停/连板为 0 是降级值，不是真实市场状态。
-4. **regime vs emotion_phase 影响区分**：`market_anchor.regime`（bull/bear/sideways）基于 `advance_ratio`（真实涨跌家数计算，不依赖 token），降级时仍可信；`emotion_phase`（退潮/冰点/主升）依赖涨停/连板数据，降级时不可信，须按上一条改用涨跌比定性。
-5. VIX 等宏观字段：检查 `macro.<field>_source`，若为 `fixture` 或 `fixture(stale)`，须在展示时标注 `[fixture]` / `[fixture(stale)]`，不得当实时数据呈现。market_anchor 的 markdown 渲染已自动追加 `[source]` 标记，JSON 输出中需人工识别。
+**a) 整体失败**（`up_count == null`，指数 API 异常，涨跌家数不可用）：
+
+1. `market_state.state` 为"宽度不可用"、`emotion_phase` 为 null——**禁止**用涨跌比 0 定性"市场普跌"（降级前版本的实际 bug：当日指数上涨却输出普跌结论）。
+2. 此时 `market_anchor.regime` 已自动走 MA20+量比退化判定（`regime_reason` 含"退化判定"字样），引用时注明"宽度缺失，基于价格/量能退化判定"；**禁止**将 `emotion_phase` 或涨跌停相关约束（如"退潮期内不加仓涨停股"）写入结论。
+3. **替代证据**：用 `sector_summary.py` 输出的板块 `up_count/down_count`（真实可得）聚合定性宽度，配合 `quote.py` 指数涨跌交叉验证，并标注"涨跌停/家数数据不可用，情绪状态待确认"。
+
+**b) 仅涨跌停降级**（token 未配置，`up_count` 仍为真实值）：
+
+1. state 已改为"偏强(宽度)"/"偏弱(宽度)"/"震荡(宽度)"后缀，可按 `up_ratio`（涨跌比）+ `up_count/down_count` 定性，**明确标注**"⚠️ 涨跌停数据降级，情绪状态待确认"。
+2. `market_anchor.regime` 基于 `advance_ratio`（真实涨跌家数，不依赖 token）此时仍可信。
+
+**两种降级共同约束**：
+
+1. 置信度均为"低"，不得作为核心结论层层引用；操作建议不得引用基于降级值的约束。
+2. VIX 等宏观字段：检查 `macro.<field>_source`，若为 `fixture` 或 `fixture(stale)`，须在展示时标注 `[fixture]` / `[fixture(stale)]`，不得当实时数据呈现。market_anchor 的 markdown 渲染已自动追加 `[source]` 标记，JSON 输出中需人工识别。
 
 ### 时间戳一致性
 

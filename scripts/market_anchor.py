@@ -118,9 +118,14 @@ def _fetch_breadth() -> dict | None:
     """
     try:
         breadth = market_breadth.get_market_breadth()
+        # 宽度整体拉取失败时 up_count/up_ratio 为 None（v1.31.0 起不再用 0 兜底）：
+        # 返回 None 让上游走"无宽度退化判定"（MA20+量比）并标记 degraded，
+        # 避免把默认 advance_ratio=0.5 当真实数据喂给 regime 判定（恒判"震荡"）。
+        up = breadth.get("up_count")
+        down = breadth.get("down_count")
+        if up is None or down is None:
+            return None
         # 转换为 detect_market_state 期望的格式
-        up = breadth.get("up_count", 0)
-        down = breadth.get("down_count", 0)
         total = up + down
         advance_ratio = up / total if total > 0 else 0.5
         return {
