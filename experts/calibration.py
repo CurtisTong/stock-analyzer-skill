@@ -24,6 +24,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from experts.types import BEARISH_DIRECTIONS, BULLISH_DIRECTIONS, NEUTRAL_DIRECTION
+
 try:
     import fcntl
 
@@ -71,6 +73,28 @@ def _expert_horizon(name: str) -> int:
     return EXPERT_HORIZON_DAYS.get(name, DEFAULT_HORIZON_DAYS)
 
 
+def direction_matches(direction: str, actual_direction: str) -> bool:
+    """判断方向判断是否与实际走势一致。
+
+    覆盖 7 级方向标签（含"谨慎看多"/"谨慎看空"——vote_engine 的冲突解决
+    路径会产出这两个标签，漏掉会让谨慎方向的预测永远记为失败）。
+
+    Args:
+        direction: 预测方向标签
+        actual_direction: 实际方向（上涨/下跌/横盘）
+
+    Returns:
+        是否一致
+    """
+    if direction in BULLISH_DIRECTIONS:
+        return actual_direction == "上涨"
+    if direction in BEARISH_DIRECTIONS:
+        return actual_direction == "下跌"
+    if direction == NEUTRAL_DIRECTION:
+        return actual_direction == "横盘"
+    return False
+
+
 def _directional_return(ret: float, expert_direction: str) -> float:
     """按专家方向调整收益符号（slugging 赔率口径）。
 
@@ -78,7 +102,7 @@ def _directional_return(ret: float, expert_direction: str) -> float:
     看空专家的赔率会是负数（实测 -1.60），语义完全错乱。
     此处统一折算为"相对专家方向的收益"：看多取原值，看空取相反数。
     """
-    if expert_direction in ("看空", "强烈看空"):
+    if expert_direction in BEARISH_DIRECTIONS:
         return -ret
     return ret
 
@@ -99,7 +123,7 @@ def _lesson_improvement(expert_name: str, direction: str, actual: str, score: fl
     if direction == "中性":
         return "中性判断错过单边行情：横盘结论需要波动率/量能条件支撑，条件不足时降为观望并缩短复核周期"
 
-    bullish = direction in ("强烈看多", "看多")
+    bullish = direction in BULLISH_DIRECTIONS
     went_down = actual in ("下跌", "横盘")
     if bullish and went_down:
         if group == "short_term":
@@ -300,8 +324,16 @@ def get_kline_return(stock_code: str, start_date: str, end_date: str) -> float:
     except ImportError as e:
         raise ValueError(f"无法导入 data.get_kline: {e}") from e
 
-    # 取足够长的日线覆盖 start_date 到 end_date（最多 120 个交易日）
-    bars = get_kline(stock_code, scale=240, datalen=120)
+    # 取足够长的日线覆盖 start_date 到 end_date。
+    # （v1.26.0）：原实现固定 datalen=120（≈168 自然日），而长线专家的
+    # horizon 是 180 自然日（≈130 交易日）——K 线覆盖不到窗口起点，
+    # "取 >= start_date 的第一个交易日"会落到 13 天之后，窗口被静默缩短，
+    # 长线专家的正确/错误判定双向失真（生产 long factor=-0.2886 由此而来）。
+    # 现在按实际区间长度换算所需交易日数并留出冗余。
+    span_days = (datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_date, "%Y-%m-%d")).days
+    # 自然日 → 交易日：周末约占 2/7，再留 15% 节假日冗余
+    required_bars = max(120, int(span_days / 7 * 5 * 1.15) + 30)
+    bars = get_kline(stock_code, scale=240, datalen=required_bars)
     if not bars:
         raise ValueError(f"获取 {stock_code} K 线数据为空")
 
@@ -321,9 +353,11 @@ def get_kline_return(stock_code: str, start_date: str, end_date: str) -> float:
     sorted_days = sorted(by_day.keys())
 
     # 匹配起始日：取 >= start_date 的第一个交易日
+    start_day = None
     start_close = None
     for d in sorted_days:
         if d >= start_date:
+            start_day = d
             start_close = by_day[d]
             break
     # 匹配结束日：取 <= end_date 的最后一个交易日
@@ -335,6 +369,17 @@ def get_kline_return(stock_code: str, start_date: str, end_date: str) -> float:
 
     if start_close is None or end_close is None or start_close <= 0:
         raise ValueError(f"{stock_code} 在 [{start_date}, {end_date}] 区间无有效价格")
+
+    # 覆盖度校验：实际起点若明显晚于请求起点，说明 K 线不足以覆盖整个
+    # 窗口（数据源历史长度不够），此时算出的收益率对应的是被缩短的窗口，
+    # 会污染校准样本。此时报错让该样本跳过，而不是记入错误方向。
+    if start_day is not None:
+        actual_span = (datetime.strptime(end_date, "%Y-%m-%d") - datetime.strptime(start_day, "%Y-%m-%d")).days
+        if actual_span < span_days * 0.8:
+            raise ValueError(
+                f"{stock_code} K 线覆盖不足：请求窗口 {span_days} 天，"
+                f"实际起点 {start_day}（仅覆盖 {actual_span} 天）"
+            )
 
     return (end_close / start_close - 1) * 100
 
@@ -514,14 +559,7 @@ def verify_predictions(
                 if actual_direction is not None:
                     expert_direction = direction_from_score(expert_scores[expert_name])
                     is_correct = None
-                    if expert_direction in ("强烈看多", "看多") and actual_direction == "上涨":
-                        is_correct = True
-                    elif expert_direction in ("看空", "强烈看空") and actual_direction == "下跌":
-                        is_correct = True
-                    elif expert_direction == "中性" and actual_direction == "横盘":
-                        is_correct = True
-                    else:
-                        is_correct = False
+                    is_correct = direction_matches(expert_direction, actual_direction)
                     data["experts"][expert_name]["events"] += 1
                     if is_correct:
                         data["experts"][expert_name]["correct"] += 1
@@ -593,14 +631,7 @@ def verify_predictions(
         pred_direction = pred.get("direction", "")
         pred_correct = None
         if main_direction is not None:
-            if pred_direction in ("强烈看多", "看多") and main_direction == "上涨":
-                pred_correct = True
-            elif pred_direction in ("看空", "强烈看空") and main_direction == "下跌":
-                pred_correct = True
-            elif pred_direction == "中性" and main_direction == "横盘":
-                pred_correct = True
-            else:
-                pred_correct = False
+            pred_correct = direction_matches(pred_direction, main_direction)
 
         pred["settled_experts"] = sorted(settled)
         details.append(
@@ -835,6 +866,7 @@ __all__ = [
     "get_kline_return",
     "get_calibration_report",
     "get_lessons",
+    "direction_matches",
     "MIN_CALIBRATION_SAMPLES",
     "EXPERT_HORIZON_DAYS",
     "DEFAULT_HORIZON_DAYS",
