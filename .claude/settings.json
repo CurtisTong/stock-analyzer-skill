@@ -70,7 +70,8 @@
       "WebFetch(domain:push2.eastmoney.com)",
       "WebFetch(domain:xueqiu.com)",
       "Bash(python3 scripts/sector_summary.py *)",
-      "Bash(python3 -c *)"
+      "Bash(python3 -c *)",
+      "Bash(python3 scripts/business/mine_risk.py *)"
     ],
     "deny": [
       "Bash(sudo:*)",

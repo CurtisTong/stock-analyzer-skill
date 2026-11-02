@@ -3,7 +3,7 @@ name: research
 description: 深度研究。触发词：深度研究一下XX、财务分析XX、排雷XX、DCF估值、写一份研究报告、XX的投资价值分析、对比XX和XX、XX能不能长期持有、XX的盈利质量怎么样。财务建模（DCF/杜邦/排雷）和全维度投资研究报告。
 version: 1.31.0
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/announcements.py *) Bash(python3 scripts/events.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/sector.py *) Bash(python3 scripts/concept.py *) Bash(python3 scripts/industry_beta.py *) Bash(python3 scripts/portfolio_correlation.py *) Bash(python3 scripts/stock.py *) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/finance.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/announcements.py *) Bash(python3 scripts/events.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/sector.py *) Bash(python3 scripts/concept.py *) Bash(python3 scripts/industry_beta.py *) Bash(python3 scripts/portfolio_correlation.py *) Bash(python3 scripts/stock.py *) Bash(python3 scripts/business/mine_risk.py *) Read(./methodology.md) Read(./experts/*.md) Read(./skills/_shared/references/*.md)
 ---
 
 # 深度研究
@@ -85,6 +85,18 @@ python3 scripts/announcements.py 600989 reports  # 券商研报
 | 毛利率突变 > ±10pct/年 | ⚠️ | 需确认原因（产品结构/价格/成本） |
 | 商誉/净资产 > 30% | ⚠️ | 减值风险 |
 | 大股东质押 > 60% | 🔴 | 流动性风险 |
+
+**排雷数据源（v1.31 新增，此前商誉/质押无任何数据来源）**：
+
+```bash
+python3 scripts/business/mine_risk.py sh600989 -j
+```
+
+输出 `{goodwill, pledge, flags, degraded}`：商誉/净资产比例（akshare 东财年报，
+报告期自动回退最近可用年）+ 大股东质押比例（全市场最新交易日快照，无记录=0）+
+超阈值 flags。`degraded` 非空时如实标注"数据不可用"，不得编造排雷结论。
+注意：本表阈值为 research 口径；screener 流水线用 limits.yaml 的
+goodwill_ratio（商誉/总资产 30/50）与 pledge_ratio（70/85），分母与阈值均不同。
 
 #### 杜邦分解（ROE 驱动力）
 
