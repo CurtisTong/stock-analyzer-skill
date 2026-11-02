@@ -210,12 +210,25 @@ def format_report(
     strategy_results: list[dict],
     benchmark_results: list[dict],
     codes: list[str],
+    total_days: int = 60,
+    holding_days: int = 5,
 ) -> str:
-    """生成 markdown 报告。"""
+    """生成 markdown 报告。
+
+    显式披露持有期口径（v1.31 审查修复）：本脚本默认每期持有 5 日
+    （60 日 ≈ 12 期），而 /backtest 默认 days=60/rounds=5 推导出
+    holding_days=12（5 期）——两组数字不可直接对照，报告必须写明
+    自己的口径。
+    """
     lines = []
     lines.append("# 多股票外样本回测报告\n")
     lines.append(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     lines.append(f"股票池: {len(codes)} 只 A 股\n")
+    lines.append(
+        f"回测口径: 总窗口 {total_days} 日，每期持有 {holding_days} 日"
+        f"（约 {total_days // holding_days if holding_days else 0} 期）"
+        f"——与 `/backtest` 默认口径（60 日/5 期，每期 12 日）**不可直接对照**\n"
+    )
     lines.append("")
 
     lines.append("## 1. 策略回测结果\n")
@@ -257,9 +270,16 @@ def format_report(
         sr = strategy_results[0]
         br = benchmark_results[0]
         if "error" not in sr and "error" not in br:
-            # 用平均收益差近似 alpha（run_backtest 未返回年化收益）
-            alpha = sr["result"].get("avg_return_pct", 0) - br["result"].get("avg_return_pct", 0)
-            lines.append(f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2f}%\n")
+            # 优先用 metrics 的 alpha（v1.24+ 按同期日收益对齐计算），
+            # 缺数据时退回"平均收益差"近似并如实标注口径
+            alpha = sr["result"].get("alpha")
+            if alpha is not None:
+                lines.append(
+                    f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2f}%（metrics 同期日收益口径）\n"
+                )
+            else:
+                alpha = sr["result"].get("avg_return_pct", 0) - br["result"].get("avg_return_pct", 0)
+                lines.append(f"- {sr['strategy']} 相对 {br['benchmark']}: alpha = {alpha:+.2f}%（平均收益差近似）\n")
 
     lines.append("## 4. 重要提示\n")
     lines.append("- ⚠️ 本回测为**样本外**测试，股票池与 ma_volume_combined 原 5 只样本不重叠")
@@ -339,7 +359,13 @@ def main() -> None:
             r = result["result"]
             print(f"   ✅ 总收益 {r.get('total_return_pct', 0):.2f}%")
 
-    report = format_report(strategy_results, benchmark_results, codes)
+    report = format_report(
+        strategy_results,
+        benchmark_results,
+        codes,
+        total_days=args.total_days,
+        holding_days=args.holding_days,
+    )
 
     if args.output:
         out_path = PKG_ROOT / args.output
