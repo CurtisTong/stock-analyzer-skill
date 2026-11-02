@@ -31,7 +31,68 @@ _FORBIDDEN_PHRASES = (
 
 # reason 缺数据引用检测：核心理由应引用触发评分矩阵分支的具体数值
 # 匹配任意数字（含百分号、小数），如 "PE 35倍"、"ROE 18%"、"分位 85%"
-_HAS_DATA_TOKEN = re.compile(r"\d+(?:\.\d+)?%?")
+_HAS_DATA_TOKEN = re.compile(r"\d+(?:\.\d+)?")
+
+# ═══════════════════════════════════════════════════════════════
+# 合规措辞改写（v1.26.0）
+# 权威源：skills/_shared/references/guardrails.md §三、
+# skills/_shared/references/output-template.md（禁用措辞对照表）。
+# experts 层原先直出"减仓/清仓/止损位"，LLM 直出即踩合规红线。
+# ═══════════════════════════════════════════════════════════════
+
+# (禁用词, 替代词)——按出现顺序逐个替换，长词优先
+_COMPLIANCE_REPLACEMENTS = (
+    ("建议买入", "观察偏多"),
+    ("建议卖出", "观察偏空"),
+    ("建议加仓", "观察增配"),
+    ("建议减仓", "观察降配"),
+    ("建议清仓", "观察观望"),
+    ("减仓", "降低敞口"),
+    ("清仓", "退出观察"),
+    ("加仓", "增配"),
+    ("买入", "观察偏多"),
+    ("卖出", "观察偏空"),
+    ("止损位", "观察下沿"),
+    ("止盈位", "观察上沿"),
+    ("止损价", "观察下沿价"),
+    ("目标价", "观察上沿"),
+    ("强烈推荐", "综合研判"),
+    ("强推", "综合研判"),
+)
+
+# 表格单元格转义：竖线会破坏 markdown 表格结构，换行会把一行拆成两行
+_MAX_REASON_LEN = 300
+
+
+def _escape_table_cell(text: str) -> str:
+    """转义 markdown 表格单元格内容。
+
+    reason 来自 LLM 推理，最易出现竖线（`|`）与换行——不转义会把
+    4 列的专家评分表撑成 7 列，或把一行截断成两行。
+    """
+    if text is None:
+        return ""
+    text = str(text)
+    text = text.replace("\\", "\\\\").replace("|", "\\|")
+    # 换行压平为空格（表格单元格不能跨行）
+    text = re.sub(r"\r\n|\r|\n", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) > _MAX_REASON_LEN:
+        text = text[:_MAX_REASON_LEN] + "…"
+    return text
+
+
+def _apply_compliance(text: str) -> str:
+    """把禁用措辞替换为合规替代词。
+
+    仅替换措辞，不改变语义方向与数值（如"减仓50%" → "降低敞口50%"）。
+    """
+    if not text:
+        return text
+    for forbidden, replacement in _COMPLIANCE_REPLACEMENTS:
+        if forbidden in text:
+            text = text.replace(forbidden, replacement)
+    return text
 
 
 def _append_disclaimer(lines: list) -> None:
@@ -49,16 +110,21 @@ def _validate_reason(reason: str) -> str:
     此函数在渲染层做防御性兜底：
     - 检测禁用表述（"反向加分"/"反向指标"等），标记警告
     - 检测缺失数据引用（reason 无任何数字），标记警告
-    不修改 reason 原文内容，仅追加警告标记，保留 LLM 论述的可追溯性。
+    - 合规改写：禁用措辞替换为合规替代词
+    - 表格转义：竖线转义、换行压平、长度截断
+
+    警告标记在转义/改写之后追加，避免标记自身被转义破坏。
     """
     if not reason or reason == "-":
         return reason
+    text = _apply_compliance(str(reason))
+    text = _escape_table_cell(text)
     for phrase in _FORBIDDEN_PHRASES:
-        if phrase in reason:
-            return f'{reason} ⚠含禁用表述"{phrase}"'
-    if not _HAS_DATA_TOKEN.search(reason):
-        return f"{reason} ⚠理由缺数据引用"
-    return reason
+        if phrase in text:
+            return f'{text} ⚠含禁用表述"{phrase}"'
+    if not _HAS_DATA_TOKEN.search(text):
+        return f"{text} ⚠理由缺数据引用"
+    return text
 
 
 def format_debate_output(result: dict) -> str:
@@ -100,15 +166,16 @@ def format_debate_output(result: dict) -> str:
     if result.get("risk_notes"):
         lines.append("## 风险提示")
         for note in result["risk_notes"]:
-            lines.append(f"- {note}")
+            lines.append(f"- {_apply_compliance(str(note))}")
         lines.append("")
 
-    # 仓位建议
+    # 仓位建议（合规改写：禁用"止损位/减仓/清仓"等投资建议措辞）
     pos = result.get("position", {})
     lines.append("## 仓位建议")
-    lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}% ({pos.get('recommendation', '-')})")
-    lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
-    lines.append(f"- 分步建仓: {pos.get('steps', '-')}")
+    recommendation = _apply_compliance(str(pos.get("recommendation", "-")))
+    lines.append(f"- 参考仓位: {pos.get('position_pct', 0)}% ({recommendation})")
+    lines.append(f"- 观察下沿: {_apply_compliance(str(pos.get('stop_loss', '-')))}")
+    lines.append(f"- 分步建仓: {_apply_compliance(str(pos.get('steps', '-')))}")
 
     # 特殊备注
     if result.get("notes"):
@@ -280,8 +347,8 @@ def _find_dissent(expert_results: list) -> str:
     names = [r.get("display_name", r.get("name", "?")) for r in dissenters]
     reasons = [r.get("reason", "看空") for r in dissenters]
 
-    # 截断原因（保留前 20 字符）
-    reason_short = reasons[0][:20] if reasons else "看空"
+    # 截断原因（保留前 20 字符）并做合规改写
+    reason_short = _apply_compliance(reasons[0])[:20] if reasons else "看空"
 
     return f"{','.join(names)}看空：{reason_short}"
 
@@ -314,13 +381,14 @@ def format_debate_brief(result: dict) -> str:
 
     pos = result.get("position", {})
     if pos.get("position_pct", 0) > 0:
-        lines.append(f"📌 建议仓位 {pos['position_pct']}% | 止损 {pos.get('stop_loss', '-')}")
+        stop_label = _apply_compliance(str(pos.get("stop_loss", "-")))
+        lines.append(f"📌 参考仓位 {pos['position_pct']}% | 观察下沿 {stop_label}")
     else:
-        lines.append("📌 建议观望，暂不开仓")
+        lines.append("📌 倾向观望，暂不开仓")
 
     risk_notes = result.get("risk_notes", [])
     if risk_notes:
-        lines.append(f"⚠️ 看空方：{risk_notes[0]}")
+        lines.append(f"⚠️ 看空方：{_apply_compliance(str(risk_notes[0]))}")
 
     notes = result.get("notes", [])
     if notes:
@@ -358,13 +426,13 @@ def format_group_output(result: dict) -> str:
     if result.get("risk_notes"):
         lines.append("## 风险提示")
         for note in result["risk_notes"]:
-            lines.append(f"- {note}")
+            lines.append(f"- {_apply_compliance(str(note))}")
         lines.append("")
 
     pos = result.get("position", {})
     lines.append("## 仓位建议")
-    lines.append(f"- 推荐仓位: {pos.get('position_pct', 0)}%")
-    lines.append(f"- 止损位: {pos.get('stop_loss', '-')}")
+    lines.append(f"- 参考仓位: {pos.get('position_pct', 0)}%")
+    lines.append(f"- 观察下沿: {_apply_compliance(str(pos.get('stop_loss', '-')))}")
 
     _append_disclaimer(lines)
     return "\n".join(lines)
