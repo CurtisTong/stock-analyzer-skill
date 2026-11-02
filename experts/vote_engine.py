@@ -580,7 +580,12 @@ def aggregate_votes(
     # 8 人 active 集（5 长 + 3 短）会错切成 4+4，导致分组均值/投票统计全部错误。
     # 改为按 EXPERT_REGISTRY 的 group 字段补全，注册表查不到的条目才回退到
     # active 集真实分布（5 长 + 3 短）切分。
-    if expert_results and not any(r.get("group") for r in expert_results):
+    #
+    # （v1.26.0）：原实现把注册表补全门控在 `not any(r.get("group"))`——
+    # 只要有一位专家带 group，其余全部跳过补全；而后面的兜底切分又要求
+    # 某一组为空才触发。两个条件同时成立时（部分带 group），未分组专家被
+    # 静默丢弃，投票基数少于实际人数。现在：逐条补全，兜底始终兜住剩余条目。
+    if expert_results:
         try:
             from experts.registry import EXPERT_REGISTRY, _ensure_loaded
 
@@ -588,24 +593,29 @@ def aggregate_votes(
             _ensure_loaded()
 
             for r in expert_results:
-                profile = EXPERT_REGISTRY.get(r.get("name", ""))
-                if profile is not None and not r.get("group"):
-                    r["group"] = profile.group
+                if not r.get("group"):
+                    profile = EXPERT_REGISTRY.get(r.get("name", ""))
+                    if profile is not None:
+                        r["group"] = profile.group
         except ImportError:
             pass
 
     long_experts = [r for r in expert_results if r.get("group") == "long_term"]
     short_experts = [r for r in expert_results if r.get("group") == "short_term"]
 
-    # 注册表也补全不了的条目（未知专家名）：按 active 集真实分布 5 长 + 3 短 切分，
-    # 而非旧的 4+4。仅当仍有未分组条目时触发。
+    # 注册表也补全不了的条目（未知专家名）：按 active 集真实分布 5 长 + 3 短
+    # 补进对应分组——不得丢弃任何专家，否则投票基数会小于实际人数。
+    # 注意：只按剩余名额分配，已分组专家的位置不参与切分。
     ungrouped = [r for r in expert_results if r.get("group") not in ("long_term", "short_term")]
-    if ungrouped and (not long_experts or not short_experts):
+    if ungrouped:
         n = len(expert_results)
         # active 集真实分布：长线占 ceil(n*5/8)，短线占其余。
         long_count = -(-n * 5 // 8)  # ceil(n * 5/8)
-        long_experts = expert_results[:long_count]
-        short_experts = expert_results[long_count:]
+        need_long = max(0, long_count - len(long_experts))
+        for i, r in enumerate(ungrouped):
+            r["group"] = "long_term" if i < need_long else "short_term"
+        long_experts = [r for r in expert_results if r.get("group") == "long_term"]
+        short_experts = [r for r in expert_results if r.get("group") == "short_term"]
 
     long_scores = [r["score"] for r in long_experts]
     short_scores = [r["score"] for r in short_experts]

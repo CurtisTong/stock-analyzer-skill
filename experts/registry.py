@@ -65,4 +65,9 @@ def _ensure_loaded() -> None:
             f"{[p.name for p in EXPERT_REGISTRY.values() if p.active]}"
         )
     if total != 16 or active_count != 8:
-        logger.warning("专家数量变化: total=%d (期望16), active=%d (期望8)", total, active_count)
+        # 数量变化会直接改变投票基数（5 长 + 3 短 = 8 票），静默只 warning
+        # 会让投票在无人察觉的情况下变形，故升级为硬错误。
+        raise RuntimeError(
+            f"专家数量不符: total={total} (期望16), active={active_count} (期望8)——"
+            "投票基数依赖 5 长 + 3 短，请更新 ARCHITECTURE.md 与 decide.md 后再改"
+        )
