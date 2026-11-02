@@ -164,15 +164,21 @@ def _earnings_quality_score(fin: dict, eps: float) -> float:
         elif ar_ratio > 45:
             eq_score -= 1.0
 
-    # 3. 非经常性损益/净利润（-2~0）
-    net_profit = to_float(fin.get("net_profit", fin.get("PARENTNETPROFIT", 0)))
-    non_recurring = to_float(fin.get("non_recurring_gain", fin.get("DEDUCT_PARENTNETPROFIT", 0)))
-    if net_profit > 0 and non_recurring != 0:
-        nr_ratio = abs(non_recurring) / net_profit * 100
-        if nr_ratio > 50:
-            eq_score -= 2.0
-        elif nr_ratio > 20:
-            eq_score -= 1.0
+    # 3. 非经常性损益/归母净利润（-2~0）：<20% 利润真实
+    # 非经常性损益 = 归母净利润 - 扣非净利润（两字段均在标准化 dict 中，单位亿元，
+    # 比值无量纲问题）。此前读不存在的 non_recurring_gain/DEDUCT_PARENTNETPROFIT
+    # 且把扣非净利润当非经常损益——扣非越高扣分越重的语义取反（2026-11-02 审查 P1）
+    net_profit = _first_present(fin, "net_profit", "parent_net_profit", "PARENTNETPROFIT")
+    deducted = _first_present(fin, "deducted_net_profit", "DEDUCT_PARENTNETPROFIT")
+    if net_profit is not None and deducted is not None:
+        net_profit = to_float(net_profit)
+        if net_profit > 0:
+            non_recurring = net_profit - to_float(deducted)
+            nr_ratio = abs(non_recurring) / net_profit * 100
+            if nr_ratio > 50:
+                eq_score -= 2.0
+            elif nr_ratio > 20:
+                eq_score -= 1.0
 
     return clamp(eq_score, -8, 8)
 

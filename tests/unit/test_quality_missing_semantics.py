@@ -56,3 +56,35 @@ class TestMissingSemantics:
             "ocf_per_share": -0.3,
         }
         assert quality_score(_HEALTHY) > quality_score(bad)
+
+
+class TestNonRecurringDerivation:
+    """非经常性损益 = 归母净利润 - 扣非净利润（用既有字段推导）。
+
+    回归背景（2026-11-02 skill 审查 P1）：旧代码读不存在的
+    non_recurring_gain/DEDUCT_PARENTNETPROFIT 字段（分支永不触发），
+    且若强行喂 DEDUCT_PARENTNETPROFIT 会把扣非净利润当非经常损益——
+    扣非越高扣分越重的语义取反。
+    """
+
+    def _eq(self, parent, deducted):
+        from strategies.factors.quality import _earnings_quality_score
+
+        fin = {"eps": 1.0, "parent_net_profit": parent, "deducted_net_profit": deducted}
+        return _earnings_quality_score(fin, eps=1.0)
+
+    def test_healthy_low_non_recurring_no_penalty(self):
+        """扣非 9.5/归母 10 → 非经常 5%：不扣分（旧代码误扣）。"""
+        assert self._eq(10.0, 9.5) == 0.0
+
+    def test_moderate_non_recurring_minus_1(self):
+        """非经常 25%（>20% 档）：-1 分。"""
+        assert self._eq(10.0, 7.5) == -1.0
+
+    def test_heavy_non_recurring_minus_2(self):
+        """非经常 70%：-2 分。"""
+        assert self._eq(10.0, 3.0) == -2.0
+
+    def test_missing_deducted_no_penalty(self):
+        """扣非缺失：不扣分（不伪装成有数据）。"""
+        assert self._eq(10.0, None) == 0.0
