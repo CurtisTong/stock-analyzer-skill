@@ -68,6 +68,7 @@
 ### Changed
 
 - `skills/market/SKILL.md` 数据降级硬约束重写：区分**整体失败**（`up_count==null`，禁用涨跌比定性，regime 注明退化判定依据，改用 `sector_summary` 板块涨跌家数作替代证据）与**仅涨跌停降级**（token 缺失，涨跌比定性仍有效）两种情形；`emotion_phase` 两种降级下均不可信。
+- `skills/market/SKILL.md` full 模式流程优化（实测驱动）：Step 1 改为四步推荐拉取顺序（明确 `market_anchor` 内部已含宽度/market_state，不再重复跑 `market_breadth.py`）；美股 `[]` 补充 Yahoo 429 限流根因（与未安装同处理，不重试）；`fixture(stale)` 宏观字段从"标注展示"升级为**不展示数值**（stale 值可能严重偏离现值）；`leverage`/`valuation_bridge` null 为设计常态（fixture-only）写入约束，禁止虚构。
 
 ### Validation
 

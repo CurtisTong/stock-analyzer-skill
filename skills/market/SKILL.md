@@ -3,7 +3,7 @@ name: market
 description: 大盘复盘。触发词：今天大盘怎么样、市场今天如何、行情怎么样、今天涨跌、大盘分析、市场复盘、今日行情、美股昨晚怎么样。用于市场快评/完整复盘/盘中分时、指数/板块ETF/风格轮动/资金偏好判断、美股收盘参考。
 version: 1.31.0
 model: glm-5.2
-allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/sector_summary.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
+allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/sector_summary.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/market_breadth.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
 ---
 
 # Market Review
@@ -45,15 +45,16 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 ### Step 1: 获取大盘数据 + 板块 ETF + 美股参考
 
-按 `../_shared/references/script-catalog.md` 调用 `quote.py` 与 `kline.py`。常用标的：
+**full 模式推荐拉取顺序**（一次完成，避免重复拉取）：
 
-- 指数：`sh000001,sz399001,sz399006,sh000300,sh000016,sh000905`
-- 板块 ETF：`sh510050,sh510300,sh510500,sh512010,sh512480,sh512690,sh512800,sh513120,sh512660,sh515790,sh515030,sh516160`
-- **板块涨跌幅排行（v1.20.1 推荐）**：`python3 scripts/sector_summary.py -j --top 30`，默认走 akshare 同花顺板块汇总（含净流入/领涨股/上涨家数），东财 push2 备选
-- 美股参考（full 模式）：`quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq` 获取美股主要指数收盘数据
-- `intraday` 模式额外取 5 分钟 K 线（48 根）
+1. `python3 scripts/market_anchor.py -j --no-portfolio` —— 锚定结论：regime/市场宽度/板块 ETF 强度/宏观/情绪周期/多时间框架（**内部已含** sh000300 行情与 K 线、宽度涨跌家数与 market_state，**无需再单独跑 `market_breadth.py`**）。耗时较长（多源串行），先启动。
+2. `python3 scripts/quote.py -j sh000001,sz399001,sz399006,sh000300,sh000016,sh000905` —— 大盘全景表（anchor 只拉 sh000300，其余指数由此补齐）。
+3. `python3 scripts/sector_summary.py -j --top 30` —— 板块涨跌排行（akshare 同花顺源，含净流入/领涨股/上涨家数；**板块 up_count/down_count 是宽度降级时的替代情绪证据**，见"数据降级硬约束"）。
+4. 美股参考（full 模式）：`quote.py -j us:^gspc,us:^ixic,us:^dji,us:^vix,us:spy,us:qqq`。
 
-**跨市场代码约定**：美股用 `us:` 前缀 + yfinance 符号（`us:^gspc`=标普500、`us:spy`=标普500 ETF）；港股用 `hk:` 前缀 + 数字代码（`hk:0700`=腾讯，4-5 位自动补齐）。依赖可选包 yfinance（`pip install yfinance>=0.2`），未安装时 `us:`/`hk:` 返回空、不报错、不影响 A 股功能。
+- `intraday` 模式额外取 5 分钟 K 线（48 根）。
+
+**跨市场代码约定**：美股用 `us:` 前缀 + yfinance 符号（`us:^gspc`=标普500、`us:spy`=标普500 ETF）；港股用 `hk:` 前缀 + 数字代码（`hk:0700`=腾讯，4-5 位自动补齐）。依赖可选包 yfinance（`pip install yfinance>=0.2`）。**返回 `[]` 有两种原因，处理一致**（跳过跨市场段落并在输出中说明）：① yfinance 未安装；② **Yahoo 429 限流**（2026 年起对无认证请求常态化限流，已安装也会触发，429 时 `macro_*_source` 同步降级为 `fixture(stale)`）。不要为区分二者反复重试。
 
 **通达信局域网数据源（可选）**：本地通达信开启 7709 端口后可 `pip install pytdx` 启用（v1.24.0 起优先级降至 quote=4/kline=5——通达信公开服务器行情命令 2026-09 已失效，未配局域网时 pytdx 默认超时；已配局域网直连的用户可在 `scripts/config/data_source.yaml` 手动调回高优先级；速度快、无限频、800 根回溯）。未安装不影响主流程。
 
@@ -108,7 +109,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 - 不要虚构成交额、融资余额等脚本无法直接提供的数据；如用户需要，说明当前工具未覆盖或另行查询。北向资金净流入：东财源已下线，新浪源可用（`northbound_pricer` 消费）；拉取失败时自动降级为 `direction: unknown` + degraded 标记，此时不要引用北向数据。
 - 若市场休市，明确说明行情数据可能是上一交易日。
 - 输出建议按”进攻/均衡/防守”分层，不给无条件满仓或清仓指令。
-- 美股/港股参考依赖 `yfinance` 包；未安装时 `quote.py` 返回 `NOT_HANDLED`，`market full` 应**自动跳过跨市场段落**而不是失败——遇到该情况需在输出中说明跨市场参考未启用（yfinance 未安装），不要硬塞假数据。
+- 美股/港股参考依赖 `yfinance` 包；未安装（`NOT_HANDLED`）或 Yahoo 429 限流（返回 `[]`）时，`market full` 应**自动跳过跨市场段落**而不是失败——输出中说明"跨市场参考不可用（yfinance 未安装 / Yahoo 限流）"，不要硬塞假数据，也不要反复重试拉取。
 
 ### 数据降级硬约束
 
@@ -128,7 +129,7 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 **两种降级共同约束**：
 
 1. 置信度均为"低"，不得作为核心结论层层引用；操作建议不得引用基于降级值的约束。
-2. VIX 等宏观字段：检查 `macro.<field>_source`，若为 `fixture` 或 `fixture(stale)`，须在展示时标注 `[fixture]` / `[fixture(stale)]`，不得当实时数据呈现。market_anchor 的 markdown 渲染已自动追加 `[source]` 标记，JSON 输出中需人工识别。
+2. VIX 等宏观字段：检查 `macro.<field>_source`，若为 `fixture` 或 `fixture(stale)`，full 模式输出中**不展示该数值**，只说明"宏观参考不可用（数据源限流/快照过期）"——stale fixture 值可能严重偏离现值，标注展示仍有误导风险。`leverage`/`valuation_bridge` 各字段为 null 是**设计常态**（fixture-only，依赖人工快照回填），不得虚构；整体数据质量看 `data_quality.degraded_fields`。market_anchor 的 markdown 渲染已自动追加 `[source]` 标记，JSON 输出中需人工识别。
 
 ### 时间戳一致性
 
