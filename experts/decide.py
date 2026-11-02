@@ -128,7 +128,13 @@ def run_debate(
 
         # 兼容双组/单组返回结构
         composite = result.get("composite_score") or result.get("avg_score", 0.0)
-        expert_scores = {r.get("name"): r.get("score", 50.0) for r in result.get("expert_results", [])}
+        # 落库用**原始判断分**（_original_score），而非被风险折扣/否决改写后的
+        # score——校准评估的是专家自己的判断，折价分会让胜率失去意义。
+        expert_scores = {
+            r.get("name"): r.get("_original_score", r.get("score", 50.0))
+            for r in result.get("expert_results", [])
+            if r.get("name")
+        }
         pred_id = record_prediction(
             stock_code=stock_code,
             expert_scores=expert_scores,

@@ -75,6 +75,8 @@ def _resolve_conflict(
     horizon: str,
     long_n: int,
     short_n: int,
+    long_weight: float = 0.5,
+    short_weight: float = 0.5,
 ) -> dict:
     """冲突解决规则（decide.md §三）。
 
@@ -85,6 +87,9 @@ def _resolve_conflict(
     - 极端两极分化检测：长线 bull >= long_n-1 且 bear==0（5 人时即 4/5）；
       短线 bull/bear == short_n 且反向 ==0（全员反向，基于原始投票计数）。
 
+    v1.26.0：weak-signal fallback 的均分改用 long_weight/short_weight 加权，
+    与 composite 同口径，避免"综合分 56.0 却判看多"的方向/分数矛盾。
+
     Returns:
         {"direction": str, "position_factor": float, "notes": list}
     """
@@ -93,6 +98,20 @@ def _resolve_conflict(
     position_factor = 1.0
 
     long_majority = _majority(long_n)
+
+    # ── 整组弃权拦截（v1.26.0）──
+    # decide.md §一.2：整组全部弃权 → 方向中性、仓位 0，不得把"沉默"
+    # 当成"审慎平衡"或看空。原实现整组弃权时 long_avg 回落伪造的 50，
+    # 另一组若看多则产出"谨慎看多 + 20% 仓位"——把读不出来的沉默
+    # 变成了半个多头仓位。
+    if long_n == 0 or short_n == 0:
+        abstained_groups = []
+        if long_n == 0:
+            abstained_groups.append("长线组")
+        if short_n == 0:
+            abstained_groups.append("短线组")
+        notes.append(f"{'、'.join(abstained_groups)}全部弃权（数据不足），方向中性、仓位 0")
+        return {"direction": "中性", "position_factor": 0.0, "notes": notes}
 
     # 分歧检测（组内无多数方向）
     # 长线组（5 人）仍用投票计数：bull/bear 均 < ceil(5*2/3)=4 时为分歧。
@@ -163,7 +182,12 @@ def _resolve_conflict(
         # 双组方向不一致但未达两极分化，按综合均分给方向，仓位打折反映不确定性。
         # position 阈值与 direction_from_score 对齐：avg≥60=看多(0.8)，avg≥40=中性(0.5)，
         # 否则=看空(0.0，不建仓)。0.8/0.5 而非 1.0 体现"弱信号"打折语义。
-        avg = (long_avg + short_avg) / 2
+        #
+        # （v1.26.0）均分改为按最终权重加权（与 composite 同口径）：
+        # 原实现用 (long_avg+short_avg)/2，而 composite 用 long_weight/short_weight
+        # 加权——两者口径不一致时会出现"综合分 56.0（中性区间）却判看多"，
+        # 卡片同时渲染矛盾信息（且仓位为 0）。方向必须与综合分同源。
+        avg = (long_avg * long_weight + short_avg * short_weight) / (long_weight + short_weight)
         direction = direction_from_score(avg)
         if avg >= 60:
             position_factor = 0.8
@@ -224,10 +248,14 @@ def _get_yangjia_emotion_score(yangjia: Optional[dict]) -> float:
     sub_score = yangjia.get("yangjia_sub_score")
     if sub_score is not None:
         return float(sub_score)
-    # 回退到 dim_scores
-    if not yangjia.get("breakdown"):
-        return 50
-    dim_scores = yangjia.get("dim_scores", {})
+    # （v1.26.0）子评分也写在 dim_scores 里（emotion_tech.score 放进维度分
+    # dict），顶层读不到时回查 dim_scores——否则养家冰点判定永远拿不到
+    # 真实情绪分（恒回退 50），"冰点机会"标注与降权规则静默失效。
+    dim_scores = yangjia.get("dim_scores") or {}
+    sub_score = dim_scores.get("yangjia_sub_score")
+    if sub_score is not None:
+        return float(sub_score)
+    # 回退到 dim_scores 的情绪维度
     return dim_scores.get("情绪", dim_scores.get("情绪/资金", dim_scores.get("情绪周期", 50)))
 
 
@@ -504,6 +532,14 @@ def aggregate_votes(
     # 污染调用方持有的原始评分（影响风险提示、A/B 对比、校准记录、二次渲染）。
     expert_results = [dict(r) for r in expert_results]
 
+    # 保留每位的**原始判断分**（未被风险折扣/否决改写前的值）。
+    # （v1.26.0）风险分级会把 r["score"] 就地改写（折扣或归零），若下游
+    # （decide.record_prediction）直接落库，专家历史准确率将按"风险折扣分"
+    # 计算——评估的是折价后的分数而非专家自己的判断，胜率失去意义。
+    for r in expert_results:
+        if r.get("score") is not None:
+            r["_original_score"] = r["score"]
+
     # ── 弃权过滤（v1.24.0 第四态）──
     # 专家显式弃权（abstain=True 或 direction==ABSTAIN）不进入投票基数。
     # 数据严重不足时"读不出来"不是审慎平衡，弃权防止沉默被当作中性票
@@ -527,7 +563,10 @@ def aggregate_votes(
     # 将原"一票否决->降至20"的硬性逻辑改造为两级体系：
     # - 刚性底线（risk_coeff=0.0）：评分归零（生存底线，如商誉/净资产>50%）
     # - 弹性风险系数（0.2-1.0）：score × coeff（折扣但非零，如周期高位 coeff=0.4）
-    # risk_coefficients 优先于 veto_results；两者都为空时保持原行为不变。
+    # risk_coefficients 与 veto_results 是**两条独立的风险通道**，不是互斥：
+    # 前者是系数折扣（连续），后者是条件触发（离散）。原实现用 elif 让
+    # risk_coefficients 存在时 veto_results 被完全丢弃——人工传入的否决
+    # 条件静默失效。现在两者都生效（取更严厉的结果）。
     veto_notes = []
     if risk_coefficients:
         for r in expert_results:
@@ -552,9 +591,10 @@ def aggregate_votes(
                         f"（risk_coeff={coeff:.1f}），评分 {original_score:.0f}"
                         f"->{r['score']:.0f}"
                     )
-    elif veto_results:
+    if veto_results:
         # 向后兼容：旧 veto_results 格式（{expert: {cond: bool}}）
-        # 触发则降至 20（保留原逻辑，但 risk_coefficients 存在时不走此分支）
+        # 触发则降至 20。与 risk_coefficients 并行生效时取更严厉者
+        # （veto 命中即 20 分上限，但不清零 risk_coefficients 已算出的 0 分）。
         for r in expert_results:
             name = r.get("name", "")
             expert_veto = veto_results.get(name, {})
@@ -568,11 +608,12 @@ def aggregate_votes(
                     triggered.append(cond)
             if triggered:
                 original_score = r["score"]
-                r["score"] = 20.0
+                # 取更严厉者：risk_coefficients 已算出 0 分（刚性底线）时不再抬回 20
+                r["score"] = min(original_score, 20.0)
                 r["direction"] = "强烈看空"
                 veto_notes.append(
                     f"{r.get('display_name', name)} 被一票否决"
-                    f"（{'; '.join(triggered)}），评分 {original_score:.0f}->20"
+                    f"（{'; '.join(triggered)}），评分 {original_score:.0f}->{r['score']:.0f}"
                 )
 
     # 分组：优先用专家结果自带的 group 字段；缺失时从注册表按 name 补全。
@@ -653,8 +694,16 @@ def aggregate_votes(
     # v2.4.2（B5）：buffett 经 _LEGACY_TO_MERGED 映射到 value_institution（最终名），
     # 旧 value_anchor 中间名仍兼容（直接名查找命中）。
     if buffett and buffett.get("name") in ("value_institution", "value_anchor"):
-        # 合并型专家场景：从 buffett_sub_score 字段读取巴菲特独立评分
-        buffett_score = buffett.get("buffett_sub_score", buffett["score"])
+        # 合并型专家场景：从 buffett_sub_score 字段读取巴菲特独立评分。
+        # （v1.26.0）该字段写在 dim_scores 里（value_anchor.score 把子评分
+        # 放进维度分 dict），而此处只读结果顶层——路径不通时静默回退到
+        # 合并后总分，巴菲特否决警示失效（段永平的看多稀释了巴菲特的看空）。
+        # 现在两处都查，顶层优先。
+        buffett_score = buffett.get("buffett_sub_score")
+        if buffett_score is None:
+            buffett_score = (buffett.get("dim_scores") or {}).get("buffett_sub_score")
+        if buffett_score is None:
+            buffett_score = buffett["score"]
     elif buffett:
         # legacy 场景：直接使用巴菲特评分
         buffett_score = buffett["score"]
@@ -732,6 +781,8 @@ def aggregate_votes(
         horizon,
         len(long_experts),
         len(short_experts),
+        lw,
+        sw,
     )
     direction = conflict["direction"]
     position_factor = conflict["position_factor"]
@@ -767,16 +818,21 @@ def aggregate_votes(
     # 短线组历史准确率低（如 20%）时，其校准因子为强负值，直接压低信心指数。
     # 这是对全局 calibration_factor 的补充--全局因子被长线高准确率稀释，
     # 分组因子能定向反映"这一组专家不可信"。
+    #
+    # （v1.26.0）长线组同样消费分组因子——原实现只算 short_term，
+    # 长线组因子（生产值 -0.2886）仅在 formatter 里展示而不影响任何决策，
+    # 等于"算了不用"。现在两组对称。
     try:
         from experts.calibration import compute_group_calibration
 
-        short_cal = compute_group_calibration("short_term")
-        if short_cal < 0:
-            # 短线组校准为负 -> 信心扣分（最多 -10 分，对应 short_cal ∈ [-1, 0)）
-            penalty = short_cal * 10  # short_cal=-1 -> -10
-            confidence = max(0, confidence + penalty)
-            if penalty < -2:
-                notes.append(f"短线组校准惩罚：信心 {penalty:+.0f}（短线组历史准确率低）")
+        for group_name, label in (("short_term", "短线组"), ("long_term", "长线组")):
+            group_cal = compute_group_calibration(group_name)
+            if group_cal < 0:
+                # 组校准为负 -> 信心扣分（最多 -10 分，对应 group_cal ∈ [-1, 0)）
+                penalty = group_cal * 10  # group_cal=-1 -> -10
+                confidence = max(0, confidence + penalty)
+                if penalty < -2:
+                    notes.append(f"{label}校准惩罚：信心 {penalty:+.0f}（{label}历史准确率低）")
     except Exception:
         pass  # 校准模块不可用时静默跳过，不影响主流程
 
@@ -852,7 +908,16 @@ def aggregate_group_votes(
     """
     # 弃权第四态：弃权专家不计入投票基数（与双组模式一致）。
     # 原单组模式未过滤弃权——全弃权会被判"强烈看空"并建议清仓。
-    valid_results = [r for r in expert_results if r.get("score") is not None]
+    # （v1.26.0）原过滤条件只查 score is not None，漏掉 abstain=True /
+    # direction==弃权 的显式弃权——同一份输入，双组 abstained=1/2 票，
+    # 单组 abstained=0/3 票，与本注释声称的"与双组模式一致"矛盾。
+    from experts.types import ABSTAIN
+
+    valid_results = [
+        r
+        for r in expert_results
+        if r.get("score") is not None and not r.get("abstain") and r.get("direction") != ABSTAIN
+    ]
     abstain_count = len(expert_results) - len(valid_results)
     scores = [r["score"] for r in valid_results]
     avg = statistics.mean(scores) if scores else 50
