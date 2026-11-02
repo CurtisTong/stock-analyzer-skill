@@ -53,7 +53,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         else:
             tech = 40
     else:
-        trend = kline.get("trend", 0)
+        trend = _safe_float(kline.get("trend"))
         tech = 80 if trend > 0 else (40 if trend == 0 else 10)
 
     # 情绪/反身性：逆向——极度悲观=机会，高度一致看多=风险

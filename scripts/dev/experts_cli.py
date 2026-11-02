@@ -123,13 +123,19 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
     raw_meta["market_anchor"] = ma
     breadth = ma.get("breadth", {}) if isinstance(ma, dict) and not ma.get("error") else {}
 
+    # 数据缺失一律置 None（不填 0/50 兜底）——
+    # 评分层会区分"不可得"与"可得但差"：置 0 会让缺失被当成最差信号，
+    # 置 50 会把无信息伪装成中性票（见 experts/scoring/availability.py）。
     stock_data = {
         "quote": {
             "pe": quote.get("pe"),
             "pb": quote.get("pb"),
             "price": quote.get("price"),
             "circulating_cap": quote.get("circulating_cap"),
-            "pe_percentile": 50,  # 暂无历史分位 API，留中性
+            # PE 历史分位暂无 API，取不到就留 None（估值维度走中性处理）
+            "pe_percentile": quote.get("pe_percentile"),
+            "name": quote.get("name"),
+            "amount": quote.get("amount"),
         },
         "finance": {
             "roe": fin.get("roe"),
@@ -144,12 +150,13 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             "macd_signal": macd_signal,
         },
         "market_features": {
-            "limit_up_count": breadth.get("limit_up_count", 0),
-            "limit_down_count": breadth.get("limit_down_count", 0),
-            "advance_ratio": breadth.get("advance_ratio", 0.5),
+            "limit_up_count": breadth.get("limit_up_count"),
+            "limit_down_count": breadth.get("limit_down_count"),
+            "advance_ratio": breadth.get("advance_ratio"),
             "break_rate": (breadth.get("broken_limit_rate", 0) / 100 if breadth.get("broken_limit_rate") else 0),
-            "limit_up_30d_count": 0,
-            "sector_limit_up_count": 0,
+            # 近30日涨停次数与板块涨停数当前无数据源，留 None
+            "limit_up_30d_count": breadth.get("limit_up_30d_count"),
+            "sector_limit_up_count": breadth.get("sector_limit_up_count"),
         },
     }
     return stock_data, raw_meta
@@ -173,17 +180,22 @@ def run_for_stock(code: str, group_filter: str | None = None) -> dict:
                 "group": p.group,
                 "score": res["score"],
                 "direction": res["direction"],
+                "abstain": res.get("abstain", False),
+                "abstain_reason": res.get("abstain_reason", ""),
                 "method": res["method"],
                 "dim_scores": res.get("dim_scores", {}),
             }
         )
 
-    composite = sum(r["score"] for r in expert_results) / len(expert_results) if expert_results else 50
+    # 弃权专家（score=None）不参与综合分——与 vote_engine 的投票基数口径一致
+    scored = [r["score"] for r in expert_results if r["score"] is not None]
+    composite = sum(scored) / len(scored) if scored else 50
     return {
         "code": code.upper(),
         "stock_data": stock_data,
         "expert_results": expert_results,
         "composite_score": round(composite, 1),
+        "abstained": len(expert_results) - len(scored),
         # 保留完整 raw_meta（含 technical 完整 JSON），
         # 报告作者引用 raw_meta.tech.features.ma_system 等填模板占位。
         "raw_meta": raw_meta,
@@ -223,7 +235,12 @@ def render_table(results: list[dict]) -> str:
             "momentum_trader",
         ]:
             e = by_code[r["code"]].get(name)
-            row.append(f"{e['score']:.0f}/{e['direction'][:1]}" if e else "-")
+            if not e:
+                row.append("-")
+            elif e["score"] is None:
+                row.append("弃权")  # 数据不足弃权，不计入投票基数
+            else:
+                row.append(f"{e['score']:.0f}/{e['direction'][:1]}")
         lines.append("| " + " | ".join(row) + " |")
     return "\n".join(lines)
 

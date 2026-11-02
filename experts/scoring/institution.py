@@ -73,7 +73,7 @@ def score(stock_data: dict) -> Dict[str, float]:
 
     # ── 技术面：趋势方向（institution.md §九：上升->60，下降->0）──
     kline_features = stock_data.get("kline_features") or {}
-    trend = kline_features.get("trend", 0)
+    trend = _safe_float(kline_features.get("trend"))
     if trend > 0:
         institution_tech = 60
     elif trend < 0:

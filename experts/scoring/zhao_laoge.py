@@ -72,7 +72,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         else:
             tech = 70
     else:
-        trend = kline.get("trend", 0)
+        trend = _safe_float(kline.get("trend"))
         tech = 80 if trend > 0 else (40 if trend == 0 else 10)
 
     # 情绪/题材：量价配合

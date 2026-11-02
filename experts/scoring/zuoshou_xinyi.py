@@ -18,8 +18,11 @@ def score(stock_data: dict) -> Dict[str, float]:
     kline_data = stock_data.get("kline_data") or {}
 
     # 基本面：强势股基因
-    limit_up_30d = market.get("limit_up_30d_count", 0)
-    if limit_up_30d >= 4:
+    # （v1.26.0）区分"0 次涨停"与"字段缺失"：缺失时给中性 50
+    limit_up_30d = market.get("limit_up_30d_count")
+    if limit_up_30d is None:
+        base = 50
+    elif limit_up_30d >= 4:
         base = 100
     elif limit_up_30d >= 1:
         base = 60
@@ -27,14 +30,19 @@ def score(stock_data: dict) -> Dict[str, float]:
         base = 0
 
     # 估值：流通市值 + 回调深度
-    circ_cap = _safe_float(quote.get("circulating_cap"))
-    pullback = _safe_float(market.get("pullback_pct"), -1)
-    if 30 <= circ_cap <= 200:
-        val = 100
-    elif 10 <= circ_cap <= 300:
+    # （v1.26.0）流通市值缺失时给中性 50，不当 0（最差）处理
+    circ_cap_raw = quote.get("circulating_cap")
+    if circ_cap_raw is None:
         val = 50
     else:
-        val = 0
+        circ_cap = _safe_float(circ_cap_raw)
+        if 30 <= circ_cap <= 200:
+            val = 100
+        elif 10 <= circ_cap <= 300:
+            val = 50
+        else:
+            val = 0
+    pullback = _safe_float(market.get("pullback_pct"), -1)
     if pullback > 62:
         val = _get_clamp()(val * 0.3)
 

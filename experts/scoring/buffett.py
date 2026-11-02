@@ -47,7 +47,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         val = _get_clamp()(val - 20)
 
     # 技术面：简单趋势
-    trend = kline.get("trend", 0)
+    trend = _safe_float(kline.get("trend"))
     tech = 60 if trend > 0 else (40 if trend == 0 else 20)
 
     # 情绪：逆向--"别人恐惧我贪婪"
@@ -149,7 +149,7 @@ def score_with_reasoning(stock_data: dict) -> Dict[str, object]:
     dimensions["估值"] = {"score": scores["估值"], "weight": 0.28, "reason": val_reason}
 
     # ── 技术面：简单趋势 ──
-    trend = kline.get("trend", 0)
+    trend = _safe_float(kline.get("trend"))
     if trend > 0:
         tech_reason = "✅ 趋势向上"
     elif trend == 0:

@@ -22,18 +22,28 @@ def score(stock_data: dict) -> Dict[str, float]:
     base = 60 if eps > 0 else 0
 
     # 估值：流通市值
-    circ_cap = _safe_float(quote.get("circulating_cap"))
-    if 30 <= circ_cap <= 150:
-        val = 100
-    elif 150 < circ_cap <= 300:
-        val = 60
-    elif circ_cap > 500 or circ_cap < 30:
-        val = 0
-    else:
+    # （v1.26.0）流通市值缺失时给中性 50，不当 0（最差）处理
+    circ_cap_raw = quote.get("circulating_cap")
+    if circ_cap_raw is None:
         val = 50
+    else:
+        circ_cap = _safe_float(circ_cap_raw)
+        if 30 <= circ_cap <= 150:
+            val = 100
+        elif 150 < circ_cap <= 300:
+            val = 60
+        elif circ_cap > 500 or circ_cap < 30:
+            val = 0
+        else:
+            val = 50
 
     # 技术面：涨停板基因
-    limit_up_30d = market.get("limit_up_30d_count", 0)
+    # （v1.26.0）区分"0 次涨停"（数据可得且差）与"数据不可得"：
+    # 原实现把缺失字段当 0 处理，直接给最差分 0，再被 weighted_merge 的
+    # veto 阈值（<10 取最低分）放大成整维度归零——CLI 真实数据形态下
+    # topic_leader 技术面被 veto 到 0.0（zhao_laoge 本会给 80）。
+    # 数据不可得时给中性 50，不做隐性惩罚。
+    limit_up_30d = market.get("limit_up_30d_count")
     if limit_up_30d is None or limit_up_30d == 0:
         # 从 K 线数据估算
         closes = kline_data.get("closes") or []
@@ -48,7 +58,12 @@ def score(stock_data: dict) -> Dict[str, float]:
                 for i in range(1, len(closes))
                 if closes[i - 1] > 0 and (closes[i] / closes[i - 1] - 1) >= limit_threshold
             )
-    if limit_up_30d >= 2:
+        elif limit_up_30d is None:
+            # 字段缺失且无 K 线可估算 → 数据不可得，中性处理
+            limit_up_30d = None
+    if limit_up_30d is None:
+        tech = 50
+    elif limit_up_30d >= 2:
         tech = 100
     elif limit_up_30d >= 1:
         tech = 50

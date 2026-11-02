@@ -151,18 +151,22 @@ def score(stock_data: dict) -> Dict[str, float]:
             tech_score = min(100, tech_score + 10)  # 放量确认加分
 
     # 辅助：kline_features 趋势补充（数据不足时用）
-    trend_kf = kline.get("trend", 0)
+    trend_kf = _safe_float(kline.get("trend"))
     if trend_kf > 0 and tech_score < 70:
         tech_score = min(100, tech_score + 5)
 
     # ── 情绪/资金：板块共振 + 量能 + 涨停家数 ──
     sentiment = 50
     limit_up = market.get("limit_up_count", 0) or 0
-    sector_limit_up = market.get("sector_limit_up_count", 0) or 0
+    # （v1.26.0）板块涨停数缺失时不扣分——把"数据不可得"当成"孤立突破"
+    # 是隐性惩罚，方向会因接口失败而偏移。
+    sector_limit_up = market.get("sector_limit_up_count")
     advance_ratio = market.get("advance_ratio")
 
     # 板块共振加分（同板块 ≥3 家涨停）
-    if sector_limit_up >= 5:
+    if sector_limit_up is None:
+        pass  # 数据不可得，不做加减
+    elif sector_limit_up >= 5:
         sentiment += 25
     elif sector_limit_up >= 3:
         sentiment += 15
@@ -197,7 +201,10 @@ def score(stock_data: dict) -> Dict[str, float]:
     risk_score = 50
 
     # 流动性（成交额，单位：元，与 Quote.amount 一致）
-    amount = _safe_float(quote.get("amount"))
+    # （v1.26.0）成交额缺失时不做扣分——原实现对"数据缺失"扣 20 分，
+    # 把不可得当最差信号处理，方向会因接口失败而偏移。
+    amount_raw = quote.get("amount")
+    amount = _safe_float(amount_raw)
     # 转换为亿元：10 亿、5 亿、2 亿为流动性阈值
     amount_yi = amount / 1e8 if amount > 0 else 0
 
@@ -209,8 +216,7 @@ def score(stock_data: dict) -> Dict[str, float]:
         risk_score += 5
     elif amount_yi > 0:
         risk_score -= 30  # 流动性不足，无法止损
-    else:
-        risk_score -= 20  # 数据缺失
+    # amount 缺失 → 不调整（数据不可得 ≠ 流动性差）
 
     # ATR 波动性（动量派偏好波动适中）
     atr_pct = 0.0
