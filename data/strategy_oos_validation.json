@@ -1,30 +1,32 @@
 {
   "balanced": {
-    "max_drawdown_pct": 6.55,
-    "n_stocks": 50,
+    "max_drawdown_pct": 10.13,
+    "n_stocks": 55,
     "pool_type": "large",
     "pools": {
       "default": {
-        "max_drawdown_pct": 9.35,
-        "n_stocks": 55,
-        "sharpe_ratio": -0.03,
-        "total_return_pct": -4.64,
-        "win_rate_pct": 35.7
+        "max_drawdown_pct": 18.03,
+        "n_stocks": 210,
+        "sharpe_ratio": -2.77,
+        "total_return_pct": -18.32,
+        "universe_fingerprint": "ba9aaf62",
+        "win_rate_pct": 21.4
       },
       "large": {
-        "max_drawdown_pct": 6.55,
-        "n_stocks": 50,
-        "sharpe_ratio": 0.68,
-        "total_return_pct": -1.68,
-        "win_rate_pct": 42.9
+        "max_drawdown_pct": 10.13,
+        "n_stocks": 55,
+        "sharpe_ratio": -0.63,
+        "total_return_pct": -6.67,
+        "universe_fingerprint": "600558a3",
+        "win_rate_pct": 35.7
       }
     },
-    "sharpe_ratio": 0.68,
-    "total_return_pct": -1.68,
-    "validated_at": "2026-10-22T10:33:53",
+    "sharpe_ratio": -0.63,
+    "total_return_pct": -6.67,
+    "validated_at": "2026-11-03T09:23:48",
     "validation_note": "双池 OOS 验证未全部达标（未达标池：default, large），保持 in_sample",
     "validation_status": "in_sample",
-    "win_rate_pct": 42.9
+    "win_rate_pct": 35.7
   },
   "ma_volume_momentum": {
     "max_drawdown_pct": 10.11,
