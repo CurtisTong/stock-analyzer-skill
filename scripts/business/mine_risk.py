@@ -4,9 +4,11 @@
 商誉/净资产、质押比例等 6 个信号，但其中数据层命中 0 次（缓存
 5131 条记录无 GOODWILL/PLEDGE_RATIO 字段）——"排雷"实际无数据支撑。
 
-本模块经 akshare 提供两个真实数据源（均 2026-11-03 实测可用）：
+本模块经 akshare 提供三个真实数据源（均 2026-11-03 实测可用）：
 - 商誉：ak.stock_sy_jz_em(date=年报期) → 商誉、商誉占净资产比例（全市场年报，~2600 行）
 - 质押：ak.stock_gpzy_pledge_ratio_em() → 质押比例%（全市场最新交易日，~2300 行）
+- 应收：ak.stock_zcfz_em(date=报告期) → 应收账款（全市场资产负债表，~5200 行；
+  本期 vs 去年同期算同比增速，供 research "应收增速 vs 2×营收增速"信号）
 
 阈值口径（与 scripts/config/limits.yaml 对齐说明）：
 - research 文档口径：商誉/净资产 > 30% 排雷（本模块直接输出该比例）
@@ -24,6 +26,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logger = logging.getLogger(__name__)
+
+# 资产负债表报告期候选（最近优先，用于应收账款本期+去年同期）
+_ZCFZQuarterSuffixes = ("1231", "0930", "0630", "0331")
 
 # 商誉接口按年报期查询；从最近年份倒推尝试（2026-11-03 实测：2025 期返回空，
 # 20241231 可用），最多回退 3 年
@@ -120,23 +125,111 @@ def fetch_pledge_ratio(code: str) -> dict | None:
         return None
 
 
+def _num(v):
+    """NaN/None 安全取数（NaN != NaN），不可用返回 None。"""
+    if v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f == f else None
+
+
+def fetch_receivables(code: str, max_lookback: int = 8) -> dict | None:
+    """应收账款同比增速（本期 vs 去年同期，东财资产负债表 stock_zcfz_em）。
+
+    Returns:
+        {
+            "receivables": 本期应收账款(元),
+            "receivables_yoy_pct": 同比增速%（去年同期缺失/<=0 时 None）,
+            "report_date": "YYYYMMDD",
+            "source": ...,
+        } 或 None（全期次失败 / 无该股记录）
+    """
+    c = _normalize_code(code)
+    try:
+        ak = _ak()
+        today = datetime.now()
+        candidates = [f"{y}{md}" for y in (today.year, today.year - 1) for md in _ZCFZQuarterSuffixes][:max_lookback]
+        latest = None
+        for d in candidates:
+            try:
+                df = ak.stock_zcfz_em(date=d)
+            except Exception as e:
+                logger.debug("资产负债表 %s 获取失败: %s", d, e)
+                continue
+            if df is None or df.empty:
+                continue
+            row = df[df["股票代码"].astype(str).str.zfill(6) == c]
+            if row.empty:
+                continue
+            ar = _num(row.iloc[0].get("资产-应收账款"))
+            if ar is None:
+                continue
+            latest = (d, ar)
+            break
+        if latest is None:
+            return None
+        d_cur, ar_cur = latest
+        prior_date = f"{int(d_cur[:4]) - 1}{d_cur[4:]}"
+        ar_prior = None
+        try:
+            df_p = ak.stock_zcfz_em(date=prior_date)
+            if df_p is not None and not df_p.empty:
+                row = df_p[df_p["股票代码"].astype(str).str.zfill(6) == c]
+                if not row.empty:
+                    ar_prior = _num(row.iloc[0].get("资产-应收账款"))
+        except Exception as e:
+            logger.debug("资产负债表 %s 获取失败: %s", prior_date, e)
+        yoy = None
+        if ar_prior is not None and ar_prior > 0:
+            yoy = (ar_cur - ar_prior) / ar_prior * 100
+        return {
+            "receivables": ar_cur,
+            "receivables_yoy_pct": yoy,
+            "report_date": d_cur,
+            "source": "akshare stock_zcfz_em",
+        }
+    except ImportError:
+        logger.warning("akshare 未安装，应收账款数据不可用")
+        return None
+    except Exception as e:
+        logger.warning("应收账款数据获取失败: %s", e)
+        return None
+
+
 RESEARCH_GOODWILL_THRESHOLD_PCT = 30.0  # research 文档口径：商誉/净资产 > 30% 排雷
 RESEARCH_PLEDGE_THRESHOLD_PCT = 60.0  # research 文档口径：质押 > 60% 高风险
 
 
-def get_mine_risk(code: str) -> dict:
+def get_mine_risk(code: str, revenue_yoy: float | None = None) -> dict:
     """排雷数据汇总（research financial 模式 Step 1 数据源）。
+
+    Args:
+        code: 股票代码
+        revenue_yoy: 营收同比增速%（来自 finance.py 的 revenue_yoy）。
+            提供时应用"应收增速 > 2×营收增速"排雷规则；缺省仅输出应收增速
+            由调用方自行对照。
 
     Returns:
         {
             "code": ...,
             "goodwill": {...} | None,
             "pledge": {...} | None,
+            "receivables": {...} | None,
             "flags": ["商誉/净资产 42.3% > 30% 排雷线", ...],
             "degraded": [字段...],
         }
     """
-    out: dict = {"code": code, "goodwill": None, "pledge": None, "flags": [], "degraded": []}
+    out: dict = {
+        "code": code,
+        "goodwill": None,
+        "pledge": None,
+        "receivables": None,
+        "flags": [],
+        "degraded": [],
+    }
 
     gw = fetch_goodwill(code)
     out["goodwill"] = gw
@@ -156,16 +249,31 @@ def get_mine_risk(code: str) -> dict:
         if pr is not None and pr > RESEARCH_PLEDGE_THRESHOLD_PCT:
             out["flags"].append(f"质押比例 {pr:.1f}% > {RESEARCH_PLEDGE_THRESHOLD_PCT:.0f}% 高风险线")
 
+    rc = fetch_receivables(code)
+    out["receivables"] = rc
+    if rc is None:
+        out["degraded"].append("receivables")
+    else:
+        ar_yoy = rc.get("receivables_yoy_pct")
+        if ar_yoy is not None and revenue_yoy is not None and revenue_yoy > 0 and ar_yoy > 2 * revenue_yoy:
+            out["flags"].append(f"应收增速 {ar_yoy:.1f}% > 2×营收增速（{revenue_yoy:.1f}%），收入质量需核查")
+
     return out
 
 
 def main():
     parser = argparse.ArgumentParser(description="排雷数据：商誉/净资产 + 大股东质押（research 排雷数据源）")
     parser.add_argument("code", help="股票代码（sh600989 / 600989）")
+    parser.add_argument(
+        "--revenue-yoy",
+        type=float,
+        default=None,
+        help="营收同比增速%%（来自 finance.py）；提供时应用应收增速 2× 排雷规则",
+    )
     parser.add_argument("-j", "--json", dest="json_output", action="store_true", help="JSON 输出")
     args = parser.parse_args()
 
-    result = get_mine_risk(args.code)
+    result = get_mine_risk(args.code, revenue_yoy=args.revenue_yoy)
     if args.json_output:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return

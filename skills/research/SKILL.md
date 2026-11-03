@@ -86,15 +86,19 @@ python3 scripts/announcements.py 600989 reports  # 券商研报
 | 商誉/净资产 > 30% | ⚠️ | 减值风险 |
 | 大股东质押 > 60% | 🔴 | 流动性风险 |
 
-**排雷数据源（v1.31 新增，此前商誉/质押无任何数据来源）**：
+**排雷数据源（v1.31 新增，此前商誉/质押/应收无任何数据来源）**：
 
 ```bash
-python3 scripts/business/mine_risk.py sh600989 -j
+python3 scripts/business/mine_risk.py sh600989 -j --revenue-yoy <finance.py 的 revenue_yoy>
 ```
 
-输出 `{goodwill, pledge, flags, degraded}`：商誉/净资产比例（akshare 东财年报，
-报告期自动回退最近可用年）+ 大股东质押比例（全市场最新交易日快照，无记录=0）+
-超阈值 flags。`degraded` 非空时如实标注"数据不可用"，不得编造排雷结论。
+输出 `{goodwill, pledge, receivables, flags, degraded}`：
+- 商誉/净资产比例（akshare 东财年报，报告期自动回退最近可用年）
+- 大股东质押比例（全市场最新交易日快照，无记录=0）
+- 应收账款同比增速（东财资产负债表本期 vs 去年同期；传 `--revenue-yoy`
+  时自动应用"应收增速 > 2×营收增速"排雷规则，未传则由调用方自行对照）
+- 超阈值 flags；`degraded` 非空时如实标注"数据不可用"，不得编造排雷结论
+
 注意：本表阈值为 research 口径；screener 流水线用 limits.yaml 的
 goodwill_ratio（商誉/总资产 30/50）与 pledge_ratio（70/85），分母与阈值均不同。
 
