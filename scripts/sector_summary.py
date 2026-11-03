@@ -81,13 +81,10 @@ def _normalize_eastmoney_row(rank: int, item: dict) -> dict:
         "rank": rank,
         "code": str(item.get("f12", "")),
         "name": str(item.get("f14", "")),
-        # 东财 f3：本请求未带 fltt=2（仓库其余 clist 调用均带），无 fltt 时
-        # 服务端返回 ×100 整数（原始 695 表示 6.95%），故 /100 还原百分比。
-        # ⚠️ 量纲未经真实请求实测（push2 2026-11 对本机拒连）；若日后改为
-        # fltt=2 对齐 concept.py/pool.py，须同步删掉这里的 /100
-        "change_pct": _to_float(item.get("f3")) / 100.0 if item.get("f3") else 0.0,
+        # fltt=2 已加（v1.31），f3 为原值百分比（6.95 = 6.95%），与 concept.py/pool.py 同口径
+        "change_pct": _to_float(item.get("f3")) if item.get("f3") else 0.0,
         "lead_stock": str(item.get("f104", "") or ""),
-        "lead_change_pct": (_to_float(item.get("f105")) / 100.0 if item.get("f105") else 0.0),
+        "lead_change_pct": _to_float(item.get("f105")) if item.get("f105") else 0.0,
         "turnover_yi": _to_float(item.get("f6")) / 1e8,
         "net_inflow_yi": 0.0,  # push2 不直接给板块净流入，需二次 fetch
         "up_count": 0,
@@ -121,7 +118,13 @@ def fetch_ths_summary(top: int = 30) -> dict:
 def fetch_eastmoney_summary(top: int = 30) -> dict:
     """备选路径: 东方财富 push2 clist (行业板块 m:90+t:2)."""
     socket.setdefaulttimeout(DEFAULT_TIMEOUT)
-    params = f"fid=f3&po=1&pz={top}&pn=1" f"&fs=m:90+t:2" f"&fields=f1,f2,f3,f4,f5,f6,f12,f14,f104,f105,f128"
+    # fltt=2（v1.31 对齐 concept.py/pool.py 的 clist 约定）：服务端返回原值
+    # 百分比（6.95 表示 6.95%），不再需要 /100 还原——此前无 fltt 时按
+    # ×100 整数处理属推断口径，且 f105（领涨幅）与 f3 用了同一套转换，
+    # 与全仓库其他 clist 调用（均 fltt=2、无 /100）保持唯一口径
+    params = (
+        f"fid=f3&po=1&pz={top}&pn=1&fltt=2&invt=2" f"&fs=m:90+t:2" f"&fields=f1,f2,f3,f4,f5,f6,f12,f14,f104,f105,f128"
+    )
     url = f"{EASTMONEY_PUSH2}?{params}"
     req = urllib.request.Request(
         url,

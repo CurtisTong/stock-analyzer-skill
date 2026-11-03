@@ -116,3 +116,27 @@ class TestFilterByName:
     def test_empty_query_returns_all(self):
         items = _fake_items()
         assert len(sector_summary.filter_by_name(items, "")) == 3
+
+
+class TestEastmoneyCaliber:
+    """东财分支 fltt=2 口径（v1.31 对齐 concept.py/pool.py）。
+
+    回归背景：sector_summary 曾无 fltt 且按 ×100 整数 /100 还原，是仓库
+    唯一偏离 clist 约定的调用；改 fltt=2 后 f3/f105 为原值百分比。
+    """
+
+    def test_normalize_uses_raw_percent(self):
+        """fltt=2 下 f3=6.95 直接为 6.95%（不再 /100）。"""
+        row = sector_summary._normalize_eastmoney_row(
+            1, {"f12": "BK0001", "f14": "测试板块", "f3": 6.95, "f104": "捷成股份", "f105": 20.0, "f6": 1.4e9}
+        )
+        assert row["change_pct"] == 6.95
+        assert row["lead_change_pct"] == 20.0
+
+    def test_url_contains_fltt2(self):
+        """请求参数带 fltt=2&invt=2（与 concept.py/pool.py 一致）。"""
+        import re
+
+        src = open("scripts/sector_summary.py", encoding="utf-8").read()
+        assert "fltt=2" in src, "东财请求必须带 fltt=2"
+        assert "invt=2" in src
