@@ -134,7 +134,7 @@ print(pm.attribution_report(quotes={'sh600519': 1900}))     # Brinson 归因（�
 - 下游到 `screener`：组合需要补行业、降集中度或替换弱势股时，生成候选池。
 - 下游到 `stock`：对拟买入或拟替换标的做最终五层确认。
 
-输出必须包含 `position_plan`、行业集中度、需要处理的持仓、替代候选需求。
+输出必须包含仓位计划（`position_plan` 语义：方向 + 仓位比例，按 `score.score/grade` 推导，见 `../_shared/references/five-layer.md`）、行业集中度、需要处理的持仓、替代候选需求。
 
 ## Output Format
 

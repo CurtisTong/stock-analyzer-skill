@@ -30,12 +30,19 @@
 | C/Sell  | ROE>10% 且 增速>0   | PE/ROE<5            | 评分 50-60, 中性  |
 | D/Avoid | ROE<10% 或 增速<0   | PE/ROE>5 或 PE>30   | 评分<50, 卖出信号 |
 
-## 上下游交接字段（与 stock.schema.json 对齐）
+## 上下游交接字段（与 stock.schema.json 对齐，v1.31 向现实收）
 
-每个 skill 输出给下游时，保留：
+`stock.py -j` 输出 `{code, name, price, change_pct, score, technical, finance, profile, chan}`
+（契约见 `skills/_shared/contracts/stock.schema.json`）。五层语义**由消费方从现有字段推导**
+（/portfolio、/research 不再等待生产端输出下述理想化字段——v1.31 前 schema 要求
+`fundamental.rating` 等但生产端从未输出，LLM 只能编造）：
 
-- `fundamental.rating` (A/B/C/D)
-- `valuation.view` (低估/合理/偏高/高估/泡沫)
-- `technical` (技术指标完整对象)
-- `sentiment` (情绪定性描述)
-- `position_plan` (direction + position_pct + staged)
+| 理想化字段（旧 schema） | 现实推导源 |
+| --- | --- |
+| `fundamental.rating` (A/B/C/D) | `finance.roe` + `net_profit_yoy` + `gross_margin` 按本节阈值表 |
+| `valuation.view` (低估/合理/偏高/高估/泡沫) | `price`/`finance.eps`（注意 eps_caliber 单季不可直接算 PE）+ 行业 PE 对比 |
+| `technical` | `technical`（五层摘要）或转 `/stock-technical` 取 technical.py 完整报告 |
+| `sentiment` | `data_warnings` / `data_failed` 降级标记 + 行情/情绪面板 |
+| `position_plan` (direction + position_pct + staged) | `score.score` + `score.grade` + `structured_signals` |
+
+各 skill 输出给下游时保留上述推导结论字段。

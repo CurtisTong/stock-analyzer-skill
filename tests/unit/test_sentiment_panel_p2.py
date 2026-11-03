@@ -126,7 +126,13 @@ class TestSnapshotSchema:
         assert called["n"] == 0, "历史回填不应调用只返回今天数据的通道"
 
     def test_limit_down_count_taken_for_today(self, monkeypatch):
-        """当日采集仍应取跌停家数（字段要真的有值）。"""
+        """当日采集仍应取跌停家数（字段要真的有值）。
+
+        回归修复（2026-11-03）：本测试原先依赖真实涨停/炸板池接口
+        （push2ex，当日无数据时 _fetch_pool 返回空 → refresh_panel 返回
+        None → 断言 TypeError）。按 FRAMEWORK.md 规范 mock 池接口，
+        让"当日采集"路径脱离网络确定性执行。
+        """
         import data.sentiment_panel as panel
         import market_breadth as breadth
         from datetime import datetime
@@ -134,9 +140,14 @@ class TestSnapshotSchema:
         def ok_limit_data():
             return {"_degraded": False, "limit_down_count": 7}
 
+        def fake_pool(endpoint, date):
+            return [{"c": "600989", "n": "宝丰能源", "hybk": "煤炭", "lbc": 1}]
+
         monkeypatch.setattr(breadth, "get_limit_data", ok_limit_data)
+        monkeypatch.setattr(panel, "_fetch_pool", fake_pool)
         today = datetime.now().strftime("%Y%m%d")
         snapshot = panel.refresh_panel(date=today)
+        assert snapshot is not None
         assert snapshot["limit_down_count"] == 7
 
 

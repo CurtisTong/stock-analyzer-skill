@@ -59,7 +59,14 @@ python3 scripts/data/lhb.py sh600519 [--days 10]   # 最近 7 / 10 日龙虎榜
 - 下游到 `/research financial`：财务数据异常、估值分歧大或需要预测时进入建模。
 - 下游到 `portfolio`：涉及实际操作时，输出仓位计划、止损、替代方案。
 
-输出必须包含 `fundamental_rating`、`valuation_view`、`sector_context`、`technical_next_step`、`position_plan`。
+输出必须包含五层推导结论字段（v1.31 与 stock.schema.json 对齐——契约向 `stock.py -j`
+现实输出收拢，以下字段由消费方从现有输出推导，映射见 `../_shared/references/five-layer.md`）：
+
+- `score.score` + `score.grade`（综合评分/评级，即 position_plan 方向的推导源）
+- `finance.roe` + `net_profit_yoy`（fundamental 评级推导源）
+- `technical.ma` + `technical.kdj` + `technical.macd_signal`（技术面定性）
+- `profile.industry`（板块上下文）
+- `market_anchor`（Step 0 锚定；`--with-backtest` 时附加 `backtest`/`backtest_error`）
 
 ### Step 0：市场环境锚定（full / debate / technical 必跑）
 

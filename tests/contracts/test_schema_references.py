@@ -82,21 +82,30 @@ class TestStockSchema:
         return json.loads((CONTRACTS_DIR / "stock.schema.json").read_text())
 
     def test_required_top_level(self, schema):
-        """stock.schema 顶层必备字段。"""
+        """stock.schema 顶层必备字段（v1.31 向现实收：按 stock.py -j 真实输出）。"""
         assert schema["type"] == "object"
         required = set(schema.get("required", []))
-        assert "code" in required
-        assert "fundamental" in required
-        assert "valuation" in required
-        assert "position_plan" in required
+        assert {"code", "name", "price", "score", "technical", "finance"} <= required
 
-    def test_direction_enum(self, schema):
-        """position_plan.direction 枚举值。"""
-        direction = schema["properties"]["position_plan"]["properties"]["direction"]
-        assert "enum" in direction
-        assert "看多" in direction["enum"]
-        assert "看空" in direction["enum"]
-        assert "中性" in direction["enum"]
+    def test_no_idealized_fields_required(self, schema):
+        """回归护栏：生产端从未输出的理想化字段不得再进 required。
+
+        fundamental.rating / valuation.view / position_plan 曾让 LLM 只能
+        编造交付物（2026-11-02 审查 P1），v1.31 起五层语义由消费方从
+        finance/score/technical 现有字段推导（见 five-layer.md）。
+        """
+        required = set(schema.get("required", []))
+        assert not {"fundamental", "valuation", "position_plan", "sentiment"} & required
+
+    def test_score_nested_required(self, schema):
+        """score 子对象必备评分与评级档。"""
+        score = schema["properties"]["score"]
+        assert set(score.get("required", [])) == {"score", "grade"}
+
+    def test_backtest_mutual_exclusivity_documented(self, schema):
+        """--with-backtest 的成功/失败两个出口都有字段定义。"""
+        props = schema["properties"]
+        assert "backtest" in props and "backtest_error" in props
 
 
 class TestDebateSchema:

@@ -1,0 +1,229 @@
+{
+  "code": "sh600989",
+  "name": "宝丰能源",
+  "price": 22.52,
+  "change_pct": 0.94,
+  "data_warnings": [],
+  "data_sources": [
+    "行情[tencent]",
+    "K线[sina]",
+    "财务[eastmoney]"
+  ],
+  "data_failed": [],
+  "data_time": "2026-11-03T08:57:07.110008",
+  "profile": {
+    "industry": "能源",
+    "type": "蓝筹股",
+    "confidence": "中",
+    "reasons": [
+      "流通市值1651亿(大盘)"
+    ],
+    "priority_indicators": [
+      "均线系统",
+      "BOLL",
+      "MACD背离",
+      "箱体"
+    ],
+    "deprioritized": [
+      "KDJ"
+    ],
+    "capacity": null,
+    "dealer": null
+  },
+  "kline_count": 240,
+  "technical": {
+    "ma": "交叉震荡",
+    "macd_signal": 0,
+    "macd_divergence": null,
+    "macd_bar_trend": "红柱放大",
+    "kdj": "超买区(K=81)",
+    "boll_position": 0.598,
+    "rsi": 50.3,
+    "volume_signal": 0,
+    "patterns": [
+      {
+        "date": "2026-10-30",
+        "type": "十字星(变盘信号)",
+        "position": "T-1"
+      },
+      {
+        "date": "2026-11-02",
+        "type": "阳包阴(看涨吞没)",
+        "position": "T-1~0"
+      },
+      {
+        "date": "2026-11-02",
+        "type": "平底(支撑确认)",
+        "position": "T-1~0"
+      },
+      {
+        "date": "2026-11-02",
+        "type": "平顶(压力确认)",
+        "position": "T-1~0"
+      }
+    ],
+    "bamboo": {
+      "status": "竹节维持(高低阶梯抬升)",
+      "signal": 0,
+      "desc": "今日最高22.70>前5日高22.66，最低21.91>前5日低21.41，趋势维持",
+      "prev_high": 22.66,
+      "prev_low": 21.41,
+      "today_high": 22.7,
+      "today_low": 21.91
+    },
+    "ma_stop_buy": {
+      "status": "均线止跌(站上5日线)",
+      "signal": 1,
+      "desc": "股价不再新低，收盘22.52站上MA5(22.24)，止跌买点",
+      "type": "站上5日线"
+    }
+  },
+  "chan": {
+    "valid": true,
+    "merged_count": 189,
+    "original_count": 240,
+    "merge_ratio_pct": 21.2,
+    "fenxing_count": 76,
+    "top_fenxing": 38,
+    "bottom_fenxing": 38,
+    "bi_count": 43,
+    "up_bi": 21,
+    "down_bi": 22,
+    "xianduan_count": 3,
+    "zhongshu_list": [
+      {
+        "zg": 18.85,
+        "zd": 17.74,
+        "mid": 18.295,
+        "width": 1.11,
+        "gg": 20.86,
+        "dd": 17.42,
+        "bi_start": 0,
+        "bi_end": 3
+      },
+      {
+        "zg": 22.98,
+        "zd": 22.25,
+        "mid": 22.615,
+        "width": 0.73,
+        "gg": 24.65,
+        "dd": 19.3,
+        "bi_start": 5,
+        "bi_end": 9
+      },
+      {
+        "zg": 28.92,
+        "zd": 27.58,
+        "mid": 28.25,
+        "width": 1.34,
+        "gg": 36.49,
+        "dd": 23.29,
+        "bi_start": 10,
+        "bi_end": 12
+      },
+      {
+        "zg": 31.5,
+        "zd": 31.18,
+        "mid": 31.34,
+        "width": 0.32,
+        "gg": 36.49,
+        "dd": 28.63,
+        "bi_start": 13,
+        "bi_end": 15
+      },
+      {
+        "zg": 30.83,
+        "zd": 27.56,
+        "mid": 29.195,
+        "width": 3.27,
+        "gg": 31.61,
+        "dd": 24.0,
+        "bi_start": 16,
+        "bi_end": 20
+      },
+      {
+        "zg": 23.09,
+        "zd": 22.29,
+        "mid": 22.69,
+        "width": 0.8,
+        "gg": 25.08,
+        "dd": 20.15,
+        "bi_start": 22,
+        "bi_end": 24
+      },
+      {
+        "zg": 21.74,
+        "zd": 20.15,
+        "mid": 20.945,
+        "width": 1.59,
+        "gg": 25.0,
+        "dd": 19.6,
+        "bi_start": 25,
+        "bi_end": 29
+      },
+      {
+        "zg": 24.1,
+        "zd": 22.42,
+        "mid": 23.26,
+        "width": 1.68,
+        "gg": 25.58,
+        "dd": 20.05,
+        "bi_start": 30,
+        "bi_end": 42
+      }
+    ],
+    "zhongshu_count": 8,
+    "beichi": {
+      "trend_beichi": null,
+      "range_beichi": [],
+      "summary": "当前无明确背驰信号"
+    },
+    "maidian": {
+      "buy_points": [],
+      "sell_points": [],
+      "summary": "当前无明确缠论买卖点"
+    },
+    "current_position": "中枢内部(ZG=24.1, ZD=22.42)"
+  },
+  "finance": {
+    "eps": 1.97,
+    "roe": 27.08,
+    "net_profit_yoy": 59.965782928081,
+    "revenue_yoy": 32.474388022508,
+    "gross_margin": 42.8323293167,
+    "debt_ratio": 41.7909904779,
+    "period_type": "cumulative",
+    "report_date": "2026-09-30",
+    "eps_caliber": "累计 2026-09-30"
+  },
+  "score": {
+    "score": 48.4,
+    "grade": "中性",
+    "buy_signals": [
+      "均线止跌(站上5日线)"
+    ],
+    "sell_signals": [
+      "KDJ超买区(K=81)"
+    ],
+    "structured_signals": {
+      "macd_golden_cross": false,
+      "macd_death_cross": false,
+      "macd_bottom_divergence": false,
+      "macd_top_divergence": false,
+      "kdj_golden_cross": false,
+      "kdj_death_cross": false,
+      "kdj_oversold": false,
+      "kdj_overbought": true,
+      "boll_lower_band": false,
+      "boll_upper_band": false,
+      "rsi_oversold": false,
+      "rsi_overbought": false,
+      "volume_inflow": false,
+      "volume_outflow": false,
+      "is_downtrend": false,
+      "ma_stop_buy": true,
+      "bamboo_weak": false,
+      "bamboo_reversal": false
+    }
+  }
+}

@@ -1,36 +1,105 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "TechnicalAnalysis",
-  "description": "技术分析输出（被 stock.schema.json 引用）",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "technical.py CLI JSON 输出（v1.31 向现实收拢）",
+  "description": "描述 `python3 scripts/technical.py <代码> -j` 的真实输出结构（/stock-technical 与 /stock technical 模式的技术报告）。v1.31 之前本 schema 要求顶层 trend/ma_alignment/support_levels[]/resistance_levels[] 等 CLI 从不输出的字段（实际输出为 {meta, score, features}，均线排列在 features.ma_system.alignment、支撑阻力在 features.support_resistance.supports[] 对象数组），且被 stock.schema 错误 $ref 耦合——现按实际输出收拢并与 stock.schema 解耦（stock.py 的 technical 摘要是另一形状）。",
   "type": "object",
-  "required": ["trend", "support_levels", "resistance_levels"],
+  "required": [
+    "meta",
+    "score",
+    "features"
+  ],
+  "additionalProperties": true,
   "properties": {
-    "trend": {"enum": ["uptrend", "downtrend", "sideways"]},
-    "ma_alignment": {"enum": ["bullish", "bearish", "mixed"]},
-    "macd": {
+    "meta": {
       "type": "object",
+      "required": [
+        "code",
+        "name"
+      ],
       "properties": {
-        "signal": {"enum": ["golden_cross", "death_cross", "neutral"]},
-        "histogram": {"type": "number"}
-      }
+        "code": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "board": {
+          "type": "string",
+          "description": "板块（主板/创业板/科创板/北交所，涨跌停制度相关）"
+        },
+        "price": {
+          "type": [
+            "string",
+            "number"
+          ],
+          "description": "原始价格串或数值"
+        },
+        "price_num": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "change_pct": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "data_date": {
+          "type": "string",
+          "description": "K 线最新交易日（尾行数据时间戳）"
+        },
+        "data_stale_days": {
+          "type": "integer"
+        },
+        "scale": {
+          "type": "integer",
+          "description": "K 线周期（240=日线）"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
     },
-    "kdj": {
+    "score": {
       "type": "object",
+      "required": [
+        "score",
+        "grade"
+      ],
       "properties": {
-        "k": {"type": "number"},
-        "d": {"type": "number"},
-        "j": {"type": "number"},
-        "signal": {"enum": ["oversold", "overbought", "neutral"]}
-      }
+        "score": {
+          "type": "number",
+          "description": "综合评分 0-100"
+        },
+        "grade": {
+          "type": "string"
+        },
+        "buy_signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sell_signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "structured_signals": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
     },
-    "support_levels": {
-      "type": "array",
-      "items": {"type": "number"}
-    },
-    "resistance_levels": {
-      "type": "array",
-      "items": {"type": "number"}
-    },
-    "next_step": {"type": "string", "description": "技术面下一步操作建议"}
+    "features": {
+      "type": "object",
+      "description": "指标特征字典（technical/analyzer._compute_all 输出）。已知子键：ma_system（含 alignment 多头/空头排列）、macd、rsi、kdj、bollinger、volume、support_resistance（supports[]/resistances[] 为 {level,source,strength} 对象数组）、patterns[]、box、breakout、breakdown、wave、stop_loss_pct、limit_analysis、bamboo、ma_stop_buy；--chip 时附加 chip_distribution",
+      "additionalProperties": true
+    }
   }
 }

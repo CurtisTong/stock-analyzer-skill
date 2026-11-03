@@ -1,0 +1,255 @@
+{
+  "meta": {
+    "code": "sh600989",
+    "name": "宝丰能源",
+    "price": 22.52,
+    "price_num": 22.52,
+    "change_pct": 0.94,
+    "board": "主板",
+    "scale": 240,
+    "timestamp": "2026-11-03 08:58",
+    "data_date": "2026-11-02",
+    "data_stale_days": 1
+  },
+  "score": {
+    "score": 44.7,
+    "grade": "中性",
+    "buy_signals": [
+      "均线止跌(站上5日线)",
+      "三阴一阳",
+      "早晨之星",
+      "锤子线",
+      "曙光初现",
+      "看涨吞没"
+    ],
+    "sell_signals": [
+      "三只乌鸦",
+      "海龟通道跌破",
+      "KDJ超买区(K=81)"
+    ],
+    "structured_signals": {
+      "macd_golden_cross": false,
+      "macd_death_cross": false,
+      "macd_bottom_divergence": false,
+      "macd_top_divergence": false,
+      "kdj_golden_cross": false,
+      "kdj_death_cross": false,
+      "kdj_oversold": false,
+      "kdj_overbought": true,
+      "boll_lower_band": false,
+      "boll_upper_band": false,
+      "rsi_oversold": false,
+      "rsi_overbought": false,
+      "volume_inflow": false,
+      "volume_outflow": false,
+      "is_downtrend": true,
+      "ma_stop_buy": true,
+      "bamboo_weak": false,
+      "bamboo_reversal": false
+    }
+  },
+  "features": {
+    "ma_system": {
+      "ma5": 22.24,
+      "ma10": 21.94,
+      "ma20": 22.28,
+      "ma60": 23.19,
+      "ma120": 23.34,
+      "ma250": 23.36,
+      "alignment": "交叉震荡",
+      "convergence": 0.0068,
+      "convergence_desc": "高度粘合(变盘窗口)",
+      "ma_supports": [
+        [
+          "MA20",
+          22.28
+        ],
+        [
+          "MA5",
+          22.24
+        ],
+        [
+          "MA10",
+          21.94
+        ]
+      ],
+      "ma_resistances": [
+        [
+          "MA60",
+          23.19
+        ],
+        [
+          "MA120",
+          23.34
+        ],
+        [
+          "MA250",
+          23.36
+        ]
+      ]
+    },
+    "macd": {
+      "dif": -0.2841,
+      "dea": -0.3746,
+      "macd_bar": 0.181,
+      "signal": 0,
+      "signal_desc": "无",
+      "bar_trend": "红柱放大",
+      "divergence": null
+    },
+    "kdj": {
+      "k": 80.68,
+      "d": 67.18,
+      "j": 107.67,
+      "signal": "超买区(K=81)",
+      "钝化": false,
+      "board": "主板"
+    },
+    "bollinger": {
+      "upper": 23.51,
+      "mid": 22.28,
+      "lower": 21.04,
+      "bandwidth": 0.111,
+      "bandwidth_desc": "正常带宽",
+      "position": 0.598,
+      "position_desc": "中轨附近",
+      "squeeze": false,
+      "low_vol_squeeze": false
+    },
+    "rsi": {
+      "rsi": 50.3,
+      "rsi6": 59.7,
+      "rsi12": 51.3,
+      "rsi24": 48.6,
+      "signal": 0,
+      "zone_desc": "中性"
+    },
+    "volume": {
+      "volume_ratio": 0.76,
+      "volume_ratio_desc": "缩量",
+      "volume_price": "量价中性",
+      "volume_price_signal": 0,
+      "volume_price_state": 0,
+      "obv_divergence": null,
+      "shrink_signal": 0,
+      "shrink_desc": ""
+    },
+    "patterns": [
+      {
+        "date": "2026-10-30",
+        "type": "十字星(变盘信号)",
+        "position": "T-1"
+      },
+      {
+        "date": "2026-11-02",
+        "type": "阳包阴(看涨吞没)",
+        "position": "T-1~0"
+      },
+      {
+        "date": "2026-11-02",
+        "type": "平底(支撑确认)",
+        "position": "T-1~0"
+      },
+      {
+        "date": "2026-11-02",
+        "type": "平顶(压力确认)",
+        "position": "T-1~0"
+      }
+    ],
+    "support_resistance": {
+      "supports": [
+        {
+          "level": 22.42,
+          "source": "前低",
+          "strength": "强"
+        },
+        {
+          "level": 22.35,
+          "source": "前低",
+          "strength": "强"
+        },
+        {
+          "level": 22.28,
+          "source": "MA20",
+          "strength": "中"
+        },
+        {
+          "level": 22.24,
+          "source": "MA5",
+          "strength": "中"
+        }
+      ],
+      "resistances": [
+        {
+          "level": 23.19,
+          "source": "MA60",
+          "strength": "中"
+        },
+        {
+          "level": 23.34,
+          "source": "MA120",
+          "strength": "中"
+        },
+        {
+          "level": 23.36,
+          "source": "MA250",
+          "strength": "中"
+        },
+        {
+          "level": 23.72,
+          "source": "前高",
+          "strength": "强"
+        }
+      ],
+      "nearest_support": 22.42,
+      "nearest_resistance": 23.19,
+      "recent_swing_highs": [
+        23.72,
+        24.27,
+        24.57,
+        25.35,
+        25.58
+      ],
+      "breakout_target": null
+    },
+    "box": {
+      "top": 23.72,
+      "bottom": 20.05,
+      "mid": 21.88,
+      "range_pct": 16.5,
+      "days": 20,
+      "status": "箱体震荡",
+      "position": 67
+    },
+    "breakout": {},
+    "wave": "下跌浪(高点降低+低点降低)",
+    "limit_analysis": {
+      "board": "主板",
+      "limit_ratio": 9.8,
+      "limit_up_price": 0.0,
+      "limit_down_price": 0.0,
+      "is_st": false,
+      "board_status": "正常交易",
+      "limit_streak": 0,
+      "streak_type": "无连板",
+      "t1_risk": null
+    },
+    "bamboo": {
+      "status": "竹节维持(高低阶梯抬升)",
+      "signal": 0,
+      "desc": "今日最高22.70>前5日高22.66，最低21.91>前5日低21.41，趋势维持",
+      "prev_high": 22.66,
+      "prev_low": 21.41,
+      "today_high": 22.7,
+      "today_low": 21.91
+    },
+    "ma_stop_buy": {
+      "status": "均线止跌(站上5日线)",
+      "signal": 1,
+      "desc": "股价不再新低，收盘22.52站上MA5(22.24)，止跌买点",
+      "type": "站上5日线"
+    },
+    "stop_loss_pct": 0.4,
+    "breakdown": false
+  }
+}

@@ -46,9 +46,9 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 用户需求 → research (编排器)
   ├─ market: 市场状态、风格、风险偏好 → market_regime
   ├─ sector: 行业景气、竞争格局、轮动位置 → sector_view
-  ├─ stock: 五层分析 → fundamental_rating
+  ├─ stock: 五层分析 → score/finance（fundamental 评级按 five-layer 推导）
   ├─ technical: 交易窗口、支撑阻力、失效条件 → technical_trigger
-  └─ portfolio: 组合适配、仓位上限 → position_plan
+  └─ portfolio: 组合适配、仓位上限 → 仓位计划（position_plan 语义）
 ```
 
 ---
@@ -161,14 +161,14 @@ python3 scripts/stock.py <代码> -j                   # 9. ★ 综合评分（�
 
 ### Step 3: 分模块分析（复用 `/stock full`，不重复实现）
 
-直接调用 [`/stock <代码> full`](../stock/SKILL.md) 取其五层分析输出（符合 `skills/_shared/contracts/stock.schema.json`），仅融合以下增量证据：
+直接调用 [`/stock <代码> full`](../stock/SKILL.md) 取其五层分析输出（结构见 `skills/_shared/contracts/stock.schema.json`；fundamental.rating 等按 `../_shared/references/five-layer.md` 从 finance/score 字段推导），仅融合以下增量证据：
 
 | 增量模块 | 数据来源 | 备注 |
 | --- | --- | --- |
 | 市场环境 | `scripts/market_anchor.py --no-portfolio -j` | 必须用此脚本获取 `regime`/`breadth`/`sector_strength` |
 | 板块景气 | `scripts/sector.py <板块> -j` | 叠加 `sector_view` 上下文 |
 | 事件催化 | `scripts/events.py <代码> --days 60 -j` | 业绩预告必须显式纳入评级考量 |
-| 持仓约束 | `/portfolio health`（如适用） | 叠加 `position_plan` 上下文 |
+| 持仓约束 | `/portfolio health`（如适用） | 叠加仓位计划上下文 |
 | 同业基准 | `scripts/quote.py <可比公司代码> -j` | 多股对比必须引用行业龙头 PE/PB 锚 |
 | 组合相关性 | `scripts/portfolio_correlation.py -j` | 多股配置权重需基于相关性矩阵 |
 
