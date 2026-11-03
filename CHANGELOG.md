@@ -845,6 +845,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1104,6 +1105,61 @@
 
 ### Changed
 - **chip**: memoize holder data; unblock CI backtest timeout
+
+### Added
+- **oos**: universe fingerprint per pool record, audit line in joint verdict
+- **research**: receivables YoY completes the mine-risk signal set
+- **research**: mine-risk data source for goodwill and pledge ratios
+- **experts**: wire run_debate into a production CLI, closing the calibration loop
+- **experts**: add abstain path and distinguish missing data from bad data
+
+### Fixed
+- **sector**: align em clist call with fltt=2, drop x100 rescale
+- **quality**: derive non-recurring gain from existing fields; test+wire dupont
+- **backtest**: disclose holding-window caliber in multi_stock report
+- **market**: liquidity estimate uses share-unit volume, clarify em f3 caliber
+- **market**: treat failed market breadth as unavailable, not zero (1.31.0)
+- **screener,backtest**: align skill docs with CLI, surface OOS status in text mode
+- **portfolio**: valid screener strategy hints, drop dead tag tables, honest web flags
+- **research,learn**: DCF edge guards, neutral scoring for missing data, caliber doc sync
+- **portfolio**: wire guardrails hard-block into add_position
+- **sector**: apply --sector filter before Top-N truncation
+- **portfolio-web**: rebuild CORS origin allowlist from the actual bound port
+- **portfolio**: skip zero-weight buckets in brinson attribution
+- **cli**: restore 6 argparse flags dropped from refresh_pool main in 6e399c3
+- **stock**: separate backtest failure from zero stats, align kline filter caliber
+- **portfolio**: never persist example-fallback data into real portfolio files
+- **experts**: exempt financial industry from generic leverage/ROE thresholds
+- **experts**: treat degraded market breadth as unavailable, not as zero
+- **experts**: separate synthetic samples, prevent sample loss, wire reasoning chain
+- **experts**: harden public APIs, untrack runtime calibration file, sync docs
+- **experts**: guard None market fields in scoring, lock debate loop invariants
+- **experts**: restore sub-score paths and industry-aware PE percentile
+- **experts**: unify calibration formulas, guard file integrity, fix market fail-safe
+- **experts**: align abstain handling, risk channels and fallback weighting
+- **experts**: escape table cells and apply compliance rewrites in formatter
+- **experts**: cover long-horizon calibration window, judge cautious directions
+- **experts**: stop dropping experts when group field is partially missing
+- **experts**: correct dimension normalization direction, merge YAML weights
+
+### Changed
+- **contracts**: converge stock/technical schemas onto real CLI output
+
+### Documentation
+- **market**: full-mode fetch order dedup, 429 semantics, stale-fixture policy
+- **skills**: align contracts and catalogs with actual CLI behavior
+- **experts**: correct documentation drift across README/decide/ARCHITECTURE
+
+### Testing
+- **experts**: lock v1.26.0 P1 audit fixes as invariants
+- **experts**: lock v1.26.0 audit fixes as invariants
+
+### Maintenance
+- bump version to 1.32.0
+
+### Other
+- Merge CI auto CHANGELOG update (d12f65b)
+- **oos**: re-run balanced dual-pool with universe fingerprints
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
