@@ -124,7 +124,7 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
     # 4. 市场特征（从 market_anchor）
     ma = fetch_json(["python3", "scripts/market_anchor.py", code_lower, "--no-sector", "-j"])
     raw_meta["market_anchor"] = ma
-    breadth = ma.get("breadth", {}) if isinstance(ma, dict) and not ma.get("error") else {}
+    breadth = (ma.get("breadth") or {}) if isinstance(ma, dict) and not ma.get("error") else {}
 
     # 数据缺失一律置 None（不填 0/50 兜底）——
     # 评分层会区分"不可得"与"可得但差"：置 0 会让缺失被当成最差信号，
