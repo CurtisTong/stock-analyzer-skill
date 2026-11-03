@@ -380,8 +380,23 @@ def main() -> None:
             strategy_results,
             n_codes=len(codes),
             pool_type=args.pool_type,
+            universe_fingerprint=_universe_fingerprint(codes),
             require_all_pools=args.require_all_pools,
         )
+
+
+def _universe_fingerprint(codes: list[str]) -> str:
+    """股票池宇宙指纹：排序后 SHA1 前 8 位。
+
+    v1.31 审查修复：同一 pool_type 在不同时期可能对应不同股票池
+    （sector 池随 refresh_pool 更新、DEFAULT_CODES 可调整），仅靠
+    pool_type 字符串无法区分新旧口径——指纹让"双池联合判定"的每个
+    池记录可审计其真实宇宙（旧 JSON 的 default 池实为 55 只时代、
+    与 large 相同代码的"假双池"）。
+    """
+    import hashlib
+
+    return hashlib.sha1("\n".join(sorted(set(codes))).encode("utf-8")).hexdigest()[:8]
 
 
 def _update_validation(
@@ -389,6 +404,7 @@ def _update_validation(
     *,
     n_codes: int,
     pool_type: str = "default",
+    universe_fingerprint: str = "",
     require_all_pools: bool = False,
 ) -> None:
     """把本次回测结果写进 data/strategy_oos_validation.json。
@@ -439,6 +455,7 @@ def _update_validation(
             n_stocks=n_codes,
             total_return_pct=total_ret,
             pool_type=pool_type,
+            universe_fingerprint=universe_fingerprint,
             extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
         )
 
@@ -459,6 +476,13 @@ def _update_validation(
             if isinstance(p, dict)
         }
         status, note = evaluate_multi_pool(pool_results)
+        # 指纹审计行（v1.31）：各池的真实宇宙指纹，供"双池是否同一宇宙"核对
+        fp_parts = []
+        for pt, p in pools.items():
+            if isinstance(p, dict):
+                fp = p.get("universe_fingerprint") or "?"
+                fp_parts.append(f"{pt}={fp}")
+        print(f"   🧬 池指纹: {' / '.join(fp_parts)}")
         save_oos_result(
             strategy_name=sname,
             validation_status=status,
@@ -467,6 +491,7 @@ def _update_validation(
             n_stocks=n_codes,
             total_return_pct=total_ret,
             pool_type=pool_type,
+            universe_fingerprint=universe_fingerprint,
             extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
         )
         marker = "✅" if status == "oos_verified" else "⚠️ "

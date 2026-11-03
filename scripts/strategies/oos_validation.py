@@ -58,6 +58,7 @@ def save_oos_result(
     n_stocks: int,
     total_return_pct: float,
     pool_type: str = "default",
+    universe_fingerprint: str = "",
     extra: Optional[dict] = None,
 ) -> None:
     """单条 OOS 验证结果写到 JSON 文件。原子写入避免半截文件污染。
@@ -68,9 +69,17 @@ def save_oos_result(
         {strategy: {
             "validation_status": ..., "validation_note": ...,
             "validated_at": ...,
-            "pools": {pool_type: {"win_rate_pct", "n_stocks", "total_return_pct", ...}},
+            "pools": {pool_type: {"win_rate_pct", "n_stocks", "total_return_pct",
+                                  "universe_fingerprint", ...}},
             ...顶层字段为最近一次写入的值...
         }}
+
+    universe_fingerprint（v1.31 审查修复）：同一 pool_type 在不同时期
+    可能对应不同股票池（sector 池随 refresh_pool 更新、DEFAULT_CODES
+    可调整），仅靠 pool_type 字符串无法区分——旧口径结果与新口径结果
+    会被静默合并进同一次"双池联合判定"，闸门独立性不成立（旧 JSON 的
+    default 池实为 55 只时代、与 large 相同代码的"假双池"）。指纹 = 该池
+    代码列表排序后 SHA1 前 8 位，联合判定时用于审计"两池是否同一宇宙"。
 
     Args:
         strategy_name: 策略名（registry 已注册）
@@ -81,6 +90,7 @@ def save_oos_result(
         total_return_pct: 累计收益
         pool_type: 池类型标识（default=大池 sector 池 / large=跨板块大票池），
             双池验证时用于区分各池结果
+        universe_fingerprint: 本次股票池代码列表指纹（sorted SHA1[:8]）
         extra: 可选额外字段（sharpe / max_drawdown 等）
     """
     from datetime import datetime
@@ -94,6 +104,7 @@ def save_oos_result(
         "win_rate_pct": round(win_rate_pct, 2),
         "n_stocks": n_stocks,
         "total_return_pct": round(total_return_pct, 2),
+        "universe_fingerprint": universe_fingerprint,
         **(extra or {}),
     }
 

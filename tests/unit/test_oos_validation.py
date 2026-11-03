@@ -17,6 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
+from multi_stock_backtest import _universe_fingerprint  # noqa: E402
 from strategies import oos_validation
 from strategies.oos_validation import (
     OOS_FILE,
@@ -473,3 +474,44 @@ class TestPoolTypeBindsUniverse:
 
         codes = load_codes("sh600519,sz000858", "default")
         assert codes == ["sh600519", "sz000858"]
+
+
+class TestUniverseFingerprint:
+    """池宇宙指纹：区分同一 pool_type 不同时期的股票池（v1.31 审查修复）。"""
+
+    def test_fingerprint_written_to_pool_record(self):
+        save_oos_result(
+            "balanced",
+            validation_status="in_sample",
+            validation_note="t",
+            win_rate_pct=55.0,
+            n_stocks=280,
+            total_return_pct=1.0,
+            pool_type="default",
+            universe_fingerprint="abc12345",
+        )
+        data = json.loads(oos_validation.OOS_FILE.read_text(encoding="utf-8"))
+        pool = data["balanced"]["pools"]["default"]
+        assert pool["universe_fingerprint"] == "abc12345"
+
+    def test_different_universes_get_different_fingerprints(self):
+        assert _universe_fingerprint(["sh600519", "sz000001"]) != _universe_fingerprint(["sh600519"])
+
+    def test_fingerprint_order_independent(self):
+        assert _universe_fingerprint(["sh600519", "sz000001"]) == _universe_fingerprint(["sz000001", "sh600519"])
+
+    def test_default_pool_record_without_fingerprint_readable(self):
+        """旧 JSON（无指纹字段）仍可加载——load 不要求指纹。"""
+        oos_validation.OOS_FILE.write_text(
+            json.dumps(
+                {
+                    "balanced": {
+                        "validation_status": "in_sample",
+                        "pools": {"default": {"win_rate_pct": 35.7, "n_stocks": 55}},
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = load_oos_overrides()
+        assert data["balanced"]["pools"]["default"]["n_stocks"] == 55
