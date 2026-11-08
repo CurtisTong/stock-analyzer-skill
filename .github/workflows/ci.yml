@@ -146,6 +146,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 设置测试环境
+        # 冒烟门禁要跑 init_pool.py（硬依赖 PyYAML），不能依赖 runner 预装包
+        uses: ./.github/actions/setup-test
+
       - name: 跑 install.sh 集成测试
         run: |
           chmod +x tests/integration/test_install.sh
