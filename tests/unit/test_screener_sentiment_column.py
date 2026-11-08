@@ -171,6 +171,12 @@ class TestSentimentColumnProductionReachability:
             },
         )
         monkeypatch.setattr(sentiment_mod, "sentiment_score", lambda code: 81.25)
+        # event 因子权重 0.05 非零 → 会真实请求东财业绩预告接口。
+        # CI 出网受限时该请求挂到 pytest-timeout 60s（2026-11-08 py3.12/3.13 实测），
+        # 因此必须桩掉，单测不依赖外部接口。
+        import data.event as event_mod
+
+        monkeypatch.setattr(event_mod, "get_events", lambda *a, **k: {})
         quote = {
             "code": "sh600519",
             "name": "贵州茅台",

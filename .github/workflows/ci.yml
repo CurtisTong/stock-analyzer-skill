@@ -180,6 +180,27 @@ jobs:
           chmod +x tests/smoke_test.sh
           bash tests/smoke_test.sh
 
+  offline:
+    name: 离线单测（禁外网）
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置测试环境
+        uses: ./.github/actions/setup-test
+
+      - name: 断网跑单元测试
+        # 单测不得依赖真实 A 股接口：2026-11-08 实测 event 因子直连东财，
+        # CI 出网受限时挂到 pytest-timeout。代理指向黑洞端口 + 放行 localhost，
+        # 让"偷偷访问外网"的测试立刻失败而不是偶发超时。
+        env:
+          HTTP_PROXY: http://127.0.0.1:9
+          HTTPS_PROXY: http://127.0.0.1:9
+          NO_PROXY: 127.0.0.1,localhost
+        run: pytest tests/unit -q --timeout=60
+
   contracts:
     name: Schema 契约校验
     runs-on: ubuntu-latest
