@@ -42,6 +42,7 @@
 
 | 阶段 | 文档 | 说明 |
 | :--- | :--- | :--- |
+| 决策 | [positioning.md](positioning.md) | **定位单一事实源**：一句话定位 / ICP / 楔子 / 反定位 |
 | 决策 | [product-architecture.md](product-architecture.md) | 产品架构：五层分析 / 16 份专家人设 / 数据源 |
 | 决策 | [../methodology.md](../methodology.md) | 投资方法论 + 评分公式 |
 | 决策 | [../experts/README.md](../experts/README.md) | 16 份专家档案库（8 active + 8 legacy） |
