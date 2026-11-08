@@ -68,6 +68,20 @@ class TestExpertCountConsistency:
         assert "16 人专家圆桌" not in text, "16 人指人设总数（8 active + 8 legacy），不能表述为 16 人圆桌"
 
 
+class TestReportTemplateTiering:
+    """quick 与 full 必须有独立模板：quick 不再借用 full 的论证密度。"""
+
+    def test_quick_template_exists_and_is_referenced(self):
+        quick = PKG_ROOT / "skills" / "stock" / "reports" / "quick-template.md"
+        assert quick.exists(), "缺少 reports/quick-template.md，quick 模式没有独立输出契约"
+        assert "quick-template.md" in _read(PKG_ROOT / "skills" / "stock" / "SKILL.md")
+
+    def test_quick_template_stays_short(self):
+        quick = PKG_ROOT / "skills" / "stock" / "reports" / "quick-template.md"
+        lines = len(_read(quick).splitlines())
+        assert lines <= 80, f"quick 模板 {lines} 行，已接近 full 模板体量（{80} 行上限）"
+
+
 class TestEvidenceIntegrity:
     def test_positioning_mentions_oos_status_when_in_sample(self):
         """只要有策略仍为 in_sample，定位文档就必须保留外样本证据段落。"""
