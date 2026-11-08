@@ -121,12 +121,18 @@ class TestSliceBenchmarkOffByOne:
 
 
 class TestEnginePeriodDates:
-    def test_simulate_returns_period_dates(self):
+    def test_simulate_returns_period_dates(self, monkeypatch):
         """引擎回传每期的 start + holding_days（基准对齐的前提）。"""
         from backtest.engine import SimContext, simulate_strategy
         from data.types import KlineBar
 
         from datetime import datetime, timedelta
+
+        # 事件因子（balanced 权重 0.05）在打分时直连东财；单测必须桩掉，
+        # 否则 CI 出网受限会挂到 pytest-timeout（2026-11-08 实测）。
+        import data.event as event_mod
+
+        monkeypatch.setattr(event_mod, "get_events", lambda *a, **k: {})
 
         def _mock_kline(code, scale=240, datalen=140):
             today = datetime.now()

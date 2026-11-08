@@ -74,13 +74,21 @@ class TestMinCommissionEffect:
 
 
 class TestInsufficientSampleSemantics:
-    def test_beta_alpha_none_when_insufficient(self):
+    def test_beta_alpha_none_when_insufficient(self, monkeypatch):
         """期数不足时 beta/alpha 应为 None（而非 0）。"""
         from backtest.metrics import run_backtest
 
         import backtest
         from datetime import datetime, timedelta
         from data.types import KlineBar
+
+        # 基准 K 线与事件因子都会走真实接口：metrics 内部 `from data import get_kline`
+        # 绕过 engine 的同名补丁，且 balanced 的 event 因子权重 0.05 非零。
+        # 不打桩时 CI 出网受限会挂到 pytest-timeout（2026-11-08 实测）。
+        import data as data_mod
+        import data.event as event_mod
+
+        monkeypatch.setattr(event_mod, "get_events", lambda *a, **k: {})
 
         finance_obj = _finance_stub()
         today = datetime.now()
@@ -102,6 +110,7 @@ class TestInsufficientSampleSemantics:
                 )
             return bars
 
+        monkeypatch.setattr(data_mod, "get_kline", _mock_kline)
         orig_kline = backtest.engine.get_kline
         orig_fin = backtest.engine.get_finance
         backtest.engine.get_kline = _mock_kline
