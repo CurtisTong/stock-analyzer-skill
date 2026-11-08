@@ -151,6 +151,9 @@ jobs:
           chmod +x tests/integration/test_install.sh
           bash tests/integration/test_install.sh
 
+      - name: 零安装冒烟（隔离 HOME · 离线首输出 · ≤300s）
+        run: python3 scripts/dev/check_install_smoke.py --ci
+
   smoke:
     name: 冒烟测试
     runs-on: ubuntu-latest
