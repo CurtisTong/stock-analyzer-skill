@@ -2,10 +2,55 @@
 
 import logging
 import re
+from datetime import datetime
 
 from experts import direction_from_score
 
 logger = logging.getLogger(__name__)
+
+
+def _top_dims(dim_scores: dict, n: int = 3) -> str:
+    """取贡献最大的 N 个维度（依据字段），如 "基本面 82 · 估值 41"。"""
+    items = [(k, v) for k, v in (dim_scores or {}).items() if isinstance(v, (int, float))]
+    items.sort(key=lambda kv: kv[1], reverse=True)
+    return " · ".join(f"{k} {v:.0f}" for k, v in items[:n])
+
+
+def _collect_provenance(result: dict) -> list:
+    """汇总本轮评分的数据源与时间戳（可复核性的最后一环）。
+
+    结构化入参通常不含 provenance（build_stock_data 只挑数值），此时明确
+    标注"未标注"而不是留空——空着会被误读成"无数据源问题"。
+    """
+    stock = result.get("stock_data") or {}
+    meta = result.get("raw_meta") or {}
+    out = []
+
+    quote_raw = meta.get("quote")
+    quote = quote_raw[0] if isinstance(quote_raw, list) and quote_raw else {}
+    if isinstance(quote, dict) and quote.get("source"):
+        stamp = quote.get("fetch_time") or ""
+        out.append(f"行情 {quote['source']}" + (f" @ {stamp}" if stamp else ""))
+
+    fin = meta.get("finance_raw")
+    fin_src = ""
+    if isinstance(fin, dict):
+        records = next(iter(fin.values()), None)
+        if isinstance(records, list) and records and isinstance(records[0], dict):
+            fin_src = records[0].get("source") or ""
+    if fin_src:
+        out.append(f"财务 {fin_src}")
+
+    market = stock.get("market_features") or {}
+    if market.get("_degraded"):
+        reason = market.get("_degraded_reason") or "涨停/涨跌家数不可用"
+        out.append(f"⚠️ 市场宽度降级（{reason}），相关维度按数据缺失计")
+
+    if not out:
+        out.append("数据源未标注（结构化入参未携带 provenance）")
+    out.append(f"评分时间 {result.get('as_of') or datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    return out
+
 
 # AI 判断边界声明：所有圆桌输出强制尾部注入，避免散户误把 AI 建议当真
 RISK_DISCLAIMER = (
@@ -144,11 +189,28 @@ def format_debate_output(result: dict) -> str:
     lines.append("|------|------|------|----------|")
     for r in result.get("expert_results", []):
         name = r.get("display_name", r.get("name", "?"))
-        score = r.get("score", 0)
-        direction = r.get("direction", direction_from_score(score))
+        score = r.get("score")
+        # 弃权票 score=None（不参与投票基数），不能套阈值映射
+        score_display = "弃权" if score is None else score
+        direction = r.get("direction") or (direction_from_score(score) if score is not None else "弃权")
         reason = _validate_reason(r.get("reason", "-"))
-        lines.append(f"| {name} | {score} | {direction} | {reason} |")
+        lines.append(f"| {name} | {score_display} | {direction} | {reason} |")
 
+    lines.append("")
+
+    # 证据链：每张票挂"依据字段"，整轮挂数据源与时间戳。
+    # 定位上卖点是"可复核"——只给分数不给依据，等于让人无条件相信模型。
+    lines.append("### 🔍 证据链")
+    lines.append("")
+    for r in result.get("expert_results", []):
+        label = r.get("display_name", r.get("name", "?"))
+        dims = _top_dims(r.get("dim_scores") or {})
+        if r.get("abstain"):
+            lines.append(f"- **{label}**: 弃权（{r.get('abstain_reason') or '数据不足'}）")
+        else:
+            lines.append(f"- **{label}** {r.get('score')} 分 ← {dims or '维度分缺失，按中性处理'}")
+    for item in _collect_provenance(result):
+        lines.append(f"- {item}")
     lines.append("")
 
     # 分组汇总

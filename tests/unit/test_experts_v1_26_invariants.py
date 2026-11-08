@@ -335,7 +335,8 @@ class TestP0_6FormatterEscaping:
         from experts.formatter import format_debate_output
 
         out = format_debate_output(self._result("第一行\n第二行 PE 85%"))
-        rows = [line for line in out.split("\n") if "索罗斯" in line]
+        # 只看评分表行（证据链段会有同名条目，不属于本不变式）
+        rows = [line for line in out.split("\n") if line.startswith("|") and "索罗斯" in line]
         assert len(rows) == 1
 
     def test_long_reason_truncated(self):
