@@ -872,6 +872,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1191,6 +1192,26 @@
 - **experts**: guard breadth None in build_stock_data
 
 ### Other
+- Merge CI auto CHANGELOG update (d12f65b)
+
+### Added
+- **data**: tag sector confidence and PE percentile caliber
+- **experts**: attach an evidence chain to every debate vote
+- **portfolio**: make health default output a one-screen summary
+
+### Documentation
+- **readme**: lead with the daily portfolio and market entries
+- **stock**: add a dedicated quick-mode report template
+- **positioning**: establish single source of truth and drop unverified claims
+
+### Testing
+- use relative dates and deterministic portfolio fixtures
+
+### CI/CD
+- **install**: add offline install smoke gate
+
+### Other
+- v1.33.0 — positioning convergence and reviewable evidence
 - Merge CI auto CHANGELOG update (d12f65b)
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
