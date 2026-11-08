@@ -4,7 +4,7 @@
 
 > 🟢 **一句话**：想知道每次发版改了什么？看这里。
 >
-> 🟢 **当前状态**：v1.32.0（2026-11-03）全 skill 逐个审查优化批——12 skill × 6 路并行审查，P0 示例持仓污染真实 portfolio.json（首条写入曾把示例股落进实盘）+ refresh_pool.py 自 v1.22.1 起任何调用崩溃 + 保护机制硬阻止面世即孤儿（熔断落盘但不拦截加仓）+ market_anchor 流动性估算 100 倍（volume 数据层为股、代码按手）+ research 排雷三信号（商誉/质押/应收）从零数据到 akshare 三接口实测 + DCF 两缺陷（显式 10% 被吞 / r=g 除零）+ quality 缺数据反而满分 + K 线过滤口径错位 + 回测失败伪装成胜率 0% + web Origin 白名单硬编码端口 403 + schema 向现实收（stock/technical 契约对齐 CLI 输出）+ OOS 宇宙指纹（双池可审计）+ sector_summary fltt=2 对齐 + 自审计检查器假阳性根因（带参命令全漏检）；全量 2768 passed。此前：v1.31.0（2026-11-02）市场宽度降级语义修复——宽度整体拉取失败不再以 0 兜底误判"市场普跌"（当日指数上涨却输出普跌的实测 P0）+ 两种降级区分（整体失败→宽度不可用/仅涨跌停降级→涨跌比定性）+ anchor regime 整体失败走 MA20+量比退化判定不再恒判震荡且 confidence 如实降级 + signals 消费端 None 容错。此前：v1.30.0（2026-11-01）技术指标模块审查修复——前低支撑坐标系错位（highs 索引误用于 lows）、aligned_macd 索引契约越界、连板阈值二次打折（+9.1% 非涨停计板）、封板容差与日期错配、ma_stop 止跌买点恒真（稳态上涨 93% 触发）、KDJ 超买口径误用 J 值（命中率 53.7%）、ATR 口径与回测引擎不一致、MACD n=34 金叉死叉错位；全量 2532 passed。此前：——情绪因子 IC 链路空转不再伪装成"因子无效"（零样本显式告警）、筹码档位判定顺序与文档对齐（深度套牢优先）、快照回填历史日不再写入今日数据、情绪降级数据不再当真实情绪计分、北交所 920 号段归一化；全量 2499 passed。此前：——2 个 P0（背驰方向丢失：看跌盘整背驰被当看涨加 8 分、顶背驰卖出信号永不可达；技术报告在 10~14 根 K 线场景必崩）+ 6 个 P1（多日窗口覆盖 market_detector 权威判定、换手率信号在 CLI 路径永久失效、评分归一化倒挂致首板得分低于无信号、形态评分依赖列表顺序、本土战法评分与信号层口径相反且海龟形态无评分、回测跳空止损与基准切块失真）；全量 2492 passed。此前：——一买/一卖时效窗口坐标错位（生产环境恒失效）、线段特征序列分型重构（此前全局极值判定致中枢退化为"全年区间"）、中枢改笔中枢口径、背驰方向/时点与零动能假阳性修复、ATR 回踩容差接线、三买三卖改笔口径；缠论专项单测 49→59，全量 2449 passed。此前：> 🟢 **当前状态**：v1.26.0（2026-10-30）情绪因子三阶段落地——个股级因子+历史面板+screener 参考列、回测 factor IC 链路接通（v3.0 空转修复 + 时点评分防前视）、市场级情绪 overlay 第5层、快照定时采集（工作日 15:30）、fix 扣非净利润同比累计口径。此前：v1.25.0（2026-10-29）v1.24.0 发版后独立复审 33 项 P1 全部闭环——screener 缺值修复生产可达化、回测跌停出场/网格对齐/DSR 符号/超额指标口径修复、数据血缘按 code 隔离、专家圆桌弃权与钳制修复、保护机制状态持久化+硬阻止、反思记忆回流打分、ST ±5% 涨跌停、成本参数 CLI 化；全量 2318 passed。此前：v1.24.0（2026-10-29）开源对标校准 21 项落地——①专家校准体系升级：按 horizon 分桶结算（长线 180d/行业·风控 90d/短线 14d）、胜率卡片强制样本数、slugging 赔率列、弃权第四态（abstain 不入投票基数）、反思记忆（错误 lesson 注入 debate）、确定性仓位钳制（单股 20% 上限+审计）；②4 个新数据域（均真实接口实测）：大宗交易、涨停原因归因、打新日历、可转债双低；③回测严谨性：最低佣金 5 元、alpha/beta/excess_sharpe 超额指标、deflated Sharpe 过拟合诊断、涨跌停精确价；④经典 K 线形态库 12 个 + 海龟/回踩年线；⑤组合保护三件套 + 逆波动率加权；⑥机器可读命令契约 commands.json + 数据血缘降级链；⑦screener 缺值填 0 缺陷修复。全量 2210 passed；v1.23.1（2026-10-19）修复与数据记录：①修正专家校准数据落盘路径越界一层（`experts/calibration.py` 曾把校准数据写到仓库外目录，debate 校准闭环无法落库）②记录双池外样本回测结果（balanced/ma_volume_momentum 均未达阈值，如实保持 in_sample）③修复 release 时 package.json 版本未同步；v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
+> 🟢 **当前状态**：v1.33.0（2026-11-08）项目定位收敛与可复核性加固——定位单一事实源（`docs/positioning.md`，撤"AI 驱动选股/零门槛"等与 OOS 证据冲突表述）+ `/portfolio health` 默认单屏摘要（`--full` 保留全量）+ quick 报告模板分级 + README/安装主线换位（体检 + 复盘优先）+ 专家票证据链（维度分/数据源/时间戳）+ 板块归属置信度与 PE 分位口径标签 + 零安装冒烟门禁（离线首输出 ≤300s）；全量 2194 unit + 211 contracts + 62 e2e passed。此前：v1.32.0（2026-11-03）全 skill 逐个审查优化批——12 skill × 6 路并行审查，P0 示例持仓污染真实 portfolio.json（首条写入曾把示例股落进实盘）+ refresh_pool.py 自 v1.22.1 起任何调用崩溃 + 保护机制硬阻止面世即孤儿（熔断落盘但不拦截加仓）+ market_anchor 流动性估算 100 倍（volume 数据层为股、代码按手）+ research 排雷三信号（商誉/质押/应收）从零数据到 akshare 三接口实测 + DCF 两缺陷（显式 10% 被吞 / r=g 除零）+ quality 缺数据反而满分 + K 线过滤口径错位 + 回测失败伪装成胜率 0% + web Origin 白名单硬编码端口 403 + schema 向现实收（stock/technical 契约对齐 CLI 输出）+ OOS 宇宙指纹（双池可审计）+ sector_summary fltt=2 对齐 + 自审计检查器假阳性根因（带参命令全漏检）；全量 2768 passed。此前：v1.31.0（2026-11-02）市场宽度降级语义修复——宽度整体拉取失败不再以 0 兜底误判"市场普跌"（当日指数上涨却输出普跌的实测 P0）+ 两种降级区分（整体失败→宽度不可用/仅涨跌停降级→涨跌比定性）+ anchor regime 整体失败走 MA20+量比退化判定不再恒判震荡且 confidence 如实降级 + signals 消费端 None 容错。此前：v1.30.0（2026-11-01）技术指标模块审查修复——前低支撑坐标系错位（highs 索引误用于 lows）、aligned_macd 索引契约越界、连板阈值二次打折（+9.1% 非涨停计板）、封板容差与日期错配、ma_stop 止跌买点恒真（稳态上涨 93% 触发）、KDJ 超买口径误用 J 值（命中率 53.7%）、ATR 口径与回测引擎不一致、MACD n=34 金叉死叉错位；全量 2532 passed。此前：——情绪因子 IC 链路空转不再伪装成"因子无效"（零样本显式告警）、筹码档位判定顺序与文档对齐（深度套牢优先）、快照回填历史日不再写入今日数据、情绪降级数据不再当真实情绪计分、北交所 920 号段归一化；全量 2499 passed。此前：——2 个 P0（背驰方向丢失：看跌盘整背驰被当看涨加 8 分、顶背驰卖出信号永不可达；技术报告在 10~14 根 K 线场景必崩）+ 6 个 P1（多日窗口覆盖 market_detector 权威判定、换手率信号在 CLI 路径永久失效、评分归一化倒挂致首板得分低于无信号、形态评分依赖列表顺序、本土战法评分与信号层口径相反且海龟形态无评分、回测跳空止损与基准切块失真）；全量 2492 passed。此前：——一买/一卖时效窗口坐标错位（生产环境恒失效）、线段特征序列分型重构（此前全局极值判定致中枢退化为"全年区间"）、中枢改笔中枢口径、背驰方向/时点与零动能假阳性修复、ATR 回踩容差接线、三买三卖改笔口径；缠论专项单测 49→59，全量 2449 passed。此前：> 🟢 **当前状态**：v1.26.0（2026-10-30）情绪因子三阶段落地——个股级因子+历史面板+screener 参考列、回测 factor IC 链路接通（v3.0 空转修复 + 时点评分防前视）、市场级情绪 overlay 第5层、快照定时采集（工作日 15:30）、fix 扣非净利润同比累计口径。此前：v1.25.0（2026-10-29）v1.24.0 发版后独立复审 33 项 P1 全部闭环——screener 缺值修复生产可达化、回测跌停出场/网格对齐/DSR 符号/超额指标口径修复、数据血缘按 code 隔离、专家圆桌弃权与钳制修复、保护机制状态持久化+硬阻止、反思记忆回流打分、ST ±5% 涨跌停、成本参数 CLI 化；全量 2318 passed。此前：v1.24.0（2026-10-29）开源对标校准 21 项落地——①专家校准体系升级：按 horizon 分桶结算（长线 180d/行业·风控 90d/短线 14d）、胜率卡片强制样本数、slugging 赔率列、弃权第四态（abstain 不入投票基数）、反思记忆（错误 lesson 注入 debate）、确定性仓位钳制（单股 20% 上限+审计）；②4 个新数据域（均真实接口实测）：大宗交易、涨停原因归因、打新日历、可转债双低；③回测严谨性：最低佣金 5 元、alpha/beta/excess_sharpe 超额指标、deflated Sharpe 过拟合诊断、涨跌停精确价；④经典 K 线形态库 12 个 + 海龟/回踩年线；⑤组合保护三件套 + 逆波动率加权；⑥机器可读命令契约 commands.json + 数据血缘降级链；⑦screener 缺值填 0 缺陷修复。全量 2210 passed；v1.23.1（2026-10-19）修复与数据记录：①修正专家校准数据落盘路径越界一层（`experts/calibration.py` 曾把校准数据写到仓库外目录，debate 校准闭环无法落库）②记录双池外样本回测结果（balanced/ma_volume_momentum 均未达阈值，如实保持 in_sample）③修复 release 时 package.json 版本未同步；v1.23.0（2026-10-13）新增**成本分布（筹码）**分析维度（`scripts/chip_dist.py` CLI + `technical/chip_distribution.py` 算法 + `technical.py --chip` + stock/portfolio/stock-technical 技能接入）；v1.22.1（2026-09-02）修复：①portfolio health_report 未传行情自动拉实时价格（修复价格为 0 导致盈亏/支撑位/破位判定失真，web 与 manager 双路径对齐）②backtest walk-forward 输出错误窗口具体原因；v1.22.0（2026-08-28）工程化重构 + 修复：①死代码清理（portfolio/daily_report.py + performance.py + merge_phase_parts，~800 行）②technical 模块同名冲突解决（technical/analyzer.py 下沉，删 manager importlib hack）③portfolio/manager.py 拆分 health_report 系（1391→680 行）④CLI 统一到 cli_base（29 个顶层脚本）⑤统一市场状态检测（classify_market_state 唯一权威，三套调用）⑥CI 纳入 e2e/dispatch 测试（88 个测试点）⑦核心脚本补单测 11 个 + 覆盖率门槛 21→30 ⑧文档数字漂移修正（35 fetcher 类/9 因子/12 skill）；v1.21.1（2026-08-27）策略胜率复盘落地：双池 OOS 验证门槛 + ATR 止损/移动止盈 + 自校准最小池 30 + 权重优化跨窗口验证 + 技术模块审查修复；v1.21.0（2026-08-20）OOS 验证状态机 + sync_skill_count.py 接入 pre-commit + multi_stock_backtest --update-validation；v1.20.2（2026-08-13）mypy 白名单扩至 203 文件。
 >
 > 🔴 **风险提示**：本文件描述技术变更；任何"投资策略/选股结果/仓位建议"均不构成投资建议。
 
@@ -20,6 +20,7 @@
 
 | 版本 | 日期 | 一句话变更 |
 | --- | --- | --- |
+| 1.33.0 | 2026-11-08 | 项目定位收敛与可复核性加固：定位单一事实源（撤"AI 驱动选股/零门槛"等与 OOS 证据冲突的表述）+ health 默认单屏摘要 + quick 报告模板分级 + README/安装主线换位（体检 + 复盘）+ 专家票证据链（维度分/数据源/时间戳）+ 板块归属置信度与 PE 分位口径标签 + 零安装冒烟门禁（离线首输出 ≤300s） |
 | 1.32.0 | 2026-11-03 | 全 skill 逐个审查优化批：P0 示例持仓污染 + refresh_pool 崩溃 + 硬阻止接线 + 流动性 100 倍 + research 排雷三数据源 + DCF/quality 边界 + schema 向现实收 + OOS 宇宙指纹 + checker 假阳性根因 + fltt=2 对齐（2768 绿） |
 | 1.31.0 | 2026-11-02 | 市场宽度降级语义修复（market full 优化）：宽度整体拉取失败不再以 0 兜底误判"市场普跌"（当日指数上涨却输出普跌结论的实测 P0）+ 两种降级区分（整体失败→宽度不可用/仅涨跌停降级→涨跌比定性）+ anchor regime 整体失败走 MA20+量比退化判定不再恒判震荡且 confidence 如实降级 + signals.py 消费端 None 容错 |
 | 1.30.0 | 2026-11-01 | 技术指标模块审查修复：前低支撑坐标系错位 + aligned_macd 索引契约 + 连板阈值二次打折（+9.1% 非涨停计板）+ 封板容差/日期错配 + ma_stop 止跌买点恒真(93%) + KDJ 超买口径误用 J 值 + ATR 口径不一致 + MACD n=34 交叉错位 |
@@ -50,6 +51,30 @@
 | 1.12.0 | 2026-06-17 | V2 量化策略平台 + V2.1 维护（合并历史 tag） |
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
+
+## [1.33.0] - 2026-11-08（项目定位收敛与可复核性加固：单一事实源 + 单屏摘要 + 报告分级 + 证据链 + 口径标签 + 零安装门禁）
+
+### Changed（定位与用户面）
+
+- **定位单一事实源**：新增 `docs/positioning.md`（一句话定位 / 品类 / ICP / 楔子 / 护城河 / 反定位 / 成功指标 / 依据），明确"不做选股收益承诺"——依据是策略外样本全部未达标（balanced -6.67%~-18.32%，胜率 21.4%~35.7%，保持 `in_sample`）
+- **撤掉与证据冲突的表述**：产品架构删"AI 驱动的多因子选股，减少主观判断"、"零门槛/无需编程"改为"零编程，需终端环境"；"16 人专家圆桌"改为"8 位活跃专家圆桌（5 长线 + 3 短线）"
+- **README / 安装提示主线换位**：首屏与 `install.sh` 的三步上手改为 `/portfolio health`（每日体检）+ `/market quick`（复盘），`/screener` 降为进阶场景
+- **防漂移测试**：`tests/unit/test_positioning_consistency.py` 锁住禁用表述、活跃专家数、OOS 证据段落与首屏口径
+
+### Added（可复核性）
+
+- **`/portfolio health` 默认单屏摘要**：新增 `health_summary_markdown()`（≤40 行，仅"结论 / 需要处理（≤3）/ 下一步"），全量模板保留在 `--full`；`health_report_markdown()` 契约未动
+- **quick 报告模板分级**：新增 `skills/stock/reports/quick-template.md`（单屏研判 + ≤4 条依据 + 最大风险 + 护栏），不再靠散文约束借用 full 模板
+- **专家票证据链**：`format_debate_output` 新增"🔍 证据链"段——每票列出贡献最大的维度分，整轮列出数据源（行情/财务）、宽度降级标记与评分时间；缺 provenance 时显式写"数据源未标注"
+- **零安装冒烟门禁**：`scripts/dev/check_install_smoke.py`（隔离 HOME → install.sh → 12×2 软链校验 → 离线首输出 → ≤300s），接入 CI `integration` job；测试只锁解析与软链判定逻辑，不引外网
+- **板块归属置信度**：`build_stock_sector_compare` 新增 `sector_confidence`（high/medium/low），名称模糊匹配或归属未知时在 verdict 标注"板块归属低置信，结论请降权"
+- **PE 分位口径标签**：`technical.py` 输出 `pe_percentile_caliber=industry_relative`，`experts_cli` 输出 `quote_api`/`unavailable`——两套口径不得互相印证，`guardrails.md` §6.1 固化
+
+### Fixed
+
+- **弃权票渲染崩溃**：`format_debate_output` 在 `score=None`（abstain）时仍调用阈值映射 → `TypeError`；改为显示"弃权"并跳过映射
+
+---
 
 ## [1.32.0] - 2026-11-03（全 skill 逐个审查优化：P0 示例持仓污染 + refresh_pool 崩溃 + 硬阻止接线 + 排雷数据源 + schema 向现实收 + OOS 指纹）
 
