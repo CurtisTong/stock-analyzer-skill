@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 import pytest
 
 from portfolio.guardrails import (
@@ -101,7 +103,9 @@ class TestCheckProtections:
         assert "保护触发" in r["summary"]
 
     def test_cooldown_included(self):
-        trades = [_trade("sh600519", 100, 5.0, "2026-10-26")]
+        # 用相对日期：绝对日期会随真实时间推移越过 10 天冷却窗口而误报
+        sell_date = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
+        trades = [_trade("sh600519", 100, 5.0, sell_date)]
         r = check_protections(trades, cooldown_codes=["sh600519"])
         assert "sh600519" in r["cooldowns"]
         assert r["all_clear"] is False

@@ -856,10 +856,12 @@ class TestHealthReportMarkdown:
         assert "单一行业 ≤ 30%" in md
         assert "单标的 ≤ 20%" in md
 
-    def test_markdown_includes_screener_hint(self):
-        """screener_hint 出现在上下游联动段。"""
-        pm = PortfolioManager()
+    def test_markdown_includes_screener_hint(self, tmp_path):
+        """行业超限时 screener_hint 给出可执行命令，且渲染进 Markdown。"""
+        # 单只新能源持仓 → 锂/新能源占比 100% > 30%，稳定触发超限分支
+        pm = _make_manager(tmp_path, [_POS_300274])
         report = pm.health_report(quotes={})
+        hint = report.get("screener_hint", "")
+        assert "锂/新能源" in hint and "/screener" in hint
         md = pm.health_report_markdown(report)
-        if "锂/新能源" in report.get("screener_hint", ""):
-            assert "/screener" in md
+        assert "/screener" in md
