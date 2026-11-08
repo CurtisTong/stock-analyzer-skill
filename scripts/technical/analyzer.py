@@ -239,6 +239,9 @@ def _compute_all(inp: TechnicalInput):
         "pe": pe,
         "pb": pb,
         "pe_percentile": round(pe_pct, 1),
+        # 口径标签：本字段是"行业相对分位"，与行情接口可能给出的历史分位不是同一把尺子。
+        # 两套口径同场出现时必须分别标注，不能拿同名字段互相印证（历史事故：估值底/顶结论打架）。
+        "pe_percentile_caliber": "industry_relative",
         "peg": round(peg, 2),
     }
     # 估值因子评分（供 scoring.py composite_score 使用，与 stock_analysis.py 同源）。

@@ -866,7 +866,9 @@ def to_markdown(payload: dict) -> str:
         lines.append("")
         lines.append(f"### 🎯 个股 vs 板块 vs 大盘 ({comp['stock_code']})")
         if comp.get("stock_sectors"):
-            lines.append(f"- 所属板块: {', '.join(comp['stock_sectors'])}")
+            confidence = comp.get("sector_confidence", "")
+            suffix = f"（置信度 {confidence}）" if confidence else ""
+            lines.append(f"- 所属板块: {', '.join(comp['stock_sectors'])}{suffix}")
         if comp.get("matched_etf_name"):
             lines.append(f"- 匹配 ETF: {comp['matched_etf']} {comp['matched_etf_name']}")
         if comp.get("stock_change_pct") is not None:

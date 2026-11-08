@@ -149,8 +149,11 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             "pb": quote.get("pb"),
             "price": quote.get("price"),
             "circulating_cap": quote.get("circulating_cap"),
-            # PE 历史分位暂无 API，取不到就留 None（估值维度走中性处理）
+            # PE 历史分位暂无 API，取不到就留 None（估值维度走中性处理）。
+            # 与 technical.py 的 industry_relative 分位不是同一把尺子，
+            # 同场出现时按各自 caliber 标注，不得互相印证。
             "pe_percentile": quote.get("pe_percentile"),
+            "pe_percentile_caliber": ("quote_api" if quote.get("pe_percentile") is not None else "unavailable"),
             "name": quote.get("name"),
             "amount": quote.get("amount"),
         },

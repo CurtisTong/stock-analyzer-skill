@@ -293,6 +293,7 @@ def build_stock_sector_compare(
 
     matched_etf = None
     matched_via = None
+    matched_by_fuzzy = False
     if sectors:
         for sec in sectors:
             proxy_code = proxy_map.get(sec)
@@ -314,9 +315,20 @@ def build_stock_sector_compare(
                     if etf_name and (etf_name in sec or sec in etf_name):
                         matched_etf = etf
                         matched_via = sec
+                        matched_by_fuzzy = True
                         break
                 if matched_etf:
                     break
+
+    # 归属置信度：精确映射(high) > 粗粒度板块表(medium) > 名称模糊匹配/推断(low)。
+    # 历史事故：新能源链个股被归到"科技→半导体ETF"、金融误标，结论却照常输出。
+    # 低置信必须显式标注，让下游报告有权降权而不是照单全收。
+    if _ssm_sector:
+        sector_confidence = "high"
+    elif sectors and not matched_by_fuzzy:
+        sector_confidence = "medium"
+    else:
+        sector_confidence = "low"
 
     # 计算 RPS
     stock_change = stock_quote.get("change_pct") if stock_quote else None
@@ -358,6 +370,9 @@ def build_stock_sector_compare(
         else:
             verdict_parts.append(f"vs 大盘 {rps_vs_index:+.2f}pp")
 
+    if sector_confidence == "low":
+        verdict_parts.append("⚠️ 板块归属低置信（code 段推断/名称模糊匹配），板块结论请降权")
+
     data_quality = {
         "stock_ok": stock_quote is not None,
         "sector_ok": matched_etf is not None,
@@ -377,6 +392,7 @@ def build_stock_sector_compare(
         "stock_code": stock_code,
         "stock_sectors": sectors or None,
         "sector_source": sector_source,
+        "sector_confidence": sector_confidence,
         "matched_etf": matched_etf["code"] if matched_etf else None,
         "matched_etf_name": matched_etf["name"] if matched_etf else None,
         "stock_change_pct": (round(stock_change, 2) if stock_change is not None else None),
