@@ -627,6 +627,73 @@ def health_report_markdown(report: dict) -> str:
     return "\n".join(lines)
 
 
+SUMMARY_MAX_LINES = 40
+
+
+def health_summary_markdown(report: dict) -> str:
+    """单屏摘要（≤ SUMMARY_MAX_LINES 行）：结论 + 需要处理 + 下一步。
+
+    与 health_report_markdown 的全量模板互补：`/portfolio health` 默认走本函数，
+    `--full` 才展开持仓表/自选股/保护机制明细。定位上默认入口只回答
+    "我的持仓现在有没有问题、我要做什么"，详细数据留给显式展开。
+    """
+    lines: list[str] = []
+    type_label = report.get("type", "持仓")
+    as_of = report.get("as_of", "")
+    lines.append(f"## 📊 我的{type_label}（{as_of}）")
+    lines.append("")
+
+    risk_rating = report.get("risk_rating", "")
+    lines.append(f"**结论**: {risk_rating or '—'}")
+
+    totals = report.get("totals", {})
+    if totals.get("pnl_pct") is not None:
+        lines.append(
+            f"**盈亏**: 总成本 {totals.get('cost') or 0:,.0f} | "
+            f"总市值 {totals.get('value') or 0:,.0f} | "
+            f"{totals.get('pnl') or 0:+,.0f} ({totals.get('pnl_pct') or 0:+.2f}%)"
+        )
+    else:
+        lines.append("**盈亏**: ⚠️ 行情缺失，仅成本口径可用")
+
+    positions = report.get("positions", [])
+    changes = [p for p in positions if p.get("change_pct") is not None]
+    if changes:
+        up = sum(1 for p in changes if p["change_pct"] > 0)
+        down = sum(1 for p in changes if p["change_pct"] < 0)
+        worst = min(changes, key=lambda p: p["change_pct"])
+        drag = f"{worst['name']} {worst['change_pct']:+.2f}%"
+        lines.append(f"**今日**: 涨 {up} / 跌 {down}，最大拖累 {drag}")
+    lines.append("")
+
+    warnings = report.get("warnings") or []
+    lines.append(f"### 需要处理（{len(warnings)}）")
+    lines.append("")
+    if warnings:
+        for w in warnings[:3]:
+            lines.append(f"- {w}")
+        if len(warnings) > 3:
+            lines.append(f"- …另 {len(warnings) - 3} 项，见 `--full`")
+    else:
+        lines.append("- 无，组合在阈值内")
+    lines.append("")
+
+    focus = report.get("breakdown_positions") or positions
+    next_hint = "`/portfolio health --full` 看全量明细"
+    if focus:
+        next_hint += f" · `/stock {focus[0]['code']} quick` 看个股"
+    lines.append(f"**下一步**: {next_hint}")
+    lines.append("")
+
+    lines.append("---")
+    regime_age = report.get("regime", {}).get("age_minutes")
+    regime_str = f"regime_state {regime_age}分钟前" if regime_age is not None else "regime_state 未知"
+    lines.append(f"📅 行情 {as_of} | 持仓 {report.get('data_mtime') or 'N/A'} | {regime_str}")
+    lines.append("📜 免责声明：本工具非证券投资咨询业务持牌机构，输出为数据汇总与个人研判参考，不构成投资建议。")
+
+    return "\n".join(lines)
+
+
 def check_concentration(
     manager,
     single_stock_limit: float = 0.20,

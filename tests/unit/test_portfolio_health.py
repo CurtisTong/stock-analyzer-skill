@@ -865,3 +865,52 @@ class TestHealthReportMarkdown:
         assert "锂/新能源" in hint and "/screener" in hint
         md = pm.health_report_markdown(report)
         assert "/screener" in md
+
+
+class TestHealthSummaryMarkdown:
+    """/portfolio health 默认单屏摘要（v1.33.0 定位收敛）。
+
+    承诺：默认入口只回答"有没有问题 / 要处理什么 / 下一步点哪"，
+    全量表格留给 --full。行数上限是硬约束，防止摘要退化成第二个全量模板。
+    """
+
+    def test_summary_within_line_budget(self, tmp_path):
+        pm = _make_manager(tmp_path, [_POS_300274])
+        report = pm.health_report(quotes={})
+        md = pm.health_summary_markdown(report)
+        assert len(md.splitlines()) <= 40, f"摘要 {len(md.splitlines())} 行，超过单屏上限"
+
+    def test_summary_answers_three_questions(self, tmp_path):
+        pm = _make_manager(tmp_path, [_POS_300274])
+        md = pm.health_summary_markdown(pm.health_report(quotes={}))
+        assert "**结论**" in md
+        assert "需要处理" in md
+        assert "**下一步**" in md
+        assert "不构成投资建议" in md
+
+    def test_summary_lists_warnings(self, tmp_path):
+        """单只新能源持仓必然触发集中度超限，摘要要把它列出来（最多 3 条）。"""
+        pm = _make_manager(tmp_path, [_POS_300274])
+        report = pm.health_report(quotes={})
+        assert report["warnings"]
+        md = pm.health_summary_markdown(report)
+        assert "集中度" in md
+        shown = [line for line in md.splitlines() if line.startswith("- ") and "%" in line]
+        assert 1 <= len(shown) <= 3, f"摘要告警条数 {len(shown)} 超出口径"
+
+    def test_summary_says_clear_when_no_warnings(self, tmp_path):
+        pm = _make_manager(tmp_path, [])  # 空组合，不依赖真实用户持仓
+        md = pm.health_summary_markdown(pm.health_report(quotes={}))
+        assert "需要处理（0）" in md
+        assert "组合在阈值内" in md
+
+    def test_summary_flags_missing_quotes(self):
+        pm = PortfolioManager()
+        md = pm.health_summary_markdown(pm.health_report(quotes=None))
+        assert "行情缺失" in md
+
+    def test_summary_next_step_points_to_full_and_stock(self, tmp_path):
+        pm = _make_manager(tmp_path, [_POS_300274])
+        md = pm.health_summary_markdown(pm.health_report(quotes={}))
+        assert "/portfolio health --full" in md
+        assert "/stock sz300274 quick" in md

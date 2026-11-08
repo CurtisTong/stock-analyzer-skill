@@ -710,6 +710,12 @@ class PortfolioManager:
 
         return _hrm(report)
 
+    def health_summary_markdown(self, report: dict) -> str:
+        """单屏摘要（`/portfolio health` 默认输出），委托到 health_report。"""
+        from portfolio.health_report import health_summary_markdown as _hsm
+
+        return _hsm(report)
+
     def check_concentration(self, *args, **kwargs):
         """委托到 portfolio.health_report（v1.21.2 拆分）。"""
         from portfolio.health_report import check_concentration as _cc
