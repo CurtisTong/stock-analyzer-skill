@@ -875,6 +875,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1221,6 +1222,11 @@
 - **install**: add offline install smoke gate
 
 ### Testing
+- **screener**: stub the event factor so unit tests stay offline
+- use relative dates and deterministic portfolio fixtures
+
+### Testing
+- block outbound network in unit tests
 - **screener**: stub the event factor so unit tests stay offline
 - use relative dates and deterministic portfolio fixtures
 
