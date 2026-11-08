@@ -3,13 +3,15 @@
 <div align="center">
 
 ```text
-  📈 stock-analyzer-skill · A 股分析 Claude Code 插件
-  安装 → /screener init default → /stock 贵州茅台 quick
+  📈 stock-analyzer-skill · A 股投资研究工作台
+  安装 → /portfolio health → /market quick
 ```
 
-## 装进 Claude Code 用 `/stock` 等 12 个斜杠命令做 A 股分析——3 分钟拿到 5 层分析 + 专家圆桌
+## 装进 Claude Code，用 `/portfolio` 等 12 个斜杠命令，每天 10 分钟做完 A 股持仓体检与复盘
 
-**8 位活跃专家圆桌** · **37 个 fetcher 类（11 数据域）故障转移** · **核心 8 命令仅需 stdlib + PyYAML**
+**每日持仓体检** · **盘前盘后复盘** · **8 位活跃专家圆桌** · **37 个 fetcher 类故障转移**
+
+> 定位口径见 [`docs/positioning.md`](docs/positioning.md)：本包不荐股、不承诺收益，卖的是可复核的分析流水线与纪律约束。
 
 > "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
 > 核心 8 命令（quote/kline/finance/technical/stock/portfolio/screener/backtest）只需 stdlib + PyYAML；扩展功能（`/research` DCF、`/screener init full-market`、美股 yfinance、`/market full` 美股参考）按需 `pip install yfinance akshare efinance pytdx`。
@@ -29,6 +31,7 @@
 ## 📑 目录
 
 - [✨ 这是什么？](#-这是什么)
+- [🎯 两个日常入口](#-两个日常入口)
 - [🎯 核心能力](#-核心能力)
 - [🚀 30 秒上手](#-30-秒上手)
 - [❓ 4 个常见问题 → 4 条命令](#-4-个常见问题--4-条命令)
@@ -48,9 +51,9 @@
 
 ## ✨ 这是什么？
 
-> 装进 Claude Code 后用 12 条 `/xxx` 斜杠命令做 A 股投资研究——选股 / 看盘 / 看持仓 / 研究 / 监控 / 回测 / 学习。
+> 装进 Claude Code 后用 12 条 `/xxx` 斜杠命令做 A 股投资研究——**先看持仓体检与复盘，再按需做单股深度研究、选股、回测**。
 
-一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的 Claude Code 插件包。
+一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的 Claude Code 插件包。日常只用两条命令：`/portfolio health` 体检、`/market quick` 复盘。
 
 > `/stock <代码>` 跑 5 层分析。具体耗时取决于数据源响应；网络差或 watchdog 超时（默认 1800s）会延后，部分字段可能降级。
 
@@ -88,6 +91,17 @@
 </table>
 
 ---
+
+## 🎯 两个日常入口
+
+> 每天真正会用的只有两条命令。其余命令是深度研究时的进阶工具。
+
+| 入口 | 什么时候用 | 输出 |
+| --- | --- | --- |
+| `/portfolio health` | 每天开盘前 / 收盘后，看持仓有没有事 | 单屏摘要：结论 + 需要处理（≤3）+ 下一步 |
+| `/market quick` | 盘前定情绪、盘后做复盘 | 指数 / 板块 / 宽度 / 资金偏好 |
+
+想看某只股票为什么涨跌：`/stock <代码> quick`（单屏研判）→ 需要论证再加 `full` 或 `debate`。
 
 ## 🎯 核心能力
 
@@ -148,14 +162,16 @@ AkShare · efinance · yfinance<br>
 # 1️⃣ 克隆项目并安装（约 30 秒）
 git clone https://github.com/CurtisTong/stock-analyzer-skill.git && cd stock-analyzer-skill && ./install.sh
 
-# 2️⃣ 初始化股票池（仅首次；网络差用 default 走预置数据）
-/screener init default
+# 2️⃣ 体检持仓（首次运行先用 /portfolio add 录入，或用示例持仓体验）
+/portfolio health
 
-# 3️⃣ 跑单股 5 层分析（耗时取决于数据源响应；网络差时延后）
-/stock sh600519 quick
+# 3️⃣ 盘前 / 盘后复盘
+/market quick
 ```
 
-> 内置预置默认股票池，无 token 即可启动。联网时自动获取最新数据，失败自动 fallback。watchdog 默认 1800s；真超时直接退出（stderr 一行告警，无部分结果）。
+> 内置预置默认股票池，无 token 即可启动（`install.sh` 已自动初始化；需要全市场池再跑 `/screener init full-market`）。联网时自动获取最新数据，失败自动 fallback。watchdog 默认 1800s；真超时直接退出（stderr 一行告警，无部分结果）。
+
+> 想看单股：`/stock sh600519 quick`（单屏研判，约 1 分钟）→ 需要完整论证用 `/stock sh600519 full`。
 
 <details>
 <summary>其他安装方式（npm）</summary>
@@ -419,9 +435,20 @@ ROE + 安全边际
 
 ## 🗺️ 5 个典型场景
 
-不知道从哪个命令开始？挑一个最贴近你当前问题的：
+不知道从哪个命令开始？**日常只需要 0️⃣**，其余按当前问题挑。
 
-### 1️⃣ 自上而下选股
+### 0️⃣ 每日例行（最常用）
+
+```mermaid
+flowchart LR
+  A["盘前 /market quick"] --> B["/portfolio health"]
+  B --> C["有问题 → /stock 该股 quick"]
+```
+
+**适合**：所有每天要看一眼持仓的人
+**产出**：市场情绪 + 持仓单屏结论 + 需要处理的 1-3 件事
+
+### 1️⃣ 自上而下选股（进阶）
 
 ```mermaid
 flowchart LR
@@ -483,16 +510,16 @@ flowchart LR
 
 ## 📋 12 个 Skill 速查
 
-> 🎯 **一句话**：stock 决策 / market 环境 / sector 板块 / screener 选股 / portfolio 组合（含 Web 录入 + 推送通道）/ backtest 验证 / research 研究 / stock-help 帮助；含 4 个变体 stock-technical / portfolio-web / portfolio-natural / learn。
+> 🎯 **一句话**：⭐ 日常 = portfolio 组合 + market 环境；深度 = stock 决策 / sector 板块 / screener 选股 / backtest 验证 / research 研究；辅助 = stock-help + 4 个变体（stock-technical / portfolio-web / portfolio-natural / learn）。**先把 ⭐ 两条用成习惯，再展开其余。**
 
 | 类别        | Skill                                                  | 命令                                             | 一句话价值                                   |
 | :---------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------- |
 | 🎯 **决策** | [stock](skills/stock/SKILL.md)                         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 16 份专家圆桌辩论 · 纯技术面  |
 | 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md)     | `/stock-technical <代码>`                        | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） |
-| 🌐 **环境** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
+| ⭐ **日常** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
 | 🌐 **环境** | [sector](skills/sector/SKILL.md)                       | `/sector <板块> [overview\|compare\|stock]`      | 板块全景 / 标的对比 / 板块内筛选             |
 | 🔎 **选股** | [screener](skills/screener/SKILL.md)                   | `/screener [--strategy 策略] [init]`             | 6 种策略 × 9 因子维度批量选股 + 股票池初始化 |
-| 💼 **组合** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance]`        | 持仓健康 / 调仓再平衡 / 模拟盘（compare 由 /stock 承接）    |
+| ⭐ **日常** | [portfolio](skills/portfolio/SKILL.md)                 | `/portfolio [health\|rebalance]`        | 持仓健康 / 调仓再平衡 / 模拟盘（compare 由 /stock 承接）    |
 | 💼 **组合** | [portfolio-web](skills/portfolio-web/SKILL.md)         | `/portfolio web [--port 8765]`                   | Web 录入服务（HTTP API :8765）               |
 | 💼 **组合** | [portfolio-natural](skills/portfolio-natural/SKILL.md) | 自然语言持仓操作                                 | NL → 命令映射（我买了/减仓/破位止损）        |
 | 🧪 **验证** | [backtest](skills/backtest/SKILL.md)                   | `/backtest [--strategy 策略] [--all]`            | 策略历史回测，含卡玛比率/盈亏比/夏普         |

@@ -47,6 +47,19 @@ class TestPositioningSource:
     def test_referenced_by_index_and_architecture(self):
         assert "positioning.md" in _read(INDEX), "docs/INDEX.md 未挂载定位文档"
         assert "positioning.md" in _read(ARCHITECTURE), "产品架构未引用定位文档"
+        assert "positioning.md" in _read(README), "README 未引用定位文档"
+
+    def test_readme_hero_matches_positioning(self):
+        """首屏承诺必须与 positioning.md 的 10 分钟口径一致。"""
+        hero = "\n".join(_read(README).splitlines()[:20])
+        assert "每天 10 分钟做完 A 股持仓体检与复盘" in hero
+
+    def test_readme_leads_with_daily_entries(self):
+        """/portfolio health 与 /market quick 必须作为日常入口出现在首屏区域。"""
+        head = "\n".join(_read(README).splitlines()[:20])
+        assert "/portfolio health" in head
+        assert "/market quick" in head
+        assert "两个日常入口" in _read(README)
 
 
 class TestNoConflictingClaims:
