@@ -89,16 +89,34 @@ def get_market_breadth() -> dict:
         flat_count = sh.get("f106", 0) + sz.get("f106", 0)
         total_stocks = up_count + down_count + flat_count
 
+        # 2. 获取涨跌停数据（从sentiment模块）
+        limit_data = get_limit_data()
+
+        # 涨跌家数字段整体不可用（上游字段失效 / 非交易日空数据）：宽度按"不可用"
+        # 处理，既不用 0 兜底也不塞 0.5 中性哨兵——哨兵会被下游
+        # （market_anchor）当成真实 advance_ratio=0.5，恒判"震荡"且 confidence=high。
+        # 与"整体失败"（_default_result）同语义，仅保留涨跌停数据（可能真实可得）。
+        if up_count + down_count == 0:
+            print("涨跌家数字段不可用（接口返回 0/0），市场宽度按不可用处理", file=sys.stderr)
+            result = {
+                "limit_up_count": limit_data.get("limit_up_count", 0),
+                "limit_down_count": limit_data.get("limit_down_count", 0),
+                "continuous_limit_height": limit_data.get("continuous_limit_height", 0),
+                "broken_limit_rate": limit_data.get("broken_limit_rate", 0),
+                "total_stocks": 0,
+                "up_count": None,
+                "down_count": None,
+                "up_ratio": None,
+                "_degraded": True,
+                "_degraded_reason": "涨跌家数字段不可用（接口返回 0/0）",
+            }
+            return result
+
         # 计算涨跌比：down=0 且 up>0 是极端普涨（哨兵值），不得算 0 误判"普跌"
         if down_count > 0:
             up_ratio = up_count / down_count
-        elif up_count > 0:
-            up_ratio = 99.0
         else:
-            up_ratio = 0.5  # 无涨跌数据（异常），中性值而非 0
-
-        # 2. 获取涨跌停数据（从sentiment模块）
-        limit_data = get_limit_data()
+            up_ratio = 99.0
 
         result = {
             "limit_up_count": limit_data.get("limit_up_count", 0),
@@ -190,24 +208,35 @@ def get_market_state(breadth: dict) -> dict:
     continuous_height = breadth.get("continuous_limit_height", 0)
     broken_rate = breadth.get("broken_limit_rate", 0)
     up_ratio = breadth.get("up_ratio")
+    up_count = breadth.get("up_count") or 0
+    down_count = breadth.get("down_count") or 0
+
+    # 宽度是否真的可用：涨跌家数必须同时有值且非 0/0。上游接口在字段失效时
+    # 返回 f104=f105=0（rc 仍为 0），此时 up_ratio 是哨兵而非真实涨跌比——
+    # 按哨兵定性会把"宽度不可用"误报成"震荡(宽度)"（v1.33.1 修复）。
+    width_usable = up_ratio is not None and (up_count + down_count) > 0
+
+    if not width_usable:
+        reason = breadth.get("_degraded_reason", "涨跌家数不可用")
+        signals.append(f"⚠️ {reason}，涨跌家数不可用，情绪无法定量")
+        signals.append(
+            "⚠️ 涨跌停/连板/涨跌家数全部不可用，情绪状态待确认；可用板块涨跌家数（sector_summary）作为替代证据"
+        )
+        return {
+            "state": STATE_UNAVAILABLE,
+            "confidence": CONFIDENCE_LOW,
+            "signals": signals,
+            "degraded": True,
+        }
+
+    assert up_ratio is not None  # width_usable 已保证非 None（mypy 收敛）
 
     # 宽度降级两种情形（v1.31.0 区分）：
-    # a) 整体拉取失败（up_ratio 为 None）：涨跌家数不可用，禁止用 0 定性"普跌"
+    # a) 整体拉取失败（涨跌家数不可用）：已在上面短路返回，禁止定性"普跌/普涨"
     # b) 仅涨跌停降级（token 未配置，涨跌家数仍可得）：改用涨跌比定性
     # 另：全零且无降级标记（非交易日空数据路径）同样视为降级，避免误报退潮
     if breadth.get("_degraded") or (limit_up == 0 and limit_down == 0):
         reason = breadth.get("_degraded_reason", "涨跌停数据降级")
-        if up_ratio is None:
-            signals.append(f"⚠️ {reason}，涨跌家数不可用，情绪无法定量")
-            signals.append(
-                "⚠️ 涨跌停/连板/涨跌家数全部不可用，情绪状态待确认；可用板块涨跌家数（sector_summary）作为替代证据"
-            )
-            return {
-                "state": STATE_UNAVAILABLE,
-                "confidence": CONFIDENCE_LOW,
-                "signals": signals,
-                "degraded": True,
-            }
         signals.append(f"⚠️ {reason}，按涨跌比定性")
         if up_ratio > 2:
             state = STATE_BIAS_STRONG
@@ -298,8 +327,8 @@ def get_market_state(breadth: dict) -> dict:
         limit_up=limit_up,
         limit_down=limit_down,
         total_stocks=total_stocks,
-        up_count=breadth.get("up_count", 0),
-        down_count=breadth.get("down_count", 0),
+        up_count=up_count,
+        down_count=down_count,
     )
     if soft_warning:
         signals.append(soft_warning)

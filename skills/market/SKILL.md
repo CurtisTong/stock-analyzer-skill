@@ -1,7 +1,7 @@
 ---
 name: market
 description: 大盘复盘。触发词：今天大盘怎么样、市场今天如何、行情怎么样、今天涨跌、大盘分析、市场复盘、今日行情、美股昨晚怎么样。用于市场快评/完整复盘/盘中分时、指数/板块ETF/风格轮动/资金偏好判断、美股收盘参考。
-version: 1.33.0
+version: 1.33.1
 model: glm-5.2
 allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *) Bash(python3 scripts/technical.py *) Bash(python3 scripts/screener.py *) Bash(python3 scripts/sector_summary.py *) Bash(python3 scripts/market_anchor.py *) Bash(python3 scripts/market_breadth.py *) Read(./scripts/data/sector_*) Read(./methodology.md) Read(./skills/_shared/references/*.md)
 ---
@@ -113,13 +113,14 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 ### 数据降级硬约束
 
-当 `market_breadth` 返回的 `breadth._degraded == true` 时，**先区分两种降级**（v1.31.0 起，以 `breadth.up_count` 是否为 `null` 判别）：
+当市场宽度不可用时，**先区分两种降级**（v1.31.0 起以 `up_count` 是否为 `null` 判别；v1.33.1 起 `market_anchor.breadth` 整体为 `null` 也是同一信号）：
 
-**a) 整体失败**（`up_count == null`，指数 API 异常，涨跌家数不可用）：
+**a) 整体失败**（`breadth == null` 或 `breadth.up_count == null`，涨跌家数不可用）：
 
-1. `market_state.state` 为"宽度不可用"、`emotion_phase` 为 null——**禁止**用涨跌比 0 定性"市场普跌"（降级前版本的实际 bug：当日指数上涨却输出普跌结论）。
-2. 此时 `market_anchor.regime` 已自动走 MA20+量比退化判定（`regime_reason` 含"退化判定"字样），引用时注明"宽度缺失，基于价格/量能退化判定"；**禁止**将 `emotion_phase` 或涨跌停相关约束（如"退潮期内不加仓涨停股"）写入结论。
-3. **替代证据**：用 `sector_summary.py` 输出的板块 `up_count/down_count`（真实可得）聚合定性宽度，配合 `quote.py` 指数涨跌交叉验证，并标注"涨跌停/家数数据不可用，情绪状态待确认"。
+1. 触发场景有两类，**都按整体失败处理**：① 指数 API 异常（rc≠0 / data 缺失）；② **上游涨跌家数字段失效**——东财接口仍返回 `rc=0` 但 `f104/f105` 恒为 0（2026-11 实测），此时 `up_count=down_count=0`，v1.33.1 起不再被当作真实宽度，而是与整体失败同语义（`up_count=down_count=up_ratio=null`，`market_anchor.breadth=null`，`breadth_degraded_reason` 给出原因）。
+2. `market_state.state` 为"宽度不可用"、`emotion_phase` 为 null——**禁止**用涨跌比 0 定性"市场普跌"（降级前版本的实际 bug：当日指数上涨却输出普跌结论）；也**禁止**把默认哨兵值 0.5 当"市场分化/震荡"的证据。
+3. 此时 `market_anchor.regime` 已自动走 MA20+量比退化判定（`regime_reason` 含"退化判定"字样），且 `regime_confidence` 被强制为 `low`；引用时注明"宽度缺失，基于价格/量能退化判定"；**禁止**将 `emotion_phase` 或涨跌停相关约束（如"退潮期内不加仓涨停股"）写入结论。
+4. **替代证据**：用 `sector_summary.py` 输出的板块 `up_count/down_count`（真实可得）聚合定性宽度，配合 `quote.py` 指数涨跌交叉验证，并标注"涨跌停/家数数据不可用，情绪状态待确认"。
 
 **b) 仅涨跌停降级**（token 未配置，`up_count` 仍为真实值）：
 

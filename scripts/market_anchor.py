@@ -54,6 +54,9 @@ import logging as _logging
 
 logger = _logging.getLogger(__name__)
 
+# 最近一次宽度不可用的原因（CLI 单线程，模块级足够；供 payload 透出）
+_LAST_BREADTH_REASON: str | None = None
+
 # ═══════════════════════════════════════════════════════════════
 # 数据采集：大盘 + 宽度 + 板块
 # ═══════════════════════════════════════════════════════════════
@@ -116,6 +119,7 @@ def _fetch_breadth() -> dict | None:
         dict 含 up_count / down_count / limit_up_count / limit_down_count
             / advance_ratio / new_high_low_ratio 等，失败返回 None。
     """
+    global _LAST_BREADTH_REASON
     try:
         breadth = market_breadth.get_market_breadth()
         # 宽度整体拉取失败时 up_count/up_ratio 为 None（v1.31.0 起不再用 0 兜底）：
@@ -124,7 +128,17 @@ def _fetch_breadth() -> dict | None:
         up = breadth.get("up_count")
         down = breadth.get("down_count")
         if up is None or down is None:
+            _LAST_BREADTH_REASON = breadth.get("_degraded_reason") or "涨跌家数不可用"
+            logger.warning("市场宽度不可用：%s", _LAST_BREADTH_REASON)
             return None
+        # 0/0 同样视为整体失败（v1.33.1）：上游字段失效时接口仍返回 rc=0 且
+        # f104/f105=0，若当成真实宽度会得到 advance_ratio=0.5 → regime 恒判"震荡"
+        # 且 confidence=high，等于用默认值冒充真实宽度（"降级当零值"第 4 次复发）。
+        if up + down == 0:
+            _LAST_BREADTH_REASON = "涨跌家数字段不可用（接口返回 0/0）"
+            logger.warning("市场宽度不可用：%s", _LAST_BREADTH_REASON)
+            return None
+        _LAST_BREADTH_REASON = None
         # 转换为 detect_market_state 期望的格式
         total = up + down
         advance_ratio = up / total if total > 0 else 0.5
@@ -145,6 +159,7 @@ def _fetch_breadth() -> dict | None:
             "_degraded_reason": breadth.get("_degraded_reason"),
         }
     except Exception as e:
+        _LAST_BREADTH_REASON = f"市场宽度拉取失败: {e}"
         logger.warning("市场宽度拉取失败: %s", e)
         return None
 
@@ -703,6 +718,8 @@ def analyze(
         "index_code": index_code,
         "index_change_pct": (round(index_quote["change_pct"], 2) if index_quote else None),
         "breadth": breadth,
+        # 宽度缺失原因（None 或 0/0 均视为整体失败），供报告层区分"无宽度"与"弱宽度"
+        "breadth_degraded_reason": (None if breadth else _LAST_BREADTH_REASON),
         "sector_strength": (
             {
                 "etfs": sector_payload["etfs"] if sector_payload else [],
@@ -842,7 +859,10 @@ def to_markdown(payload: dict) -> str:
         else:
             lines.append(f"        涨停 {b.get('limit_up_count', 0)} 家 / 跌停 {b.get('limit_down_count', 0)} 家")
     else:
-        lines.append("🌐 **市场宽度**: ⚠️ 数据缺失")
+        lines.append(
+            "🌐 **市场宽度**: ⚠️ 数据缺失"
+            f"（{payload.get('breadth_degraded_reason') or '涨跌家数不可用'}），regime 走 MA20/量比退化判定"
+        )
 
     ss = payload.get("sector_strength")
     if ss and ss.get("etfs"):
