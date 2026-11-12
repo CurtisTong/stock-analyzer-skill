@@ -897,6 +897,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1252,6 +1253,11 @@
 - use relative dates and deterministic portfolio fixtures
 
 ### Fixed
+- **market**: treat zero-zero breadth as a total failure
+- **experts**: guard breadth None in build_stock_data
+
+### Fixed
+- **portfolio**: 回撤熔断改用权益口径消除假熔断
 - **market**: treat zero-zero breadth as a total failure
 - **experts**: guard breadth None in build_stock_data
 
