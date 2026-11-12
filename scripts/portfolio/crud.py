@@ -26,6 +26,18 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _initial_capital(manager: "PortfolioManager") -> Optional[float]:
+    """取账户初始资金（portfolio.json 的 total_assets），供权益口径回撤使用。
+
+    缺失或非正数时返回 None——调用方退化为历史行为（累计利润口径）。
+    """
+    try:
+        value = manager._data.get("total_assets")
+        return float(value) if value and float(value) > 0 else None
+    except Exception:
+        return None
+
+
 def _record_trade_log(
     manager: "PortfolioManager",
     code: str,
@@ -54,7 +66,12 @@ def _record_trade_log(
         try:
             from portfolio.guardrails import sync_breakers
 
-            sync_breakers(tl.query())
+            # 回撤必须按权益口径（初始资金 + 累计清仓利润）计算。
+            # 不传 initial_capital 时退化为"累计利润"口径：峰值利润很小时
+            # 回撤百分比会被放大到荒谬量级（实测累计利润峰值 +1,100、谷值
+            # -9,559 → 回撤 969%，而真实权益回撤仅 1.5%），产生假熔断并
+            # 硬阻止后续加仓。initial_capital 取 portfolio.json 的 total_assets。
+            sync_breakers(tl.query(), initial_capital=_initial_capital(manager))
         except Exception as e:
             logger.debug("熔断状态同步失败: %s", e)
     except Exception as e:
