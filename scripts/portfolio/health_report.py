@@ -48,7 +48,7 @@ def _tradeable_hint(code: str, name: str, quote: dict) -> str:
     except (TypeError, ValueError):
         return ""
     if price <= 0:
-        return "无报价（可能停牌），无法判断能否成交"
+        return "当日可能无法成交（无报价，可能停牌）"
     change = quote.get("change_pct")
     if change is None:
         return ""
@@ -394,7 +394,13 @@ def health_report(
             status = "观望"
 
         over_target_sell = round((price - ts) / ts * 100, 2) if (ts and price > ts) else None
-        tradeable = _tradeable_hint(code, name, q) if code in quotes_map else ""
+        # 可成交性：单只缺报价 = 很可能停牌（要标注）；整批行情缺失属降级，不臆测停牌
+        if code in quotes_map:
+            tradeable = _tradeable_hint(code, name, q)
+        elif quotes_map:
+            tradeable = "当日可能无法成交（无报价，可能停牌）"
+        else:
+            tradeable = ""
 
         watch_rows.append(
             {

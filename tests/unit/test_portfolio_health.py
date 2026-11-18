@@ -653,12 +653,27 @@ class TestWatchlistStatus:
             assert w["status"] in allowed
 
     def test_no_quote_is_watch_only(self, tmp_path):
-        """无报价时只标"观望"，不臆测可成交性。"""
+        """整批行情缺失（降级模式）时只标"观望"，不臆测停牌。"""
         pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
         report = pm.health_report(quotes={})
         row = report["watchlist"][0]
         assert row["status"] == "观望"
         assert row["tradeable_hint"] == ""
+
+    def test_single_missing_quote_flags_possible_suspension(self, tmp_path):
+        """单只缺报价（同批其他标的行情正常）→ 标注可能停牌。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh600519": {"price": 1442.66, "change_pct": -1.03}})
+        row = next(r for r in report["watchlist"] if r["code"] == "sh603799")
+        assert "可能停牌" in row["tradeable_hint"]
+        assert "当日可能无法成交" in row["tradeable_hint"]
+
+    def test_zero_price_quote_flags_possible_suspension(self, tmp_path):
+        """报价存在但价格为 0 → 标注无法判断能否成交。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": 0, "change_pct": 0}})
+        row = report["watchlist"][0]
+        assert "可能停牌" in row["tradeable_hint"]
 
     @pytest.mark.parametrize(
         "quote,expected",
