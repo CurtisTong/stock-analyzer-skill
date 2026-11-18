@@ -292,3 +292,19 @@ def test_semantic_keep(sector, pool):
     codes = set(_sectors_of(data).get(sector, []))
     missing = [c for c in _SEMANTIC_KEEP[sector] if c not in codes]
     assert not missing, f"[{name}]「{sector}」缺少应保留标的: {missing}"
+
+
+# ---------- ST / 退市标的不得进池（名称即证据，无需业务判断） ----------
+
+# 回归：sz300367 网力退（已退市）在「机器人」池，sh600745 *ST闻泰 在
+# 「科技」+「PCB/AI算力」两池，sh600079 ST人福 在「医药」池。根因是
+# `is_st()` 只判 "ST" 子串、漏掉「XX退」，且手写预设不过 passes_filter。
+_ST_DELISTED_DENYLIST = ("sz300367", "sh600745", "sh600079")
+
+
+@pytest.mark.parametrize("code", _ST_DELISTED_DENYLIST)
+def test_st_or_delisted_not_in_any_sector(code, pool):
+    """ST / 退市标的不得出现在任何板块（含主题板块）。"""
+    name, data = pool
+    hits = [sector for sector, codes in _sectors_of(data).items() if code in codes]
+    assert not hits, f"[{name}] {code} 仍出现在板块: {hits}"

@@ -325,7 +325,13 @@ def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
 
 
 def is_st(name: str) -> bool:
-    return "ST" in name.upper()
+    """ST / *ST / 退市整理期标的判定。
+
+    退市股在行情里的名称是「XX退」（如 网力退、退市明科），不含「ST」，
+    原来的纯子串判断会把它们漏过去，池子里因此躺着已退市标的。
+    """
+    upper = (name or "").upper()
+    return "ST" in upper or "退市" in upper or upper.endswith("退")
 
 
 def passes_filter(stock: dict) -> tuple[bool, str]:

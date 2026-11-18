@@ -202,3 +202,14 @@ def test_counts_mismatch_in_both_scopes():
 
     assert counts["mismatch_rows"] == 2  # 锂电在 光伏 与 电力 各错一次
     assert counts["mismatch_codes"] == 1
+
+
+# ---------- ST / 退市：名称即证据，直接判错配 ----------
+
+
+@pytest.mark.parametrize("name", ["网力退", "退市明科", "*ST闻泰", "ST人福"])
+def test_classify_flags_st_and_delisted(name):
+    """ST / 退市标的在任何板块都判 mismatch（与 data.pool.is_st 同口径）。"""
+    verdict, detail = vsn.classify(name, "机器人")
+    assert verdict == "mismatch"
+    assert "ST" in detail or "退市" in detail

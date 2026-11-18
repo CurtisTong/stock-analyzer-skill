@@ -238,6 +238,12 @@ def fetch_names(codes: list[str], batch_size: int = _BATCH_SIZE) -> dict[str, st
     return names
 
 
+def _looks_delisted_or_st(name: str) -> bool:
+    """ST / *ST / 退市整理期（名称带「退」）一律不可选，与 data.pool.is_st 同口径。"""
+    upper = name.upper()
+    return "ST" in upper or "退市" in upper or upper.endswith("退")
+
+
 def classify(name: str, sector: str, code: str = "") -> tuple[str, str]:
     """判定单个「代码名称 × 板块」的归属。
 
@@ -248,6 +254,8 @@ def classify(name: str, sector: str, code: str = "") -> tuple[str, str]:
     """
     if not name:
         return "unknown", "名称缺失"
+    if _looks_delisted_or_st(name):
+        return "mismatch", "ST/退市（不可选标的）"
     if sector in _THEME_SECTORS:
         return "unknown", "主题板块不判归属"
     rule = _SECTOR_RULES.get(sector)
