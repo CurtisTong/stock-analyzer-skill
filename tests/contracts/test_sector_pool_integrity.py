@@ -257,3 +257,38 @@ def test_sector_map_does_not_label_lithium_as_pv():
     mapping = _load_sector_map()["stocks"]
     for code in ("sz002460", "sz002245"):
         assert mapping.get(code) != "光伏", f"{code} 在映射表里仍被标为「光伏」"
+
+
+# ---------- 语义归属回归（结构校验抓不到「归错行业」，所以显式锁死） ----------
+
+# 2026-11-19 全量语义扫描（scripts/dev/verify_sector_names.py + 腾讯名称核验）的修复结果
+_SEMANTIC_EXCLUSIONS: dict[str, tuple[str, ...]] = {
+    "资源": ("sz300059", "sz002385", "sz300498"),  # 券商 / 农业 / 养殖
+    "机器人": ("sh600551", "sh600566", "sh600588", "sz300159"),  # 出版 / 医药 / 软件 / 农机
+    "消费": ("sh600276", "sz300760"),  # 医药（已单列「医药」板块）
+    "半导体": ("sz002179",),  # 军工电子（连接器）
+}
+
+# 显式保留：光伏电站运营属电力运营端，不因名称含「太阳能」被剔除
+_SEMANTIC_KEEP = {
+    "电力": ("sz000591",),
+    "消费": ("sz002385", "sz300498"),  # 养殖链归大消费
+}
+
+
+@pytest.mark.parametrize("sector", sorted(_SEMANTIC_EXCLUSIONS))
+def test_semantic_exclusions(sector, pool):
+    """被判定为错配行业的代码不得再出现在该板块。"""
+    name, data = pool
+    codes = set(_sectors_of(data).get(sector, []))
+    offenders = [c for c in _SEMANTIC_EXCLUSIONS[sector] if c in codes]
+    assert not offenders, f"[{name}]「{sector}」仍含错配标的: {offenders}"
+
+
+@pytest.mark.parametrize("sector", sorted(_SEMANTIC_KEEP))
+def test_semantic_keep(sector, pool):
+    """经判定保留的标的必须还在（防止下次清理又误删）。"""
+    name, data = pool
+    codes = set(_sectors_of(data).get(sector, []))
+    missing = [c for c in _SEMANTIC_KEEP[sector] if c not in codes]
+    assert not missing, f"[{name}]「{sector}」缺少应保留标的: {missing}"
