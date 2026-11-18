@@ -10,12 +10,22 @@
 lhb 域的 2 个 fetcher 返回不同类型数据（明细/席位），不走 manager 故障转移。
 """
 
-import logging
 import sys
-from pathlib import Path
 
-# 直接运行本脚本时补齐 scripts/ 到 import 路径（供 common / fetchers 等同级包）
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# 直接运行本脚本时（python3 scripts/data/lhb.py ...），sys.path[0] 是 scripts/data/，
+# 其中的 types.py 会遮蔽标准库 types —— Python 3.11+ 在 import logging 阶段就抛
+# ImportError: cannot import name 'GenericAlias'。必须在任何标准库导入之前把
+# scripts/data 从 sys.path 移走、换成父目录 scripts/；包内 `from data import ...`
+# 的绝对导入依赖 scripts/ 在 sys.path，所以只能替换不能清空。
+if __name__ == "__main__":
+    import os
+
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _scripts_root = os.path.dirname(_script_dir)
+    sys.path[:] = [_scripts_root] + [p for p in sys.path if p and os.path.abspath(p) != _script_dir]
+
+import logging
+from pathlib import Path
 
 from common import fetch_with_breaker, LazyFetcherRegistry
 

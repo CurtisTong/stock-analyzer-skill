@@ -20,12 +20,13 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT / "scripts"))
 
-# skill -> 主入口脚本映射（13 skill 共用 15 个脚本，去重后参数化）
+# skill -> 主入口脚本映射（13 skill 共用 16 个脚本，去重后参数化）
 SKILL_ENTRY_SCRIPTS = [
     "announcements.py",
     "backtest.py",
     "calibration.py",
     "calibration_backfill.py",
+    "data/lhb.py",
     "events.py",
     "finance.py",
     "init_pool.py",
