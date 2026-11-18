@@ -148,3 +148,57 @@ def test_fetch_names_survives_network_error(monkeypatch):
 
     monkeypatch.setattr(vsn, "http_get", _boom)
     assert vsn.fetch_names(["sh601857"]) == {}
+
+
+# ---------- 豁免清单强制带理由与日期（防腐） ----------
+
+@pytest.mark.parametrize("name", sorted(vsn._NAME_HINTS))
+def test_name_hints_have_reason_and_date(name):
+    """豁免条目必须写清理由和加入日期，缺字段直接挂——这类清单最容易被悄悄腐蚀。"""
+    entry = vsn._NAME_HINTS[name]
+    assert entry.get("sector"), f"{name} 缺 sector"
+    assert entry.get("reason"), f"{name} 缺 reason"
+    assert entry.get("added"), f"{name} 缺 added"
+
+
+@pytest.mark.parametrize("key", sorted(vsn._SECTOR_EXCEPTIONS))
+def test_sector_exceptions_have_reason_and_date(key):
+    entry = vsn._SECTOR_EXCEPTIONS[key]
+    assert entry.get("reason"), f"{key} 缺 reason"
+    assert entry.get("added"), f"{key} 缺 added"
+
+
+def test_name_hint_counts_as_ok_in_its_sector():
+    """显式豁免的标的在应属板块里判 ok，在别的板块里仍判 mismatch。"""
+    assert vsn.classify("温氏股份", "消费")[0] == "ok"
+    assert vsn.classify("温氏股份", "资源")[0] == "mismatch"
+
+
+# ---------- 计数口径：条目 vs 唯一代码 vs 设计性排除 ----------
+
+
+def test_counts_report_both_scopes():
+    """同一只票可属两个板块，条目数与唯一代码数必须分开报。"""
+    pools = {
+        "资源": ["sh601088", "sz300059"],
+        "电力": ["sh601088", "sh600900"],
+        "高股息": ["sh601088"],
+    }
+    names = {"sh601088": "中国神华", "sz300059": "东方财富", "sh600900": "长江电力"}
+
+    counts = vsn.build_report(pools, {}, names)["counts"]
+
+    assert counts["rows"] == 5
+    assert counts["codes"] == 3
+    assert counts["skipped_by_design"] == 1  # 高股息是主题板块，设计性排除
+    assert counts["unknown_theme_rows"] == 1
+
+
+def test_counts_mismatch_in_both_scopes():
+    pools = {"光伏": ["sz002460"], "电力": ["sz002460"]}
+    names = {"sz002460": "赣锋锂业"}
+
+    counts = vsn.build_report(pools, {}, names)["counts"]
+
+    assert counts["mismatch_rows"] == 2  # 锂电在 光伏 与 电力 各错一次
+    assert counts["mismatch_codes"] == 1

@@ -160,18 +160,38 @@ _APPROX_RULES: dict[str, dict] = {
     },
 }
 
-# 名称里没有任何行业词、关键词规则判不出来的公司（显式维护，随扫描结果追加）
-# 值 = 应属板块；不在该板块时判 mismatch
-_NAME_HINTS: dict[str, str] = {
-    "温氏股份": "消费",
-    "大北农": "消费",
-    "牧原股份": "消费",
-    "新希望": "消费",
+# 名称里没有任何行业词、关键词规则判不出来的公司（显式维护，随扫描结果追加）。
+# 值 = {"sector": 应属板块, "reason": 理由, "added": 加入日期}；不在该板块时判 mismatch。
+# 豁免清单是这类工具的腐蚀点：不带理由和日期的条目，半年后没人敢删。
+_NAME_HINTS: dict[str, dict[str, str]] = {
+    "温氏股份": {
+        "sector": "消费",
+        "reason": "养殖（猪禽）属大消费链；申万把它单列为农林牧渔一级行业，本仓库无该板块",
+        "added": "2026-11-19",
+    },
+    "大北农": {
+        "sector": "消费",
+        "reason": "饲料/种业属大消费链；本仓库无农林牧渔板块",
+        "added": "2026-11-19",
+    },
+    "牧原股份": {
+        "sector": "消费",
+        "reason": "生猪养殖属大消费链；本仓库无农林牧渔板块",
+        "added": "2026-11-19",
+    },
+    "新希望": {
+        "sector": "消费",
+        "reason": "饲料/养殖属大消费链；本仓库无农林牧渔板块",
+        "added": "2026-11-19",
+    },
 }
 
 # 关键词会误伤、但归属经确认无问题的标的（键 = (代码, 板块)）
-_SECTOR_EXCEPTIONS: dict[tuple[str, str], str] = {
-    ("sz000591", "电力"): "光伏电站运营（发电端），归电力运营，不归光伏制造",
+_SECTOR_EXCEPTIONS: dict[tuple[str, str], dict[str, str]] = {
+    ("sz000591", "电力"): {
+        "reason": "中节能太阳能是光伏电站运营方（发电端），归电力运营，不归光伏制造",
+        "added": "2026-11-19",
+    },
 }
 
 # 主题板块：成员由其他板块再筛，不做行业归属判定
@@ -234,13 +254,14 @@ def classify(name: str, sector: str, code: str = "") -> tuple[str, str]:
     if rule is None:
         return "unknown", "无规则"
 
-    if (code, sector) in _SECTOR_EXCEPTIONS:
-        return "ok", _SECTOR_EXCEPTIONS[(code, sector)]
-    hinted = _NAME_HINTS.get(name)
-    if hinted is not None:
-        if hinted == sector:
+    exception = _SECTOR_EXCEPTIONS.get((code, sector))
+    if exception:
+        return "ok", f"显式豁免（{exception['added']}）"
+    hint = _NAME_HINTS.get(name)
+    if hint is not None:
+        if hint["sector"] == sector:
             return "ok", ""
-        return "mismatch", hinted
+        return "mismatch", hint["sector"]
     for kw, hint in rule["forbidden"]:
         if kw.lower() in name.lower():
             return "mismatch", hint
@@ -304,7 +325,33 @@ def build_report(
         "scanned": len(rows),
         "mismatches": mismatches,
         "unknown": [r for r in rows if r["verdict"] == "unknown"],
+        "counts": _counts(rows),
         "rows": rows,
+    }
+
+
+def _counts(rows: list[dict]) -> dict:
+    """口径必须写死：条目数（池内出现次数）与唯一代码数分开报，两者不等。
+
+    同一只票可同时属于两个行业板块，所以「扫描 272 条」对应 232 个唯一代码；
+    只报其中一个数会让「unknown 占一半」和「unknown 137 条」对不上。
+    """
+    unknown = [r for r in rows if r["verdict"] == "unknown"]
+    theme = [r for r in unknown if r["sector"] in _THEME_SECTORS]
+    mismatch = [r for r in rows if r["verdict"] == "mismatch"]
+    return {
+        "rows": len(rows),
+        "codes": len({r["code"] for r in rows}),
+        "mismatch_rows": len(mismatch),
+        "mismatch_codes": len({r["code"] for r in mismatch}),
+        "unknown_rows": len(unknown),
+        "unknown_codes": len({r["code"] for r in unknown}),
+        "unknown_theme_rows": len(theme),
+        "unknown_theme_codes": len({r["code"] for r in theme}),
+        "unknown_blind_rows": len(unknown) - len(theme),
+        "unknown_blind_codes": len({r["code"] for r in unknown} - {r["code"] for r in theme}),
+        # 与 unknown_theme_* 同值，保留用户口径的名字
+        "skipped_by_design": len(theme),
     }
 
 
@@ -312,11 +359,19 @@ def format_table(report: dict) -> str:
     """把 mismatch 列表排成表格（无错配时给一句结论）。"""
     lines = []
     mism = report["mismatches"]
+    c = report["counts"]
     if not mism:
-        lines.append(f"✅ 未发现语义错配（扫描 {report['scanned']} 条，"
-                     f"unknown {len(report['unknown'])} 条待人工复核）")
+        lines.append(
+            f"✅ 未发现语义错配：扫描 {c['rows']} 条目 / {c['codes']} 只，"
+            f"其中 unknown {c['unknown_rows']} 条目 / {c['unknown_codes']} 只待人工复核"
+            f"（主题板块设计性排除 {c['unknown_theme_rows']}，关键词盲区 {c['unknown_blind_rows']}）"
+        )
+        lines.append("提示：「0 错配」只覆盖可判定部分，关键词盲区仍是人工复核责任。")
         return "\n".join(lines)
-    lines.append(f"❌ 发现 {len(mism)} 条语义错配（扫描 {report['scanned']} 条）")
+    lines.append(
+        f"❌ 发现 {c['mismatch_rows']} 条语义错配（{c['mismatch_codes']} 只），"
+        f"扫描 {c['rows']} 条目 / {c['codes']} 只"
+    )
     lines.append("")
     lines.append("| 代码 | 名称 | 所在板块 | 建议归属 | 近似规则 |")
     lines.append("|---|---|---|---|---|")
@@ -334,10 +389,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", help="输出 JSON")
     parser.add_argument("--no-fail", action="store_true", help="有错配也 exit 0")
     parser.add_argument("--pools", help="板块池文件路径（默认 scripts/data/sector_stocks.json）")
+    parser.add_argument("--map", dest="map_path", help="映射表文件路径（默认 scripts/data/stock_sector_map.json）")
     args = parser.parse_args(argv)
 
     pools = load_pools(Path(args.pools) if args.pools else None)
-    mapping = load_sector_map()
+    mapping = load_sector_map(Path(args.map_path) if args.map_path else None)
     sectors = [s.strip() for s in args.sectors.split(",")] if args.sectors else None
 
     codes = sorted({c for sec, lst in pools.items() if not sectors or sec in sectors for c in lst})
