@@ -37,7 +37,16 @@ def _load_universe(count: int = 20):
 def cmd_evaluate(args):
     """跑回测并计算因子 IC。"""
     from backtest.metrics import run_backtest
-    from strategies.factor.ic import compute_all_factor_ic, compute_ic_by_regime, save_ic
+    from strategies.factor.ic import compute_all_factor_ic, compute_ic_by_regime, ic_status, load_ic, save_ic
+
+    load_ic()  # 刷新 IC 健康状态（缺失/全 0/过期 → stale）
+    _st = ic_status()
+    if _st["stale"]:
+        print(
+            f"⚠️ 现有 IC 不可用（reason={_st['reason']}）："
+            "本次不调整权重，评估结果需 --save 才会写入",
+            flush=True,
+        )
 
     codes = [c.strip() for c in args.codes.split(",")] if args.codes else _load_universe(args.universe)
     if not codes:
@@ -128,7 +137,13 @@ def cmd_evaluate(args):
         save_ic(ic_by_regime)
         from strategies.factor.ic import IC_FILE
 
+        load_ic()  # 保存后重新评估，供下游看到 ic_stale 的真实值
+        _st = ic_status()
         print(f"\n✅ IC 已保存到 {IC_FILE}")
+        print(
+            f"ic_stale={str(bool(_st['stale'])).lower()} · reason={_st['reason']} · "
+            f"updated={_st['updated']}"
+        )
     return 0
 
 
