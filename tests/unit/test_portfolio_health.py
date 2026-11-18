@@ -25,17 +25,50 @@ _POS_300274 = {
 }
 
 
-def _make_manager(tmp_path, positions):
+def _make_manager(tmp_path, positions, watchlist=None):
     """构造使用临时持仓文件的 PortfolioManager，避免依赖真实用户数据。"""
     p = tmp_path / "portfolio.json"
     p.write_text(
         json.dumps(
-            {"version": 2, "positions": positions, "watchlist": []},
+            {"version": 2, "positions": positions, "watchlist": watchlist or []},
             ensure_ascii=False,
         ),
         encoding="utf-8",
     )
     return PortfolioManager(path=str(p))
+
+
+# 自选股样例：目标区间买 28 / 卖 42（target_sell 是目标卖出价，不是止损价）
+_WATCH = {
+    "code": "sh603799",
+    "name": "华友钴业",
+    "target_buy": 28.0,
+    "target_sell": 42.0,
+    "added_date": "2025-06-01",
+}
+
+
+@pytest.fixture(autouse=True)
+def _isolated_portfolio_data(tmp_path, monkeypatch):
+    """隔离 scripts/data，避免裸 PortfolioManager() 读到工作区真实数据。
+
+    未隔离时同一用例在不同机器结论不同：干净 clone 没有 portfolio.json →
+    回退示例持仓（type="示例持仓"），开发机有真实持仓 → "实盘持仓"；
+    CI 又用 setup-test 造了 portfolio.json，把差异掩盖成"永远通过"。
+
+    manager / oplog / trade_log 各自绑定 data_dir，需同时 patch
+    （_data_dir 是 manager 内的 import 期别名，须单独 patch）。
+    """
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "portfolio.json").write_text(
+        json.dumps({"version": 2, "positions": [], "watchlist": []}, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("portfolio.manager.data_dir", lambda: data)
+    monkeypatch.setattr("portfolio.manager._data_dir", lambda: data)
+    monkeypatch.setattr("portfolio.oplog.data_dir", lambda: data)
+    monkeypatch.setattr("portfolio.trade_log.data_dir", lambda: data)
 
 
 # ────────────────────────────────────────────────────────────────
@@ -143,11 +176,22 @@ class TestCheckConcentrationMerged:
             # 应触发警告
             assert any("锂/新能源" in w for w in result["warnings"])
 
-    def test_baofeng_no_longer_misclassified(self):
+    def test_baofeng_no_longer_misclassified(self, tmp_path):
         """宝丰能源 tags 含 T+1待交收（状态），修复后应归"煤化工"或"能源"，不是 T+1。"""
-        pm = PortfolioManager()
+        positions = [
+            {
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "cost": 22.37,
+                "quantity": 4000,
+                "buy_date": "2026-01-01",
+                "tags": ["T+1待交收", "煤化工", "能源"],
+            }
+        ]
+        pm = _make_manager(tmp_path, positions)
         result = pm.check_concentration()
         industry = result["details"]["industry"]
+        assert industry, "行业分布不应为空（持仓未参与分类）"
         # T+1 待交收不应作为 industry 键
         assert "T+1待交收" not in industry, "宝丰能源被错误归到 T+1待交收 状态标签"
 
@@ -533,84 +577,140 @@ class TestRegimeHint:
 class TestScreenerHintDynamic:
     """M4: screener_hint 根据真实 industry 最大值动态生成。"""
 
-    def test_screener_hint_for_lithium_concentration(self):
-        """锂/新能源链占比高时建议 value 策略。"""
-        pm = PortfolioManager()
+    def test_screener_hint_for_lithium_concentration(self, tmp_path):
+        """锂/新能源链占比高时建议 quality_value 策略。"""
+        pm = _make_manager(tmp_path, [_POS_300274])  # 单只新能源 → 占比 100%
         report = pm.health_report(quotes={})
-        if "锂/新能源" in report["concentration"]["details"]["industry"]:
-            pct = report["concentration"]["details"]["industry"]["锂/新能源"]
-            if pct > 30:
-                # 锂/新能源 超 30% 应生成 screener_hint
-                assert "锂/新能源" in report["screener_hint"]
-                assert "value" in report["screener_hint"]
+        assert "锂/新能源" in report["concentration"]["details"]["industry"]
+        assert "锂/新能源" in report["screener_hint"]
+        assert "quality_value" in report["screener_hint"]
 
 
 class TestWatchlistStatus:
-    """M7: watchlist 5 档状态分级。"""
+    """自选股状态分级（target_sell 是目标卖出价；未持仓不判"已破止损"）。"""
 
-    def test_status_field_present(self):
-        """watchlist 每项含 status 字段。"""
-        pm = PortfolioManager()
-        report = pm.health_report(quotes={})
+    @pytest.mark.parametrize(
+        "price,expected",
+        [
+            (25.0, "到达买点（需技术确认）"),  # 买点下方
+            (28.0, "到达买点（需技术确认）"),  # 正好等于目标买点
+            (29.0, "接近买点"),  # 买点上方 3.6%（≤5%）
+            (35.0, "区间内观察"),  # 区间中间
+            (41.0, "接近目标卖出价"),  # 卖点下方 2.4%（≤3%）
+            (42.0, "到达目标卖出价"),  # 正好等于目标卖点
+            (45.0, "到达目标卖出价"),  # 超出目标卖点
+        ],
+    )
+    def test_status_by_price(self, tmp_path, price, expected):
+        """七档状态按价位判定，边界值（等于买点/卖点）显式覆盖。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": price, "change_pct": 0}})
+        row = next(r for r in report["watchlist"] if r["code"] == "sh603799")
+        assert row["status"] == expected
+        assert row["range_valid"] is True
+
+    @pytest.mark.parametrize("price", [10.0, 25.0, 35.0, 50.0])
+    def test_no_broken_stop_for_watchlist(self, tmp_path, price):
+        """未持仓标的任何价位都不出现"已破止损"（止损只对有成本价的持仓生效）。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": price, "change_pct": 0}})
+        for row in report["watchlist"]:
+            assert "已破止损" not in row["status"]
+            assert "接近止损" not in row["status"]
+
+    def test_over_target_sell_pct_marked(self, tmp_path):
+        """超出目标卖价时标注超出幅度（不止给状态）。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": 45.0, "change_pct": 0}})
+        row = report["watchlist"][0]
+        assert row["over_target_sell_pct"] == pytest.approx(7.14, abs=0.01)
+
+    def test_invalid_range_flagged(self, tmp_path):
+        """target_sell ≤ target_buy：显式标注价位设置异常，不静默算结论。"""
+        w = dict(_WATCH, target_buy=28.0, target_sell=28.0)
+        pm = _make_manager(tmp_path, [], watchlist=[w])
+        report = pm.health_report(quotes={"sh603799": {"price": 20.0, "change_pct": 0}})
+        row = report["watchlist"][0]
+        assert row["status"] == "价位设置异常"
+        assert row["range_valid"] is False
+
+    def test_status_field_present_and_enumerated(self, tmp_path):
+        """watchlist 每项含 status，且取值在白名单内。"""
+        allowed = {
+            "到达买点（需技术确认）",
+            "接近买点",
+            "区间内观察",
+            "接近目标卖出价",
+            "到达目标卖出价",
+            "价位设置异常",
+            "观望",
+        }
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": 35.0, "change_pct": 0}})
+        assert report["watchlist"], "自选股不应为空（fixture 已构造）"
         for w in report["watchlist"]:
             assert "status" in w
-            assert w["status"] in {
-                "已破止损",
-                "接近止损",
-                "到达买点",
-                "接近买点",
-                "观望",
-            }
+            assert w["status"] in allowed
 
-    def test_status_buy_zone(self):
-        """现价 ≤ target_buy 标为"到达买点"。"""
-        pm = PortfolioManager()
-        # 找到自选股
-        watchlist = pm.get_watchlist()
-        if watchlist:
-            w = watchlist[0]
-            tb = float(w.get("target_buy", 0) or 0)
-            if tb > 0:
-                quotes = {w["code"]: {"price": tb * 0.9, "change_pct": 0}}  # 现价低于买点
-                report = pm.health_report(quotes=quotes)
-                row = next(r for r in report["watchlist"] if r["code"] == w["code"])
-                assert row["status"] == "到达买点"
+    def test_no_quote_is_watch_only(self, tmp_path):
+        """无报价时只标"观望"，不臆测可成交性。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={})
+        row = report["watchlist"][0]
+        assert row["status"] == "观望"
+        assert row["tradeable_hint"] == ""
 
-    def test_status_break_sell(self):
-        """现价 ≤ target_sell 标为"已破止损"。"""
-        pm = PortfolioManager()
-        watchlist = pm.get_watchlist()
-        if watchlist:
-            w = watchlist[0]
-            ts = float(w.get("target_sell", 0) or 0)
-            if ts > 0:
-                quotes = {w["code"]: {"price": ts * 0.5, "change_pct": 0}}  # 现价远低于止损
-                report = pm.health_report(quotes=quotes)
-                row = next(r for r in report["watchlist"] if r["code"] == w["code"])
-                assert row["status"] == "已破止损"
+    @pytest.mark.parametrize(
+        "quote,expected",
+        [
+            ({"price": 28.0, "change_pct": 10.0}, "涨跌停"),
+            ({"price": 28.0, "change_pct": 10.0, "high": 28.0, "low": 28.0}, "一字板"),
+        ],
+    )
+    def test_tradeable_hint_on_limit(self, tmp_path, quote, expected):
+        """涨跌停/一字板：显式标注当日可能无法成交。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": quote})
+        row = report["watchlist"][0]
+        assert "当日可能无法成交" in row["tradeable_hint"]
+        assert expected in row["tradeable_hint"]
+
+    def test_tradeable_hint_absent_for_normal_quote(self, tmp_path):
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": 35.0, "change_pct": 1.2}})
+        assert report["watchlist"][0]["tradeable_hint"] == ""
+
+    def test_markdown_marks_tradeable_and_confirmation(self, tmp_path):
+        """Markdown 输出保留"需技术确认"与"可能无法成交"两条护栏。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": 28.0, "change_pct": 10.0}})
+        md = pm.health_report_markdown(report)
+        assert "到达买点（需技术确认）" in md
+        assert "当日可能无法成交" in md
 
 
 class TestQuotesNoneDegradation:
     """L17: quotes=None 降级处理。"""
 
-    def test_quotes_none_pnl_pct_is_none(self):
+    def test_quotes_none_pnl_pct_is_none(self, tmp_path):
         """行情缺失时 totals.pnl_pct = None 而非 0 或 -100%。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         report = pm.health_report(quotes=None)
         assert report["totals"]["pnl_pct"] is None
         assert report["totals"]["value"] is None
         assert report["totals"]["pnl"] is None
 
-    def test_quotes_none_risk_rating_marks_degradation(self):
+    def test_quotes_none_risk_rating_marks_degradation(self, tmp_path):
         """行情缺失时 risk_rating 标注"行情缺失"。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         report = pm.health_report(quotes=None)
         assert "行情缺失" in report["risk_rating"]
 
-    def test_quotes_none_no_false_breakdown(self):
+    def test_quotes_none_no_false_breakdown(self, tmp_path):
         """行情缺失时不误判所有持仓为破位。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])
         report = pm.health_report(quotes=None)
+        assert report["positions"], "持仓不应为空（fixture 已构造）"
         # price=0 时 breakdown 公式 `price > 0` 失败 → False
         for p in report["positions"]:
             assert p["breakdown"] is False
@@ -627,17 +727,14 @@ class TestRiskRatingNaturalLanguage:
         # 降级 + 无超阈值 → 仍含\"组合处于安全区间\"或被\"行情缺失\"覆盖
         assert "组合处于安全区间" in report["risk_rating"] or "行情缺失" in report["risk_rating"]
 
-    def test_risk_rating_uses_semicolon_not_comma(self):
-        """risk_rating 摘要用\"；\"分隔（不直接用 warnings 拼接的\"、\"）。"""
-        pm = PortfolioManager()
-        quotes = {
-            "sh600522": {"price": 33.43, "change_pct": 0},  # 破位
-        }
+    def test_risk_rating_uses_semicolon_not_comma(self, tmp_path):
+        """risk_rating 摘要用"；"分隔（不直接用 warnings 拼接的"、"）。"""
+        pm = _make_manager(tmp_path, [_POS_300274])  # 单只 → 破位 + 集中度双警告
+        quotes = {"sz300274": {"price": 100.0, "change_pct": 0}}  # 成本 120 → -16.7% 破位
         report = pm.health_report(quotes=quotes)
-        # 有破位 + 集中度超阈值 → 应含分号
-        if "；" in report["risk_rating"]:
-            # 同时不应直接用全 warnings 拼接（不应出现 4+ 个\"、\"）
-            assert report["risk_rating"].count("、") <= 1
+        # 破位 + 单一标的集中度 100% 超阈值 → 摘要应含分号
+        assert "；" in report["risk_rating"]
+        assert report["risk_rating"].count("、") <= 1
 
 
 class TestReadRegimeState:
@@ -736,11 +833,21 @@ class TestAutoTechnicalIntegration:
             pm.health_report(quotes={}, auto_technical=False)
             mock_fetch.assert_not_called()
 
-    def test_explicit_technical_features_overrides_auto(self):
+    def test_explicit_technical_features_overrides_auto(self, tmp_path):
         """显式传 technical_features 时不再调 auto_technical。"""
         from unittest.mock import patch
 
-        pm = PortfolioManager()
+        positions = [
+            {
+                "code": "sh600989",
+                "name": "宝丰能源",
+                "cost": 22.37,
+                "quantity": 4000,
+                "buy_date": "2026-01-01",
+                "tags": ["煤化工"],
+            }
+        ]
+        pm = _make_manager(tmp_path, positions)
         explicit = {"sh600989": {"breakdown": True, "stop_loss_pct": -3.0}}
         with patch("portfolio.health_report._fetch_technical_features") as mock_fetch:
             report = pm.health_report(quotes={}, technical_features=explicit)
@@ -792,9 +899,9 @@ class TestAutoTechnicalIntegration:
 class TestHealthReportMarkdown:
     """健康报告 Markdown 渲染（SKILL 模板标准化）。"""
 
-    def test_markdown_contains_required_sections(self):
+    def test_markdown_contains_required_sections(self, tmp_path):
         """Markdown 包含 SKILL 模板必备章节。"""
-        pm = PortfolioManager()
+        pm = _make_manager(tmp_path, [_POS_300274])  # 有持仓才会渲染板块分布段
         report = pm.health_report(quotes={})
         md = pm.health_report_markdown(report)
         # 必备章节
@@ -807,15 +914,15 @@ class TestHealthReportMarkdown:
         assert "数据源" in md
         assert "免责声明" in md
 
-    def test_markdown_breakdown_section(self):
+    def test_markdown_breakdown_section(self, tmp_path):
         """有破位标的时显示独立汇总段。"""
-        pm = PortfolioManager()
-        quotes = {"sh600522": {"price": 33.0, "change_pct": 0}}
+        pm = _make_manager(tmp_path, [_POS_300274])
+        quotes = {"sz300274": {"price": 105.0, "change_pct": 0}}  # 成本 120 → 破位
         report = pm.health_report(quotes=quotes)
         md = pm.health_report_markdown(report)
-        if report["breakdown_positions"]:
-            assert "### ⚠️ 已破位标的" in md
-            assert "破位原因" in md
+        assert report["breakdown_positions"], "应命中破位（fixture 已构造）"
+        assert "### ⚠️ 已破位标的" in md
+        assert "破位原因" in md
 
     def test_markdown_totals_none_fields(self):
         """totals 中 cost/value/pnl 为 None 时格式化不崩溃（真实数据缺字段场景）。"""
@@ -826,17 +933,13 @@ class TestHealthReportMarkdown:
         assert "总成本 0" in md
         assert "总市值 0" in md
 
-    def test_markdown_watchlist_with_status_emoji(self):
-        """自选股状态有 emoji。"""
-        pm = PortfolioManager()
-        report = pm.health_report(quotes={})
+    def test_markdown_watchlist_with_status_emoji(self, tmp_path):
+        """自选股状态有 emoji（含新增的到达目标卖出价 🟠）。"""
+        pm = _make_manager(tmp_path, [], watchlist=[dict(_WATCH)])
+        report = pm.health_report(quotes={"sh603799": {"price": 45.0, "change_pct": 0}})
         md = pm.health_report_markdown(report)
-        if report["watchlist"]:
-            # 至少 1 个状态 emoji 出现
-            for emoji in ["🔴", "🟡", "🟢", "⚪"]:
-                if emoji in md:
-                    return
-            assert False, "watchlist 状态 emoji 缺失"
+        assert report["watchlist"], "自选股不应为空（fixture 已构造）"
+        assert "🟠 到达目标卖出价" in md
 
     def test_markdown_degradation_when_quotes_none(self):
         """quotes=None 时 Markdown 含\"行情缺失\"标注。"""
