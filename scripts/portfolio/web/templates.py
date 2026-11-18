@@ -280,7 +280,7 @@ INDEX_HTML_TEMPLATE = """<!doctype html>
         <input id="target_buy" type="number" step="0.01" placeholder="28.00">
       </div>
       <div class="form-group" data-show="add_watch update_watch">
-        <label for="target_sell">目标卖出价</label>
+        <label for="target_sell">目标卖出价 <span class="optional-hint">(区间上沿，非止损价)</span></label>
         <input id="target_sell" type="number" step="0.01" placeholder="42.00">
       </div>
       <div class="form-group full" data-show="remove_position reduce_position" id="confirm-wrap" style="display:none">
