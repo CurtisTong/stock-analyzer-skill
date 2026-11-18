@@ -14,6 +14,58 @@ logger = logging.getLogger(__name__)
 
 BREAKDOWN_THRESHOLD = 0.95
 
+# 持仓止损参考线（展示口径，仅用于标注，不生成仓位建议；操盘口径见 experts/risk_manager.md）
+POSITION_STOP_LOSS_REF_PCT = -8.0
+
+
+def _limit_pct_for(code: str, name: str = "") -> float:
+    """返回该标的当日涨跌停幅度（%）。
+
+    A 股制度：主板 ±10%、创业板/科创板 ±20%、北交所 ±30%、ST ±5%。
+    仅用于"当日是否可能无法成交"的粗判，不替代交易所数据；判不准时按主板处理。
+    """
+    if "ST" in (name or "").upper():
+        return 4.8
+    bare = code.lower()
+    for prefix in ("sh", "sz", "bj"):
+        if bare.startswith(prefix):
+            bare = bare[2:]
+            break
+    if code.lower().startswith("bj") or bare.startswith(("8", "4", "920")):
+        return 29.8
+    if bare.startswith(("30", "68")):
+        return 19.8
+    return 9.8
+
+
+def _tradeable_hint(code: str, name: str, quote: dict) -> str:
+    """触发价当日是否可能无法成交（涨跌停 / 一字板 / 停牌）。
+
+    只依据调用方给的行情字段推断，缺字段不臆测；返回空字符串表示无异常证据。
+    """
+    try:
+        price = float(quote.get("price", 0) or 0)
+    except (TypeError, ValueError):
+        return ""
+    if price <= 0:
+        return "无报价（可能停牌），无法判断能否成交"
+    change = quote.get("change_pct")
+    if change is None:
+        return ""
+    try:
+        change = float(change)
+    except (TypeError, ValueError):
+        return ""
+    if abs(change) < _limit_pct_for(code, name) - 0.2:
+        return ""
+    high, low = quote.get("high"), quote.get("low")
+    try:
+        if high is not None and low is not None and float(high) == float(low):
+            return "当日可能无法成交（一字板）"
+    except (TypeError, ValueError):
+        pass
+    return "当日可能无法成交（涨跌停）"
+
 # 状态类标签白名单：tags[0] 是这类时不当作行业，避免
 # 宝丰能源 tags=["T+1待交收","煤化工","能源"] 被错误归类
 # 状态标签/行业大类映射以 manager._STATUS_TAGS / manager._INDUSTRY_GROUP 为唯一事实源
@@ -192,8 +244,8 @@ def health_report(
                                position_ratio, position_ratio_mv, warning},  # 实际总仓位
             "type": "实盘/示例/虚拟",             # 三态
             "totals": {cost, value, pnl, pnl_pct}, # 行情缺失时 pnl_pct=None
-            "positions": [...],   # 每只含 breakdown + breakdown_reason
-            "watchlist": [...],   # 含 status 字段（5 档分级）
+            "positions": [...],   # 每只含 breakdown + breakdown_reason + stop_loss_ref_pct（-8% 展示参考）
+            "watchlist": [...],   # 含 status / range_valid / tradeable_hint（未持仓不判"已破止损"）
             "breakdown_positions": [...],   # 已破位独立汇总
             "concentration": {single, top3, top5, industry, warnings},
             "warnings": [...],  # 集中度超阈值 + 破位警告
@@ -211,8 +263,15 @@ def health_report(
         auto_technical: True（默认）自动调 technical.py 拉 60 根日 K 计算
                 features.breakdown（SKILL.md:306-307 要求的权威信号）。
                 失败按"无信号"容错，单只异常不影响其他。
-        watch_buy_gap_pct: 距目标买点 < 此值 = "接近买点"或"到达买点"（默认 5%）。
-        watch_sell_gap_pct: 距目标卖点 < 此值 = "接近止损"或"已破止损"（默认 3%）。
+        watch_buy_gap_pct: 距目标买点 < 此值 = "接近买点"（默认 5%）。
+        watch_sell_gap_pct: 距目标卖点 < 此值 = "接近目标卖出价"（默认 3%）。
+
+    自选股状态口径（未持仓标的没有成本价，一律不判"已破止损"）：
+        price <= target_buy                  → "到达买点（需技术确认）"（触发只是必要条件）
+        target_buy < price < target_sell      → "区间内观察"
+        price >= target_sell                 → "到达目标卖出价"
+        target_sell <= target_buy            → "价位设置异常"（显式标注，不猜结论）
+    触发价可能不可成交时，行内 tradeable_hint 标注涨跌停/一字板/停牌。
     """
     positions = manager.get_positions()
     watchlist = manager.get_watchlist()
@@ -283,6 +342,7 @@ def health_report(
             "market_value": round(mv, 0) if price > 0 else None,
             "breakdown": breakdown,
             "breakdown_reason": breakdown_reason,
+            "stop_loss_ref_pct": POSITION_STOP_LOSS_REF_PCT,
         }
         position_rows.append(row)
         if breakdown:
@@ -296,7 +356,8 @@ def health_report(
         total_pnl = -total_cost if total_cost else 0.0
         total_pnl_pct = None
 
-    # M7 自选股 5 档状态分级
+    # 自选股状态分级（未持仓标的，不判"已破止损"）
+    # target_sell 是目标卖出价（区间上沿），不是止损价；止损只对有成本价的持仓生效。
     watch_rows = []
     for w in watchlist:
         code = w.get("code", "")
@@ -310,18 +371,30 @@ def health_report(
         # 舍入边界：比较用原始值，展示用舍入值（5.004% 舍入 5.0 不应误判"接近"）
         raw_gap_to_buy = (price - tb) / tb * 100 if tb else None
         raw_gap_to_sell = (price - ts) / ts * 100 if ts else None
+        # 卖点 ≤ 买点 = 价位设置反了：显式标注，不猜结论
+        range_valid = not (tb and ts and ts <= tb)
 
-        # 5 档分级（与 SKILL.md:243-250 模板一致）
-        if ts and price > 0 and price <= ts:
-            status = "已破止损"
-        elif ts and raw_gap_to_sell is not None and 0 < raw_gap_to_sell <= watch_sell_gap_pct:
-            status = "接近止损"
-        elif tb and price > 0 and price <= tb:
-            status = "到达买点"
+        if not range_valid:
+            status = "价位设置异常"
+        elif price <= 0:
+            # 有自选但没报价：观望，不臆测能否成交
+            status = "观望"
+        elif tb and price <= tb:
+            # 触发只是必要条件：A 股还需大盘风偏 / 板块强度 / 个股技术确认
+            status = "到达买点（需技术确认）"
         elif tb and raw_gap_to_buy is not None and 0 < raw_gap_to_buy <= watch_buy_gap_pct:
             status = "接近买点"
+        elif ts and price >= ts:
+            status = "到达目标卖出价"
+        elif ts and raw_gap_to_sell is not None and -watch_sell_gap_pct <= raw_gap_to_sell < 0:
+            status = "接近目标卖出价"
+        elif tb or ts:
+            status = "区间内观察"
         else:
             status = "观望"
+
+        over_target_sell = round((price - ts) / ts * 100, 2) if (ts and price > ts) else None
+        tradeable = _tradeable_hint(code, name, q) if code in quotes_map else ""
 
         watch_rows.append(
             {
@@ -332,6 +405,9 @@ def health_report(
                 "target_sell": ts,
                 "gap_to_buy_pct": gap_to_buy,
                 "gap_to_sell_pct": gap_to_sell,
+                "over_target_sell_pct": over_target_sell,
+                "range_valid": range_valid,
+                "tradeable_hint": tradeable,
                 "status": status,
             }
         )
@@ -581,6 +657,9 @@ def health_report_markdown(report: dict) -> str:
             change_str = f"{r.get('change_pct', 0):+.2f}%" if r.get("change_pct") is not None else "N/A"
             lines.append(f"| {r['name']} | {r['price']} | {change_str} | " f"{pnl_pct_str} | {status} |")
         lines.append("")
+        # 止损参考线只做展示：止损仅对有成本价的持仓生效，本报告不生成仓位建议
+        lines.append(f"_止损参考线 {POSITION_STOP_LOSS_REF_PCT:+.0f}%（展示口径，不构成投资建议）_")
+        lines.append("")
 
     # 自选股
     watchlist = report.get("watchlist", [])
@@ -590,10 +669,12 @@ def health_report_markdown(report: dict) -> str:
         lines.append("| 股票 | 现价 | 距买点 | 距卖点 | 状态 |")
         lines.append("|---|---|---|---|---|")
         status_emoji = {
-            "已破止损": "🔴",
-            "接近止损": "🟡",
-            "到达买点": "🟢",
+            "到达买点（需技术确认）": "🟢",
             "接近买点": "🟡",
+            "区间内观察": "⚪",
+            "接近目标卖出价": "🟡",
+            "到达目标卖出价": "🟠",
+            "价位设置异常": "⚠️",
             "观望": "⚪",
         }
         for w in watchlist:
@@ -601,7 +682,8 @@ def health_report_markdown(report: dict) -> str:
             gs = f"{w['gap_to_sell_pct']:+.1f}%" if w.get("gap_to_sell_pct") is not None else "—"
             status = w.get("status", "观望")
             emoji = status_emoji.get(status, "⚪")
-            lines.append(f"| {w['name']} | {w['price']} | {gb} | {gs} | " f"{emoji} {status} |")
+            hint = f" ⚠️ {w['tradeable_hint']}" if w.get("tradeable_hint") else ""
+            lines.append(f"| {w['name']} | {w['price']} | {gb} | {gs} | " f"{emoji} {status}{hint} |")
         lines.append("")
 
     # 操作建议（来自 hints）
