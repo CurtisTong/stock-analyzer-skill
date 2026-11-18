@@ -195,3 +195,13 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 - 量价背离标的需特别警示。
 
 - 任何含"买/卖/止损/仓位/介入/规避"结论的输出，最末行**必须**附带免责声明：「本工具为量化研判参考，不构成投资建议，据此操作风险自负」——与 output-template.md 的"卡片下斜体 + 护栏条 + 页脚"三处冗余保持同一措辞。
+
+### 数据完整性字段（P0-4a）
+
+`--json` 输出顶层新增 `data_quality`（`common/data_quality.py`），形状为 `{"data_quality": {...}, "rows": [...]}`；每行仍带 `_validation_status` / `_validation_note`。
+
+- `status != ok` 时 `conclusions_allowed=false`：禁止据此给仓位建议或"可以买/加仓"类结论，只保留事实与待确认项。
+- 文本模式首行固定输出数据完整性行（在任何标题之前）。
+- `degraded_fields` 是"不可信字段路径"的扁平列表（旧键名兼容一版）；`missing` 为整域缺失、`degraded` 为走了降级源。下游以 `status` 判结论强度、以 `degraded_fields` 判字段可信度。
+
+> 免责：AI 辅助生成，仅供参考，不构成投资建议。

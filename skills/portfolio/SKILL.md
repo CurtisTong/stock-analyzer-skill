@@ -266,6 +266,7 @@ sh600989      22.36    20.7    79.3     4.2   49.3  筹码在脚下
 - 清仓时确认后移除，不保留历史记录（简化设计）。
 - 未知成本价时，不计算真实盈亏，只做当日涨跌、估值和风险状态。
 - 止损只对**有成本价的持仓**生效；自选股（未持仓）不判止损。持仓 -8% 与「单笔风险预算 ≤ 总资产 1%」属操盘口径，health 报告只做展示与提示，不得据此生成仓位建议。
+- 数据完整性（P0-4a）：`health_report()` 输出与 Markdown 报告都带 `data_quality`（`status/missing/degraded/degraded_fields/sources/conclusions_allowed`）。`status != ok`（如行情缺失）时 `conclusions_allowed=false`，此时**禁止**输出仓位建议或"可以买/加仓"类结论，只保留事实与待确认项；Markdown 首行固定为数据完整性行，位于标题之前。`degraded_fields` 是旧键名（不可信字段路径列表），`missing` 表示整域缺失、`degraded` 表示走了降级源。
 - 调仓建议必须包含"减/加多少、触发条件、替代标的或现金比例"，避免泛泛而谈。
 - 不要建议超过用户风险承受能力的集中仓位；单一行业或主题过重时优先提示组合风险。
 - web server 与 CLI / 外部脚本同时写 `scripts/data/portfolio.json` 时，后写覆盖前写；建议 web 作为唯一录入入口。
