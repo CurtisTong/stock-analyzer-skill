@@ -313,6 +313,36 @@ def _check_data_blackout(result: dict, raw_code: str):
     )
 
 
+def _with_data_quality(result: dict, code: str) -> dict:
+    """P0-4a 数据完整性信封：缺失域字段置 None（不许 0 占位），critical 域降级时清结论字段。"""
+    from common import data_quality as dq
+
+    failed = [
+        domain
+        for domain, label in (("quote", "行情"), ("kline", "K线"), ("finance", "财务"))
+        if label in (result.get("data_failed") or [])
+    ]
+    return dq.envelope(
+        result,
+        required=("quote", "kline", "finance"),
+        field_map={
+            "quote": ("price", "change_pct"),
+            "kline": ("kline",),
+            "finance": ("finance",),
+        },
+        conclusion_keys=("score", "advice", "buy_signals", "sell_signals", "position_advice"),
+        failed=failed,
+        code=code,
+    )
+
+
+def dq_header(result: dict) -> str:
+    """数据完整性首行：固定在任何标题与结论之前。"""
+    from common import data_quality as dq
+
+    return dq.render_header(result.get("data_quality"))
+
+
 def main():
     from common.cache import cleanup_tmp_files
 
@@ -360,12 +390,15 @@ def main():
     if args.with_backtest:
         _attach_backtest(result, args.code)
 
+    enriched = _with_data_quality(result, args.code)
     if args.json_output:
-        print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+        print(json.dumps(enriched, ensure_ascii=False, indent=2, default=str))
     elif args.brief:
-        print(render_brief(result))
+        print(dq_header(enriched))
+        print(render_brief(enriched))
     else:
-        print(render_text(result))
+        print(dq_header(enriched))
+        print(render_text(enriched))
 
 
 if __name__ == "__main__":

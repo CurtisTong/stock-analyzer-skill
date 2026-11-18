@@ -1032,3 +1032,37 @@ class TestHealthSummaryMarkdown:
         md = pm.health_summary_markdown(pm.health_report(quotes={}))
         assert "/portfolio health --full" in md
         assert "/stock sz300274 quick" in md
+
+
+class TestDataQualityEnvelope:
+    """P0-4a：health_report 带 data_quality；Markdown 首行是数据完整性行（先于标题）。"""
+
+    def test_report_has_data_quality_ok_when_quotes_present(self, tmp_path):
+        pm = _make_manager(tmp_path, [dict(_POS_300274)])
+        report = pm.health_report(quotes={"sz300274": {"price": 130.0, "change_pct": 1.0}})
+        d = report["data_quality"]
+        assert d["status"] == "ok"
+        assert d["conclusions_allowed"] is True
+        assert d["missing"] == []
+
+    def test_missing_quotes_marks_failed_without_conclusions(self, tmp_path):
+        """只有一个必需域（quote）时它缺失即 failed，等价于"行情不可用"，仍保留成本口径事实。"""
+        pm = _make_manager(tmp_path, [dict(_POS_300274)])
+        report = pm.health_report(quotes={})
+        d = report["data_quality"]
+        assert d["status"] == "failed"
+        assert d["missing"] == ["quote"]
+        assert d["conclusions_allowed"] is False
+
+    def test_markdown_first_line_is_data_integrity(self, tmp_path):
+        pm = _make_manager(tmp_path, [dict(_POS_300274)], watchlist=[dict(_WATCH)])
+        report = pm.health_report(
+            quotes={
+                "sz300274": {"price": 130.0, "change_pct": 1.0},
+                "sh603799": {"price": 30.0, "change_pct": 0.5},
+            }
+        )
+        md = pm.health_report_markdown(report)
+        first = md.splitlines()[0]
+        assert first.startswith("> 数据完整性")
+        assert not first.lstrip("> ").startswith("##")

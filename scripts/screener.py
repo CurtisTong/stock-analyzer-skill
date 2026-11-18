@@ -121,7 +121,17 @@ def _emit_json_with_validation(rows: list, strategy: str) -> None:
             row["_validation_status"] = status
             row["_validation_note"] = note
         enriched.append(row)
-    print(json.dumps(enriched, ensure_ascii=False, indent=2))
+
+    # P0-4a：顶层加 data_quality（JSON 形状由裸数组改为 {data_quality, rows}）。
+    # 行情域降级/缺失时 conclusions_allowed=False，下游不得据此给仓位建议。
+    from common import data_quality as dq
+
+    payload = dq.envelope(
+        {"rows": enriched, "strategy": strategy},
+        required=("quote",),
+        field_map={"quote": ()},
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
 
 
 def _fmt_factor(row: dict, key: str) -> str:
@@ -689,6 +699,18 @@ def _run_main(args):
     if args.json_output:
         _emit_json_with_validation(rows, args.strategy)
     else:
+        from common import data_quality as dq
+
+        # P0-4a：数据完整性首行固定在任何标题与结论之前
+        print(
+            dq.render_header(
+                dq.envelope(
+                    {"rows": rows},
+                    required=("quote",),
+                    field_map={"quote": ()},
+                )["data_quality"]
+            )
+        )
         title = None
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"

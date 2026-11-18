@@ -522,7 +522,7 @@ def health_report(
         if not as_of:
             as_of = _file_mtime(manager._path)
 
-    return {
+    report = {
         "as_of": as_of,
         "data_mtime": _file_mtime(manager._path),
         "regime": regime_info,
@@ -560,6 +560,17 @@ def health_report(
         },
     }
 
+    # P0-4a 数据完整性信封：行情缺失 → 缺失域字段置 None（不许 0 占位），并降结论强度
+    from common import data_quality as dq
+
+    return dq.envelope(
+        report,
+        required=("quote",),
+        field_map={"quote": ()},
+        conclusion_keys=(),
+        failed=("quote",) if quotes_missing else (),
+    )
+
 
 def health_report_markdown(report: dict) -> str:
     """将 health_report() 结构化输出渲染成 SKILL 模板一致的 Markdown。
@@ -575,6 +586,12 @@ def health_report_markdown(report: dict) -> str:
     - 数据护栏条 + 免责声明
     """
     lines: list[str] = []
+
+    # P0-4a：数据完整性首行固定在任何标题与结论之前
+    from common import data_quality as dq
+
+    lines.append(dq.render_header(report.get("data_quality")))
+    lines.append("")
 
     # 标题 + 双时间戳
     type_label = report.get("type", "持仓")
