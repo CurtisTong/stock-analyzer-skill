@@ -213,3 +213,33 @@ def test_classify_flags_st_and_delisted(name):
     verdict, detail = vsn.classify(name, "机器人")
     assert verdict == "mismatch"
     assert "ST" in detail or "退市" in detail
+
+
+# ---------- 未知板块名必须报错，不能「扫 0 条报绿」 ----------
+
+
+def test_unknown_sector_exits_nonzero(monkeypatch, capsys):
+    """拼错/改名后的板块名要报错退出，否则 CI 会静默变绿。"""
+    monkeypatch.setattr(vsn, "fetch_names", lambda codes, **k: {})
+
+    rc = vsn.main(["--sectors", "消费电子"])
+
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "未知板块名" in err
+
+
+def test_known_sector_still_runs(monkeypatch):
+    monkeypatch.setattr(vsn, "fetch_names", lambda codes, **k: {"sz000591": "太阳能"})
+    assert vsn.main(["--sectors", "电力", "--no-fail"]) == 0
+
+
+# ---------- 规则与板块池必须一一对应（不留死规则） ----------
+
+
+def test_rules_match_pools_exactly():
+    """每条判定规则都要有对应板块池；没有池子的规则就是死代码。"""
+    pools = set(vsn.load_pools())
+    rules = set(vsn._SECTOR_RULES)
+    dead = rules - pools
+    assert not dead, f"以下规则没有对应板块池（死规则）: {sorted(dead)}"

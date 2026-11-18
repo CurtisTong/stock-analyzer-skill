@@ -140,24 +140,6 @@ _APPROX_RULES: dict[str, dict] = {
         "forbidden": (("出版", "（无对应板块）"), ("药业", "医药"),
                       ("软件", "科技"), ("网络", "科技"), ("银行", "金融")),
     },
-    "家电": {
-        "keywords": ("电器", "家电", "空调", "冰", "厨", "生活电器", "美的", "格力",
-                     "海尔", "苏泊尔", "九阳"),
-        "forbidden": (("煤", "资源"), ("证券", "金融")),
-    },
-    "通信设备": {
-        "keywords": ("通信", "光缆", "光纤", "网络", "电子", "科技", "射频", "天线"),
-        "forbidden": (("药业", "医药"), ("煤", "资源")),
-    },
-    "消费电子": {
-        "keywords": ("电子", "科技", "光电", "精密", "声学", "连接器", "模组",
-                     "股份", "视像", "传媒"),
-        "forbidden": (("煤", "资源"), ("证券", "金融"), ("药业", "医药")),
-    },
-    "汽车电子": {
-        "keywords": ("汽车", "车", "电子", "智能", "adas", "雷达", "传感", "零部件"),
-        "forbidden": (("煤", "资源"), ("证券", "金融"), ("药业", "医药")),
-    },
 }
 
 # 名称里没有任何行业词、关键词规则判不出来的公司（显式维护，随扫描结果追加）。
@@ -437,8 +419,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     pools = load_pools(Path(args.pools) if args.pools else None)
-    mapping = load_sector_map(Path(args.map_path) if args.map_path else None)
     sectors = [s.strip() for s in args.sectors.split(",")] if args.sectors else None
+    unknown_sectors = [s for s in (sectors or []) if s not in pools]
+    if unknown_sectors:
+        # 扫 0 条却报「未发现错配」会让板块名拼错、板块改名都静默变绿
+        print(f"❌ 未知板块名: {unknown_sectors}；可用板块: {sorted(pools)}", file=sys.stderr)
+        return 2
+    mapping = load_sector_map(Path(args.map_path) if args.map_path else None)
 
     codes = sorted({c for sec, lst in pools.items() if not sectors or sec in sectors for c in lst})
     names = fetch_names(codes)
