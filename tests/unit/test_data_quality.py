@@ -83,6 +83,22 @@ class TestEnvelopeStatus:
         assert out["data_quality"]["status"] == "degraded"
         assert out["data_quality"]["conclusions_allowed"] is False
 
+    def test_explicit_degraded_but_missing_counts_only_as_missing(self):
+        """显式 degraded 与"整域缺失"冲突时只算 missing，首行不能同时报缺失和降级。"""
+        out = dq.envelope(
+            {"price": None},
+            required=("quote",),
+            field_map={"quote": ("price",)},
+            failed=("quote",),
+            degraded=("quote",),
+        )
+        d = out["data_quality"]
+        assert d["missing"] == ["quote"]
+        assert d["degraded"] == []
+        header = dq.render_header(d)
+        assert "缺失" in header
+        assert "降级源" not in header
+
     def test_conclusion_keys_nulled_when_not_ok(self):
         out = dq.envelope(
             {"price": None, "score": 88, "advice": "可以买"},

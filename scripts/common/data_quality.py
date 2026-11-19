@@ -122,6 +122,9 @@ def envelope(
             sources[domain] = providers
         if domain in failed or not _present(data, domain, field_map):
             missing.append(domain)
+            # 显式传了 degraded 但该域实际整域缺失：只算 missing，不能两个列表都出现
+            if domain in degraded:
+                degraded.remove(domain)
             for key in field_map.get(domain, ()):
                 if data.get(key) is not None:
                     data[key] = None
