@@ -116,6 +116,11 @@ def main():
     parser.add_argument("datalen", nargs="?", type=int, default=30, help="数据条数，默认 30")
     # #10: 添加 --days 别名，兼容用户直觉（等价于 datalen 位置参数）
     parser.add_argument("--days", type=int, default=None, help="数据条数别名（等价于 datalen）")
+    parser.add_argument(
+        "--json-envelope",
+        action="store_true",
+        help="JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）",
+    )
     args = parser.parse_args()
 
     # --days 覆盖 datalen 位置参数
@@ -136,9 +141,16 @@ def main():
 
     symbol = normalize_quote_code(args.symbol)
     records = fetch(symbol, args.scale, args.datalen)
+    from common import data_quality as dq
+
     if args.json_output:
-        print(json.dumps(records, ensure_ascii=False, indent=2))
+        if args.json_envelope:
+            print(json.dumps(dq.envelope_rows(records, price_key="close"), ensure_ascii=False, indent=2))
+        else:
+            print(json.dumps(records, ensure_ascii=False, indent=2))
     else:
+        # P0-4b：数据完整性首行固定在任何标题与结论之前
+        print(dq.render_header(dq.envelope_rows(records, price_key="close")["data_quality"]))
         print(render_table(records))
 
 

@@ -119,6 +119,39 @@ class TestEnvelopeStatus:
         assert "multi_timeframe" in out["data_quality"]["degraded_fields"]
 
 
+class TestQuoteFlags:
+    """行情域判级（screener / quote / kline 共用同一口径）。"""
+
+    def test_usable_price_rejects_zero_and_none(self):
+        assert dq.usable_price(12.5) is True
+        assert dq.usable_price("12.5") is True
+        assert dq.usable_price(0) is False
+        assert dq.usable_price(-1) is False
+        assert dq.usable_price(None) is False
+        assert dq.usable_price("abc") is False
+
+    def test_all_missing_is_failed(self):
+        assert dq.quote_flags([{"price": None}, {"price": 0}]) == (("quote",), ())
+
+    def test_partial_missing_is_degraded(self):
+        assert dq.quote_flags([{"price": None}, {"price": 12.5}]) == ((), ("quote",))
+
+    def test_empty_rows_not_counted_as_missing(self):
+        assert dq.quote_flags([]) == ((), ())
+
+    def test_envelope_rows_uses_given_price_key(self):
+        """kline 用 close 判价：close 全缺才是 failed，open 缺失不影响。"""
+        out = dq.envelope_rows([{"close": None, "open": 1.0}, {"close": None, "open": 2.0}], price_key="close")
+        assert out["data_quality"]["status"] == "failed"
+        assert out["rows"][0]["open"] == 1.0
+
+    def test_envelope_rows_ok_keeps_rows(self):
+        out = dq.envelope_rows([{"price": 12.5}], extra={"strategy": "balanced"})
+        assert out["data_quality"]["status"] == "ok"
+        assert out["strategy"] == "balanced"
+        assert out["rows"][0]["price"] == 12.5
+
+
 class TestRenderHeader:
     def test_ok_header_has_no_warning(self):
         header = dq.render_header({"status": "ok", "required": ["quote"], "sources": {"quote": ["tencent"]}})

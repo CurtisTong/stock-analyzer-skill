@@ -42,6 +42,11 @@ def main():
 
     parser = create_parser(description="实时行情查询（多数据源自动切换）")
     parser.add_argument("code", nargs="?", help="股票代码（如 sh600989）或 @codes.txt 文件路径")
+    parser.add_argument(
+        "--json-envelope",
+        action="store_true",
+        help="JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）",
+    )
     args = parser.parse_args()
     if args.debug:
         import os
@@ -71,9 +76,17 @@ def main():
     # get_quotes 返回 Quote 对象，需归一化为 dict 以兼容 JSON 序列化与表格字段索引
     all_records = [q.to_dict() for q in quotes] if quotes else fetch_batch(codes)
 
+    from common import data_quality as dq
+
     if args.json_output:
-        print(json.dumps(all_records, ensure_ascii=False, indent=2))
+        if args.json_envelope:
+            print(json.dumps(dq.envelope_rows(all_records), ensure_ascii=False, indent=2))
+        else:
+            print(json.dumps(all_records, ensure_ascii=False, indent=2))
         return
+
+    # P0-4b：数据完整性首行固定在任何标题与结论之前
+    print(dq.render_header(dq.envelope_rows(all_records)["data_quality"]))
 
     if not all_records:
         print("(无数据)")

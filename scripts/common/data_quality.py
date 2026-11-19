@@ -177,6 +177,55 @@ def envelope(
     return data
 
 
+def usable_price(value: Any) -> bool:
+    """价格是否可用：None / 非数字 / <=0 都算"没有报价"（0 是占位，不是行情）。"""
+    if value is None:
+        return False
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
+
+
+def quote_flags(rows: Iterable[Any], price_key: str = "price") -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """按 rows 的价格缺失比例给出 (failed, degraded)，供 envelope() 使用。
+
+    全部缺价 = quote 域 failed；部分缺价 = degraded；空 rows 不算缺（筛不出票
+    不等于数据缺失）。多个入口（screener / quote / kline）共用同一口径。
+    """
+    dict_rows = [row for row in rows if isinstance(row, Mapping)]
+    if not dict_rows:
+        return (), ()
+    bad = [row for row in dict_rows if not usable_price(row.get(price_key))]
+    if len(bad) == len(dict_rows):
+        return ("quote",), ()
+    if bad:
+        return (), ("quote",)
+    return (), ()
+
+
+def envelope_rows(
+    rows: Iterable[Any],
+    *,
+    price_key: str = "price",
+    extra: Mapping[str, Any] | None = None,
+    checked_at: str | None = None,
+) -> dict:
+    """把 rows 包成 {rows, data_quality}，行情域按 quote_flags() 判级。"""
+    row_list = list(rows)
+    failed, degraded = quote_flags(row_list, price_key=price_key)
+    payload: dict[str, Any] = dict(extra or {})
+    payload["rows"] = row_list
+    return envelope(
+        payload,
+        required=("quote",),
+        field_map={"quote": ()},
+        failed=failed,
+        degraded=degraded,
+        checked_at=checked_at,
+    )
+
+
 def render_header(data_quality: Mapping[str, Any] | None) -> str:
     """Markdown 报告首行（任何标题与结论之前）。"""
     raw = dict(data_quality or {})

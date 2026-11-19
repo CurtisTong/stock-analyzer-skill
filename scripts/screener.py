@@ -133,32 +133,11 @@ def _emit_json_with_validation(rows: list, strategy: str, envelope: bool = False
         print(json.dumps(enriched, ensure_ascii=False, indent=2))
 
 
-def _price_usable(row: dict) -> bool:
-    """price 为 None / 非数字 / <=0 都算"没有可用报价"（0 是占位，不是行情）。"""
-    price = row.get("price")
-    if price is None:
-        return False
-    try:
-        return float(price) > 0
-    except (TypeError, ValueError):
-        return False
-
-
 def _json_payload_for_rows(rows: list, strategy: str) -> dict:
     """按 rows 的报价缺失比例判 quote 域 failed / degraded，产出统一信封。"""
     from common import data_quality as dq
 
-    dict_rows = [r for r in rows if isinstance(r, dict)]
-    bad = [r for r in dict_rows if not _price_usable(r)]
-    failed = ("quote",) if dict_rows and len(bad) == len(dict_rows) else ()
-    degraded = ("quote",) if bad and not failed else ()
-    return dq.envelope(
-        {"rows": rows, "strategy": strategy},
-        required=("quote",),
-        field_map={"quote": ()},
-        failed=failed,
-        degraded=degraded,
-    )
+    return dq.envelope_rows(rows, extra={"strategy": strategy})
 
 
 def _fmt_factor(row: dict, key: str) -> str:
@@ -717,7 +696,9 @@ def _run_main(args):
             flush=True,
         )
         if args.json_output:
-            _emit_json_with_validation(rows_partial, args.strategy, envelope=args.json_envelope)
+            _emit_json_with_validation(
+                rows_partial, args.strategy, envelope=getattr(args, "json_envelope", False)
+            )
         sys.exit(2)
         return  # unreachable but for type-checker
 
@@ -729,7 +710,9 @@ def _run_main(args):
     rows = rows_partial
 
     if args.json_output:
-        _emit_json_with_validation(rows, args.strategy, envelope=args.json_envelope)
+        _emit_json_with_validation(
+            rows, args.strategy, envelope=getattr(args, "json_envelope", False)
+        )
     else:
         from common import data_quality as dq
 

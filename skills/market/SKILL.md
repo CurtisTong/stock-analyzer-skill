@@ -54,6 +54,10 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/kline.py *)
 
 - `intraday` 模式额外取 5 分钟 K 线（48 根）。
 
+**数据完整性字段（P0-4b）**：`quote.py` / `kline.py` 的 `-j` 默认仍是裸数组（向后兼容），加 `--json-envelope` 才输出 `{"data_quality": {...}, "rows": [...]}`。行情域按 rows 里价格（quote 用 `price`、kline 用 `close`）为 `None`/`≤0` 的比例判级：全部缺失 = `failed`，部分缺失 = `degraded`；`status != ok` 时 `conclusions_allowed=false`，不得据此给仓位建议或"可以买/加仓"类结论。文本模式首行固定输出数据完整性行（在任何标题之前）。缺失字段一律 `null`，不得用 0 占位。
+
+> 免责：AI 辅助生成，仅供参考，不构成投资建议。
+
 **跨市场代码约定**：美股用 `us:` 前缀 + yfinance 符号（`us:^gspc`=标普500、`us:spy`=标普500 ETF）；港股用 `hk:` 前缀 + 数字代码（`hk:0700`=腾讯，4-5 位自动补齐）。依赖可选包 yfinance（`pip install yfinance>=0.2`）。**返回 `[]` 有两种原因，处理一致**（跳过跨市场段落并在输出中说明）：① yfinance 未安装；② **Yahoo 429 限流**（2026 年起对无认证请求常态化限流，已安装也会触发，429 时 `macro_*_source` 同步降级为 `fixture(stale)`）。不要为区分二者反复重试。
 
 **通达信局域网数据源（可选）**：本地通达信开启 7709 端口后可 `pip install pytdx` 启用（v1.24.0 起优先级降至 quote=4/kline=5——通达信公开服务器行情命令 2026-09 已失效，未配局域网时 pytdx 默认超时；已配局域网直连的用户可在 `scripts/config/data_source.yaml` 手动调回高优先级；速度快、无限频、800 根回溯）。未安装不影响主流程。

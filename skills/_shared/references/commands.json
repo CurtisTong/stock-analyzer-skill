@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-11-19T03:19:23Z",
+    "generated_at": "2026-11-19T13:20:36Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -1665,6 +1665,7 @@
       "cli": true,
       "flags": [
         "--days",
+        "--json-envelope",
         "-j",
         "--json",
         "--sources",
@@ -1679,6 +1680,14 @@
           "required": false,
           "type": "int",
           "help": "数据条数别名（等价于 datalen）"
+        },
+        {
+          "flags": [
+            "--json-envelope"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）"
         },
         {
           "flags": [
@@ -2285,6 +2294,7 @@
       "description": "实时行情查询（多数据源自动切换）",
       "cli": true,
       "flags": [
+        "--json-envelope",
         "-j",
         "--json",
         "--sources",
@@ -2292,6 +2302,14 @@
         "--debug"
       ],
       "params": [
+        {
+          "flags": [
+            "--json-envelope"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）"
+        },
         {
           "flags": [
             "-j",
