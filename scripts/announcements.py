@@ -25,8 +25,17 @@ ANN_URL = "https://np-anotice-stock.eastmoney.com/api/security/ann?page_size=10&
 REPORT_URL = "https://reportapi.eastmoney.com/report/list?pageSize=10&pageNo=1&code={code}&beginTime={begin_time}&endTime={end_time}&qType=0"
 
 
+# 上次取数是否降级（P0-4b：research 入口信封用；空结果 ≠ 降级）
+_LAST_DEGRADED: dict = {"reason": None}
+
+
+def _mark_degraded(reason: str) -> None:
+    _LAST_DEGRADED["reason"] = reason
+
+
 def fetch_announcements(code: str, use_cache: bool = True) -> list:
     """获取公告数据，支持缓存（TTL 30 分钟）。"""
+    _LAST_DEGRADED["reason"] = None
     plain = plain_code(code)
     key = cache_key_for_stock("ann", plain)
     if use_cache:
@@ -45,11 +54,13 @@ def fetch_announcements(code: str, use_cache: bool = True) -> list:
             cache_set(key, json.dumps(result, ensure_ascii=False).encode())
         return result
     except json.JSONDecodeError:
+        _mark_degraded("announcements.json_decode")
         return []
 
 
 def fetch_reports(code: str, use_cache: bool = True) -> list:
     """获取研报数据，支持缓存（TTL 1 小时）。"""
+    _LAST_DEGRADED["reason"] = None
     plain = plain_code(code)
     key = cache_key_for_stock("report", plain)
     if use_cache:
@@ -76,6 +87,7 @@ def fetch_reports(code: str, use_cache: bool = True) -> list:
             cache_set(key, json.dumps(result, ensure_ascii=False).encode())
         return result
     except json.JSONDecodeError:
+        _mark_degraded("reports.json_decode")
         return []
 
 
@@ -192,6 +204,34 @@ def summarize_consensus(items: list) -> dict:
     }
 
 
+def _data_quality_payload(data: list) -> dict:
+    """research 入口信封：空结果 ≠ 降级（真没公告也算 ok），解析失败才 failed。"""
+    from common import data_quality as dq
+
+    reason = _LAST_DEGRADED.get("reason")
+    return dq.envelope(
+        {"rows": data},
+        required=("announcement",),
+        field_map={"announcement": ()},
+        failed=("announcement",) if reason else (),
+    )
+
+
+def _emit_json(data: list, envelope: bool) -> None:
+    from common import data_quality as dq
+
+    if envelope:
+        print(json.dumps(_data_quality_payload(data), ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def _header() -> str:
+    from common import data_quality as dq
+
+    return dq.render_header(_data_quality_payload([])["data_quality"])
+
+
 def main():
     parser = create_parser(description="东方财富公告 + 研报")
     parser.add_argument("code", nargs="?", help="股票代码（如 600989）")
@@ -202,6 +242,11 @@ def main():
         choices=["announcements", "reports"],
         help="类型：announcements（公告）或 reports（研报）",
     )
+    parser.add_argument(
+        "--json-envelope",
+        action="store_true",
+        help="JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）",
+    )
     args = parser.parse_args()
 
     if not args.code:
@@ -210,21 +255,20 @@ def main():
     if args.mode == "reports":
         data = fetch_reports(args.code)
         if args.json_output:
-            print(json.dumps(data, ensure_ascii=False, indent=2))
+            _emit_json(data, args.json_envelope)
         else:
+            print(_header())
             print(f"\n=== 研报 {args.code} ===")
             print(render_reports(data))
     else:
         data = fetch_announcements(args.code)
         if args.json_output:
-            print(json.dumps(data, ensure_ascii=False, indent=2))
+            _emit_json(data, args.json_envelope)
         else:
+            print(_header())
             print(f"\n=== 公告 {args.code} ===")
             print(render_announcements(data))
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except DataError:
-        sys.exit(1)
+    main()
