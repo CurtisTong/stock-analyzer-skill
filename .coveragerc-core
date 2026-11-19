@@ -1,5 +1,7 @@
 # 核心目录覆盖率报告配置
-# 缓冲期：仅报告不拦截（fail_under=0），达标 ≥80% 后放开阈值。
+# 2026-11-19：由 0（仅报告）改为 57（实测核心 10 目录 60.60% - 3.6 点缓冲），
+# ci.yml 的核心目录步骤通过 COVERAGE_RCFILE=.coveragerc-core 使用本阈值。
+# 长期目标：核心目录 ≥80%。
 # 用法：
 #   pytest --cov=scripts/common --cov=scripts/fetchers --cov=scripts/data \
 #     --cov=scripts/business --cov=scripts/technical --cov=scripts/portfolio \
@@ -16,7 +18,7 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 
-fail_under = 0
+fail_under = 57
 show_missing = true
 skip_empty = true
 precision = 1

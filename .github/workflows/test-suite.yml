@@ -10,7 +10,7 @@ on:
       fail-under:
         description: "覆盖率门槛"
         type: string
-        default: "30"
+        default: "48"
 
 jobs:
   test:

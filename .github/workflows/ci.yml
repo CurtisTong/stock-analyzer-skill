@@ -19,7 +19,7 @@ jobs:
     uses: ./.github/workflows/test-suite.yml
     with:
       python-version: ${{ matrix.python-version }}
-      fail-under: 21
+      fail-under: 48
 
   checks:
     name: 代码检查
@@ -126,13 +126,15 @@ jobs:
 
       - name: 全仓覆盖率检查（.coveragerc 阈值）
         run: |
-          # 主配置：全仓 scripts + omit 列表 + fail_under=30（见 .coveragerc）
+          # 主配置：全仓 scripts + omit 列表 + fail_under=48（见 .coveragerc）
           pytest --cov=scripts --cov-report=term tests/unit/ | tail -5
 
-      - name: 核心目录覆盖率报告（仅报告不阻断）
+      - name: 核心目录覆盖率门禁（.coveragerc-core 阈值）
+        env:
+          COVERAGE_RCFILE: .coveragerc-core
         run: |
-          # 核心 10 目录覆盖 ≥80% 目标；缓冲期 .coveragerc-core fail_under=0
-          # 仅报告不阻断，达标后放开阈值。
+          # 核心 10 目录：fail_under=57（实测 60.60%，2026-11-19 起强制）
+          # 长期目标 ≥80%；上调阈值必须同步 .coveragerc-core 与测试文档。
           pytest --cov=scripts/common --cov=scripts/fetchers --cov=scripts/data \
             --cov=scripts/business --cov=scripts/technical --cov=scripts/portfolio \
             --cov=scripts/monitor --cov=scripts/backtest --cov=scripts/strategies \
