@@ -209,18 +209,72 @@ def save_ic(ic_by_regime: Dict[str, Dict[str, float]]):
         logger.warning("因子 IC 保存失败: %s", e)
 
 
+IC_FRESH_DAYS = 7  # 与 overlay._load_fresh_ic 的 7 天 TTL 一致
+
+# 最近一次 load_ic 的健康状态（供 CLI 输出 ic_stale，不做魔法重算）
+IC_STATUS: Dict[str, object] = {"stale": True, "reason": "unknown", "updated": None, "age_days": None}
+
+
+def ic_status() -> Dict[str, object]:
+    """最近一次 load_ic 的 IC 健康状态。
+
+    reason 取值：ok / missing / corrupt / all_zero / expired。
+    stale=True 表示这份 IC 不可用于实盘加权（调用方按"没有 IC"处理）。
+    """
+    return dict(IC_STATUS)
+
+
+def _set_ic_status(stale: bool, reason: str, updated=None, age_days=None) -> None:
+    IC_STATUS.update({"stale": stale, "reason": reason, "updated": updated, "age_days": age_days})
+
+
+def _all_zero(ic_by_regime: Dict[str, Dict[str, float]]) -> bool:
+    """IC 全 0 / 全空：等于从没算过，不能当"有效但无预测力"。"""
+    values = [
+        v
+        for factors in ic_by_regime.values()
+        if isinstance(factors, dict)
+        for v in factors.values()
+        if isinstance(v, (int, float))
+    ]
+    return not values or all(v == 0 for v in values)
+
+
 def load_ic() -> Dict[str, Dict[str, float]]:
     """读取最近 IC。
 
+    守卫（P0-4 配套）：文件缺失 / 损坏 / 全 0 / 超过 IC_FRESH_DAYS 天，
+    一律返回空 dict（= 不调整权重），并把原因记到 ic_status()，
+    避免"全 0 占位"被当成真实 IC 参与加权。
+
     Returns:
-        {regime: {factor: ic}} dict，文件不存在或损坏返回空 dict
+        {regime: {factor: ic}} dict；不可用时返回空 dict
     """
     try:
         if not IC_FILE.exists():
+            _set_ic_status(True, "missing")
             return {}
         data = json.loads(IC_FILE.read_text(encoding="utf-8"))
-        return data.get("ic", {})
     except Exception as e:
         log_silent_fallback("ic.load_ic", e)
         logger.debug("因子 IC 读取失败: %s", e)
+        _set_ic_status(True, "corrupt")
         return {}
+
+    ic_by_regime = data.get("ic", {}) or {}
+    updated = data.get("updated")
+    age_days = None
+    if updated:
+        try:
+            age_days = (datetime.now() - datetime.fromisoformat(updated)).total_seconds() / 86400
+        except (TypeError, ValueError):
+            age_days = None
+
+    if _all_zero(ic_by_regime):
+        _set_ic_status(True, "all_zero", updated, age_days)
+        return {}
+    if age_days is not None and age_days > IC_FRESH_DAYS:
+        _set_ic_status(True, "expired", updated, round(age_days, 1))
+        return {}
+    _set_ic_status(False, "ok", updated, round(age_days, 1) if age_days is not None else None)
+    return ic_by_regime
