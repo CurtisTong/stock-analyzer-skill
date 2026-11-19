@@ -16,6 +16,7 @@ from common.cli_base import create_parser, handle_errors
 import json
 import os
 import sys
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 复用 refresh_pool 的核心逻辑
 sys.path.insert(0, os.path.dirname(__file__))
@@ -126,6 +127,7 @@ def init_full_market(force: bool = False) -> bool:
         print(f"\n✅ 全市场初始化完成: 共 {total} 只股票")
         return True
     except Exception as e:
+        log_silent_fallback("init_pool.init_full_market", e)
         print(f"\n❌ 全市场初始化失败: {e}", file=sys.stderr)
         print("   可稍后重试: python3 scripts/init_pool.py --full-market")
         return False

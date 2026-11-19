@@ -24,6 +24,7 @@ import logging
 import threading
 
 from common import BaseFetcher, DataFetcherManager
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -415,6 +416,7 @@ def _load_source_config(section: str) -> dict:
 
         return ConfigLoader.load("data_source.yaml").get(section, {})
     except Exception as e:
+        log_silent_fallback("__init__._load_source_config", e)
         import logging
 
         logging.getLogger(__name__).debug("加载数据源配置 %s 失败: %s", section, e)

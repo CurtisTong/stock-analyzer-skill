@@ -50,6 +50,7 @@ from business.screening_service import (
     ScreeningService,
 )
 from data.helpers import prefetch_finance_all, prefetch_kline_all
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 向后兼容别名（原 screener 模块级函数名）
 _prefetch_kline_all = prefetch_kline_all
@@ -163,7 +164,8 @@ def _print_validation_warning(strategy: str) -> None:
         from strategies.registry import get_validation
 
         val = get_validation(strategy)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("screener._print_validation_warning", exc)
         return
     status = val.get("validation_status")
     if status == "oos_verified":
@@ -349,7 +351,8 @@ def _print_mainline_deviation_warning(rows, args):
     try:
         from quote import get_quotes
         from sector_etf_strength import _load_sector_etfs
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("screener._print_mainline_deviation_warning", exc)
         return
 
     # 拉取全部板块 ETF 今日涨跌，按涨幅排序取 top 3
@@ -391,7 +394,8 @@ def _print_mainline_deviation_warning(rows, args):
                 f"({', '.join(top3_names)})，建议加 --sector 或关注主线龙头",
                 file=sys.stderr,
             )
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("screener._print_mainline_deviation_warning", exc)
         # 网络异常不影响主输出
         return
 
@@ -644,6 +648,7 @@ def _run_deep_analysis(rows: list, args) -> None:
         except subprocess.TimeoutExpired:
             print(f"⏱ {code} 分析超时（300s），跳过", file=target, flush=True)
         except Exception as e:  # noqa: BLE001
+            log_silent_fallback("screener._run_deep_analysis", e)
             print(f"⚠️ {code} 分析失败: {e}", file=target, flush=True)
 
 

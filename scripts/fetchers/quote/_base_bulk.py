@@ -26,6 +26,7 @@ import time
 from typing import Any
 
 from common import BaseFetcher, plain_code
+from common.exceptions.silent_fallback import log_silent_fallback
 from common.exceptions import (
     HTTPStatusError,
     NetworkError,
@@ -128,6 +129,7 @@ class BaseBulkQuoteFetcher(BaseFetcher):
         except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
             raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
+            log_silent_fallback("_base_bulk.fetch", e)
             logger.debug("%s 获取失败 %s: %s", self.name, code, e)
             return None
 
@@ -164,7 +166,8 @@ class BaseBulkQuoteFetcher(BaseFetcher):
         # 锁外网络 IO：拉取全市场行情（数千行，耗时数秒）
         try:
             df = self._fetch_bulk_df()
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("_base_bulk._get_cached_df", exc)
             # 任何异常（含 NetworkError 等可熔断异常）：清除 loading 标志后
             # 向上抛，由外层 except 决定是触发熔断还是记录后返回 None。
             with self._cache_lock:

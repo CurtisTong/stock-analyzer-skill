@@ -13,6 +13,7 @@ from common.circuit_breaker import get_circuit_breaker
 
 logger = logging.getLogger(__name__)
 from common.exceptions import RateLimitError, HTTPStatusError
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 股票代码安全白名单：允许字母、数字、下划线、点号、冒号、脱字符（美股指数如 us:^gspc）。
 # v1.24.0 修复：+ → *，允许空串——lhb/block_trade/limit_up 等域的空 code 语义是
@@ -118,6 +119,7 @@ class BaseFetcher(ABC):
                 "half_open_max": cb.get("half_open_max", 3),
             }
         except Exception as e:
+            log_silent_fallback("fetcher_base._load_cb_config", e)
             logger.debug("加载熔断器配置失败，使用默认值: %s", e)
             return {}
 
@@ -190,6 +192,7 @@ def fetch_with_breaker(fetcher: BaseFetcher, *args, **kwargs):
         logger.debug("fetch_with_breaker %s 限速(429): %s", fetcher.__class__.__name__, e)
         return None
     except Exception as e:
+        log_silent_fallback("fetcher_base.fetch_with_breaker", e)
         logger.debug("fetch_with_breaker %s 异常: %s", fetcher.__class__.__name__, e)
         fetcher.on_failure()
         return None
@@ -244,6 +247,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
             logger.debug("fetch_with_fallback %s 限速(429): %s", fetcher.__class__.__name__, e)
             continue
         except Exception as e:
+            log_silent_fallback("fetcher_base.fetch_with_fallback", e)
             logger.debug("fetch_with_fallback %s 异常: %s", fetcher.__class__.__name__, e)
             fetcher.on_failure()
             continue

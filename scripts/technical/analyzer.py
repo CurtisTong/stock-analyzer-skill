@@ -43,6 +43,7 @@ from technical.scoring import (
 )
 from technical.report import render_report, render_quick
 from technical.moving_average import incremental_ma
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 def _index_market_features(market_index: str, window: int = 5) -> tuple:
@@ -79,7 +80,8 @@ def _index_market_features(market_index: str, window: int = 5) -> tuple:
 
             _q = get_quote(normalize_quote_code(market_index))
             _turnover = to_float(getattr(_q, "turnover", 0)) if _q else 0.0
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("analyzer._index_market_features", exc)
             _turnover = 0.0
         if _turnover > 0 and recent:
             recent[-1]["turnover"] = _turnover
@@ -92,6 +94,7 @@ def _index_market_features(market_index: str, window: int = 5) -> tuple:
             }
         return recent, kline
     except Exception as e:
+        log_silent_fallback("analyzer._index_market_features", e)
         logger.debug("指数K线获取失败，市场环境退化为单日判定: %s", e)
         return None, None
 
@@ -167,7 +170,8 @@ def _compute_all(inp: TechnicalInput):
             )
         )
         features["local_patterns"] = local_result
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("analyzer._compute_all", exc)
         logger.debug("本土战法计算失败", exc_info=True)
         features["local_patterns"] = {
             "patterns": [],
@@ -188,9 +192,11 @@ def _compute_all(inp: TechnicalInput):
                 fin_data = fetch_finance(fn_code)
                 fin_record = fin_data[0] if fin_data else None
             except Exception as e:
+                log_silent_fallback("analyzer._compute_all", e)
                 logger.debug("财务数据获取失败: %s", e)
             features["classification"] = classify_stock(fin_record, quote, records)
         except Exception as e:
+            log_silent_fallback("analyzer._compute_all", e)
             logger.debug("个股分类计算失败: %s", e)
             features["classification"] = {
                 "type": "普通股",
@@ -208,6 +214,7 @@ def _compute_all(inp: TechnicalInput):
 
             features["chan_theory"] = chan_full_analysis(records)
         except Exception as e:
+            log_silent_fallback("analyzer._compute_all", e)
             logger.debug("缠论计算失败: %s", e)
             features["chan_theory"] = {"valid": False, "error": "缠论计算失败"}
     else:
@@ -225,6 +232,7 @@ def _compute_all(inp: TechnicalInput):
 
         industry = profile_stock(quote).get("industry", "默认")
     except Exception as e:
+        log_silent_fallback("analyzer._compute_all", e)
         logger.debug("行业识别失败，使用默认行业: %s", e)
         industry = "默认"
     # PE 行业相对分位 — 统一实现（strategies.factors.score_utils.pe_percentile，
@@ -252,6 +260,7 @@ def _compute_all(inp: TechnicalInput):
 
         features["valuation_score"] = valuation_score(quote, fin_record or {}, industry)
     except Exception as e:
+        log_silent_fallback("analyzer._compute_all", e)
         logger.debug("估值评分失败，使用中性 50: %s", e)
         features["valuation_score"] = 50
 
@@ -267,6 +276,7 @@ def _compute_all(inp: TechnicalInput):
                     idx_quote, recent_quotes=recent_quotes, index_kline=index_kline
                 )
             except Exception as e:
+                log_silent_fallback("analyzer._compute_all", e)
                 logger.debug("市场指数获取失败，使用默认检测: %s", e)
                 features["market_environment"] = detect_market_environment()
         else:

@@ -18,6 +18,7 @@ import logging
 from common import to_float
 from config.loader import get_scoring_config
 from data.helpers import fetch_quote_dict_or_none, fetch_finance_first
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +142,7 @@ class LongTermEvaluator:
         try:
             return fetch_quote_dict_or_none(code)
         except Exception as e:
+            log_silent_fallback("long_term._get_quote", e)
             logger.debug("获取行情失败 %s: %s", code, e)
             return None
 
@@ -149,6 +151,7 @@ class LongTermEvaluator:
         try:
             return fetch_finance_first(code)
         except Exception as e:
+            log_silent_fallback("long_term._get_finance", e)
             logger.debug("获取财务失败 %s: %s", code, e)
             return {}
 

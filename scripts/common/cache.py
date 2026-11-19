@@ -10,6 +10,7 @@ import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ def put(key: str, data: bytes) -> None:
         try:
             cleanup_by_size(max_size_mb=_MAX_CACHE_MB)
         except Exception as e:
+            log_silent_fallback("cache.put", e)
             logger.debug("缓存清理失败: %s", e)  # 清理失败不影响写入
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
@@ -90,6 +92,7 @@ def put(key: str, data: bytes) -> None:
         os.close(fd)
         fd = -1
     except Exception as e:
+        log_silent_fallback("cache.put", e)
         logger.debug("缓存写入失败 %s: %s", key, e)
         if fd >= 0:
             try:

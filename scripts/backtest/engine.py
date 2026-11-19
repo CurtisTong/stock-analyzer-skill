@@ -27,6 +27,7 @@ from strategies.regime.classifier import classify_regime
 from strategies.regime.detector import compute_signals_from_bars
 from config.loader import safe_get
 from classifier import infer_industry
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -392,6 +393,7 @@ def simulate_strategy(ctx: SimContext):
                 if chip > 0:
                     parts["chip"] = chip
             except Exception as e:
+                log_silent_fallback("engine._fetch_finance", e)
                 logger.debug("chip 因子计算失败: %s", e)
 
             # 事件因子（解禁/分红/增减持/违规）
@@ -775,6 +777,7 @@ def _sentiment_overlay_multipliers(day: str) -> Optional[dict]:
         metrics = market_sentiment_metrics(snapshot, promotion_rate=get_promotion_rate(snapshot))
         return sentiment_overlay_multipliers(metrics) or None
     except Exception as e:
+        log_silent_fallback("engine._sentiment_overlay_multipliers", e)
         logger.debug("情绪 overlay 计算失败 %s: %s", day, e)
         return None
 
@@ -792,6 +795,7 @@ def _sentiment_score_at(code: str, day: str) -> float | None:
 
         return sentiment_score_at(code, day.replace("-", ""))
     except Exception as e:
+        log_silent_fallback("engine._sentiment_score_at", e)
         logger.debug("情绪因子计算失败 %s@%s: %s", code, day, e)
         return None
 
@@ -818,12 +822,14 @@ def _detect_st_codes(codes: list[str]) -> set[str]:
 
             q = get_quote(code)
             return getattr(q, "name", "") if q else ""
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("engine._fetch_name", exc)
             return ""
 
     try:
         names = parallel_fetch_dict(codes, _fetch_name, label="backtest:quote", timeout=45)
     except Exception as e:
+        log_silent_fallback("engine._fetch_name", e)
         logger.debug("ST 名单获取失败，降级为标准涨跌停幅度: %s", e)
         return set()
 
@@ -849,7 +855,8 @@ def _limit_ratio(code: str, is_st: bool = False) -> float:
 
     try:
         code = normalize_quote_code(code)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("engine._limit_ratio", exc)
         pass
     if is_st:
         # ST 主板 ±5%；ST 创业板/科创板仍按板块 20%
@@ -971,6 +978,7 @@ def _fetch_index_bars_for_backtest(kline_data: dict):
         max_depth = max((len(b) for b in kline_data.values()), default=80)
         return get_kline("sh000300", scale=240, datalen=max(80, max_depth))
     except Exception as e:
+        log_silent_fallback("engine._fetch_index_bars_for_backtest", e)
         logger.debug("backtest 拉取 sh000300 失败: %s", e)
         return []
 

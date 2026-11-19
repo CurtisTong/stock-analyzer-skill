@@ -15,6 +15,7 @@ from typing import Dict, Optional
 from common import to_float
 from data import get_kline
 from config.loader import safe_get
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ def detect_signals(benchmark: str = "sh000300", window: int = 60) -> Dict[str, f
     try:
         bars = get_kline(benchmark, scale=240, datalen=window)
     except Exception as e:
+        log_silent_fallback("detector.detect_signals", e)
         logger.debug("获取基准 K 线失败 %s: %s", benchmark, e)
         return _zero_signals()
 
@@ -127,6 +129,7 @@ def _compute_constituent_breadth(bars) -> Optional[float]:
 
         return breadth.compute_constituent_breadth(window=20)
     except Exception as e:
+        log_silent_fallback("detector._compute_constituent_breadth", e)
         logger.debug("成分股宽度计算失败，fallback 指数阳线占比: %s", e)
         return None
 
@@ -146,6 +149,7 @@ def _detect_national_team_signal(bars) -> bool:
         result = detect_national_team()
         return bool(result.get("detected", False))
     except Exception as e:
+        log_silent_fallback("detector._detect_national_team_signal", e)
         logger.debug("国家队信号探测失败: %s", e)
         return False
 

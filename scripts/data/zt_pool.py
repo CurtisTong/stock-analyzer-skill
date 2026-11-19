@@ -9,6 +9,7 @@
 import logging
 from datetime import datetime
 from typing import Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,7 @@ def get_zt_pool(date: str = "") -> dict:
 
         return result
     except Exception as e:
+        log_silent_fallback("zt_pool.get_zt_pool", e)
         logger.debug("涨停池获取失败: %s", e)
         return {}
 

@@ -13,6 +13,7 @@ import json
 import sys
 import os
 from datetime import datetime
+from common.exceptions.silent_fallback import log_silent_fallback
 
 scripts_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if scripts_dir not in sys.path:
@@ -391,6 +392,7 @@ if __name__ == "__main__":
             try:
                 stocks_data[name] = load_kline_data(path)
             except Exception as e:
+                log_silent_fallback("backtest_report.generate_comparison_report", e)
                 print(f"⚠️ {name}: {e}")
 
         print(generate_comparison_report(stocks_data))

@@ -2,6 +2,7 @@
 
 import logging
 import re
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,8 @@ def repair_tencent_name(name: str) -> str:
         if fixed and fixed != name:
             logger.debug("部分修复乱码名称: %r → %r", name, fixed)
             return fixed
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("parsers.repair_tencent_name", exc)
         pass
     return name
 

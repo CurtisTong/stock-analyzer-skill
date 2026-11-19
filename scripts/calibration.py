@@ -23,6 +23,7 @@ from common.cli_base import create_parser, handle_errors
 import json
 import sys
 from pathlib import Path
+from common.exceptions.silent_fallback import log_silent_fallback
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -65,7 +66,8 @@ def cmd_record(args):
             if p.get("id") == pred_id:
                 actual_verify_after = p.get("verify_after", "")
                 break
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("calibration.cmd_record", exc)
         pass
     if actual_verify_after:
         print(f"验证日期: {actual_verify_after}（取各专家 horizon 最短窗口）")

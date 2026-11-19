@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from common.exceptions.silent_fallback import log_silent_fallback
 # mypy: disable-error-code="attr-defined"
 """
 缠中说禅理论（缠论）实现。
@@ -54,5 +55,6 @@ if __name__ == "__main__":
         result = chan_full_analysis(records)
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
     except Exception as e:
+        log_silent_fallback("chan.module", e)
         print(f"❌ 缠论分析失败 ({code}): {e}", file=sys.stderr)
         sys.exit(1)

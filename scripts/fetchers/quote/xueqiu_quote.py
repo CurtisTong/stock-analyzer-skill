@@ -4,6 +4,7 @@ import logging
 
 
 from common import BaseFetcher, http_get_with_headers, to_float
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -70,5 +71,6 @@ class XueqiuQuoteFetcher(BaseFetcher):
             data = json.loads(raw)
             return _parse_quote(data)
         except Exception as e:
+            log_silent_fallback("xueqiu_quote.fetch", e)
             logger.debug("xueqiu_quote 获取失败 %s: %s", code, e)
             return None

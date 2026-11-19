@@ -41,6 +41,8 @@ from business.universe_loader import (
     apply_portfolio_constraints,
 )
 
+from common.exceptions.silent_fallback import log_silent_fallback
+
 logger = logging.getLogger(__name__)
 
 # ScreeningService 模块级缓存：避免循环中重复创建实例
@@ -273,6 +275,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             regime = classify_regime(signals)
             _cb("init", {"regime": regime})
         except Exception as e:
+            log_silent_fallback("screening_pipeline._cb", e)
             print(f"⚠️ 市场状态检测失败: {e}", file=sys.stderr)
             regime = None
 
@@ -299,6 +302,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
                     "position_ratio": 0.0,
                 }
         except Exception as e:
+            log_silent_fallback("screening_pipeline._cb", e)
             print(f"⚠️ 宏观安全垫检查失败: {e}", file=sys.stderr)
             macro_state = None
 
@@ -377,6 +381,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
     try:
         rows = _apply_sector_momentum(rows, getattr(args, "exclude_sector_momentum", False))
     except Exception as e:
+        log_silent_fallback("screening_pipeline._cb", e)
         print(f"⚠️ 板块动量检查失败（跳过）: {e}", file=sys.stderr)
 
     if not args.no_constraints:
@@ -401,6 +406,7 @@ def run_screening(args, progress_callback: Optional[Callable] = None) -> dict:
             )
             _cb("snapshot", {"path": snapshot_path})
         except Exception as e:
+            log_silent_fallback("screening_pipeline._cb", e)
             print(f"⚠️ 快照保存失败: {e}", file=sys.stderr)
 
     return {

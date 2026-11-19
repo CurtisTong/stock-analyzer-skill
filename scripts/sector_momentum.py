@@ -12,6 +12,7 @@ sector_momentum_warning 标记。
 from __future__ import annotations
 
 import threading
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # infer_industry 类别 -> sector_etf.csv 行业 ETF（近似映射，仅覆盖有 ETF 的行业）
 _INDUSTRY_TO_ETF = {
@@ -54,7 +55,8 @@ def _etf_ret(etf_code: str, days: int) -> float | None:
         if not first or not last:
             return None
         return (last / first - 1) * 100
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("sector_momentum._etf_ret", exc)
         return None
 
 

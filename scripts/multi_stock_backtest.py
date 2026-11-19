@@ -21,6 +21,7 @@ import argparse
 from common.cli_base import create_parser, handle_errors
 from datetime import datetime
 from pathlib import Path
+from common.exceptions.silent_fallback import log_silent_fallback
 
 PKG_ROOT = Path(__file__).resolve().parent.parent
 
@@ -179,6 +180,7 @@ def run_one_strategy(
             "result": result,
         }
     except Exception as e:
+        log_silent_fallback("multi_stock_backtest.run_one_strategy", e)
         return {
             "strategy": strategy_name,
             "codes_count": len(codes),
@@ -203,6 +205,7 @@ def run_benchmark(code: str, name: str, total_days: int = 60, holding_days: int 
         )
         return {"benchmark": name, "code": code, "result": result}
     except Exception as e:
+        log_silent_fallback("multi_stock_backtest.run_benchmark", e)
         return {"benchmark": name, "code": code, "error": f"{type(e).__name__}: {e}"}
 
 

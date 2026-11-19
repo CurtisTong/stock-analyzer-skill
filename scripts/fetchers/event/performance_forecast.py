@@ -14,6 +14,7 @@ import json
 import logging
 
 from common import BaseFetcher, http_get, to_float, strip_prefix
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,7 @@ class PerformanceForecastFetcher(BaseFetcher):
                 retry=self.retry,
             )
         except Exception as e:
+            log_silent_fallback("performance_forecast.fetch", e)
             logger.debug("业绩预告获取失败 %s: %s", code, e)
             return None
 

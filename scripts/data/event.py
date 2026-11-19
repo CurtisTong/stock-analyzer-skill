@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import fetch_with_breaker, LazyFetcherRegistry
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,7 @@ def get_events(code: str, days: int = 30) -> dict:
             if data and data.get("items"):
                 result[data["type"]] = data["items"]
         except Exception as e:
+            log_silent_fallback("event.get_events", e)
             logger.debug(
                 "事件 fetcher %s 失败 %s: %s",
                 fetcher.__class__.__name__,

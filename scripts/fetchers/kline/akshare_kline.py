@@ -3,6 +3,7 @@
 import logging
 
 from common import BaseFetcher, plain_code
+from common.exceptions.silent_fallback import log_silent_fallback
 from common.exceptions import (
     HTTPStatusError,
     NetworkError,
@@ -91,5 +92,6 @@ class AkshareKlineFetcher(BaseFetcher):
         except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
             raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
+            log_silent_fallback("akshare_kline.fetch", e)
             logger.debug("akshare_kline 获取失败 %s: %s", code, e)
             return None

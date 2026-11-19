@@ -23,6 +23,7 @@ import threading
 import time
 from contextlib import contextmanager
 from typing import Dict, Iterator
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +239,7 @@ def _load_rate_limit_config() -> dict:
 
         return ConfigLoader.load("data_source.yaml").get("rate_limit", {})
     except Exception as e:
+        log_silent_fallback("rate_limiter._load_rate_limit_config", e)
         logger.debug("加载 rate_limit 配置失败，使用默认值: %s", e)
         return {}
 

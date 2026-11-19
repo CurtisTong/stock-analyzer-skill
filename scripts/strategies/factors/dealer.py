@@ -15,6 +15,7 @@ import logging
 from common import to_float
 from technical.shadow_stats import shadow_ratio_stats
 from technical.volatility import compute_atr
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,8 @@ def detect_dealer_stock(code, quote, records, closes, highs, lows):
             _DEFAULT_SHADOW_PCT_THRESHOLD,
         )
         score_threshold = ConfigLoader.get("limits.yaml", "dealer_stock.score_threshold", _DEFAULT_SCORE_THRESHOLD)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("dealer.detect_dealer_stock", exc)
         cap_range = _DEFAULT_CAP_RANGE
         r2_max = _DEFAULT_R2_MAX
         beta_abs_max = _DEFAULT_BETA_ABS_MAX
@@ -101,6 +103,7 @@ def detect_dealer_stock(code, quote, records, closes, highs, lows):
             else:
                 independence = f"跟随大盘(R²={r_squared:.2f})"
     except Exception as e:
+        log_silent_fallback("dealer.detect_dealer_stock", e)
         logger.debug("compute_beta 失败，独立走势维度跳过: %s", e)
 
     # 独立走势是庄股的必要条件：得分为0则直接返回非庄股

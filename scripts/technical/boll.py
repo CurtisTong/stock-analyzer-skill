@@ -9,6 +9,7 @@
 """
 
 from .core import sma, stddev
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 低波动阈值：ATR/现价 < 2%（日均振幅）判为低波动，收窄变盘参考弱
 _LOW_VOL_ATR_PCT = 0.02
@@ -46,7 +47,8 @@ def bollinger(closes, period=20, multiplier=2.0, highs=None, lows=None):
             atr_pct = atr / last if last > 0 else 0.0
             if atr_pct > 0 and atr_pct < _LOW_VOL_ATR_PCT:
                 low_vol_squeeze = True
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("boll.bollinger", exc)
             low_vol_squeeze = False
 
     # 带宽状态（SKILL 声明"开口/收口"：开口 = 波动放大）

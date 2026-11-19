@@ -12,6 +12,7 @@ from typing import Optional
 
 import logging
 from common.cache import cache_key_for_stock, get_json, set_json
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ def fetch_industry(code: str) -> str:
     try:
         industry = _fetch_from_akshare(code)
     except Exception as e:  # noqa: BLE001 — 网络异常统一兜底
+        log_silent_fallback("akshare_industry.fetch_industry", e)
         logger.debug("industry fetch failed for %s: %s", code, e)
         industry = ""
 

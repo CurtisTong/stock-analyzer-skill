@@ -14,6 +14,7 @@ from typing import Dict
 
 from common import to_float
 from data import get_kline
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -72,5 +73,6 @@ def _safe_get_kline(code: str, scale: int, datalen: int):
     try:
         return get_kline(code, scale=scale, datalen=datalen)
     except Exception as e:
+        log_silent_fallback("national_team._safe_get_kline", e)
         logger.debug("获取 %s K线失败: %s", code, e)
         return None

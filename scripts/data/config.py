@@ -9,6 +9,7 @@ import os
 logger = logging.getLogger(__name__)
 from dataclasses import dataclass
 from datetime import date  # 顶层导入，便于测试 patch
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 def _load_yaml_config() -> dict:
@@ -18,6 +19,7 @@ def _load_yaml_config() -> dict:
 
         return ConfigLoader.load("data_source.yaml")
     except Exception as e:
+        log_silent_fallback("config._load_yaml_config", e)
         logger.debug("加载 YAML 数据源配置失败，使用空配置: %s", e)
         return {}
 
@@ -171,6 +173,7 @@ def _load_holidays() -> set:
         data = json.loads(path.read_text(encoding="utf-8"))
         _holiday_set = set(data.get("holidays", []))
     except Exception as e:
+        log_silent_fallback("config._load_holidays", e)
         logger.debug("加载节假日文件失败，降级为空集: %s", e)
         _holiday_set = set()
     return _holiday_set

@@ -100,7 +100,8 @@ def get_last_fallback_chain(domain: str = "quote", code: str | None = None) -> l
             if code:
                 return manager.fallback_chain(code)
             return manager.last_fallback_chain
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("__init__.get_last_fallback_chain", exc)
         pass
     return []
 
@@ -159,15 +160,58 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     return quote
 
 
+# 批量行情阈值：小于该数量走逐只并行（简单、已缓存），大于等于走腾讯批量
+_TENCENT_BATCH_THRESHOLD = 200
+
+
+def _get_quotes_tencent_batch(codes: list) -> dict:
+    """腾讯批量取行情，返回 {归一化 code: Quote}；失败返回空 dict（不抛）。"""
+    from common import normalize_quote_code
+
+    try:
+        from fetchers.quote.tencent_quote import TencentQuoteFetcher
+
+        raw = TencentQuoteFetcher().fetch_many([normalize_quote_code(c) for c in codes])
+    except Exception as exc:
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback("data._get_quotes_tencent_batch", exc)
+        return {}
+    out = {}
+    for code, d in raw.items():
+        try:
+            out[normalize_quote_code(code)] = _dict_to_quote(d)
+        except Exception as exc:
+            from common.exceptions import log_silent_fallback
+
+            log_silent_fallback("data._get_quotes_tencent_batch.convert", exc)
+    return out
+
+
 def get_quotes(codes: list, use_cache: bool = True) -> list:
     """批量获取行情。
 
     T17: 超时按 codes 数量动态调整，避免全市场 5000+ 只时部分结果丢失。
     基准 30 秒 + 每 500 只追加 10 秒，上限 120 秒。
+
+    v1.34（P1）：数量 ≥ _TENCENT_BATCH_THRESHOLD 时先用腾讯批量接口（60 只/请求）
+    预取，缺失的代码再回退逐只并行——全市场 5000+ 只逐只请求实测 15 分钟无产出。
     """
-    from common import parallel_map
+    from common import parallel_map, normalize_quote_code
 
     n = len(codes)
+    if n >= _TENCENT_BATCH_THRESHOLD:
+        normalized = [normalize_quote_code(c) for c in codes]
+        batch = _get_quotes_tencent_batch(normalized)
+        missing = [c for c in normalized if c not in batch]
+        if missing:
+            timeout = min(30 + (len(missing) // 500) * 10, 120)
+            results = parallel_map(lambda c: get_quote(c, use_cache), missing, timeout=timeout)
+            for q in results.values():
+                if q is not None:
+                    batch[normalize_quote_code(q.code)] = q
+        return list(batch.values())
+
     timeout = min(30 + (n // 500) * 10, 120)
     results = parallel_map(lambda c: get_quote(c, use_cache), codes, timeout=timeout)
     return [q for q in results.values() if q is not None]
@@ -318,7 +362,8 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> tuple[li
         from fetchers.finance.akshare_balance import enrich_with_balance_sheet
 
         result = enrich_with_balance_sheet(result, code, periods=periods)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("__init__.get_finance", exc)
         pass
 
     records = [_dict_to_finance(r) for r in result if isinstance(r, dict)]
@@ -668,6 +713,7 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
 
 # ---------- lhb 域统一入口 re-export ----------
 from data.lhb import get_lhb_detail, get_lhb_seats  # noqa: E402, F401
+from common.exceptions.silent_fallback import log_silent_fallback
 
 __all__ = [
     "Quote",

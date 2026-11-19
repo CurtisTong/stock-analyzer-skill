@@ -9,6 +9,8 @@ v1.16.0 D: 新增 ``--strict`` 选项：
 
     python3 scripts/dev/lint_silent_excepts.py            # advisory
     python3 scripts/dev/lint_silent_excepts.py --strict   # CI blocking
+    python3 scripts/dev/lint_silent_excepts.py --strict --dirs scripts/common,scripts/business,scripts/data
+                                                          # 分批清零：只对已清零目录阻断
 """
 
 import re
@@ -67,18 +69,53 @@ def check_file(path):
     return [], advisories
 
 
+def _parse_dirs(argv: list[str]) -> list[Path] | None:
+    """--dirs a,b,c：只扫这些目录（P0-4c 分批清零用）。
+
+    不给 --dirs 时保持原行为：scripts/ + experts/ 全扫（advisory）。
+    """
+    for i, arg in enumerate(argv):
+        if arg == "--dirs":
+            raw = argv[i + 1] if i + 1 < len(argv) else ""
+            return [Path(d.strip()) for d in raw.split(",") if d.strip()]
+        if arg.startswith("--dirs="):
+            return [Path(d.strip()) for d in arg.split("=", 1)[1].split(",") if d.strip()]
+    return None
+
+
 def main():
     strict = "--strict" in sys.argv
+    dirs = _parse_dirs(sys.argv)
     sys.argv = [a for a in sys.argv if a != "--strict"]
+    if dirs is not None:
+        # 去掉 --dirs 及其值，避免 argparse 之外残留
+        cleaned: list[str] = []
+        skip_next = False
+        for arg in sys.argv:
+            if skip_next:
+                skip_next = False
+                continue
+            if arg == "--dirs":
+                skip_next = True
+                continue
+            if arg.startswith("--dirs="):
+                continue
+            cleaned.append(arg)
+        sys.argv = cleaned
 
-    root = Path("scripts")
     all_advisories = []
-    for p in root.rglob("*.py"):
-        _, advisories = check_file(p)
-        all_advisories.extend(advisories)
-    for p in Path("experts").rglob("*.py"):
-        _, advisories = check_file(p)
-        all_advisories.extend(advisories)
+    if dirs is None:
+        roots = [Path("scripts")] + [Path("experts")]
+    else:
+        missing = [d for d in dirs if not d.exists()]
+        if missing:
+            print(f"❌ --dirs 目录不存在: {', '.join(str(m) for m in missing)}", file=sys.stderr)
+            return 2
+        roots = dirs
+    for root in roots:
+        for p in root.rglob("*.py"):
+            _, advisories = check_file(p)
+            all_advisories.extend(advisories)
 
     if all_advisories:
         if strict:

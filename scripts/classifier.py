@@ -6,6 +6,7 @@ A 股个股类型分类器。
 """
 
 from common import to_float, board_type
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # ── 类型 → 推荐指标映射 ──
 
@@ -221,7 +222,8 @@ def _attach_feature_tags(result, quote_record, kline_records, code):
         from strategies.factors.capacity import detect_capacity_stock
 
         result["capacity"] = detect_capacity_stock(quote_record, closes, highs, lows)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("classifier._attach_feature_tags", exc)
         result["capacity"] = None
 
     # 庄股识别（需要网络请求 compute_beta，容错处理）
@@ -229,7 +231,8 @@ def _attach_feature_tags(result, quote_record, kline_records, code):
         from strategies.factors.dealer import detect_dealer_stock
 
         result["dealer"] = detect_dealer_stock(code, quote_record, records, closes, highs, lows)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("classifier._attach_feature_tags", exc)
         result["dealer"] = None
 
 
@@ -510,6 +513,7 @@ if __name__ == "__main__":
         fin_data = fetch_finance(fn_code)
         fin_record = fin_data[0] if fin_data else None
     except Exception as e:
+        log_silent_fallback("classifier.profile_stock", e)
         import logging
 
         logging.getLogger(__name__).debug("获取财务数据失败 %s: %s", code, e)

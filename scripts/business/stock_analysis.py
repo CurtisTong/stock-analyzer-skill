@@ -16,6 +16,7 @@ from common.exceptions import ValidationError
 from common.validators import normalize_code, validate_code
 from data import get_quote, get_kline, get_finance
 from classifier import profile_stock
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -442,6 +443,7 @@ def _calculate_composite_score(result: dict, quote_dict: dict = None, index_quot
             market_state = env.get("state", "震荡")
             logger.debug("市场环境: %s (置信度: %s)", market_state, env.get("confidence"))
     except Exception as e:
+        log_silent_fallback("stock_analysis._calculate_composite_score", e)
         logger.debug("获取大盘行情失败，使用默认市场环境: %s", e)
 
     stock_type = profile.get("type", "普通股")

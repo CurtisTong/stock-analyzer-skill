@@ -13,6 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 模块级状态
 _pm = None
@@ -132,6 +133,7 @@ def _get_notifier():
             _nm = nm
             return _nm
     except Exception as e:
+        log_silent_fallback("utils._get_notifier", e)
         logging.getLogger(__name__).debug("通知管理器初始化失败: %s", e)
     return None
 
@@ -161,6 +163,7 @@ def _notify_async(title: str, body: str, throttle_key: str = None) -> None:
         try:
             nm.send(title, body, throttle_key=key)
         except Exception as e:
+            log_silent_fallback("utils._send", e)
             logging.getLogger(__name__).debug("异步通知发送失败: %s", e)
 
     _notify_executor.submit(_send)

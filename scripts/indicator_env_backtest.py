@@ -39,6 +39,7 @@ from technical.kdj import kdj_full  # noqa: E402
 from technical.rsi import rsi_features  # noqa: E402
 from technical.boll import bollinger  # noqa: E402
 from technical.scoring import detect_market_environment  # noqa: E402
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 推演股票池：宝丰能源（原 5 股样本内最优）+ 恒瑞医药（原最差）+ 三只不同行业
 # /不同波动特征股票（消费白马/成长高波/金融低波），跨 2024-03 → 今 窗口
@@ -105,7 +106,8 @@ def compute_market_env(index_bars: list[dict]) -> dict[str, str]:
         idx_quote = {"price": closes[t], "change_pct": pcts[t], "turnover": 0}
         try:
             env[dates[t]] = detect_market_environment(idx_quote, recent_quotes=recent)["state"]
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("indicator_env_backtest.compute_market_env", exc)
             env[dates[t]] = "震荡"
     return env
 

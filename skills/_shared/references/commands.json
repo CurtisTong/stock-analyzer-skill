@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-11-19T23:16:25Z",
+    "generated_at": "2026-11-19T23:19:13Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -714,7 +714,7 @@
     {
       "name": "chan",
       "path": "scripts/chan.py",
-      "description": "缠中说禅理论（缠论）实现",
+      "description": "（无描述）",
       "cli": false,
       "flags": [],
       "params": []
@@ -1316,7 +1316,7 @@
     {
       "name": "hot_rank",
       "path": "scripts/hot_rank.py",
-      "description": "热度榜（活跃 Top N）",
+      "description": "（无描述）",
       "cli": true,
       "flags": [
         "-v",

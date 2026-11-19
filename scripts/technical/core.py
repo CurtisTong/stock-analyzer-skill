@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from common import to_float
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # ═══════════════════════════════════════════════════════════════
 # 数学工具
@@ -126,7 +127,8 @@ def stale_trading_days(last_day: str, today: date | None = None) -> int:
         path = repo_data / "a_share_holidays.json"
         if path.exists():
             holidays = set(json.loads(path.read_text(encoding="utf-8")).get("holidays", []))
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("core.stale_trading_days", exc)
         holidays = set()
     days = 0
     cur = last
