@@ -56,6 +56,16 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%dT%H:%M")
 
 
+def _winner_provider(domain: str, code: str | None) -> str | None:
+    """本域最近一次成功供数的 provider；不可得返回 None（不臆测）。"""
+    try:
+        from data import get_last_success_provider
+
+        return get_last_success_provider(domain, code=code)
+    except Exception:
+        return None
+
+
 def _chain_providers(domain: str, code: str | None) -> list[str]:
     """只读消费现有降级链，拿"试过哪些源"。取不到就当没有（不臆测）。"""
     try:
@@ -115,11 +125,15 @@ def envelope(
     degraded: list[str] = [domain for domain in degraded if domain in required]
     degraded_fields: list[str] = []
     sources: dict[str, list[str]] = {}
+    winners: dict[str, str] = {}
 
     for domain in required:
         providers = list(events.get(domain, ())) if events and domain in events else _chain_providers(domain, code)
         if providers:
             sources[domain] = providers
+        winner = _winner_provider(domain, code)
+        if winner:
+            winners[domain] = winner
         if domain in failed or not _present(data, domain, field_map):
             missing.append(domain)
             # 显式传了 degraded 但该域实际整域缺失：只算 missing，不能两个列表都出现
@@ -171,6 +185,7 @@ def envelope(
         "degraded": degraded,
         "degraded_fields": degraded_fields,
         "sources": sources,
+        "winners": winners,
         "conclusions_allowed": allowed,
         "checked_at": checked_at or _now(),
     }
@@ -243,7 +258,10 @@ def render_header(data_quality: Mapping[str, Any] | None) -> str:
     sources = dq.get("sources") or {}
 
     if status == STATUS_OK and not missing and not degraded:
-        src = " / ".join(dict.fromkeys(p for providers in sources.values() for p in providers))
+        winners = dq.get("winners") or {}
+        src = " / ".join(dict.fromkeys(winners.values())) or " / ".join(
+            dict.fromkeys(p for providers in sources.values() for p in providers)
+        )
         if not src:
             return f"> 数据完整性：{STATUS_OK} {total}/{total} · 数据源 未记录 · {checked}"
         return f"> 数据完整性：{STATUS_OK} {total}/{total} · 数据源 {src} · {checked}"
