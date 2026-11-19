@@ -52,12 +52,13 @@ def env(monkeypatch, tmp_path):
 
 
 def test_error_is_dataerror_subclass():
-    err = DataNotReadyError("sh601857", 240, "2026-11-20", "2026-11-19", "sina")
+    err = DataNotReadyError("sh601857", 240, "2026-11-20", "2026-11-19", "sina", attempts=2)
     assert isinstance(err, DataError)
     assert err.details["require_date"] == "2026-11-20"
     assert err.details["actual_date"] == "2026-11-19"
     assert err.details["code"] == "sh601857"
     assert err.details["source"] == "sina"
+    assert err.details["attempts"] == 2  # 规格要求 details 固定含 attempts
 
 
 def test_matching_date_returns_bars(env):

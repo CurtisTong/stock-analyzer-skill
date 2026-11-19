@@ -62,6 +62,7 @@ class DataNotReadyError(DataError):
         require_date: str,
         actual_date: str | None,
         source: str = "",
+        attempts: int | None = None,
     ):
         super().__init__(
             f"数据未就绪: {code} 末根 {actual_date or '无'}，期望 {require_date}",
@@ -71,6 +72,7 @@ class DataNotReadyError(DataError):
                 "require_date": require_date,
                 "actual_date": actual_date,
                 "source": source,
+                "attempts": attempts,
             },
         )
 
