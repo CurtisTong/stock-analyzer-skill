@@ -34,6 +34,12 @@ allowed-tools: Bash(python3 scripts/backtest.py *) Read(./skills/_shared/referen
 /backtest --capital 100000 --commission 0.00025  # 成本参数（v1.25+：本金/佣金/印花税/滑点/最低佣金）
 ```
 
+## 数据完整性字段（P0-4b）
+
+`--json` 的 dict 型结果（单策略回测 / 权重优化 / walk-forward）顶层带 `data_quality`：K 线不可用（返回 `error` 或缺少 `total_return_pct`）→ `kline` 域 `failed`，`conclusions_allowed=false`，此时不得据此给仓位建议或"可以买/加仓"类结论；`--all` 的多策略对比仍是裸数组（形状不变）。
+
+> 免责：AI 辅助生成，仅供参考，不构成投资建议。
+
 ## Instructions
 
 使用中文输出。先给结论（推荐策略 + 关键指标），再给数据证据。回测必须运行 `scripts/backtest.py`，不要凭记忆编造历史收益。

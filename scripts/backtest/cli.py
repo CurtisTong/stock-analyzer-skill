@@ -350,6 +350,25 @@ def _print_report_meta(meta: dict | None):
     print(" | ".join(parts))
 
 
+def _with_data_quality(payload):
+    """P0-4b：回测结果加 data_quality（K 线域）。
+
+    回测的输入只有 K 线：拿不到 total_return_pct 或返回 error 视为 kline failed，
+    其余视为 ok。列表型输出（多策略对比）保持裸数组，不在此包装。
+    """
+    if not isinstance(payload, dict):
+        return payload
+    from common import data_quality as dq
+
+    failed = bool(payload.get("error")) or payload.get("total_return_pct") is None
+    return dq.envelope(
+        payload,
+        required=("kline",),
+        field_map={"kline": ()},
+        failed=("kline",) if failed else (),
+    )
+
+
 def main():
     from common.cache import cleanup_tmp_files
 
@@ -498,7 +517,7 @@ def main():
         wf_result = run_walk_forward(config)
         d = wf_result.to_dict()
         if args.json:
-            print(json.dumps(d, ensure_ascii=False, indent=2))
+            print(json.dumps(_with_data_quality(d), ensure_ascii=False, indent=2))
         else:
             print(f"\n{'指标':<20} {'OOS':>10} {'IS(参考)':>10}")
             print("-" * 42)
@@ -524,7 +543,7 @@ def main():
         print(f"\n🔧 优化策略权重: {args.strategy}", flush=True)
         result = optimize_weights(codes, args.strategy, args.top, args.days, validate=args.validate, **cost_kwargs)
         if args.json:
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            print(json.dumps(_with_data_quality(result), ensure_ascii=False, indent=2))
         else:
             print(f"\n最优权重: {result['best_weights']}")
             print(f"最优夏普: {result['best_sharpe']:.3f}")
@@ -645,7 +664,7 @@ def main():
         )
         _attach_validation(report)
         if args.json:
-            print(json.dumps(report, ensure_ascii=False, indent=2))
+            print(json.dumps(_with_data_quality(report), ensure_ascii=False, indent=2))
         elif "error" in report:
             # M5: 错误模式仍输出 footer（SKILL.md 硬约束），
             # 让 SKILL 渲染层和 LLM caller 能看到降级标志。
