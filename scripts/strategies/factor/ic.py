@@ -25,6 +25,7 @@ import statistics
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -220,5 +221,6 @@ def load_ic() -> Dict[str, Dict[str, float]]:
         data = json.loads(IC_FILE.read_text(encoding="utf-8"))
         return data.get("ic", {})
     except Exception as e:
+        log_silent_fallback("ic.load_ic", e)
         logger.debug("因子 IC 读取失败: %s", e)
         return {}

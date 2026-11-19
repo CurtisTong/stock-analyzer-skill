@@ -3,6 +3,7 @@
 import logging
 import threading
 import time
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,7 @@ class TdxPool:
         try:
             api.disconnect()
         except Exception as e:
+            log_silent_fallback("pytdx_pool._close", e)
             logger.debug("pytdx 断开连接失败: %s", e)
 
 

@@ -4,6 +4,7 @@ import logging
 
 
 from common import BaseFetcher, http_get, to_float
+from common.exceptions.silent_fallback import log_silent_fallback
 from common.exceptions import (
     HTTPStatusError,
     NetworkError,
@@ -119,5 +120,6 @@ class ThsQuoteFetcher(BaseFetcher):
         except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
             raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
+            log_silent_fallback("ths_quote.fetch", e)
             logger.debug("ths_quote 获取失败 %s: %s", code, e)
             return None

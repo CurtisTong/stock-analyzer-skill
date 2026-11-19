@@ -31,6 +31,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from experts import list_active_experts  # noqa: E402
 from experts.scoring import score_expert_precise  # noqa: E402
+from common.exceptions.silent_fallback import log_silent_fallback
 
 TREND_MAP = {
     "多头排列": 1,
@@ -138,7 +139,8 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             from classifier import infer_industry
 
             industry = infer_industry(quote.get("name") or "", code, "")
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("experts_cli.build_stock_data", exc)
             industry = ""
 
     stock_data = {
@@ -411,6 +413,7 @@ def main() -> int:
             try:
                 out.append(run_debate_for_stock(code, group_filter=group, record=not args.no_record))
             except Exception as e:  # noqa: BLE001
+                log_silent_fallback("experts_cli.main", e)
                 out.append({"code": code.upper(), "error": str(e)})
 
         if args.json:
@@ -431,6 +434,7 @@ def main() -> int:
             r = run_for_stock(code, group_filter=group)
             out.append(r)
         except Exception as e:  # noqa: BLE001
+            log_silent_fallback("experts_cli.main", e)
             out.append({"code": code.upper(), "error": str(e)})
 
     if args.json:

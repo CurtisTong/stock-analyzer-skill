@@ -34,6 +34,7 @@ import json
 import logging
 import sys
 from pathlib import Path
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 确保能 import scripts 下的模块
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -78,6 +79,7 @@ def _fetch_from_source(source_name: str, code: str, datalen: int) -> dict[str, d
         else:
             return None
     except Exception as e:
+        log_silent_fallback("cross_validate_sources._fetch_from_source", e)
         logger.debug("%s 拉取 %s 失败: %s", source_name, code, e)
         return None
 

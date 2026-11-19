@@ -21,6 +21,7 @@ from pathlib import Path
 
 from common import to_float, clamp
 from strategies.thresholds import get_industry_threshold
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +82,7 @@ def _load_product_mapping() -> dict:
         # 过滤掉 _note 等非映射字段
         _PRODUCT_MAPPING = {k: v for k, v in data.items() if not k.startswith("_")}
     except Exception as e:
+        log_silent_fallback("cyclical._load_product_mapping", e)
         logger.debug("加载 product_mapping.json 失败: %s", e)
         _PRODUCT_MAPPING = {}
     return _PRODUCT_MAPPING
@@ -114,6 +116,7 @@ def _fetch_raw_material_price(material_key: str):
         if fetcher:
             return fetcher()
     except Exception as e:
+        log_silent_fallback("cyclical._fetch_raw_material_price", e)
         logger.debug("获取原料价格失败 (%s): %s", material_key, e)
     return None
 

@@ -7,6 +7,7 @@ from config import get_scoring_config
 from experts import direction_from_score
 from experts.market_detector import _HORIZON_WEIGHTS
 from experts.scoring import consistency_from_scores
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # ═══════════════════════════════════════════════════════════════
 # 投票整合 (decide.md §一 + §三)
@@ -43,7 +44,8 @@ def _get_short_defensive_factor(market_state: Optional[dict], is_ice: bool) -> f
             _DEFENSIVE_SCORE_FACTOR_DEFAULT,
         )
         return float(factor)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("vote_engine._get_short_defensive_factor", exc)
         if state not in _DEFENSIVE_STATES:
             return 1.0
         return _DEFENSIVE_SCORE_FACTOR_DEFAULT
@@ -844,7 +846,8 @@ def aggregate_votes(
         for group_name, label in (("short_term", "短线组"), ("long_term", "长线组")):
             try:
                 group_cal = group_calibration_fn(group_name)
-            except Exception:
+            except Exception as exc:
+                log_silent_fallback("vote_engine.aggregate_votes", exc)
                 continue  # 单组失败不影响另一组
             if group_cal < 0:
                 # 组校准为负 -> 信心扣分（最多 -10 分，对应 group_cal ∈ [-1, 0)）

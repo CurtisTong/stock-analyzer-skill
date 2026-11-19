@@ -50,6 +50,7 @@ SIZE_THRESHOLD_MID = 100.0  # > 100 亿 → 中证 500；否则中证 1000
 
 
 from common.cli_base import create_parser, handle_errors
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 def select_index_by_size(stock_code: str) -> str:
@@ -81,6 +82,7 @@ def select_index_by_size(stock_code: str) -> str:
                     return "sh000905"
                 return "sh000852"
     except Exception as e:
+        log_silent_fallback("industry_beta.select_index_by_size", e)
         logger.debug("select_index_by_size 拉市值失败: %s", e)
     # fallback: 沪深 300
     return "sh000300"

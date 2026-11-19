@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from typing import Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 默认阈值（Freqtrade 经验值 A 股化）
 DEFAULT_DRAWDOWN_PCT = 15.0  # 累计利润曲线回撤 15% 熔断
@@ -375,7 +376,8 @@ def is_trading_allowed(code: str, cooldown_codes: list[str] | None = None) -> tu
             from portfolio.trade_log import TradeLog
 
             trades = TradeLog().query()
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("guardrails.is_trading_allowed", exc)
             trades = []
         if trades:
             c = check_cooldown(trades, code)

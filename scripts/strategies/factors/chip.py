@@ -14,6 +14,7 @@ import logging
 import statistics
 from datetime import datetime
 from common import clamp, to_float
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,7 @@ def _get_northbound_flow_cached(code: str, days: int = 20) -> list:
 
         flow = get_northbound_flow(code, days=days)
     except Exception as e:
+        log_silent_fallback("chip._get_northbound_flow_cached", e)
         logger.debug("get_northbound_flow 失败 %s: %s", code, e)
         flow = []
 
@@ -268,6 +270,7 @@ def _get_cached_holders(code: str, periods: int = 4) -> list:
 
         holders = get_holders(code, periods=periods)
     except Exception as e:
+        log_silent_fallback("chip._get_cached_holders", e)
         logger.debug("get_holders 失败 %s: %s", code, e)
         holders = []
     if len(_HOLDERS_MEMO) >= _HOLDERS_MEMO_MAX:
@@ -283,6 +286,7 @@ def _get_margin_data(code: str, days: int = 5) -> list:
 
         return get_margin(code, days=days)
     except Exception as e:
+        log_silent_fallback("chip._get_margin_data", e)
         logger.debug("get_margin 失败 %s: %s", code, e)
         return []
 
@@ -294,6 +298,7 @@ def _get_top_holders(code: str) -> list:
 
         return get_top_holders(code)
     except Exception as e:
+        log_silent_fallback("chip._get_top_holders", e)
         logger.debug("get_top_holders 失败 %s: %s", code, e)
         return []
 
@@ -445,6 +450,7 @@ def _score_northbound_flow(code: str) -> float:
 
         flow = get_northbound_flow(code, days=20)
     except Exception as e:
+        log_silent_fallback("chip._score_northbound_flow", e)
         logger.debug("get_northbound_flow 失败 %s: %s", code, e)
         return 0
 

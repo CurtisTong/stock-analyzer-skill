@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from common.exceptions.silent_fallback import log_silent_fallback
 """
 热度榜（活跃 Top N）。
 
@@ -260,6 +261,7 @@ def _load_window_snapshots(n_days: int) -> dict:
         try:
             data = load_snapshot(Path(p))
         except Exception as e:
+            log_silent_fallback("hot_rank._load_window_snapshots", e)
             logger.debug("load_snapshot 失败 %s: %s", p, e)
             continue
         for row in data.get("rows", []):

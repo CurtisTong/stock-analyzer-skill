@@ -8,6 +8,7 @@
 import logging
 import statistics
 from typing import Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -39,5 +40,6 @@ def fetch_ashare_vol(window: int = 20, code: str = "sh000300") -> Optional[float
         annualized_vol = daily_std * (252**0.5) * 100  # 百分比
         return round(annualized_vol, 2)
     except Exception as e:
+        log_silent_fallback("ashare.fetch_ashare_vol", e)
         logger.debug("A 股波动率获取失败: %s", e)
         return None

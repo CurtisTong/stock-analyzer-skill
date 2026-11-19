@@ -54,6 +54,7 @@ _SSM_CACHE: dict = {"data": None}
 
 
 from common.cli_base import create_parser, handle_errors
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 def _get_stock_sector_map() -> dict:
@@ -304,6 +305,7 @@ def _load_returns(code: str, window: int = 60) -> list | None:
         closes = [k.close for k in klines if k.close > 0]
         return _daily_returns(closes)
     except Exception as e:
+        log_silent_fallback("portfolio_correlation._load_returns", e)
         logger.debug("_load_returns(%s) 失败: %s", code, e)
         return None
 
@@ -714,6 +716,7 @@ def compute_full_portfolio_correlation(
                 get_positions_full(),
             )
         except Exception as e:  # noqa: BLE001 — 行业重叠失败不阻塞主链路
+            log_silent_fallback("portfolio_correlation.compute_full_portfolio_correlation", e)
             logger.debug("compute_industry_overlap 失败: %s", e)
             industry_overlap = {
                 "stock_code": stock_code,

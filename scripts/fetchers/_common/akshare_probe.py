@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ def probe_kline() -> ProbeResult:
         _set_cached("kline", result)
         return result
     except Exception as e:
+        log_silent_fallback("akshare_probe.probe_kline", e)
         result = ProbeResult(ok=False, message=f"akshare 日线探活异常: {e}")
         _set_cached("kline", result)
         return result
@@ -153,6 +155,7 @@ def probe_finance() -> ProbeResult:
         _set_cached("finance", result)
         return result
     except Exception as e:
+        log_silent_fallback("akshare_probe.probe_finance", e)
         result = ProbeResult(ok=False, message=f"akshare 财务探活异常: {e}")
         _set_cached("finance", result)
         return result

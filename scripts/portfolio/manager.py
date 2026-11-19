@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional
 
 from common.validators import normalize_code
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -701,7 +702,8 @@ class PortfolioManager:
 
             fetched = get_quotes(codes, use_cache=True)
             return {q.code: q.to_dict() for q in fetched if q}
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("manager._fetch_live_quotes_or_none", exc)
             return None
 
     def health_report_markdown(self, report: dict) -> str:

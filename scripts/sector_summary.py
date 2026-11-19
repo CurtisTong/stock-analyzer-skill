@@ -43,6 +43,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # 允许直接 `python3 scripts/sector_summary.py` 跑（无需 PYTHONPATH）
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -164,6 +165,7 @@ def fetch_sector_summary(source: str = "auto", top: int = 30) -> dict:
             try:
                 return fetch_ths_summary(top)
             except Exception as e:
+                log_silent_fallback("sector_summary.fetch_sector_summary", e)
                 errors["ths"] = f"{type(e).__name__}: {e}"
                 sources_tried.append("ths")
                 continue

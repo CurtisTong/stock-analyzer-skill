@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.http import http_get
+from common.exceptions.silent_fallback import log_silent_fallback
 
 # ---------- 市场宽度状态枚举（新增）----------
 # 集中所有市场宽度状态常量,避免散落字符串
@@ -157,6 +158,7 @@ def get_limit_data() -> dict:
         fetcher = MarketDataFetcher()
         return fetcher.get_limit_data()
     except Exception as e:
+        log_silent_fallback("market_breadth.get_limit_data", e)
         print(f"获取涨跌停数据失败: {e}", file=sys.stderr)
         return {
             "limit_up_count": 0,

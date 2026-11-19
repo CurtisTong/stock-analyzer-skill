@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from business import StockAnalysisService
 from common.cli_base import create_parser, handle_errors
 from common.formatters import format_footer, format_output, now_str
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 def render_text(result: dict) -> str:
@@ -254,6 +255,7 @@ def _attach_backtest(result: dict, code: str) -> None:
                 "max_drawdown": bt.get("max_drawdown_pct"),
             }
     except Exception as e:
+        log_silent_fallback("stock._attach_backtest", e)
         # M4: --with-backtest 失败时显式标 data_failed，
         # 让 render_footer 在 SKILL.md 约定的"数据护栏条"中体现降级。
         result["backtest_error"] = str(e)

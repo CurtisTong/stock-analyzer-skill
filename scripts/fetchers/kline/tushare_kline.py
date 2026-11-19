@@ -11,6 +11,7 @@ from common.exceptions import (
     RateLimitError,
 )
 from fetchers._common.tushare_check import check_tushare as _check_tushare
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -69,5 +70,6 @@ class TushareKlineFetcher(BaseFetcher):
         except (NetworkError, RateLimitError, HTTPStatusError, ParseError):
             raise  # 网络/限速/解析异常向上抛，触发熔断和退避
         except Exception as e:
+            log_silent_fallback("tushare_kline.fetch", e)
             logger.debug("tushare_kline 获取失败 %s: %s", code, e)
             return None

@@ -23,6 +23,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 from config.loader import safe_get
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 class MacroState(str, Enum):
@@ -179,6 +180,7 @@ class MacroSafetyGate:
             tlt_info = tlt_ticker.fast_info
             self._tlt_cache = getattr(tlt_info, "last_price", None)
         except Exception as e:
+            log_silent_fallback("gate._load_indicators", e)
             logger.debug("yfinance 获取 VIX/TLT 失败: %s", e)
             self._vix_cache = None
             self._tlt_cache = None
@@ -189,6 +191,7 @@ class MacroSafetyGate:
 
             self._ashare_vol = fetch_ashare_vol()
         except Exception as e:
+            log_silent_fallback("gate._load_indicators", e)
             logger.debug("ashare 波动率获取失败: %s", e)
             self._ashare_vol = None
 

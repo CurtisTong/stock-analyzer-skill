@@ -18,6 +18,7 @@ from typing import Optional
 
 from experts.market_detector import detect_market_state
 from experts.vote_engine import aggregate_votes, aggregate_group_votes
+from common.exceptions.silent_fallback import log_silent_fallback
 from experts.formatter import (
     format_debate_output,
     format_debate_brief,
@@ -157,7 +158,8 @@ def run_debate(
         pending = get_pending_predictions()
         if pending:
             result["_pending_verification_count"] = len(pending)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("decide.run_debate", exc)
         pass
 
     result["_pred_id"] = pred_id

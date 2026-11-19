@@ -9,6 +9,7 @@ import logging
 from common import BaseFetcher, NOT_HANDLED
 from common.exceptions import RateLimitError
 from common.fetcher_base import _NotHandled
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -143,5 +144,6 @@ class YfinanceQuoteFetcher(BaseFetcher):
             # 由 YFRateLimitError 转译而来，直接向上抛
             raise
         except Exception as e:
+            log_silent_fallback("yfinance_quote.fetch", e)
             logger.debug("yfinance_quote 获取失败 %s: %s", code, e)
             return None

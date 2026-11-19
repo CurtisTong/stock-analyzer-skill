@@ -27,6 +27,7 @@ import logging
 from typing import Dict, Optional
 
 from .classifier import RegimeState
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,7 @@ def _load_config() -> dict:
         _config_mtime = mtime
         return _config_cache
     except Exception as e:
+        log_silent_fallback("overlay._load_config", e)
         logger.debug("regime_weight_map.yaml 加载失败: %s", e)
         return {}
 
@@ -337,6 +339,7 @@ def _load_fresh_ic(regime: str) -> Optional[Dict[str, float]]:
             return ic
         return None
     except Exception as e:
+        log_silent_fallback("overlay._load_fresh_ic", e)
         logger.debug("IC 读取失败: %s", e)
         return None
 

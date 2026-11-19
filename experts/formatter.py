@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 
 from experts import direction_from_score
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -322,6 +323,7 @@ def format_debate_output(result: dict) -> str:
             if pending:
                 lines.append(f"  ℹ 另有 {len(pending)} 条预测到期待结算（未结算，不计入胜率）")
     except Exception as e:
+        log_silent_fallback("formatter.format_debate_output", e)
         logger.debug("校准数据不可用，跳过胜率卡片: %s", e)
 
     _append_disclaimer(lines)

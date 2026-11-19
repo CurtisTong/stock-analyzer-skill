@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +148,7 @@ def _fetch_protections(positions: list, initial_capital: float | None, position_
             initial_capital=initial_capital or None,
         )
     except Exception as e:  # 保护机制是附加信息，失败不应影响健康报告主体
+        log_silent_fallback("health_report._fetch_protections", e)
         logger.debug("保护机制检查失败: %s", e)
         return {}
 
@@ -212,7 +214,8 @@ def _fetch_technical_features(positions: list, quotes_map: dict, kline_datalen: 
                 "stop_loss_pct": stop_loss_pct,
                 "nearest_support": nearest_support,
             }
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("health_report._fetch_technical_features", exc)
             # 拉取/计算失败按"无信号"处理，不抛错
             continue
     return result

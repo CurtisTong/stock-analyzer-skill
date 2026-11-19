@@ -7,6 +7,7 @@
 import logging
 from common import clamp, to_float
 from datetime import datetime
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,7 @@ def event_score(code: str) -> float:
 
         events = get_events(code, days=60)
     except Exception as e:
+        log_silent_fallback("event.event_score", e)
         logger.debug("fetch_events 失败 %s: %s", code, e)
         return 50  # 无数据给中性分
 

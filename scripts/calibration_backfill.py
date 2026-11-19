@@ -26,6 +26,7 @@ from common.cli_base import create_parser, handle_errors
 import json
 import sys
 from pathlib import Path
+from common.exceptions.silent_fallback import log_silent_fallback
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -126,6 +127,7 @@ def cmd_import(args):
             imported += 1
             print(f"  ✓ {pred_id} ({stock} -> {direction})")
         except Exception as e:
+            log_silent_fallback("calibration_backfill.cmd_import", e)
             print(f"  ✗ {stock}: {e}", file=sys.stderr)
             skipped += 1
 
