@@ -150,6 +150,26 @@ def is_trading_hours() -> bool:
     return morning or afternoon
 
 
+def holiday_table_years() -> set[int]:
+    """返回节假日表覆盖的年份集合（表为空时返回空集）。"""
+    years = set()
+    for item in _load_holidays():
+        try:
+            years.add(int(str(item)[:4]))
+        except ValueError:
+            continue
+    return years
+
+
+def is_holiday_table_covering(d: "date") -> bool:
+    """节假日表是否覆盖指定年份。
+
+    表里的日期是「休市日」清单，某年没有任何休市日剩余不代表缺数据；但**整年缺失**
+    意味着该年节假日全被当成交易日——这条必须能被调度层发现并告警，而不是静默放行。
+    """
+    return d.year in holiday_table_years()
+
+
 def is_trading_day(d: "date | None" = None) -> bool:
     """判断指定日期（默认今天）是否为 A 股交易日。
 

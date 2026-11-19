@@ -54,7 +54,11 @@ _REPO_ROOT = _SCRIPTS_DIR.parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-from data.config import is_trading_day  # noqa: E402
+from data.config import (  # noqa: E402
+    holiday_table_years,
+    is_holiday_table_covering,
+    is_trading_day,
+)
 
 DEFAULT_STATE_DIR = _SCRIPTS_DIR / "data" / ".run"
 
@@ -320,6 +324,14 @@ def tick(
     today = now.date()
     trading = is_trading_day(today)
     results: dict[str, int] = {}
+
+    if not is_holiday_table_covering(today):
+        # 整年缺失时，该年所有节假日都会被当成交易日——必须显式告警，不许静默放行
+        print(
+            f"ALERT 节假日表未覆盖 {today.year} 年（已覆盖 {sorted(holiday_table_years())}），"
+            "该年休市日会被当作交易日",
+            flush=True,
+        )
 
     for task in tasks:
         state = read_state(state_dir, task_key(today, task))

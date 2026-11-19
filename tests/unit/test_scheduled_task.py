@@ -272,3 +272,42 @@ def test_probe_uses_no_cache(monkeypatch):
 
     assert st.probe_data_date(("sh601857",)) == {"sh601857": "2026-11-20"}
     assert seen == [False], "canary 探针必须 use_cache=False"
+
+
+# ---------- 节假日表覆盖（2027 缺失必须能发现） ----------
+
+
+def test_holiday_table_covers_2026_not_2027():
+    from data.config import holiday_table_years, is_holiday_table_covering
+
+    assert 2026 in holiday_table_years()
+    assert is_holiday_table_covering(date(2026, 11, 20)) is True
+    # 2027 尚未录入：整年会静默把休市日当交易日，必须有告警路径
+    assert is_holiday_table_covering(date(2027, 1, 4)) is False
+
+
+def test_tick_alerts_when_holiday_table_missing_year(tmp_path: Path, capsys):
+    st.tick(_at("2027-01-04", 15, 10), (), tmp_path)
+    assert "节假日表未覆盖 2027" in capsys.readouterr().out
+
+
+# ---------- --no-cache 不再是空开关 ----------
+
+
+def test_kline_no_cache_flag_reaches_fetch(monkeypatch):
+    """回归：--no-cache 只在 cli_base 声明、无人消费，加了也照样命中缓存。"""
+    import kline
+
+    seen = {}
+
+    def _fake_fetch(symbol, scale, datalen, use_cache=True):
+        seen["use_cache"] = use_cache
+        return []
+
+    monkeypatch.setattr(kline, "fetch", _fake_fetch)
+    monkeypatch.setattr(
+        "sys.argv", ["kline.py", "sh601857", "--no-cache", "-j"]
+    )
+    kline.main()
+
+    assert seen["use_cache"] is False

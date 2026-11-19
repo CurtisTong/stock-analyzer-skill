@@ -135,7 +135,8 @@ def main():
         err("用法: kline.py <symbol> [scale=240] [datalen=30] [-j|--json]")
 
     symbol = normalize_quote_code(args.symbol)
-    records = fetch(symbol, args.scale, args.datalen)
+    # --no-cache 曾经是空开关（只在 cli_base 声明、无人消费），这里真正接上
+    records = fetch(symbol, args.scale, args.datalen, use_cache=not args.no_cache)
     if args.json_output:
         print(json.dumps(records, ensure_ascii=False, indent=2))
     else:

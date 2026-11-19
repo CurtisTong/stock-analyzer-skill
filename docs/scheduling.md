@@ -63,6 +63,9 @@ schedule 上。但 DSH 的 schedule 不能当钟用，实测与源码证据：
   「未就绪」会一直成立到 TTL 过期；
 - 选股槽必须让 `get_kline()` 支持 `require_date`（命中缓存但末根日期不符 → 穿透重拉），
   而不是指望加 `--no-cache`；
+- **重跑成本自动收敛**：`require_date` 形态下，已就绪的票在重试时命中缓存校验直接返回，
+  只有未就绪的票真正发请求。所以 16:00–19:00 每 15 分钟整批重跑是安全的，不需要维护
+  「待重试清单」；
 - 15:05 收盘快照与 16:30 选股共用同一份 K 线缓存，两条槽必须串起来设计，
   否则快照会把盘中不完整的当日 K 线喂给选股。
 
@@ -93,6 +96,9 @@ schedule 上。但 DSH 的 schedule 不能当钟用，实测与源码证据：
 
 状态文件 `scripts/data/.run/<key>.json` 保留 `status / exit / started_at / finished_at /
 canary / data_date`，失败现场可回看。目录已进 `.gitignore`。
+
+`--no-cache` 曾经是**空开关**（只在 `common/cli_base.py` 声明、零处消费，加了照样命中
+缓存）；2026-11-20 已让 `scripts/kline.py` 真正传 `use_cache=False`。照旧笔记用之前先确认。
 
 `degraded` **必须写成日志字段**，不许变成「习惯性缺省」——例如美股指数当前无源
 （yfinance 429、雪球 400），要显式记 `degraded: ["us_index"]`，等源补上才去掉标注。
