@@ -53,6 +53,7 @@ SNAPSHOT_TTL_SECONDS = 3600
 
 
 from common.cli_base import create_parser, handle_errors
+from common.exceptions.silent_fallback import log_silent_fallback
 
 
 def _load_snapshot() -> dict:
@@ -148,6 +149,88 @@ def _yfinance_get(symbol: str, value_attr: str = "last_price") -> float | None:
         return None
     except Exception as e:
         logger.debug("yfinance %s 拉取失败（降级到 fixture）: %s", symbol, e)
+        return None
+
+
+# ═══════════════════════════════════════════════════════════════
+# 新浪外盘（hf_* 期货 / fx_s* 外汇）——yfinance 限流时的兜底
+# ═══════════════════════════════════════════════════════════════
+
+# yfinance ticker -> (新浪代码, 现价字段下标)
+# 2026-11-19 实测：hf_GC/hf_CL/hf_OIL/fx_susdcnh 返回真实报价；
+# hf_DX（美元指数）、hf_VIX（VIX）、hf_TNX（美债 10Y）均返回空串，
+# 即这三个字段新浪侧没有可用兜底，仍按 None + degraded 处理。
+_SINA_FOREIGN_SYMBOLS: dict[str, tuple[str, int]] = {
+    "GC=F": ("hf_GC", 0),  # 纽约黄金，USD/oz（与 COMEX GC=F 同口径，无需换算）
+    "CL=F": ("hf_CL", 0),  # 纽约原油（WTI），USD/bbl
+    "BZ=F": ("hf_OIL", 0),  # 布伦特原油，USD/bbl
+    "CNY=X": ("fx_susdcnh", 1),  # 离岸人民币 USD/CNH（下标 1 为现价）
+    "DX-Y.NYB": ("DINIW", 1),  # 美元指数（点），与 DX-Y.NYB 同口径
+}
+
+# 美股指数（腾讯，index.com 于 2026-11-19 实测可用）：VIX 在新浪侧无数据
+_TENCENT_US_INDEX: dict[str, str] = {"^VIX": "usVIX"}
+
+
+def _sina_foreign_get(symbol: str) -> float | None:
+    """按 yfinance ticker 取新浪外盘报价；无映射/网络失败/空返回 None（不抛）。
+
+    单位说明（必须与 yfinance 对齐，禁止静默套用）：
+    - hf_GC 纽约黄金：USD/盎司，与 yfinance GC=F 同单位，直接使用；
+    - hf_CL / hf_OIL：USD/桶，与 CL=F / BZ=F 同单位；
+    - fx_susdcnh：USD/CNH 汇率（1 美元兑人民币），与 CNY=X 同口径。
+    上证所/大商所的人民币计价合约（AU0/SC0）**不用**：单位是 CNY/克、CNY/桶，
+    与上面字段的单位不同，套用会静默错 7 倍以上。
+    """
+    mapped = _SINA_FOREIGN_SYMBOLS.get(symbol)
+    if not mapped:
+        return None
+    code, idx = mapped
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            f"https://hq.sinajs.cn/list={code}",
+            headers={"Referer": "https://finance.sina.com.cn", "User-Agent": "Mozilla/5.0"},
+        )
+        raw = urllib.request.urlopen(req, timeout=5).read().decode("gbk", errors="replace")
+        body = raw.split("=", 1)[1].strip().strip(";").strip('"') if "=" in raw else ""
+        parts = body.split(",")
+        if len(parts) <= idx:
+            return None
+        val = float(parts[idx])
+        return val if val > 0 else None
+    except Exception as e:
+        log_silent_fallback("macro_indicators._sina_foreign_get", e)
+        return None
+
+
+def _tencent_us_index_get(symbol: str) -> float | None:
+    """取美股指数现价（腾讯 qt.gtimg.cn），仅覆盖 _TENCENT_US_INDEX 里的映射。
+
+    校验（2026-11-19 实测）：usVIX -> 标普500波动率指数 21.67，现价在第 4 个
+    '~' 分隔字段（下标 3），单位为指数点，与 yfinance ^VIX 同口径。
+    注意 usDXY 在腾讯返回空名，美元指数改走新浪 DINIW。
+    """
+    code = _TENCENT_US_INDEX.get(symbol)
+    if not code:
+        return None
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            f"https://qt.gtimg.cn/q={code}",
+            headers={"Referer": "https://gu.qq.com/", "User-Agent": "Mozilla/5.0"},
+        )
+        raw = urllib.request.urlopen(req, timeout=5).read().decode("gbk", errors="replace")
+        body = raw.split('"', 1)[1].rsplit('"', 1)[0] if '"' in raw else ""
+        fields = body.split("~")
+        if len(fields) <= 3:
+            return None
+        val = float(fields[3])
+        return val if val > 0 else None
+    except Exception as e:
+        log_silent_fallback("macro_indicators._tencent_us_index_get", e)
         return None
 
 
@@ -302,13 +385,18 @@ def fetch_usd_index() -> dict | None:
         }
 
     val = _yfinance_get("DX-Y.NYB")
+    source = "yfinance"
+    if val is None:
+        # 兜底：新浪 DINIW（美元指数，指数点，与 DX-Y.NYB 同口径）
+        val = _sina_foreign_get("DX-Y.NYB")
+        source = "sina_foreign"
     if val is not None:
         snapshot["usd_index"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="usd_index_ts")
         return {
             "value": round(val, 2),
             "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "source": source,
             "symbol": "DX-Y.NYB",
         }
 
@@ -334,13 +422,18 @@ def fetch_usd_cny() -> dict | None:
         }
 
     val = _yfinance_get("CNY=X")
+    source = "yfinance"
+    if val is None:
+        # 兜底：新浪 fx_susdcnh（离岸人民币，USD/CNH）
+        val = _sina_foreign_get("CNY=X")
+        source = "sina_foreign"
     if val is not None:
         snapshot["usd_cny"] = round(val, 4)
         _save_snapshot(snapshot, key_ts="usd_cny_ts")
         return {
             "value": round(val, 4),
             "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "source": source,
             "symbol": "CNY=X",
         }
 
@@ -366,13 +459,18 @@ def fetch_vix() -> dict | None:
         }
 
     val = _yfinance_get("^VIX")
+    source = "yfinance"
+    if val is None:
+        # 兜底：腾讯 usVIX（标普500波动率指数，指数点，与 ^VIX 同口径）
+        val = _tencent_us_index_get("^VIX")
+        source = "tencent_us_index"
     if val is not None:
         snapshot["vix"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="vix_ts")
         return {
             "value": round(val, 2),
             "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "source": source,
             "symbol": "^VIX",
         }
 
@@ -403,13 +501,18 @@ def fetch_commodity(symbol: str, fixture_key: str) -> dict | None:
         }
 
     val = _yfinance_get(symbol)
+    source = "yfinance"
+    if val is None:
+        # 兜底：新浪外盘（hf_*），单位与 yfinance 同口径，见 _SINA_FOREIGN_SYMBOLS
+        val = _sina_foreign_get(symbol)
+        source = "sina_foreign"
     if val is not None:
         snapshot[fixture_key] = round(val, 2)
         _save_snapshot(snapshot, key_ts=f"{fixture_key}_ts")
         return {
             "value": round(val, 2),
             "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "source": source,
             "symbol": symbol,
         }
 
