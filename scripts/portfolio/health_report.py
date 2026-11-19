@@ -278,7 +278,12 @@ def health_report(
     quotes_map = quotes or {}
     # 行情缺失判定：无报价 dict，或任一持仓 code 无对应报价（部分缺失）
     # 原实现仅判 dict 非空，缺行情持仓按 0 市值计入 totals 造成失真
-    quotes_missing = not quotes_map or any(p.get("code", "") not in quotes_map for p in positions)
+    # 缺报价分两档：整批缺失（failed）vs 部分标的缺失（degraded，市值/盈亏仍必须 None）
+    missing_quote_codes = [p.get("code", "") for p in positions if p.get("code", "") not in quotes_map]
+    quotes_all_missing = not quotes_map or (bool(positions) and len(missing_quote_codes) == len(positions))
+    quotes_missing = quotes_all_missing or any(
+        p.get("code", "") not in quotes_map for p in positions
+    )
     # H1 集成：自动调 technical.py 拉 features.breakdown
     # auto_technical=True（默认）时，对每只持仓调 technical 拉 60 根日 K
     # 算 nearest_support + breakdown；失败按 absence 容错
@@ -522,7 +527,7 @@ def health_report(
         if not as_of:
             as_of = _file_mtime(manager._path)
 
-    return {
+    report = {
         "as_of": as_of,
         "data_mtime": _file_mtime(manager._path),
         "regime": regime_info,
@@ -560,6 +565,19 @@ def health_report(
         },
     }
 
+    # P0-4a 数据完整性信封：行情缺失 → 缺失域字段置 None（不许 0 占位），并降结论强度
+    from common import data_quality as dq
+
+    return dq.envelope(
+        report,
+        required=("quote",),
+        field_map={"quote": ()},
+        conclusion_keys=(),
+        failed=("quote",) if quotes_all_missing else (),
+        degraded=("quote",) if (missing_quote_codes and not quotes_all_missing) else (),
+        row_stats={"quote": (len(missing_quote_codes), len(positions))} if positions else None,
+    )
+
 
 def health_report_markdown(report: dict) -> str:
     """将 health_report() 结构化输出渲染成 SKILL 模板一致的 Markdown。
@@ -575,6 +593,12 @@ def health_report_markdown(report: dict) -> str:
     - 数据护栏条 + 免责声明
     """
     lines: list[str] = []
+
+    # P0-4a：数据完整性首行固定在任何标题与结论之前
+    from common import data_quality as dq
+
+    lines.append(dq.render_header(report.get("data_quality")))
+    lines.append("")
 
     # 标题 + 双时间戳
     type_label = report.get("type", "持仓")

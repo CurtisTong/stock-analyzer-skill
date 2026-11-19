@@ -212,6 +212,7 @@ class TestScreenerWorkflow:
             snapshot=False,
             two_stage=False,
             json_output=True,
+            json_envelope=False,
             full=False,
         )
 

@@ -105,6 +105,25 @@ def get_last_fallback_chain(domain: str = "quote", code: str | None = None) -> l
     return []
 
 
+def get_last_success_provider(domain: str = "quote", code: str | None = None) -> str | None:
+    """最近一次成功供数的 provider（v1.34 数据血缘补齐）。
+
+    降级链只回答"谁失败、为什么切"，本函数回答"最后是谁供的数"，
+    供 data_quality.sources 与报告首行展示真实数据源。
+    缓存命中路径不经过 manager，返回 None（此时应显示"缓存"或"未记录"）。
+    """
+    try:
+        _load_fetchers()
+        manager = {"quote": _quote_manager, "kline": _kline_manager, "finance": _finance_manager}.get(domain)
+        if manager is not None:
+            return manager.success_provider(code)
+    except Exception as exc:
+        from common.exceptions import log_silent_fallback
+
+        log_silent_fallback("__init.get_last_success_provider", exc)
+    return None
+
+
 def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
     """获取单只股票行情。"""
     _load_fetchers()

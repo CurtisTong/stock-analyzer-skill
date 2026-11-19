@@ -92,7 +92,7 @@ def volume_price_features(closes, volumes):
     }
 
 
-def _emit_json_with_validation(rows: list, strategy: str) -> None:
+def _emit_json_with_validation(rows: list, strategy: str, envelope: bool = False) -> None:
     """JSON 模式下打印选股结果，每行 row 透传策略验证状态。
 
     每行 row 附加 `_validation_status`（in_sample / oos_verified / unknown）
@@ -121,7 +121,23 @@ def _emit_json_with_validation(rows: list, strategy: str) -> None:
             row["_validation_status"] = status
             row["_validation_note"] = note
         enriched.append(row)
-    print(json.dumps(enriched, ensure_ascii=False, indent=2))
+
+    # P0-4a：行情域按 rows 里 price 的缺失比例判 failed / degraded；
+    # 默认仍输出裸数组（向后兼容），--json-envelope 才包 {data_quality, rows}。
+    from common import data_quality as dq
+
+    payload = _json_payload_for_rows(enriched, strategy)
+    if envelope:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps(enriched, ensure_ascii=False, indent=2))
+
+
+def _json_payload_for_rows(rows: list, strategy: str) -> dict:
+    """按 rows 的报价缺失比例判 quote 域 failed / degraded，产出统一信封。"""
+    from common import data_quality as dq
+
+    return dq.envelope_rows(rows, extra={"strategy": strategy})
 
 
 def _fmt_factor(row: dict, key: str) -> str:
@@ -481,6 +497,11 @@ def _build_parser():
         help="剔除近 5 日板块 ETF 跌幅超阈值（5%%）的退潮板块标的（否则仅加 sector_momentum_warning 标记）",
     )
     parser.add_argument(
+        "--json-envelope",
+        action="store_true",
+        help="JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）",
+    )
+    parser.add_argument(
         "--deadline",
         type=float,
         default=None,
@@ -675,7 +696,9 @@ def _run_main(args):
             flush=True,
         )
         if args.json_output:
-            _emit_json_with_validation(rows_partial, args.strategy)
+            _emit_json_with_validation(
+                rows_partial, args.strategy, envelope=getattr(args, "json_envelope", False)
+            )
         sys.exit(2)
         return  # unreachable but for type-checker
 
@@ -687,8 +710,14 @@ def _run_main(args):
     rows = rows_partial
 
     if args.json_output:
-        _emit_json_with_validation(rows, args.strategy)
+        _emit_json_with_validation(
+            rows, args.strategy, envelope=getattr(args, "json_envelope", False)
+        )
     else:
+        from common import data_quality as dq
+
+        # P0-4a：数据完整性首行固定在任何标题与结论之前（与 --json-envelope 同口径）
+        print(dq.render_header(_json_payload_for_rows(rows, args.strategy)["data_quality"]))
         title = None
         if args.full_market:
             title = f"全市场筛选（{args.sector}）" if args.sector else "全市场筛选"

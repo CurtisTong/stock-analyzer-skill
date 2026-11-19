@@ -1032,3 +1032,66 @@ class TestHealthSummaryMarkdown:
         md = pm.health_summary_markdown(pm.health_report(quotes={}))
         assert "/portfolio health --full" in md
         assert "/stock sz300274 quick" in md
+
+
+class TestDataQualityEnvelope:
+    """P0-4a：health_report 带 data_quality；Markdown 首行是数据完整性行（先于标题）。"""
+
+    def test_report_has_data_quality_ok_when_quotes_present(self, tmp_path):
+        pm = _make_manager(tmp_path, [dict(_POS_300274)])
+        report = pm.health_report(quotes={"sz300274": {"price": 130.0, "change_pct": 1.0}})
+        d = report["data_quality"]
+        assert d["status"] == "ok"
+        assert d["conclusions_allowed"] is True
+        assert d["missing"] == []
+
+    def test_missing_quotes_marks_failed_without_conclusions(self, tmp_path):
+        """只有一个必需域（quote）时它缺失即 failed，等价于"行情不可用"，仍保留成本口径事实。"""
+        pm = _make_manager(tmp_path, [dict(_POS_300274)])
+        report = pm.health_report(quotes={})
+        d = report["data_quality"]
+        assert d["status"] == "failed"
+        assert d["missing_domains"] == ["quote"]
+        assert d["conclusions_allowed"] is False
+
+    def test_partial_missing_quotes_is_degraded_and_totals_none(self, tmp_path):
+        """部分持仓缺报价 → degraded（不是 failed），市值/盈亏仍必须是 None。"""
+        other = dict(_POS_300274, code="sh600519", name="贵州茅台")
+        pm = _make_manager(tmp_path, [dict(_POS_300274), other])
+        report = pm.health_report(quotes={"sz300274": {"price": 130.0, "change_pct": 1.0}})
+        d = report["data_quality"]
+        assert d["status"] == "degraded"
+        assert d["degraded_domains"] == ["quote"]
+        assert d["conclusions_allowed"] is False
+        assert report["totals"]["value"] is None
+        assert report["totals"]["pnl"] is None
+
+    def test_partial_missing_quotes_reports_row_counts(self, tmp_path):
+        """9 只持仓缺 2 只报价 → 行级计数 7/9，而不是域级 1/1。"""
+        positions = [dict(_POS_300274, code=f"sz{i:06d}") for i in range(7)]
+        positions += [dict(_POS_300274, code=f"sh{i:06d}") for i in range(2)]
+        pm = _make_manager(tmp_path, positions)
+        quotes = {f"sz{i:06d}": {"price": 130.0, "change_pct": 1.0} for i in range(7)}
+        report = pm.health_report(quotes=quotes)
+        d = report["data_quality"]
+        assert d["status"] == "degraded"
+        assert d["degraded"][0] == {"domain": "quote", "missing_rows": 2, "total_rows": 9}
+        from common import data_quality as dq
+
+        header = dq.render_header(d)
+        assert "degraded 7/9 只报价" in header
+        assert "缺 2 只" in header
+        assert report["totals"]["pnl"] is None
+
+    def test_markdown_first_line_is_data_integrity(self, tmp_path):
+        pm = _make_manager(tmp_path, [dict(_POS_300274)], watchlist=[dict(_WATCH)])
+        report = pm.health_report(
+            quotes={
+                "sz300274": {"price": 130.0, "change_pct": 1.0},
+                "sh603799": {"price": 30.0, "change_pct": 0.5},
+            }
+        )
+        md = pm.health_report_markdown(report)
+        first = md.splitlines()[0]
+        assert first.startswith("> 数据完整性")
+        assert not first.lstrip("> ").startswith("##")

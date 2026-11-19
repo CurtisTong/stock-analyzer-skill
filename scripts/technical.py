@@ -210,6 +210,20 @@ def main():
             "score": score,
             "features": {k: v for k, v in features.items() if k in feature_keys},
         }
+        # P0-4b：K 线域缺失（meta 里 kline_count/数据条数不足或 close 不可用）时降结论强度
+        from common import data_quality as dq
+
+        kline_rows = [{"close": meta.get("price")}] if meta.get("price") else []
+        flags = dq.quote_flags(kline_rows, price_key="close") if kline_rows else ((), ())
+        if not kline_rows or not features:
+            flags = (("kline",), ()) if not features else flags
+        output = dq.envelope(
+            output,
+            required=("kline",),
+            field_map={"kline": ()},
+            failed=("kline",) if flags[0] else (),
+            degraded=("kline",) if flags[1] else (),
+        )
         print(json.dumps(output, ensure_ascii=False, indent=2, default=str))
     elif args.quick:
         print(render_quick(features, score, meta))

@@ -160,6 +160,34 @@ python3 scripts/events.py sh600989 [--days 60] [-j]
 - **PE 多口径**：Q1 年化 / H1 修正 / 机构预测三口径并列
 - **合规措辞**："建议/买入/目标价/止损"等持牌投顾措辞替换为"研判/观察/观察上沿/观察下沿"
 
+### 数据完整性字段（P0-4a）
+
+JSON 顶层新增 `data_quality`（`common/data_quality.py`）：
+
+```json
+"data_quality": {
+  "status": "ok|degraded|partial|failed",
+  "required": ["quote", "kline", "finance"],
+  "missing": ["finance"],          // 整域缺失
+  "degraded": ["quote"],           // 域有值但走了降级源
+  "degraded_fields": ["price"],    // 不可信的具体字段（兼容旧口径）
+  "sources": {"quote": ["sina", "xueqiu"]},
+  "conclusions_allowed": false,
+  "checked_at": "2026-11-19T10:00"
+}
+```
+
+- `status != ok` 时 `conclusions_allowed=false`：**禁止**输出仓位建议、"可以买/加仓"类结论，只保留事实与待确认项。Markdown 报告首行固定为数据完整性行，位于任何标题与结论之前。
+- 缺失字段一律 `null`，不得用 0 占位（0 会被下游当成真实值）。
+- 行级计数（2026-11-20）：有行级事实的域，`missing`/`degraded` 的条目是
+  `{domain, missing_rows, total_rows}`（如 9 只持仓缺 2 只 → `degraded 7/9 只报价`），
+  首行按行级渲染；同时保留 `missing_domains`/`degraded_domains` 扁平列表供机器判断，
+  以及 `row_counts`（每域行级计数，正常时也在）。没有行级事实的域（kline/finance）
+  条目只有 `{domain}`，仍按域级描述。
+- `degraded_fields` 与 `data_quality` 的关系：`degraded_fields` 是"不可信字段路径"的扁平列表（沿用 v1.24 旧键名与含义，兼容保留一版）；`data_quality.status` 用于判断结论强度，`missing`/`degraded` 区分整域缺失与降级源，`degraded_fields` 用于定位到具体字段。下游优先读 `status`，需要字段级信息再读 `degraded_fields`。
+
+> 免责：AI 辅助生成，仅供参考，不构成投资建议。
+
 评级标准和五个维度定义详见 `../_shared/references/five-layer.md`（唯一权威源）。
 
 ### Step 4: 专家讨论（debate 模式）
