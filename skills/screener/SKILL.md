@@ -132,6 +132,8 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 - `--full-market`：使用全市场股票池（~5000只），而非主题板块池（~280只）。需先运行 `python3 scripts/init_pool.py --full-market` 初始化
 - `--full-market --sector 创业板`：全市场模式下只筛选创业板
+- `--sector 消费` 的「消费」含养殖链（温氏/牧原/大北农等）：本仓库无「农林牧渔」板块，养殖归入大消费属**近似口径**，选股会带进养殖周期波动
+- `--sector 资源` 只含煤炭/有色/钢铁/贵金属，不含券商与农业（2026-11-19 语义复核后）
 - `--min-amount 5000`：主板最低成交额基准（万元）；创业板/科创板/北交所阈值以 `scripts/config/limits.yaml` 为准（3000/3000/1000 万），CLI 参数只覆盖主板基准
 - `--min-cap 40`：主板最低市值基准（亿元）；板块差异化阈值以 limits.yaml 为准（创业板/科创板 20 亿、北交所 10 亿）
 - `--exclude-loss`：剔除 EPS<=0 标的
