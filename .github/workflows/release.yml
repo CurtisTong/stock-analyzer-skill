@@ -55,7 +55,7 @@ jobs:
     uses: ./.github/workflows/test-suite.yml
     with:
       python-version: ${{ matrix.python-version }}
-      fail-under: 21
+      fail-under: 48
 
   publish:
     name: 发布到 npm

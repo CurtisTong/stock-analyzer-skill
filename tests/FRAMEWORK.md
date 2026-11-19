@@ -161,10 +161,10 @@ def test_quote_normalized(sample_quote):
 CI 命令保持不变：
 
 ```
-pytest tests/ -q -m "not network" --timeout=60 -n auto --cov=scripts --cov=experts --cov-fail-under=30
+pytest tests/ -q -m "not network" --timeout=60 -n auto --cov=scripts --cov=experts --cov-fail-under=48
 ```
 
-门禁当前为 `fail_under=30`（见 `.coveragerc` 与 `.github/workflows/test-suite.yml` 默认值）。
+门禁当前为 `fail_under=48`（见 `.coveragerc`；`.github/workflows/test-suite.yml` 默认值与 ci/release 调用方同值，2026-11-19 统一，此前 ci 21 / coveragerc 30 三重口径不一致）。
 
 ## CI 编排
 

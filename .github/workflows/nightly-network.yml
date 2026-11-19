@@ -1,0 +1,57 @@
+name: Nightly Network Tests
+
+# P1-1：12 个 network 测试从不执行（本地与 CI 都只跑 "not network"），
+# 数据源改版只能等用户报错。本工作流每天跑一次真实数据路径，
+# 失败只出告警卡，不阻塞任何 PR（不设 required check）。
+on:
+  schedule:
+    # 每天 02:00 北京时间（18:00 UTC），盘后巡检 21:30 之前留出修复窗口
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-network
+  cancel-in-progress: false
+
+jobs:
+  network:
+    name: 真实数据源冒烟（--run-network）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 设置测试环境
+        uses: ./.github/actions/setup-test
+        with:
+          python-version: "3.11"
+
+      - name: 只跑 network 标记的用例（数据源可用性验证）
+        id: network
+        continue-on-error: true
+        run: |
+          python -m pytest tests/ \
+            -q \
+            -m "network" \
+            --run-network \
+            --timeout=180 \
+            -p no:randomly \
+            --durations=10
+
+      - name: 汇总
+        if: always()
+        run: |
+          {
+            echo "## 夜间网络冒烟"
+            echo ""
+            echo "- 结果：${{ steps.network.outcome }}"
+            echo "- 用例：\`-m network\`，真实数据源（chip_dist / 指数代码等）"
+            echo "- 失败处理：不阻塞 PR；连续两晚失败说明数据源改版，需要人工排查"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ steps.network.outcome }}" != "success" ]; then
+            echo "::warning title=Nightly network tests failed::真实数据源用例失败，请检查 fetcher 是否被上游改版"
+          fi

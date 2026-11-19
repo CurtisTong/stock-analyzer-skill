@@ -13,10 +13,13 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 
-fail_under = 30
+fail_under = 48
 show_missing = true
 skip_empty = true
 precision = 1
 
-# 注：v1.16.0 重构期（commit 68f9e83）同步下调阈值至 21%（与 ci.yml 一致）。
+# 注：2026-11-19 统一口径：门禁只有一个真相（本文件 fail_under），ci.yml 与
+# release.yml 通过 test-suite.yml 的 fail-under 传入同一数值。
+# 取值 = 实测覆盖率 - 3 个点的缓冲（实测 tests/unit 全仓 50.96%，取 48）。
+# 调整规则：只在覆盖率真实提升后上调，且必须同步改 ci.yml / release.yml 调用方。
 # 长期目标：P2-X 路线图回归 60%。
