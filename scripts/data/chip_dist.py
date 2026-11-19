@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from common import to_float
+from common.exceptions.silent_fallback import log_silent_fallback
 
 DEFAULT_WINDOW = 250
 DEFAULT_BINS = 240
@@ -33,7 +34,8 @@ def _fetch_bars(code: str, window: int) -> tuple[list, str, list]:
         recs = SinaKlineFetcher().fetch(code, scale=240, datalen=window)
         if recs:
             return recs, "raw", []
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("chip_dist._fetch_bars", exc)
         pass
 
     from data import get_kline
@@ -60,7 +62,8 @@ def _float_shares(code: str, price: float) -> tuple[float, list, list]:
             if total > 0 and circ > total:
                 notes.append("cap_inconsistent")
             return circ * 1e8 / price, degraded, notes
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("chip_dist._float_shares", exc)
         pass
 
     # 降级：用总股本（finance 净资产 ÷ 每股净资产）代替流通股本
@@ -77,7 +80,8 @@ def _float_shares(code: str, price: float) -> tuple[float, list, list]:
             bps = to_float(d.get("bps"))
             if net_assets > 0 and bps > 0:
                 return net_assets * 1e8 / bps, degraded, notes
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("chip_dist._float_shares", exc)
         pass
     degraded.append("float_shares_unavailable")
     return 0.0, degraded, notes

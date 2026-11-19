@@ -41,6 +41,8 @@ from strategies.factors.registry import (
 )
 from dataclasses import dataclass, field
 
+from common.exceptions.silent_fallback import log_silent_fallback
+
 logger = logging.getLogger(__name__)
 
 
@@ -761,6 +763,7 @@ def attach_sentiment_reference(parts: dict, code: str) -> None:
 
         parts["sentiment"] = sentiment_score(code)
     except Exception as e:
+        log_silent_fallback("screening_service.attach_sentiment_reference", e)
         logger.debug("情绪参考值计算失败 %s: %s", code, e)
 
 

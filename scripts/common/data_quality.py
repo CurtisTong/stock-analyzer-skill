@@ -41,6 +41,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Iterable, Mapping, MutableMapping, Sequence
+from common.exceptions.silent_fallback import log_silent_fallback
 
 STATUS_OK = "ok"
 STATUS_DEGRADED = "degraded"
@@ -62,7 +63,8 @@ def _chain_providers(domain: str, code: str | None) -> list[str]:
         from data import get_last_fallback_chain
 
         chain = get_last_fallback_chain(domain, code=code) or []
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("data_quality._chain_providers", exc)
         return []
     providers: list[str] = []
     for event in chain:

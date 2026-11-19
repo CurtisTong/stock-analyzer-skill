@@ -100,7 +100,8 @@ def get_last_fallback_chain(domain: str = "quote", code: str | None = None) -> l
             if code:
                 return manager.fallback_chain(code)
             return manager.last_fallback_chain
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("__init__.get_last_fallback_chain", exc)
         pass
     return []
 
@@ -299,7 +300,8 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> tuple[li
         from fetchers.finance.akshare_balance import enrich_with_balance_sheet
 
         result = enrich_with_balance_sheet(result, code, periods=periods)
-    except Exception:
+    except Exception as exc:
+        log_silent_fallback("__init__.get_finance", exc)
         pass
 
     records = [_dict_to_finance(r) for r in result if isinstance(r, dict)]
@@ -649,6 +651,7 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
 
 # ---------- lhb 域统一入口 re-export ----------
 from data.lhb import get_lhb_detail, get_lhb_seats  # noqa: E402, F401
+from common.exceptions.silent_fallback import log_silent_fallback
 
 __all__ = [
     "Quote",

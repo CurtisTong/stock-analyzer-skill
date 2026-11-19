@@ -56,6 +56,9 @@ jobs:
       - name: 静默吞错 lint（v1.16.0 P1-2 治理）
         run: python3 scripts/dev/lint_silent_excepts.py
 
+      - name: 静默吞错 lint（P0-4c 分批清零：已清零目录阻断）
+        run: python3 scripts/dev/lint_silent_excepts.py --strict --dirs scripts/common,scripts/business,scripts/data
+
       - name: black 格式检查
         run: black --check scripts/ experts/ tests/
 

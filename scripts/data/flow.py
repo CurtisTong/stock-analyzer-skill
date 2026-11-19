@@ -18,6 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from common import fetch_with_breaker, fetch_with_fallback, LazyFetcherRegistry
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ def get_northbound_flow(code: str, days: int = 20) -> list:
         try:
             result = fetch_with_fallback([fetcher], code, days=days)
         except Exception as e:
+            log_silent_fallback("flow.get_northbound_flow", e)
             logger.debug("北向资金 %s 失败: %s", type(fetcher).__name__, e)
             continue
         if not result or not result.get("days"):
@@ -86,5 +88,6 @@ def get_stock_flow(code: str, days: int = 10) -> dict | None:
     try:
         return fetch_with_breaker(fetcher, code, days=days)
     except Exception as e:
+        log_silent_fallback("flow.get_stock_flow", e)
         logger.debug("个股资金流向 fetch 失败 %s: %s", code, e)
         return None

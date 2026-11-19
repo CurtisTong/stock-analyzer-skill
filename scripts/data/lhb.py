@@ -28,6 +28,7 @@ import logging
 from pathlib import Path
 
 from common import fetch_with_breaker, LazyFetcherRegistry
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ def get_lhb_detail(code: str = "", days: int = 7) -> dict | None:
     try:
         return fetch_with_breaker(fetcher, code, days=days)
     except Exception as e:
+        log_silent_fallback("lhb.get_lhb_detail", e)
         logger.debug("龙虎榜明细 fetch 失败 %s: %s", code, e)
         return None
 
@@ -78,6 +80,7 @@ def get_lhb_seats(code: str, date: str = "") -> dict | None:
     try:
         return fetch_with_breaker(fetcher, code, date=date)
     except Exception as e:
+        log_silent_fallback("lhb.get_lhb_seats", e)
         logger.debug("龙虎榜席位 fetch 失败 %s: %s", code, e)
         return None
 

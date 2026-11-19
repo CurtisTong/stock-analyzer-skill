@@ -21,6 +21,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Optional
+from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ def _fetch_pool(endpoint: str, date: str) -> list[dict]:
         data = _http_get_json(url, params=params)
         return (data.get("data") or {}).get("pool") or []
     except Exception as e:
+        log_silent_fallback("sentiment_panel._fetch_pool", e)
         logger.debug("拉取 %s 失败: %s", endpoint, e)
         return []
 
@@ -210,6 +212,7 @@ def refresh_panel(date: str = "") -> Optional[dict]:
             if not limit_data.get("_degraded", False):
                 limit_down_count = int(limit_data.get("limit_down_count", 0) or 0)
         except Exception as e:
+            log_silent_fallback("sentiment_panel.refresh_panel", e)
             logger.debug("跌停家数获取失败: %s", e)
     else:
         logger.debug("历史快照 %s：不取当日跌停家数（get_limit_data 只有今天的数据）", date)
@@ -286,7 +289,8 @@ def save_snapshot(panel: dict) -> bool:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(tmp, str(path))
-        except Exception:
+        except Exception as exc:
+            log_silent_fallback("sentiment_panel.save_snapshot", exc)
             try:
                 os.unlink(tmp)
             except OSError:
