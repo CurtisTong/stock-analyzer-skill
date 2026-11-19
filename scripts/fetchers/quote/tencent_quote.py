@@ -2,6 +2,7 @@
 
 import logging
 
+from common.exceptions import log_silent_fallback
 from common import (
     BaseFetcher,
     http_get,
@@ -20,6 +21,40 @@ class TencentQuoteFetcher(BaseFetcher):
 
     def __init__(self):
         super().__init__("tencent_quote", priority=10)
+
+    def fetch_many(self, codes: list[str], batch_size: int = 60) -> dict[str, dict]:
+        """批量拉取行情（一次请求最多 batch_size 只），返回 {code: 原始 dict}。
+
+        全市场选股（5000+ 只）逐只请求会被限流且极慢（实测 15 分钟无产出）；
+        腾讯单请求支持多代码，按 60 只/批可把请求数压到 ~90 次。
+        解析复用 parse_tencent_line，与 fetch() 同一口径；单批失败只跳过该批，
+        不抛异常，缺失的代码由调用方回退到逐只路径。
+        """
+        out: dict[str, dict] = {}
+        for i in range(0, len(codes), batch_size):
+            batch = [c for c in codes[i : i + batch_size] if c]
+            if not batch:
+                continue
+            try:
+                raw = http_get(TENCENT_URL.format(codes=",".join(batch)), timeout=self.timeout, max_retries=1)
+                text = decode_gbk(raw)
+            except Exception as e:
+                log_silent_fallback("tencent_quote.fetch_many", e)
+                continue
+            wanted = {plain_code(c) for c in batch}
+            for line in text.strip().split(";"):
+                line = line.strip()
+                if not line:
+                    continue
+                rec = parse_tencent_line(line)
+                if not rec:
+                    continue
+                code = plain_code(rec["code"])
+                if code not in wanted:
+                    continue
+                rec["source"] = "tencent"
+                out[code] = rec
+        return out
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         url = TENCENT_URL.format(codes=code)
