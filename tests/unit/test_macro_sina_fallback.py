@@ -117,6 +117,7 @@ class TestUsdIndexFallback:
 class TestVixFallback:
     def test_yfinance_fails_falls_back_to_tencent(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
+        monkeypatch.setattr(mi, "_cboe_vix", lambda: None)  # CBOE 不可用 → 落到腾讯
         monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: 21.67)
         out = mi.fetch_vix()
         assert out["value"] == 21.67
@@ -124,6 +125,7 @@ class TestVixFallback:
 
     def test_both_fail_returns_none(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
+        monkeypatch.setattr(mi, "_cboe_vix", lambda: None)
         monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: None)
         assert mi.fetch_vix() is None
 

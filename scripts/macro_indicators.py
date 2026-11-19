@@ -205,6 +205,68 @@ def _sina_foreign_get(symbol: str) -> float | None:
         return None
 
 
+# 东财数据中心：美债收益率（datacenter.eastmoney.com 与 push2 不同域，实测可用）
+# 字段：EMG00001310=美国10年，EMG00001308=美国5年，EMG00001306=美国2年，EMM00166466=中国10年
+# 单位：百分数（5.07 表示 5.07%），直接使用，不要再 /100
+_EM_TREASURY_URL = (
+    "https://datacenter.eastmoney.com/api/data/get"
+    "?type=RPTA_WEB_TREASURYYIELD&sty=ALL&st=SOLAR_DATE&sr=-1"
+    "&token=894050c76af8597a853f5b408b759f5d&p=1&ps=5&pageNo=1&pageNum=1"
+)
+
+
+def _eastmoney_treasury_10y() -> tuple[float, str] | None:
+    """美债 10Y（%）从东财数据中心取"最近一行非 null"。
+
+    2026-11-19 实测：最新日（11-19）该字段为 null（当日未更新），
+    前一天（11-18）才是 5.07。所以不能取最新行就完事，必须向前找非空值。
+    返回 (value, 数据日期)；失败返回 None，不抛。
+    """
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            _EM_TREASURY_URL,
+            headers={"User-Agent": "Mozilla/5.0", "Referer": "https://data.eastmoney.com/"},
+        )
+        raw = urllib.request.urlopen(req, timeout=8).read().decode("utf-8", errors="replace")
+        rows = ((json.loads(raw).get("result") or {}).get("data")) or []
+        for row in rows:
+            val = row.get("EMG00001310")
+            if val is None:
+                continue
+            return float(val), str(row.get("SOLAR_DATE") or "")[:10]
+        return None
+    except Exception as e:
+        log_silent_fallback("macro_indicators._eastmoney_treasury_10y", e)
+        return None
+
+
+# CBOE 官方延迟报价（307 → cdn-api，urllib 默认跟随）
+# data.current_price=现价、data.close=昨收、timestamp 为美东时间；**延迟 15 分钟**
+_CBOE_VIX_URL = "https://cdn.cboe.com/api/global/delayed_quotes/quotes/_VIX.json"
+
+
+def _cboe_vix() -> tuple[float, str] | None:
+    """VIX 指数点（CBOE 官方延迟报价，delay_minutes=15）。
+
+    返回 (value, 报价时间)；失败返回 None，不抛。
+    """
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(_CBOE_VIX_URL, headers={"User-Agent": "Mozilla/5.0"})
+        raw = urllib.request.urlopen(req, timeout=8).read().decode("utf-8", errors="replace")
+        data = json.loads(raw)
+        val = (data.get("data") or {}).get("current_price")
+        if val is None:
+            return None
+        return float(val), str(data.get("timestamp") or "")
+    except Exception as e:
+        log_silent_fallback("macro_indicators._cboe_vix", e)
+        return None
+
+
 def _tencent_us_index_get(symbol: str) -> float | None:
     """取美股指数现价（腾讯 qt.gtimg.cn），仅覆盖 _TENCENT_US_INDEX 里的映射。
 
@@ -352,13 +414,22 @@ def fetch_treasury_10y() -> dict | None:
         }
 
     val = _yfinance_get("^TNX")
+    source = "yfinance"
+    as_of = datetime.now().isoformat()
+    if val is None:
+        # 兜底：东财数据中心 RPTA_WEB_TREASURYYIELD（百分数，最近非 null 行）
+        em = _eastmoney_treasury_10y()
+        if em is not None:
+            val, data_date = em
+            source = "eastmoney_treasury"
+            as_of = f"{data_date}T00:00:00" if data_date else as_of
     if val is not None:
         snapshot["treasury_10y_pct"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="treasury_10y_pct_ts")
         return {
             "value": round(val, 2),
-            "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "as_of": as_of,
+            "source": source,
             "symbol": "^TNX",
         }
 
@@ -460,18 +531,32 @@ def fetch_vix() -> dict | None:
 
     val = _yfinance_get("^VIX")
     source = "yfinance"
+    as_of = datetime.now().isoformat()
+    extra: dict = {}
     if val is None:
-        # 兜底：腾讯 usVIX（标普500波动率指数，指数点，与 ^VIX 同口径）
-        val = _tencent_us_index_get("^VIX")
-        source = "tencent_us_index"
+        # 兜底 1：CBOE 官方延迟报价（指数点；延迟 15 分钟，必须显式标注）
+        cboe = _cboe_vix()
+        if cboe is not None:
+            val, quote_ts = cboe
+            source = "cboe_delayed"
+            extra = {"delay_minutes": 15}
+            if quote_ts:
+                as_of = quote_ts
+    if val is None:
+        # 兜底 2：腾讯 usVIX（标普500波动率指数，指数点，与 ^VIX 同口径）
+        tencent = _tencent_us_index_get("^VIX")
+        if tencent is not None:
+            val = tencent
+            source = "tencent_us_index"
     if val is not None:
         snapshot["vix"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="vix_ts")
         return {
             "value": round(val, 2),
-            "as_of": datetime.now().isoformat(),
+            "as_of": as_of,
             "source": source,
             "symbol": "^VIX",
+            **extra,
         }
 
     if "vix" in snapshot:
