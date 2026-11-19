@@ -52,6 +52,10 @@ allowed-tools: Bash(python3 scripts/quote.py *) Bash(python3 scripts/sector.py *
 
 先查 `scripts/data/sector_stocks.json` 和 `scripts/data/sector_etf.csv`，再按 `../_shared/references/script-catalog.md` 获取核心标的行情+财务+K 线（脚本支持 `-j` JSON 排序）。
 
+**数据完整性字段（P0-4b）**：`sector.py -j` 的板块明细顶层带 `data_quality`（`status/missing/degraded/degraded_fields/sources/conclusions_allowed`）；成分股报价全缺 → `failed`、部分缺 → `degraded`，此时 `conclusions_allowed=false`，不得据此给仓位建议或"可以买/加仓"类结论。`technical.py -j` 同理：K 线/特征不可用时 `kline` 域降级。缺失字段一律 `null`，不得用 0 占位。
+
+> 免责：AI 辅助生成，仅供参考，不构成投资建议。
+
 **板块涨跌幅排行榜**：`python3 scripts/sector_summary.py -j --top 30 [--sector 医疗服务]`（数据源 akshare 同花顺 → 东财 push2 → 降级 `source: "none"`；覆盖度高于 sector_etf.csv 的 22 个 ETF）。
 
 ### Step 2: 板块分析框架

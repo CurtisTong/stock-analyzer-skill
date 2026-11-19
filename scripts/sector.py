@@ -186,6 +186,24 @@ def print_table(quotes: list, finance: dict):
         )
 
 
+
+def _with_data_quality(result: dict) -> dict:
+    """P0-4b：板块明细加 data_quality；stocks 里报价缺失 → quote 域降级。
+
+    板块成分来自本地池（tracked 数据），行情来自 fetcher；只有行情有"缺"的概念，
+    所以 required 只声明 quote，判级复用 quote_flags（全缺 failed / 部分缺 degraded）。
+    """
+    from common import data_quality as dq
+
+    failed, degraded = dq.quote_flags(result.get("stocks") or [])
+    return dq.envelope(
+        result,
+        required=("quote",),
+        field_map={"quote": ()},
+        failed=failed,
+        degraded=degraded,
+    )
+
 def main():
     parser = create_parser(description="板块查询")
     parser.add_argument("query", nargs="?", help="股票代码或板块名称")
@@ -253,7 +271,7 @@ def main():
                 print_table(quotes, finance)
 
         if args.json_output:
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            print(json.dumps(_with_data_quality(result), ensure_ascii=False, indent=2))
 
     else:
         # 按板块名查
@@ -277,7 +295,7 @@ def main():
         }
 
         if args.json_output:
-            print(json.dumps(result, ensure_ascii=False, indent=2))
+            print(json.dumps(_with_data_quality(result), ensure_ascii=False, indent=2))
         else:
             print(f"\n📊 板块: {query}（{len(codes)} 只标的）")
             print_table(quotes, finance)
