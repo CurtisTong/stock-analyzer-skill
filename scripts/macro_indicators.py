@@ -165,7 +165,11 @@ _SINA_FOREIGN_SYMBOLS: dict[str, tuple[str, int]] = {
     "CL=F": ("hf_CL", 0),  # 纽约原油（WTI），USD/bbl
     "BZ=F": ("hf_OIL", 0),  # 布伦特原油，USD/bbl
     "CNY=X": ("fx_susdcnh", 1),  # 离岸人民币 USD/CNH（下标 1 为现价）
+    "DX-Y.NYB": ("DINIW", 1),  # 美元指数（点），与 DX-Y.NYB 同口径
 }
+
+# 美股指数（腾讯，index.com 于 2026-11-19 实测可用）：VIX 在新浪侧无数据
+_TENCENT_US_INDEX: dict[str, str] = {"^VIX": "usVIX"}
 
 
 def _sina_foreign_get(symbol: str) -> float | None:
@@ -198,6 +202,35 @@ def _sina_foreign_get(symbol: str) -> float | None:
         return val if val > 0 else None
     except Exception as e:
         log_silent_fallback("macro_indicators._sina_foreign_get", e)
+        return None
+
+
+def _tencent_us_index_get(symbol: str) -> float | None:
+    """取美股指数现价（腾讯 qt.gtimg.cn），仅覆盖 _TENCENT_US_INDEX 里的映射。
+
+    校验（2026-11-19 实测）：usVIX -> 标普500波动率指数 21.67，现价在第 4 个
+    '~' 分隔字段（下标 3），单位为指数点，与 yfinance ^VIX 同口径。
+    注意 usDXY 在腾讯返回空名，美元指数改走新浪 DINIW。
+    """
+    code = _TENCENT_US_INDEX.get(symbol)
+    if not code:
+        return None
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(
+            f"https://qt.gtimg.cn/q={code}",
+            headers={"Referer": "https://gu.qq.com/", "User-Agent": "Mozilla/5.0"},
+        )
+        raw = urllib.request.urlopen(req, timeout=5).read().decode("gbk", errors="replace")
+        body = raw.split('"', 1)[1].rsplit('"', 1)[0] if '"' in raw else ""
+        fields = body.split("~")
+        if len(fields) <= 3:
+            return None
+        val = float(fields[3])
+        return val if val > 0 else None
+    except Exception as e:
+        log_silent_fallback("macro_indicators._tencent_us_index_get", e)
         return None
 
 
@@ -352,13 +385,18 @@ def fetch_usd_index() -> dict | None:
         }
 
     val = _yfinance_get("DX-Y.NYB")
+    source = "yfinance"
+    if val is None:
+        # 兜底：新浪 DINIW（美元指数，指数点，与 DX-Y.NYB 同口径）
+        val = _sina_foreign_get("DX-Y.NYB")
+        source = "sina_foreign"
     if val is not None:
         snapshot["usd_index"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="usd_index_ts")
         return {
             "value": round(val, 2),
             "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "source": source,
             "symbol": "DX-Y.NYB",
         }
 
@@ -421,13 +459,18 @@ def fetch_vix() -> dict | None:
         }
 
     val = _yfinance_get("^VIX")
+    source = "yfinance"
+    if val is None:
+        # 兜底：腾讯 usVIX（标普500波动率指数，指数点，与 ^VIX 同口径）
+        val = _tencent_us_index_get("^VIX")
+        source = "tencent_us_index"
     if val is not None:
         snapshot["vix"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="vix_ts")
         return {
             "value": round(val, 2),
             "as_of": datetime.now().isoformat(),
-            "source": "yfinance",
+            "source": source,
             "symbol": "^VIX",
         }
 

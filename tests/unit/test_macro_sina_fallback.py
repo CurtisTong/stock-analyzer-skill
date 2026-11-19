@@ -92,6 +92,45 @@ class TestSinaSymbolMapping:
         assert mi._sina_foreign_get("GC=F") is None
 
 
+class TestUsdIndexFallback:
+    def test_yfinance_ok_skips_sina(self, monkeypatch):
+        called = []
+        monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: 103.5)
+        monkeypatch.setattr(mi, "_sina_foreign_get", lambda sym: called.append(sym) or 1.0)
+        out = mi.fetch_usd_index()
+        assert out["source"] == "yfinance"
+        assert called == []
+
+    def test_yfinance_fails_falls_back_to_sina_diniw(self, monkeypatch):
+        monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
+        monkeypatch.setattr(mi, "_sina_foreign_get", lambda sym: 103.6823)
+        out = mi.fetch_usd_index()
+        assert out["value"] == 103.68
+        assert out["source"] == "sina_foreign"
+
+    def test_both_fail_returns_none(self, monkeypatch):
+        monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
+        monkeypatch.setattr(mi, "_sina_foreign_get", lambda sym: None)
+        assert mi.fetch_usd_index() is None
+
+
+class TestVixFallback:
+    def test_yfinance_fails_falls_back_to_tencent(self, monkeypatch):
+        monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
+        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: 21.67)
+        out = mi.fetch_vix()
+        assert out["value"] == 21.67
+        assert out["source"] == "tencent_us_index"
+
+    def test_both_fail_returns_none(self, monkeypatch):
+        monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
+        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: None)
+        assert mi.fetch_vix() is None
+
+    def test_tencent_unmapped_symbol_returns_none(self):
+        assert mi._tencent_us_index_get("^GSPC") is None
+
+
 class TestDegradedMarking:
     def test_both_sources_fail_marks_degraded(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
