@@ -150,6 +150,28 @@ def is_trading_hours() -> bool:
     return morning or afternoon
 
 
+def is_trading_day(d: "date | None" = None) -> bool:
+    """判断指定日期（默认今天）是否为 A 股交易日。
+
+    与 `is_trading_hours()` 的区别：后者判「此刻是否在盘中」，08:45 / 15:05 /
+    18:30 一律返回 False；拿它当调度前置会把盘前盘后任务静默跳过且不报错。
+    调度、跑批、盘前盘后任务请一律用本函数。
+
+    Args:
+        d: 目标日期，None 表示今天
+
+    Returns:
+        True 表示当天开市（非周末且不在节假日表里）
+    """
+    if d is None:
+        from dev.clock import now as _now
+
+        d = _now().date()
+    if d.weekday() >= 5:
+        return False
+    return not _is_holiday(d)
+
+
 # ═══════════════════════════════════════════════════════════════
 # 节假日缓存（v1.7.1 新增）
 # ═══════════════════════════════════════════════════════════════
