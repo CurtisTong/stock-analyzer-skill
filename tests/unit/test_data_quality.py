@@ -129,6 +129,14 @@ class TestRenderHeader:
         assert dq.render_header({}).startswith("> 数据完整性")
         assert dq.render_header(None).startswith("> 数据完整性")
 
+    def test_header_without_data_quality_is_uncollected_not_ok(self):
+        """未采集 ≠ ok：没有 data_quality 时不许暗示数据完整，也不许出现 ok。"""
+        for payload in (None, {}):
+            header = dq.render_header(payload)
+            assert "未采集" in header
+            assert "ok" not in header.lower()
+            assert "见数据来源" not in header
+
 
 class TestNullPaths:
     def test_nested_path_nulled(self):
@@ -143,9 +151,56 @@ class TestScreenerJsonEnvelope:
     def test_json_payload_has_top_level_data_quality(self, capsys):
         import screener
 
-        screener._emit_json_with_validation([{"code": "sh600519", "score": 88}], "balanced")
+        screener._emit_json_with_validation(
+            [{"code": "sh600519", "score": 88, "price": 1442.0}], "balanced", envelope=True
+        )
         payload = json.loads(capsys.readouterr().out)
         assert "data_quality" in payload
         assert payload["data_quality"]["status"] in dq.STATUSES
         assert payload["rows"][0]["code"] == "sh600519"
         assert payload["rows"][0]["_validation_status"]
+
+    def test_default_json_is_bare_array(self, capsys):
+        """默认 --json 仍是裸数组（向后兼容），只有 --json-envelope 才包信封。"""
+        import screener
+
+        screener._emit_json_with_validation([{"code": "sh600519", "price": 1442.0}], "balanced")
+        payload = json.loads(capsys.readouterr().out)
+        assert isinstance(payload, list)
+        assert payload[0]["code"] == "sh600519"
+
+    def test_all_rows_without_price_is_failed(self, capsys):
+        """rows 里 price 全为 None → quote 域 failed，观察不出"ok"。"""
+        import screener
+
+        screener._emit_json_with_validation(
+            [{"price": None}, {"price": None}], "balanced", envelope=True
+        )
+        payload = json.loads(capsys.readouterr().out)
+        d = payload["data_quality"]
+        assert d["status"] == "failed"
+        assert d["missing"] == ["quote"]
+        assert d["conclusions_allowed"] is False
+        header = dq.render_header(d)
+        assert "⚠️" in header
+        assert "failed" in header
+
+    def test_partial_rows_without_price_is_degraded(self, capsys):
+        import screener
+
+        screener._emit_json_with_validation(
+            [{"price": None}, {"price": 12.5}], "balanced", envelope=True
+        )
+        d = json.loads(capsys.readouterr().out)["data_quality"]
+        assert d["status"] == "degraded"
+        assert d["degraded"] == ["quote"]
+        assert d["conclusions_allowed"] is False
+
+    def test_zero_price_counts_as_missing_quote(self, capsys):
+        """price=0 是占位，不是行情，按缺失算（硬约束：不许 0 占位）。"""
+        import screener
+
+        screener._emit_json_with_validation([{"price": 0}], "balanced", envelope=True)
+        d = json.loads(capsys.readouterr().out)["data_quality"]
+        assert d["status"] == "failed"
+        assert d["conclusions_allowed"] is False

@@ -198,7 +198,7 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 ### 数据完整性字段（P0-4a）
 
-`--json` 输出顶层新增 `data_quality`（`common/data_quality.py`），形状为 `{"data_quality": {...}, "rows": [...]}`；每行仍带 `_validation_status` / `_validation_note`。
+`--json` 默认仍是**裸数组**（向后兼容，`jq '.[]'` 不变）；加 `--json-envelope` 才输出 `{"data_quality": {...}, "rows": [...]}`。行情域按 rows 里 `price` 为 `None`/`≤0` 的比例判定：全部缺失 = `failed`，部分缺失 = `degraded`，都置 `conclusions_allowed=false`。每行仍带 `_validation_status` / `_validation_note`。
 
 - `status != ok` 时 `conclusions_allowed=false`：禁止据此给仓位建议或"可以买/加仓"类结论，只保留事实与待确认项。
 - 文本模式首行固定输出数据完整性行（在任何标题之前）。

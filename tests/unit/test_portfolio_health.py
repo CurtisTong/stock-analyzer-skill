@@ -1054,6 +1054,18 @@ class TestDataQualityEnvelope:
         assert d["missing"] == ["quote"]
         assert d["conclusions_allowed"] is False
 
+    def test_partial_missing_quotes_is_degraded_and_totals_none(self, tmp_path):
+        """部分持仓缺报价 → degraded（不是 failed），市值/盈亏仍必须是 None。"""
+        other = dict(_POS_300274, code="sh600519", name="贵州茅台")
+        pm = _make_manager(tmp_path, [dict(_POS_300274), other])
+        report = pm.health_report(quotes={"sz300274": {"price": 130.0, "change_pct": 1.0}})
+        d = report["data_quality"]
+        assert d["status"] == "degraded"
+        assert d["degraded"] == ["quote"]
+        assert d["conclusions_allowed"] is False
+        assert report["totals"]["value"] is None
+        assert report["totals"]["pnl"] is None
+
     def test_markdown_first_line_is_data_integrity(self, tmp_path):
         pm = _make_manager(tmp_path, [dict(_POS_300274)], watchlist=[dict(_WATCH)])
         report = pm.health_report(

@@ -90,6 +90,7 @@ def envelope(
     checked_at: str | None = None,
     events: Mapping[str, Sequence[str]] | None = None,
     failed: Sequence[str] = (),
+    degraded: Sequence[str] = (),
 ) -> dict:
     """给结果加 ``data_quality``，并把不可信字段置 None。
 
@@ -102,6 +103,8 @@ def envelope(
         checked_at: 覆盖检查时间（测试用）。
         events: 预先采好的降级事件 {域: [provider, ...]}；不传则读 manager。
         failed: 入口已判定的失败域（如 ``result["data_failed"]``），优先于字段探测。
+        degraded: 入口已判定"域有值但不可信"的降级域（如部分标的价格 <=0），
+            与降级链发现的降级域合并，不重复。
 
     Returns:
         新 dict：payload + ``data_quality``。
@@ -109,7 +112,7 @@ def envelope(
     field_map = field_map or {}
     data: dict[str, Any] = dict(payload)
     missing: list[str] = []
-    degraded: list[str] = []
+    degraded: list[str] = [domain for domain in degraded if domain in required]
     degraded_fields: list[str] = []
     sources: dict[str, list[str]] = {}
 
@@ -124,8 +127,9 @@ def envelope(
                     data[key] = None
                 if key not in degraded_fields:
                     degraded_fields.append(key)
-        elif providers:
-            degraded.append(domain)
+        elif providers or domain in degraded:
+            if domain not in degraded:
+                degraded.append(domain)
             for key in field_map.get(domain, ()):
                 if key not in degraded_fields:
                     degraded_fields.append(key)
@@ -172,8 +176,12 @@ def envelope(
 
 def render_header(data_quality: Mapping[str, Any] | None) -> str:
     """Markdown 报告首行（任何标题与结论之前）。"""
-    dq = dict(data_quality or {})
-    status = dq.get("status") or STATUS_OK
+    raw = dict(data_quality or {})
+    if not raw or not raw.get("status"):
+        # 未采集 ≠ ok：没跑过信封就不能暗示数据完整（也不许出现 "ok" 字样）
+        return "> 数据完整性：未采集（本次没有产生 data_quality，结论不可用于判断数据完整性）"
+    dq = raw
+    status = dq.get("status")
     required = list(dq.get("required") or [])
     missing = list(dq.get("missing") or [])
     degraded = list(dq.get("degraded") or [])
@@ -183,7 +191,9 @@ def render_header(data_quality: Mapping[str, Any] | None) -> str:
     sources = dq.get("sources") or {}
 
     if status == STATUS_OK and not missing and not degraded:
-        src = " / ".join(dict.fromkeys(p for providers in sources.values() for p in providers)) or "见数据来源"
+        src = " / ".join(dict.fromkeys(p for providers in sources.values() for p in providers))
+        if not src:
+            return f"> 数据完整性：{STATUS_OK} {total}/{total} · 数据源 未记录 · {checked}"
         return f"> 数据完整性：{STATUS_OK} {total}/{total} · 数据源 {src} · {checked}"
 
     bits: list[str] = []

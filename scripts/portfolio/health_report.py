@@ -278,7 +278,12 @@ def health_report(
     quotes_map = quotes or {}
     # 行情缺失判定：无报价 dict，或任一持仓 code 无对应报价（部分缺失）
     # 原实现仅判 dict 非空，缺行情持仓按 0 市值计入 totals 造成失真
-    quotes_missing = not quotes_map or any(p.get("code", "") not in quotes_map for p in positions)
+    # 缺报价分两档：整批缺失（failed）vs 部分标的缺失（degraded，市值/盈亏仍必须 None）
+    missing_quote_codes = [p.get("code", "") for p in positions if p.get("code", "") not in quotes_map]
+    quotes_all_missing = not quotes_map or (bool(positions) and len(missing_quote_codes) == len(positions))
+    quotes_missing = quotes_all_missing or any(
+        p.get("code", "") not in quotes_map for p in positions
+    )
     # H1 集成：自动调 technical.py 拉 features.breakdown
     # auto_technical=True（默认）时，对每只持仓调 technical 拉 60 根日 K
     # 算 nearest_support + breakdown；失败按 absence 容错
@@ -568,7 +573,8 @@ def health_report(
         required=("quote",),
         field_map={"quote": ()},
         conclusion_keys=(),
-        failed=("quote",) if quotes_missing else (),
+        failed=("quote",) if quotes_all_missing else (),
+        degraded=("quote",) if (missing_quote_codes and not quotes_all_missing) else (),
     )
 
 

@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-11-02T17:16:27Z",
+    "generated_at": "2026-11-19T03:19:23Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -2483,6 +2483,7 @@
         "--board-strict",
         "--no-board-strict",
         "--exclude-sector-momentum",
+        "--json-envelope",
         "--deadline",
         "--analyze",
         "--analyze-top",
@@ -2704,6 +2705,14 @@
           "required": false,
           "action": "store_true",
           "help": "剔除近 5 日板块 ETF 跌幅超阈值（5%%）的退潮板块标的（否则仅加 sector_momentum_warning 标记）"
+        },
+        {
+          "flags": [
+            "--json-envelope"
+          ],
+          "required": false,
+          "action": "store_true",
+          "help": "JSON 输出加 {data_quality, rows} 信封（默认裸数组，向后兼容）"
         },
         {
           "flags": [
