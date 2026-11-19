@@ -101,18 +101,47 @@ def format_events_text(events: dict) -> str:
     return "\n".join(lines)
 
 
+# 上次取数是否降级（P0-4b：空结果 ≠ 降级，解析/网络失败才算）
+_LAST_DEGRADED: dict = {"reason": None}
+
+
+def _data_quality_payload(events: dict) -> dict:
+    from common import data_quality as dq
+
+    reason = _LAST_DEGRADED.get("reason")
+    return dq.envelope(
+        {"events": events},
+        required=("event",),
+        field_map={"event": ()},
+        failed=("event",) if reason else (),
+    )
+
+
 def main():
     parser = create_parser(description="个股事件日历查询")
     parser.add_argument("code", help="股票代码（如 sh600519）")
     parser.add_argument("--days", type=int, default=30, help="查询天数（默认 30）")
+    parser.add_argument(
+        "--json-envelope",
+        action="store_true",
+        help="JSON 输出加 {data_quality} 信封（默认裸对象，向后兼容）",
+    )
     args = parser.parse_args()
     args.code = normalize_quote_code(args.code)
 
+    _LAST_DEGRADED["reason"] = None
     events = get_events(args.code, args.days)
 
+    from common import data_quality as dq
+
+    payload = _data_quality_payload(events)
     if args.json_output:
-        print(json.dumps(events, ensure_ascii=False, indent=2))
+        if args.json_envelope:
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        else:
+            print(json.dumps(events, ensure_ascii=False, indent=2))
     else:
+        print(dq.render_header(payload["data_quality"]))
         print(format_events_text(events))
 
 

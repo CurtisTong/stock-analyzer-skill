@@ -283,6 +283,10 @@ class DataFetcherManager:
         # 当前 fetch 的链用 thread-local 隔离：并发 fetch 不同 code 时
         # 各自的降级事件不能混进同一条链
         self._fallback_local = threading.local()
+        # v1.34 数据血缘补齐：最近一次成功源（provider），按 code 归档。
+        # 降级链只记"谁失败"，首行展示需要"谁最终供数"，两者缺一不可。
+        self._success_providers: dict[str, str] = {}
+        self._success_lock = threading.Lock()
 
     @property
     def last_fallback_chain(self) -> list:
@@ -386,6 +390,7 @@ class DataFetcherManager:
                     continue
                 if result is not None:
                     fetcher.on_success()
+                    self._record_success(fetcher.provider, str(code))
                     self._archive_fallback_chain()
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
@@ -411,6 +416,7 @@ class DataFetcherManager:
                             limiter.release(fetcher.provider)
                         if result is not None and not isinstance(result, _NotHandled):
                             fetcher.on_success()
+                            self._record_success(fetcher.provider, str(code))
                             self._archive_fallback_chain()
                             return result
                     except RateLimitError:
@@ -431,6 +437,23 @@ class DataFetcherManager:
                 continue
         self._archive_fallback_chain()
         return None
+
+    def _record_success(self, provider: str, code: str) -> None:
+        """记录本次成功供数的 provider（按 code 归档，供 data_quality.sources 用）。"""
+        with self._success_lock:
+            self._success_providers[code] = provider
+
+    def success_provider(self, code: str | None = None) -> str | None:
+        """最近一次成功供数的 provider。
+
+        code 指定时返回该标的的胜出源；不传时返回最近一次成功（兼容旧调用方）。
+        """
+        with self._success_lock:
+            if code is not None:
+                return self._success_providers.get(str(code))
+            if not self._success_providers:
+                return None
+            return next(reversed(self._success_providers.values()))
 
     def _archive_fallback_chain(self) -> None:
         """把本次 fetch 的降级链按 code 归档（供按标的查询血缘）。"""

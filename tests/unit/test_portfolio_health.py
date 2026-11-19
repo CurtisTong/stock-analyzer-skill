@@ -1051,7 +1051,7 @@ class TestDataQualityEnvelope:
         report = pm.health_report(quotes={})
         d = report["data_quality"]
         assert d["status"] == "failed"
-        assert d["missing"] == ["quote"]
+        assert d["missing_domains"] == ["quote"]
         assert d["conclusions_allowed"] is False
 
     def test_partial_missing_quotes_is_degraded_and_totals_none(self, tmp_path):
@@ -1061,9 +1061,26 @@ class TestDataQualityEnvelope:
         report = pm.health_report(quotes={"sz300274": {"price": 130.0, "change_pct": 1.0}})
         d = report["data_quality"]
         assert d["status"] == "degraded"
-        assert d["degraded"] == ["quote"]
+        assert d["degraded_domains"] == ["quote"]
         assert d["conclusions_allowed"] is False
         assert report["totals"]["value"] is None
+        assert report["totals"]["pnl"] is None
+
+    def test_partial_missing_quotes_reports_row_counts(self, tmp_path):
+        """9 只持仓缺 2 只报价 → 行级计数 7/9，而不是域级 1/1。"""
+        positions = [dict(_POS_300274, code=f"sz{i:06d}") for i in range(7)]
+        positions += [dict(_POS_300274, code=f"sh{i:06d}") for i in range(2)]
+        pm = _make_manager(tmp_path, positions)
+        quotes = {f"sz{i:06d}": {"price": 130.0, "change_pct": 1.0} for i in range(7)}
+        report = pm.health_report(quotes=quotes)
+        d = report["data_quality"]
+        assert d["status"] == "degraded"
+        assert d["degraded"][0] == {"domain": "quote", "missing_rows": 2, "total_rows": 9}
+        from common import data_quality as dq
+
+        header = dq.render_header(d)
+        assert "degraded 7/9 只报价" in header
+        assert "缺 2 只" in header
         assert report["totals"]["pnl"] is None
 
     def test_markdown_first_line_is_data_integrity(self, tmp_path):

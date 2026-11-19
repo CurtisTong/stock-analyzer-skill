@@ -57,6 +57,16 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%dT%H:%M")
 
 
+def _winner_provider(domain: str, code: str | None) -> str | None:
+    """本域最近一次成功供数的 provider；不可得返回 None（不臆测）。"""
+    try:
+        from data import get_last_success_provider
+
+        return get_last_success_provider(domain, code=code)
+    except Exception:
+        return None
+
+
 def _chain_providers(domain: str, code: str | None) -> list[str]:
     """只读消费现有降级链，拿"试过哪些源"。取不到就当没有（不臆测）。"""
     try:
@@ -93,6 +103,7 @@ def envelope(
     events: Mapping[str, Sequence[str]] | None = None,
     failed: Sequence[str] = (),
     degraded: Sequence[str] = (),
+    row_stats: Mapping[str, tuple[int, int]] | None = None,
 ) -> dict:
     """给结果加 ``data_quality``，并把不可信字段置 None。
 
@@ -107,6 +118,8 @@ def envelope(
         failed: 入口已判定的失败域（如 ``result["data_failed"]``），优先于字段探测。
         degraded: 入口已判定"域有值但不可信"的降级域（如部分标的价格 <=0），
             与降级链发现的降级域合并，不重复。
+        row_stats: {域: (缺失行数, 总行数)}——有行级事实时，missing/degraded 会带上
+            missing_rows/total_rows，首行按"缺 N/M 只"渲染（域级计数对使用者没有意义）。
 
     Returns:
         新 dict：payload + ``data_quality``。
@@ -117,11 +130,15 @@ def envelope(
     degraded: list[str] = [domain for domain in degraded if domain in required]
     degraded_fields: list[str] = []
     sources: dict[str, list[str]] = {}
+    winners: dict[str, str] = {}
 
     for domain in required:
         providers = list(events.get(domain, ())) if events and domain in events else _chain_providers(domain, code)
         if providers:
             sources[domain] = providers
+        winner = _winner_provider(domain, code)
+        if winner:
+            winners[domain] = winner
         if domain in failed or not _present(data, domain, field_map):
             missing.append(domain)
             # 显式传了 degraded 但该域实际整域缺失：只算 missing，不能两个列表都出现
@@ -166,13 +183,29 @@ def envelope(
             if item not in degraded_fields:
                 degraded_fields.append(item)
 
+    stats = dict(row_stats or {})
+
+    def _entry(domain: str) -> dict:
+        missing_rows, total_rows = stats.get(domain, (0, 0))
+        item: dict[str, Any] = {"domain": domain}
+        if total_rows:
+            item["missing_rows"] = int(missing_rows)
+            item["total_rows"] = int(total_rows)
+        return item
+
     data["data_quality"] = {
         "status": status,
         "required": list(required),
-        "missing": missing,
-        "degraded": degraded,
+        "missing": [_entry(d) for d in missing],
+        "degraded": [_entry(d) for d in degraded],
+        "missing_domains": list(missing),
+        "degraded_domains": list(degraded),
+        "row_counts": {
+            d: {"missing_rows": int(m), "total_rows": int(t)} for d, (m, t) in stats.items() if t
+        },
         "degraded_fields": degraded_fields,
         "sources": sources,
+        "winners": winners,
         "conclusions_allowed": allowed,
         "checked_at": checked_at or _now(),
     }
@@ -216,6 +249,8 @@ def envelope_rows(
     """把 rows 包成 {rows, data_quality}，行情域按 quote_flags() 判级。"""
     row_list = list(rows)
     failed, degraded = quote_flags(row_list, price_key=price_key)
+    dict_rows = [row for row in row_list if isinstance(row, Mapping)]
+    bad = sum(1 for row in dict_rows if not usable_price(row.get(price_key)))
     payload: dict[str, Any] = dict(extra or {})
     payload["rows"] = row_list
     return envelope(
@@ -224,6 +259,7 @@ def envelope_rows(
         field_map={"quote": ()},
         failed=failed,
         degraded=degraded,
+        row_stats={"quote": (bad, len(dict_rows))} if dict_rows else None,
         checked_at=checked_at,
     )
 
@@ -241,28 +277,62 @@ def render_header(data_quality: Mapping[str, Any] | None) -> str:
     degraded = list(dq.get("degraded") or [])
     total = len(required)
     ok_count = total - len(missing)
+
+    def _rows_of(entries: list) -> tuple[int, int]:
+        """汇总行级事实：(缺失行数, 总行数)；没有行级事实返回 (0, 0)。"""
+        miss = sum(int(e.get("missing_rows", 0)) for e in entries if isinstance(e, Mapping))
+        tot = sum(int(e.get("total_rows", 0)) for e in entries if isinstance(e, Mapping))
+        return miss, tot
+
+    miss_rows, total_rows = _rows_of(missing)
+    deg_rows, deg_total = _rows_of(degraded)
+    row_counts = dq.get("row_counts") or {}
+    if row_counts:
+        total_rows = sum(int(v.get("total_rows", 0)) for v in row_counts.values())
+        miss_rows = sum(int(v.get("missing_rows", 0)) for v in row_counts.values())
     checked = dq.get("checked_at") or _now()
     sources = dq.get("sources") or {}
 
     if status == STATUS_OK and not missing and not degraded:
-        src = " / ".join(dict.fromkeys(p for providers in sources.values() for p in providers))
+        winners = dq.get("winners") or {}
+        src = " / ".join(dict.fromkeys(winners.values())) or " / ".join(
+            dict.fromkeys(p for providers in sources.values() for p in providers)
+        )
+        count = f"{total_rows - miss_rows}/{total_rows} 只报价" if total_rows else f"{total}/{total}"
         if not src:
-            return f"> 数据完整性：{STATUS_OK} {total}/{total} · 数据源 未记录 · {checked}"
-        return f"> 数据完整性：{STATUS_OK} {total}/{total} · 数据源 {src} · {checked}"
+            return f"> 数据完整性：{STATUS_OK} {count} · 数据源 未记录 · {checked}"
+        return f"> 数据完整性：{STATUS_OK} {count} · 数据源 {src} · {checked}"
 
     bits: list[str] = []
-    for domain in missing:
-        bits.append(f"{domain}（缺失）")
-    for domain in degraded:
-        providers = sources.get(domain) or []
-        if providers:
-            bits.append(f"{domain}（{' → '.join(providers)}）")
+    for item in missing:
+        domain = item.get("domain") if isinstance(item, Mapping) else str(item)
+        if isinstance(item, Mapping) and item.get("total_rows"):
+            bits.append(f"{domain}（缺失 {item['total_rows']} 只）")
         else:
-            bits.append(f"{domain}（降级源）")
+            bits.append(f"{domain}（缺失）")
+    for item in degraded:
+        if isinstance(item, Mapping):
+            domain = item.get("domain", "")
+            providers = sources.get(domain) or []
+            suffix = f"{' → '.join(providers)}" if providers else "降级源"
+            if item.get("total_rows"):
+                bits.append(f"{domain}（{suffix}，缺 {item.get('missing_rows', 0)} 只）")
+            else:
+                bits.append(f"{domain}（{suffix}）")
+        else:
+            domain = str(item)
+            providers = sources.get(domain) or []
+            bits.append(f"{domain}（{' → '.join(providers) if providers else '降级源'}）")
     detail = "、".join(bits) if bits else "见 degraded_fields"
     allowed = dq.get("conclusions_allowed")
     tail = "结论仅供参考" if allowed is False else ""
-    head = f"> ⚠️ 数据完整性：{status} {ok_count}/{total} · {detail}"
+    if total_rows:
+        head_count = f"{total_rows - miss_rows}/{total_rows} 只报价"
+    elif deg_total:
+        head_count = f"{deg_total - deg_rows}/{deg_total} 只报价"
+    else:
+        head_count = f"{ok_count}/{total}"
+    head = f"> ⚠️ 数据完整性：{status} {head_count} · {detail}"
     return f"{head} · {tail}" if tail else head
 
 

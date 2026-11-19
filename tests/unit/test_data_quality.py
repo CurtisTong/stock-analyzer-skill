@@ -55,7 +55,7 @@ class TestEnvelopeStatus:
             field_map={"quote": ("price",), "kline": ("kline",)},
         )
         assert out["data_quality"]["status"] == "failed"
-        assert set(out["data_quality"]["missing"]) == {"quote", "kline"}
+        assert set(out["data_quality"]["missing_domains"]) == {"quote", "kline"}
         assert out["data_quality"]["conclusions_allowed"] is False
 
     def test_degraded_source_keeps_value_but_lowers_conclusion(self):
@@ -93,8 +93,8 @@ class TestEnvelopeStatus:
             degraded=("quote",),
         )
         d = out["data_quality"]
-        assert d["missing"] == ["quote"]
-        assert d["degraded"] == []
+        assert d["missing_domains"] == ["quote"]
+        assert d["degraded_domains"] == []
         header = dq.render_header(d)
         assert "缺失" in header
         assert "降级源" not in header
@@ -150,6 +150,53 @@ class TestQuoteFlags:
         assert out["data_quality"]["status"] == "ok"
         assert out["strategy"] == "balanced"
         assert out["rows"][0]["price"] == 12.5
+
+
+class TestRowLevelCounts:
+    """验收条款：降级要落到行级事实（缺 N/M 只），域级计数对使用者没有意义。"""
+
+    def _rows(self, missing: int, total: int = 9) -> list[dict]:
+        rows = [{"price": 10.0, "code": f"sh60{i:04d}"} for i in range(total - missing)]
+        rows += [{"price": None, "code": f"sz00{i:04d}"} for i in range(missing)]
+        return rows
+
+    def test_partial_shows_row_counts(self):
+        out = dq.envelope_rows(self._rows(missing=2))
+        d = out["data_quality"]
+        assert d["status"] == "degraded"
+        assert d["degraded"][0] == {"domain": "quote", "missing_rows": 2, "total_rows": 9}
+        assert d["degraded_domains"] == ["quote"]
+        header = dq.render_header(d)
+        assert "degraded 7/9 只报价" in header
+        assert "缺 2 只" in header
+
+    def test_all_missing_shows_zero_rows(self):
+        out = dq.envelope_rows(self._rows(missing=9))
+        d = out["data_quality"]
+        assert d["status"] == "failed"
+        assert d["missing"][0]["missing_rows"] == 9
+        header = dq.render_header(d)
+        assert "failed 0/9 只报价" in header
+        assert "缺失 9 只" in header
+
+    def test_ok_shows_full_rows(self):
+        out = dq.envelope_rows(self._rows(missing=0))
+        d = out["data_quality"]
+        assert d["status"] == "ok"
+        assert "ok 9/9 只报价" in dq.render_header(d)
+
+    def test_price_zero_counts_in_missing_rows(self):
+        rows = [{"price": 0}, {"price": 10.0}]
+        d = dq.envelope_rows(rows)["data_quality"]
+        assert d["degraded"][0]["missing_rows"] == 1
+        assert d["degraded"][0]["total_rows"] == 2
+
+    def test_domain_without_rows_keeps_domain_level(self):
+        """kline/finance 这类没有行级事实的域，保持域级描述而不是硬编行数。"""
+        out = dq.envelope({}, required=("finance",), field_map={"finance": ()}, failed=("finance",))
+        d = out["data_quality"]
+        assert d["missing"] == [{"domain": "finance"}]
+        assert "finance（缺失）" in dq.render_header(d)
 
 
 class TestRenderHeader:
@@ -228,7 +275,7 @@ class TestScreenerJsonEnvelope:
         payload = json.loads(capsys.readouterr().out)
         d = payload["data_quality"]
         assert d["status"] == "failed"
-        assert d["missing"] == ["quote"]
+        assert d["missing_domains"] == ["quote"]
         assert d["conclusions_allowed"] is False
         header = dq.render_header(d)
         assert "⚠️" in header
@@ -242,7 +289,7 @@ class TestScreenerJsonEnvelope:
         )
         d = json.loads(capsys.readouterr().out)["data_quality"]
         assert d["status"] == "degraded"
-        assert d["degraded"] == ["quote"]
+        assert d["degraded_domains"] == ["quote"]
         assert d["conclusions_allowed"] is False
 
     def test_zero_price_counts_as_missing_quote(self, capsys):

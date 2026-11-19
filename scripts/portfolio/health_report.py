@@ -578,6 +578,7 @@ def health_report(
         conclusion_keys=(),
         failed=("quote",) if quotes_all_missing else (),
         degraded=("quote",) if (missing_quote_codes and not quotes_all_missing) else (),
+        row_stats={"quote": (len(missing_quote_codes), len(positions))} if positions else None,
     )
 
 

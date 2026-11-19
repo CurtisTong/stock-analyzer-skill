@@ -21,7 +21,7 @@ class TestBacktestEnvelope:
     def test_error_result_is_failed(self):
         out = _with_data_quality({"error": "K 线拉取为空"})
         assert out["data_quality"]["status"] == "failed"
-        assert out["data_quality"]["missing"] == ["kline"]
+        assert out["data_quality"]["missing_domains"] == ["kline"]
         assert out["data_quality"]["conclusions_allowed"] is False
         assert out["error"] == "K 线拉取为空"
 
