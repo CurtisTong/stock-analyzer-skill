@@ -93,8 +93,24 @@ class Task:
     backfill_at: str | None = "08:00"
 
 
-# P0 阶段不接业务槽位；P1 逐个接入（先 15:05 收盘快照）。
-TASKS: tuple[Task, ...] = ()
+# P1 接入中：首版只挂 08:45 一条，跑通再扩。
+# **同一槽位只允许一边负责内容**：08:45 盘前卡的正文由 DSH 会话定时产出并推群，
+# 本 runner 只做「取数探针」（指数快照落日志、验证链路与数据就绪），故槽名带
+# `_probe`、不推送、不发群。等 P1 把 push_wechat 接上再谈内容权移交，届时必须
+# 先删 DSH 那条 08:45，不能两套并存。
+_HERE = Path(__file__).resolve().parent.parent
+_PY = sys.executable
+
+TASKS: tuple[Task, ...] = (
+    Task(
+        name="premarket_probe",
+        at="08:45",
+        command=(_PY, str(_HERE / "quote.py"), "sh000001,sz399001,sh000300", "-j"),
+        deadline="09:15",
+        require_data_date=False,
+        backfill_at=None,
+    ),
+)
 
 
 # ---------- 时间与键 ----------

@@ -311,3 +311,26 @@ def test_kline_no_cache_flag_reaches_fetch(monkeypatch):
     kline.main()
 
     assert seen["use_cache"] is False
+
+
+# ---------- 首版槽位：08:45 盘前 ----------
+
+
+def test_premarket_slot_is_registered():
+    """首版只挂 08:45 盘前一条；跑通后再按表扩。"""
+    names = [t.name for t in st.TASKS]
+    assert names == ["premarket_probe"], f"首版只应有 premarket_probe，实际 {names}"
+    task = st.TASKS[0]
+    assert task.at == "08:45"
+    assert task.command and task.command[0], "命令必须是绝对可执行的解释器"
+    assert Path(task.command[0]).is_absolute() or Path("/usr/bin") , "解释器应为绝对路径或 PATH 可解析"
+    assert task.backfill_at is None, "盘前探针不做次日兜底"
+    assert task.name.endswith("_probe"), "内容权在 DSH，runner 侧只能是探针"
+
+
+def test_premarket_runs_on_trading_day_after_slot(tmp_path: Path):
+    task = st.TASKS[0]
+    now = _at("2026-11-20", 8, 50)
+    assert st.decide(task, now, {}, trading=True) == "run"
+    # 08:44 未到点
+    assert st.decide(task, _at("2026-11-20", 8, 44), {}, trading=True) == "skip_not_due"
