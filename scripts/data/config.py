@@ -152,6 +152,48 @@ def is_trading_hours() -> bool:
     return morning or afternoon
 
 
+def holiday_table_years() -> set[int]:
+    """返回节假日表覆盖的年份集合（表为空时返回空集）。"""
+    years = set()
+    for item in _load_holidays():
+        try:
+            years.add(int(str(item)[:4]))
+        except ValueError:
+            continue
+    return years
+
+
+def is_holiday_table_covering(d: "date") -> bool:
+    """节假日表是否覆盖指定年份。
+
+    表里的日期是「休市日」清单，某年没有任何休市日剩余不代表缺数据；但**整年缺失**
+    意味着该年节假日全被当成交易日——这条必须能被调度层发现并告警，而不是静默放行。
+    """
+    return d.year in holiday_table_years()
+
+
+def is_trading_day(d: "date | None" = None) -> bool:
+    """判断指定日期（默认今天）是否为 A 股交易日。
+
+    与 `is_trading_hours()` 的区别：后者判「此刻是否在盘中」，08:45 / 15:05 /
+    18:30 一律返回 False；拿它当调度前置会把盘前盘后任务静默跳过且不报错。
+    调度、跑批、盘前盘后任务请一律用本函数。
+
+    Args:
+        d: 目标日期，None 表示今天
+
+    Returns:
+        True 表示当天开市（非周末且不在节假日表里）
+    """
+    if d is None:
+        from dev.clock import now as _now
+
+        d = _now().date()
+    if d.weekday() >= 5:
+        return False
+    return not _is_holiday(d)
+
+
 # ═══════════════════════════════════════════════════════════════
 # 节假日缓存（v1.7.1 新增）
 # ═══════════════════════════════════════════════════════════════

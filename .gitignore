@@ -71,3 +71,6 @@ docs/superpowers/plans
 # 快照数据目录
 scripts/data/snapshots/
 .zcode/
+
+# 调度运行状态（幂等键/锁），不入库
+scripts/data/.run/
