@@ -217,7 +217,13 @@ def get_quotes(codes: list, use_cache: bool = True) -> list:
     return [q for q in results.values() if q is not None]
 
 
-def get_kline(code: str, scale: int = 240, datalen: int = 30, use_cache: bool = True) -> list:
+def get_kline(
+    code: str,
+    scale: int = 240,
+    datalen: int = 30,
+    use_cache: bool = True,
+    require_date: str | None = None,
+) -> list:
     """获取 K 线数据。
 
     Args:
@@ -225,6 +231,14 @@ def get_kline(code: str, scale: int = 240, datalen: int = 30, use_cache: bool = 
         scale: K线周期（1/5/15/30/60/240/1440）
         datalen: 数据长度
         use_cache: 是否使用缓存
+        require_date: 要求末根日期为该值（'YYYY-MM-DD'，与 KlineBar.day 同格式）。
+            - 命中缓存但末根不符 → 视为缓存无效，穿透重拉；
+            - 重拉后仍不符 → **抛 DataNotReadyError 且不写缓存**（否则旧数据被固化，
+              重试永远过不去）；
+            - 为空仍是「无数据」（停牌/退市/新股），不抛异常。
+
+    Raises:
+        DataNotReadyError: 数据源尚未刷新到 require_date（上层应重试）
     """
     _load_fetchers()
     assert _kline_manager is not None
@@ -248,13 +262,33 @@ def get_kline(code: str, scale: int = 240, datalen: int = 30, use_cache: bool = 
         if cached:
             # 缓存的是 fetcher 原始 dict（未归一化），走 _dict_to_kline_bar 统一归一化。
             # 同 get_quote()：缓存 to_dict() 会致缓存命中时双重归一化。
-            return [_dict_to_kline_bar(bar, code) for bar in cached]
+            cached_bars = [_dict_to_kline_bar(bar, code) for bar in cached]
+            if require_date is None:
+                return cached_bars
+            # 缓存命中也要比对末根日期：TTL 内可能是不完整的当日数据，
+            # 不比对就会把盘中/旧数据静默喂给跑批。
+            if cached_bars and cached_bars[-1].day == require_date:
+                return cached_bars
 
     records = _kline_manager.fetch(code, scale=scale, datalen=datalen)
     if not records or not isinstance(records, list):
         return []
 
     bars = [_dict_to_kline_bar(r, code) for r in records if isinstance(r, dict)]
+
+    if require_date is not None:
+        actual_date = bars[-1].day if bars else None
+        if actual_date != require_date:
+            from common.exceptions import DataNotReadyError
+
+            # 不匹配时禁止写缓存：写下去就把旧数据固化了，重试永远过不去
+            raise DataNotReadyError(
+                code=code,
+                scale=scale,
+                require_date=require_date,
+                actual_date=actual_date,
+                source=str(getattr(bars[-1], "source", "") if bars else ""),
+            )
 
     if use_cache and bars:
         # 缓存 fetcher 原始 records（未归一化），读取时单次归一化。

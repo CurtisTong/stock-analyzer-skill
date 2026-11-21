@@ -48,6 +48,35 @@ class DataError(StockAnalyzerError):
     pass
 
 
+class DataNotReadyError(DataError):
+    """数据源尚未刷新到目标交易日（**可重试**）。
+
+    与 `DataUnavailableError`（源不可用）和「返回空列表」（停牌/退市/代码不存在）
+    严格区分：空列表已被「这只票没数据」占用，拿它表示「数据还没到」会变成静默错误。
+    """
+
+    def __init__(
+        self,
+        code: str,
+        scale: int,
+        require_date: str,
+        actual_date: str | None,
+        source: str = "",
+        attempts: int | None = None,
+    ):
+        super().__init__(
+            f"数据未就绪: {code} 末根 {actual_date or '无'}，期望 {require_date}",
+            {
+                "code": code,
+                "scale": scale,
+                "require_date": require_date,
+                "actual_date": actual_date,
+                "source": source,
+                "attempts": attempts,
+            },
+        )
+
+
 class NetworkError(DataError):
     """网络请求失败。"""
 
@@ -327,6 +356,7 @@ __all__ = [
     "ParseError",
     "HTTPStatusError",
     "DataUnavailableError",
+    "DataNotReadyError",
     "BusinessError",
     "ValidationError",
     "StrategyError",
