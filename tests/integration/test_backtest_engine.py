@@ -720,7 +720,8 @@ class TestBuildHistQuote:
         import backtest
 
         bars = _make_kline_bars([10.0, 11.0, 12.0, 13.0, 14.0, 15.0])
-        fin = {"eps": 2.0, "bps": 8.0, "total_cap": 500}
+        # P1-13：PE 口径显式给年报，沿用 compute_pe 的直接除法语义
+        fin = {"eps": 2.0, "bps": 8.0, "total_cap": 500, "period_type": "annual"}
         result = backtest._build_hist_quote(bars, 3, fin, "sh600989")
         assert result["code"] == "sh600989"
         assert result["price"] == 13.0

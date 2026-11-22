@@ -145,8 +145,62 @@ def evaluate_oos(win_rate_pct: float, n_stocks: int, total_return_pct: float) ->
     return "in_sample"
 
 
+def _as_code_set(fingerprint: str) -> set[str]:
+    """若指纹是代码列表（逗号/竖线/空格分隔），解析为规范化代码集合。
+
+    SHA1 短哈希不含分隔符且 token 不是股票代码 → 返回空集合，走近似哈希判定。
+    """
+    import re
+
+    tokens = {
+        t.strip().lower()
+        for t in fingerprint.replace("|", ",").replace(" ", ",").split(",")
+        if t.strip()
+    }
+    if len(tokens) >= 2 and all(re.fullmatch(r"(?:sh|sz|bj)\d{6}", t) for t in tokens):
+        return tokens
+    return set()
+
+
+def _fingerprints_overlap(fp_a: str, fp_b: str) -> bool:
+    """判定两个池宇宙指纹是否"相同或高度重合"（P1-16 修复）。
+
+    - 完全相同 → 同一宇宙（典型刷分：同一批代码换个 pool_type 跑两次）
+    - 代码列表指纹 → Jaccard 重合度 ≥ 0.8 视为高度重合
+    - SHA1 短哈希 → 保守近似：8 位十六进制中有 ≥7 位相同（序列相似度 ≥0.875）
+      才算高度重合，避免不同哈希因偶然相似被误判
+    """
+    if fp_a == fp_b:
+        return True
+    codes_a, codes_b = _as_code_set(fp_a), _as_code_set(fp_b)
+    if codes_a and codes_b:
+        union = codes_a | codes_b
+        return bool(union) and len(codes_a & codes_b) / len(union) >= 0.8
+    if len(fp_a) == len(fp_b) >= 6:
+        from difflib import SequenceMatcher
+
+        return SequenceMatcher(None, fp_a.lower(), fp_b.lower()).ratio() >= 0.875
+    return False
+
+
+def _fingerprint_collision(pool_fingerprints: dict[str, str]) -> str | None:
+    """返回第一个指纹冲突的原因；无冲突返回 None。空指纹忽略（兼容旧记录）。"""
+    valid = []
+    for pool_type, fp in (pool_fingerprints or {}).items():
+        if isinstance(fp, str) and fp.strip():
+            valid.append((pool_type, fp.strip()))
+    for i, (pt_a, fp_a) in enumerate(valid):
+        for pt_b, fp_b in valid[i + 1 :]:
+            if fp_a == fp_b:
+                return f"{pt_a} 与 {pt_b} 的宇宙指纹相同（{fp_a}）"
+            if _fingerprints_overlap(fp_a, fp_b):
+                return f"{pt_a} 与 {pt_b} 的宇宙指纹高度重合（{fp_a} / {fp_b}）"
+    return None
+
+
 def evaluate_multi_pool(
     pool_results: dict[str, tuple[float, int, float]],
+    pool_fingerprints: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     """多池联合判定：至少记录 2 个池，且每个池都达标才升级 oos_verified。
 
@@ -156,14 +210,18 @@ def evaluate_multi_pool(
 
     - 未记录任何池 → in_sample
     - 仅记录 1 个池 → in_sample（禁止单池升级，v1.23.1 收紧）
+    - ≥2 个池但池宇宙指纹相同或高度重合 → in_sample（P1-16 修复：
+      同一批代码换个 pool_type 重跑不构成独立验证）
     - ≥2 个池但任一池未达标 → in_sample（note 点名未达标池）
     - ≥2 个池且全部达标 → oos_verified
 
     Args:
         pool_results: {pool_type: (win_rate_pct, n_stocks, total_return_pct)}
+        pool_fingerprints: 可选，{pool_type: 宇宙指纹}。仅用于校验各池是否
+            真正独立；不传时保持旧行为（只校验池数与各池指标），兼容旧调用。
 
     Returns:
-        (status, note)。note 标注各池结果，未达标时点名未达标池。
+        (status, note)。note 标注各池结果，未达标时点名未达标池或指纹冲突。
     """
     if not pool_results:
         return "in_sample", "无任何池的 OOS 验证结果"
@@ -174,6 +232,17 @@ def evaluate_multi_pool(
             "in_sample",
             f"仅记录 {len(pool_results)} 个池（{names}），单池验证无统计意义，" "需跑第二个池且全部池达标才升级",
         )
+
+    # P1-16：池数达标不代表宇宙独立。此前指纹只被打印，从未参与判定，
+    # 同一批代码以 default/large 各跑一次即可"双池通过"。
+    if pool_fingerprints:
+        collision = _fingerprint_collision(pool_fingerprints)
+        if collision:
+            return (
+                "in_sample",
+                f"⚠️ 多池宇宙指纹校验未通过：{collision}；"
+                "疑似同一批股票换 pool_type 重跑，双池不独立，强制保持 in_sample",
+            )
 
     statuses = {}
     for pool_type, (win_rate, n_stocks, total_return) in pool_results.items():

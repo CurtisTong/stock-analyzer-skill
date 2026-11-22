@@ -149,6 +149,35 @@ def load_codes(arg_codes: str | None, pool_type: str = "default") -> list[str]:
     return _load_sector_pool() or _dedup_codes(DEFAULT_CODES)
 
 
+def _read_effective_universe_size(result: dict) -> int | None:
+    """读取引擎回传的真实入池股票数（P1-15 修复）。
+
+    backtest.engine.simulate_strategy 会丢弃 K 线不足 / 末根陈旧的股票，
+    其返回结果带可选键 ``effective_universe_size``。metrics.run_backtest
+    不显式透传该键，但把引擎原始结果放在 ``round_details[0]``（metrics.py:237），
+    因此这里做两级读取；都没有时返回 None，由调用方按请求数回退。
+    """
+    if not isinstance(result, dict):
+        return None
+    size = result.get("effective_universe_size")
+    if size is None:
+        details = result.get("round_details") or []
+        if details and isinstance(details[0], dict):
+            size = details[0].get("effective_universe_size")
+    if size is None:
+        return None
+    try:
+        return max(0, int(size))
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def _effective_universe_size(result: dict, codes: list[str]) -> int:
+    """真实入池数，缺键时回退到请求股票数（兼容旧版引擎）。"""
+    size = _read_effective_universe_size(result)
+    return len(codes) if size is None else size
+
+
 def run_one_strategy(
     strategy_name: str,
     codes: list[str],
@@ -177,6 +206,8 @@ def run_one_strategy(
         return {
             "strategy": strategy_name,
             "codes_count": len(codes),
+            # P1-15：用真实入池数（引擎丢弃 K 线不足 / 末根陈旧股票后）而非请求数
+            "effective_universe_size": _effective_universe_size(result, codes),
             "result": result,
         }
     except Exception as e:
@@ -184,6 +215,7 @@ def run_one_strategy(
         return {
             "strategy": strategy_name,
             "codes_count": len(codes),
+            "effective_universe_size": 0,
             "error": f"{type(e).__name__}: {e}",
         }
 
@@ -444,9 +476,27 @@ def _update_validation(
         sharpe = float(result.get("sharpe_ratio", 0) or 0)
         max_dd = float(result.get("max_drawdown_pct", 0) or 0)
 
+        # P1-15：n_stocks 闸门必须基于真实入池数，而不是请求数 len(codes)。
+        # 优先取 run_one_strategy 记录的 effective_universe_size；旧调用方
+        # （直接传 result dict 的测试/脚本）再读引擎回传键，最后才回退 n_codes。
+        eff_n = r.get("effective_universe_size")
+        if eff_n is None:
+            eff_n = _read_effective_universe_size(result)
+        if eff_n is None:
+            eff_n = n_codes
+        try:
+            eff_n = max(0, int(eff_n))
+        except (TypeError, ValueError, OverflowError):
+            eff_n = n_codes
+        if eff_n != n_codes:
+            print(
+                f"   🔍 {sname}: 真实入池 {eff_n} 只（请求 {n_codes} 只；"
+                "差额为 K 线不足/末根陈旧股票，被引擎丢弃）"
+            )
+
         # 1) 记录本池结果（accumulate 到 pools 嵌套结构）
-        pool_status = evaluate_oos(win_rate, n_codes, total_ret)
-        note = build_oos_note(win_rate, n_codes, total_ret)
+        pool_status = evaluate_oos(win_rate, eff_n, total_ret)
+        note = build_oos_note(win_rate, eff_n, total_ret)
         if pool_status == "in_sample":
             note += "（未达阈值，保持 in_sample）"
 
@@ -455,7 +505,7 @@ def _update_validation(
             validation_status=pool_status,
             validation_note=note,
             win_rate_pct=win_rate,
-            n_stocks=n_codes,
+            n_stocks=eff_n,
             total_return_pct=total_ret,
             pool_type=pool_type,
             universe_fingerprint=universe_fingerprint,
@@ -466,7 +516,7 @@ def _update_validation(
         overrides = load_oos_overrides().get(sname, {})
         pools = overrides.get("pools", {}) if isinstance(overrides, dict) else {}
         if not pools:
-            pools = {pool_type: (win_rate, n_codes, total_ret)}
+            pools = {pool_type: (win_rate, eff_n, total_ret)}
         # pools 值为 dict（含 win_rate_pct/n_stocks/total_return_pct），
         # 转成 evaluate_multi_pool 期望的元组
         pool_results = {
@@ -478,7 +528,14 @@ def _update_validation(
             for pt, p in pools.items()
             if isinstance(p, dict)
         }
-        status, note = evaluate_multi_pool(pool_results)
+        # P1-16：指纹此前只打印不校验，现在纳入多池联合判定——
+        # 两池指纹相同/高度重合（同一批代码换 pool_type 重跑）强制 in_sample。
+        pool_fingerprints = {
+            pt: str(p.get("universe_fingerprint") or "")
+            for pt, p in pools.items()
+            if isinstance(p, dict)
+        }
+        status, note = evaluate_multi_pool(pool_results, pool_fingerprints)
         # 指纹审计行（v1.31）：各池的真实宇宙指纹，供"双池是否同一宇宙"核对
         fp_parts = []
         for pt, p in pools.items():
@@ -491,14 +548,14 @@ def _update_validation(
             validation_status=status,
             validation_note=note,
             win_rate_pct=win_rate,
-            n_stocks=n_codes,
+            n_stocks=eff_n,
             total_return_pct=total_ret,
             pool_type=pool_type,
             universe_fingerprint=universe_fingerprint,
             extra={"sharpe_ratio": sharpe, "max_drawdown_pct": max_dd},
         )
         marker = "✅" if status == "oos_verified" else "⚠️ "
-        print(f"   {marker} {sname}: {status} ({win_rate:.1f}% / {n_codes} 只)")
+        print(f"   {marker} {sname}: {status} ({win_rate:.1f}% / {eff_n} 只)")
 
 
 if __name__ == "__main__":
