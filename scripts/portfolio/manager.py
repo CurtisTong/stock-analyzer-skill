@@ -549,11 +549,15 @@ class PortfolioManager:
         tags: list = None,
         auto_save: bool = True,
         cost_source: str = "user_input",
+        force: bool = False,
     ) -> dict:
         """添加持仓。如果已存在则加仓（加权平均成本）。
 
         cost_source 记录成本来源（user_input / screenshot / calculated），
         加仓产生加权平均成本时自动置为 calculated，保留可追溯性。
+
+        review P2（force 逃生口悬空）：facade 透传 force=True 供知情手工
+        越过熔断/冷却硬阻止；Web 路径默认 False（受保护），见 web/dispatch。
         """
         from portfolio.crud import add_position as _add
 
@@ -567,6 +571,7 @@ class PortfolioManager:
             tags=tags,
             auto_save=auto_save,
             cost_source=cost_source,
+            force=force,
         )
 
     def reduce_position(
@@ -577,11 +582,14 @@ class PortfolioManager:
 
         return _reduce(self, code, quantity, auto_save=auto_save, sell_price=sell_price)
 
-    def remove_position(self, code: str, auto_save: bool = True) -> bool:
-        """清仓（移除持仓）并记录交易日志。"""
+    def remove_position(self, code: str, auto_save: bool = True, sell_price: float = None) -> bool:
+        """清仓（移除持仓）并记录交易日志。
+
+        review P1-25：透传卖价给 crud，未传时按现价/成本估算并标注口径。
+        """
         from portfolio.crud import remove_position as _remove
 
-        return _remove(self, code, auto_save=auto_save)
+        return _remove(self, code, auto_save=auto_save, sell_price=sell_price)
 
     def update_position(self, code: str, auto_save: bool = True, **kwargs) -> Optional[dict]:
         """更新持仓字段（cost, quantity, name, buy_date, tags, cost_source）。

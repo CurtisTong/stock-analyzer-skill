@@ -33,6 +33,7 @@
 
 import sys
 import logging
+import math
 import statistics
 from pathlib import Path
 from typing import Optional
@@ -186,11 +187,27 @@ def compute_industry_overlap(
 WINDOW_NOTICE = "相关性基于有限历史窗口，窗口 ≠ 长期稳定，行情切换或极端行情（如熊市）下相关性普遍上升，负相关可能反转，勿据此过度外推"
 
 
-def _pearson_corr(x: list, y: list) -> float | None:
+def _align_return_series(x, y) -> tuple[list, list]:
+    """把两列收益率按交易日 key 对齐（review P2，替代按头截断）。
+
+    dict 输入：取 key 交集并按 key 排序，保证 r_t 对应同一交易日；
+    list 输入：保持原样（兼容既有调用方 / 测试）。
+    """
+    if isinstance(x, dict) and isinstance(y, dict):
+        common = sorted(set(x) & set(y))
+        return [x[k] for k in common], [y[k] for k in common]
+    return list(x), list(y)
+
+
+def _pearson_corr(x, y) -> float | None:
     """皮尔逊相关系数 = Cov(x,y) / (σ_x * σ_y)。
 
     任一缺失 / 长度不足 / 方差为 0 → 返回 None。
+    review P2：dict 输入先按交易日 key 对齐，不再 ``x[:n], y[:n]`` 按头截断
+    （停牌/次新股 K 线长度不同会把不同日期的收益率配成对）。
     """
+    if isinstance(x, dict) and isinstance(y, dict):
+        x, y = _align_return_series(x, y)
     n = min(len(x), len(y))
     if n < 10:
         return None
@@ -227,10 +244,12 @@ def _corr_detailed(x: list, y: list) -> dict | None:
         dict: {corr, r_squared, n, t_stat, significant}
         不可算返回 None。
     """
-    corr = _pearson_corr(x, y)
+    # review P2：显著性检验的 n 必须与实际参与计算的对数一致（dict 对齐后）
+    x_aligned, y_aligned = _align_return_series(x, y)
+    corr = _pearson_corr(x_aligned, y_aligned)
     if corr is None:
         return None
-    n = min(len(x), len(y))
+    n = min(len(x_aligned), len(y_aligned))
     denom = 1 - corr * corr
     if denom <= 0:
         t_stat = None  # 完美相关
@@ -310,6 +329,57 @@ def _load_returns(code: str, window: int = 60) -> list | None:
         return None
 
 
+def _load_returns_by_date(code: str, window: int = 60) -> dict | None:
+    """按交易日 key 的日收益率序列（review P2 对齐基础）。
+
+    K 线长度不同（停牌/次新股）时，旧实现按序列头截断 x[:n]/y[:n]，
+    把不同交易日的收益率配成对，相关性结论失真。这里用 bar.day（或 date）
+    作为 key；上游 K 线无日期字段时退回零填充位置 key（__pos_000001），
+    保持旧行为且不会与真实日期 key 混淆。
+    """
+    try:
+        klines = get_kline(code, scale=240, datalen=window)
+        if not klines:
+            return None
+        bars = []
+        for i, k in enumerate(klines):
+            try:
+                close = float(k.close)
+            except (TypeError, ValueError, OverflowError):
+                continue
+            if not math.isfinite(close) or close <= 0:
+                continue
+            day = str(getattr(k, "day", "") or getattr(k, "date", "") or "").strip()
+            key = day[:10] if day else f"__pos_{i:06d}"
+            bars.append((key, close))
+        if len(bars) < 2:
+            return None
+        result = {}
+        for i in range(1, len(bars)):
+            if bars[i - 1][1] > 0:
+                result[bars[i][0]] = bars[i][1] / bars[i - 1][1] - 1
+        return result or None
+    except Exception as e:
+        log_silent_fallback("portfolio_correlation._load_returns_by_date", e)
+        logger.debug("_load_returns_by_date(%s) 失败: %s", code, e)
+        return None
+
+
+def _calendar_aligned_returns(series_map: dict) -> dict:
+    """把多只标的收益率裁到**共同交易日日历**（review P2）。
+
+    交集过短时保留短序列，由 _pearson_corr 按 n<10 返回 None 降级；
+    不再用 head truncation 制造伪相关。
+    """
+    if not series_map:
+        return {}
+    common = set(next(iter(series_map.values())))
+    for series in series_map.values():
+        common &= set(series)
+    keys = sorted(common)
+    return {code: [series[k] for k in keys] for code, series in series_map.items()}
+
+
 # ═══════════════════════════════════════════════════════════════
 # 矩阵构建
 # ═══════════════════════════════════════════════════════════════
@@ -350,11 +420,11 @@ def compute_correlation_matrix(
     # 准备代码列表（含基准）
     all_codes = list(dict.fromkeys(codes + [index_code]))  # 去重保序
 
-    # 拉每个代码的收益率
+    # 拉每个代码的收益率（review P2：按交易日 key 保存，而非裸序列）
     returns_map = {}
     degraded = []
     for code in all_codes:
-        r = _load_returns(code, window)
+        r = _load_returns_by_date(code, window)
         if r is None:
             degraded.append(f"corr.{code}")
             continue
@@ -362,6 +432,9 @@ def compute_correlation_matrix(
 
     if not returns_map:
         return None
+
+    # review P2：先按共同交易日裁剪，再做两两 Pearson / 半窗口稳定性
+    aligned = _calendar_aligned_returns(returns_map)
 
     # 计算矩阵
     matrix = {}
@@ -372,7 +445,7 @@ def compute_correlation_matrix(
             if code_a == code_b:
                 matrix[code_a][code_b] = 1.0
             else:
-                corr = _pearson_corr(returns_map[code_a], returns_map[code_b])
+                corr = _pearson_corr(aligned[code_a], aligned[code_b])
                 matrix[code_a][code_b] = corr  # 可能是 None
 
     # 平均两两相关性（仅上三角，避免重复）
@@ -404,7 +477,7 @@ def compute_correlation_matrix(
         "high_corr_pairs": high_pairs,
         "interpretation": interpretation,
         "window_notice": WINDOW_NOTICE,
-        "stability": _half_window_stability(valid_codes, returns_map),
+        "stability": _half_window_stability(valid_codes, aligned),
         "data_quality": {"degraded_fields": degraded},
     }
 
@@ -467,8 +540,8 @@ def compute_stock_vs_portfolio(
             "data_quality": {"degraded_fields": []},
         }
 
-    # 拉个股 + 持仓的收益率
-    stock_returns = _load_returns(stock_code, window)
+    # 拉个股 + 持仓的收益率（review P2：按交易日 key 对齐后再算相关性）
+    stock_returns = _load_returns_by_date(stock_code, window)
     if stock_returns is None:
         return {
             "stock_code": stock_code,
@@ -482,7 +555,7 @@ def compute_stock_vs_portfolio(
     portfolio_returns = {}
     degraded = []
     for code in portfolio_codes:
-        r = _load_returns(code, window)
+        r = _load_returns_by_date(code, window)
         if r is None:
             degraded.append(f"stock_vs_portfolio.{code}")
             continue
@@ -498,12 +571,16 @@ def compute_stock_vs_portfolio(
             "data_quality": {"degraded_fields": degraded},
         }
 
-    # 计算个股 vs 每个持仓的相关性（含显著性，）
+    # review P2：把个股与持仓放在同一交易日日历上，避免头截断错位
+    aligned = _calendar_aligned_returns({stock_code: stock_returns, **portfolio_returns})
+    stock_returns_aligned = aligned.get(stock_code, [])
+
+    # 计算个股 vs 每个持仓的相关性（含显著性）
     corrs = []
     significant_neg_pairs = 0
     neg_pairs = 0
-    for code, r_p in portfolio_returns.items():
-        detail = _corr_detailed(stock_returns, r_p)
+    for code in portfolio_returns:
+        detail = _corr_detailed(stock_returns_aligned, aligned.get(code, []))
         if detail is None:
             continue
         corrs.append(detail["corr"])
