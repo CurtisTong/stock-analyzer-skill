@@ -124,14 +124,18 @@ python3 scripts/screener.py [options]
 
 选项：
 
-- `--strategy <策略>`：balanced/quality_value/growth_momentum/defensive/turning_point（默认 balanced）
+- `--strategy <策略>`：balanced/quality_value/growth_momentum/defensive/turning_point/ma_volume_momentum（默认 balanced）
 - `--sector <板块>`：板块名称，支持模糊匹配
 - `--top <N>`：返回前 N 个候选（默认 10）
 - `--codes <代码>`：自定义股票池（逗号分隔），优先于 --sector
+- `--full-market`：全市场模式（从 `data/all_stocks.json` 加载）
 - `--min-amount <万>`：最低成交额，单位万元（默认 5000）
 - `--min-cap <亿>`：最低总市值，单位亿元（默认 40）
 - `--exclude-loss`：剔除 EPS<=0 标的
-- `--json` / `-j`：JSON 格式输出
+- `--deadline <秒>`：整体任务超时（默认 1800s；环境变量 `STOCK_SCREENER_DEADLINE` 可覆盖；超时为 watchdog `os._exit(2)` 真终止，stdout 无部分结果）
+- `-q` / `--quiet`：静默模式，禁用进度条
+- `--json` / `-j`：JSON 格式输出（由 `scripts/common/cli_base.py::create_parser` 全局提供）
+- `--json-envelope`：JSON 输出加 `{data_quality, rows}` 信封；默认裸数组（向后兼容）
 
 示例：
 
@@ -157,6 +161,7 @@ python3 scripts/technical.py <code> [--quick] [--classify] [--no-chan] [--scale 
 - `--scale` / `-s <N>`：K线周期（240=日K, 60=60分钟, 30=30分钟, 15=15分钟, 5=5分钟，默认 240）
 - `--datalen <N>`：K线数量（默认 250）
 - `--market-index <CODE>`：市场环境参考指数（如 sh000001）
+- `--chip`：附加成本分布（筹码）：获利盘/套牢盘、主密集区、上方抛压（需额外取不复权 K 线）
 - `--json` / `-j`：JSON 格式输出
 
 示例：
@@ -189,11 +194,7 @@ python3 scripts/announcements.py 600989 reports          # 查研报
 python3 scripts/announcements.py 600989 -j              # JSON 输出
 ```
 
-示例：
-
-```bash
-python3 scripts/announcements.py SH600989
-```
+> 本脚本只接受纯数字代码（无 sh/sz 前缀）；带前缀会查不到数据。
 
 ### chip.py - 资金面（筹码）分析（v1.3.1 新增）
 
@@ -230,9 +231,14 @@ python3 scripts/stock.py <code> [选项]
 
 选项：
 
-- `<code>`：股票代码（如 sh600989）
+- `<code>`：股票代码（带 sh/sz/bj 前缀，如 sh600989）
 - `-j, --json`：JSON 格式输出
 - `--no-finance`：跳过财务拉取（加速模式）
+- `--no-technical`：跳过技术分析
+- `--no-chan`：跳过缠论分析
+- `--with-backtest`：附加近 60 日回测胜率
+- `--brief`：简要模式（一句话结论 + 关键数据 + 操作建议）
+- `--finance-periods <N>`：财务数据期数（默认 8 季）
 
 示例：
 
@@ -308,7 +314,17 @@ python3 scripts/stock.py sh600989 --no-finance  # 加速模式
 
 ### JSON 格式
 
-使用 `--json` 参数获取 JSON 格式输出，适合程序处理。
+使用 `-j` / `--json` 参数获取 JSON 格式输出，适合程序处理。该开关由 `scripts/common/cli_base.py::create_parser` 全局提供，多数顶层 CLI 脚本均支持。
+
+**OOS 验证字段契约**（`screener.py::_emit_json_with_validation` 与 `backtest/cli.py::_attach_validation` 透传）：凡涉及策略筛选/回测的 JSON，每行或顶层可带以下字段，程序化消费时必须判读而非只看总收益：
+
+| 字段 | 含义 |
+| :--- | :--- |
+| `_validation_status` | `in_sample` / `oos_verified`；单池一律 `in_sample`，≥2 池且全部达标才升级 |
+| `_validation_note` | 状态说明（样本数、达标情况等） |
+| `win_rate_pct` / `n_stocks` | 胜率与真实入池股票数（修复后取引擎回传的有效样本数，非请求数） |
+
+> 定位口径：策略外样本全部未达标时对外表述必须保留 `in_sample` 事实（见 `docs/positioning.md` §六依据），不得把样本内胜率当作收益承诺。
 
 ## 错误码与常见问题
 
@@ -343,15 +359,15 @@ python3 scripts/stock.py sh600989 --no-finance  # 加速模式
 
 ### `common/exceptions/silent_fallback.py` — 静默降级治理
 
-解决项目中 `except Exception:` 静默吞错导致业务失败不可观测的问题。提供：
+解决项目中 `except Exception:` 静默吞错导致业务失败不可观测的问题。**当前只有一个可用 API**：
 
-- `log_silent_fallback(location, exception, default_value, fallback_reason, extra_context)` — 直接调用，统一打 `logger.warning(..., extra={silent: True})`
-- `@silent_fallback("...", fallback_reason="...")` — 装饰器，捕获异常返回 `default_value` 并打 WARNING 日志
+- `log_silent_fallback(location, exception=None, *, default_value=None, fallback_reason="", extra_context=None)` — 直接调用，统一打 `logger.warning(..., extra={silent: True})`，便于 grep / 审计
+
+> ⚠️ **不要引用不存在的 API**：`@silent_fallback` 装饰器与 `SilentFallbackError` 类**未实现**（CLAUDE.md 关键抽象段明确说明；源码 `silent_fallback.py` 仅有 `log_silent_fallback` 一个定义）。旧版文档中的装饰器示例已删除。
 
 ```python
-from common.exceptions import log_silent_fallback, silent_fallback
+from common.exceptions import log_silent_fallback
 
-# 方式 1：函数调用
 try:
     result = compute_wacc()
 except Exception as e:
@@ -361,16 +377,13 @@ except Exception as e:
         fallback_reason="WACC 输入不可用 → DCF 该标的跳过",
     )
     result = None
-
-# 方式 2：装饰器
-@silent_fallback("data.helpers.batch_prefetch", fallback_reason="批量失败 → 整批空")
-def fetch_batch(code):
-    return fetcher(code)
 ```
+
+> 配套 CI lint：`python3 scripts/dev/lint_silent_excepts.py --strict` 校验 HIGH/MEDIUM 的 `except Exception` 是否显式调用了日志或 `log_silent_fallback`。
 
 ### `common/rate_limiter.py` — RateLimiter hardening
 
-v1.16.0 在 基础上新增 contextmanager 与 CircuitBreaker 编排：
+v1.16.0 在 per-provider 并发信号量与 429 指数退避基础上新增 contextmanager 与 CircuitBreaker 编排：
 
 - `RateLimiter.slot(provider)` — `@contextmanager` 强制 try/finally 释放信号量（解决 信号量泄漏）
 - `RateLimiter.is_provider_disabled(provider)` — 检查 provider 是否处于 429 退避窗口
@@ -425,4 +438,4 @@ class PortfolioManager:
         return _summary(self)
 ```
 
-剩余 CRUD/查询/导入导出方法（约 28 个）仍留 `manager.py`，完整拆分留待 v1.17.0。
+剩余 CRUD/查询/导入导出方法（约 28 个）仍留 `manager.py`；截至 v1.33.1 仍为**部分拆分**，`analytics.py` / `rebalance.py` 是 manager 的子模块入口，后续完整拆分尚无排期（原 v1.17.0 计划已过期）。

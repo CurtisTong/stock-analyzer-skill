@@ -1,5 +1,7 @@
 # Summary
 
+> 第一次来？按 [Introduction](./introduction.md) → [快速开始](./quick-start.md) → [实战演练](./walkthrough-600519.md) 走，30 分钟形成习惯。日常只用 `/portfolio health` 与 `/market quick` 两条命令。
+
 [Introduction](./introduction.md)
 
 ---

@@ -1,6 +1,6 @@
 # 策略验证方法论
 
-本文档定义 stock-analyzer-skill 项目策略胜率与回测结果的**验证等级**、**升级条件**与**重新校准时机**。CLAIM 与证据分离是项目长期未明示的承诺问题（ma_volume_momentum 71.4% 胜率被当作 CLAIM 宣传，但实际上是 5 只股票样本内拟合，CLAUDE.md:93 已自爆），本文确立分层验证体系。
+本文档定义 stock-analyzer-skill 项目策略胜率与回测结果的**验证等级**、**升级条件**与**重新校准时机**。CLAIM 与证据分离是项目长期未明示的承诺问题（ma_volume_momentum 71.4% 胜率一度被当作对外 CLAIM，但实际上是 5 只股票样本内拟合；CLAUDE.md 与 `scripts/strategies/registry.py:STRATEGY_VALIDATION` 均已标注警告），本文确立分层验证体系。
 
 > 数据字段映射类（旧 `docs/archive/designs/methodology.md`）已归档——v2.0.0 重构后字段定义不再适用，本文件专注验证逻辑。
 
@@ -22,7 +22,9 @@ win_rate_pct >= 50.0      # 胜率至少 ≥ 50%
 total_return_pct > 0      # 累计收益为正
 ```
 
-三条**同时满足**才能从 `in_sample` 升级到 `oos_verified`。任一条不满足即保持 `in_sample`，note 加"未达阈值，保持 in_sample"提示。
+三条**同时满足**才能从 `in_sample` 升级到 `oos_verified`。任一条不满足即保持 `in_sample`，note 点名未达标池并保留"保持 in_sample"提示。
+
+> **阈值只解决统计门槛，不解决独立性**。`evaluate_multi_pool()` 在 v1.31 起还会校验各池的 `universe_fingerprint`：两池若完全同码或高度重合（Jaccard ≥ 0.8 / 短哈希近似相同），即使各自指标达标也强制 `in_sample`——防止"同一批股票换 `pool_type` 跑两次"冒充双池验证。
 
 ### 双池联合判定（v1.21.1）
 
@@ -31,10 +33,18 @@ total_return_pct > 0      # 累计收益为正
 > 在 210 只 sector 池上全部为负（-31.7%~-44.5%）。选一个"对自己有利的池"
 > 即可刷出 oos_verified，单池验证无统计意义。
 >
-> 最新实测（2026-10-22，`data/strategy_oos_validation.json`）：balanced 双池
-> 均为负（large -1.68% / 胜率 42.9% / 50 只；default -4.64% / 35.7% / 55 只），
-> ma_volume_momentum 同样双双负收益（large -6.38% / 21.4%；default -16.06% /
-> 21.4%）——6 个策略当前全部保持 in_sample，与"立场默认怀疑"一致。
+> 最新实测（`data/strategy_oos_validation.json`；balanced 验证于 2026-11-03，
+> ma_volume_momentum 验证于 2026-10-22）：
+>
+> | 策略 | large 池 | default 池 | 状态 |
+> | --- | --- | --- | --- |
+> | balanced | -6.67% / 胜率 35.7% / 55 只 | -18.32% / 胜率 21.4% / 210 只 | in_sample |
+> | ma_volume_momentum | -6.38% / 胜率 21.4% / 50 只 | -16.06% / 胜率 21.4% / 55 只 | in_sample |
+>
+> 其余 4 个策略（quality_value / growth_momentum / defensive / turning_point）在 JSON 中
+> 无 OOS 记录，回落到 registry 默认 `in_sample`。
+> **结论：6 个策略当前全部保持 `in_sample`，且已有外样本结果均为负**——与"立场默认
+> 怀疑"一致。这些数字是历史回测的样本统计量，不是收益承诺，也不构成买卖依据。
 
 `scripts/strategies/oos_validation.py:evaluate_multi_pool` 要求**至少 2 个池**
 且**每个池**都满足 `evaluate_oos` 阈值才返回 `oos_verified`（v1.23.1 起：单池
@@ -49,14 +59,15 @@ python3 scripts/multi_stock_backtest.py --update-validation --pool-type large   
 # JSON 中已记录的全部池达标才升级 oos_verified，任一池未达标保持 in_sample
 ```
 
-JSON 结构：
+JSON 结构（以下为 `balanced` 当前真实记录的节选，**不是"已验证"示例**）：
 
 ```json
 {"balanced": {
-    "validation_status": "oos_verified",
+    "validation_status": "in_sample",
+    "validation_note": "双池 OOS 验证未全部达标（未达标池：default, large），保持 in_sample",
     "pools": {
-        "default": {"win_rate_pct": 58.5, "n_stocks": 210, "total_return_pct": 5.2},
-        "large":   {"win_rate_pct": 55.0, "n_stocks": 55,  "total_return_pct": 3.1}
+        "default": {"win_rate_pct": 21.4, "n_stocks": 210, "total_return_pct": -18.32, "universe_fingerprint": "ba9aaf62"},
+        "large":   {"win_rate_pct": 35.7, "n_stocks": 55,  "total_return_pct": -6.67, "universe_fingerprint": "600558a3"}
     }
 }}
 ```
@@ -71,7 +82,13 @@ data/strategy_oos_validation.json（git tracked，2026-10-22 起；此前文档�
 
 - 删 JSON 文件 → 所有策略回落到 `in_sample`（因文件被 git 跟踪，正确做法是 `git rm data/strategy_oos_validation.json`，提交后即回落）
 - 不写 JSON → `get_validation()` 永远返回 registry 默认值
-- 升级 = 多池联合判定默认路径（v1.23.1 起）：`multi_stock_backtest.py --update-validation` 单池只记录，**≥2 个池且全部达标**才升级 oos_verified
+- 升级 = 多池联合判定默认路径（v1.23.1 起）：`multi_stock_backtest.py --update-validation` 单池只记录，**≥2 个池、宇宙指纹独立且全部达标**才升级 oos_verified
+
+> **证据口径（投资专家视角）**：`in_sample` 不是"暂时没跑"的同义词，而是"仅在样本内拟合、
+> 未能证明可外推"的结论。回测胜率与收益受池构成、区间选择、幸存者偏差和参数过拟合影响；
+> 本项目用双池联合判定、宇宙指纹、最小样本数把闸门写进代码，但代码闸门只能降低自欺风险，
+> 不能把历史回测变成未来收益承诺。消费方看到 `_validation_status != "oos_verified"` 时，
+> 必须把数字当**诊断信息**而非**选股依据**。
 
 ## 重新校准时机
 
@@ -96,15 +113,15 @@ data/strategy_oos_validation.json（git tracked，2026-10-22 起；此前文档�
 
 **规则**：README / CHANGELOG / SKILL.md 顶部 banner 等"对外宣传位置"只能写以下三类内容：
 
-1. **机制类声明**："支持 6 策略 × 9 因子 × 35 fetcher"——可观察可验证
-2. **OOS 数字**：当且仅当 `validation_status == oos_verified` 时才允许写胜率/收益数字
-3. **结构类声明**："8 位活跃专家圆桌"——结构性事实（已合并底料来源链路见 experts/ARCHITECTURE.md）
+1. **机制类声明**："支持 6 策略 × 9 因子 × 37 个 fetcher 类（11 数据域）"——可观察可验证，与 `docs/product-architecture.md` 口径一致
+2. **OOS 数字**：当且仅当 `validation_status == oos_verified` 时才允许写胜率/收益数字；当前 6 个策略全部 `in_sample`，故对外不得引用任何策略胜率/收益
+3. **结构类声明**："8 位活跃专家圆桌（5 长 + 3 短）"——结构性事实；说"16 份专家人设"时必须同时注明"8 active + 8 legacy 合并底料"，**不得**说成"16 人圆桌/16 位活跃专家投票"（已合并底料来源链路见 [experts/ARCHITECTURE.md](../experts/ARCHITECTURE.md)）
 
 **禁止**：
 
 - ❌ 写"71.4% 胜率"等 in_sample 数字（71.4%/+6.39% 是 5 只股票样本内拟合，仅允许带 ⚠️ 样本内披露出现；README 从未写过此数字，相关去营销见 commit `57844b2`）
 - ❌ 写"3 分钟拿到 5 层分析"等 SLA 时长（CLAIM 已修复，见 commit `57844b2`；该 commit 仅移除 README "3 分钟"/"16 专家"营销文案，与 71.4% 无直接关系）
-- ❌ 写"16 份专家"等营销虚高（CLAIM 已修复，见 commit `dd96bf8`）
+- ❌ 写"16 人专家圆桌"/"16 位活跃专家投票"——16 是含 8 legacy 的**人设总数**，不是参与投票的人数（投票基数恒为 8）。允许的表述是"16 份人设（8 active + 8 legacy 合并底料）"，这也是 README 现行口径；`tests/unit/test_positioning_consistency.py::test_architecture_does_not_claim_sixteen_active` 锁住该约束。
 
 ## 校验链路
 
@@ -127,10 +144,12 @@ LLM caller / 用户 → 看到 in_sample 警告
 ### 第一次跑：建立 OOS 基线
 
 ```bash
-# 1. 跑 50+ 只股票外样本回测（首次需联网拉 K 线；缓存后离线可用）
-python3 scripts/multi_stock_backtest.py --update-validation
+# 1. 分别跑两个独立股票池（单池只记录、一律保持 in_sample；≥2 池且全部达标才可能升级）
+#    首次需联网拉 K 线；缓存后离线可用
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type default
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type large
 
-# 2. 查看哪些策略升级到 oos_verified
+# 2. 查看各策略当前的验证状态（按仓库现状应全部为 in_sample）
 python3 -c "
 import sys; sys.path.insert(0, 'scripts')
 from strategies import get_validation
@@ -142,7 +161,8 @@ for s in ['balanced', 'quality_value', 'growth_momentum', 'defensive', 'turning_
 ### 季度复盘：重新跑升级
 
 ```bash
-python3 scripts/multi_stock_backtest.py --update-validation  # 覆盖 JSON
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type default  # 覆盖 default 池记录
+python3 scripts/multi_stock_backtest.py --update-validation --pool-type large    # 覆盖 large 池记录
 git diff data/strategy_oos_validation.json                    # 复盘胜率漂移
 ```
 
@@ -151,14 +171,16 @@ git diff data/strategy_oos_validation.json                    # 复盘胜率漂�
 ```python
 from strategies import get_validation
 print(get_validation("balanced"))
-# {'validation_status': 'oos_verified', 'validation_note': '...',
-#  'win_rate_pct': 58.5, 'n_stocks': 50, 'validated_at': '2026-08-20T10:59:40', ...}
+# {'validation_status': 'in_sample',
+#  'validation_note': '双池 OOS 验证未全部达标（未达标池：default, large），保持 in_sample',
+#  'win_rate_pct': 35.7, 'n_stocks': 55, 'validated_at': '2026-11-03T09:23:48', ...}
 ```
 
 ### 回滚：清除 OOS 覆盖
 
 ```bash
-rm data/strategy_oos_validation.json   # 所有策略回到 in_sample 默认
+# JSON 是 git tracked 文件；用 git rm 让删除本身可审计，单纯 rm 会在工作区留下未跟踪删除
+git rm data/strategy_oos_validation.json && git commit -m "docs: 清除策略 OOS 覆盖，回落 in_sample"
 ```
 
 ## 关联文档
@@ -171,6 +193,7 @@ rm data/strategy_oos_validation.json   # 所有策略回到 in_sample 默认
 
 ## 历史
 
+- 2026-11-22：按仓库实测校正 OOS 数字（balanced / ma_volume_momentum 双池全负，均保持 `in_sample`），补齐宇宙指纹校验、`git rm` 回滚路径与"16 份人设 ≠ 16 人圆桌"口径
 - 2026-08-26：双池联合判定 + 自校准最小池，依据 `docs/archive/reviews/backtest-philosophy-review-2026-08-26.md`
 - 2026-08-20：本文初稿
 - 之前：`docs/archive/designs/methodology.md`（数据字段映射，已归档）

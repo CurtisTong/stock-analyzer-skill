@@ -4,6 +4,8 @@
 > 方式：7 个独立审查域并行静态审查 + 审查负责人对全部 P0/P1 与关键 P2 二次核实（read / 本地纯函数复现 / CLI 实测）。
 > 本次审查**未修改任何源码**。
 
+> **2026-11-22 产品专家复核注记**：本报告为 2026-11-21 审查快照，第 9 节修复记录已实施。复核确认 §4.5 的 `CLAUDE.md` 版本号条目已随发版修复（现为 v1.33.1 / 2026-11-21）；其余结论未逐条复验，作为历史证据原样保留。另：产品架构中的 fetcher 数量口径冲突（对外 37 / 源码实测 39）已上报 lead，由文档维护责任人在发版时统一，不在本审查报告中改写。
+
 ---
 
 ## 1. 结论摘要
@@ -175,7 +177,7 @@
 | 位置 | 问题 | 级别 |
 | :-- | :-- | :-- |
 | `scripts/data/__init__.py:225` + 全仓调用点 | 新加的 `get_kline(require_date=...)`（防止 TTL 内复用盘中/旧 K 线）**只有测试调用，生产路径零使用**；screener 仍静默复用不新鲜缓存。`scheduled_task.py:193` 注释仍称“命中缓存不比对末根日期” | P2 |
-| `CLAUDE.md:5` | 头部写 v1.23.1 / 2026-10-19，实际 package.json 为 **1.33.1**；`sync_version.py` 的 8 目标不含 CLAUDE.md，故门禁未捕获 | P3 |
+| `CLAUDE.md:5` | 头部曾写 v1.23.1 / 2026-10-19，实际 package.json 为 **1.33.1**；`sync_version.py` 的 8 目标不含 CLAUDE.md，故门禁未捕获（**2026-11-22 复核：已修复**，现为 v1.33.1 / 2026-11-21） | P3（已修复） |
 | `scripts/common/screener_watchdog.py:18` | 模块 docstring 示例调用 `wd.mark_done()`，实际 API 只有 `cancel()`；且“设事件后主线程抛异常退出”的旧设计描述与现在 `os._exit(2)` 实现矛盾 | P3 |
 | `scripts/common/exceptions/silent_fallback.py:6-14` | docstring 声称存在 `SilentFallbackError` 且 HIGH 风险抛异常，实际只有 `log_silent_fallback`，CLAUDE.md 也明确未实现 | P3 |
 

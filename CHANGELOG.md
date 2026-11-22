@@ -53,6 +53,16 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-11-22（投资 / 用户 / 产品三专家视角文档深度优化）
+
+### Docs
+
+- **投资专家视角**（methodology.md / docs/strategy-validation.md / docs/positioning.md / experts/*.md）：用 `data/strategy_oos_validation.json` 真实数据替换过期的 OOS 数字与虚构 `oos_verified` 示例，明确"全部 in_sample、外样本双池全负、非收益承诺"；补齐宇宙指纹校验、双池运行入口与多池联合判定闸门；新增「证据等级与偏差防护」章节（回测过拟合 / 幸存者偏差 / 样本量不足 / 选择性披露）；修复不存在的 `experts/yaml/industry_thresholds.yaml` 与失效案例报告链接；纠正 debate 长线 5 / 短线 3 人数、legacy 子分机制口径与「五层框架含第 6 层」结构矛盾。
+- **用户专家视角**（README.md / docs/quick-start.md / docs/user-guide.md / docs/tutorials/ / docs/src/*.md）：README 首屏补齐「适不适合我」判定；5 分钟上手改用实跑真实输出并清除占位符；数据源挂 / 网络断 / 代码错三类错误统一为「症状 / 根因 / 下一步」+ `init_pool.py --default` 兜底；含买卖 / 仓位结论处补齐风险提示；12 个 gitbook skill 页从存根改造为可独立决策的介绍页；纠正 user-guide 中端点定义位置与过期测试数字 / 版本示例。
+- **产品专家视角**（docs/product-architecture.md / docs/INDEX.md / docs/persona.md / docs/developer-guide.md / docs/api-reference.md / docs/scheduling.md / docs/code-review-2026-11-21.md）：架构事实核对（fetcher 双口径 37 对外 / 39 实测、CircuitBreaker 定义位置、11 数据域）；表格拆至 ≤5 列、决策流程改 mermaid；INDEX 文档数 41→81、版本与维护责任对齐；新增「添加新策略」「添加新专家」扩展路径；删除不存在的 `@silent_fallback` 装饰器示例，补齐 screener / stock CLI 与 OOS JSON 契约。
+- **交叉口径收尾**（lead）：README 速查表「16 份专家圆桌」→「8 位活跃专家圆桌」、footer 日期对齐 CHANGELOG；CLAUDE.md「跨 7 数据域」纠正为 11；positioning.md 版本行 v1.33.0→v1.33.1 并标注修订日期；fetcher 数量差异采用「对外 37 / 源码实测 39」双口径并在架构文档承担核对责任。
+- 验证：定位一致性测试 22 passed；版本同步门禁一致；326 条相对链接 0 失效；全量测试 3371 passed / 13 skipped（与基线一致，基线 2 项网络依赖用例为偶发波动）。
+
 ## [1.33.1] - 2026-11-09（市场宽度 0/0 视同整体失败：禁止用哨兵 0.5 冒充真实宽度）
 
 ### Fixed

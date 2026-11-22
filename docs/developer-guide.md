@@ -17,9 +17,11 @@ stock-analyzer-skill/
 ├── experts/                        # 16 份专家档案（8 active + 8 legacy）
 │   ├── buffett.md / lynch.md / soros.md / duan_yongping.md  # legacy
 │   ├── xu_xiang.md / zhao_laoge.md / chaogu_yangjia.md / zuoshou_xinyi.md  # legacy
-│   ├── value_anchor.md / topic_leader.md / emotion_tech.md  # 合并型 active
-│   ├── sector_specialist.md / institution.md / risk_manager.md  # 补盲区 active
-│   ├── momentum_trader.md          # 动量派 active
+│   ├── value_anchor.md / institution.md  # 合并型 legacy（v2.4.0 并入 value_institution）
+│   ├── topic_leader.md / emotion_tech.md  # 合并型 active
+│   ├── sector_specialist.md / risk_manager.md  # 补盲区 active
+│   ├── momentum_trader.md          # 动量派 active（v2.2.0）
+│   ├── value_institution.md        # 价值机构 active（v2.4.0，合并上两行 legacy 人设）
 │   ├── decide.md                   # 决策整合规则
 │   ├── vote_engine.py              # 投票引擎
 │   ├── registry.py                 # 专家注册表
@@ -33,7 +35,6 @@ stock-analyzer-skill/
 │   ├── portfolio-web/SKILL.md
 │   ├── portfolio-natural/SKILL.md
 │   ├── screener/SKILL.md
-│   ├── portfolio-web/SKILL.md
 │   ├── backtest/SKILL.md
 │   ├── research/SKILL.md
 │   ├── learn/SKILL.md
@@ -60,10 +61,10 @@ stock-analyzer-skill/
 │   ├── config/                     # 配置外部化
 │   │   ├── loader.py              # YAML 配置加载器
 │   │   ├── data_source.yaml       # 数据源端点
-│   │   ├── scoring.yaml           # 评分权重（含资金面因子，v1.3.1）
+│   │   ├── scoring.yaml           # 评分权重（含辅助因子）
 │   │   ├── limits.yaml            # 限流配置
-│   │   ├── industry_thresholds.yaml # 行业差异化阈值（v1.3.2 从 data/industry_thresholds.json 迁入）
 │   │   └── notification.yaml      # 通知通道配置
+│   │   # 行业阈值不在此目录：实际文件是 scripts/data/industry_thresholds.json
 │   ├── data/                       # 数据层
 │   │   ├── types.py               # 数据类型（含 goodwill/pledge_ratio，v1.3.1）
 │   │   ├── cache.py               # 兼容 shim（实际在 common/cache.py，v1.3.2）
@@ -246,7 +247,7 @@ A 股个股类型分类器。
 ### BaseFetcher - 数据源抽象基类
 
 ```python
-# scripts/common/__init__.py
+# scripts/common/fetcher_base.py（定义处；业务代码用 from common import BaseFetcher）
 from abc import ABC, abstractmethod
 
 class BaseFetcher(ABC):
@@ -270,7 +271,7 @@ class BaseFetcher(ABC):
 ### CircuitBreaker - 线程安全熔断器
 
 ```python
-# scripts/common/__init__.py
+# scripts/common/circuit_breaker.py（定义处；common/__init__.py 仅 re-export）
 class CircuitBreaker:
     """三态熔断器：CLOSED → OPEN → HALF_OPEN"""
 
@@ -284,7 +285,7 @@ class CircuitBreaker:
 ### DataFetcherManager - 多源故障转移
 
 ```python
-# scripts/common/__init__.py
+# scripts/common/fetcher_base.py（定义处）
 class DataFetcherManager:
     """按优先级尝试各数据源，自动故障切换。"""
 
@@ -323,7 +324,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 
 ## 数据源架构
 
-### 行情数据源（9 个）
+### 行情数据源（10 个 fetcher：5 直连 + 5 可选依赖；口径见 product-architecture.md §2.1）
 
 | 数据源                              | 用途                 | 编码  | 优先级 |
 | ----------------------------------- | -------------------- | ----- | ------ |
@@ -336,13 +337,15 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 | akshare                             | 实时行情             | UTF-8 | 3      |
 | tushare                             | 实时行情             | UTF-8 | 2      |
 | pytdx                               | 实时行情             | UTF-8 | 1      |
+| yfinance                            | 美股行情（可选依赖） | UTF-8 | —      |
 
-### K线数据源（8 个）
+### K线数据源（9 个 fetcher）
 
 | 数据源                         | 用途                | 周期 |
 | ------------------------------ | ------------------- | ---- |
 | 新浪 money.finance.sina.com.cn | 5/15/30/240 分钟    | ✅   |
 | 东财                           | 5/15/30/60/240 分钟 | ✅   |
+| 腾讯                           | 5/15/30/60/240 分钟 | ✅   |
 | efinance                       | 5/15/30/60/日       | ✅   |
 | akshare                        | 全周期              | ✅   |
 | baostock                       | 日/周/月            | ✅   |
@@ -350,13 +353,14 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 | tushare                        | 全周期              | ✅   |
 | yfinance                       | 港股/美股           | ✅   |
 
-### 财务数据源（3 个）
+### 财务数据源（2 个 fetcher）
 
-| 数据源                              | 用途     |
-| ----------------------------------- | -------- |
-| 东财 emweb.securities.eastmoney.com | 财务摘要 |
-| efinance                            | 财务数据 |
-| akshare                             | 财务数据 |
+| 数据源                              | 用途                       |
+| ----------------------------------- | -------------------------- |
+| 东财 emweb.securities.eastmoney.com | 财务摘要（fetcher）        |
+| akshare                             | 财务数据（fetcher，另有 `akshare_balance.py` 为字段补全器，非 fetcher） |
+
+> efinance 财务为可选直连接口，不计入 `BaseFetcher` 子类数。
 
 ### 资金面数据源（1 个，v1.3.1 新增）
 
@@ -400,7 +404,7 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 |------|:----:|------|
 | `name` | ✅ | 技能名称，须与目录名一致 |
 | `description` | ✅ | 触发条件和用途，≤ 250 字符 |
-| `version` | - | 与 `package.json` 主版本一致（默认 1.16.0） |
+| `version` | - | 与 `package.json` 主版本一致（当前 1.33.1，由 `scripts/dev/sync_version.py` 自动同步） |
 | `model` | - | `haiku`/`sonnet`/`opus`/`glm-5.2` 之一 |
 | `allowed-tools` | - | 工具白名单，**相对路径**（`./scripts/...`），禁止绝对路径 |
 | `disable-model-invocation` | - | 仅命令式 skill（`backtest`）设为 `true`：DSH 中从模型目录隐藏，仍可用 `/backtest` 显式调用 |
@@ -412,14 +416,16 @@ frontmatter 校验由 `tests/contracts/test_skill_metadata_sync.py`（121 项）
 
 ### 添加新数据源
 
-1. 在 `scripts/fetchers/` 下创建新模块，继承 `BaseFetcher`
-2. 实现 `fetch()` 方法，返回 dict/list 或 None
-3. 设置合适的 `priority`（越高越优先）
-4. 在 `scripts/fetchers/__init__.py` 中注册
+1. 在 `scripts/fetchers/<数据域>/` 下创建新模块，继承 `BaseFetcher`（行情域批量源可继承 `quote/_base_bulk.py::BaseBulkQuoteFetcher`）
+2. 实现 `fetch()` 方法，返回 dict/list 或 None；核心字段无效时返回 `None` 让 manager 切源，不要返回全 0 占位 dict
+3. 设置合适的 `priority`（越高越优先；`scripts/config/data_source.yaml` 可覆盖代码默认值）
+4. 在 `scripts/fetchers/__init__.py` 的对应 `get_<域>_fetchers()` 中注册：直连源直接 `fetchers.append(...)`，可选依赖源加入 `_try_import` 列表（见 `get_quote_fetchers()`）
+5. 在 `scripts/config/data_source.yaml` 补该源的 provider / priority / timeout——provider 名须与 YAML 键一致，否则配置静默失效
+6. 补单元测试（fetch 返回契约 + 熔断/降级路径）
 
 ```python
 # scripts/fetchers/my_custom_quote.py
-from scripts.common import BaseFetcher, http_get, get_circuit_breaker
+from common import BaseFetcher, http_get, get_circuit_breaker
 
 class MyCustomQuoteFetcher(BaseFetcher):
     def __init__(self):
@@ -445,6 +451,21 @@ class MyCustomQuoteFetcher(BaseFetcher):
 2. 实现因子计算逻辑
 3. 在 `scripts/strategies/registry.py` 中注册
 4. 更新权重配置 `scripts/config/scoring.yaml`
+
+### 添加新策略
+
+1. 在 `scripts/strategies/registry.py` 的 `STRATEGIES` 字典加入权重配置（5 主因子权重之和为 1.0），或运行时调用 `register_strategy(name, weights, label=...)`（同名默认拒绝覆盖，需 `replace=True`）
+2. 若引入新因子，先在 `scripts/strategies/factors/` 实现并在 `scripts/config/scoring.yaml` 配权
+3. 不走九因子加权的模式策略放 `scripts/strategies/patterns/`，在 registry 标注为模式策略
+4. 在 `STRATEGY_VALIDATION` 加默认条目（立场默认 `in_sample`），补 `tests/unit/test_oos_validation.py` 用例，并在 [strategy-validation.md](strategy-validation.md) 更新口径
+5. 冒烟：`python3 scripts/screener.py --strategy balanced --top 10` 跑通基线，再确认新策略名出现在 `list_strategies()` 输出中
+
+### 添加新专家
+
+1. 在 `experts/yaml/<name>.yaml` 新增人设，必须显式写 `active: true`（参与投票）或 `active: false`（legacy，已合并、不投票）
+2. `experts/registry.py` 注册；`experts/vote_engine.py` 在 debate 模式只调用 `active: true` 的人设
+3. 更新 `experts/README.md` 的人设表，保持"16 份人设 = 8 active + 8 legacy"口径：测试 `tests/unit/test_positioning_consistency.py::test_active_expert_count_is_eight` 硬断言 active 数为 8，新增 active 人设须同步调整该约束与对外表述（需产品专家确认）
+4. 合并型人设在 CHANGELOG 记录合并来源与权重
 
 ### 添加新技能
 

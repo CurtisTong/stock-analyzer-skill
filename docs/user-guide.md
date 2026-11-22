@@ -6,19 +6,25 @@
 
 ## 🎯 TL;DR · 核心 skill 一句话表
 
-| 你的目标                 | 命令                                  | 一句话价值                               |
-| ------------------------ | ------------------------------------- | ---------------------------------------- |
-| 🔍 找几只值得买的股票    | `/screener`                           | 6 策略 × 9 因子维度 → 候选池 + 跟踪清单  |
-| 📊 看今天大盘涨跌        | `/market quick`                       | 三大指数 + 板块 Top3 + 一句话策略        |
-| 💼 看看我的持仓          | `/portfolio`                          | 涨跌 + 板块集中度 + 风险预警 + 调仓建议  |
-| 🎯 分析一只股票          | `/stock <代码> [quick\|full\|debate]` | 单股 5 层分析 / 8 位专家圆桌 / 纯技术面 |
-| 🌐 某个板块怎么样        | `/sector <板块>`                      | 板块全景 + 标的对比 + 板块内筛选         |
-| 🔬 深度研究一只股票      | `/research <任务>`                    | 财务建模 + 排雷 + DCF + 投资建议         |
-| 🧪 验证选股策略          | `/backtest`                           | 胜率 + 收益 + 夏普 + 回撤 + 基准对比     |
-| 📚 学投资基础            | `/learn`                              | PE/ROE/MACD/均线/缠论 系统化学习路径     |
-| ❓ 不知道哪个命令         | `/stock-help`                         | 场景入口 + 全部命令一览                  |
+命令列都是**可直接复制**的示例（换成你关心的股票/板块即可）：
+
+| 你的目标              | 命令                                  | 一句话价值                              |
+| --------------------- | ------------------------------------- | --------------------------------------- |
+| 🔍 找几只值得关注的股票 | `/screener`                           | 6 策略 × 9 因子维度 → 候选池 + 跟踪清单 |
+| 📊 看今天大盘涨跌     | `/market quick`                       | 三大指数 + 板块 Top3 + 一句话策略       |
+| 💼 看看我的持仓       | `/portfolio health`                   | 涨跌 + 板块集中度 + 风险预警 + 调仓建议 |
+| 🎯 分析一只股票       | `/stock sh600519 quick`               | 单股 5 层分析 / 8 位专家圆桌 / 纯技术面 |
+| 🌐 某个板块怎么样     | `/sector 白酒 overview`               | 板块全景 + 标的对比 + 板块内筛选        |
+| 🔬 深度研究一只股票   | `/research financial 分析贵州茅台财务质量` | 财务建模 + 排雷 + DCF + 投资建议   |
+| 🧪 验证选股策略       | `/backtest --all`                     | 胜率 + 收益 + 夏普 + 回撤 + 基准对比    |
+| 📚 学投资基础         | `/learn 什么是PE`                     | PE/ROE/MACD/均线/缠论 系统化学习路径    |
+| ❓ 不知道哪个命令      | `/stock-help`                         | 场景入口 + 全部命令一览                 |
+
+> ⚠️ **风险提示**：本指南及所有输出示例中出现"买入 / 卖出 / 止损 / 仓位 / 目标价"等字样，均为演示，**仅供参考，不构成投资建议**。投资有风险，决策需谨慎。
 
 ## 🗺️ 4 个组合使用场景
+
+> **逐级加深，别跳级**：`quick`（3 分钟看结论）→ `full`（+板块与风险收益比）→ `debate`（+专家投票）→ `technical`（+指标体系）→ `research`（+财务建模）。每升一级只新增 1 个概念；不熟悉上一级时先别往下跳。
 
 ### 场景 A：自上而下选股（最常用）
 
@@ -27,10 +33,10 @@ market → sector → screener → stock → technical → portfolio
 ```
 
 1. `/market quick` — 了解市场状态（进攻 / 均衡 / 防守）
-2. `/sector <强势板块>` — 找当前资金偏好
-3. `/screener --sector <板块> --strategy quality_value` — 板块内筛选
-4. `/stock <候选股> quick` — 快速分析候选
-5. `/stock <候选股> technical` — 确认买点 / 止损位
+2. `/sector AI算力 overview` — 找当前资金偏好
+3. `/screener --sector AI算力 --strategy quality_value` — 板块内筛选
+4. `/stock sh600519 quick` — 快速分析候选
+5. `/stock sh600519 technical` — 确认买点 / 止损位
 6. `/portfolio` — 决定是否纳入持仓、仓位多少
 
 ### 场景 B：诊断现有持仓
@@ -40,8 +46,8 @@ portfolio → stock → technical
 ```
 
 1. `/portfolio health` — 持仓健康度（涨跌 + 板块集中度 + 风险）
-2. `/stock <持仓股> debate` — 听 8 位 active 专家辩论
-3. `/stock <持仓股> technical` — 确认技术面是否破位
+2. `/stock sh600519 debate` — 听 8 位 active 专家辩论
+3. `/stock sh600519 technical` — 确认技术面是否破位
 
 ### 场景 C：挖掘板块机会
 
@@ -50,8 +56,8 @@ market → sector → screener
 ```
 
 1. `/market` — 看今日板块 Top3 / Bot3
-2. `/sector <板块> overview` — 板块全景
-3. `/sector <板块> compare` — 板块内核心标的横向对比
+2. `/sector 白酒 overview` — 板块全景
+3. `/sector 白酒 compare` — 板块内核心标的横向对比
 
 ### 场景 D：深度研究单股
 
@@ -59,9 +65,9 @@ market → sector → screener
 stock debate → research financial → research report
 ```
 
-1. `/stock <代码> debate` — 8 位专家圆桌 + 最终方向
-2. `/research financial <任务>` — 财务建模 / 杜邦 / DCF
-3. `/research report <任务>` — 全维度投资研究报告
+1. `/stock sh600519 debate` — 8 位专家圆桌 + 最终方向
+2. `/research financial 分析贵州茅台财务质量` — 财务建模 / 杜邦 / DCF
+3. `/research report 研究贵州茅台，给一份完整投资报告` — 全维度投资研究报告
 
 > 想看"持仓再平衡"等更多流程？见下方 [完整使用流程](#完整使用流程自下而上--再平衡--研究报告) 段。
 
@@ -78,20 +84,20 @@ stock debate → research financial → research report
 
 ## 技能概览
 
-| Skill     | 命令                                                   | 用途         | 模式                              |
-| --------- | ------------------------------------------------------ | ------------ | --------------------------------- |
-| stock     | `/stock <代码或名称> [quick\|full\|debate\|technical]` | 单股分析     | 五层框架¹ + 专家圆桌²         |
-| market    | `/market [full\|quick\|intraday]`                      | 大盘复盘     | 指数+板块+风格+资金               |
-| sector    | `/sector <板块> [overview\|compare\|stock]`            | 板块分析     | 标的对比+多空博弈                 |
-| portfolio | `/portfolio [health\|rebalance\|compare]`              | 持仓健康检查 | 涨跌+支撑+风险预警                |
-| screener  | `/screener [init\|--sector 板块\|--strategy 策略]`     | 选股策略系统 | 多因子筛选+硬过滤³+候选池         |
-| research  | `/research [financial\|report] <任务>`                 | 深度研究     | 财务建模 / 市场研究 / 尽调 / 估值 |
-| backtest  | `/backtest [--strategy 策略] [--all]`                  | 策略回测     | 历史胜率+收益验证                 |
-| stock-help | `/stock-help`                                          | 使用说明     | 场景入口 + 显示所有可用 skills    |
-| stock-technical | `/stock <代码> technical`                     | 纯技术分析   | 均线/MACD/KDJ/BOLL/RSI/缠论/战法  |
-| portfolio-web | `/portfolio web`                              | Web 录入    | HTTP API :8765，浏览器/手机录入     |
-| portfolio-natural | 自然语言持仓操作                          | 持仓 NL 映射 | 我买了/减仓/破位止损 → 命令      |
-| learn      | `/learn <概念>`                                        | 投资学习     | PE/ROE/MACD/缠论 系统化学习路径     |
+| Skill     | 命令（可复制示例）                       | 用途         | 模式 / 更多选项                           |
+| --------- | ---------------------------------------- | ------------ | ----------------------------------------- |
+| stock     | `/stock sh600519 quick`                  | 单股分析     | 五层框架¹ + 专家圆桌²；另有 full / debate |
+| market    | `/market quick`                          | 大盘复盘     | 指数+板块+风格+资金；另有 full / intraday |
+| sector    | `/sector 白酒 overview`                  | 板块分析     | 标的对比+多空博弈；另有 compare / stock   |
+| portfolio | `/portfolio health`                      | 持仓健康检查 | 涨跌+支撑+风险预警；另有 rebalance        |
+| screener  | `/screener --strategy balanced --top 5`  | 选股策略系统 | 多因子筛选+硬过滤³+候选池；另有 init      |
+| research  | `/research financial 分析贵州茅台财务质量` | 深度研究   | 财务建模 / 市场研究 / 尽调 / 估值         |
+| backtest  | `/backtest --all`                        | 策略回测     | 历史胜率+收益验证；另有 --strategy / --days |
+| stock-help | `/stock-help`                            | 使用说明     | 场景入口 + 显示所有可用 skills            |
+| stock-technical | `/stock-technical sh600519`        | 纯技术分析   | 均线/MACD/KDJ/BOLL/RSI/缠论/战法          |
+| portfolio-web | `/portfolio web`                     | Web 录入     | HTTP API :8765，浏览器/手机录入           |
+| portfolio-natural | 自然语言持仓操作                  | 持仓 NL 映射 | 我买了/减仓/破位止损 → 命令               |
+| learn     | `/learn 什么是PE`                        | 投资学习     | PE/ROE/MACD/缠论 系统化学习路径           |
 
 > **术语说明**：
 >
@@ -100,6 +106,8 @@ stock debate → research financial → research report
 > - ³ **硬过滤**：排除 ST 股、低成交额（主板≥5000万、创业板/科创板≥3000万、北交所≥1000万）、低市值（主板≥40亿、创业板/科创板≥20亿、北交所≥10亿）标的
 > - ⁴ **缠论**：基于走势中枢和买卖点的技术分析方法
 > - ⁵ **本土战法**：A 股特色 K 线形态（如涨停板、连板、断板等）
+> - **PE（市盈率）**：股价 ÷ 每股盈利，粗略理解成"按当前利润多少年回本"，要和同行比才有意义。**ROE（净资产收益率）**：公司用股东的钱赚钱的效率，价值派最看重的单一指标。**PEG**：PE ÷ 盈利增速，通常 <1 视为增长与估值匹配。三者详见 [methodology.md](../methodology.md) 附录，或随时用 `/learn`。
+> - **胜率**：历史信号中盈利次数占比。⚠️ **样本内胜率不能外推**——目前多数策略的外样本状态仍为 `in_sample`，详见 [strategy-validation.md](strategy-validation.md)。
 
 ## 初始化股票池 (/screener init)
 
@@ -148,7 +156,7 @@ stock debate → research financial → research report
 
 ## 单股分析 (/stock)
 
-命令格式：`/stock <代码或名称> [quick|full|debate]`
+用法：`/stock sh600519 full`（把 sh600519 换成你的股票；模式可用 quick / full / debate）
 
 ### quick 模式（3 分钟快评）
 
@@ -206,7 +214,7 @@ stock debate → research financial → research report
 
 ## 板块分析 (/sector)
 
-命令格式：`/sector <板块> [overview|compare|stock]`
+用法：`/sector 白酒 overview`（把"白酒"换成你的板块；模式可用 overview / compare / stock）
 
 ### overview 模式（板块全景）
 
@@ -281,10 +289,10 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ### 参数说明
 
-- `--sector <板块>`：板块名称
-- `--strategy <策略>`：策略名称
-- `--top <N>`：返回前 N 个候选
-- `--codes <代码>`：自定义股票池（逗号分隔）
+- `--sector 白酒`：板块名称（换成你关心的板块）
+- `--strategy balanced`：策略名称（6 选 1，见下表）
+- `--top 5`：返回前 5 个候选（换成你想要的个数）
+- `--codes sh600519,sz000858`：自定义股票池（逗号分隔）
 - `--exclude-loss`：剔除亏损股
 - `--json`：JSON 格式输出
 
@@ -298,7 +306,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ## 纯技术分析 (/stock technical)
 
-命令格式：`/stock <代码> technical [--quick] [--classify]`
+用法：`/stock sh600519 technical`（可加 `--quick` 快速版或 `--classify` 分类版）
 
 ### 快速模式
 
@@ -326,7 +334,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ## 财务分析 (/research financial)
 
-命令格式：`/research financial <任务>`
+用法：`/research financial 分析贵州茅台财务质量`（换成你想研究的公司）
 
 用途：建模、预测、场景分析。
 
@@ -336,7 +344,7 @@ cp scripts/data/portfolio_example.json scripts/data/portfolio.json
 
 ## 投资研究 (/research report)
 
-命令格式：`/research report <任务>`
+用法：`/research report 研究贵州茅台，给一份完整投资报告`（换成你想研究的公司）
 
 用途：市场研究、尽调、估值。
 
@@ -403,13 +411,19 @@ python3 scripts/monitor.py --cleanup     # 清理过期缓存
 
 ### 数据源是否稳定？
 
-数据源依赖外部 API 端点稳定性。如遇变更，修改 `scripts/common/__init__.py` 中端点即可。
+```text
+【症状】某类数据（行情 / K 线 / 财务）突然全部为空或报错。
+【根因】上游 API 端点变更或限频。37 个 fetcher 会自动故障转移，但整类数据源同时变更时会一起失效。
+【下一步】① 先跑 python3 scripts/monitor.py --sources 看各源状态；② 再按下面「如何处理 API 变更」定位；③ 急用可切预置快照 python3 scripts/init_pool.py --default。
+```
 
 ### 如何处理 API 变更？
 
-1. 检查 `scripts/common/__init__.py` 中的端点配置
+端点**不在** `scripts/common/__init__.py`（那里只是 re-export），而在各 fetcher 源文件顶部常量（如 `scripts/fetchers/quote/tencent_quote.py` 的 `TENCENT_URL`）与 `scripts/config/data_source.yaml`：
+
+1. 定位端点：查 `scripts/config/data_source.yaml` 或在 `scripts/fetchers/` 下搜索 `URL`
 2. 更新端点 URL
-3. 验证数据格式是否变化
+3. 验证数据格式是否变化：`python3 scripts/quote.py sh600519`
 4. 更新字段映射
 
 ### 如何自定义选股策略？
@@ -422,9 +436,15 @@ python3 scripts/monitor.py --cleanup     # 清理过期缓存
 
 ### API 返回空数据怎么办？
 
-1. 检查网络连接：`curl -s "https://qt.gtimg.cn/q=sh600519"`
-2. 检查股票代码是否正确
-3. 尝试其他数据源：系统会自动 fallback 到备用数据源
+```text
+【症状】命令返回空表、"未找到标的"，或字段全是 N/A。
+【根因】三种常见原因：网络不通、股票代码前缀写错、上游临时限频——先按顺序排查前两种（都是输入/环境问题，不是分析结果）。
+【下一步】
+ ① 查网络：curl -s "https://qt.gtimg.cn/q=sh600519"，有行情文本即网络正常；
+ ② 查代码：sh600519（沪）/ sz000858（深），用 python3 scripts/quote.py sh600519 验证；
+ ③ 查源状态：python3 scripts/monitor.py --sources；系统会自动 fallback 到备用源；
+ ④ 仍为空：python3 scripts/init_pool.py --default 切预置快照。
+```
 
 ### 股票名称有多个匹配怎么办？
 

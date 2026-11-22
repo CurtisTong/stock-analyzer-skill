@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 37 个 fetcher 类（11 数据域）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 37 个 fetcher 类（对外口径，实测 39；11 数据域）跨 11 数据域故障转移（数量口径见 docs/product-architecture.md §2.1）。
 
 **板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
 

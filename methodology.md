@@ -91,8 +91,10 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 - 凯利公式：f = p - (1-p)/b（p=胜率, b=赔率）
 - 止损/止盈位设定
 
-### 第6层：行业差异化阈值（sector_specialist 视角）
+### 第6层（横切修正）：行业差异化阈值（sector_specialist 视角）
 
+> **层级说明**：本层不是与五层框架并列的第 6 个独立分析步骤，而是叠加在第 1-2 层之上的**行业化阈值修正**；对外仍称"五层分析框架"，避免把修正层误读成新增能力层。
+>
 > **重要**：上述第 1-2 层的统一阈值（ROE>15%、PE 估值未分行业）适用于全市场初筛。若启用 [experts/sector_specialist.md](experts/sector_specialist.md)，需按子行业差异化：
 
 | 行业类                 | ROE 门槛                          | 毛利率门槛 | PE 分位                                    | 增速门槛   | 其他                                   |
@@ -103,7 +105,7 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 | 周期（有色/化工/煤炭） | ≥ 行业 70% 分位                   | —          | < 历史 5 年 50% 分位                       | —          | 商品价格历史 50-80% 分位 + 股息率 ≥ 4% |
 | 金融（银行/券商/保险） | 银行 ≥ 10% / 券商 ≥ 行业 70% 分位 | —          | 银行 PB < 0.7（国有大行）/ < 1.0（股份行） | —          | 不良率（银行）/ 净资产规模（券商）     |
 
-> 配置文件：`scripts/data/industry_thresholds.json` 与 `experts/yaml/industry_thresholds.yaml` 同步。sector_specialist 通过 `experts/scoring/sector_specialist.py` 应用本表阈值。
+> **配置来源（勿引用不存在的路径）**：sector_specialist 的行业阈值硬编码在 `experts/scoring/sector_specialist.py` 的 `_SECTOR_THRESHOLDS`（5 行业类 + default），不在 `experts/yaml/` 下——该目录只有专家人设 yaml，没有 `industry_thresholds.yaml`。`scripts/data/industry_thresholds.json` 是**另一套**配置，由 `scripts/strategies/thresholds.py` 供 screener 因子评分使用；两者用途不同，不要混称为"同步"。
 
 ## 三、专家讨论模式（16 份专家人设：8 active + 8 legacy）
 
@@ -131,7 +133,7 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 
 > legacy 4 人已合并入 `topic_leader`（徐翔+赵老哥）与 `emotion_tech`（养家+作手新一）。
 
-### v2.1.0 + v2.2.0 + v2.4.0 扩展 8 人（active=True，补盲区）
+### v2.1.0 + v2.2.0 + v2.4.0 扩展 6 人（active=True，补盲区）
 
 | 专家         | 风格              | 核心逻辑                            | 档案                                                 | 引入版本 |
 | ------------ | ----------------- | ----------------------------------- | ---------------------------------------------------- | :------: |
@@ -143,6 +145,8 @@ curl -s "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_Mar
 | 价值机构锚   | 价值+机构（合并） | value_anchor + institution 合并     | [value_institution.md](experts/value_institution.md) |  v2.4.0  |
 
 > v2.4.0 将 `value_anchor`（巴菲特 0.55 + 段永平 0.45）与 `institution`（高瓴/红杉框架）合并为 `value_institution`，两者转为 legacy。
+
+> **active 集口径**：2 位独立保留（lynch / soros）+ 6 位扩展 = **8 位 active**，分组为长线 5（lynch、soros、value_institution、sector_specialist、risk_manager）+ 短线 3（topic_leader、emotion_tech、momentum_trader）。投票基数恒为 8，legacy 8 人不参评，详见 [experts/decide.md §1.2](experts/decide.md#12-分组计票) 与 [experts/ARCHITECTURE.md](experts/ARCHITECTURE.md)。
 
 > 完整权重与 veto 条件见 `experts/yaml/*.yaml`；与本表对齐的代码实现见 `experts/scoring/<name>.py`。
 
@@ -330,6 +334,27 @@ python3 scripts/screener.py --codes sh600989,sz000807,300476 --strategy growth_m
 python3 scripts/screener.py --strategy defensive --exclude-loss --json
 ```
 
+### 8. 证据等级与偏差防护（投资专家必读）
+
+> 选股策略与专家打分给出的是**候选与视角**，不是收益承诺。下表定义什么数字可以被写进对外材料，完整规则见 [docs/strategy-validation.md](docs/strategy-validation.md)。
+
+| 证据等级 | 代码判定 | 允许的表述 |
+| --- | --- | --- |
+| `in_sample`（默认） | 仅样本内拟合，或单池 / 未达标池 OOS | 只写机制与结构；引用数字必须带 ⚠️ 样本内披露，不得写成"已验证" |
+| `oos_verified` | ≥2 个独立池全部达标 | 可引用外样本数字，须同时标注池型、样本数与验证日期 |
+| `unknown` | 策略未在 registry 注册 | 不引用任何数字 |
+
+**偏差防护清单**（代码闸门 + 使用纪律）：
+
+| 偏差类型 | 防护机制 | 残余风险 / 使用纪律 |
+| --- | --- | --- |
+| 回测偏差与过拟合 | 双池联合判定（单池一律 `in_sample`）+ 宇宙指纹防"同码换名重跑" | 参数仍在样本内调过；达标不等于未来可复制 |
+| 幸存者偏差 | 硬过滤剔除 ST / 退市风险，池为时点快照 | 当前池不含已退市样本，不能由此推出长期收益 |
+| 样本量不足 | `evaluate_oos` 要求 n_stocks ≥ 30；自校准链 `MIN_POOL_SIZE = 30` | 小池回测无区分度，≤3 只的历史记录已废弃 |
+| 选择性披露 | CLAIM 与证据分离；当前 6 策略全部 `in_sample` | 只报赢的池/窗口是违规；负结果同样要披露 |
+
+> **现状披露**：ma_volume_momentum 的 71.4% 胜率 / +6.39% 平均收益为 5 只股票**样本内拟合**；其外样本双池为 -6.38%（large）/ -16.06%（default），胜率均 21.4%。任何"策略已验证"的说法都与仓库数据冲突。定位口径见 [docs/positioning.md](docs/positioning.md)。
+
 ## 七、数据获取与开发工具
 
 > 数据源 API 字段说明见 [`docs/api-reference.md`](docs/api-reference.md)；代码结构与模块用法见 [`docs/developer-guide.md`](docs/developer-guide.md)；测试框架见 [`tests/FRAMEWORK.md`](tests/FRAMEWORK.md)。本章 v1.1.0 版本内容已迁移至上述文档，避免多处维护漂移。
@@ -338,7 +363,7 @@ python3 scripts/screener.py --strategy defensive --exclude-loss --json
 
 | 命令                                        | 用途     | 模式                                          |
 | ------------------------------------------- | -------- | --------------------------------------------- |
-| `/stock <标的> [quick\|full\|debate]`       | 个股分析 | quick=3分钟, full=五层, debate=专家辩论       |
+| `/stock <标的> [quick\|full\|debate]`       | 个股分析 | quick=精简输出, full=五层完整, debate=专家辩论 |
 | `/portfolio [health\|rebalance\|compare]`   | 持仓检查 | health=健康检查, rebalance=调仓, compare=对比 |
 | `/market [full\|quick\|intraday]`           | 大盘复盘 | full=完整, quick=快评, intraday=分时          |
 | `/sector <板块> [overview\|compare\|stock]` | 板块分析 | overview=全景, compare=对比, stock=个股       |
@@ -353,7 +378,7 @@ python3 scripts/screener.py --strategy defensive --exclude-loss --json
 6. 高赔率≠无风险：仍需止损纪律
 7. 防御仓位（黄金/低估值金融）是组合压舱石
 8. 科技仓位不能为零，至少5-8%
-9. **冰点二元语义**（养家）：冰点既是"情绪退潮极端"（触发 [experts/vote_engine.py](experts/vote_engine.py) 中短线组 ×0.7 降权），也是"机会起爆点"（不降权 + 标注"冰点机会"）；权威定义见 [experts/chaogu_yangjia.md](experts/chaogu_yangjia.md) §决策逻辑（冰点判定），其余文件交叉引用此定义。
+9. **冰点二元语义**（养家）：冰点既是"情绪退潮极端"（触发 [experts/vote_engine.py](experts/vote_engine.py) 中短线组 ×0.7 降权），也是"机会起爆点"（不降权 + 标注"冰点机会"）；权威定义见 [experts/chaogu_yangjia.md](experts/chaogu_yangjia.md) §决策逻辑（冰点判定）——该档案属 legacy 底料，v2.1.0 已并入 `emotion_tech`，生产路径由合并型专家承载，其余文件交叉引用此定义。
 
 
 ## 附录、术语速查表
@@ -384,7 +409,7 @@ python3 scripts/screener.py --strategy defensive --exclude-loss --json
 
 ## 十、案例复盘
 
-> 案例复盘汇总见 [`data/reports/202506_Stock_Analysis_Summary.md`](data/reports/202506_Stock_Analysis_Summary.md)（含 7 只个股分析、评级排序、风险识别模式、后续跟踪）。本章原为 2026年6月时效性内容，已移至 reports 归档，避免「今日市场特征」类信息常驻方法论文档。
+> 2025-06 的 7 只个股案例集已随 docs/ 分层归档移除，`data/reports/` 目录当前不存在，旧链接 `data/reports/202506_Stock_Analysis_Summary.md` 已失效——不要再引用。目前可复核的定量复盘见 [backtest-philosophy-review-2026-08-26.md](docs/archive/reviews/backtest-philosophy-review-2026-08-26.md)（6 策略 × 3 窗口 × 2 池 + walk-forward OOS）。保留本节的目的是避免「今日市场特征」类时效性信息常驻方法论文档。
 
 ## 十一、测试框架
 
