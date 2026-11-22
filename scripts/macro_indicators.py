@@ -259,12 +259,30 @@ def _eastmoney_treasury_10y() -> tuple[float, str] | None:
 _CBOE_VIX_URL = "https://cdn.cboe.com/api/global/delayed_quotes/quotes/_VIX.json"
 
 
-def _cboe_vix() -> tuple[float, str] | None:
+def _cboe_payload_is_dirty(data: dict) -> bool:
+    """CBOE _VIX.json 脏数据判定：现价与昨收相同，却报非 0 涨跌幅。
+
+    真样本（2026-11-22 20:48 实抓）：``current_price == prev_day_close == 35.89``
+    却报 ``price_change_percent = +20.7579``，反推昨收应≈29.72 —— 字段自相矛盾。
+    命中时整条报价不可用（现价、昨收、涨跌全部丢弃），不能只标 warn 继续用。
+    任一字段缺失或类型异常不判脏，按现有「缺字段→不可用」路径处理。
+    """
+    try:
+        cur, prev, chg = data.get("current_price"), data.get("prev_day_close"), data.get("price_change_percent")
+        if cur is None or prev is None or chg is None:
+            return False
+        return abs(float(cur) - float(prev)) < 1e-9 and abs(float(chg)) > 1e-9
+    except (TypeError, ValueError):
+        return False
+
+
+def _cboe_vix() -> tuple[float | None, str | None, bool] | None:
     """VIX 指数点（CBOE 官方延迟报价，delay_minutes=15）。
 
-    返回 ``(value, 原始报价时间 last_trade_time)``，时间保持美东本地原样，
+    返回 ``(value, 原始报价时间 last_trade_time, dirty)``，时间保持美东本地原样，
     由调用方按美东时区做新鲜度断言并换算北京。缺 last_trade_time 时返回 None，
-    不用顶层 timestamp 顶替（那是报文生成时间）。失败返回 None，不抛。
+    不用顶层 timestamp 顶替（那是报文生成时间）。dirty=True 表示报文内部自相矛盾，
+    调用方必须整字段丢弃。失败返回 None，不抛。
     """
     try:
         import urllib.request
@@ -274,12 +292,12 @@ def _cboe_vix() -> tuple[float, str] | None:
             headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.cboe.com/"},
         )
         raw = urllib.request.urlopen(req, timeout=8).read().decode("utf-8", errors="replace")
-        payload = json.loads(raw).get("data") or {}
-        val = payload.get("current_price")
-        quote_ts = payload.get("last_trade_time")
+        data = json.loads(raw).get("data") or {}
+        val = data.get("current_price")
+        quote_ts = data.get("last_trade_time")
         if val is None or not quote_ts:
             return None
-        return float(val), str(quote_ts)
+        return float(val), str(quote_ts), _cboe_payload_is_dirty(data)
     except Exception as e:
         log_silent_fallback("macro_indicators._cboe_vix", e)
         return None
@@ -567,32 +585,49 @@ def fetch_vix() -> dict | None:
     source = "yfinance"
     as_of = datetime.now().isoformat()
     extra: dict = {}
+    dirty_result: dict | None = None  # 脏数据整字段丢弃的信号，交给 fetch_all 标 degraded
     if val is None:
         # 兜底 1：CBOE 官方延迟报价（指数点；延迟 15 分钟，必须显式标注）
         cboe = _cboe_vix()
         if cboe is not None:
-            cboe_val, quote_ts = cboe
+            cboe_val, quote_ts, cboe_dirty = cboe
+            if cboe_dirty:
+                # 脏数据（current==prev 却报非 0 涨跌）：整字段丢弃，绝不拿它算涨跌或进卡，
+                # 也不能静默降级到腾讯 21.67 旧值冒充。只回传一个带 dirty 标记的不可用结果。
+                dirty_result = {
+                    "value": None,
+                    "source": "cboe_delayed",
+                    "symbol": "^VIX",
+                    "dirty": True,
+                    "dirty_reason": "current_price==prev_day_close 但 price_change_percent!=0",
+                    "quote_time_local": quote_ts,
+                }
+                cboe_val = None
             try:
                 quote_utc = parse_quote_time(quote_ts, source_tz=_ET)
             except StaleDataError as e:
                 log_silent_fallback("macro_indicators.fetch_vix.cboe_no_quote_time", e)
                 cboe_val = None  # 无原始报价时间 → 不可用，禁止用报文生成时间顶替
             else:
-                val = cboe_val
-                source = "cboe_delayed"
-                # as_of 用真实报价时间换算北京（带 +08:00），不是抓取时刻
-                as_of = quote_utc.astimezone(_BEIJING).isoformat()
-                extra = {
-                    "delay_minutes": 15,
-                    "quote_time_field": "last_trade_time",
-                    "quote_time_exchange": "America/New_York",
-                    "quote_time_local": quote_ts,
-                }
-                try:
-                    assert_fresh(quote_ts, max_age=VIX_MAX_AGE_SECONDS, source_tz=_ET, label="vix.cboe")
-                except StaleDataError as e:
-                    extra["stale"] = True
-                    extra["stale_reason"] = str(e)
+                if not cboe_dirty:
+                    val = cboe_val
+                    source = "cboe_delayed"
+                    # as_of 用真实报价时间换算北京（带 +08:00），不是抓取时刻
+                    as_of = quote_utc.astimezone(_BEIJING).isoformat()
+                    extra = {
+                        "delay_minutes": 15,
+                        "quote_time_field": "last_trade_time",
+                        "quote_time_exchange": "America/New_York",
+                        "quote_time_local": quote_ts,
+                    }
+                    try:
+                        assert_fresh(quote_ts, max_age=VIX_MAX_AGE_SECONDS, source_tz=_ET, label="vix.cboe")
+                    except StaleDataError as e:
+                        extra["stale"] = True
+                        extra["stale_reason"] = str(e)
+    if dirty_result is not None:
+        # 脏报文整字段丢弃后不再降级到腾讯/旧快照，避免「标 degraded 但照出结论」复发
+        return dirty_result
     if val is None:
         # 兜底 2：腾讯 usVIX（指数点，与 ^VIX 同口径），必须带报文自带日期
         tencent_val, tencent_ts = _tencent_us_index_get_with_ts("^VIX")
@@ -952,6 +987,10 @@ def fetch_all() -> dict:
         for key, val in section.items():
             if val is None:
                 degraded.append(f"{section_name}.{key}")
+            elif isinstance(val, dict) and val.get("dirty"):
+                # 脏数据整字段已丢弃，值不可用；同时留 dirty 标记供溯源
+                degraded.append(f"{section_name}.{key}")
+                degraded.append(f"{section_name}.{key}_dirty")
             elif isinstance(val, dict) and val.get("stale"):
                 # 过期但有原始报价时间：值可用，结论必须降级
                 degraded.append(f"{section_name}.{key}_stale")

@@ -75,7 +75,8 @@ class TestVixCboe:
             },
         }
         monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen(json.dumps(payload)))
-        assert mi._cboe_vix() == (22.5, "2026-11-19T14:39:58")
+        # 无 prev_day_close/price_change_percent 字段 → 不判脏，dirty=False
+        assert mi._cboe_vix() == (22.5, "2026-11-19T14:39:58", False)
 
     def test_missing_field_returns_none(self, monkeypatch):
         monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen(json.dumps({"data": {}})))
@@ -114,7 +115,7 @@ class TestFetchChains:
 
     def test_vix_falls_back_to_cboe_with_delay_marker(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
-        monkeypatch.setattr(mi, "_cboe_vix", lambda: (22.42, "2026-11-19T14:46:24"))
+        monkeypatch.setattr(mi, "_cboe_vix", lambda: (22.42, "2026-11-19T14:46:24", False))
         monkeypatch.setattr(
             mi, "_tencent_us_index_get_with_ts", lambda sym: pytest.fail("CBOE 成功时不应再问腾讯")
         )

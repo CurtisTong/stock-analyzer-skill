@@ -52,7 +52,8 @@ class TestCboeQuoteTime:
             return _Resp(CBOE_RAW)
 
         monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
-        assert mi._cboe_vix() == (35.89, QUOTE_TS)
+        # CBOE_RAW 是真实脏报文（current==prev 却报 +20.76%），dirty=True 必须被带回
+        assert mi._cboe_vix() == (35.89, QUOTE_TS, True)
         assert seen["url"] == mi._CBOE_VIX_URL
         assert seen["referer"] == "https://www.cboe.com/"
 
@@ -61,6 +62,54 @@ class TestCboeQuoteTime:
         monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _Resp(payload))
         # 有值但没有报价时间 → 不可用；绝不拿顶层 timestamp 顶替
         assert mi._cboe_vix() is None
+
+
+class TestCboeDirtyGuard:
+    def test_real_dirty_payload_is_flagged(self):
+        # 2026-11-22 20:48 真实报文：current==prev==35.89 却报 +20.7579%
+        assert mi._cboe_payload_is_dirty(CBOE_RAW["data"]) is True
+
+    def test_clean_payload_not_flagged(self):
+        clean = dict(CBOE_RAW["data"], prev_day_close=29.72)
+        assert mi._cboe_payload_is_dirty(clean) is False
+
+    def test_missing_field_not_flagged(self):
+        # 缺字段走「缺字段→不可用」路径，不判脏（避免误伤）
+        assert mi._cboe_payload_is_dirty({"current_price": 35.89}) is False
+
+    def test_fetch_vix_discards_dirty_field_and_marks_dirty(self, monkeypatch):
+        # 端到端：脏报文进来，值整字段丢弃（None），带 dirty 标记，不降级到腾讯旧值
+        self_isolate = TestFetchVixFreshness._isolate
+        self_isolate(monkeypatch)
+        monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=None: _Resp(CBOE_RAW))
+        monkeypatch.setattr(mi, "_yfinance_get", lambda symbol: None)
+        monkeypatch.setattr(
+            mi,
+            "_tencent_us_index_get_with_ts",
+            lambda symbol: (_ for _ in ()).throw(AssertionError("脏数据不得降级到腾讯")),
+        )
+        out = mi.fetch_vix()
+        assert out is not None and out["dirty"] is True
+        assert out["value"] is None
+        assert out["quote_time_local"] == QUOTE_TS
+        assert "current_price==prev_day_close" in out["dirty_reason"]
+
+    def test_fetch_all_reports_vix_dirty_and_unavailable(self, monkeypatch):
+        fetchers = [
+            "fetch_treasury_10y", "fetch_usd_index", "fetch_usd_cny", "fetch_gold",
+            "fetch_brent_oil", "fetch_wti_oil", "fetch_lithium", "fetch_margin_total",
+            "fetch_if_basis", "fetch_ic_basis", "fetch_ih_basis", "fetch_erp_sh300",
+        ]
+        for name in fetchers:
+            monkeypatch.setattr(mi, name, lambda: None)
+        monkeypatch.setattr(mi, "fetch_vix", lambda: {
+            "value": None, "dirty": True, "source": "cboe_delayed", "symbol": "^VIX",
+            "dirty_reason": "current_price==prev_day_close 但 price_change_percent!=0",
+        })
+        out = mi.fetch_all()
+        degraded = out["data_quality"]["degraded_fields"]
+        assert "macro.vix_dirty" in degraded
+        assert "macro.vix" in degraded  # 值已丢弃，不可用
 
 
 class TestFetchVixFreshness:
@@ -74,7 +123,7 @@ class TestFetchVixFreshness:
     def test_cboe_as_of_is_quote_time_and_weekend_is_marked_stale(self, monkeypatch):
         self._isolate(monkeypatch)
         monkeypatch.setattr(freshness, "_utcnow", lambda: WEEKEND_CHECK_UTC)
-        monkeypatch.setattr(mi, "_cboe_vix", lambda: (35.89, QUOTE_TS))
+        monkeypatch.setattr(mi, "_cboe_vix", lambda: (35.89, QUOTE_TS, False))
         out = mi.fetch_vix()
         assert out["value"] == 35.89
         assert out["source"] == "cboe_delayed"
@@ -87,7 +136,7 @@ class TestFetchVixFreshness:
     def test_fresh_cboe_quote_not_marked_stale(self, monkeypatch):
         self._isolate(monkeypatch)
         monkeypatch.setattr(freshness, "_utcnow", lambda: FRESH_UTC)
-        monkeypatch.setattr(mi, "_cboe_vix", lambda: (35.89, QUOTE_TS))
+        monkeypatch.setattr(mi, "_cboe_vix", lambda: (35.89, QUOTE_TS, False))
         out = mi.fetch_vix()
         assert out["as_of"] == "2026-11-21T05:15:01+08:00"
         assert "stale" not in out
