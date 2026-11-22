@@ -910,6 +910,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1395,6 +1396,54 @@
 - **readme**: lead with the daily portfolio and market entries
 - **stock**: add a dedicated quick-mode report template
 - **positioning**: establish single source of truth and drop unverified claims
+
+### Added
+- **scripts**: 添加 DeepSeek Harness 技能支持
+- **sched**: 注册 08:45 取数探针并补槽位归属表
+- **data**: get_kline 支持 require_date，区分「数据没到」与「没有数据」
+- **quote**: 美股指数接到腾讯源，us:^gspc 不再依赖 yfinance/雪球
+- **sched**: 新增调度基础设施 is_trading_day 与心跳 runner（P0）
+- **research**: announcements/events 接入数据完整性信封
+- **scripts**: 数据完整性降级改行级计数
+- **scripts**: 记录胜出数据源，首行显示真实 provider
+- **backtest**: 回测结果接入数据完整性信封
+- **ci**: 静默吞错 lint 全仓清零，CI 改为一律阻断
+- **sector**: sector/technical 接入数据完整性信封
+- **ci**: 静默吞错 lint 支持分批目录阻断并清零第一批
+- **market**: quote/kline 接入数据完整性信封
+- **data**: 新增板块语义扫描工具并修正 12 处归类错配
+- **scripts**: 加数据完整性信封，降级时禁止仓位建议
+- **data**: tag sector confidence and PE percentile caliber
+- **experts**: attach an evidence chain to every debate vote
+- **portfolio**: make health default output a one-screen summary
+
+### Documentation
+- 深度优化投资用户产品三专家视角项目文档
+- 记录整体代码审查与修复
+- **skills**: 写清 data_quality 与 degraded_fields 的关系
+- **readme**: lead with the daily portfolio and market entries
+- **stock**: add a dedicated quick-mode report template
+- **positioning**: establish single source of truth and drop unverified claims
+
+### Other
+- merge: 合并远程 CHANGELOG 自动更新
+- merge: 合并 origin/feat/sched-runner
+- merge: 合并 origin/feat/kline-require-date
+- merge: 合并 origin/feat/us-index-tencent
+- merge: 合并 origin/fix/health-tests（内容已随 release 集成）
+- Merge remote-tracking branch 'gh/fix/log-dedupe' into rel2
+- Merge remote-tracking branch 'gh/chore/factor-ic-untracked' into rel2
+- Merge remote-tracking branch 'gh/fix/sector-semantics' into rel2
+- Merge remote-tracking branch 'gh/fix/macro-extra-sources' into rel2
+- Merge remote-tracking branch 'gh/fix/macro-sina-fallback' into rel2
+- Merge remote-tracking branch 'gh/ci/coverage-gates' into rel2
+- Merge remote-tracking branch 'gh/feat/p0-4c-strict-batching' into rel2
+- Merge remote-tracking branch 'gh/feat/p0-4a-data-quality' into rel2
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- v1.33.0 — positioning convergence and reviewable evidence
+- Merge CI auto CHANGELOG update (d12f65b)
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
