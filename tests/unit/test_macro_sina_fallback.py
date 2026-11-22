@@ -11,9 +11,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 
 import macro_indicators as mi
+from common import freshness
 
 
 @pytest.fixture(autouse=True)
@@ -118,15 +121,17 @@ class TestVixFallback:
     def test_yfinance_fails_falls_back_to_tencent(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
         monkeypatch.setattr(mi, "_cboe_vix", lambda: None)  # CBOE 不可用 → 落到腾讯
-        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: 21.67)
+        monkeypatch.setattr(mi, "_tencent_us_index_get_with_ts", lambda sym: (21.67, "2026-11-19T14:46:24"))
+        monkeypatch.setattr(freshness, "_utcnow", lambda: datetime(2026, 11, 19, 20, 0, tzinfo=timezone.utc))
         out = mi.fetch_vix()
         assert out["value"] == 21.67
         assert out["source"] == "tencent_us_index"
+        assert out["as_of"] == "2026-11-20T03:46:24+08:00"
 
     def test_both_fail_returns_none(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
         monkeypatch.setattr(mi, "_cboe_vix", lambda: None)
-        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: None)
+        monkeypatch.setattr(mi, "_tencent_us_index_get_with_ts", lambda sym: (None, None))
         assert mi.fetch_vix() is None
 
     def test_tencent_unmapped_symbol_returns_none(self):

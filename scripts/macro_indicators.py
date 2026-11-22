@@ -54,6 +54,13 @@ SNAPSHOT_TTL_SECONDS = 3600
 
 from common.cli_base import create_parser, handle_errors
 from common.exceptions.silent_fallback import log_silent_fallback
+from common.freshness import (
+    BEIJING as _BEIJING,
+)
+from common.freshness import (
+    ET as _ET,
+)
+from common.freshness import StaleDataError, assert_fresh, parse_quote_time
 
 
 def _load_snapshot() -> dict:
@@ -242,41 +249,55 @@ def _eastmoney_treasury_10y() -> tuple[float, str] | None:
         return None
 
 
-# CBOE 官方延迟报价（307 → cdn-api，urllib 默认跟随）
-# data.current_price=现价、data.close=昨收、timestamp 为美东时间；**延迟 15 分钟**
+# CBOE 官方延迟报价（307 → cdn-api，urllib 默认跟随）；无 Referer 实测 403。
+# 字段口径（2026-11-22 20:48 实测原始报文）：
+#   data.current_price   = 现价（指数点）
+#   data.last_trade_time = 真实报价时间，美东本地 naive（如 2026-11-20T16:15:01）
+#   顶层 timestamp       = 报文生成时间（UTC），**不是报价时间**，禁止用作 as_of
+#   data.prev_day_close  = 与 close 同为 35.89，但 change=+20.76% 反推昨收应≈29.72，
+#                          该字段不可靠，禁止用它算涨跌
 _CBOE_VIX_URL = "https://cdn.cboe.com/api/global/delayed_quotes/quotes/_VIX.json"
 
 
 def _cboe_vix() -> tuple[float, str] | None:
     """VIX 指数点（CBOE 官方延迟报价，delay_minutes=15）。
 
-    返回 (value, 报价时间)；失败返回 None，不抛。
+    返回 ``(value, 原始报价时间 last_trade_time)``，时间保持美东本地原样，
+    由调用方按美东时区做新鲜度断言并换算北京。缺 last_trade_time 时返回 None，
+    不用顶层 timestamp 顶替（那是报文生成时间）。失败返回 None，不抛。
     """
     try:
         import urllib.request
 
-        req = urllib.request.Request(_CBOE_VIX_URL, headers={"User-Agent": "Mozilla/5.0"})
+        req = urllib.request.Request(
+            _CBOE_VIX_URL,
+            headers={"User-Agent": "Mozilla/5.0", "Referer": "https://www.cboe.com/"},
+        )
         raw = urllib.request.urlopen(req, timeout=8).read().decode("utf-8", errors="replace")
-        data = json.loads(raw)
-        val = (data.get("data") or {}).get("current_price")
-        if val is None:
+        payload = json.loads(raw).get("data") or {}
+        val = payload.get("current_price")
+        quote_ts = payload.get("last_trade_time")
+        if val is None or not quote_ts:
             return None
-        return float(val), str(data.get("timestamp") or "")
+        return float(val), str(quote_ts)
     except Exception as e:
         log_silent_fallback("macro_indicators._cboe_vix", e)
         return None
 
 
-def _tencent_us_index_get(symbol: str) -> float | None:
-    """取美股指数现价（腾讯 qt.gtimg.cn），仅覆盖 _TENCENT_US_INDEX 里的映射。
+# 腾讯美股指数报文字段：下标 3=现价，下标 30=报价时间（美东本地，如 2026-09-11 09:30:00）
+_TENCENT_QUOTE_TS_INDEX = 30
 
-    校验（2026-11-19 实测）：usVIX -> 标普500波动率指数 21.67，现价在第 4 个
-    '~' 分隔字段（下标 3），单位为指数点，与 yfinance ^VIX 同口径。
-    注意 usDXY 在腾讯返回空名，美元指数改走新浪 DINIW。
+
+def _tencent_us_index_get_with_ts(symbol: str) -> tuple[float | None, str | None]:
+    """取现价 + 报文自带的原始报价时间；新鲜度敏感路径必须用这个版本。
+
+    2026-11-22 实测 usVIX 现价 21.67，但报文自带日期 2026-09-11 09:30:00
+    （72 天前），旧实现只读下标 3、丢弃日期，还盖当天 as_of，等于旧值冒充实时。
     """
     code = _TENCENT_US_INDEX.get(symbol)
     if not code:
-        return None
+        return None, None
     try:
         import urllib.request
 
@@ -288,12 +309,19 @@ def _tencent_us_index_get(symbol: str) -> float | None:
         body = raw.split('"', 1)[1].rsplit('"', 1)[0] if '"' in raw else ""
         fields = body.split("~")
         if len(fields) <= 3:
-            return None
+            return None, None
         val = float(fields[3])
-        return val if val > 0 else None
+        quote_ts = fields[_TENCENT_QUOTE_TS_INDEX].strip() if len(fields) > _TENCENT_QUOTE_TS_INDEX else ""
+        return (val if val > 0 else None), (quote_ts or None)
     except Exception as e:
         log_silent_fallback("macro_indicators._tencent_us_index_get", e)
-        return None
+        return None, None
+
+
+def _tencent_us_index_get(symbol: str) -> float | None:
+    """兼容旧调用方：只要值不要时间。新鲜度敏感路径请用 _with_ts 版本。"""
+    val, _ = _tencent_us_index_get_with_ts(symbol)
+    return val
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -518,8 +546,14 @@ def fetch_usd_cny() -> dict | None:
     return None
 
 
+# VIX 报价最大年龄：上一交易日收盘（16:15 ET）+ 合理延迟。周末无美股交易，
+# 周五收盘到周一 08:30 北京巡检已 51h —— 此时保留真实报价但标 stale=true 并降级结论，
+# 不再盖抓取时间冒充实时价。
+VIX_MAX_AGE_SECONDS = 48 * 3600
+
+
 def fetch_vix() -> dict | None:
-    """恐慌指数。yfinance ^VIX。"""
+    """恐慌指数。yfinance ^VIX → CBOE 延迟报价 → 腾讯；每条 fallback 都校验原始报价时间。"""
     snapshot = _load_snapshot()
     if _key_is_fresh(snapshot, "vix") and "vix" in snapshot:
         return {
@@ -537,17 +571,47 @@ def fetch_vix() -> dict | None:
         # 兜底 1：CBOE 官方延迟报价（指数点；延迟 15 分钟，必须显式标注）
         cboe = _cboe_vix()
         if cboe is not None:
-            val, quote_ts = cboe
-            source = "cboe_delayed"
-            extra = {"delay_minutes": 15}
-            if quote_ts:
-                as_of = quote_ts
+            cboe_val, quote_ts = cboe
+            try:
+                quote_utc = parse_quote_time(quote_ts, source_tz=_ET)
+            except StaleDataError as e:
+                log_silent_fallback("macro_indicators.fetch_vix.cboe_no_quote_time", e)
+                cboe_val = None  # 无原始报价时间 → 不可用，禁止用报文生成时间顶替
+            else:
+                val = cboe_val
+                source = "cboe_delayed"
+                # as_of 用真实报价时间换算北京（带 +08:00），不是抓取时刻
+                as_of = quote_utc.astimezone(_BEIJING).isoformat()
+                extra = {
+                    "delay_minutes": 15,
+                    "quote_time_field": "last_trade_time",
+                    "quote_time_exchange": "America/New_York",
+                    "quote_time_local": quote_ts,
+                }
+                try:
+                    assert_fresh(quote_ts, max_age=VIX_MAX_AGE_SECONDS, source_tz=_ET, label="vix.cboe")
+                except StaleDataError as e:
+                    extra["stale"] = True
+                    extra["stale_reason"] = str(e)
     if val is None:
-        # 兜底 2：腾讯 usVIX（标普500波动率指数，指数点，与 ^VIX 同口径）
-        tencent = _tencent_us_index_get("^VIX")
-        if tencent is not None:
-            val = tencent
-            source = "tencent_us_index"
+        # 兜底 2：腾讯 usVIX（指数点，与 ^VIX 同口径），必须带报文自带日期
+        tencent_val, tencent_ts = _tencent_us_index_get_with_ts("^VIX")
+        if tencent_val is not None:
+            try:
+                quote_utc = assert_fresh(
+                    tencent_ts, max_age=VIX_MAX_AGE_SECONDS, source_tz=_ET, label="vix.tencent"
+                )
+            except StaleDataError as e:
+                log_silent_fallback("macro_indicators.fetch_vix.tencent_stale", e)
+                tencent_val = None  # 过期值一律不采用，也不回退 as_of=now
+            if tencent_val is not None:
+                val = tencent_val
+                source = "tencent_us_index"
+                as_of = quote_utc.astimezone(_BEIJING).isoformat()
+                extra = {
+                    "quote_time_exchange": "America/New_York",
+                    "quote_time_local": tencent_ts,
+                }
     if val is not None:
         snapshot["vix"] = round(val, 2)
         _save_snapshot(snapshot, key_ts="vix_ts")
@@ -888,6 +952,9 @@ def fetch_all() -> dict:
         for key, val in section.items():
             if val is None:
                 degraded.append(f"{section_name}.{key}")
+            elif isinstance(val, dict) and val.get("stale"):
+                # 过期但有原始报价时间：值可用，结论必须降级
+                degraded.append(f"{section_name}.{key}_stale")
 
     # as_of 取所有成功 fetch_* 的最新时间戳
     timestamps = []

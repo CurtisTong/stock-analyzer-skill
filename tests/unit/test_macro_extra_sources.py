@@ -12,10 +12,12 @@ from __future__ import annotations
 
 import io
 import json
+from datetime import datetime, timezone
 
 import pytest
 
 import macro_indicators as mi
+from common import freshness
 
 
 @pytest.fixture(autouse=True)
@@ -63,9 +65,17 @@ class TestEastmoneyTreasury:
 
 class TestVixCboe:
     def test_parses_current_price(self, monkeypatch):
-        payload = {"timestamp": "2026-11-19 14:40:24", "data": {"current_price": 22.5, "close": 24.56}}
+        # 顶层 timestamp 是报文生成时间；报价时间必须取 data.last_trade_time
+        payload = {
+            "timestamp": "2026-11-19 14:40:24",
+            "data": {
+                "current_price": 22.5,
+                "close": 24.56,
+                "last_trade_time": "2026-11-19T14:39:58",
+            },
+        }
         monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen(json.dumps(payload)))
-        assert mi._cboe_vix() == (22.5, "2026-11-19 14:40:24")
+        assert mi._cboe_vix() == (22.5, "2026-11-19T14:39:58")
 
     def test_missing_field_returns_none(self, monkeypatch):
         monkeypatch.setattr("urllib.request.urlopen", _fake_urlopen(json.dumps({"data": {}})))
@@ -104,26 +114,34 @@ class TestFetchChains:
 
     def test_vix_falls_back_to_cboe_with_delay_marker(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
-        monkeypatch.setattr(mi, "_cboe_vix", lambda: (22.42, "2026-11-19 14:46:24"))
-        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: pytest.fail("CBOE 成功时不应再问腾讯"))
+        monkeypatch.setattr(mi, "_cboe_vix", lambda: (22.42, "2026-11-19T14:46:24"))
+        monkeypatch.setattr(
+            mi, "_tencent_us_index_get_with_ts", lambda sym: pytest.fail("CBOE 成功时不应再问腾讯")
+        )
+        # 固定时钟：报价后 14 分钟，避免真实时钟把旧 fixture 判成 stale
+        monkeypatch.setattr(freshness, "_utcnow", lambda: datetime(2026, 11, 19, 20, 0, tzinfo=timezone.utc))
         out = mi.fetch_vix()
         assert out["value"] == 22.42
         assert out["source"] == "cboe_delayed"
         assert out["delay_minutes"] == 15
-        assert out["as_of"] == "2026-11-19 14:46:24"
+        assert out["quote_time_field"] == "last_trade_time"
+        assert out["as_of"] == "2026-11-20T03:46:24+08:00"
+        assert "stale" not in out
 
     def test_vix_falls_back_to_tencent_when_cboe_fails(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
         monkeypatch.setattr(mi, "_cboe_vix", lambda: None)
-        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: 21.67)
+        monkeypatch.setattr(mi, "_tencent_us_index_get_with_ts", lambda sym: (21.67, "2026-11-19T14:46:24"))
+        monkeypatch.setattr(freshness, "_utcnow", lambda: datetime(2026, 11, 19, 20, 0, tzinfo=timezone.utc))
         out = mi.fetch_vix()
         assert out["source"] == "tencent_us_index"
+        assert out["as_of"] == "2026-11-20T03:46:24+08:00"
         assert "delay_minutes" not in out
 
     def test_vix_all_fail_returns_none(self, monkeypatch):
         monkeypatch.setattr(mi, "_yfinance_get", lambda *a, **k: None)
         monkeypatch.setattr(mi, "_cboe_vix", lambda: None)
-        monkeypatch.setattr(mi, "_tencent_us_index_get", lambda sym: None)
+        monkeypatch.setattr(mi, "_tencent_us_index_get_with_ts", lambda sym: (None, None))
         assert mi.fetch_vix() is None
 
 
