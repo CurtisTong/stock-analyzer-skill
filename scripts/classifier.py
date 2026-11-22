@@ -48,7 +48,9 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
 
     Args:
         fin_record: 单期财务数据 dict（finance.py 返回的 records[0]）
-                   字段: ROEJQ, PARENTNETPROFITTZ, XSMLL, ZCFZL 等
+                   字段: roe, net_profit_yoy, gross_margin, debt_ratio 等
+                   [review P1-18] 旧 schema 名 ROEJQ/PARENTNETPROFITTZ/XSMLL/ZCFZL
+                   仅作向后兼容 fallback；缺失字段按 None 处理，不参与分类判断。
         quote_record: 实时行情 dict（quote.py 返回）
                      字段: circulating_cap, total_cap, turnover, pe 等
         kline_records: K 线数据 list
@@ -69,12 +71,28 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
     circulating_cap = to_float(quote_record.get("circulating_cap")) if quote_record else 0
     turnover = to_float(quote_record.get("turnover")) if quote_record else 0
 
-    # 提取财务特征
-    has_finance = fin_record and isinstance(fin_record, dict)
-    roe = to_float(fin_record.get("ROEJQ")) if has_finance else 0
-    profit_growth = to_float(fin_record.get("PARENTNETPROFITTZ")) if has_finance else 0
-    gross_margin = to_float(fin_record.get("XSMLL")) if has_finance else 0
-    debt = to_float(fin_record.get("ZCFZL")) if has_finance else 0
+    # 提取财务特征 [review P1-18]
+    # 调用方（classifier.py CLI 与 technical/analyzer.py）传入的是
+    # FinanceRecord.to_dict()，标准字段为 roe/net_profit_yoy/gross_margin/debt_ratio。
+    # None-aware：未披露（None/""/"-"）返回 None，不参与分类比较，
+    # 避免把"未知"当 0 误判为防御股/周期股等。
+    has_finance = bool(fin_record) and isinstance(fin_record, dict)
+
+    def _fin_float(standard_key: str, legacy_key: str):
+        if not has_finance:
+            return None
+        # 标准字段优先；旧 schema 名仅作向后兼容 fallback
+        for key in (standard_key, legacy_key):
+            value = fin_record.get(key)
+            parsed = to_float(value, default=None)
+            if parsed is not None:
+                return parsed
+        return None
+
+    roe = _fin_float("roe", "ROEJQ")
+    profit_growth = _fin_float("net_profit_yoy", "PARENTNETPROFITTZ")
+    gross_margin = _fin_float("gross_margin", "XSMLL")
+    debt = _fin_float("debt_ratio", "ZCFZL")
 
     # 连板检测
     has_limit_streak = False
@@ -106,20 +124,20 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
             reasons.append(f"换手率{turnover:.1f}%(高活跃度)")
         confidence = "高" if has_limit_streak else "中"
 
-    # 2. 蓝筹股
-    elif circulating_cap > 1000 and (not has_finance or roe > 10):
+    # 2. 蓝筹股 [review P1-18] ROE 未披露(None)时退化为纯市值判断，等同无财务数据
+    elif circulating_cap > 1000 and (roe is None or roe > 10):
         stock_type = "蓝筹股"
         reasons.append(f"流通市值{circulating_cap:.0f}亿(大盘)")
-        if roe > 10:
+        if roe is not None and roe > 10:
             reasons.append(f"ROE {roe:.1f}%")
             confidence = "高"
         else:
             confidence = "中"
 
-    # 有财务数据时的精确分类
+    # 有财务数据时的精确分类（[review P1-18] 每个规则先确认所需字段已披露）
     elif has_finance:
         # 3. 强成长股
-        if profit_growth > 30 and roe > 15 and circulating_cap < 500:
+        if roe is not None and profit_growth is not None and profit_growth > 30 and roe > 15 and circulating_cap < 500:
             stock_type = "强成长股"
             reasons.append(f"净利增速{profit_growth:.0f}%")
             reasons.append(f"ROE {roe:.1f}%")
@@ -127,21 +145,26 @@ def classify_stock(fin_record=None, quote_record=None, kline_records=None):
             confidence = "高"
 
         # 4. 周期股（增速波动大+毛利偏低）
-        elif abs(profit_growth) > 50 and gross_margin > 0 and gross_margin < 25:
+        elif (
+            profit_growth is not None
+            and gross_margin is not None
+            and abs(profit_growth) > 50
+            and 0 < gross_margin < 25
+        ):
             stock_type = "周期股"
             reasons.append(f"净利增速波动大({profit_growth:.0f}%)")
             reasons.append(f"毛利率{gross_margin:.1f}%(偏低)")
             confidence = "中"
 
         # 5. 稳成长股
-        elif 15 <= profit_growth <= 30 and roe > 12:
+        elif roe is not None and profit_growth is not None and 15 <= profit_growth <= 30 and roe > 12:
             stock_type = "稳成长股"
             reasons.append(f"净利增速{profit_growth:.0f}%")
             reasons.append(f"ROE {roe:.1f}%")
             confidence = "高"
 
         # 6. 防御股
-        elif abs(profit_growth) < 20 and debt > 0 and debt < 50:
+        elif profit_growth is not None and debt is not None and abs(profit_growth) < 20 and 0 < debt < 50:
             stock_type = "防御股"
             reasons.append(f"增速稳定({profit_growth:.0f}%)")
             reasons.append(f"负债率{debt:.1f}%(低)")

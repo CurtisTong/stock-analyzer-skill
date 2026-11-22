@@ -273,7 +273,7 @@ class ScreeningService:
         )
 
         # 硬过滤
-        rejected, filter_warnings = self._hard_filter(quote_dict, fin, ctx.filters)
+        rejected, filter_warnings = self._hard_filter(quote_dict, fin, ctx.filters, code=ctx.code)
         if rejected:
             return {
                 "code": ctx.code,
@@ -335,7 +335,9 @@ class ScreeningService:
         """计算技术指标特征（委托给模块级 compute_features）。"""
         return compute_features(code, bars=bars)
 
-    def _hard_filter(self, quote: dict, fin: dict, filters: dict) -> tuple:
+    # [review P3] code 由 AnalyzeContext 显式传入（quote 可能无 code），
+    # 用于财务时效校验按板块差异化 deadline；默认 "" 保持直接调用兼容。
+    def _hard_filter(self, quote: dict, fin: dict, filters: dict, code: str = "") -> tuple:
         """硬过滤。
 
         Args:
@@ -355,7 +357,7 @@ class ScreeningService:
         reasons = []
         warnings = []
         name = quote.get("name", "")
-        code = quote.get("code", "")
+        code = code or quote.get("code", "")  # [review P3] 优先使用上下文传入的 code
         bd = board_type(code)
         eps = to_float(fin.get("eps", fin.get("EPSJB")))
 
@@ -364,7 +366,8 @@ class ScreeningService:
         try:
             from business.finance_freshness import check_finance_freshness
 
-            fin_stale, stale_msg = check_finance_freshness(fin)
+            # [review P3] 传 code 才能按板块差异化披露 deadline 判定过期
+            fin_stale, stale_msg = check_finance_freshness(fin, code=code)
             if fin_stale:
                 warnings.append(f"{stale_msg}(财务硬过滤降级为警告)")
         except Exception as e:
@@ -413,21 +416,23 @@ class ScreeningService:
         # 商誉减值风险（无数据时跳过）
         # (#2) 财务数据过期时降级为软警告
         goodwill_ratio = to_float(fin.get("goodwill_ratio", fin.get("GOODWILL_RATIO", 0)))
+        # [review P1-22] 文案显示的是阈值，不是实际值（goodwill=45 时真实阈值是 30）
         if goodwill_ratio > _goodwill_threshold():
             if fin_stale:
-                warnings.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险,财务数据过期降级)")
+                warnings.append(f"商誉/总资产>{_goodwill_threshold():.0f}%(减值风险,财务数据过期降级)")
             else:
-                reasons.append(f"商誉/总资产>{goodwill_ratio:.0f}%(减值风险)")
+                reasons.append(f"商誉/总资产>{_goodwill_threshold():.0f}%(减值风险)")
 
         # 股权质押率过高（降为预警而非硬过滤，2026更新）
         # (#2) 财务数据过期时降级为软警告
         pledge_ratio = to_float(fin.get("pledge_ratio", fin.get("PLEDGE_RATIO", 0)))
         pledge_as_warning = filters.get("pledge_warning", False)
+        # [review P1-22] 同上：展示 _pledge_threshold() 而非实际质押率
         if pledge_ratio > _pledge_threshold():
             if pledge_as_warning or fin_stale:
-                warnings.append(f"质押率>{pledge_ratio:.0f}%(偏高)")
+                warnings.append(f"质押率>{_pledge_threshold():.0f}%(偏高)")
             else:
-                reasons.append(f"质押率>{pledge_ratio:.0f}%(爆仓风险)")
+                reasons.append(f"质押率>{_pledge_threshold():.0f}%(爆仓风险)")
 
         # 板块差异化阈值
         base_min_amount = filters.get("min_amount", 5000)

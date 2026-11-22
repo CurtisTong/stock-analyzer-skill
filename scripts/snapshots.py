@@ -191,18 +191,41 @@ def main():
     list_cmd = sub.add_parser("list", help="列出快照")
     list_cmd.add_argument("--strategy", help="按策略过滤")
     list_cmd.add_argument("--limit", type=int, default=10)
+    # [review P1-21] 兼容 `list -j` 后置写法，且不覆盖全局 -j
+    # 显式关键字（非 **kwargs）以保持 gen_script_catalog 的 AST 契约不变
+    list_cmd.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        dest="json_output",
+        default=argparse.SUPPRESS,
+        help="输出 JSON 格式",
+    )
 
     diff_cmd = sub.add_parser("diff", help="对比两个快照")
     diff_cmd.add_argument("path_a")
     diff_cmd.add_argument("path_b")
-    diff_cmd.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON 格式")
+    # [review P1-21] default=SUPPRESS：子命令未带 -j 时不覆盖全局 -j，
+    # `-j diff A B` 与 `diff A B -j` 均输出 JSON。
+    diff_cmd.add_argument(
+        "-j",
+        "--json",
+        action="store_true",
+        dest="json_output",
+        default=argparse.SUPPRESS,
+        help="输出 JSON 格式",
+    )
 
     args = parser.parse_args()
 
     if args.command == "list":
         paths = list_snapshots(args.strategy, args.limit)
-        for p in paths:
-            print(p)
+        if args.json_output:
+            # [review P1-21] JSON 模式下 stdout 必须是合法 JSON，不能掺杂路径文本
+            print(json.dumps({"count": len(paths), "items": [str(p) for p in paths]}, ensure_ascii=False, indent=2))
+        else:
+            for p in paths:
+                print(p)
     elif args.command == "diff":
         diff = diff_snapshots(Path(args.path_a), Path(args.path_b))
         if args.json_output:

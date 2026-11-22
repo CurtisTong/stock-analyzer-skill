@@ -73,8 +73,15 @@ def _candle_single(bar, prev_close):
         return []
     patterns = []
 
+    # review §4.3-2（P3）：T 字/倒 T 字原先排在十字星（body/total<0.1）之后，
+    # 其 body/total<0.05 是十字星的严格子集 → 分支永不可达；且 body=0 时
+    # 原条件 upper < body 恒为 False。现前置判断并改用 <= 容纳零实体。
+    if body / total < 0.05 and upper <= body and lower > 3 * body:
+        patterns.append("T字线(下方支撑强)")
+    elif body / total < 0.05 and lower <= body and upper > 3 * body:
+        patterns.append("倒T字(上方压力大)")
     # 十字星
-    if body / total < 0.1:
+    elif body / total < 0.1:
         patterns.append("十字星(变盘信号)")
     # 锤子线（下影长 > 2×实体，上影 < 实体）
     # 复用 _body_shadow 的 upper，避免阴线时 (high-close) 计算上影偏小误判
@@ -97,13 +104,6 @@ def _candle_single(bar, prev_close):
         and abs(bar["close"] - bar["low"]) / max(bar["low"], 0.01) < 0.001
     ):
         patterns.append("光头光脚阴线(弱势)")
-    # T 字线
-    elif body / total < 0.05 and upper < body and lower > 3 * body:
-        patterns.append("T字线(下方支撑强)")
-    # 倒 T 字
-    elif body / total < 0.05 and lower < body and upper > 3 * body:
-        patterns.append("倒T字(上方压力大)")
-
     return patterns
 
 

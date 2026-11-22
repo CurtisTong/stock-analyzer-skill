@@ -68,11 +68,16 @@ from strategies.filters import PRE_SCREEN_FILTER as FILTER  # noqa: F401
 # ---------- CLI 输出 ----------
 
 
-def print_diff(current: dict, new_pool: dict):
-    """打印新旧池对比"""
-    print("\n" + "=" * 60)
-    print("📊 股票池变更对比")
-    print("=" * 60)
+def print_diff(current: dict, new_pool: dict, stream=None):
+    """打印新旧池对比。
+
+    [review P1-21] stream 可指定输出流：-j 模式下调用方传 stderr，
+    避免人类可读 diff 混进 stdout 的 JSON 契约。
+    """
+    stream = stream or sys.stdout
+    print("\n" + "=" * 60, file=stream)
+    print("📊 股票池变更对比", file=stream)
+    print("=" * 60, file=stream)
 
     all_sectors = sorted(set(list(current.keys()) + list(new_pool.keys())))
 
@@ -83,15 +88,15 @@ def print_diff(current: dict, new_pool: dict):
         removed = old - new
         if not added and not removed:
             continue
-        print(f"\n【{sector}】")
+        print(f"\n【{sector}】", file=stream)
         if added:
-            print(f"  + 新增 {len(added)}: {', '.join(sorted(added))}")
+            print(f"  + 新增 {len(added)}: {', '.join(sorted(added))}", file=stream)
         if removed:
-            print(f"  - 移除 {len(removed)}: {', '.join(sorted(removed))}")
+            print(f"  - 移除 {len(removed)}: {', '.join(sorted(removed))}", file=stream)
 
     total_old = sum(len(v) for v in current.values())
     total_new = sum(len(v) for v in new_pool.values())
-    print(f"\n总计: {total_old} → {total_new} ({total_new - total_old:+d})")
+    print(f"\n总计: {total_old} → {total_new} ({total_new - total_old:+d})", file=stream)
 
 
 # ---------- CLI ----------
@@ -142,8 +147,9 @@ def main():
             show_diff=args.diff,
         )
         # CLI 层额外打印 diff（业务层已通过 logging 输出，这里给用户可见的格式化输出）
+        # [review P1-21] -j 模式把 diff 文本降到 stderr，stdout 只保留合法 JSON
         if args.diff and current is not None:
-            print_diff(current, ret)
+            print_diff(current, ret, stream=sys.stderr if args.json_output else sys.stdout)
         result = {
             "mode": "refresh",
             "sectors": args.sector or "all",

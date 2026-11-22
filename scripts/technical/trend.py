@@ -3,6 +3,7 @@
 依赖: core (_find_swing_points)
 """
 
+import math
 import statistics
 
 from .core import _find_swing_points
@@ -74,7 +75,9 @@ def support_resistance(closes, highs, lows, ma_info):
     # 且 round() 是 banker&apos;s rounding（round(25,-1)=20、round(35,-1)=40）行为不连续。
     # 现在锚点按步长对齐（向下取整），保证最近的关口不会被跳过。
     step = 10 if last >= 50 else 1
-    round_num = round(last / step) * step if step > 1 else int(last)
+    # review §4.3-6（P3）：round() 是银行家舍入（55→60、65→60、75→80），
+    # 与上方"向下取整"注释不符且锚点跳变；改用 math.floor() 口径一致。
+    round_num = math.floor(last / step) * step
     if round_num < last:
         # 最近整数关口在价格下方 → 支撑（含关口本身）
         base = round_num

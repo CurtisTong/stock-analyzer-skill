@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "generated_at": "2026-11-19T23:19:13Z",
+    "generated_at": "2026-11-21T14:47:24Z",
     "tool": "gen_script_catalog.py --emit-json",
     "count": 42,
     "version": "2",
@@ -1316,7 +1316,7 @@
     {
       "name": "hot_rank",
       "path": "scripts/hot_rank.py",
-      "description": "（无描述）",
+      "description": "热度榜（活跃 Top N）",
       "cli": true,
       "flags": [
         "-v",

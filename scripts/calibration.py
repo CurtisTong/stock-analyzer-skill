@@ -238,17 +238,29 @@ def main():
         help="仅输出一行摘要（适合定时任务自动化）",
     )
 
+    # [review P1-20] 子命令的 -j 只做"兼容接收"，不再用默认 False 覆盖全局参数。
+    # default=SUPPRESS：子命令未显式带 -j 时不写 namespace，全局 -j report 仍然生效；
+    # 子命令带 -j 时（report -j）照常置 True，两种顺序均输出 JSON。
+    # 注意：参数写成显式关键字（而非 **kwargs），且保持在各子命令原位置，
+    # gen_script_catalog 的 AST 契约提取顺序才不会漂移。
+
     # report
     p_report = sub.add_parser("report", help="查看校准报告")
-    p_report.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
+    p_report.add_argument(
+        "-j", "--json", action="store_true", dest="json_output", default=argparse.SUPPRESS, help="输出 JSON"
+    )
 
     # factor
     p_factor = sub.add_parser("factor", help="查看校准因子（全局 + 分组）")
-    p_factor.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
+    p_factor.add_argument(
+        "-j", "--json", action="store_true", dest="json_output", default=argparse.SUPPRESS, help="输出 JSON"
+    )
 
     # pending
     p_pending = sub.add_parser("pending", help="查看待验证预测")
-    p_pending.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
+    p_pending.add_argument(
+        "-j", "--json", action="store_true", dest="json_output", default=argparse.SUPPRESS, help="输出 JSON"
+    )
 
     # lessons（v1.25 反思记忆回流：打分环节注入）
     p_lessons = sub.add_parser("lessons", help="查看各专家反思教训（debate 打分注入用）")
@@ -258,7 +270,9 @@ def main():
         default=None,
         help="每位专家最多显示的教训条数（默认全部）",
     )
-    p_lessons.add_argument("-j", "--json", action="store_true", dest="json_output", help="输出 JSON")
+    p_lessons.add_argument(  # [review P1-20] 同上，不覆盖全局 -j
+        "-j", "--json", action="store_true", dest="json_output", default=argparse.SUPPRESS, help="输出 JSON"
+    )
 
     args = parser.parse_args()
     if args.command is None:

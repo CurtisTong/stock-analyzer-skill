@@ -365,10 +365,14 @@ def build_stock_sector_compare(
             verdict_parts.append(f"与板块基本同步（{rps_vs_sector:+.2f}pp）")
 
     if rps_vs_index is not None:
+        # review §4.3-5（P3）：原 if/else 两分支输出完全相同，方向信息丢失。
         if rps_vs_index > 0:
-            verdict_parts.append(f"vs 大盘 {rps_vs_index:+.2f}pp")
+            direction = "跑赢大盘"
+        elif rps_vs_index < 0:
+            direction = "跑输大盘"
         else:
-            verdict_parts.append(f"vs 大盘 {rps_vs_index:+.2f}pp")
+            direction = "与大盘基本同步"
+        verdict_parts.append(f"{direction}（vs 大盘 {rps_vs_index:+.2f}pp）")
 
     if sector_confidence == "low":
         verdict_parts.append("⚠️ 板块归属低置信（code 段推断/名称模糊匹配），板块结论请降权")
@@ -586,8 +590,11 @@ def analyze(stock_code: str | None = None, fetch_index: bool = True) -> dict:
     # 4. 强势 / 弱势 板块
     ok_etfs = [e for e in etfs if e.get("data_ok")]
     ok_sorted = sorted(ok_etfs, key=lambda r: r["change_pct"] or 0, reverse=True)
+    # review §4.3-4（P3）：top3 与 bottom3 在 len<6 时必然重叠（恰好 3 只时
+    # 完全是同一批），Markdown 会同时列🔥强势与💀弱势，自相矛盾。
+    # 仅当两端样本不重叠（>=6）时才输出 weak；不足时仅给 strong。
     strong = [r["code"] for r in ok_sorted[:3]]
-    weak = [r["code"] for r in ok_sorted[-3:]] if len(ok_sorted) >= 3 else []
+    weak = [r["code"] for r in ok_sorted[-3:]] if len(ok_sorted) >= 6 else []
 
     # 5. 个股 vs 板块 vs 大盘（可选）
     stock_compare = None
