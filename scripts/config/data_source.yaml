@@ -74,8 +74,14 @@ quote_sources:
 
 # K线数据源配置
 kline_sources:
+  # P0-2 (2026-11-21 review §2)：新浪 K 线接口不支持复权参数，返回不复权数据。
+  # 原配置 priority=10（全源最高）与 sina_kline.py 代码注释（优先级 3、让前复权源优先）
+  # 相互矛盾，且 YAML 声明“运行时以此为准”，导致 manager 首位是不复权源，除权日 OHLC
+  # 跳变，与前复权源（eastmoney/tencent）混用令 MA/MACD/回测收益口径失真。
+  # 降为 0（全源最低，低于 baostock=1），仅作为其它源全部失败时的最后兜底。
+  # 注意：修改此值前须确认下游已能识别复权口径（KlineBar.adjust）。
   sina:
-    priority: 10
+    priority: 0
     enabled: true
     timeout: 15
     max_datalen: 1024
@@ -242,6 +248,9 @@ http:
   max_redirects: 3
   connect_timeout: 10
   read_timeout: 30
+  # review 修复（P2 §4.1 #8）：并行任务总超时独立配置，不再复用 read_timeout。
+  # 改单次 socket 读超时不应意外改变批量任务的超时预算；默认 30s 保持向后兼容。
+  parallel_timeout: 30
 
 # 缓存配置
 cache:

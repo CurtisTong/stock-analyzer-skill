@@ -62,7 +62,8 @@ class LhbDetailFetcher(BaseFetcher):
     """龙虎榜明细数据源。"""
 
     def __init__(self):
-        super().__init__("lhb_detail", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 lhb_sources.eastmoney（隐式推断为 "lhb"）
+        super().__init__("lhb_detail", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取龙虎榜数据。code 为空时返回近期全部龙虎榜。"""
@@ -112,7 +113,8 @@ class LhbSeatFetcher(BaseFetcher):
     """龙虎榜买卖席位数据源。"""
 
     def __init__(self):
-        super().__init__("lhb_seat", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 lhb_sources.eastmoney
+        super().__init__("lhb_seat", priority=5, provider="eastmoney")
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         """获取指定股票的龙虎榜买卖席位。"""

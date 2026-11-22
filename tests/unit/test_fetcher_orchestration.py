@@ -265,23 +265,30 @@ class TestDataFetcherManagerFallback:
         assert mgr.fetch("") is None
         assert a.call_count == 0
 
-    def test_429_triggers_retry_then_fallback(self):
+    def test_429_triggers_retry_then_fallback(self, caplog):
         """429 触发退避后重试主源一次，仍失败则换源。
 
         遇 429 时退避后重试主源一次，避免被切到数据更少的次源；
-        重试仍 429 才切到下一个源。
+        重试仍 429 才切到下一个源。review 4.1-P2：重试异常不得被吞。
         """
+        import logging
+
         a = FakeFetcher("a_eastmoney", priority=10, raise_exc=RateLimitError("u"))
         b = FakeFetcher("b_tencent", priority=5, behavior="data")
         mgr = DataFetcherManager([a, b])
 
-        result = mgr.fetch("600519")
+        with caplog.at_level(logging.DEBUG, logger="common.fetcher_base"):
+            result = mgr.fetch("600519")
 
         assert result == {"src": "b_tencent"}
         # 主源被调用 2 次（首次 + 429 重试一次），随后切到次源
         assert a.call_count == 2
         assert b.call_count == 1
         assert isinstance(mgr.last_error, RateLimitError)
+        # 两次 429 都进入血缘，且重试阶段有日志（旧实现 pass 吞掉）
+        events = [e["event"] for e in mgr.fallback_chain("600519")]
+        assert events == ["429", "429_retry"]
+        assert "重试仍 429" in caplog.text
 
 
 class TestDataFetcherManagerHelpers:
@@ -637,17 +644,26 @@ class TestDataFetcherManager429Retry:
         assert a.call_count == 2
         assert b.call_count == 0  # 主源重试成功，未切到次源
 
-    def test_retry_generic_exception_falls_to_next(self):
-        """429 重试遇普通异常 → pass 后换源（378 行）。"""
+    def test_retry_generic_exception_falls_to_next(self, caplog):
+        """review 4.1-P2：429 重试遇普通异常 → 记 error 血缘/日志/熔断后换源。"""
+        import logging
+
         a = SequenceFetcher("a_eastmoney", priority=10, actions=["rate", "exc"])
         b = FakeFetcher("b_tencent", priority=5, behavior="data")
         mgr = DataFetcherManager([a, b])
 
-        result = mgr.fetch("600519")
+        with caplog.at_level(logging.DEBUG, logger="common.fetcher_base"):
+            result = mgr.fetch("600519")
 
         assert result == {"src": "b_tencent"}
         assert a.call_count == 2
         assert b.call_count == 1
+        # 旧实现 except Exception: pass 吞异常：不熔断、血缘无 error、last_error 还是 429
+        assert a.failure_count == 1
+        assert isinstance(mgr.last_error, RuntimeError)
+        events = [e["event"] for e in mgr.fallback_chain("600519")]
+        assert events == ["429", "error"]
+        assert "重试异常" in caplog.text
 
 
 # ═══════════════════════════════════════════════════════════════

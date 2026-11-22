@@ -491,6 +491,32 @@ class TestSplitCodes:
         with pytest.raises(ValueError, match="不在允许范围内"):
             split_codes("@/etc/passwd")
 
+    def test_sibling_dir_with_prefix_bypass_rejected(self, tmp_path, monkeypatch):
+        """P2 #6(4.1)：兄弟目录 data_backup/ 以 data/ 为字符串前缀，旧实现可绕过。"""
+        import common.utils as utils
+
+        data_dir = tmp_path / "data"
+        sibling = tmp_path / "data_backup"  # 以 data 为前缀的兄弟目录
+        data_dir.mkdir()
+        sibling.mkdir()
+        target = sibling / "codes.txt"
+        target.write_text("sh600519\n", encoding="utf-8")
+        monkeypatch.setattr(utils, "DATA_DIR", data_dir)
+        # 修复前 str(file_path).startswith(str(DATA_DIR)) 为 True → 读出代码，不抛异常
+        with pytest.raises(ValueError, match="不在允许范围内"):
+            split_codes(f"@{target}")
+
+    def test_allowed_dir_file_still_readable(self, tmp_path, monkeypatch):
+        """P2 #6：收紧校验后，DATA_DIR 内的合法文件仍可正常读取。"""
+        import common.utils as utils
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        target = data_dir / "codes.txt"
+        target.write_text("sh600519\nsz000001\n", encoding="utf-8")
+        monkeypatch.setattr(utils, "DATA_DIR", data_dir)
+        assert split_codes(f"@{target}") == ["sh600519", "sz000001"]
+
 
 # ═══════════════════════════════════════════════════════════════
 # err 错误抛出

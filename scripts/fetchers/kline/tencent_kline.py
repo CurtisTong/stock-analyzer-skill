@@ -4,6 +4,7 @@ import json
 import logging
 
 from common import BaseFetcher, http_get
+from common.exceptions import ParseError
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +43,9 @@ class TencentKlineFetcher(BaseFetcher):
         raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             resp = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
+        except json.JSONDecodeError as e:
+            # review 4.1-P2：解析失败是错误而非"无此数据"，抛 ParseError 计入熔断
+            raise ParseError(str(raw), "tencent_kline", f"JSON 解析失败: {e}") from e
         if resp.get("code") != 0 or "data" not in resp:
             return None
         stock_data = resp["data"].get(code, {})

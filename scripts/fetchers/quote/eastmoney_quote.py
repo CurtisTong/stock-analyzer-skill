@@ -3,7 +3,7 @@
 import json
 import logging
 
-from common import BaseFetcher, http_get, to_secid
+from common import BaseFetcher, http_get, to_float, to_secid
 from common.exceptions import ParseError
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,18 @@ class EastmoneyQuoteFetcher(BaseFetcher):
             logger.debug("东方财富行情 data 为空: %s", code)
             return None
 
+        # P1-8 (2026-11-21 review §3.1 #8)：核心字段为 "-" / None / 0 时，
+        # _div100 返回 None，to_float(None)=0 会把“无报价”伪装成 0 价成功响应，
+        # 错误源不熔断、不切源。这里先校验 price，无效则返回 None（manager 切源）。
+        price = _div100(d.get("f43"))
+        if price is None or to_float(price, 0.0) <= 0:
+            logger.warning(
+                "东方财富行情核心字段 price 无效(%r)，放弃该源让 manager 切源: %s",
+                d.get("f43"),
+                code,
+            )
+            return None
+
         code_str = str(d.get("f57", ""))
         if code_str and len(code_str) < 6:
             code_str = code_str.zfill(6)
@@ -47,7 +59,7 @@ class EastmoneyQuoteFetcher(BaseFetcher):
         return {
             "code": code_str,
             "name": d.get("f58", ""),
-            "price": _div100(d.get("f43", 0)),
+            "price": price,
             "prev_close": _div100(d.get("f60", 0)),
             "open": _div100(d.get("f46", 0)),
             "change_pct": _div100(d.get("f170", 0)),

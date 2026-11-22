@@ -35,7 +35,8 @@ class MarginFetcher(BaseFetcher):
     """融资融券数据源。"""
 
     def __init__(self):
-        super().__init__("margin", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 chip_sources.eastmoney（隐式推断为 "margin"）
+        super().__init__("margin", priority=5, provider="eastmoney")
 
     def fetch(self, code: str, **kwargs) -> list | None:
         """获取融资融券近期数据。
@@ -116,7 +117,8 @@ class HolderFetcher(BaseFetcher):
     """股东户数数据源（使用 F10 接口）。"""
 
     def __init__(self):
-        super().__init__("holder", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 chip_sources.eastmoney
+        super().__init__("holder", priority=5, provider="eastmoney")
 
     def fetch(self, code: str, **kwargs) -> list | None:
         """获取股东户数数据。
@@ -199,7 +201,8 @@ class TopHolderFetcher(BaseFetcher):
     """十大流通股东数据源（使用 F10 接口）。"""
 
     def __init__(self):
-        super().__init__("top_holder", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 chip_sources.eastmoney（隐式推断为 "top"）
+        super().__init__("top_holder", priority=5, provider="eastmoney")
 
     def fetch(self, code: str, **kwargs) -> list | None:
         """获取十大流通股东数据。

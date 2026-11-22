@@ -59,6 +59,10 @@ scripts/data/strategy_performance.json
 # 校准数据写入的 flock 锁文件（experts/calibration.py 落盘时生成，不自动清理）
 data/*.json.lock
 
+# portfolio 文件锁改 flock 后锁文件保留不删除，属运行时产物，不入版本控制
+scripts/data/*.lock
+.cache/*.lock
+
 # pytest 覆盖率报告
 .coverage
 .coverage.*

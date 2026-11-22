@@ -74,7 +74,8 @@ class EarningsCalendarFetcher(BaseFetcher):
     """财报披露日历数据源。"""
 
     def __init__(self):
-        super().__init__("earnings_calendar", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 event_sources.eastmoney
+        super().__init__("earnings_calendar", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取财报披露日历。code 为空时返回近期全部。"""
@@ -114,7 +115,8 @@ class LockupCalendarFetcher(BaseFetcher):
     """限售解禁日历数据源。"""
 
     def __init__(self):
-        super().__init__("lockup_calendar", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 event_sources.eastmoney
+        super().__init__("lockup_calendar", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取限售解禁日历。"""
@@ -155,7 +157,8 @@ class DividendCalendarFetcher(BaseFetcher):
     """分红日历数据源。"""
 
     def __init__(self):
-        super().__init__("dividend_calendar", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 event_sources.eastmoney
+        super().__init__("dividend_calendar", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取分红日历。"""
@@ -196,7 +199,8 @@ class ShareholderChangeFetcher(BaseFetcher):
     """大股东增减持数据源。"""
 
     def __init__(self):
-        super().__init__("shareholder_change", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 event_sources.eastmoney
+        super().__init__("shareholder_change", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取大股东增减持数据。需要指定 code。"""
@@ -217,7 +221,16 @@ class ShareholderChangeFetcher(BaseFetcher):
 
         items = []
         for r in result_data:
-            change_num = to_float(r.get("CHANGE_NUM", 0))
+            # review 3.1-P1-11：default=None 区分"缺失/-"与真实 0，四分支判定方向
+            change_num = to_float(r.get("CHANGE_NUM"), default=None)
+            if change_num is None:
+                direction = "unknown"
+            elif change_num > 0:
+                direction = "increase"
+            elif change_num < 0:
+                direction = "decrease"
+            else:
+                direction = "unchanged"  # 真实 0：不变，不能误判减持
             items.append(
                 {
                     "code": r.get("SECURITY_CODE", ""),
@@ -228,7 +241,7 @@ class ShareholderChangeFetcher(BaseFetcher):
                     "change_ratio": to_float(r.get("CHANGE_RATIO", 0)),
                     "avg_price": to_float(r.get("AVERAGE_PRICE", 0)),
                     "shares_after": to_float(r.get("CHANGE_SHARES_AFTER", 0)),
-                    "direction": "increase" if change_num > 0 else "decrease",
+                    "direction": direction,
                 }
             )
 
@@ -239,7 +252,8 @@ class ViolationFetcher(BaseFetcher):
     """监管处罚/违规记录数据源。"""
 
     def __init__(self):
-        super().__init__("violation", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 event_sources.eastmoney
+        super().__init__("violation", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取监管处罚记录。需要指定 code。"""

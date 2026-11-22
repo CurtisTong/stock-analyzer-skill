@@ -4,6 +4,7 @@ import json
 from typing import Any
 
 from common import BaseFetcher, http_get, to_secid, to_float
+from common.exceptions import ParseError
 
 # 北向资金 API
 # 注意：自 2024 年监管限制实时披露后，kamt.kline 接口的北向资金净流入字段
@@ -20,7 +21,9 @@ class NorthboundFlowFetcher(BaseFetcher):
     """北向资金数据源。"""
 
     def __init__(self):
-        super().__init__("northbound_flow", priority=5)
+        # review 3.1-P1-6：显式 provider=eastmoney，与 flow_sources.eastmoney 对齐；
+        # name 加 _eastmoney 后缀，与 sina 备份源分开熔断器（原两者同名共享熔断状态）。
+        super().__init__("northbound_flow_eastmoney", priority=5, provider="eastmoney")
         # 北向资金每日净流入已无公开数据源（见 fetch docstring），
         # 永久禁用此 fetcher，避免占用熔断器槽位与调度尝试。
         self.enabled = False
@@ -41,7 +44,8 @@ class StockFlowFetcher(BaseFetcher):
     """个股资金流向数据源。"""
 
     def __init__(self):
-        super().__init__("stock_flow", priority=5)
+        # review 3.1-P1-6：隐式推断会得到 "stock"，与 YAML flow_sources 键不匹配
+        super().__init__("stock_flow", priority=5, provider="eastmoney")
 
     def fetch(self, code: str, **kwargs) -> dict | None:
         """获取个股近期资金流向。"""
@@ -51,8 +55,9 @@ class StockFlowFetcher(BaseFetcher):
         raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
-        except json.JSONDecodeError:
-            return None
+        except json.JSONDecodeError as e:
+            # review 4.1-P2：反爬 HTML 错误页不是"无数据"，抛 ParseError 累计熔断
+            raise ParseError(str(raw), "eastmoney_flow", f"JSON 解析失败: {e}") from e
         if not data or data.get("rc") != 0 or "data" not in data:
             return None
 

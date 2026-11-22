@@ -33,6 +33,11 @@ class Quote:
     limit_down: float = 0.0  # 跌停价（0 表示未知）
     # 数据源返回的行业（fetcher 可选填充，默认空走 keyword 推断）
     industry: str = ""
+    # P1-7 (2026-11-21 review §3.1 #7)：最小数据源标记。
+    # THS 走 K 线端点，PE/PB/市值/换手用 0 占位且非实时，必须显式标记，
+    # 让 data_quality 判降级、下游不再把 0 当真实估值。
+    is_minimal: bool = False
+    is_realtime: bool = True  # 默认实时；THS 等 K 线端点源置 False
 
     def has_basic_data(self) -> bool:
         return self.price > 0
@@ -55,6 +60,12 @@ class KlineBar:
     pct_chg: float = 0.0
     source: str = ""
     fetch_time: str = ""  # 数据获取时间 ISO 格式
+    # P0-2 (2026-11-21 review §2)：复权口径元信息。
+    #   "qfq"  = 前复权（eastmoney/tencent 等）
+    #   "none" = 不复权（sina，唯一不支持复权的源，已降为最后兜底）
+    #   ""     = 未知/未标注（其它源，默认空串保持向后兼容）
+    # 下游计算 MA/MACD/回测收益前应检查该字段，避免跨口径混用。
+    adjust: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)

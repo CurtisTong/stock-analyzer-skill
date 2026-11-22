@@ -128,6 +128,12 @@ def envelope(
     data: dict[str, Any] = dict(payload)
     missing: list[str] = []
     degraded: list[str] = [domain for domain in degraded if domain in required]
+    # P1-7：顶层行情若标记为最小源（THS K 线端点），即使有价也判 quote 域降级，
+    # 并把 0 占位估值字段置 None；下游 scoring 不再把 0 当真实估值。
+    if data.get("is_minimal") and "quote" in required and "quote" not in failed:
+        if "quote" not in degraded:
+            degraded.append("quote")
+        data = neutralize_minimal_quotes([data])[0]
     degraded_fields: list[str] = []
     sources: dict[str, list[str]] = {}
     winners: dict[str, str] = {}
@@ -222,11 +228,49 @@ def usable_price(value: Any) -> bool:
         return False
 
 
+# P1-7 (2026-11-21 review §3.1 #7)：最小数据源（THS K 线端点）用 0 占位的估值字段。
+# 这些 0 不是“真实估值”，透传到 scoring 会污染价值因子。
+_MINIMAL_VALUATION_FIELDS = ("pe", "pb", "total_cap", "circulating_cap", "turnover")
+
+
+def _is_minimal_quote(row: Any) -> bool:
+    return isinstance(row, Mapping) and bool(row.get("is_minimal", False))
+
+
+def _is_zero_placeholder(value: Any) -> bool:
+    """估值字段是否为 0 占位（None/0/'0'/''），非零值原样保留。"""
+    if value is None or value == "":
+        return True
+    try:
+        return float(value) == 0.0
+    except (TypeError, ValueError):
+        return False
+
+
+def neutralize_minimal_quotes(rows: Iterable[Any]) -> list:
+    """返回行副本：is_minimal 行的 0 占位估值字段置 None（P1-7）。
+
+    不修改入参对象，避免污染调用方持有的 Quote.to_dict() 结果。
+    """
+    out: list[Any] = []
+    for row in rows:
+        if not _is_minimal_quote(row):
+            out.append(row)
+            continue
+        clone = dict(row)
+        for key in _MINIMAL_VALUATION_FIELDS:
+            if key in clone and _is_zero_placeholder(clone[key]):
+                clone[key] = None
+        out.append(clone)
+    return out
+
+
 def quote_flags(rows: Iterable[Any], price_key: str = "price") -> tuple[tuple[str, ...], tuple[str, ...]]:
     """按 rows 的价格缺失比例给出 (failed, degraded)，供 envelope() 使用。
 
     全部缺价 = quote 域 failed；部分缺价 = degraded；空 rows 不算缺（筛不出票
     不等于数据缺失）。多个入口（screener / quote / kline）共用同一口径。
+    P1-7：最小数据源即使有价也必须计入 degraded（非实时 + 估值字段缺失）。
     """
     dict_rows = [row for row in rows if isinstance(row, Mapping)]
     if not dict_rows:
@@ -234,7 +278,7 @@ def quote_flags(rows: Iterable[Any], price_key: str = "price") -> tuple[tuple[st
     bad = [row for row in dict_rows if not usable_price(row.get(price_key))]
     if len(bad) == len(dict_rows):
         return ("quote",), ()
-    if bad:
+    if bad or any(_is_minimal_quote(row) for row in dict_rows):
         return (), ("quote",)
     return (), ()
 
@@ -247,7 +291,8 @@ def envelope_rows(
     checked_at: str | None = None,
 ) -> dict:
     """把 rows 包成 {rows, data_quality}，行情域按 quote_flags() 判级。"""
-    row_list = list(rows)
+    # P1-7：先把最小源的 0 占位估值置 None，再判级/输出，避免下游误用。
+    row_list = neutralize_minimal_quotes(rows)
     failed, degraded = quote_flags(row_list, price_key=price_key)
     dict_rows = [row for row in row_list if isinstance(row, Mapping)]
     bad = sum(1 for row in dict_rows if not usable_price(row.get(price_key)))

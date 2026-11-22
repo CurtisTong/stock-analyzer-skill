@@ -18,6 +18,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -29,9 +30,14 @@ logger = logging.getLogger(__name__)
 MAX_SNAPSHOT_DAYS = 60
 
 # 涨停池/炸板池缓存（秒）：日内复用，避免因子逐股重复拉取
+# §4.1 P2(2026-11-21): 缓存按 date 为 key，但旧实现共用一个 _cache_ts——
+# 拉新日期会刷新全局时间戳，让早已过期的旧日期缓存被无限续期；且读写无锁。
+# 现在每个条目自带写入时间戳，TTL 逐条判定；_cache_ts 仅作"最后一次写入"的
+# 快速过期预检（保留旧字段以兼容测试/外部重置），并用锁保护读写。
 _CACHE_TTL = 300
-_cache: dict = {}
+_cache: dict[str, tuple[dict, float]] = {}
 _cache_ts: float = 0.0
+_cache_lock = threading.Lock()
 
 
 def _snapshot_path() -> Path:
@@ -148,8 +154,14 @@ def refresh_panel(date: str = "") -> Optional[dict]:
     # 的缓存行为按参数分叉。
     if not date:
         date = datetime.now().strftime("%Y%m%d")
-    if date in _cache and (time.time() - _cache_ts) < _CACHE_TTL:
-        return _cache[date]
+    now = time.time()
+    with _cache_lock:
+        # 最后一次写入都已超过 TTL → 所有条目必然过期，先清空（兼容旧 _cache_ts 语义）
+        if _cache_ts and now - _cache_ts >= _CACHE_TTL:
+            _cache.clear()
+        entry = _cache.get(date)
+        if entry is not None and (now - entry[1]) < _CACHE_TTL:
+            return entry[0]
 
     limit_pool = _fetch_pool("getTopicZTPool", date)
     broken_pool = _fetch_pool("getTopicZBPool", date)
@@ -236,8 +248,9 @@ def refresh_panel(date: str = "") -> Optional[dict]:
         "stocks": stocks,
     }
 
-    _cache[date] = panel
-    _cache_ts = time.time()
+    with _cache_lock:
+        _cache[date] = (panel, time.time())  # 每日期独立时间戳，互不续期
+        _cache_ts = time.time()
     return panel
 
 

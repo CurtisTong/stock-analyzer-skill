@@ -87,3 +87,37 @@ class TestRealDataFailure:
         caplog.set_level(logging.DEBUG)
         sf.log_silent_fallback("universe_loader.blacklist", None, default_value=[])
         assert len([r for r in _calls(caplog, logging.WARNING)]) == 1
+
+
+class TestP2PermanentDedupeFix:
+    """P2 #7(4.1)：真实故障不能按 (module, 异常类型) 永久去重。"""
+
+    def test_same_exception_type_different_locations_both_warn(self, caplog):
+        """同模块、同异常类型但不同 location，各自首次都要 warning。"""
+        caplog.set_level(logging.DEBUG)
+        sf.log_silent_fallback("fetchers.quote.source_a.fetch", ConnectionError("net"))
+        sf.log_silent_fallback("fetchers.quote.source_b.fetch", ConnectionError("net"))
+        warnings = [r for r in _calls(caplog, logging.WARNING) if "fetchers.quote" in r.getMessage()]
+        assert len(warnings) == 2, "修复前 module 级永久去重会把第二处真实故障降为 debug"
+
+    def test_warning_repeats_after_time_window(self, caplog):
+        """时间窗过期后同一故障应再次 warning（复发不再永久静默）。"""
+        caplog.set_level(logging.DEBUG)
+        exc = ConnectionError("net")
+        sf.log_silent_fallback("fetchers.quote.source_a.fetch", exc)
+        # 把已记录的告警时间快进到窗口之外
+        with sf._SEEN_LOCK:
+            for key in list(sf._LAST_WARN):
+                sf._LAST_WARN[key] -= sf._NON_OPTIONAL_WINDOW_SECONDS + 1
+        sf.log_silent_fallback("fetchers.quote.source_a.fetch", exc)
+        warnings = [r for r in _calls(caplog, logging.WARNING) if "source_a" in r.getMessage()]
+        assert len(warnings) == 2
+
+    def test_optional_dep_still_permanently_deduped(self, caplog):
+        """可选依赖缺失仍保持永久单次提示（本次修复不削弱原有降噪）。"""
+        caplog.set_level(logging.DEBUG)
+        exc = ModuleNotFoundError("No module named 'akshare'", name="akshare")
+        for _ in range(3):
+            sf.log_silent_fallback("akshare_industry.fetch", exc)
+        debugs = [r for r in _calls(caplog, logging.DEBUG) if "可选依赖缺失" in r.getMessage()]
+        assert len(debugs) == 1

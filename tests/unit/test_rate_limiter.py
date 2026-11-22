@@ -266,3 +266,58 @@ class TestRateLimiterBackoffCumulative:
         rl.release("eastmoney", got_429=True)
         _, consecutive = rl._backoff_state["eastmoney"]
         assert consecutive == 1  # 重置
+
+
+class TestP1BackoffPermitLeak:
+    """P1-3(3.1)：退避 sleep 被中断/持槽 sleep 的 permit 泄漏回归。"""
+
+    @staticmethod
+    def _patch_sleep(monkeypatch, fn):
+        """只替换 rate_limiter 模块看到的 time，避免污染全局 time.sleep。"""
+        from types import SimpleNamespace
+
+        monkeypatch.setattr("common.rate_limiter.time", SimpleNamespace(sleep=fn, time=time.time))
+
+    def test_slot_backoff_interrupt_does_not_leak_permit(self, monkeypatch):
+        """退避期间 KeyboardInterrupt：尚未拿槽，permit 必须完好。"""
+        rl = RateLimiter(max_concurrent=1, backoff_base=1.0, backoff_cap=1.0, backoff_window=30.0)
+        rl._backoff_state["eastmoney"] = (time.time(), 1)
+
+        def boom(_seconds):
+            raise KeyboardInterrupt("interrupted during backoff")
+
+        self._patch_sleep(monkeypatch, boom)
+        with pytest.raises(KeyboardInterrupt):
+            with rl.slot("eastmoney"):
+                pass  # pragma: no cover - 不应执行
+        sem = rl._get_semaphore("eastmoney")
+        assert sem._value == 1, "退避被中断不得泄漏 permit（修复前拿槽后 sleep 会泄漏）"
+
+    def test_acquire_backoff_interrupt_does_not_leak_permit(self, monkeypatch):
+        """acquire() 路径同样：退避中断不占槽。"""
+        rl = RateLimiter(max_concurrent=1, backoff_base=1.0, backoff_cap=1.0, backoff_window=30.0)
+        rl._backoff_state["eastmoney"] = (time.time(), 1)
+
+        def boom(_seconds):
+            raise KeyboardInterrupt("interrupted during backoff")
+
+        self._patch_sleep(monkeypatch, boom)
+        with pytest.raises(KeyboardInterrupt):
+            rl.acquire("eastmoney")
+        sem = rl._get_semaphore("eastmoney")
+        assert sem._value == 1, "acquire 退避被中断也不得泄漏 permit"
+
+    def test_backoff_sleep_happens_before_holding_slot(self, monkeypatch):
+        """退避 sleep 期间不应持有 permit（旧实现把并发压到 ~1）。"""
+        rl = RateLimiter(max_concurrent=1, backoff_base=0.05, backoff_cap=0.05, backoff_window=30.0)
+        rl._backoff_state["eastmoney"] = (time.time(), 1)
+        observed: list[int] = []
+
+        def recording_sleep(seconds):
+            observed.append(rl._get_semaphore("eastmoney")._value)
+            time.sleep(seconds)
+
+        self._patch_sleep(monkeypatch, recording_sleep)
+        with rl.slot("eastmoney"):
+            pass
+        assert observed == [1], f"退避时 permit 应仍可用（值 1），实际 {observed}"

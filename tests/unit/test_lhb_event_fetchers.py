@@ -513,6 +513,32 @@ class TestShareholderChangeFetcher:
 
         assert result is None
 
+    @pytest.mark.parametrize(
+        "raw,expected_direction,expected_num",
+        [
+            ("-", "unknown", None),  # 东财缺失占位符
+            (None, "unknown", None),  # 字段缺失
+            ("0", "unchanged", 0.0),  # review 3.1-P1-11：真实 0 不再判减持
+            ("100", "increase", 100.0),
+            ("-100", "decrease", -100.0),
+        ],
+        ids=["dash", "missing", "zero", "positive", "negative"],
+    )
+    def test_direction_four_branches(self, monkeypatch, raw, expected_direction, expected_num):
+        """review 3.1-P1-11：None/正/负/零 四分支，缺失与 0 严格区分。"""
+        import fetchers.event.eastmoney_event as mod
+
+        row = {"SECURITY_CODE": "600519", "END_DATE": "2026-08-01", "CHANGE_NUM": raw}
+        payload = {"success": True, "result": {"pages": 1, "data": [row]}}
+        monkeypatch.setattr(mod, "http_get", _make_json_getter(payload))
+
+        result = mod.ShareholderChangeFetcher().fetch("sh600519")
+
+        assert result is not None
+        item = result["items"][0]
+        assert item["direction"] == expected_direction
+        assert item["change_num"] == expected_num
+
 
 # ═══════════════════════════════════════════════════════════════
 # PerformanceForecastFetcher

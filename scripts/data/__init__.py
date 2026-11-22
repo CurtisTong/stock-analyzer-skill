@@ -12,9 +12,12 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Optional
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from .types import Quote, KlineBar, FinanceRecord, FinanceMeta
 from .config import get_config
@@ -139,7 +142,8 @@ def get_quote(code: str, use_cache: bool = True) -> Optional[Quote]:
         from .config import get_quote_cache_ttl
 
         cached = cache.get_json(key, get_quote_cache_ttl())
-        if cached:
+        # P1-2：同财务主 key，用 is not None 区分未命中与缓存空内容。
+        if cached is not None:
             # 缓存的是 fetcher 原始 dict（未归一化），走 _dict_to_quote 统一归一化。
             # 若缓存 to_dict()（已归一化）再读回会双重归一化：total_cap 1696.94 亿
             # -> /1e8 -> 1.7e-5 亿，amount 1.72e9 元 -> ×10000 -> 1.72e13 元。
@@ -223,6 +227,7 @@ def get_kline(
     datalen: int = 30,
     use_cache: bool = True,
     require_date: str | None = None,
+    adjust: str = "",
 ) -> list:
     """获取 K 线数据。
 
@@ -236,6 +241,8 @@ def get_kline(
             - 重拉后仍不符 → **抛 DataNotReadyError 且不写缓存**（否则旧数据被固化，
               重试永远过不去）；
             - 为空仍是「无数据」（停牌/退市/新股），不抛异常。
+        adjust: 要求的复权口径（"qfq"/"hfq"/"none"）；默认 "" = 任意口径（向后兼容）。
+            P0-2：非空时编入缓存键，保证前复权与不复权数据不共用同一缓存桶。
 
     Raises:
         DataNotReadyError: 数据源尚未刷新到 require_date（上层应重试）
@@ -255,7 +262,13 @@ def get_kline(
     else:
         cache_ttl = cfg.kline_cache_ttl
 
-    key = cache.cache_key_for_stock("kline", code, scale=scale, datalen=datalen)
+    # P0-2：显式要求复权口径时把它编入缓存键，前复权/不复权互不污染。
+    # 默认 adjust="" 保持旧键语义（不破坏既有缓存与调用方）。
+    requested_adjust = (adjust or "").strip().lower()
+    key_params = {"scale": scale, "datalen": datalen}
+    if requested_adjust:
+        key_params["adjust"] = requested_adjust
+    key = cache.cache_key_for_stock("kline", code, **key_params)
 
     if use_cache:
         cached = cache.get_json(key, cache_ttl)
@@ -263,12 +276,15 @@ def get_kline(
             # 缓存的是 fetcher 原始 dict（未归一化），走 _dict_to_kline_bar 统一归一化。
             # 同 get_quote()：缓存 to_dict() 会致缓存命中时双重归一化。
             cached_bars = [_dict_to_kline_bar(bar, code) for bar in cached]
-            if require_date is None:
-                return cached_bars
-            # 缓存命中也要比对末根日期：TTL 内可能是不完整的当日数据，
-            # 不比对就会把盘中/旧数据静默喂给跑批。
-            if cached_bars and cached_bars[-1].day == require_date:
-                return cached_bars
+            # 防御旧缓存（键里没有口径维度）：口径冲突时当未命中，重拉而非返回错口径数据。
+            cached_adjust = cached_bars[0].adjust if cached_bars else ""
+            if not requested_adjust or not cached_adjust or cached_adjust == requested_adjust:
+                if require_date is None:
+                    return cached_bars
+                # 缓存命中也要比对末根日期：TTL 内可能是不完整的当日数据，
+                # 不比对就会把盘中/旧数据静默喂给跑批。
+                if cached_bars and cached_bars[-1].day == require_date:
+                    return cached_bars
 
     records = _kline_manager.fetch(code, scale=scale, datalen=datalen)
     if not records or not isinstance(records, list):
@@ -292,7 +308,23 @@ def get_kline(
 
     if use_cache and bars:
         # 缓存 fetcher 原始 records（未归一化），读取时单次归一化。
-        cache.set_json(key, records)
+        # P0-2：把推断出的复权口径写进每条缓存记录，缓存自身即可自证口径；
+        # 不修改调用方拿到的 bars（adjust 已作为 KlineBar 字段透出）。
+        actual_adjust = bars[0].adjust if bars else ""
+        # 明确要求某口径却拿到另一口径（如前复权源全挂、兜底到 sina 不复权）：
+        # 不写入该口径缓存桶，避免错口径数据被后续请求读到。
+        if requested_adjust and actual_adjust and actual_adjust != requested_adjust:
+            logger.debug(
+                "K线口径不匹配，跳过写缓存: 请求=%s 实际=%s code=%s",
+                requested_adjust,
+                actual_adjust,
+                code,
+            )
+        else:
+            cache_records = [
+                {**r, "adjust": _infer_kline_adjust(r)} if isinstance(r, dict) else r for r in records
+            ]
+            cache.set_json(key, cache_records)
 
     return bars
 
@@ -364,22 +396,27 @@ def get_finance(code: str, use_cache: bool = True, periods: int = 4) -> tuple[li
 
     if use_cache:
         cached = cache.get_json(key, cfg.finance_cache_ttl)
-        if cached:
+        # P1-2 (2026-11-21 review §3.1 #2)：用 is not None 区分“未命中”与“缓存了空列表/空内容”。
+        # 原 if cached: 让空列表/falsy 载荷永远穿透，防穿透短缓存与 TTL 全部失效。
+        if cached is not None:
             records = [_dict_to_finance(r) for r in cached]
             if _is_valid_records(records):
                 meta.cache_hit = True
                 meta.actual_periods = len(records)
                 meta.source = records[0].source if records else ""
                 return records, meta
-            # 缓存命中但全无效数据：fallback 到 zero_key 短缓存
-            zero_cached = cache.get_json(zero_key, 300)  # 5 分钟短缓存
-            if zero_cached:
-                meta.cache_hit = True
-                records = [_dict_to_finance(r) for r in zero_cached]
-                meta.actual_periods = len(records)
-                meta.is_degraded = True
-                meta.degraded_fields = list(_CORE_VALID_FIELDS)
-                return records, meta
+        # P1-2：主 key 未命中 **或** 命中但全无效，都要读 zero_key 防穿透短缓存。
+        # 原实现把 zero_key 检查嵌在 `if cached:` 内且用 `if zero_cached:` 判空，
+        # 而写入的是 []——主 key 未命中（全源失败路径只写 zero_key）时永远不会读，
+        # 空列表又 falsy，导致 5 分钟短缓存双重失效，全市场预取放大为雪崩重试。
+        zero_cached = cache.get_json(zero_key, 300)  # 5 分钟短缓存
+        if zero_cached is not None:
+            meta.cache_hit = True
+            records = [_dict_to_finance(r) for r in zero_cached]
+            meta.actual_periods = len(records)
+            meta.is_degraded = True
+            meta.degraded_fields = list(_CORE_VALID_FIELDS)
+            return records, meta
 
     result = _finance_manager.fetch(code, periods=periods)
     if not result or not isinstance(result, list):
@@ -470,6 +507,9 @@ def _dict_to_quote(d: dict) -> Quote:
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
     quote_code = d.get("code", "")
+    # P1-7：最小数据源标记必须透传，否则 THS 的 0 占位估值会被当真实值。
+    # 最小源未显式给 is_realtime 时按非实时处理（K 线端点天然非实时）。
+    is_minimal = bool(d.get("is_minimal", False))
     return Quote(
         code=_normalize_quote_code(quote_code),
         name=repair_tencent_name(d.get("name", "")),
@@ -502,6 +542,8 @@ def _dict_to_quote(d: dict) -> Quote:
         limit_up=to_float(d.get("limit_up")),
         limit_down=to_float(d.get("limit_down")),
         industry=_resolve_industry(d, quote_code),
+        is_minimal=is_minimal,  # P1-7
+        is_realtime=bool(d.get("is_realtime", not is_minimal)),  # P1-7
     )
 
 
@@ -564,6 +606,23 @@ def _normalize_quote_code(code: str) -> str:
         return code
 
 
+def _infer_kline_adjust(d: dict) -> str:
+    """推断 K 线复权口径（P0-2，2026-11-21 review §2）。
+
+    优先用 fetcher 显式写入的 ``adjust``；否则按 source 推断：
+    sina=不复权，eastmoney/tencent=前复权，其余=未知（空串）。
+    """
+    explicit = str(d.get("adjust") or "").strip().lower()
+    if explicit in ("qfq", "hfq", "none"):
+        return explicit
+    source = str(d.get("source") or "").strip().lower()
+    if source == "sina":
+        return "none"
+    if source in ("eastmoney", "tencent"):
+        return "qfq"
+    return ""
+
+
 def _dict_to_kline_bar(d: dict, code: str = "") -> KlineBar:
     to_float, to_int = _get_common_helpers()
     source = d.get("source", "")
@@ -581,6 +640,7 @@ def _dict_to_kline_bar(d: dict, code: str = "") -> KlineBar:
         pct_chg=to_float(d.get("pct_chg")),
         source=source,
         fetch_time=d.get("fetch_time") or _now_iso(),
+        adjust=_infer_kline_adjust(d),  # P0-2：复权口径随 bar 落盘，下游可识别
     )
 
 

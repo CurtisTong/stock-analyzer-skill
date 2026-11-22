@@ -89,7 +89,8 @@ class PerformanceForecastFetcher(BaseFetcher):
     """业绩预告数据源 (#10)。"""
 
     def __init__(self):
-        super().__init__("performance_forecast", priority=5)
+        # review 3.1-P1-6：显式 provider 对齐 event_sources.eastmoney（隐式推断为 "performance"）
+        super().__init__("performance_forecast", priority=5, provider="eastmoney")
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         """获取个股业绩预告数据。

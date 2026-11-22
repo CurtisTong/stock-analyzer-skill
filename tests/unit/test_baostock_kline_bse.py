@@ -52,6 +52,78 @@ def test_bse_returns_not_handled(fetcher, code):
     assert result is NOT_HANDLED
 
 
+class TestBaostockBackoffThrottle:
+    """review 3.1-P1-10：连续失败退避按时间节流，禁止每次失败都 sleep 60s。"""
+
+    class _FakeClock:
+        def __init__(self, now: float = 1000.0):
+            self.now = now
+            self.sleeps: list[float] = []
+
+        def monotonic(self) -> float:
+            return self.now
+
+        def sleep(self, seconds: float) -> None:
+            self.sleeps.append(seconds)
+
+    @pytest.fixture
+    def clock(self, monkeypatch):
+        """注入可控时钟并重置模块级失败状态，避免污染其他测试。"""
+        from fetchers.kline import baostock_kline as mod
+
+        def _reset():
+            with mod._failure_lock:
+                mod._consecutive_failures = 0
+                mod._last_backoff_ts = 0.0
+
+        _reset()
+        fake = self._FakeClock()
+        monkeypatch.setattr(mod, "time", fake)  # 只替换模块引用，不改全局 time 模块
+        yield fake
+        _reset()
+
+    def test_backoff_at_most_once_per_interval(self, clock):
+        """达阈值后首个失败 sleep 一次，间隔内后续失败不再阻塞。"""
+        from fetchers.kline import baostock_kline as mod
+
+        mod._record_failure()
+        mod._record_failure()
+        assert clock.sleeps == []  # 未达阈值
+
+        mod._record_failure()  # 第 3 次达阈值 → 退避一次
+        assert clock.sleeps == [mod._IP_BAN_BACKOFF_SECONDS]
+        first_backoff_ts = mod._last_backoff_ts
+
+        # 第 4/5 次紧接失败：退避窗口内不再 sleep（旧实现每次都会 sleep）
+        mod._record_failure()
+        mod._record_failure()
+        assert clock.sleeps == [mod._IP_BAN_BACKOFF_SECONDS]
+
+        # 差 1 秒未满间隔：仍不 sleep
+        clock.now = first_backoff_ts + mod._IP_BAN_BACKOFF_INTERVAL_SECONDS - 1
+        mod._record_failure()
+        assert clock.sleeps == [mod._IP_BAN_BACKOFF_SECONDS]
+
+        # 满间隔后再次失败：允许再退避一次
+        clock.now = first_backoff_ts + mod._IP_BAN_BACKOFF_INTERVAL_SECONDS
+        mod._record_failure()
+        assert clock.sleeps == [mod._IP_BAN_BACKOFF_SECONDS, mod._IP_BAN_BACKOFF_SECONDS]
+
+    def test_success_resets_counter_before_next_backoff(self, clock):
+        """成功后计数归零，需重新累积到阈值才再次退避。"""
+        from fetchers.kline import baostock_kline as mod
+
+        for _ in range(mod._IP_BAN_FAILURE_THRESHOLD):
+            mod._record_failure()
+        assert clock.sleeps == [mod._IP_BAN_BACKOFF_SECONDS]
+
+        mod._record_success()
+        assert mod._consecutive_failures == 0
+        for _ in range(mod._IP_BAN_FAILURE_THRESHOLD - 1):
+            mod._record_failure()
+        assert clock.sleeps == [mod._IP_BAN_BACKOFF_SECONDS]
+
+
 # ═══════════════════════════════════════════════════════════════
 # 沪深主板/创业板/科创板：应正常路由（不返回 NOT_HANDLED）
 # ═══════════════════════════════════════════════════════════════

@@ -5,6 +5,7 @@ import logging
 import os
 
 from common import BaseFetcher, http_get, to_secid
+from common.exceptions import ParseError
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +48,11 @@ class EastmoneyKlineFetcher(BaseFetcher):
         raw = http_get(url, timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.debug("东方财富 K 线 JSON 解析失败: %s", code)
-            return None
+        except json.JSONDecodeError as e:
+            # review 4.1-P2：JSON 解码失败 ≠ 无数据，抛 ParseError 让 manager
+            # 记 error 并累计熔断；反爬 HTML 错误页不再被当"无数据"高频重试
+            logger.debug("东方财富 K 线 JSON 解析失败: %s, %s", code, e)
+            raise ParseError(str(raw), "eastmoney_kline", f"JSON 解析失败: {e}") from e
         if not data or data.get("rc") != 0 or "data" not in data:
             logger.debug("东方财富 K 线无数据: %s", code)
             return None

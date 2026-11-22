@@ -2,6 +2,11 @@
 
 优先使用 requests（可选依赖，连接池复用 + 自动编码），
 缺失时降级为 http.client（stdlib）。
+
+2026-11-21 code review：
+- P1-4：响应超限截断时丢弃连接，不把带残留字节的 socket 还池；
+- P2 #4：requests Session 改为 thread-local（不再声称进程级共享线程安全）；
+- P2 #5：max_retries 透传并据此构造 Retry，两条路径语义一致。
 """
 
 import http.client
@@ -27,31 +32,50 @@ except ImportError:
 from common.exceptions import RateLimitError, NetworkError, HTTPStatusError
 
 # ---------- requests 连接池（可选） ----------
+# P2 #4(4.1): 进程级共享 Session 不保证线程安全（screener 用线程池并发）。
+# 改为 **thread-local Session**：每个工作线程持有自己的连接池，互不共享可变状态。
+# P2 #5(4.1): 同一线程内不同 fetcher 的 max_retries 不同，按 max_retries 分桶，
+# 据此构造 urllib3 Retry，不再硬编码 total=3。
+_thread_local = threading.local()
 
-_session = None
-_session_lock = threading.Lock()
 
+def _get_session(max_retries: int = 3):
+    """获取**当前线程私有**的 requests Session（连接池复用）。
 
-def _get_session():
-    """获取或创建 requests Session（线程安全，连接池复用）。"""
-    global _session
-    if _session is not None:
-        return _session
-    with _session_lock:
-        if _session is not None:
-            return _session
-        _session = _requests.Session()
-        _session.max_redirects = 5  # 限制重定向次数，防止循环攻击
-        retry = Retry(total=3, backoff_factor=0.5, status_forcelist=[500, 502, 503, 504])
-        adapter = HTTPAdapter(
-            max_retries=retry,
-            pool_connections=32,
-            pool_maxsize=32,
-        )
-        _session.mount("http://", adapter)
-        _session.mount("https://", adapter)
-        _session.headers.update({"User-Agent": "stock-analyzer-skill/1.0"})
-        return _session
+    注意：这里不再声称 Session 是"线程安全的进程级单例"——requests.Session
+    官方文档只说"一般可以共享，但不是严格线程安全"。本项目线程池里的线程
+    长期存活，thread-local 既保留了连接复用，又消除了跨线程状态污染。
+
+    Args:
+        max_retries: 总尝试次数（与 stdlib 路径 max_retries 语义一致），
+            据此设置 urllib3 Retry(total=max_retries-1)。
+    """
+    sessions = getattr(_thread_local, "sessions", None)
+    if sessions is None:
+        sessions = {}
+        _thread_local.sessions = sessions
+    session = sessions.get(max_retries)
+    if session is not None:
+        return session
+
+    session = _requests.Session()
+    session.max_redirects = 5  # 限制重定向次数，防止循环攻击
+    # max_retries 语义 = 总尝试次数；urllib3 total = 重试次数（首尝试之外）
+    retry = Retry(
+        total=max(0, max_retries - 1),
+        backoff_factor=0.5,
+        status_forcelist=[500, 502, 503, 504],
+    )
+    adapter = HTTPAdapter(
+        max_retries=retry,
+        pool_connections=MAX_POOL_SIZE,
+        pool_maxsize=MAX_POOL_SIZE,
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    session.headers.update({"User-Agent": "stock-analyzer-skill/1.0"})
+    sessions[max_retries] = session
+    return session
 
 
 USER_AGENTS = [
@@ -133,6 +157,18 @@ def _return_connection(key: str, conn: http.client.HTTPConnection) -> None:
                 logger.debug("关闭溢出连接失败: %s", e)
 
 
+class _ResponseTooLarge(Exception):
+    """P1-4(3.1): 内部信号——响应体超限，socket 残留未读字节。
+
+    携带已经读到的截断内容；上层必须**丢弃/关闭**该连接而不是归还连接池，
+    否则下次复用会把残留旧字节当成新响应解析，产生随机错乱数据。
+    """
+
+    def __init__(self, truncated: bytes):
+        super().__init__("response too large")
+        self.truncated = truncated
+
+
 def _do_request(
     conn: http.client.HTTPConnection,
     url: str,
@@ -176,8 +212,12 @@ def _do_request(
             break
         total_size += len(chunk)
         if total_size > MAX_RESPONSE_SIZE:
-            logger.warning("响应体超过 %dMB 限制，截断: %s", MAX_RESPONSE_SIZE // 1048576, url)
-            break
+            # P1-4(3.1): 旧实现 break 后未排空 socket 就把连接还池，
+            # 残留旧字节会被下次请求当新响应解析（随机错乱数据）。
+            # 改为抛内部信号，由 _http_get_internal 关闭/丢弃该连接；
+            # 仍把已读取内容返回给调用方，保持截断语义不变。
+            logger.warning("响应体超过 %dMB 限制，截断并丢弃连接: %s", MAX_RESPONSE_SIZE // 1048576, url)
+            raise _ResponseTooLarge(b"".join(chunks))
         chunks.append(chunk)
     return b"".join(chunks)
 
@@ -209,7 +249,13 @@ def _http_get_internal(
         try:
             if conn is None:
                 conn = _get_connection(key, scheme, host, port, timeout)
-            result = _do_request(conn, url, path_query, req_headers, timeout)
+            try:
+                result = _do_request(conn, url, path_query, req_headers, timeout)
+            except _ResponseTooLarge as e:
+                # P1-4(3.1): 截断响应的 socket 里还有未读字节，绝不能回池复用
+                _invalidate_connection(url, conn)
+                conn = None
+                return e.truncated
             _return_connection(key, conn)
             return result
         except RateLimitError:
@@ -237,12 +283,14 @@ def _http_get_requests(
     url: str,
     headers: dict[str, str] | None = None,
     timeout: int = 10,
+    max_retries: int = 3,
 ) -> bytes:
-    """requests 版本的 GET 请求（连接池复用 + 自动编码）。
+    """requests 版本的 GET 请求（线程私有连接池 + 自动编码）。
 
     跟随重定向（最多 5 次，与 http.client 路径保持一致）。
+    P2 #5(4.1): max_retries 透传到 Session 的 urllib3 Retry，不再硬编码 total=3。
     """
-    session = _get_session()
+    session = _get_session(max_retries)
     req_headers = {}
     if headers:
         req_headers.update(headers)
@@ -268,10 +316,14 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
 
     优先使用 requests（可选依赖），缺失时降级为 http.client。
     4xx 业务错误不降级，直接抛出。
+
+    P2 #5(4.1): max_retries 在两条路径都生效——requests 路径据此构造 Retry，
+    stdlib 路径（requests 缺失时）也用同一个值。requests 已耗尽重试后仅做
+    1 次 stdlib 兜底，避免重试次数叠加形成超时风暴。
     """
     if _HAS_REQUESTS:
         try:
-            return _http_get_requests(url, timeout=timeout)
+            return _http_get_requests(url, timeout=timeout, max_retries=max_retries)
         except RateLimitError:
             raise
         except _requests.RequestException as e:
@@ -287,9 +339,10 @@ def http_get(url: str, timeout: int = 10, max_retries: int = 3) -> bytes:
                         (resp.text or "")[:200],
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
-    # fallback 到 stdlib 时 max_retries=1（单次尝试），避免与 requests 路径
-    # 的 urllib3 Retry（total=3）叠加形成超时风暴（最坏 4*timeout + 3*timeout + 退避）
-    return _http_get_internal(url, headers=None, timeout=timeout, max_retries=1)
+        # requests 路径已按 max_retries 重试；stdlib 仅最后一次兜底，避免叠加
+        return _http_get_internal(url, headers=None, timeout=timeout, max_retries=1)
+    # requests 缺失（如 CI）：stdlib 路径直接消费 max_retries，YAML retry 调优生效
+    return _http_get_internal(url, headers=None, timeout=timeout, max_retries=max_retries)
 
 
 def http_get_with_headers(
@@ -298,10 +351,13 @@ def http_get_with_headers(
     timeout: int = 10,
     max_retries: int = 3,
 ) -> bytes:
-    """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。"""
+    """带自定义 headers 的 GET 请求（用于新浪等需要 Referer 的源）。
+
+    P2 #5(4.1): 与 http_get 一致透传 max_retries；线程私有 Session（#4）。
+    """
     if _HAS_REQUESTS:
         try:
-            return _http_get_requests(url, headers=headers, timeout=timeout)
+            return _http_get_requests(url, headers=headers, timeout=timeout, max_retries=max_retries)
         except RateLimitError:
             raise
         except _requests.RequestException as e:
@@ -316,8 +372,10 @@ def http_get_with_headers(
                         (resp.text or "")[:200],
                     )
             logger.debug("requests 请求失败，降级到 http.client: %s", e)
-    # 同 http_get，fallback max_retries=1 避免超时叠加
-    return _http_get_internal(url, headers=headers, timeout=timeout, max_retries=1)
+        # requests 路径已按 max_retries 重试；stdlib 仅最后一次兜底
+        return _http_get_internal(url, headers=headers, timeout=timeout, max_retries=1)
+    # requests 缺失（如 CI）：stdlib 路径直接消费 max_retries
+    return _http_get_internal(url, headers=headers, timeout=timeout, max_retries=max_retries)
 
 
 def decode_gbk(data: bytes) -> str:

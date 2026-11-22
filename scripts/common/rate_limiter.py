@@ -6,6 +6,8 @@ v1.16.0 (2026-07-28) Batch 2 修订：
   解决  信号量泄漏风险）。
 - 公开 API 保留 ``acquire()``/``release()`` 以兼容 ``fetcher_base.py`` 的
   现有调用点；新代码优先使用 ``slot()``。
+2026-11-21 code review P1-3：退避 sleep 改为**拿槽前**执行，
+interrupt 不再泄漏 permit，也不再持槽 sleep 压垮并发。
 - 与 ``circuit_breaker`` 编排：``is_provider_disabled(provider)``
   作为 circuit breaker 的旁路检查（fetcher_base.py 可调用）。
 
@@ -72,43 +74,40 @@ class RateLimiter:
         delay = self.backoff_base * (2 ** (consecutive_429 - 1))
         return min(delay, self.backoff_cap)
 
+    def _backoff_delay(self, provider: str) -> float:
+        """P1-3(3.1): 计算退避时长，但**不持有信号量**。
+
+        退避状态读写仍在 _backoff_lock 内（原逻辑保留：窗口过期则重置计数），
+        但返回的 sleep 时长由调用方在**拿槽之前**使用。这样即便 sleep 被
+        KeyboardInterrupt 打断，也没有 permit 被占用，不会永久泄漏。
+        """
+        with self._backoff_lock:
+            state = self._backoff_state.get(provider)
+            if state is None:
+                return 0.0
+            last_429_time, consecutive = state
+            elapsed = time.time() - last_429_time
+            if elapsed >= self.backoff_window:
+                self._backoff_state.pop(provider, None)
+                return 0.0
+            return max(0.0, self._compute_backoff(consecutive) - elapsed)
+
     def acquire(self, provider: str) -> threading.BoundedSemaphore:
         """获取 provider 的信号量，必要时 sleep 退避。
 
         返回信号量对象（调用方必须在 finally 中 release）。
         推荐改用 ``slot()`` 上下文管理器，自动处理释放。
 
-        退避逻辑：
-        - 若 provider 此前被 429 且距今 < backoff_window，sleep 到窗口结束
-        - 否则立即通过
+        P1-3(3.1): 退避 sleep 移到 ``sem.acquire()`` **之前**；拿槽成功后
+        不再有任何可中断路径，调用方 finally 一定有机会归还 permit。
+        旧实现拿槽后 sleep，中断会永久泄漏 permit；持槽 sleep 还把并发压到 ~1。
         """
+        remaining = self._backoff_delay(provider)
+        if remaining > 0:
+            logger.debug("RateLimiter %s: 退避 sleep %.2fs（持槽前）", provider, remaining)
+            time.sleep(remaining)
         sem = self._get_semaphore(provider)
         sem.acquire()
-        # 检查是否需要退避 sleep
-        with self._backoff_lock:
-            state = self._backoff_state.get(provider)
-            if state is None:
-                return sem
-            last_429_time, consecutive = state
-            elapsed = time.time() - last_429_time
-            if elapsed >= self.backoff_window:
-                # 退避窗口已过，重置计数
-                self._backoff_state.pop(provider, None)
-                return sem
-            # 计算还需 sleep 多久
-            backoff = self._compute_backoff(consecutive)
-            remaining = backoff - elapsed
-            if remaining > 0:
-                logger.debug(
-                    "RateLimiter %s: 退避 sleep %.2fs (consecutive_429=%d, elapsed=%.2fs)",
-                    provider,
-                    remaining,
-                    consecutive,
-                    elapsed,
-                )
-                # 在持锁外 sleep 以避免阻塞其他 provider
-        if remaining > 0:
-            time.sleep(remaining)
         return sem
 
     def release(self, provider: str, got_429: bool = False) -> None:
@@ -156,6 +155,10 @@ class RateLimiter:
         解决 信号量泄漏：try/finally 强制释放，即便业务代码抛
         KeyboardInterrupt、未捕获的 AssertionError 也能保证信号量归还。
 
+        P1-3(3.1): 退避 sleep 移到持槽之前（与 acquire() 语义一致），
+        ``sem.acquire()`` 成功后的 yield 被 try/finally 完整包裹；
+        退避期间被中断时尚未持槽，不会泄漏 permit，也不会占槽压低并发。
+
         用法::
 
             with limiter.slot("eastmoney"):
@@ -164,33 +167,16 @@ class RateLimiter:
                     raise SomeRetryable()
                 # 异常会自动 release
         """
+        remaining = self._backoff_delay(provider)
+        if remaining > 0:
+            logger.debug("RateLimiter.slot %s: 退避 sleep %.2fs（持槽前）", provider, remaining)
+            time.sleep(remaining)
         sem = self._get_semaphore(provider)
         sem.acquire()
-        acquired = True
-        # 退避 sleep（与 acquire() 一致）
-        with self._backoff_lock:
-            state = self._backoff_state.get(provider)
-            remaining = 0.0
-            if state is not None:
-                last_429_time, consecutive = state
-                elapsed = time.time() - last_429_time
-                if elapsed >= self.backoff_window:
-                    self._backoff_state.pop(provider, None)
-                else:
-                    remaining = self._compute_backoff(consecutive) - elapsed
-                    if remaining > 0:
-                        logger.debug(
-                            "RateLimiter.slot %s: 退避 sleep %.2fs",
-                            provider,
-                            remaining,
-                        )
-        if remaining > 0:
-            time.sleep(remaining)
         try:
             yield
         finally:
-            if acquired:
-                sem.release()
+            sem.release()
 
     def is_provider_disabled(self, provider: str) -> bool:
         """检查 provider 当前是否在退避窗口内（用作 circuit breaker 的旁路信号）。

@@ -40,7 +40,12 @@ class DataConfig:
 
     # HTTP 超时（秒）
     http_timeout: int = 10  # 单次 HTTP 请求超时
+    # P2 #8(4.1): 独立配置键，不再误用 http.read_timeout（改单次读超时不应改批量预算）
     parallel_timeout: int = 30  # parallel_map 总超时
+
+    # 缓存容量治理（P2 #8）：让 YAML cache.max_size/max_age 不再是死配置
+    cache_max_size: int = 1000  # 最大缓存文件数（YAML cache.max_size）
+    cache_max_age: int = 604800  # 缓存文件最大存活秒数（YAML cache.max_age，7 天）
 
     # 熔断器
     circuit_failure_threshold: int = 5
@@ -66,7 +71,12 @@ class DataConfig:
         # YAML 默认值
         http_cfg = yaml_cfg.get("http", {})
         cfg.http_timeout = http_cfg.get("connect_timeout", cfg.http_timeout)
-        cfg.parallel_timeout = http_cfg.get("read_timeout", cfg.parallel_timeout)
+        # P2 #8(4.1): 并行超时独立键。旧实现把 http.read_timeout(30s) 当并行预算，
+        # 改单次读超时会意外改变批量任务的超时；默认仍为 30s（向后兼容默认值）。
+        cfg.parallel_timeout = http_cfg.get("parallel_timeout", cfg.parallel_timeout)
+        # P2 #8(4.1): YAML cache.max_size/max_age 由 common.cache 的周期清理消费
+        cfg.cache_max_size = cache_cfg.get("max_size", cfg.cache_max_size)
+        cfg.cache_max_age = cache_cfg.get("max_age", cfg.cache_max_age)
         cfg.quote_cache_ttl = cache_cfg.get("quote_ttl", cfg.quote_cache_ttl)
         cfg.intraday_quote_cache_ttl = cache_cfg.get("intraday_quote_ttl", cfg.intraday_quote_cache_ttl)
         cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
@@ -90,6 +100,9 @@ class DataConfig:
             os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout),
             cfg.parallel_timeout,
         )
+        # P2 #8(4.1): 缓存容量也支持环境变量覆盖（优先级：环境变量 > YAML > 默认值）
+        cfg.cache_max_size = _safe_int(os.getenv("DATA_CACHE_MAX_SIZE", cfg.cache_max_size), cfg.cache_max_size)
+        cfg.cache_max_age = _safe_int(os.getenv("DATA_CACHE_MAX_AGE", cfg.cache_max_age), cfg.cache_max_age)
         cfg.quote_cache_ttl = _safe_int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl), cfg.quote_cache_ttl)
         cfg.intraday_quote_cache_ttl = _safe_int(
             os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl),

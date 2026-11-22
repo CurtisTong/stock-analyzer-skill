@@ -114,6 +114,50 @@ class TestChainIsolation:
             assert chain[0]["provider"] == "testfail_c"
 
 
+class TestChainOverwriteOnCleanFetch:
+    """review 3.1-P1-5：健康请求必须用空链覆盖同 code 的历史失败血缘。"""
+
+    def test_clean_fetch_clears_stale_failed_chain(self):
+        """同一标的先失败降级、后主源直连成功 → 链必须重置为 []。"""
+        from common.fetcher_base import DataFetcherManager
+
+        class _ToggleFetcher:
+            """可切换成功/失败的 fetcher 桩。"""
+
+            def __init__(self):
+                self.name = "toggle"
+                self.provider = "testtoggle"
+                self.priority = 10
+                self.enabled = True
+                self.fail = True
+
+            def is_available(self):
+                return True
+
+            def on_success(self):
+                pass
+
+            def on_failure(self):
+                pass
+
+            def fetch(self, code, **kwargs):
+                if self.fail:
+                    raise RuntimeError("boom")
+                return {"code": code, "source": "testtoggle"}
+
+        primary = _ToggleFetcher()
+        m = DataFetcherManager([primary, _OkFetcher("ok_archive", "testok_archive")])
+
+        # 第一次：主源失败，降级到次源 → 留下一条失败血缘
+        assert m.fetch("sh600519") == {"code": "sh600519", "source": "testok_archive"}
+        assert len(m.fallback_chain("sh600519")) == 1
+
+        # 第二次：主源恢复（空降级链）→ 必须覆盖为 []，不再沿用上次失败血缘
+        primary.fail = False
+        assert m.fetch("sh600519") == {"code": "sh600519", "source": "testtoggle"}
+        assert m.fallback_chain("sh600519") == []
+
+
 class TestChainRendering:
     def test_render_uses_provider_and_detail(self):
         """血缘行格式：provider + detail（不是 fetcher 名 + 事件码）。"""
