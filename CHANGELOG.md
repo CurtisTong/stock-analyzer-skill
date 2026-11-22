@@ -899,6 +899,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1348,6 +1349,42 @@
 - Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
 - v1.33.0 — positioning convergence and reviewable evidence
 - Merge CI auto CHANGELOG update (d12f65b)
+
+### Fixed
+- **scripts**: 修复CLI契约与技术分析误报
+- **portfolio**: 修复风控接线与输入校验
+- **backtest**: 修正回测口径与样本外验证
+- **data**: 修复复权口径与数据层静默错误
+- **ci**: 修复覆盖率与发布门禁假绿
+- **data**: DataNotReadyError 补 details.attempts 字段对齐规格
+- **portfolio**: 单只缺报价也标注"当日可能无法成交"
+- **portfolio**: 自选股按目标区间判定状态，未持仓不再报"已破止损"
+- **sched**: 节假日表整年缺失告警，--no-cache 真正生效
+- **scripts**: 静默降级日志按同因去重，可选依赖缺失降为 debug
+- **market**: 美债10Y 与 VIX 接入东财/CBOE 官方源
+- **market**: 美元指数与 VIX 补可用兜底源
+- **market**: 宏观指标加新浪外盘兜底，覆盖黄金/原油/离岸人民币
+- **scripts**: 显式降级域与整域缺失冲突时只算 missing
+- **scripts**: 信封支持显式降级域，screener 按报价缺失判级
+- **data**: 未知板块名报错退出，删除四条无池子的死规则
+- **data**: 按研判抽查结论修正 7 处语义错配并补 7 条近似归属
+- **data**: is_st 补退市判定并剔除池内 ST/退市标的
+- **data**: 语义工具补双口径计数、豁免理由字段与审计复现入口
+- **data**: 重建板块池电力/光伏/新能源三块并补齐映射表
+- **data**: 修复全市场池主板股被静默丢弃
+- **portfolio**: 单只缺报价也标注"当日可能无法成交"
+- **data**: lhb 直接运行时 scripts/data 遮蔽 stdlib types
+- **portfolio**: 自选股按目标区间判定状态，未持仓不再报"已破止损"
+- **portfolio**: 回撤熔断改用权益口径消除假熔断
+- **market**: treat zero-zero breadth as a total failure
+- **experts**: guard breadth None in build_stock_data
+
+### Documentation
+- 记录整体代码审查与修复
+- **skills**: 写清 data_quality 与 degraded_fields 的关系
+- **readme**: lead with the daily portfolio and market entries
+- **stock**: add a dedicated quick-mode report template
+- **positioning**: establish single source of truth and drop unverified claims
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
