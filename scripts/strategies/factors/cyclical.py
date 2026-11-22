@@ -60,6 +60,8 @@ _RAW_MATERIAL_FETCHERS = {
     "copper": "fetch_copper",
     "aluminum": "fetch_aluminum",
     "lithium": "fetch_lithium",
+    # 电解铝冶炼价差（AL - 1.92*AO），新浪期货零依赖源，v1.34 新增
+    "al_alumina_spread": "fetch_aluminum_alumina_spread",
 }
 
 # 成本维度分位阈值（近 1 年价格分位）
@@ -267,6 +269,61 @@ def _cost_dimension(industry: str, code: str = "") -> dict:
     }
 
 
+def _spread_dimension(industry: str, code: str = "") -> dict:
+    """电解铝冶炼价差维度（v1.34 新增）。
+
+    铝-氧化铝价差（AL - 1.92×AO）直接代表电解铝冶炼利润，比单一铝价分位
+    更能刻画云铝等标的的周期位置。方向：价差高分位=盈利峰值=周期顶部；
+    价差低分位=盈利谷底=周期底部（与原料价格高位=顶部的逻辑同向）。
+
+    仅对电解铝标的（material_key=aluminum）启用；其余周期股返回不可评估。
+    价差数据缺失时回退到 _cost_dimension 的原料分位逻辑。
+    """
+    material_key = _resolve_material(industry, code)
+    if material_key != "aluminum":
+        return {"position": "mid", "evaluable": False, "detail": "非电解铝标的"}
+
+    price_data = _fetch_raw_material_price("al_alumina_spread")
+    if price_data is None:
+        return {"position": "mid", "evaluable": False, "detail": "冶炼价差缺失"}
+
+    value = price_data.get("value", "N/A")
+    pct = price_data.get("percentile")
+    src = price_data.get("source", "")
+    if pct is None:
+        return {
+            "position": "mid",
+            "evaluable": True,
+            "detail": f"冶炼价差={value}(无分位,{src})",
+        }
+    if pct >= _COST_PCT_HIGH:
+        return {
+            "position": "high",
+            "evaluable": True,
+            "detail": f"冶炼价差={value} 分位{pct:.1f}%(盈利峰值/周期顶部)",
+        }
+    if pct <= _COST_PCT_LOW:
+        return {
+            "position": "low",
+            "evaluable": True,
+            "detail": f"冶炼价差={value} 分位{pct:.1f}%(盈利谷底/周期底部)",
+        }
+    return {
+        "position": "mid",
+        "evaluable": True,
+        "detail": f"冶炼价差={value} 分位{pct:.1f}%(中性,{src})",
+    }
+
+
+def _effective_cost_dimension(industry: str, code: str = "") -> dict:
+    """成本维度：电解铝优先用冶炼价差分位，其余回退原料价格分位。"""
+    spread_dim = _spread_dimension(industry, code)
+    if spread_dim["evaluable"]:
+        # 价差可评估即优先（即使中性）——比单原料更贴近冶炼利润周期
+        return spread_dim
+    return _cost_dimension(industry, code)
+
+
 # ═══════════════════════════════════════════════════════════════
 # 主入口
 # ═══════════════════════════════════════════════════════════════
@@ -292,7 +349,7 @@ def cyclical_score(fin: dict, quote: dict, features: dict, industry: str, code: 
     # 三维度评估
     price_dim = _price_dimension(fin, quote, industry)
     supply_dim = _supply_dimension(fin, industry)
-    cost_dim = _cost_dimension(industry, code)
+    cost_dim = _effective_cost_dimension(industry, code)
 
     # 统计高位信号数（仅可评估维度）
     evaluable_dims = [d for d in [price_dim, supply_dim, cost_dim] if d["evaluable"]]
@@ -343,7 +400,7 @@ def get_cycle_position(fin: dict, quote: dict, industry: str, code: str = "") ->
 
     price_dim = _price_dimension(fin, quote, industry)
     supply_dim = _supply_dimension(fin, industry)
-    cost_dim = _cost_dimension(industry, code)
+    cost_dim = _effective_cost_dimension(industry, code)
 
     evaluable_dims = [d for d in [price_dim, supply_dim, cost_dim] if d["evaluable"]]
     if not evaluable_dims:

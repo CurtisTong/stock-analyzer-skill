@@ -12,7 +12,7 @@
 | **AKShare** | MIT + 学术限制 | 有 | finance（财务）、kline fallback、market 涨跌停 | MIT 本身宽松，但 AKShare 含非学术用途限制条款，商业应用需确认 |
 | **腾讯证券** | 个人非商用 | 高 | quote（实时行情）、kline fallback | 禁止商业使用，日线数据不能打包分发 |
 | **东方财富** | 无明确协议 | 有 | quote/kline/finance/flow/lhb/chip/event 多域主源 | 公开接口但无明确使用协议，商业使用需自行评估 |
-| **新浪财经** | 无明确协议 | 有 | quote/kline | 公开接口，无明确协议 |
+| **新浪财经** | 无明确协议 | 有 | quote/kline、国内商品期货（沪铝 nf_AL0 / 氧化铝 nf_AO0，实时 + 历史 K 线，用于铝-氧化铝价差） | 公开接口，无明确协议；商用需自行评估 |
 | **Tushare** | 免费版限流 + 付费完整版 | 有 | quote/kline/finance fallback | 免费版有限流和数据限制 |
 | **pytdx** | MIT | 无 | quote/kline（局域网通达信直连） | MIT 协议，商用安全 |
 | **efinance** | MIT | 无 | quote/kline fallback | MIT 协议 |

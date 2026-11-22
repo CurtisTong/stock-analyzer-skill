@@ -361,6 +361,211 @@ _AKSHARE_FUTURES_SYMBOLS = {
 _PERCENTILE_LOOKBACK = 250
 
 
+# ═══════════════════════════════════════════════════════════════
+# 新浪国内商品期货（零依赖：nf_ 实时 + 无前缀历史）
+# ═══════════════════════════════════════════════════════════════
+
+# ⚠️ 实时与历史接口的代码前缀不同（2026-11-22 实测）：
+#   实时 hq.sinajs.cn      -> nf_AL0 / nf_AO0（不带 nf_ 会返回 2024 过期数据 / 空串）
+#   历史 getDailyKLine     -> AL0 / AO0（带 nf_ 反而无数据）
+# 字段下标（nf_ 实时快照逗号分隔）：8=最新价, 10=昨结算, 17=日期
+_SINA_FUTURES_REALTIME: dict[str, tuple[str, int, int, int]] = {
+    "aluminum": ("nf_AL0", 8, 10, 17),
+    "alumina": ("nf_AO0", 8, 10, 17),
+}
+_SINA_FUTURES_HISTORY: dict[str, str] = {
+    "aluminum": "AL0",
+    "alumina": "AO0",
+}
+# 电解 1 吨铝理论耗氧化铝约 1.92 吨（行业通用简化系数，L2 冶炼价差口径）
+_ALUMINA_PER_TON_AL = 1.92
+
+
+def _sina_futures_realtime(code: str, price_idx: int, settle_idx: int, date_idx: int) -> dict | None:
+    """取新浪国内期货实时快照（nf_ 前缀）；失败返回 None，不抛。
+
+    返回 {"price": float, "settle": float, "date": str}。
+    单位 CNY/吨，与历史 getDailyKLine 的 close 同口径。
+    """
+    try:
+        import re
+        import urllib.request
+
+        req = urllib.request.Request(
+            f"https://hq.sinajs.cn/list={code}",
+            headers={"Referer": "https://finance.sina.com.cn", "User-Agent": "Mozilla/5.0"},
+        )
+        raw = urllib.request.urlopen(req, timeout=5).read().decode("gbk", errors="replace")
+        m = re.search(r'hq_str_' + re.escape(code) + r'="([^"]*)"', raw)
+        if not m or not m.group(1):
+            return None
+        parts = m.group(1).split(",")
+        if len(parts) <= max(price_idx, settle_idx, date_idx):
+            return None
+        price = float(parts[price_idx])
+        settle = float(parts[settle_idx])
+        if price <= 0:
+            return None
+        return {"price": price, "settle": settle, "date": parts[date_idx]}
+    except Exception as e:
+        log_silent_fallback("macro_indicators._sina_futures_realtime", e)
+        return None
+
+
+def _sina_futures_history(symbol: str, lookback: int = _PERCENTILE_LOOKBACK) -> list[float] | None:
+    """取新浪国内期货历史收盘价序列（⚠️ 无 nf_ 前缀）；失败返回 None，不抛。
+
+    返回按时间正序的 close 列表（CNY/吨）。接口返回 JSONP，需正则提取数组。
+    """
+    try:
+        import re
+        import urllib.request
+
+        url = (
+            "https://stock2.finance.sina.com.cn/futures/api/jsonp.php/"
+            f"var%20_{symbol}=/InnerFuturesNewService.getDailyKLine?symbol={symbol}"
+        )
+        req = urllib.request.Request(
+            url,
+            headers={"Referer": "https://finance.sina.com.cn", "User-Agent": "Mozilla/5.0"},
+        )
+        txt = urllib.request.urlopen(req, timeout=8).read().decode("utf-8", "replace")
+        m = re.search(r"=\((\[.*\])\);?", txt)
+        if not m:
+            return None
+        rows = json.loads(m.group(1))
+        closes = [float(r["c"]) for r in rows[-lookback:] if float(r.get("c") or 0) > 0]
+        return closes or None
+    except Exception as e:
+        log_silent_fallback("macro_indicators._sina_futures_history", e)
+        return None
+
+
+def fetch_commodity_sina(material_key: str, fixture_key: str) -> dict | None:
+    """国内商品期货三段式拉取（零依赖新浪源，对齐 fetch_commodity_akshare）。
+
+    三段式：
+      1. 新鲜 fixture（per-key TTL）-> 直接返回
+      2. 新浪实时（nf_ 前缀）+ 历史分位（无前缀）-> 回写 snapshot + 返回
+      3. 过期 fixture -> 返回 source="fixture(stale)"
+
+    Args:
+        material_key: 品种标识（aluminum / alumina）
+        fixture_key: snapshot 价格字段名（aluminum_cny_t / alumina_cny_t）
+    """
+    snapshot = _load_snapshot()
+    pct_key = f"{material_key}_percentile_1y"
+
+    # 1. 新鲜 fixture 短路
+    if _key_is_fresh(snapshot, fixture_key) and fixture_key in snapshot:
+        return {
+            "value": snapshot[fixture_key],
+            "as_of": snapshot["updated"],
+            "source": "fixture",
+            "symbol": _SINA_FUTURES_REALTIME.get(material_key, ("unknown",))[0],
+            "percentile": snapshot.get(pct_key),
+        }
+
+    # 2. 新浪实时 + 历史分位
+    spec = _SINA_FUTURES_REALTIME.get(material_key)
+    if spec:
+        rt = _sina_futures_realtime(*spec)
+        if rt is not None:
+            snapshot[fixture_key] = round(rt["price"], 2)
+            history = _sina_futures_history(_SINA_FUTURES_HISTORY[material_key])
+            pct = _calc_percentile(history) if history else None
+            if pct is not None:
+                snapshot[pct_key] = pct
+            snapshot[f"{fixture_key}_date"] = rt["date"]
+            _save_snapshot(snapshot, key_ts=f"{fixture_key}_ts")
+            return {
+                "value": round(rt["price"], 2),
+                "as_of": f"{rt['date']}T00:00:00",
+                "source": "sina_futures",
+                "symbol": spec[0],
+                "percentile": pct,
+                "history": history,  # 供价差计算复用，fetch_all 输出契约不含此字段
+            }
+
+    # 3. 过期 fixture 兜底
+    if fixture_key in snapshot:
+        return {
+            "value": snapshot[fixture_key],
+            "as_of": snapshot["updated"],
+            "source": "fixture(stale)",
+            "symbol": _SINA_FUTURES_REALTIME.get(material_key, ("unknown",))[0],
+            "percentile": snapshot.get(pct_key),
+        }
+    return None
+
+
+def fetch_aluminum_sina() -> dict | None:
+    """沪铝期货连续（CNY/吨）。新浪 nf_AL0 实时 + 历史分位 + fixture 兜底。"""
+    return fetch_commodity_sina("aluminum", "aluminum_cny_t")
+
+
+def fetch_alumina() -> dict | None:
+    """氧化铝期货连续（CNY/吨）。新浪 nf_AO0 实时 + 历史分位 + fixture 兜底。"""
+    return fetch_commodity_sina("alumina", "alumina_cny_t")
+
+
+def fetch_aluminum_alumina_spread(
+    aluminum: dict | None = None, alumina: dict | None = None
+) -> dict | None:
+    """电解铝冶炼价差（L2 简化口径）= 铝价 − 1.92 × 氧化铝价。
+
+    - 1.92 为吨铝耗氧化铝行业简化系数，未扣电力/预焙阳极（L3 完全成本留二期）。
+    - 分位用两者历史序列按日对齐计算；任一历史缺失则为 None。
+    - 允许传入已拉取的 aluminum/alumina dict，避免 fetch_all 重复请求。
+    """
+    snapshot = _load_snapshot()
+    spread_key = "al_alumina_spread_cny_t"
+    pct_key = "al_alumina_spread_percentile_1y"
+
+    # 0. 新鲜 fixture 短路（断网时铝/氧化铝走 fixture 无 history，需从此处恢复价差分位）
+    if _key_is_fresh(snapshot, spread_key) and spread_key in snapshot:
+        return {
+            "value": snapshot[spread_key],
+            "as_of": snapshot.get("updated"),
+            "source": "fixture",
+            "symbol": "AL0-1.92*AO0",
+            "percentile": snapshot.get(pct_key),
+            "ratio": snapshot.get("al_alumina_spread_ratio", _ALUMINA_PER_TON_AL),
+            "note": "L2 简化口径，未扣电力/预焙阳极成本",
+        }
+
+    al = aluminum if aluminum is not None else fetch_aluminum_sina()
+    ao = alumina if alumina is not None else fetch_alumina()
+    if al is None or ao is None:
+        return None
+
+    spread = al["value"] - _ALUMINA_PER_TON_AL * ao["value"]
+    al_hist = al.get("history")
+    ao_hist = ao.get("history")
+    pct = None
+    if al_hist and ao_hist:
+        n = min(len(al_hist), len(ao_hist))
+        spread_hist = [a - _ALUMINA_PER_TON_AL * o for a, o in zip(al_hist[-n:], ao_hist[-n:])]
+        pct = _calc_percentile(spread_hist + [spread])
+
+    # 回写 fixture（供断网兜底）
+    snapshot[spread_key] = round(spread, 2)
+    if pct is not None:
+        snapshot[pct_key] = pct
+    snapshot["al_alumina_spread_ratio"] = _ALUMINA_PER_TON_AL
+    _save_snapshot(snapshot, key_ts=f"{spread_key}_ts")
+
+    return {
+        "value": round(spread, 2),
+        "as_of": al.get("as_of") or ao.get("as_of"),
+        "source": "sina_futures(derived)",
+        "symbol": "AL0-1.92*AO0",
+        "percentile": pct,
+        "ratio": _ALUMINA_PER_TON_AL,
+        "note": "L2 简化口径，未扣电力/预焙阳极成本",
+    }
+
+
 def _akshare_get(symbol: str) -> float | None:
     """通过 akshare 拉取国内商品期货连续合约最新收盘价（CNY/吨）。
 
@@ -954,7 +1159,9 @@ def fetch_all() -> dict:
             "data_quality": {degraded_fields: [...]}
           }
     """
-    # 宏观
+    # 宏观：铝/氧化铝只拉一次，价差复用两者结果（避免重复请求 + 历史序列对齐）
+    aluminum_data = fetch_aluminum_sina()
+    alumina_data = fetch_alumina()
     macro = {
         "treasury_10y_pct": fetch_treasury_10y(),
         "usd_index": fetch_usd_index(),
@@ -964,6 +1171,9 @@ def fetch_all() -> dict:
         "brent_oil_usd": fetch_brent_oil(),
         "wti_oil_usd": fetch_wti_oil(),
         "lithium_carbonate_cny_t": fetch_lithium(),
+        "aluminum_cny_t": aluminum_data,
+        "alumina_cny_t": alumina_data,
+        "al_alumina_spread": fetch_aluminum_alumina_spread(aluminum_data, alumina_data),
     }
     # 杠杆
     leverage = {
@@ -1003,6 +1213,12 @@ def fetch_all() -> dict:
                 timestamps.append(v["as_of"])
     as_of = max(timestamps) if timestamps else datetime.now().isoformat(timespec="seconds")
 
+    # 价差计算复用的历史序列不进入输出契约（避免 _raw JSON 膨胀）
+    for section in (macro, leverage, valuation_bridge):
+        for val in section.values():
+            if isinstance(val, dict):
+                val.pop("history", None)
+
     return {
         "as_of": as_of,
         "macro": {
@@ -1025,6 +1241,35 @@ def fetch_all() -> dict:
             ),
             "lithium_carbonate_cny_t_source": (
                 macro["lithium_carbonate_cny_t"]["source"] if macro["lithium_carbonate_cny_t"] else None
+            ),
+            "aluminum_cny_t": (macro["aluminum_cny_t"]["value"] if macro["aluminum_cny_t"] else None),
+            "aluminum_cny_t_source": (
+                macro["aluminum_cny_t"]["source"] if macro["aluminum_cny_t"] else None
+            ),
+            "aluminum_percentile_1y": (
+                macro["aluminum_cny_t"].get("percentile") if macro["aluminum_cny_t"] else None
+            ),
+            "alumina_cny_t": (macro["alumina_cny_t"]["value"] if macro["alumina_cny_t"] else None),
+            "alumina_cny_t_source": (
+                macro["alumina_cny_t"]["source"] if macro["alumina_cny_t"] else None
+            ),
+            "alumina_percentile_1y": (
+                macro["alumina_cny_t"].get("percentile") if macro["alumina_cny_t"] else None
+            ),
+            "al_alumina_spread_cny_t": (
+                macro["al_alumina_spread"]["value"] if macro["al_alumina_spread"] else None
+            ),
+            "al_alumina_spread_cny_t_source": (
+                macro["al_alumina_spread"]["source"] if macro["al_alumina_spread"] else None
+            ),
+            "al_alumina_spread_percentile_1y": (
+                macro["al_alumina_spread"].get("percentile") if macro["al_alumina_spread"] else None
+            ),
+            "al_alumina_spread_ratio": (
+                macro["al_alumina_spread"].get("ratio") if macro["al_alumina_spread"] else None
+            ),
+            "al_alumina_spread_note": (
+                macro["al_alumina_spread"].get("note") if macro["al_alumina_spread"] else None
             ),
         },
         "leverage": {
@@ -1090,6 +1335,12 @@ def main():
         print(f"  WTI 原油  : ${m['wti_oil_usd']}")
         print(f"  布伦特    : ${m['brent_oil_usd']}")
         print(f"  碳酸锂    : ¥{m['lithium_carbonate_cny_t']}/吨")
+        print(f"  沪铝      : ¥{m['aluminum_cny_t']}/吨 (分位 {m['aluminum_percentile_1y']}%)")
+        print(f"  氧化铝    : ¥{m['alumina_cny_t']}/吨 (分位 {m['alumina_percentile_1y']}%)")
+        print(
+            f"  冶炼价差  : ¥{m['al_alumina_spread_cny_t']}/吨 "
+            f"(分位 {m['al_alumina_spread_percentile_1y']}%, 系数 {m['al_alumina_spread_ratio']})"
+        )
 
         print("\n💪 杠杆:")
         lev = data["leverage"]

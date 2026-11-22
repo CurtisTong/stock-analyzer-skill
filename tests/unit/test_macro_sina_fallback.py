@@ -151,6 +151,9 @@ class TestDegradedMarking:
             "fetch_lithium",
             "fetch_polyethylene",
             "fetch_polypropylene",
+            "fetch_aluminum_sina",
+            "fetch_alumina",
+            "fetch_aluminum_alumina_spread",
         ):
             monkeypatch.setattr(mi, name, lambda *a, **k: None, raising=False)
 

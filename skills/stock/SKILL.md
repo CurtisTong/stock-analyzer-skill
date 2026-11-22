@@ -83,6 +83,8 @@ python3 scripts/market_anchor.py <股票代码> --no-sector -j   # technical：�
 
 **复用（不重写）**：`experts.market_detector.detect_market_state()`、`market_breadth.get_market_breadth()/get_market_state()`、`quote.py`（≤15/批）、`data.get_kline()`（scale=240 datalen=250）、`technical.moving_average.ma_system()`、`technical.volatility.compute_atr()`、`industry_beta.compute_beta()`、`portfolio.manager.PortfolioManager.get_positions()` 直接 import。
 
+> **周期股宏观桥（v1.34）**：`macro_indicators.fetch_all()["macro"]` 现已包含沪铝 `aluminum_cny_t`、氧化铝 `alumina_cny_t`、冶炼价差 `al_alumina_spread_cny_t`（= AL − 1.92×AO）及各自 `*_percentile_1y`（零依赖新浪期货，实时 `nf_` / 历史无前缀）。`full` / `debate` 模式下，电解铝产业链标的须在报告 §3.4.5 渲染该表，并**用价差分位而非单纯 ROE/PE 判断周期位置**——价差低分位=周期底部、高分位=周期顶部。数据缺失时才降级为单原料分位判断。
+
 ### Step 1: 获取数据
 
 > **⚠️ 工作目录**：Claude Code 调用脚本时 `cwd` 已是项目根目录，SKILL.md 里的 `scripts/xxx.py` 是相对路径，直接运行即可。

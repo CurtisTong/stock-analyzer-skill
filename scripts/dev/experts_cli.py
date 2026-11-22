@@ -143,9 +143,27 @@ def build_stock_data(code: str) -> tuple[dict, dict]:
             log_silent_fallback("experts_cli.build_stock_data", exc)
             industry = ""
 
+    # 3.5 宏观桥：电解铝冶炼价差（周期股定位用；v1.34）。
+    # 仅周期/铝相关标的拉取，macro_indicators 有 1h TTL fixture，正常不慢。
+    macro_features: dict = {}
+    if industry in ("铝", "周期", "有色金属") or "铝" in (quote.get("name") or ""):
+        try:
+            import macro_indicators as _mi
+
+            _spread = _mi.fetch_aluminum_alumina_spread()
+            if _spread:
+                macro_features = {
+                    "al_alumina_spread": _spread.get("value"),
+                    "al_alumina_spread_percentile_1y": _spread.get("percentile"),
+                    "al_alumina_spread_source": _spread.get("source"),
+                }
+        except Exception as exc:
+            log_silent_fallback("experts_cli.build_stock_data.macro_features", exc)
+
     stock_data = {
         "code": code_upper,
         "industry": industry,
+        "macro_features": macro_features,
         "quote": {
             "pe": quote.get("pe"),
             "pb": quote.get("pb"),

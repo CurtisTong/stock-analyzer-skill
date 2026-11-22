@@ -948,6 +948,9 @@ def to_markdown(payload: dict) -> str:
                     "gold_usd_oz",
                     "brent_oil_usd",
                     "lithium_carbonate_cny_t",
+                    "aluminum_cny_t",
+                    "alumina_cny_t",
+                    "al_alumina_spread_cny_t",
                 ]
                 if macro.get(f"{f}_source") in ("fixture", "fixture(stale)")
             ]
@@ -963,6 +966,12 @@ def to_markdown(payload: dict) -> str:
             gold = macro.get("gold_usd_oz")
             brent = macro.get("brent_oil_usd")
             lithium = macro.get("lithium_carbonate_cny_t")
+            aluminum = macro.get("aluminum_cny_t")
+            al_pct = macro.get("aluminum_percentile_1y")
+            alumina = macro.get("alumina_cny_t")
+            ao_pct = macro.get("alumina_percentile_1y")
+            spread = macro.get("al_alumina_spread_cny_t")
+            spread_pct = macro.get("al_alumina_spread_percentile_1y")
             if tnx is not None:
                 lines.append(f"- 10Y 美债: {tnx}%{_source_tag(macro, 'treasury_10y_pct')}")
             if usdx is not None:
@@ -977,6 +986,22 @@ def to_markdown(payload: dict) -> str:
                 lines.append(f"- 布伦特: ${brent}{_source_tag(macro, 'brent_oil_usd')}")
             if lithium is not None:
                 lines.append(f"- 碳酸锂: ¥{lithium}/吨" f"{_source_tag(macro, 'lithium_carbonate_cny_t')}")
+            if aluminum is not None:
+                pct_suffix = f" (近1年分位 {al_pct}%)" if al_pct is not None else ""
+                lines.append(
+                    f"- 沪铝: ¥{aluminum}/吨{pct_suffix}" f"{_source_tag(macro, 'aluminum_cny_t')}"
+                )
+            if alumina is not None:
+                pct_suffix = f" (近1年分位 {ao_pct}%)" if ao_pct is not None else ""
+                lines.append(
+                    f"- 氧化铝: ¥{alumina}/吨{pct_suffix}" f"{_source_tag(macro, 'alumina_cny_t')}"
+                )
+            if spread is not None:
+                pct_suffix = f" (近1年分位 {spread_pct}%)" if spread_pct is not None else ""
+                lines.append(
+                    f"- 冶炼价差(AL-1.92×AO): ¥{spread}/吨{pct_suffix}"
+                    f"{_source_tag(macro, 'al_alumina_spread_cny_t')}"
+                )
             # 存在 fixture 字段时降级宏观结论置信度，避免把预置数据当实时研判
             if fixture_fields:
                 lines.append(

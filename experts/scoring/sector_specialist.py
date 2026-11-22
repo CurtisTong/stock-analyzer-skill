@@ -46,7 +46,8 @@ _SECTOR_KEYWORDS = {
         "互联网",
     ],
     "医药": ["生物", "化学药", "器械", "中药", "疫苗", "创新药", "医药"],
-    "周期": ["钢铁", "煤炭", "化工", "有色", "建材", "水泥", "造纸", "航运", "石油"],
+    # v1.34: 补入 classifier 细分桶（铝/铜），避免云铝等标的误落 default 阈值
+    "周期": ["钢铁", "煤炭", "化工", "有色", "建材", "水泥", "造纸", "航运", "石油", "铝", "铜"],
     "金融": ["银行", "保险", "券商", "信托", "多元金融"],
 }
 
@@ -148,6 +149,20 @@ def score(stock_data: dict) -> Dict[str, float]:
         rev_score = 15
 
     sector_prosperity = round(roe_score * (1 - rev_weight) + rev_score * rev_weight, 1)
+
+    # ── v1.34 周期校准：电解铝冶炼价差分位 ──
+    # 价差（AL - 1.92×AO）直接代表冶炼利润。周期框架下：
+    #   价差低分位 = 盈利谷底 = 周期底部 -> 上调景气（拐点买入）
+    #   价差高分位 = 盈利峰值 = 周期顶部 -> 下调景气（顶点减仓）
+    # 与行业专家 §三"景气拐点买入 / 景气顶点减仓"哲学一致。
+    # 数据由 experts_cli.build_stock_data 注入；无数据时保持原评分。
+    macro_features = stock_data.get("macro_features") or {}
+    spread_pct = _safe_float(macro_features.get("al_alumina_spread_percentile_1y"), -1)
+    if sector_class == "周期" and spread_pct >= 0:
+        if spread_pct <= 20:
+            sector_prosperity = min(100.0, sector_prosperity + 12)
+        elif spread_pct >= 80:
+            sector_prosperity = max(0.0, sector_prosperity - 18)
 
     # ── 估值：行业 PE 分位（行业差异化阈值）──
     pe = _safe_float(quote.get("pe"))

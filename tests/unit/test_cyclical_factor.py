@@ -489,10 +489,10 @@ class TestCyclicalScoreIntegration:
     """cyclical_score 端到端：成本维度真正参与评分。"""
 
     def test_yunlu_aluminum_uses_aluminum_not_rebar(self, monkeypatch):
-        """云铝股份（铝桶）成本维度应用铝价，不再用螺纹钢。
+        """云铝股份（铝桶）成本维度用铝相关品种，不再用螺纹钢。
 
-        修复前：infer_industry("云铝股份")="周期"->_cost_dimension 用 rebar
-        修复后：infer_industry("云铝股份")="铝"->_cost_dimension 用 aluminum
+        v1.34 起电解铝优先用冶炼价差（al_alumina_spread），
+        价差不可用时回退单铝价（aluminum）；两者都不是 rebar。
         """
         from strategies.factors import cyclical
 
@@ -500,6 +500,9 @@ class TestCyclicalScoreIntegration:
 
         def _spy_fetch(material_key):
             fetched_materials.append(material_key)
+            # 价差不可用 -> 回退单铝价，覆盖两条路径
+            if material_key == "al_alumina_spread":
+                return None
             return {"value": 23810.0, "percentile": 85.0, "source": "akshare"}
 
         monkeypatch.setattr(cyclical, "_fetch_raw_material_price", _spy_fetch)
@@ -507,10 +510,8 @@ class TestCyclicalScoreIntegration:
         fin = {"net_profit_yoy": 35.0, "roe_trend": [8.0, 9.5, 11.0, 12.5]}
         quote = {"pe": 14.0, "pb": 1.8}
 
-        # 云铝股份：industry 经 infer_industry 细分为"铝"
         cyclical.cyclical_score(fin, quote, {}, "铝", "sz000807")
 
-        # 确认成本维度拉取的是 aluminum，不是 rebar
         assert "aluminum" in fetched_materials
         assert "rebar" not in fetched_materials
 
@@ -573,3 +574,108 @@ class TestGetCyclePositionWithCode:
         # 不传 code 不报错
         position = get_cycle_position({}, {"pe": 0, "pb": 0}, "科技")
         assert position == "unknown"
+
+
+# ═══════════════════════════════════════════════════════════════
+# v1.34: 电解铝冶炼价差维度
+# ═══════════════════════════════════════════════════════════════
+
+
+class TestSpreadDimension:
+    """_spread_dimension: 用 AL-1.92×AO 价差分位定位电解铝周期。"""
+
+    def test_low_spread_percentile_yields_low(self, monkeypatch):
+        """价差低分位 = 盈利谷底 = 周期底部（与单原料分位方向一致）。"""
+        from strategies.factors import cyclical
+
+        monkeypatch.setattr(
+            cyclical,
+            "_fetch_raw_material_price",
+            lambda k: {"value": 16575.72, "percentile": 6.4, "source": "sina_futures(derived)"},
+        )
+        out = cyclical._spread_dimension("铝", "sz000807")
+        assert out["position"] == "low"
+        assert out["evaluable"] is True
+        assert "周期底部" in out["detail"]
+        assert "6.4%" in out["detail"]
+
+    def test_high_spread_percentile_yields_high(self, monkeypatch):
+        from strategies.factors import cyclical
+
+        monkeypatch.setattr(
+            cyclical,
+            "_fetch_raw_material_price",
+            lambda k: {"value": 20000.0, "percentile": 88.0, "source": "sina_futures(derived)"},
+        )
+        out = cyclical._spread_dimension("铝", "sz000807")
+        assert out["position"] == "high"
+        assert "周期顶部" in out["detail"]
+
+    def test_non_aluminum_not_evaluable(self, monkeypatch):
+        from strategies.factors import cyclical
+
+        def boom(*a, **k):
+            raise AssertionError("非铝标的不应拉取价差")
+
+        monkeypatch.setattr(cyclical, "_fetch_raw_material_price", boom)
+        out = cyclical._spread_dimension("铜", "sh600362")
+        assert out["evaluable"] is False
+        assert "非电解铝" in out["detail"]
+
+    def test_missing_spread_not_evaluable(self, monkeypatch):
+        from strategies.factors import cyclical
+
+        monkeypatch.setattr(cyclical, "_fetch_raw_material_price", lambda k: None)
+        out = cyclical._spread_dimension("铝", "sz000807")
+        assert out["evaluable"] is False
+        assert "缺失" in out["detail"]
+
+    def test_effective_cost_prefers_spread(self, monkeypatch):
+        """价差可用时优先用价差，不再重复拉单铝价。"""
+        from strategies.factors import cyclical
+
+        fetched = []
+
+        def _spy(k):
+            fetched.append(k)
+            if k == "al_alumina_spread":
+                return {"value": 16575.72, "percentile": 6.4, "source": "sina_futures(derived)"}
+            return {"value": 21585.0, "percentile": 3.2, "source": "sina_futures"}
+
+        monkeypatch.setattr(cyclical, "_fetch_raw_material_price", _spy)
+        out = cyclical._effective_cost_dimension("铝", "sz000807")
+        assert "周期底部" in out["detail"]
+        assert fetched == ["al_alumina_spread"]
+
+    def test_effective_cost_falls_back_to_aluminum(self, monkeypatch):
+        """价差不可用时回退单铝价分位。"""
+        from strategies.factors import cyclical
+
+        def _spy(k):
+            if k == "al_alumina_spread":
+                return None
+            return {"value": 21585.0, "percentile": 85.0, "source": "sina_futures"}
+
+        monkeypatch.setattr(cyclical, "_fetch_raw_material_price", _spy)
+        out = cyclical._effective_cost_dimension("铝", "sz000807")
+        assert out["position"] == "high"
+        assert "aluminum=" in out["detail"]
+
+    def test_real_fetcher_reachable_via_mapping(self, monkeypatch):
+        """确认 al_alumina_spread 映射到 macro_indicators 的新 fetcher。"""
+        from strategies.factors import cyclical
+
+        assert cyclical._RAW_MATERIAL_FETCHERS["al_alumina_spread"] == "fetch_aluminum_alumina_spread"
+
+        import macro_indicators as mi
+
+        called = []
+
+        def _fake_spread():
+            called.append(1)
+            return {"value": 16575.72, "percentile": 6.4, "source": "sina_futures(derived)"}
+
+        monkeypatch.setattr(mi, "fetch_aluminum_alumina_spread", _fake_spread)
+        out = cyclical._fetch_raw_material_price("al_alumina_spread")
+        assert out["percentile"] == 6.4
+        assert called == [1]
