@@ -11,6 +11,9 @@ __pycache__/
 tests/output/
 *.log
 
+# 分析 skill 生成的报告产物（/stock 等 full/debate 报告，仿 tests/output/ 约定）
+reports/
+
 # 环境变量与密钥（防御纵深）
 .env
 .env.*
