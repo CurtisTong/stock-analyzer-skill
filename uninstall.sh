@@ -3,6 +3,7 @@
 #
 # 覆盖（与 install.sh 一一对应）：
 #   1. 项目级 .claude/skills + .codex/skills（随仓库删除即可，这里也顺手清）
+#      · .dsh/skills/ 是 DeepSeek Harness 项目级技能入口，随仓库追踪，卸载时不删除
 #   2. 全局 ~/.claude/skills + ~/.codex/skills（12 个软链）
 #   3. npm 全局包 stock-analyzer-skill
 #   4. Claude plugin marketplace 注册（README 推荐路径）
@@ -31,7 +32,7 @@ for dir in "${GLOBAL_DIRS[@]}"; do
 done
 
 echo
-echo "==> 2/4 清理项目级软链（.claude/.codex 目录内）"
+echo "==> 2/4 清理项目级软链（.claude/.codex 目录内；.dsh/skills 随仓库保留）"
 for local_dir in "$PKG_ROOT/.claude/skills" "$PKG_ROOT/.codex/skills"; do
   if [ -d "$local_dir" ]; then
     rm -rf "$local_dir"

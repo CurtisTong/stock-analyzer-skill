@@ -53,7 +53,9 @@
 
 > 装进 Claude Code 后用 12 条 `/xxx` 斜杠命令做 A 股投资研究——**先看持仓体检与复盘，再按需做单股深度研究、选股、回测**。
 
-一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的 Claude Code 插件包。日常只用两条命令：`/portfolio health` 体检、`/market quick` 复盘。
+一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的插件包，支持 **Claude Code / Codex / DeepSeek Harness**。日常只用两条命令：`/portfolio health` 体检、`/market quick` 复盘。
+
+> DeepSeek Harness 用户无需额外安装：项目根 `.dsh/skills/` 随仓库追踪，打开本项目即在会话中发现 11 个模型可调用技能（`/backtest` 沿用 `disable-model-invocation: true`，需显式输入）。契约见 `tests/contracts/test_dsh_skill_support.py`。
 
 > `/stock <代码>` 跑 5 层分析。具体耗时取决于数据源响应；网络差或 watchdog 超时（默认 1800s）会延后，部分字段可能降级。
 
@@ -156,7 +158,7 @@ AkShare · efinance · yfinance<br>
 
 > ⚠️ **风险提示**：所有分析仅供参考，不构成投资建议。投资有风险，决策需谨慎。
 
-**先决条件**：需要先装 [Claude Code](https://claude.com/download)（约 2 分钟），终端输入 `claude --version` 看到版本号就 OK。
+**先决条件**：Claude Code 用户先装 [Claude Code](https://claude.com/download)（约 2 分钟），终端输入 `claude --version` 看到版本号就 OK；DeepSeek Harness 用户直接在 DSH 中打开本仓库即可（技能入口已随仓库提供，无需 `install.sh`）。
 
 ```bash
 # 1️⃣ 克隆项目并安装（约 30 秒）
@@ -551,7 +553,7 @@ git clone https://github.com/CurtisTong/stock-analyzer-skill.git && cd stock-ana
 ```
 
 ✅ 自动软链到 ~/.claude/skills/<br>
-✅ 支持 Claude Code + Codex
+✅ 支持 Claude Code + Codex + DeepSeek Harness（`.dsh/skills/`）
 
 </td>
 <td valign="top">
@@ -590,7 +592,10 @@ cd stock-analyzer-skill
 ```bash
 claude skills list | grep stock     # 看到 12 个 skill 即成功
 /stock-help                          # 在 Claude Code 内查看命令清单
+python3 -m unittest tests.contracts.test_dsh_skill_support -v  # DSH: 12 条入口 + frontmatter 契约
 ```
+
+DeepSeek Harness 无需命令验证：打开本仓库后 `/` 菜单出现 `stock` / `market` / `portfolio` 等即可；`/backtest` 也是有效命令，只是不进入模型自动选择的目录。
 
 ---
 
@@ -744,7 +749,7 @@ python3 scripts/monitor.py --cleanup
 <details>
 <summary><b>Q：想卸载怎么办？</b></summary>
 
-一条命令卸载全部（`~/.claude/skills` + `~/.codex/skills` + 项目级软链 + plugin 注册）：
+一条命令卸载全部（`~/.claude/skills` + `~/.codex/skills` + 项目级软链 + plugin 注册）。`.dsh/skills/` 随仓库追踪，不会删除：
 
 ```bash
 ./uninstall.sh          # 普通模式：清空全部 skill 软链

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# 将 stock-analyzer-skill 包的 skills 同步到 Claude Code 和 Codex
+# 将 stock-analyzer-skill 包的 skills 同步到 Claude Code、Codex 和 DeepSeek Harness
 #
 # Claude Code 扫描: ~/.claude/skills/ (全局) 和 .claude/skills/ (项目级)
 # Codex 扫描: ~/.codex/skills/ (全局) 和 .codex/skills/ (项目级)
+# DeepSeek Harness 扫描: <projectRoot>/.dsh/skills/（项目级；随仓库追踪，install.sh 幂等刷新）
 #
 # 技能源目录: skills/ (最新版本)
 
@@ -22,11 +23,12 @@ CODEX_GLOBAL="$HOME/.codex/skills"
 # 项目级目录
 CLAUDE_LOCAL="$PKG_ROOT/.claude/skills"
 CODEX_LOCAL="$PKG_ROOT/.codex/skills"
+DSH_LOCAL="$PKG_ROOT/.dsh/skills"
 
 # 12 个 skill（v1.17.0 移除 monitor，v1.20.0 起稳定）
 SKILLS=(stock stock-technical market sector portfolio portfolio-web portfolio-natural screener backtest research learn stock-help)
 
-echo "==> [1/6] 创建项目级 .claude/skills/ 链接 (Claude 项目级技能)"
+echo "==> [1/7] 创建项目级 .claude/skills/ 链接 (Claude 项目级技能)"
 mkdir -p "$CLAUDE_LOCAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -39,7 +41,7 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [2/6] 创建项目级 .codex/skills/ 链接 (Codex 项目级技能)"
+echo "==> [2/7] 创建项目级 .codex/skills/ 链接 (Codex 项目级技能)"
 mkdir -p "$CODEX_LOCAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -52,7 +54,20 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [3/6] 校验项目级链接完整性（12 个有效链接、无悬空）"
+echo "==> [3/7] 创建项目级 .dsh/skills/ 链接 (DeepSeek Harness 项目级技能)"
+mkdir -p "$DSH_LOCAL"
+for s in "${SKILLS[@]}"; do
+  SRC="$SRC_SKILLS/$s"
+  DST="$DSH_LOCAL/$s"
+  if [ -d "$SRC" ]; then
+    rm -f "$DST"
+    ln -s "../../skills/$s" "$DST"
+    echo "  ✓ $s -> skills/$s"
+  fi
+done
+
+echo
+echo "==> [4/7] 校验项目级链接完整性（12 个有效链接、无悬空）"
 check_links() {
   local dir="$1"
   local missing=0 dangling=0
@@ -83,9 +98,10 @@ check_links() {
 }
 check_links "$CLAUDE_LOCAL"
 check_links "$CODEX_LOCAL"
+check_links "$DSH_LOCAL"
 
 echo
-echo "==> [4/6] 同步到 Claude 全局 skills: $CLAUDE_GLOBAL"
+echo "==> [5/7] 同步到 Claude 全局 skills: $CLAUDE_GLOBAL"
 mkdir -p "$CLAUDE_GLOBAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -98,7 +114,7 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [5/6] 同步到 Codex 全局 skills: $CODEX_GLOBAL"
+echo "==> [6/7] 同步到 Codex 全局 skills: $CODEX_GLOBAL"
 mkdir -p "$CODEX_GLOBAL"
 for s in "${SKILLS[@]}"; do
   SRC="$SRC_SKILLS/$s"
@@ -111,7 +127,7 @@ for s in "${SKILLS[@]}"; do
 done
 
 echo
-echo "==> [6/6] 初始化股票池"
+echo "==> [7/7] 初始化股票池"
 INIT_SCRIPT="$PKG_ROOT/scripts/init_pool.py"
 if command -v python3 &>/dev/null; then
   # PyYAML 是脚本硬依赖（scripts/config/loader.py 顶层 import）。
@@ -137,7 +153,8 @@ for s in "${SKILLS[@]}"; do
   echo "  /$s"
 done
 echo ""
-echo "重新启动 Claude Code 或 Codex 即可使用这些技能。"
+echo "Claude Code / Codex 重启后生效；DeepSeek Harness 打开本项目即自动发现 .dsh/skills/。"
+echo "（DSH 的 /backtest 沿用源 frontmatter 的 disable-model-invocation: true，需用户显式输入 /backtest 调用。）"
 echo ""
 echo "🚀 3 步快速上手："
 echo ""

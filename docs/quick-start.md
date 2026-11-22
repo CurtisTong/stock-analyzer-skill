@@ -7,11 +7,11 @@
 ## 前置条件
 
 - **Python 3.11+**（`pyproject.toml` `requires-python = ">=3.11"`）
-- Claude Code 环境
+- Claude Code、Codex 或 DeepSeek Harness 环境之一
 
 ## 安装
 
-两种方式等价，任选其一（README 的 `git clone + install.sh` 与 Plugin 方式底层都是创建 symlink）。
+DeepSeek Harness 用户跳到「方式三」；Claude Code / Codex 用户两种方式等价（底层都是创建 symlink）。
 
 ### 方式一：Claude Code Plugin
 
@@ -28,9 +28,13 @@ cd <你的克隆路径>
 ./install.sh
 ```
 
-`install.sh` 会在 `~/.claude/skills/` 下创建 12 个 symlink，指向本包的 `skills/` 目录。
+`install.sh` 会在 `~/.claude/skills/`、`~/.codex/skills/` 下创建 12 个 symlink，在项目级 `.claude/skills/`、`.codex/skills/`、`.dsh/skills/` 下创建指向 `../../skills/<name>` 的链接并校验完整性。
 
-重启 Claude Code 即可识别。
+重启 Claude Code / Codex 即可识别。
+
+### 方式三：DeepSeek Harness（无需安装）
+
+在 DSH 中打开仓库即可：项目根 `.dsh/skills/` 已随仓库追踪，12 条入口指向 `skills/` 权威源；DSH 会话会自动发现技能，无需 `install.sh` 或重启。`/backtest` 保留源 frontmatter 的 `disable-model-invocation: true`，不会出现在模型自动选择目录里，但用户显式输入 `/backtest` 仍可调用。
 
 ## 验证安装
 
@@ -130,6 +134,13 @@ python3 --version  # 需要 3.11+
 1. 确认已重启 Claude Code
 2. 运行 `claude skills list` 查看已安装的 skills
 3. 如果使用手动安装，检查 symlink 是否正确：`ls -la ~/.claude/skills/`
+
+### DeepSeek Harness 不显示 skills？
+
+1. 确认打开的工作区是仓库根目录（含 `.git`）——DSH 以最近的 `.git` 祖先为项目根
+2. 检查入口：`ls -la .dsh/skills/`，应有 12 条指向 `../../skills/<name>` 的链接
+3. 校验契约：`python3 -m unittest tests.contracts.test_dsh_skill_support -v`
+4. 若链接被误删，重跑 `./install.sh` 即可恢复
 
 ## ⚠️ 免责声明
 

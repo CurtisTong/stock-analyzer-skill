@@ -66,7 +66,8 @@
 ├─────────────────────────────────────────────────────────────────┤
 │  📡 接口层 (12 Skills)                                           │
 │  ├── .claude/skills/ - Claude Code skill 源（软链 → skills/）  │
-│  └── .codex/skills/  - Codex skill 源（软链 → skills/）       │
+│  ├── .codex/skills/  - Codex skill 源（软链 → skills/）       │
+│  └── .dsh/skills/    - DeepSeek Harness 项目级入口（软链，随仓库追踪）│
 ├─────────────────────────────────────────────────────────────────┤
 │  🧠 业务层 (scripts/business/)                                  │
 │  ├── stock_analysis.py - 个股分析服务                           │

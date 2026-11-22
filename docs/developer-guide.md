@@ -11,7 +11,7 @@ stock-analyzer-skill/
 ├── CLAUDE.md                       # Claude Code 上下文
 ├── workflow.md                     # 12 个 skill 的协作流程
 ├── methodology.md                  # 完整投资方法论
-├── install.sh                      # 一键注册到 ~/.claude/skills/
+├── install.sh                      # 一键注册到 ~/.claude/skills/、~/.codex/skills/、.dsh/skills/
 ├── package.json                    # npm 发布配置
 ├── pyproject.toml                  # Python 项目配置
 ├── experts/                        # 16 份专家档案（8 active + 8 legacy）
@@ -38,8 +38,9 @@ stock-analyzer-skill/
 │   ├── research/SKILL.md
 │   ├── learn/SKILL.md
 │   └── stock-help/SKILL.md
-├── .claude/skills/                 # Claude Code 项目级 skill 软链（-> skills/，install.sh [1/5]）
-├── .codex/skills/                  # Codex 项目级 skill 软链（-> skills/，install.sh [2/5]）
+├── .claude/skills/                 # Claude Code 项目级 skill 软链（-> skills/，install.sh [1/7]，gitignored）
+├── .codex/skills/                  # Codex 项目级 skill 软链（-> skills/，install.sh [2/7]，gitignored）
+├── .dsh/skills/                    # DeepSeek Harness 项目级 skill 软链（-> skills/，install.sh [3/7]，随仓库追踪）
 ├── scripts/                        # 工具脚本（三层架构）
 │   ├── business/                   # 业务逻辑层
 │   │   ├── stock_analysis.py
@@ -372,20 +373,24 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 
 ## Skill 注册机制
 
-### .claude/skills/ vs .codex/skills/
+### 三个运行时入口
 
-- `.claude/skills/`：Claude Code 读取的 skill 源（install.sh [1/5] 创建软链）
-- `.codex/skills/`：Codex 读取的 skill 源（install.sh [2/5] 创建软链）
-- 两者均为指向 `skills/` 的符号链接，内容与 `skills/` 一致
+| 目录 | 运行时 | 发现路径 | 版本控制 |
+|------|--------|----------|----------|
+| `.claude/skills/` | Claude Code | 项目级 | gitignored，install.sh 生成 |
+| `.codex/skills/` | Codex | 项目级 | gitignored，install.sh 生成 |
+| `.dsh/skills/` | DeepSeek Harness | `<projectRoot>/.dsh/skills/`（rank 100，优先级最高） | **随仓库追踪**，克隆即用 |
+
+三者均为指向 `skills/<name>` 的符号链接，权威源只有 `skills/`。DSH 的 filesystem provider 会跟随符号链接目录读取 `<name>/SKILL.md`，并在目录变动时刷新会话技能目录；无需重启或用户级配置。
 
 ### symlink 机制
 
 `install.sh` 分两级创建扁平 symlink（共 12 个 skill）：
 
-- **项目级**（[1/5]、[2/5] 步）：`.claude/skills/<name>` 和 `.codex/skills/<name>` 软链到 `../../skills/<name>`，相对路径，便于仓库内移动。
-- **全局级**（[3/5]、[4/5] 步）：`~/.claude/skills/<name>` 和 `~/.codex/skills/<name>` 软链到项目绝对路径，供全局调用。
+- **项目级**（[1/7]～[3/7] 步）：`.claude/skills/<name>`、`.codex/skills/<name>`、`.dsh/skills/<name>` 软链到 `../../skills/<name>`，相对路径，便于仓库内移动；[4/7] 统一校验 12 条链接有效并清理残留。
+- **全局级**（[5/7]、[6/7] 步）：`~/.claude/skills/<name>` 和 `~/.codex/skills/<name>` 软链到项目绝对路径，供全局调用（DSH 只用项目级入口）。
 
-三个 skill 目录均已在 `.gitignore` 声明不入版本控制（`.claude/skills/`、`.codex/skills/`、`.agents/skills/`），由 `install.sh` 在本地生成；权威源仅为 `skills/`。
+`.claude/skills/`、`.codex/skills/`、`.agents/skills/` 已在 `.gitignore` 声明不入版本控制，由 `install.sh` 在本地生成。**`.dsh/skills/` 是例外**：它随仓库追踪，这样在 DSH 中打开项目即可发现技能；`install.sh` 只做幂等刷新，不会改变链接内容。契约测试见 `tests/contracts/test_dsh_skill_support.py`。
 
 ### SKILL.md frontmatter 格式
 
@@ -398,9 +403,10 @@ def fetch_with_fallback(fetchers: list[BaseFetcher], *args, **kwargs):
 | `version` | - | 与 `package.json` 主版本一致（默认 1.16.0） |
 | `model` | - | `haiku`/`sonnet`/`opus`/`glm-5.2` 之一 |
 | `allowed-tools` | - | 工具白名单，**相对路径**（`./scripts/...`），禁止绝对路径 |
-| `disable-model-invocation` | - | 仅命令式 skill（`backtest`/`stock-help`）设为 `true` |
+| `disable-model-invocation` | - | 仅命令式 skill（`backtest`）设为 `true`：DSH 中从模型目录隐藏，仍可用 `/backtest` 显式调用 |
+| `whenToUse` | - | DSH 额外的路由提示（可选）；Claude Code / Codex 忽略 |
 
-frontmatter 校验由 `tests/contracts/test_skill_metadata_sync.py`（121 项）和 pre-commit hook `check-skill-allowed-tools` 共同把关。
+frontmatter 校验由 `tests/contracts/test_skill_metadata_sync.py`（121 项）和 pre-commit hook `check-skill-allowed-tools` 共同把关。DSH 侧另由 `tests/contracts/test_dsh_skill_support.py` 校验 kebab-case 名称、必填描述、严格布尔值与旧键拒绝；DSH 会忽略 `model` / `allowed-tools` / `version` 等其它字段，因此三种运行时共用同一份 `SKILL.md` 不需要分叉。
 
 ## 扩展开发指南
 
@@ -445,7 +451,9 @@ class MyCustomQuoteFetcher(BaseFetcher):
 1. 创建 `skills/<name>/SKILL.md`
 2. 添加 YAML frontmatter（name、description）
 3. 更新 `install.sh` 的 `SKILLS` 数组添加新 skill 名
-4. 运行 `./install.sh` 重新生成 `.claude/skills/` 和 `.codex/skills/` 软链
+4. 新增追踪链接 `.dsh/skills/<name> -> ../../skills/<name>`（DSH 入口，必须提交）
+5. 运行 `./install.sh` 重新生成 `.claude/skills/` 和 `.codex/skills/` 软链并校验三个入口
+6. 跑 `python3 -m unittest tests.contracts.test_dsh_skill_support -v` 验证 DSH 契约
 
 ```yaml
 ---
