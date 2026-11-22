@@ -292,7 +292,9 @@ def main() -> None:
             for f in result["missing"]:
                 print(f"   {f}")
 
-        sys.exit(1 if result["mismatch"] else 0)
+        # review 修复（P1）：missing（目标文件/版本字段整体缺失）同样视为门禁失败，
+        # 否则删掉任一 SKILL.md 的 version 字段或 README badge 仍会通过 --check。
+        sys.exit(1 if (result["mismatch"] or result["missing"]) else 0)
 
     if args.dry_run:
         print("\n🔍 预览变更:")

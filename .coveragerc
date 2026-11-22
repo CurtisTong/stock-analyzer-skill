@@ -1,9 +1,8 @@
 [run]
 source = scripts
-omit =
-    # 已废弃或低价值的低覆盖模块
-    scripts/technical/sentiment.py
-    scripts/technical/report.py
+# review 修复（P2）：移除 technical/sentiment.py 与 technical/report.py 的 omit。
+# 它们仍被 technical.py / analyzer.py / market_breadth.py / zt_pool.py 等活跃路径引用，
+# 继续 omit 会让覆盖率门禁对这两块失明。
 
 [report]
 exclude_lines =

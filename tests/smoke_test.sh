@@ -12,6 +12,8 @@ fail=0
 
 ok() { echo "  ✓ $1"; pass=$((pass+1)); }
 ko() { echo "  ✗ $1"; fail=$((fail+1)); }
+# 显式跳过：必须在输出里打印原因，且不计入 pass（区别于旧版永真断言的假绿）
+skip() { echo "  ⊘ $1"; }
 
 echo "==> 1. scripts/ 完整性"
 for f in common quote.py finance.py kline.py announcements.py screener.py technical.py classifier.py chan.py stock.py chip.py; do
@@ -157,16 +159,20 @@ else
   ko "sector.py 输出异常: $output"
 fi
 
-output=$(python3 snapshots.py list 2>&1 || true)
-if [ $? -eq 0 ] || echo "$output" | grep -qE "snapshot|快照|empty|无"; then
+# review 修复（P2）：原先 `$(cmd || true)` 后判 $? 恒为 0，两个断言永真。
+# 直接以命令自身退出码作为判定依据。
+if output=$(python3 snapshots.py list 2>&1); then
   ok "snapshots.py list 正常执行"
 else
   ko "snapshots.py list 异常: $output"
 fi
 
-output=$(python3 hot_rank.py --top 5 2>&1 || true)
-if [ $? -eq 0 ] || echo "$output" | grep -qE "rank|热度|rank"; then
+if output=$(python3 hot_rank.py --top 5 2>&1); then
   ok "hot_rank.py --top 5 正常执行"
+elif echo "$output" | grep -q "all_stocks.json 不存在"; then
+  # 全市场股票池是 init_pool.py --full-market 的生成物，仓库不跟踪；
+  # 冒烟环境没有它是已知前置条件，显式跳过而不是算通过（review 修复 P2）。
+  skip "hot_rank.py --top 5 跳过：缺少生成物 all_stocks.json（需先跑 init_pool.py --full-market）"
 else
   ko "hot_rank.py --top 5 异常: $output"
 fi

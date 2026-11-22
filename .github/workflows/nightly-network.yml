@@ -40,18 +40,32 @@ jobs:
             --run-network \
             --timeout=180 \
             -p no:randomly \
-            --durations=10
+            --durations=10 \
+            --junitxml=/tmp/network-results.xml
 
       - name: 汇总
         if: always()
+        shell: bash
         run: |
+          # review 修复（P2）：skip 也算失败信号，不能让 nightly 永远“成功”
+          SKIPPED=0
+          if [ -f /tmp/network-results.xml ]; then
+            SKIPPED=$(python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('/tmp/network-results.xml').getroot()
+          suite = root.find('testsuite') if root.tag == 'testsuites' else root
+          print(suite.attrib.get('skipped', '0'))
+          PY
+            )
+          fi
           {
             echo "## 夜间网络冒烟"
             echo ""
             echo "- 结果：${{ steps.network.outcome }}"
+            echo "- 跳过用例数：${SKIPPED}（review 修复：skip 不得伪装成通过）"
             echo "- 用例：\`-m network\`，真实数据源（chip_dist / 指数代码等）"
             echo "- 失败处理：不阻塞 PR；连续两晚失败说明数据源改版，需要人工排查"
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "${{ steps.network.outcome }}" != "success" ]; then
+          if [ "${{ steps.network.outcome }}" != "success" ] || [ "${SKIPPED:-0}" -gt 0 ]; then
             echo "::warning title=Nightly network tests failed::真实数据源用例失败，请检查 fetcher 是否被上游改版"
           fi
