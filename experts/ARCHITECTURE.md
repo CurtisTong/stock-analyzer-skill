@@ -6,7 +6,7 @@
 
 experts/ 是**专家人设 + 决策引擎**的独立子系统，承载两件事：
 
-1. **人设资产**：16 份专家哲学档案（`*.md`），是项目的内容资产而非代码资产，对应 README 中"16 份专家人设"的对外宣传。
+1. **人设资产**：16 份专家哲学档案（`*.md`）= 8 active + 8 legacy 合并底料，是项目的内容资产而非代码资产。README 的"16 份专家人设"指**人设总数**；对外不得说成"16 人圆桌/16 位活跃专家投票"，实际参评恒为 8 位（5 长 + 3 短），口径见 `docs/strategy-validation.md`。
 2. **决策引擎**：注册表 + 评分矩阵 + 投票引擎，把人设转成可执行的 `score / vote / decide` 调用。
 
 **与 skill 的关系**：`/stock debate` 模式调用 `experts.decide.run_debate` 直接产出结论，**绕过** `scripts/business/stock_analysis.py` 业务层。这意味着 experts 不是 skill 的实现细节，而是 skill 可以直接调用的对等子系统。
@@ -59,6 +59,8 @@ python3 scripts/calibration.py verify   # 按各专家 horizon 验证准确率�
 ## 历史合并（合并型专家算 1 票）
 
 v2.4.0 起，legacy 8 人（active=False）已合并入 active 8 人，**合并在 `score()` 阶段**（`weighted_merge` 0.5/0.5）已完成，到 `vote_engine._count_votes()` 时**算 1 票**。5 长 + 3 短 = 8 active 每人 1 票。详见 `experts/vote_engine.py:62-66` 与 `experts/scoring/_merge.py:23-84`。
+
+> **legacy 名称只是机制标签**：`decide.md` 中的"巴菲特警示""养家情绪降权"等规则仍沿用 legacy 人名，但生产路径读的是合并型专家的独立子评分（`value_institution.buffett_sub_score`、`emotion_tech.yangjia_sub_score`），不是让 legacy 专家独立参评。`vote_engine.py` 通过 `_LEGACY_TO_MERGED` 映射兼容旧名。
 
 ## 校验
 

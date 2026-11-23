@@ -283,6 +283,10 @@ class DataFetcherManager:
         # 当前 fetch 的链用 thread-local 隔离：并发 fetch 不同 code 时
         # 各自的降级事件不能混进同一条链
         self._fallback_local = threading.local()
+        # v1.34 数据血缘补齐：最近一次成功源（provider），按 code 归档。
+        # 降级链只记"谁失败"，首行展示需要"谁最终供数"，两者缺一不可。
+        self._success_providers: dict[str, str] = {}
+        self._success_lock = threading.Lock()
 
     @property
     def last_fallback_chain(self) -> list:
@@ -386,17 +390,19 @@ class DataFetcherManager:
                     continue
                 if result is not None:
                     fetcher.on_success()
+                    self._record_success(fetcher.provider, str(code))
                     self._archive_fallback_chain()
                     return result
                 # None 表示数据不存在，不触发熔断，尝试下一个源
                 self._record_fallback(fetcher.provider, fetcher.name, "empty", "无数据")
             except RateLimitError as e:
                 # 429 退避 + 重试主源一次，避免被切到数据更少的次源
+                # review 4.1-P2：所有 429/重试异常都要记录血缘与日志，不能静默 pass
                 self._set_last_error(e)
+                self._record_fallback(fetcher.provider, fetcher.name, "429", str(e))
                 if fetcher.provider not in retried_429:
                     retried_429.add(fetcher.provider)
                     limiter.mark_429(fetcher.provider)
-                    self._record_fallback(fetcher.provider, fetcher.name, "429", str(e))
                     logger.debug(
                         "fetcher %s 触发 429，退避后重试主源: %s",
                         fetcher.name,
@@ -411,12 +417,29 @@ class DataFetcherManager:
                             limiter.release(fetcher.provider)
                         if result is not None and not isinstance(result, _NotHandled):
                             fetcher.on_success()
+                            self._record_success(fetcher.provider, str(code))
                             self._archive_fallback_chain()
                             return result
-                    except RateLimitError:
-                        pass  # 重试仍 429，标记并继续切源
-                    except Exception:
-                        pass
+                    except RateLimitError as retry_err:
+                        # 重试仍 429：不记熔断失败（429 由 RateLimiter 退避收敛），
+                        # 但血缘与 last_error 必须反映真实原因
+                        self._set_last_error(retry_err)
+                        self._record_fallback(fetcher.provider, fetcher.name, "429_retry", str(retry_err))
+                        logger.debug(
+                            "fetcher %s 重试仍 429，切源: %s",
+                            fetcher.name,
+                            retry_err,
+                        )
+                    except Exception as retry_err:
+                        # 重试遇普通异常：计熔断失败 + 记 error 血缘，防止故障被吞
+                        fetcher.on_failure()
+                        self._set_last_error(retry_err)
+                        self._record_fallback(fetcher.provider, fetcher.name, "error", str(retry_err))
+                        logger.debug(
+                            "fetcher %s 重试异常，切源: %s",
+                            fetcher.name,
+                            retry_err,
+                        )
                 continue
             except HTTPStatusError as e:
                 # P2-H2(common): 4xx 业务错误（如 404 数据不存在）不计入熔断，
@@ -432,14 +455,36 @@ class DataFetcherManager:
         self._archive_fallback_chain()
         return None
 
+    def _record_success(self, provider: str, code: str) -> None:
+        """记录本次成功供数的 provider（按 code 归档，供 data_quality.sources 用）。"""
+        with self._success_lock:
+            self._success_providers[code] = provider
+
+    def success_provider(self, code: str | None = None) -> str | None:
+        """最近一次成功供数的 provider。
+
+        code 指定时返回该标的的胜出源；不传时返回最近一次成功（兼容旧调用方）。
+        """
+        with self._success_lock:
+            if code is not None:
+                return self._success_providers.get(str(code))
+            if not self._success_providers:
+                return None
+            return next(reversed(self._success_providers.values()))
+
     def _archive_fallback_chain(self) -> None:
-        """把本次 fetch 的降级链按 code 归档（供按标的查询血缘）。"""
+        """把本次 fetch 的降级链按 code 归档（供按标的查询血缘）。
+
+        review 3.1-P1-5：空链也必须按 code 覆盖写 []。此前空链提前 return，
+        上一次失败留下的血缘被健康请求沿用，data_quality 持续把该标的标为
+        degraded（provider 非空 → 误判"发生过降级"）。
+        """
         chain = getattr(self._fallback_local, "chain", None)
         code = getattr(self._fallback_local, "code", None)
-        if not chain or code is None:
+        if code is None:
             return
         with self._fallback_chain_lock:
-            self._fallback_chains[code] = list(chain)
+            self._fallback_chains[code] = list(chain or [])
 
     def fetch_with_fallback(self, code: str, fallback: object = None, **kwargs: object) -> object:
         result = self.fetch(code, **kwargs)

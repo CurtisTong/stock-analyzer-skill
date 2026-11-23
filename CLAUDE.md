@@ -2,11 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> 版本：v1.23.1 | 更新日期：2026-10-19
+> 版本：v1.33.1 | 更新日期：2026-11-21
 
 ## 项目概述
 
-A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 37 个 fetcher 类（11 数据域）跨 7 数据域故障转移。
+A-share 股票分析 Claude Code 插件，提供 12 个 skill（8 核心 + 4 变体）：`/stock`、`/market`、`/sector`、`/portfolio`、`/screener`、`/backtest`、`/research`、`/stock-help` 以及变体 `/stock-technical`、`/portfolio-web`、`/portfolio-natural`、`/learn`。运行时零外部依赖（仅 stdlib + PyYAML 配置加载），数据源为国内 API（腾讯、东方财富、新浪）+ 37 个 fetcher 类（对外口径，实测 39；11 数据域）跨 11 数据域故障转移（数量口径见 docs/product-architecture.md §2.1）。
 
 **板块数据优先级（v1.20.1 新增）**：`akshare 同花顺(stock_board_industry_summary_ths)` → `东方财富 push2 clist` → 降级为 `sector_etf.csv + quote.py` 拼接。推荐入口 `python3 scripts/sector_summary.py -j --top 30`（含净流入/领涨股/上涨家数等字段）。
 
@@ -156,7 +156,8 @@ scripts/
 ### Skill 开发
 
 - Skill 定义在 `skills/<name>/SKILL.md`，包含 YAML frontmatter（`name`、`description` 必填；`version`、`model`、`allowed-tools`、`disable-model-invocation` 可选）+ markdown 指令；详细格式见 `docs/developer-guide.md`
-- 通过符号链接同步到 `.claude/skills/` 和 `.codex/skills/`（均指向 `skills/`；目录非 git-tracked，以 `install.sh` 为准——发现缺链接/悬空链接时直接重跑即修复，install.sh 含 [3/6] 链接完整性自检与残留清理）
+- 通过符号链接同步到 `.claude/skills/`、`.codex/skills/` 和 `.dsh/skills/`（均指向 `../../skills/<name>`）。前两者非 git-tracked、由 `install.sh` 生成；**`.dsh/skills/` 随仓库追踪**，是 DeepSeek Harness 的项目级技能入口（`<projectRoot>/.dsh/skills/`，克隆即在 DSH 会话中发现）。发现缺链接/悬空链接时重跑 `install.sh`（含 [4/7] 链接完整性自检与残留清理）
+- DSH 只识别 frontmatter 的 `name`（kebab-case）、`description`、`whenToUse`、`metadata`、`disable-model-invocation`、`user-invocable`；`model` / `allowed-tools` 会被忽略（不影响 Claude Code / Codex）。`backtest` 的 `disable-model-invocation: true` 使其在 DSH 模型目录隐藏，但仍可用 `/backtest` 显式调用
 - SKILL.md 中的路径不要使用相对 `cd` 命令，Claude Code 从项目根目录运行
 
 ### Git

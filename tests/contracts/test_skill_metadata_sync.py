@@ -159,8 +159,9 @@ def test_version_consistency(skill_path):
     text = skill_path.read_text(encoding="utf-8")
     fm = parse_frontmatter(text)
     expected = VERSION_OVERRIDES.get(skill_path.parent.name, DEFAULT_VERSION)
-    if "version" in fm:
-        assert fm["version"] == expected, f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
+    # review 修复（P2）：先断言字段存在，避免“删掉 version 字段”绕过版本契约。
+    assert "version" in fm, f"{skill_path.parent.name}: SKILL.md 缺 version 字段"
+    assert fm["version"] == expected, f"{skill_path.parent.name}: version={fm['version']}（应为 {expected}）"
 
 
 @pytest.mark.parametrize("skill_path", get_skill_files(), ids=lambda p: p.parent.name)

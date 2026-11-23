@@ -51,13 +51,39 @@ def fetch_historical_returns(code: str, days: int = 60) -> list:
 
 
 def _build_hist_quote(bars, i, fin, code):
-    """基于历史 K 线和财务数据构建估值/流动性用的行情 dict（严格无前瞻）。"""
-    close = bars[i].close
+    """基于历史 K 线和财务数据构建估值/流动性用的行情 dict（严格无前瞻）。
+
+    P1-13：PE 一律复用 data.helpers.compute_pe 的报告期口径，禁止 price/eps 自行相除；
+    P1-14：总市值/换手优先从可用字段推导（净资产 + 每股净资产 → 股本），
+           无法推导时通过 ``_factor_degradation`` 上报，由 simulate_strategy 汇总披露，
+           不伪造 0 以外的数字、不改因子模块。
+    """
+    from data.helpers import compute_pe
+
+    close = to_float(bars[i].close)
     eps = to_float(fin.get("eps", 0))
     bps = to_float(fin.get("bps", 0))
-    pe = close / eps if eps > 0 else 0
+    # 未知/累计口径由 compute_pe 返回 None（需 TTM），按中性 0 处理。
+    pe = compute_pe(close, eps, str(fin.get("period_type", "") or "")).get("pe") or 0.0
     pb = close / bps if bps > 0 else 0
-    total_cap = to_float(fin.get("total_cap", 0))
+
+    # P1-14：net_assets（亿元）= bps（元/股）× 股本（股）/ 1e8，据此反推股本。
+    # 这是财务快照给出的股本，配合历史 close/volume 得到当日市值与换手率，
+    # 均不引入未来数据（财务可见性已在 _visible_fin_records 过滤）。
+    net_assets = to_float(fin.get("net_assets", 0))
+    shares = net_assets * 1e8 / bps if net_assets > 0 and bps > 0 else None
+    total_cap = to_float(fin.get("total_cap", 0))  # 兼容旧 dict 直接给市值的调用方
+    if total_cap <= 0 and shares and close > 0:
+        total_cap = shares * close / 1e8  # 亿元
+    volume = to_float(getattr(bars[i], "volume", 0))
+    turnover = volume / shares * 100 if shares and volume > 0 else 0.0  # %（按总股本近似）
+
+    degraded = []
+    if total_cap <= 0:
+        degraded.append("total_cap")
+    if shares is None:
+        degraded.append("turnover")
+
     return {
         "code": code,
         "price": close,
@@ -66,8 +92,37 @@ def _build_hist_quote(bars, i, fin, code):
         "amount": bars[i].amount,
         "volume": bars[i].volume,
         "total_cap": total_cap,
-        "turnover": 0,
+        "turnover": turnover,
+        # 私有键：只供引擎汇总披露，不参与任何因子计算（下方 pop 掉）。
+        "_factor_degradation": degraded,
     }
+
+
+def _exclude_event_factor(weights: dict) -> tuple[dict, bool]:
+    """P1-17：复制权重 dict、剔除 event 并将剩余因子重新归一化。
+
+    回测明确禁用 event 因子（需要网络事件数据，且有前视风险），若保留 0.05
+    权重，打分时 event 取中性 50 会白占 5%，使回测策略 ≠ 实盘策略。
+    本函数只操作副本，调用方传入的 weights / 策略注册表原 dict 均不变。
+
+    Returns:
+        (新权重 dict, 是否实际剔除了 event)
+    """
+    if not isinstance(weights, dict):
+        return {}, False
+    if "event" not in weights:
+        return dict(weights), False
+    cleaned = {k: v for k, v in weights.items() if k != "event"}
+    numeric_keys = [
+        k
+        for k, v in cleaned.items()
+        if k not in ("label", "two_stage") and isinstance(v, (int, float))
+    ]
+    total = sum(float(cleaned[k]) for k in numeric_keys)
+    if total > 0:
+        for k in numeric_keys:
+            cleaned[k] = float(cleaned[k]) / total
+    return cleaned, True
 
 
 # A 股财报法定披露截止日（报告期 → 最晚披露日）：
@@ -233,7 +288,8 @@ def simulate_strategy(ctx: SimContext):
              initial_capital, total_days, commission, stamp_tax, slippage, weights）
 
     Returns:
-        回测结果 dict
+        回测结果 dict（可选披露键：factor_degradation / event_excluded_from_scoring /
+        survivorship_bias_disclosure，均为向后兼容的新增字段）
     """
     strategy_name = ctx.strategy_name
     codes = ctx.codes
@@ -251,6 +307,9 @@ def simulate_strategy(ctx: SimContext):
 
     if weights is None:
         weights = get_strategy(strategy_name)
+    # P1-17：回测禁用 event 因子——对权重副本剔除 event 并重新归一化，
+    # 原 weights（可能是注册表 dict 或调用方传入）保持不变。
+    scoring_weights, _ = _exclude_event_factor(weights)
     min_history = MIN_HISTORY
 
     datalen = min_history + total_days + 10
@@ -261,15 +320,33 @@ def simulate_strategy(ctx: SimContext):
         return get_kline(ncode, scale=240, datalen=datalen)
 
     kline_data = {}
-    stale_cutoff = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+    # P2（幸存者偏差）：末根距今 30 天以上的股票被整体剔除，退市/长期停牌股
+    # 因此不会进入回测，收益会被系统性高估。此处**不改变选池逻辑**，只记录
+    # 排除数量并在结果中披露（报告可据此提示该偏差）。
+    stale_days = 30
+    stale_cutoff = (datetime.now() - timedelta(days=stale_days)).strftime("%Y-%m-%d")
 
     raw_kline = parallel_fetch_dict(codes, _fetch_kline, label="backtest:kline")
     for code, bars in raw_kline.items():
         if bars and len(bars) >= min_history and bars[-1].day >= stale_cutoff:
             kline_data[code] = bars
 
+    survivorship_bias_disclosure = {
+        "stale_days": stale_days,
+        "requested_count": len(codes),
+        "effective_count": len(kline_data),
+        "excluded_count": len(codes) - len(kline_data),
+        "note": (
+            f"末根 K 线距今 > {stale_days} 天或历史不足 {min_history} 根的代码被排除出股票池；"
+            "退市/长期停牌股不在样本内，存在幸存者偏差，回测收益可能被高估"
+        ),
+    }
+
     if not kline_data:
-        return {"error": "无法获取足够的 K 线数据"}
+        return {
+            "error": "无法获取足够的 K 线数据",
+            "survivorship_bias_disclosure": survivorship_bias_disclosure,
+        }
 
     # ST 股识别（v1.25 复审修复）：ST 股涨跌停为 ±5%（主板），
     # 而引擎此前只有 10/20/30 三档 —— ST 主板股的 ±5% 涨停不会被识别为涨停，
@@ -325,6 +402,8 @@ def simulate_strategy(ctx: SimContext):
                 common_start_date = start_date
 
     all_selections = []
+    # P1-14：汇总逐期行情构造时的因子降维标记（缺市值/换手），最后统一披露。
+    degraded_factors: set[str] = set()
 
     for code, bars in kline_data.items():
         if len(bars) < min_history + holding_days:
@@ -352,6 +431,8 @@ def simulate_strategy(ctx: SimContext):
             # 披露时用上一期已披露的财报，避免质量因子长时间缺失）
             fin = _visible_fin_records(fin_raw, bars[i].day)
             hist_quote = _build_hist_quote(bars, i, fin, code)
+            # 私有披露键不能流进因子函数（P1-14）
+            degraded_factors.update(hist_quote.pop("_factor_degradation", []))
 
             # 评分同源化：与 screener 的 compute_all_factors 同一套因子
             # （原 quality ×0.85 系数仅回测存在；momentum 用自研分桶而非 momentum_score）
@@ -428,7 +509,7 @@ def simulate_strategy(ctx: SimContext):
             if ctx.use_sentiment_overlay and i >= 1:
                 sentiment_mults = _sentiment_overlay_multipliers(bars[i - 1].day)
             effective_weights = compute_overlay_weights(
-                weights,
+                scoring_weights,
                 regime,
                 extreme_drop=extreme_drop,
                 sentiment_multipliers=sentiment_mults,
@@ -436,6 +517,9 @@ def simulate_strategy(ctx: SimContext):
                 # 窗口会引入超前信息（P1-3）。
                 use_persisted_ic=False,
             )
+            # P1-17：overlay 的 strategy_blend 可能把 event 权重重新混进来，
+            # 打分前必须再剔除一次（纯副本操作，不改注册表）。
+            effective_weights, _ = _exclude_event_factor(effective_weights)
 
             # 打分：缺失因子按中性 50 计（不是 0）。
             # 0 会让"因子不可得"的股票系统性低于"因子可得"的股票——权重越大
@@ -562,6 +646,14 @@ def simulate_strategy(ctx: SimContext):
         "top_n": top_n,
         "data_sources": (sorted(finance_sources) if finance_sources else ["K线(多源聚合)"]),
         "is_degraded": finance_degraded,
+        # P1-14：缺市值/换手时的因子降维说明（空列表表示全场可推导）
+        "factor_degradation": sorted(degraded_factors),
+        # P1-17：回测打分已剔除 event 权重并重新归一化
+        "event_excluded_from_scoring": True,
+        # P2：末根陈旧过滤带来的幸存者偏差披露（不改选池逻辑）
+        "survivorship_bias_disclosure": survivorship_bias_disclosure,
+        # P1-15 联动：真实入池股票数（供 multi_stock_backtest 的 n_stocks 闸门使用）
+        "effective_universe_size": len(kline_data),
     }
 
 

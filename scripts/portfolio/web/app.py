@@ -14,6 +14,7 @@
 """
 
 import argparse
+import hashlib
 import hmac
 import html
 import json
@@ -45,6 +46,7 @@ from .utils import (
     _reset_pm_for_tests,
     _server_start,
     MAX_BODY_BYTES,
+    loads_json,
 )
 
 __all__ = ["make_server", "Handler", "VERSION"]
@@ -84,12 +86,14 @@ def _rebuild_allowed_origins(host: str, port: int) -> None:
     )
 
 
-# 简单滑动窗口限流：每个 IP 每秒最多 N 个请求；超出返回 429
+# 滑动窗口限流：每个鉴权主体每秒最多 N 个请求；超出返回 429
 # 默认 100 req/s：覆盖浏览器并发 (6-8) + 一次性脚本测试 (15-30)；模块级可被测试改写
+# review P3：限流必须在鉴权**之后**执行并按 token 分桶——原实现按单一
+# 127.0.0.1 IP 计数且先于鉴权，无效 token 可灌满窗口让合法页面 429。
 _RATE_LIMIT_REQUESTS = 100
 _RATE_LIMIT_WINDOW = 1.0  # 秒
 _rate_limit_lock = threading.Lock()
-_rate_limit_history: dict[str, list[float]] = {}  # ip -> list[timestamp]
+_rate_limit_history: dict[str, list[float]] = {}  # 鉴权主体 -> list[timestamp]
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -167,12 +171,30 @@ class Handler(BaseHTTPRequestHandler):
             return False
         return True
 
-    def _check_rate_limit(self) -> bool:
-        """IP 滑动窗口限流：每秒最多 _RATE_LIMIT_REQUESTS 个请求。"""
+    def _rate_limit_key(self) -> str:
+        """鉴权主体分桶（review P3）：Bearer token > URL token > 客户端 IP。
+
+        用 hash 而非明文 token 作 key，避免 token 常驻内存字典；公开端点
+        （health/favicon）没有身份时退回 IP，仍受同一窗口约束。
+        """
+        auth = self.headers.get("Authorization", "")
+        if auth.startswith("Bearer ") and auth[7:].strip():
+            digest = hashlib.sha256(auth[7:].strip().encode("utf-8")).hexdigest()[:32]
+            return f"token:{digest}"
+        qs = parse_qs(urlparse(self.path).query)
+        url_token = (qs.get("token") or [""])[0].strip()
+        if url_token:
+            digest = hashlib.sha256(url_token.encode("utf-8")).hexdigest()[:32]
+            return f"token:{digest}"
         client_ip = self.client_address[0] if self.client_address else "unknown"
+        return f"ip:{client_ip}"
+
+    def _check_rate_limit(self) -> bool:
+        """按鉴权主体的滑动窗口限流：每秒最多 _RATE_LIMIT_REQUESTS 个请求。"""
+        key = self._rate_limit_key()
         now = time.time()
         with _rate_limit_lock:
-            history = _rate_limit_history.setdefault(client_ip, [])
+            history = _rate_limit_history.setdefault(key, [])
             # 清理窗口外的旧记录
             cutoff = now - _RATE_LIMIT_WINDOW
             history[:] = [t for t in history if t > cutoff]
@@ -182,7 +204,7 @@ class Handler(BaseHTTPRequestHandler):
                     _err(
                         "rate_limited",
                         429,
-                        f"max {_RATE_LIMIT_REQUESTS} req/{_RATE_LIMIT_WINDOW}s per IP",
+                        f"max {_RATE_LIMIT_REQUESTS} req/{_RATE_LIMIT_WINDOW}s per principal",
                     ),
                 )
                 return False
@@ -217,11 +239,13 @@ class Handler(BaseHTTPRequestHandler):
         return False
 
     def do_GET(self):
-        """处理 GET 请求。"""
-        if not self._check_origin() or not self._check_rate_limit():
+        """处理 GET 请求。review P3：先鉴权再限流。"""
+        if not self._check_origin():
             return
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path not in ("/api/health", "/favicon.ico") and not self._check_auth():
+            return
+        if not self._check_rate_limit():
             return
         try:
             if path == "/" or path == "":
@@ -245,11 +269,13 @@ class Handler(BaseHTTPRequestHandler):
             )
 
     def do_HEAD(self):
-        """处理 HEAD 请求。"""
-        if not self._check_origin() or not self._check_rate_limit():
+        """处理 HEAD 请求。review P3：先鉴权再限流。"""
+        if not self._check_origin():
             return
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path not in ("/api/health", "/favicon.ico") and not self._check_auth():
+            return
+        if not self._check_rate_limit():
             return
         if path in (
             "/",
@@ -262,10 +288,12 @@ class Handler(BaseHTTPRequestHandler):
             self._write(HTTPStatus.NOT_FOUND, b"", "application/json; charset=utf-8")
 
     def do_POST(self):
-        """处理 POST 请求。"""
-        if not self._check_origin() or not self._check_rate_limit():
+        """处理 POST 请求。review P3：先鉴权再限流（无效 token 不占配额）。"""
+        if not self._check_origin():
             return
         if not self._check_auth():
+            return
+        if not self._check_rate_limit():
             return
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path != "/api/positions":
@@ -286,7 +314,9 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             raw = self._read_body()
-            body = json.loads(raw.decode("utf-8")) if raw else {}
+            # review P1-26：parse_constant 拒绝 NaN/Infinity——默认 json.loads
+            # 接受它们，非有限数绕过所有数值校验并写出非法 JSON / 污染盈亏。
+            body = loads_json(raw.decode("utf-8")) if raw else {}
         except ValueError as e:
             self._write_json(HTTPStatus.BAD_REQUEST, _err("invalid_json", 400, str(e)))
             return

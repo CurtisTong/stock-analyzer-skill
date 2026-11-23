@@ -305,9 +305,19 @@ class LongTermEvaluator:
         score = 50
         reasoning = []
 
-        # PE 分位
+        # PE 分位 [review P1-23]
+        # Quote 无 pe_percentile 字段，原 to_float(quote.get("pe_percentile") or -1)
+        # 恒为 -1，历史分位三分支永不触发。改用统一实现按 PE+行业现场计算。
         pe = to_float(quote.get("pe") or 0)
-        pe_percentile = to_float(quote.get("pe_percentile") or -1)
+        if pe > 0:
+            from strategies.factors.score_utils import pe_percentile as _calc_pe_percentile
+
+            industry = quote.get("industry", "") or "默认"
+            # 调用方若显式提供分位（如回测快照）则优先，否则现场计算
+            explicit = to_float(quote.get("pe_percentile"), default=None)
+            pe_percentile = explicit if explicit is not None else _calc_pe_percentile(pe, industry)
+        else:
+            pe_percentile = -1  # 无 PE 数据：保持 -1，不触发分位加减分
 
         if pe > 0:
             if pe < 15:

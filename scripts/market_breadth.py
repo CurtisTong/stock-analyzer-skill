@@ -21,6 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # 项目根（experts/*.py 包位于仓库根，与 backtest.py/portfolio_web.py 保持一致）
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from common import to_float
 from common.http import http_get
 from common.exceptions.silent_fallback import log_silent_fallback
 
@@ -85,9 +86,26 @@ def get_market_breadth() -> dict:
         sh = indices[0]  # 上证指数
         sz = indices[1]  # 深证成指
 
-        up_count = sh.get("f104", 0) + sz.get("f104", 0)
-        down_count = sh.get("f105", 0) + sz.get("f105", 0)
-        flat_count = sh.get("f106", 0) + sz.get("f106", 0)
+        # [review P1-24] 东财无数据时字段是字符串 "-"，直接相加会得到 "--"，
+        # 随后 down_count > 0 抛 TypeError 被外层 except 吞掉 → 全市场宽度静默降级。
+        # 逐字段 to_float(default=None) 判空，任一字段缺失即按"宽度不可用"处理。
+        def _sum_field(key: str):
+            a = to_float(sh.get(key), default=None)
+            b = to_float(sz.get(key), default=None)
+            if a is None or b is None:
+                return None
+            return a + b
+
+        up_count = _sum_field("f104")
+        down_count = _sum_field("f105")
+        flat_count = _sum_field("f106")
+        if up_count is None or down_count is None or flat_count is None:
+            # 字段缺失：置 0 让下方统一的"宽度不可用"分支处理（仍保留涨跌停数据）
+            up_count = down_count = flat_count = 0
+            unavailable_reason = "涨跌家数字段不可用（接口返回 '-'/空值）"
+        else:
+            unavailable_reason = "涨跌家数字段不可用（接口返回 0/0）"
+
         total_stocks = up_count + down_count + flat_count
 
         # 2. 获取涨跌停数据（从sentiment模块）
@@ -98,7 +116,7 @@ def get_market_breadth() -> dict:
         # （market_anchor）当成真实 advance_ratio=0.5，恒判"震荡"且 confidence=high。
         # 与"整体失败"（_default_result）同语义，仅保留涨跌停数据（可能真实可得）。
         if up_count + down_count == 0:
-            print("涨跌家数字段不可用（接口返回 0/0），市场宽度按不可用处理", file=sys.stderr)
+            print(f"{unavailable_reason}，市场宽度按不可用处理", file=sys.stderr)
             result = {
                 "limit_up_count": limit_data.get("limit_up_count"),
                 "limit_down_count": limit_data.get("limit_down_count"),
@@ -109,7 +127,7 @@ def get_market_breadth() -> dict:
                 "down_count": None,
                 "up_ratio": None,
                 "_degraded": True,
-                "_degraded_reason": "涨跌家数字段不可用（接口返回 0/0）",
+                "_degraded_reason": unavailable_reason,  # [review P1-24] 区分 '-' 与 0/0
             }
             return result
 

@@ -141,6 +141,10 @@ def parse_tencent_line(line: str) -> dict[str, str]:
         # 故 ×1e8 转换；归一化在 data 层 _normalize_cap 统一 /1e8。
         "total_cap": _yi_to_yuan(parts[TENCENT_FIELDS["total_cap"]]),
         "circulating_cap": _yi_to_yuan(parts[TENCENT_FIELDS["circulating_cap"]]),
+        # P1-9 (2026-11-21 review §3.1 #9)：字段位 47/48 已定义且 len>=50 已校验，
+        # 但原实现未输出，导致 technical/astock.py 的“真实涨跌停封板”分支永不可达。
+        "limit_up": parts[TENCENT_FIELDS["limit_up"]],
+        "limit_down": parts[TENCENT_FIELDS["limit_down"]],
     }
 
 

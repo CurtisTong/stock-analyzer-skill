@@ -84,8 +84,9 @@ def _detect_macd_divergence(closes, dif_series, dea_series):
         last2_p = sorted(price_highs[-2:])
         if last2_p[1] - last2_p[0] >= 8:
             if c[last2_p[1]] > c[last2_p[0]]:
-                p0_dif = _nearest_point(dif_highs, last2_p[0])
-                p1_dif = _nearest_point(dif_highs, last2_p[1])
+                # review §4.3-1（P2）：极值配对限定距离，避免跨很远 K 线误配。
+                p0_dif = _nearest_point(dif_highs, last2_p[0], max_dist=5)
+                p1_dif = _nearest_point(dif_highs, last2_p[1], max_dist=5)
                 if p0_dif is not None and p1_dif is not None and p0_dif != p1_dif:
                     if d[p1_dif] < d[p0_dif]:
                         return "顶背离(看跌)"
@@ -95,8 +96,9 @@ def _detect_macd_divergence(closes, dif_series, dea_series):
         last2_p = sorted(price_lows[-2:])
         if last2_p[1] - last2_p[0] >= 8:
             if c[last2_p[1]] < c[last2_p[0]]:
-                p0_dif = _nearest_point(dif_lows, last2_p[0])
-                p1_dif = _nearest_point(dif_lows, last2_p[1])
+                # review §4.3-1（P2）：与顶背离同口径，配对失败即不判背离。
+                p0_dif = _nearest_point(dif_lows, last2_p[0], max_dist=5)
+                p1_dif = _nearest_point(dif_lows, last2_p[1], max_dist=5)
                 if p0_dif is not None and p1_dif is not None and p0_dif != p1_dif:
                     if d[p1_dif] > d[p0_dif]:
                         return "底背离(看涨)"
@@ -104,8 +106,18 @@ def _detect_macd_divergence(closes, dif_series, dea_series):
     return None
 
 
-def _nearest_point(peaks, target):
-    """在极值点列表中找最近邻点索引。"""
+def _nearest_point(peaks, target, max_dist=None):
+    """在极值点列表中找最近邻点索引。
+
+    review §4.3-1（P2）：新增可选 max_dist（默认 None 保持旧调用兼容）。
+    背离配对时传 5（与 _find_swing_points 的 window=5 对齐，与 volume.py
+    的 OBV 背离 ≤5 窗口口径一致）；超出窗口视为配对失败 → 不判背离。
+    """
     if not peaks:
         return None
-    return min(peaks, key=lambda p: abs(p - target))
+    if max_dist is None:
+        return min(peaks, key=lambda p: abs(p - target))
+    candidates = [p for p in peaks if abs(p - target) <= max_dist]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda p: abs(p - target))

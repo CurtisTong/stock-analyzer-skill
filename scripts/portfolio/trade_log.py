@@ -15,6 +15,7 @@
 """
 
 import json
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -85,6 +86,8 @@ class TradeLog:
             record.setdefault("sell_price", 0.0)
             record.setdefault("profit", 0.0)
             record.setdefault("profit_pct", 0.0)
+            # review P1-25：卖价口径标注（旧记录没有此字段，默认 unknown）
+            record.setdefault("sell_price_source", "unknown")
 
         return data
 
@@ -107,6 +110,7 @@ class TradeLog:
         sell_date: str = "",
         reason: str = "manual",
         auto_save: bool = True,
+        sell_price_source: str = "unknown",
     ) -> dict:
         """记录一笔清仓交易。
 
@@ -120,12 +124,27 @@ class TradeLog:
             sell_date: 卖出日期，默认今天
             reason: 清仓原因（manual/reduce_to_zero/web_remove）
             auto_save: 是否自动保存
+            sell_price_source: 卖价口径（provided/current_quote/cost_estimate/unknown），
+                review P1-25：无真实卖价时必须标注估算口径，避免把估算价当成交价
 
         Returns:
             新增的交易记录
         """
         code = normalize_code(code)
         sell_date = sell_date or _today()
+
+        # review P1-26：数值入口统一拒绝 NaN/Infinity——非有限数会让盈亏变成
+        # NaN 并写出非法 JSON（float('nan') < 0 恒 False 还会绕过熔断）
+        def _finite(value, default=0.0) -> float:
+            try:
+                number = float(value)
+            except (TypeError, ValueError, OverflowError):
+                return default
+            return number if math.isfinite(number) else default
+
+        sell_price = _finite(sell_price)
+        cost = _finite(cost)
+        quantity = int(_finite(quantity))
 
         # 计算盈亏
         if sell_price > 0 and cost > 0 and quantity > 0:
@@ -147,6 +166,7 @@ class TradeLog:
             "profit_pct": profit_pct,
             "reason": reason,
             "timestamp": _now_iso(),
+            "sell_price_source": sell_price_source or "unknown",
         }
 
         self._data.setdefault("records", []).append(record)

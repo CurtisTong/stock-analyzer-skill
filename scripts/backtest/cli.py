@@ -137,6 +137,19 @@ def _print_validation_line(report: dict) -> None:
         print(f"   {note[:110]}")
 
 
+def _print_factor_disclosure(report: dict) -> None:
+    """P1-14 / P2：文本模式披露因子降维与幸存者偏差（JSON 已含同名字段）。"""
+    degraded = report.get("factor_degradation") or []
+    if degraded:
+        print(f"⚠️  因子降维: {', '.join(degraded)} 无法从回测数据可靠推导，相关因子按缺失口径参与打分")
+    disc = report.get("survivorship_bias_disclosure") or {}
+    if disc.get("excluded_count"):
+        print(
+            f"⚠️  幸存者偏差: 股票池请求 {disc.get('requested_count')} 只，实际纳入 "
+            f"{disc.get('effective_count')} 只（末根距今 >{disc.get('stale_days')} 天或历史不足被排除）"
+        )
+
+
 def compare_strategies(
     codes: list,
     top_n: int = 5,
@@ -492,8 +505,12 @@ def main():
     print(f"📊 回测股票池: {len(codes)} 只", flush=True)
 
     if len(codes) < args.top:
+        # P2 修复：原实现只打印提示却未修改 args.top，后续各分支仍按原值回测，
+        # 指标（top_n / annual_turnover / total_trades）虚报。这里真正改值。
+        original_top = args.top
+        args.top = len(codes)
         print(
-            f"⚠️  股票池 ({len(codes)}) 少于 top ({args.top})，" f"自动调整为 top={len(codes)}",
+            f"⚠️  股票池 ({len(codes)}) 少于 top ({original_top})，自动调整为 top={args.top}",
             flush=True,
         )
 
@@ -531,6 +548,13 @@ def main():
                 for e in d["errors"]:
                     print(f"  - {e}")
             print("\n💡 OOS = Out-of-Sample（策略未见过的数据），比全样本回测更可信")
+            _print_factor_disclosure(
+                {
+                    "factor_degradation": sorted(
+                        {f for w in wf_result.windows for f in (w.get("factor_degradation") or [])}
+                    )
+                }
+            )
             _print_report_meta(
                 {
                     "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -678,6 +702,7 @@ def main():
             )
         else:
             _print_validation_line(report)
+            _print_factor_disclosure(report)
             print(f"\n总收益: {report['total_return_pct']:.2f}%")
             print(f"平均收益: {report['avg_return_pct']:.2f}%")
             print(f"最大收益: {report['max_return_pct']:.2f}%")

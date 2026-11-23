@@ -6,6 +6,7 @@ health_report / health_report_markdown / check_concentration 下沉到此模块�
 
 import json
 import logging
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -153,6 +154,24 @@ def _fetch_protections(positions: list, initial_capital: float | None, position_
         return {}
 
 
+def _account_initial_capital(manager) -> tuple[Optional[float], str]:
+    """取账户初始资金（review P2 回撤口径）。
+
+    统一用落盘的 ``manager._data['total_assets']``，不再把"当前持仓成本"
+    当初始资金（两者口径不一致会产生 969% 假回撤）。缺失/非法时返回
+    (None, "missing")，由调用方显式标注降级，而不是无声退化。
+    """
+    data = getattr(manager, "_data", None) or {}
+    try:
+        value = data.get("total_assets")
+        number = float(value)
+        if math.isfinite(number) and number > 0:
+            return number, "total_assets"
+    except (TypeError, ValueError, OverflowError, AttributeError):
+        pass
+    return None, "missing"
+
+
 def _fetch_technical_features(positions: list, quotes_map: dict, kline_datalen: int = 60) -> dict:
     """批量调用 technical.py 拉取持仓技术特征（H1 集成）。
 
@@ -279,14 +298,25 @@ def health_report(
     positions = manager.get_positions()
     watchlist = manager.get_watchlist()
     quotes_map = quotes or {}
-    # 行情缺失判定：无报价 dict，或任一持仓 code 无对应报价（部分缺失）
-    # 原实现仅判 dict 非空，缺行情持仓按 0 市值计入 totals 造成失真
+    # 行情缺失判定：无报价 dict、缺 code，或报价存在但 price<=0（review P2）。
+    # 原实现只按"code 是否在 quotes_map"判断，price=0 时把全部成本记成真实
+    # 亏损（pnl=-总成本），风险评级与盈亏全部失真。
     # 缺报价分两档：整批缺失（failed）vs 部分标的缺失（degraded，市值/盈亏仍必须 None）
-    missing_quote_codes = [p.get("code", "") for p in positions if p.get("code", "") not in quotes_map]
+    def _quote_price(code: str) -> float:
+        q = quotes_map.get(code, {})
+        try:
+            price = float(q.get("price", 0) or 0) if isinstance(q, dict) else 0.0
+        except (TypeError, ValueError, OverflowError):
+            return 0.0
+        return price if math.isfinite(price) else 0.0
+
+    missing_quote_codes = [
+        code
+        for p in positions
+        if (code := p.get("code", "")) and (code not in quotes_map or _quote_price(code) <= 0)
+    ]
     quotes_all_missing = not quotes_map or (bool(positions) and len(missing_quote_codes) == len(positions))
-    quotes_missing = quotes_all_missing or any(
-        p.get("code", "") not in quotes_map for p in positions
-    )
+    quotes_missing = quotes_all_missing or bool(missing_quote_codes)
     # H1 集成：自动调 technical.py 拉 features.breakdown
     # auto_technical=True（默认）时，对每只持仓调 technical 拉 60 根日 K
     # 算 nearest_support + breakdown；失败按 absence 容错
@@ -309,17 +339,19 @@ def health_report(
         q = quotes_map.get(code, {})
         price = float(q.get("price", 0) or 0) if q else 0.0
         change_pct = float(q.get("change_pct", 0) or 0) if q else 0.0
+        # review P1-26：非有限报价按缺失处理，禁止 NaN 流进 JSON/盈亏
+        if not math.isfinite(price):
+            price = 0.0
+        if not math.isfinite(change_pct):
+            change_pct = 0.0
 
+        # review P2：price<=0 / 非有限价一律视为无有效报价——pnl/pnl_pct 置 None，
+        # 不把成本当成"真实亏损"。cost=0（未知成本价）同理不计算虚假盈亏。
+        valid_price = price > 0 and math.isfinite(price)
         cost_value = cost * qty
-        mv = price * qty
-        pnl = mv - cost_value
-        # L17 降级处理：行情缺失时 pnl_pct = None
-        # cost=0（未知成本价）时 pnl/pnl_pct 均置 None（guardrail：不计算虚假盈亏）
-        pnl_pct = (
-            (pnl / cost_value * 100)
-            if (cost_value and price > 0)
-            else (None if (cost_value and not q) else (None if (cost_value == 0 or price == 0) else 0.0))
-        )
+        mv = price * qty if valid_price else 0.0
+        pnl = (mv - cost_value) if valid_price else None
+        pnl_pct = (pnl / cost_value * 100) if (valid_price and cost_value) else None
 
         total_cost += cost_value
         total_value += mv
@@ -345,9 +377,9 @@ def health_report(
             "cost": round(cost, 2),
             "qty": qty,
             "change_pct": round(change_pct, 2),
-            "pnl": round(pnl, 0) if (price > 0 and cost_value > 0) else None,
+            "pnl": round(pnl, 0) if pnl is not None else None,
             "pnl_pct": round(pnl_pct, 2) if pnl_pct is not None else None,
-            "market_value": round(mv, 0) if price > 0 else None,
+            "market_value": round(mv, 0) if valid_price else None,
             "breakdown": breakdown,
             "breakdown_reason": breakdown_reason,
             "stop_loss_ref_pct": POSITION_STOP_LOSS_REF_PCT,
@@ -357,7 +389,12 @@ def health_report(
             breakdown_positions.append(row)
 
     # L17 行情缺失时 total_pnl_pct = None
-    if total_cost and total_value > 0:
+    # review P2：price<=0 已计入 missing_quote_codes——此时不得把总成本
+    # 记成"真实亏损"（pnl=-总成本），totals 统一输出 None（降级口径）。
+    if quotes_missing:
+        total_pnl = 0.0
+        total_pnl_pct = None
+    elif total_cost and total_value > 0:
         total_pnl = total_value - total_cost
         total_pnl_pct = (total_pnl / total_cost * 100) if total_pnl else 0.0
     else:
@@ -482,8 +519,13 @@ def health_report(
 
     # 保护机制三件套（回撤熔断/连亏熔断/冷却期）——v1.24.0 落地但未接线，
     # 此处接入：交易日志缺失时静默跳过（无历史不代表安全，只是无数据）。
+    # review P2（回撤口径）：初始资金统一取落盘 total_assets，不再用
+    # total_cost（持仓成本）——两者口径不一致会算出荒谬的假回撤。
     # total_pnl_pct 为当前持仓浮动盈亏——并入权益曲线，回撤才能反映浮亏。
-    protections = _fetch_protections(positions, total_cost, total_pnl_pct)
+    initial_capital, capital_source = _account_initial_capital(manager)
+    protections = _fetch_protections(positions, initial_capital, total_pnl_pct)
+    if protections:
+        protections["capital_basis"] = capital_source
 
     # M8 risk_rating 改自然语言摘要
     warnings = list(concentration.get("warnings", []))
@@ -494,6 +536,11 @@ def health_report(
         )
     if protections and not protections.get("all_clear", True):
         warnings.append(f"🛡️ {protections.get('summary', '保护机制触发')}")
+    # review P2：初始资金缺失必须显式标注降级，不能无声用成本口径冒充权益口径
+    if protections and capital_source == "missing":
+        warnings.append(
+            "⚠️ 回撤口径降级：portfolio.json 缺少 total_assets，回撤按累计利润估算（非真实权益回撤）"
+        )
     if not warnings:
         risk_rating = "组合处于安全区间"
     else:
@@ -578,6 +625,7 @@ def health_report(
         conclusion_keys=(),
         failed=("quote",) if quotes_all_missing else (),
         degraded=("quote",) if (missing_quote_codes and not quotes_all_missing) else (),
+        row_stats={"quote": (len(missing_quote_codes), len(positions))} if positions else None,
     )
 
 
@@ -670,9 +718,13 @@ def health_report_markdown(report: dict) -> str:
         lines.append("| 股票 | 代码 | 现价 | 盈亏% | 破位原因 |")
         lines.append("|---|---|---|---|---|")
         for r in breakdown:
+            # review P1-27：技术破位 + 无行情时 pnl_pct=None，
+            # 直接 {:+.2f} 会 TypeError 让 /portfolio health 崩溃；
+            # 与下方持仓一览（689 行）一致做 None 判断。
+            pnl_pct_str = f"{r['pnl_pct']:+.2f}%" if r.get("pnl_pct") is not None else "N/A"
             lines.append(
                 f"| {r['name']} | {r['code']} | {r['price']} | "
-                f"{r['pnl_pct']:+.2f}% | {r.get('breakdown_reason', '')} |"
+                f"{pnl_pct_str} | {r.get('breakdown_reason', '')} |"
             )
         lines.append("")
 

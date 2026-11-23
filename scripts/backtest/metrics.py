@@ -96,11 +96,14 @@ def run_backtest(
             # 按日期对齐：每期取基准在 [start, start+holding_days] 区间的收益
             bp = _slice_benchmark_by_period(bm_dates, bm_ret, period_dates, holding_days)
         else:
-            # 无日期信息（老数据）时退回固定切块
-            n_bp = len(bm_ret) // max(1, holding_days)
+            # 无日期信息（老数据）时退回固定切块。
+            # P2 修复：_fetch_benchmark_returns 现多返回一根 bars[MIN_HISTORY] 的
+            # 收益供日期索引使用，固定切块要跳过它，否则整体前移一天。
+            bm_ret_for_chunks = bm_ret[1:]
+            n_bp = len(bm_ret_for_chunks) // max(1, holding_days)
             bp = []
             for k in range(n_bp):
-                seg = bm_ret[k * holding_days : (k + 1) * holding_days]
+                seg = bm_ret_for_chunks[k * holding_days : (k + 1) * holding_days]
                 cum = 1.0
                 for dr in seg:
                     cum *= 1 + dr
@@ -192,8 +195,10 @@ def run_backtest(
     for bm, bp in benchmark_period_returns_map.items():
         n_periods = min(len(all_returns), len(bp))
         if n_periods > 1:
-            # 无风险利率按期折算（期收益口径）
-            rf_period = annual_risk_free / periods_per_year if periods_per_year > 0 else 0.0
+            # P2 修复（单位错配 100 倍）：all_returns / bp 都是百分数（如 2.5 表示 2.5%），
+            # annual_risk_free=0.03 是小数。旧代码直接相减，rf 被当成 0.03% 而非 3%，
+            # alpha 与超额夏普整体偏移约 100 倍。这里统一换算成百分数口径。
+            rf_period = (annual_risk_free / periods_per_year * 100) if periods_per_year > 0 else 0.0
             excess = [all_returns[i] - bp[i] for i in range(n_periods)]
             mean_excess = sum(excess) / len(excess)
             te = statistics.stdev(excess)
@@ -269,11 +274,19 @@ def run_backtest(
         # v1.26：透传逐笔选股明细（含 parts 因子分）——因子 IC 评估
         # （strategies/factor/ic.py）需要全量 selections 而非前 20 条摘要。
         "selections": result.get("all_selections", result.get("selections", [])),
+        # P1-14 / P1-17 / P2：引擎的可选披露字段透传到报告，供 JSON/文本披露。
+        "factor_degradation": result.get("factor_degradation", []),
+        "event_excluded_from_scoring": result.get("event_excluded_from_scoring", False),
+        "survivorship_bias_disclosure": result.get("survivorship_bias_disclosure"),
+        # P1-15 联动：真实入池股票数（引擎原始结果同时保留在 round_details[0]）
+        "effective_universe_size": result.get("effective_universe_size"),
         "meta": {
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "data_sources": result.get("data_sources", []),
             "benchmark_source": result.get("benchmark_source"),
             "is_degraded": result.get("is_degraded", False),
+            "factor_degradation": result.get("factor_degradation", []),
+            "survivorship_bias_disclosure": result.get("survivorship_bias_disclosure"),
         },
     }
 
@@ -309,7 +322,12 @@ def _fetch_benchmark_returns(benchmark_code: str, days: int) -> tuple[list[str],
             if bars[i - 1].close > 0:
                 dates.append(bars[i].day)
                 returns.append((bars[i].close - bars[i - 1].close) / bars[i - 1].close)
-        return dates[MIN_HISTORY:], returns[MIN_HISTORY:]
+        # P2 修复（首个选股日查不到基准收益）：策略首个评估日是 bars[MIN_HISTORY]，
+        # 而旧切片 dates[MIN_HISTORY] 是 bars[MIN_HISTORY+1].day —— 首个选股日
+        # 在日期索引里缺失，_slice_benchmark_by_period 记 0，污染 IR/alpha/beta。
+        # 多返回一根 bars[MIN_HISTORY] 的当日收益（dates/returns 同步从
+        # MIN_HISTORY-1 起切）：它不会被 +1 偏移的持仓期切片消费，仅提供日期锚点。
+        return dates[MIN_HISTORY - 1 :], returns[MIN_HISTORY - 1 :]
     except Exception as e:
         # v1.16.0 HIGH: 基准收益计算失败直接影响回测指标——记录
         from common.exceptions import log_silent_fallback

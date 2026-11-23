@@ -61,7 +61,7 @@ def dispatch(pm, body: dict) -> dict:
         if action == "reduce_position":
             return _do_reduce_position(pm, body, code)
         if action == "remove_position":
-            return _do_remove_position(pm, code)
+            return _do_remove_position(pm, body, code)
         if action == "update_position":
             return _do_update_position(pm, body, code)
         if action == "tag_position":
@@ -110,6 +110,13 @@ def _do_add_position(pm, body: dict, code: str) -> dict:
             f"'cost_source' must be one of {sorted(_COST_SOURCES)}",
         )
 
+    # review P2（force 逃生口悬空）：仅接受显式布尔 true 越过熔断/冷却，
+    # 字符串 "true" / 1 都不放行；Web 入口已有 Bearer token 鉴权，
+    # 仍返回 warn 让调用方知道本次是知情越过了保护机制。
+    force = body.get("force", False)
+    if not isinstance(force, bool):
+        return _err("invalid_force", 400, "'force' must be a boolean")
+
     result = pm.add_position(
         code,
         name,
@@ -118,8 +125,9 @@ def _do_add_position(pm, body: dict, code: str) -> dict:
         buy_date=buy_date,
         tags=tags,
         cost_source=cost_source,
+        force=force,
     )
-    return _ok(result)
+    return _ok(result, warn=["protection_force_override"] if force else None)
 
 
 def _do_reduce_position(pm, body: dict, code: str) -> dict:
@@ -140,9 +148,21 @@ def _do_reduce_position(pm, body: dict, code: str) -> dict:
     return _ok(result, warn=["position_removed"] if result is None else None)
 
 
-def _do_remove_position(pm, code: str) -> dict:
-    """处理 remove_position 动作。"""
-    removed = pm.remove_position(code)
+def _do_remove_position(pm, body: dict, code: str) -> dict:
+    """处理 remove_position 动作。
+
+    review P1-25：采集卖价传给 crud，确保清仓记录 profit/profit_pct
+    可用于连亏/回撤熔断；非法卖价返回 400，未传则由 crud 按现价/成本估算。
+    """
+    sell_price_raw = body.get("sell_price")
+    sell_price = None
+    if sell_price_raw is not None:
+        sell_price = _parse_float(sell_price_raw)
+        if sell_price is None:
+            return _err("invalid_sell_price", 400, "'sell_price' must be a finite number")
+        if sell_price <= 0:
+            return _err("invalid_sell_price", 400, "'sell_price' must be > 0")
+    removed = pm.remove_position(code, sell_price=sell_price)
     return _ok(removed)
 
 
@@ -225,37 +245,38 @@ def _do_add_watch(pm, body: dict, code: str) -> dict:
     target_buy: float = 0
     target_sell: float = 0
     if target_buy_raw is not None:
-        if isinstance(target_buy_raw, bool) or not isinstance(target_buy_raw, (int, float)):
+        # review P1-26：_parse_float 拒绝 NaN/Infinity/布尔，非法值一律 400
+        target_buy = _parse_float(target_buy_raw)
+        if target_buy is None:
             return _err(
                 "invalid_target_buy",
                 400,
-                "'target_buy' must be a number (omit or null to skip)",
+                "'target_buy' must be a finite number (omit or null to skip)",
             )
-        if target_buy_raw == 0:
+        if target_buy == 0:
             return _err(
                 "invalid_target_buy",
                 400,
                 "'target_buy=0' is ignored by PortfolioManager; omit the field to leave unchanged",
             )
-        if target_buy_raw < 0:
+        if target_buy < 0:
             return _err("invalid_target_buy", 400, "'target_buy' must be > 0")
-        target_buy = float(target_buy_raw)
     if target_sell_raw is not None:
-        if isinstance(target_sell_raw, bool) or not isinstance(target_sell_raw, (int, float)):
+        target_sell = _parse_float(target_sell_raw)
+        if target_sell is None:
             return _err(
                 "invalid_target_sell",
                 400,
-                "'target_sell' must be a number (omit or null to skip)",
+                "'target_sell' must be a finite number (omit or null to skip)",
             )
-        if target_sell_raw == 0:
+        if target_sell == 0:
             return _err(
                 "invalid_target_sell",
                 400,
                 "'target_sell=0' is ignored by PortfolioManager; omit the field to leave unchanged",
             )
-        if target_sell_raw < 0:
+        if target_sell < 0:
             return _err("invalid_target_sell", 400, "'target_sell' must be > 0")
-        target_sell = float(target_sell_raw)
 
     result = pm.add_watch(code, name=name, target_buy=target_buy, target_sell=target_sell)
     return _ok(result)
@@ -279,24 +300,22 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
             400,
             "at least one of name/target_buy/target_sell is required",
         )
-    if "target_buy" in extra:
-        if extra["target_buy"] == 0:
+    # review P2（update_watch 静默清空目标价）：非法字符串经 _parse_float
+    # → None → `or 0` 会静默把原目标价清零。现在解析失败一律 400；
+    # 只有**显式 0** 才表示清空目标价（买/卖两侧口径一致）。
+    for key, error_name in (("target_buy", "invalid_target_buy"), ("target_sell", "invalid_target_sell")):
+        if key not in extra:
+            continue
+        parsed = _parse_float(extra[key])
+        if parsed is None:
             return _err(
-                "invalid_target_buy",
+                error_name,
                 400,
-                "'target_buy=0' is ignored by PortfolioManager; omit to leave unchanged",
+                f"'{key}' must be a finite number (0 clears the target price)",
             )
-        # 负数校验（与 _do_add_watch 一致）
-        target_buy_raw = _parse_float(extra["target_buy"])
-        if target_buy_raw is not None and target_buy_raw < 0:
-            return _err("invalid_target_buy", 400, "target_buy must be >= 0")
-        extra["target_buy"] = target_buy_raw or 0
-    if "target_sell" in extra:
-        # target_sell=0 = 清空目标价（原实现拒绝，导致目标价无法清除）
-        target_sell_raw = 0.0 if extra["target_sell"] == 0 else _parse_float(extra["target_sell"])
-        if target_sell_raw is not None and target_sell_raw < 0:
-            return _err("invalid_target_sell", 400, "target_sell must be >= 0")
-        extra["target_sell"] = target_sell_raw or 0
+        if parsed < 0:
+            return _err(error_name, 400, f"'{key}' must be >= 0")
+        extra[key] = parsed
 
     existing = pm.get_watch(code)
     if existing is None:
@@ -308,8 +327,8 @@ def _do_update_watch(pm, body: dict, code: str) -> dict:
     result = pm.add_watch(
         code,
         name=name or existing.get("name", ""),
-        target_buy=tb or 0,
-        target_sell=ts or 0,
+        target_buy=tb,
+        target_sell=ts,
         _update_fields=update_fields,
     )
     return _ok(result)

@@ -170,6 +170,19 @@ def _fetch_xuangu_page(
     return [], 0
 
 
+def _board_key(board: str, exchange: str) -> str:
+    """board_type() 的板块名 → all_stocks.json 的键名。
+
+    board_type() 只返"主板"，而 all_stocks.json 按交易所拆成"主板沪"/"主板深"。
+    不做映射的后果（2026-11-18 实测）：push2 路径 KeyError('主板') 整段失败并
+    降级到选股器，选股器路径 `if board in boards` 又把全部主板股静默丢弃，
+    最终全市场池只有 2330 只、主板 0 只。
+    """
+    if board == "主板":
+        return "主板沪" if exchange == "sh" else "主板深"
+    return board
+
+
 def fetch_all_market_stocks() -> dict[str, list[str]]:
     """拉取全市场 A 股列表，按上市板块分组返回。
 
@@ -237,8 +250,9 @@ def fetch_all_market_stocks() -> dict[str, list[str]]:
         if "ST" in name.upper():
             continue
         board = board_type(code)
+        exchange = infer_exchange(code)
+        board = _board_key(board, exchange)
         if board in boards:
-            exchange = infer_exchange(code)
             full_code = f"{exchange}{code}"
             boards[board].append(full_code)
 
@@ -274,10 +288,10 @@ def _fetch_push2_market(boards: dict[str, list[str]]) -> None:
             # 排除 ST 股
             if "ST" in name.upper():
                 continue
-            board = board_type(code6)
-            if board == "其他":
-                continue
             exchange = infer_exchange(code6)
+            board = _board_key(board_type(code6), exchange)
+            if board not in boards:
+                continue
             full_code = f"{exchange}{code6}"
             boards[board].append(full_code)
 
@@ -311,7 +325,13 @@ def save_all_market_stocks(stocks_by_board: dict[str, list[str]]) -> None:
 
 
 def is_st(name: str) -> bool:
-    return "ST" in name.upper()
+    """ST / *ST / 退市整理期标的判定。
+
+    退市股在行情里的名称是「XX退」（如 网力退、退市明科），不含「ST」，
+    原来的纯子串判断会把它们漏过去，池子里因此躺着已退市标的。
+    """
+    upper = (name or "").upper()
+    return "ST" in upper or "退市" in upper or upper.endswith("退")
 
 
 def passes_filter(stock: dict) -> tuple[bool, str]:

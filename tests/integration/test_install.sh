@@ -76,6 +76,18 @@ for s in "${EXPECTED_SKILLS[@]}"; do
 done
 echo "  ✓ 12 个项目级软链创建"
 
+# 验证 DSH 项目级软链（DeepSeek Harness 发现入口）
+echo
+echo "== 动态验证：项目级 .dsh/skills/ 软链 =="
+PROJECT_DSH="$PKG_ROOT/.dsh/skills"
+for s in "${EXPECTED_SKILLS[@]}"; do
+  test -L "$PROJECT_DSH/$s" || { echo "✗ $PROJECT_DSH/$s 不是软链"; exit 1; }
+  test -f "$PROJECT_DSH/$s/SKILL.md" || { echo "✗ $PROJECT_DSH/$s/SKILL.md 不可解析"; exit 1; }
+  test "$(readlink "$PROJECT_DSH/$s")" = "../../skills/$s" \
+    || { echo "✗ $PROJECT_DSH/$s 链接目标错误"; exit 1; }
+done
+echo "  ✓ 12 个 DSH 项目级软链创建且指向 skills/"
+
 # 验证全局软链（install.sh 改 ln -s 后应全是软链）
 echo
 echo "== 动态验证：全局 ~/.claude/skills/ 软链 =="

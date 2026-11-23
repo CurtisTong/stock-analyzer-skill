@@ -8,8 +8,9 @@ import platform
 import tempfile
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 from common.exceptions.silent_fallback import log_silent_fallback
 
 logger = logging.getLogger(__name__)
@@ -26,11 +27,73 @@ CACHE_DIR = Path(os.getenv("STOCK_CACHE_DIR", str(_DEFAULT_CACHE_DIR)))
 _WRITE_COUNTER = 0
 _WRITE_LOCK = threading.Lock()
 _CLEANUP_INTERVAL = 50  # 每 50 次写入检查一次
-_MAX_CACHE_MB = 500  # 缓存上限
+_MAX_CACHE_MB = 500  # 缓存上限（MB）
+
+# P2 #8(4.1): YAML cache.max_size/max_age 的兜底默认值（data.config 不可用时）。
+# max_size 语义 = 缓存文件数（与 YAML 注释一致），max_age 语义 = 文件存活秒数。
+_FALLBACK_MAX_FILES = 1000
+_FALLBACK_MAX_AGE_SECONDS = 604800
+
+# P1-1(3.1): 跨进程互斥锁。key -> 进程内后备锁（Windows 无 fcntl 时用）。
+_PER_KEY_LOCKS: dict[str, threading.Lock] = {}
+_PER_KEY_LOCKS_LOCK = threading.Lock()
 
 
 def _ensure_dir() -> None:
     CACHE_DIR.mkdir(exist_ok=True, mode=0o700)
+
+
+def _lock_path(key: str) -> Path:
+    """P1-1(3.1): 按 key 返回**固定**的锁文件路径。
+
+    修复前 flock 加在 mkstemp 创建的唯一临时 inode 上，各进程锁的是不同文件，
+    跨进程互斥从未生效。锁文件本身以 ``.lock`` 结尾，不属于 ``*.cache``，
+    因此不会被 clear()/cleanup()/cleanup_by_size() 误删；也不要在清理逻辑里
+    主动删除它——删除正在被别的进程持有的锁文件会破坏互斥（TOCTOU）。
+    """
+    return CACHE_DIR / f"{key}.lock"
+
+
+@contextmanager
+def _key_lock(key: str) -> Iterator[None]:
+    """P1-1(3.1): 按 key 加跨进程排他锁（非 Windows 用 fcntl.flock）。
+
+    同一 key 的所有写入者锁同一个稳定 inode，锁内完成检查/写入/os.replace；
+    退出时显式解锁。Windows 无 fcntl，退化为进程内 per-key Lock。
+    """
+    if not _USE_FCNTL:
+        with _PER_KEY_LOCKS_LOCK:
+            lock = _PER_KEY_LOCKS.setdefault(key, threading.Lock())
+        with lock:
+            yield
+        return
+    _ensure_dir()
+    with open(_lock_path(key), "a+b") as lock_file:
+        fd = lock_file.fileno()
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+def _effective_cache_limits() -> tuple[int, int]:
+    """P2 #8(4.1): 读取 YAML cache.max_size/max_age，让死配置真正生效。
+
+    惰性导入 data.config 避免 common.cache ↔ data.__init__ 循环依赖。
+    """
+    try:
+        from data.config import get_config
+
+        cfg = get_config()
+        return (
+            int(getattr(cfg, "cache_max_size", _FALLBACK_MAX_FILES)),
+            int(getattr(cfg, "cache_max_age", _FALLBACK_MAX_AGE_SECONDS)),
+        )
+    except Exception as e:
+        log_silent_fallback("cache._effective_cache_limits", e)
+        logger.debug("读取缓存容量配置失败，使用默认值: %s", e)
+        return _FALLBACK_MAX_FILES, _FALLBACK_MAX_AGE_SECONDS
 
 
 def _validate_key(key: str) -> None:
@@ -63,8 +126,12 @@ def get(key: str, ttl_seconds: int) -> Optional[bytes]:
 def put(key: str, data: bytes) -> None:
     """写入缓存（原子写入：先写临时文件，再 rename）。
 
-    非 Windows 平台使用 fcntl 文件锁防止多进程竞争。
-    每 _CLEANUP_INTERVAL 次写入自动检查缓存大小，超限则清理。
+    P1-1(3.1): 修复"伪锁"——锁不再加在 mkstemp 的唯一临时 inode 上，
+    而是按 key 锁固定 ``.lock`` 文件，并把「检查 / 写入 / replace」全部放进
+    临界区，跨进程写入同一 key 才真正互斥。
+
+    P2 #8(4.1): 周期性清理同时消费 YAML cache.max_size（文件数）与
+    cache.max_age（秒）；清理只处理 ``*.cache``，不会碰 ``*.lock``。
     """
     _validate_key(key)
     global _WRITE_COUNTER
@@ -76,34 +143,36 @@ def put(key: str, data: bytes) -> None:
             need_cleanup = True
     if need_cleanup:
         try:
+            max_files, max_age = _effective_cache_limits()
             cleanup_by_size(max_size_mb=_MAX_CACHE_MB)
+            cleanup_by_count(max_files=max_files)
+            cleanup(max_age_seconds=max_age)
         except Exception as e:
             log_silent_fallback("cache.put", e)
             logger.debug("缓存清理失败: %s", e)  # 清理失败不影响写入
     _ensure_dir()
     f = CACHE_DIR / f"{key}.cache"
-    fd, tmp_path = tempfile.mkstemp(dir=CACHE_DIR, suffix=".tmp")
-    try:
-        if _USE_FCNTL:
-            fcntl.flock(fd, fcntl.LOCK_EX)
-        os.write(fd, data)
-        # P2-H3(common): 持锁 replace，避免锁释放后、replace 前其他进程写入导致 last-write-wins
-        os.replace(tmp_path, f)
-        os.close(fd)
-        fd = -1
-    except Exception as e:
-        log_silent_fallback("cache.put", e)
-        logger.debug("缓存写入失败 %s: %s", key, e)
-        if fd >= 0:
-            try:
-                os.close(fd)
-            except OSError:
-                pass
-        Path(tmp_path).unlink(missing_ok=True)
-        raise
-    finally:
-        # 确保异常路径也能清理 .tmp 残留（正常路径 tmp_path 已被 replace 走，unlink 无害）
-        Path(tmp_path).unlink(missing_ok=True)
+    with _key_lock(key):
+        # P1-1: 锁内完成临时文件写入 + replace；锁文件是稳定 inode，跨进程生效
+        fd, tmp_path = tempfile.mkstemp(dir=CACHE_DIR, suffix=".tmp")
+        try:
+            os.write(fd, data)
+            os.replace(tmp_path, f)
+            os.close(fd)
+            fd = -1
+        except Exception as e:
+            log_silent_fallback("cache.put", e)
+            logger.debug("缓存写入失败 %s: %s", key, e)
+            if fd >= 0:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+            Path(tmp_path).unlink(missing_ok=True)
+            raise
+        finally:
+            # 确保异常路径也能清理 .tmp 残留（正常路径 tmp_path 已被 replace 走，unlink 无害）
+            Path(tmp_path).unlink(missing_ok=True)
 
 
 def set(key: str, data: bytes) -> None:
@@ -131,7 +200,10 @@ def set_json(key: str, data: Any) -> None:
 
 
 def clear(prefix: str = "") -> None:
-    """清除指定前缀或全部缓存。"""
+    """清除指定前缀或全部缓存。
+
+    P1-1: 仅匹配 ``*.cache``，固定的 ``*.lock`` 互斥文件不在清理范围内。
+    """
     if not CACHE_DIR.exists():
         return
     for f in CACHE_DIR.glob("*.cache"):
@@ -141,7 +213,11 @@ def clear(prefix: str = "") -> None:
 
 
 def cleanup(prefix: Optional[str] = None, max_age_seconds: int = 86400) -> int:
-    """清理过期缓存。prefix 为空时清理所有过期文件。返回清理数量。"""
+    """清理过期缓存。prefix 为空时清理所有过期文件。返回清理数量。
+
+    P1-1: 只匹配 ``*.cache``，``*.lock`` 固定锁文件永不清理（删锁会破坏互斥）。
+    P2 #8: max_age_seconds 可由 YAML cache.max_age 经 put() 周期清理注入。
+    """
     _ensure_dir()
     cleaned = 0
     for f in CACHE_DIR.glob("*.cache"):
@@ -240,6 +316,23 @@ def cleanup_by_size(max_size_mb: int = 500, keep_newest: bool = True) -> int:
         current_size -= s.st_size
         cleaned += 1
 
+    return cleaned
+
+
+def cleanup_by_count(max_files: int = 1000, keep_newest: bool = True) -> int:
+    """P2 #8(4.1): 按缓存**文件数**清理，消费 YAML cache.max_size。
+
+    只处理 ``*.cache``；``*.lock`` 是跨进程互斥的固定 inode，永不删除。
+    """
+    _ensure_dir()
+    files = list(CACHE_DIR.glob("*.cache"))
+    if len(files) <= max_files:
+        return 0
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=keep_newest)
+    cleaned = 0
+    for f in files[max_files:]:
+        f.unlink(missing_ok=True)
+        cleaned += 1
     return cleaned
 
 

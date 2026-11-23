@@ -53,6 +53,16 @@
 
 > 💡 完整变更向下滚动。语义说明：🟢 已发版 / 🟡 待发版 / 🔴 风险提示 / ⚫ 数据事实。
 
+## [Unreleased] - 2026-11-22（投资 / 用户 / 产品三专家视角文档深度优化）
+
+### Docs
+
+- **投资专家视角**（methodology.md / docs/strategy-validation.md / docs/positioning.md / experts/*.md）：用 `data/strategy_oos_validation.json` 真实数据替换过期的 OOS 数字与虚构 `oos_verified` 示例，明确"全部 in_sample、外样本双池全负、非收益承诺"；补齐宇宙指纹校验、双池运行入口与多池联合判定闸门；新增「证据等级与偏差防护」章节（回测过拟合 / 幸存者偏差 / 样本量不足 / 选择性披露）；修复不存在的 `experts/yaml/industry_thresholds.yaml` 与失效案例报告链接；纠正 debate 长线 5 / 短线 3 人数、legacy 子分机制口径与「五层框架含第 6 层」结构矛盾。
+- **用户专家视角**（README.md / docs/quick-start.md / docs/user-guide.md / docs/tutorials/ / docs/src/*.md）：README 首屏补齐「适不适合我」判定；5 分钟上手改用实跑真实输出并清除占位符；数据源挂 / 网络断 / 代码错三类错误统一为「症状 / 根因 / 下一步」+ `init_pool.py --default` 兜底；含买卖 / 仓位结论处补齐风险提示；12 个 gitbook skill 页从存根改造为可独立决策的介绍页；纠正 user-guide 中端点定义位置与过期测试数字 / 版本示例。
+- **产品专家视角**（docs/product-architecture.md / docs/INDEX.md / docs/persona.md / docs/developer-guide.md / docs/api-reference.md / docs/scheduling.md / docs/code-review-2026-11-21.md）：架构事实核对（fetcher 双口径 37 对外 / 39 实测、CircuitBreaker 定义位置、11 数据域）；表格拆至 ≤5 列、决策流程改 mermaid；INDEX 文档数 41→81、版本与维护责任对齐；新增「添加新策略」「添加新专家」扩展路径；删除不存在的 `@silent_fallback` 装饰器示例，补齐 screener / stock CLI 与 OOS JSON 契约。
+- **交叉口径收尾**（lead）：README 速查表「16 份专家圆桌」→「8 位活跃专家圆桌」、footer 日期对齐 CHANGELOG；CLAUDE.md「跨 7 数据域」纠正为 11；positioning.md 版本行 v1.33.0→v1.33.1 并标注修订日期；fetcher 数量差异采用「对外 37 / 源码实测 39」双口径并在架构文档承担核对责任。
+- 验证：定位一致性测试 22 passed；版本同步门禁一致；326 条相对链接 0 失效；全量测试 3371 passed / 13 skipped（与基线一致，基线 2 项网络依赖用例为偶发波动）。
+
 ## [1.33.1] - 2026-11-09（市场宽度 0/0 视同整体失败：禁止用哨兵 0.5 冒充真实宽度）
 
 ### Fixed
@@ -898,6 +908,9 @@
 
 
 
+
+
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1260,6 +1273,177 @@
 - **portfolio**: 回撤熔断改用权益口径消除假熔断
 - **market**: treat zero-zero breadth as a total failure
 - **experts**: guard breadth None in build_stock_data
+
+### Added
+- **sched**: 注册 08:45 取数探针并补槽位归属表
+- **data**: get_kline 支持 require_date，区分「数据没到」与「没有数据」
+- **quote**: 美股指数接到腾讯源，us:^gspc 不再依赖 yfinance/雪球
+- **sched**: 新增调度基础设施 is_trading_day 与心跳 runner（P0）
+- **research**: announcements/events 接入数据完整性信封
+- **scripts**: 数据完整性降级改行级计数
+- **scripts**: 记录胜出数据源，首行显示真实 provider
+- **backtest**: 回测结果接入数据完整性信封
+- **ci**: 静默吞错 lint 全仓清零，CI 改为一律阻断
+- **sector**: sector/technical 接入数据完整性信封
+- **ci**: 静默吞错 lint 支持分批目录阻断并清零第一批
+- **market**: quote/kline 接入数据完整性信封
+- **data**: 新增板块语义扫描工具并修正 12 处归类错配
+- **scripts**: 加数据完整性信封，降级时禁止仓位建议
+- **data**: tag sector confidence and PE percentile caliber
+- **experts**: attach an evidence chain to every debate vote
+- **portfolio**: make health default output a one-screen summary
+
+### Fixed
+- **data**: DataNotReadyError 补 details.attempts 字段对齐规格
+- **portfolio**: 单只缺报价也标注"当日可能无法成交"
+- **portfolio**: 自选股按目标区间判定状态，未持仓不再报"已破止损"
+- **sched**: 节假日表整年缺失告警，--no-cache 真正生效
+- **scripts**: 静默降级日志按同因去重，可选依赖缺失降为 debug
+- **market**: 美债10Y 与 VIX 接入东财/CBOE 官方源
+- **market**: 美元指数与 VIX 补可用兜底源
+- **market**: 宏观指标加新浪外盘兜底，覆盖黄金/原油/离岸人民币
+- **scripts**: 显式降级域与整域缺失冲突时只算 missing
+- **scripts**: 信封支持显式降级域，screener 按报价缺失判级
+- **data**: 未知板块名报错退出，删除四条无池子的死规则
+- **data**: 按研判抽查结论修正 7 处语义错配并补 7 条近似归属
+- **data**: is_st 补退市判定并剔除池内 ST/退市标的
+- **data**: 语义工具补双口径计数、豁免理由字段与审计复现入口
+- **data**: 重建板块池电力/光伏/新能源三块并补齐映射表
+- **data**: 修复全市场池主板股被静默丢弃
+- **portfolio**: 单只缺报价也标注"当日可能无法成交"
+- **data**: lhb 直接运行时 scripts/data 遮蔽 stdlib types
+- **portfolio**: 自选股按目标区间判定状态，未持仓不再报"已破止损"
+- **portfolio**: 回撤熔断改用权益口径消除假熔断
+- **market**: treat zero-zero breadth as a total failure
+- **experts**: guard breadth None in build_stock_data
+
+### Changed
+- **data**: 全市场行情改腾讯批量预取，5382 只 10.2s
+
+### Documentation
+- **skills**: 写清 data_quality 与 degraded_fields 的关系
+- **readme**: lead with the daily portfolio and market entries
+- **stock**: add a dedicated quick-mode report template
+- **positioning**: establish single source of truth and drop unverified claims
+
+### Testing
+- **portfolio**: 健康报告用例隔离 scripts/data，删除空断言分支
+- **data**: 全市场池主板归属用例改为纯打桩并锁定主板合计
+- **portfolio**: 健康报告用例隔离 scripts/data，删除空断言分支
+- block outbound network in unit tests
+- **screener**: stub the event factor so unit tests stay offline
+- use relative dates and deterministic portfolio fixtures
+
+### CI/CD
+- 覆盖率门禁收敛到单一真相并启用夜间网络冒烟
+- **install**: provision deps before the install smoke gate
+- **install**: add offline install smoke gate
+
+### Maintenance
+- **data**: 因子 IC 移出 tracked 并加不可用守卫
+
+### Other
+- merge: 合并 origin/feat/sched-runner
+- merge: 合并 origin/feat/kline-require-date
+- merge: 合并 origin/feat/us-index-tencent
+- merge: 合并 origin/fix/health-tests（内容已随 release 集成）
+- Merge remote-tracking branch 'gh/fix/log-dedupe' into rel2
+- Merge remote-tracking branch 'gh/chore/factor-ic-untracked' into rel2
+- Merge remote-tracking branch 'gh/fix/sector-semantics' into rel2
+- Merge remote-tracking branch 'gh/fix/macro-extra-sources' into rel2
+- Merge remote-tracking branch 'gh/fix/macro-sina-fallback' into rel2
+- Merge remote-tracking branch 'gh/ci/coverage-gates' into rel2
+- Merge remote-tracking branch 'gh/feat/p0-4c-strict-batching' into rel2
+- Merge remote-tracking branch 'gh/feat/p0-4a-data-quality' into rel2
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- v1.33.0 — positioning convergence and reviewable evidence
+- Merge CI auto CHANGELOG update (d12f65b)
+
+### Fixed
+- **scripts**: 修复CLI契约与技术分析误报
+- **portfolio**: 修复风控接线与输入校验
+- **backtest**: 修正回测口径与样本外验证
+- **data**: 修复复权口径与数据层静默错误
+- **ci**: 修复覆盖率与发布门禁假绿
+- **data**: DataNotReadyError 补 details.attempts 字段对齐规格
+- **portfolio**: 单只缺报价也标注"当日可能无法成交"
+- **portfolio**: 自选股按目标区间判定状态，未持仓不再报"已破止损"
+- **sched**: 节假日表整年缺失告警，--no-cache 真正生效
+- **scripts**: 静默降级日志按同因去重，可选依赖缺失降为 debug
+- **market**: 美债10Y 与 VIX 接入东财/CBOE 官方源
+- **market**: 美元指数与 VIX 补可用兜底源
+- **market**: 宏观指标加新浪外盘兜底，覆盖黄金/原油/离岸人民币
+- **scripts**: 显式降级域与整域缺失冲突时只算 missing
+- **scripts**: 信封支持显式降级域，screener 按报价缺失判级
+- **data**: 未知板块名报错退出，删除四条无池子的死规则
+- **data**: 按研判抽查结论修正 7 处语义错配并补 7 条近似归属
+- **data**: is_st 补退市判定并剔除池内 ST/退市标的
+- **data**: 语义工具补双口径计数、豁免理由字段与审计复现入口
+- **data**: 重建板块池电力/光伏/新能源三块并补齐映射表
+- **data**: 修复全市场池主板股被静默丢弃
+- **portfolio**: 单只缺报价也标注"当日可能无法成交"
+- **data**: lhb 直接运行时 scripts/data 遮蔽 stdlib types
+- **portfolio**: 自选股按目标区间判定状态，未持仓不再报"已破止损"
+- **portfolio**: 回撤熔断改用权益口径消除假熔断
+- **market**: treat zero-zero breadth as a total failure
+- **experts**: guard breadth None in build_stock_data
+
+### Documentation
+- 记录整体代码审查与修复
+- **skills**: 写清 data_quality 与 degraded_fields 的关系
+- **readme**: lead with the daily portfolio and market entries
+- **stock**: add a dedicated quick-mode report template
+- **positioning**: establish single source of truth and drop unverified claims
+
+### Added
+- **scripts**: 添加 DeepSeek Harness 技能支持
+- **sched**: 注册 08:45 取数探针并补槽位归属表
+- **data**: get_kline 支持 require_date，区分「数据没到」与「没有数据」
+- **quote**: 美股指数接到腾讯源，us:^gspc 不再依赖 yfinance/雪球
+- **sched**: 新增调度基础设施 is_trading_day 与心跳 runner（P0）
+- **research**: announcements/events 接入数据完整性信封
+- **scripts**: 数据完整性降级改行级计数
+- **scripts**: 记录胜出数据源，首行显示真实 provider
+- **backtest**: 回测结果接入数据完整性信封
+- **ci**: 静默吞错 lint 全仓清零，CI 改为一律阻断
+- **sector**: sector/technical 接入数据完整性信封
+- **ci**: 静默吞错 lint 支持分批目录阻断并清零第一批
+- **market**: quote/kline 接入数据完整性信封
+- **data**: 新增板块语义扫描工具并修正 12 处归类错配
+- **scripts**: 加数据完整性信封，降级时禁止仓位建议
+- **data**: tag sector confidence and PE percentile caliber
+- **experts**: attach an evidence chain to every debate vote
+- **portfolio**: make health default output a one-screen summary
+
+### Documentation
+- 深度优化投资用户产品三专家视角项目文档
+- 记录整体代码审查与修复
+- **skills**: 写清 data_quality 与 degraded_fields 的关系
+- **readme**: lead with the daily portfolio and market entries
+- **stock**: add a dedicated quick-mode report template
+- **positioning**: establish single source of truth and drop unverified claims
+
+### Other
+- merge: 合并远程 CHANGELOG 自动更新
+- merge: 合并 origin/feat/sched-runner
+- merge: 合并 origin/feat/kline-require-date
+- merge: 合并 origin/feat/us-index-tencent
+- merge: 合并 origin/fix/health-tests（内容已随 release 集成）
+- Merge remote-tracking branch 'gh/fix/log-dedupe' into rel2
+- Merge remote-tracking branch 'gh/chore/factor-ic-untracked' into rel2
+- Merge remote-tracking branch 'gh/fix/sector-semantics' into rel2
+- Merge remote-tracking branch 'gh/fix/macro-extra-sources' into rel2
+- Merge remote-tracking branch 'gh/fix/macro-sina-fallback' into rel2
+- Merge remote-tracking branch 'gh/ci/coverage-gates' into rel2
+- Merge remote-tracking branch 'gh/feat/p0-4c-strict-batching' into rel2
+- Merge remote-tracking branch 'gh/feat/p0-4a-data-quality' into rel2
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
+- v1.33.0 — positioning convergence and reviewable evidence
+- Merge CI auto CHANGELOG update (d12f65b)
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 

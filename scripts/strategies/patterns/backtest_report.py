@@ -10,6 +10,7 @@
 """
 
 import json
+import math
 import sys
 import os
 from datetime import datetime
@@ -30,12 +31,23 @@ def load_kline_data(filepath):
         return json.load(f)
 
 
-def calculate_advanced_stats(trades):
-    """计算高级统计指标"""
+def calculate_advanced_stats(trades, holding_days=5, risk_free_rate=0.0):
+    """计算高级统计指标（P2 口径修复，输出字段名保持不变）。
+
+    P2 三项修正：
+    1. total_return / 权益曲线：逐笔复利连乘，不再是简单加总
+    2. sharpe_ratio：扣除无风险收益后按 sqrt(252 / holding_days) 年化
+    3. max_drawdown：基于复利权益曲线相对峰值计算，而非线性累计收益
+
+    Args:
+        trades: 交易记录（含 return_pct，可含 hold_days/holding_days）
+        holding_days: 每笔默认持有交易日数（用于年化；交易自带持有天数时优先）
+        risk_free_rate: 年化无风险利率（小数，如 0.02 = 2%），换算到单持有期后扣除
+    """
     if not trades:
         return {}
 
-    returns = [t["return_pct"] for t in trades]
+    returns = [float(t["return_pct"]) for t in trades]
     wins = [r for r in returns if r > 0]
     losses = [r for r in returns if r <= 0]
 
@@ -45,9 +57,14 @@ def calculate_advanced_stats(trades):
     loss_count = len(losses)
     win_rate = win_count / total_trades * 100
 
-    # 收益统计
-    total_return = sum(returns)
-    avg_return = total_return / total_trades
+    # 收益统计：P2 累计收益改为逐笔复利连乘（+10% / -10% ≠ 0，而是 -1%）
+    equity = 1.0
+    equity_curve = [1.0]
+    for r in returns:
+        equity *= 1 + r / 100.0
+        equity_curve.append(equity)
+    total_return = (equity - 1) * 100
+    avg_return = sum(returns) / total_trades
     avg_win = sum(wins) / len(wins) if wins else 0
     avg_loss = sum(losses) / len(losses) if losses else 0
 
@@ -72,26 +89,38 @@ def calculate_advanced_stats(trades):
             current_wins = 0
             max_consecutive_losses = max(max_consecutive_losses, current_losses)
 
-    # 夏普比率（简化版）
+    # 夏普比率（P2）：逐笔收益为一个持有期样本，年化因子 sqrt(252/holding_days)，
+    # 并扣除换算到该持有期的无风险收益（旧版既不年化也不扣 rf）。
+    holds = []
+    for t in trades:
+        hold = t.get("hold_days") or t.get("holding_days") or holding_days
+        try:
+            holds.append(max(1.0, float(hold)))
+        except (TypeError, ValueError):
+            holds.append(max(1.0, float(holding_days)))
+    hold_days_eff = sum(holds) / len(holds) if holds else max(1.0, float(holding_days))
+
     if len(returns) > 1:
         import statistics
 
         std_dev = statistics.stdev(returns)
-        sharpe = avg_return / std_dev if std_dev > 0 else 0
+        # rf 为年化小数，先按持有期贴现：((1+rf)^(hold/252)-1)*100（百分数口径）
+        rf_per_trade = ((1 + risk_free_rate) ** (hold_days_eff / 252.0) - 1) * 100
+        excess = [r - rf_per_trade for r in returns]
+        mean_excess = sum(excess) / len(excess)
+        annual_factor = math.sqrt(252.0 / hold_days_eff)
+        sharpe = mean_excess / std_dev * annual_factor if std_dev > 0 else 0
     else:
         sharpe = 0
 
-    # 最大回撤
-    cumulative = 0
-    peak = 0
-    max_drawdown = 0
-    for r in returns:
-        cumulative += r
-        if cumulative > peak:
-            peak = cumulative
-        drawdown = peak - cumulative
-        if drawdown > max_drawdown:
-            max_drawdown = drawdown
+    # 最大回撤（P2）：基于复利权益曲线相对历史峰值，而非线性加总收益
+    peak = equity_curve[0]
+    max_drawdown = 0.0
+    for value in equity_curve[1:]:
+        if value > peak:
+            peak = value
+        if peak > 0:
+            max_drawdown = max(max_drawdown, (peak - value) / peak * 100)
 
     return {
         "total_trades": total_trades,
@@ -212,8 +241,8 @@ def generate_backtest_report(
     if not trades:
         return f"❌ {stock_name}: 未产生交易信号"
 
-    # 计算统计
-    stats = calculate_advanced_stats(trades)
+    # 计算统计（P2：传入持有天数用于夏普年化）
+    stats = calculate_advanced_stats(trades, holding_days=hold_days)
 
     # 生成报告
     report = []
@@ -237,6 +266,7 @@ def generate_backtest_report(
     report.append(f"  • 胜率: {stats['win_rate']}%")
     report.append(f"  • 平均收益: {stats['avg_return']}%")
     report.append(f"  • 累计收益: {stats['total_return']}%")
+    report.append("  • 收益口径: 逐笔复利连乘，夏普按持有期年化（非简单加总）")
     report.append(f"  • 盈亏比: {stats['profit_factor']}")
     report.append(f"  • 夏普比率: {stats['sharpe_ratio']}")
     report.append("")
@@ -255,13 +285,13 @@ def generate_backtest_report(
     report.append(generate_return_distribution(returns))
     report.append("")
 
-    # 累计收益曲线
+    # 累计收益曲线（P2：复利口径，与 total_return / max_drawdown 一致）
     cumulative = []
-    total = 0
+    total = 1.0
     for r in returns:
-        total += r
-        cumulative.append(total)
-    report.append(generate_ascii_chart(cumulative, width=50, height=8, title="累计收益曲线 (%)"))
+        total *= 1 + r / 100.0
+        cumulative.append((total - 1) * 100)
+    report.append(generate_ascii_chart(cumulative, width=50, height=8, title="复利累计收益曲线 (%)"))
     report.append("")
 
     # 交易时间线
@@ -310,7 +340,8 @@ def generate_comparison_report(stocks_data, ma_short=10, ma_long=21, vol_thresho
 
     for stock_name, data in stocks_data.items():
         trades = backtest_strategy(data, ma_short, ma_long, vol_threshold)
-        stats = calculate_advanced_stats(trades)
+        # 对比报告的回测用 backtest_strategy 默认 hold_days=5，年化口径保持一致
+        stats = calculate_advanced_stats(trades, holding_days=5)
         stats["stock_name"] = stock_name
         all_stats.append(stats)
 

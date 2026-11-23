@@ -78,8 +78,10 @@ def main() -> int:
 
     schemas = collect_schemas(CONTRACTS_DIR)
     if not schemas:
-        print(f"⚠️  未发现任何 schema 文件 in {CONTRACTS_DIR}")
-        return 0
+        # review 修复（P2）：schema 被删光或匹配模式失配时不能再返回 0，
+        # 否则 CI 的 contracts job 与 pre-commit 门禁可被“删文件”绕过。
+        print(f"❌ 未发现任何 schema 文件 in {CONTRACTS_DIR}")
+        return 1
 
     print(f"==> 找到 {len(schemas)} 个 schema: {', '.join(sorted(schemas.keys()))}\n")
 

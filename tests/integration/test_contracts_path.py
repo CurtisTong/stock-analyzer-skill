@@ -111,6 +111,9 @@ class TestValidateContractsCLI:
             timeout=30,
             cwd=str(REPO_ROOT),
         )
-        # 不要求 exit 0（可能在测试环境没装 jsonschema）
-        # 但应该输出一些结果（不是崩溃）
-        assert result.stdout or result.stderr, "validate_contracts 无任何输出"
+        # review 修复（P2）：旧断言只检查“有输出”，traceback 也算通过。
+        # 这里要求退出码 0 且出现成功标志，确保契约 CLI 回归会被发现。
+        assert result.returncode == 0, f"validate_contracts 失败: {result.stderr}"
+        assert "✅" in result.stdout or "通过" in result.stdout, (
+            f"validate_contracts 未输出成功标志: {result.stdout}"
+        )

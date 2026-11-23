@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from common.exceptions.silent_fallback import log_silent_fallback
 """
 热度榜（活跃 Top N）。
 
@@ -26,10 +25,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# [review P3] sys.path.insert 必须先于项目内 import（原导入挤在 docstring 之前）
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from common.cli_base import create_parser, handle_errors
-from common import DATA_DIR, parallel_map, atomic_write_json
+from common.cli_base import create_parser, handle_errors  # noqa: E402
+from common import DATA_DIR, parallel_map, atomic_write_json  # noqa: E402
+from common.exceptions.silent_fallback import log_silent_fallback  # noqa: E402
 from data import get_quote, get_kline
 from snapshots import list_snapshots, load_snapshot
 

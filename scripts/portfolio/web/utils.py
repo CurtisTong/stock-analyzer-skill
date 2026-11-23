@@ -6,6 +6,7 @@
 
 import json
 import logging
+import math
 import secrets
 import stat
 import threading
@@ -89,24 +90,42 @@ def _reset_pm_for_tests() -> None:
         _pm = None
 
 
+def _reject_json_constant(token: str):
+    """json.loads 的 parse_constant 钩子：拒绝 NaN/Infinity（review P1-26）。"""
+    raise ValueError(f"non-finite JSON number is not allowed: {token}")
+
+
+def loads_json(text: str) -> Any:
+    """严格 JSON 解析：NaN/Infinity/-Infinity 一律 400（review P1-26）。
+
+    json.loads 默认接受这些非标准常量，float('nan') < 0 恒 False 会绕过
+    所有数值校验，json.dump 又会写出非法 JSON 污染盈亏与整个数据文件。
+    """
+    return json.loads(text, parse_constant=_reject_json_constant)
+
+
 def _parse_float(v: Any) -> Optional[float]:
-    """解析浮点数。"""
+    """解析浮点数；NaN/Infinity 视为非法输入返回 None（review P1-26）。"""
     if v is None or isinstance(v, bool):
         return None
     try:
-        return float(v)
-    except (TypeError, ValueError):
+        number = float(v)
+    except (TypeError, ValueError, OverflowError):
         return None
+    return number if math.isfinite(number) else None
 
 
 def _parse_int(v: Any) -> Optional[int]:
-    """解析整数。"""
+    """解析整数；非有限数/布尔值一律拒绝（review P1-26）。"""
     if v is None or isinstance(v, bool):
         return None
     try:
-        return int(v)
-    except (TypeError, ValueError):
+        number = float(v)
+    except (TypeError, ValueError, OverflowError):
         return None
+    if not math.isfinite(number) or number != int(number):
+        return None
+    return int(number)
 
 
 def _to_bool_str_list(v: Any) -> Optional[list]:
@@ -233,8 +252,8 @@ def _collect_code_name_map() -> list:
         if not p.exists():
             continue
         try:
-            data = json.loads(p.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+            data = loads_json(p.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
             continue
         for entry in data.get("positions", []) + data.get("watchlist", []):
             code = (entry.get("code") or "").lower()
@@ -245,14 +264,14 @@ def _collect_code_name_map() -> list:
     p = scripts_data / "sector_stocks.json"
     if p.exists():
         try:
-            data = json.loads(p.read_text(encoding="utf-8"))
+            data = loads_json(p.read_text(encoding="utf-8"))
             for v in data.values():
                 if isinstance(v, list):
                     for code in v:
                         c = (code or "").lower()
                         if c and c not in seen:
                             seen[c] = ""
-        except (OSError, json.JSONDecodeError):
+        except (OSError, ValueError):
             pass
 
     return [(c, n) for c, n in seen.items()]

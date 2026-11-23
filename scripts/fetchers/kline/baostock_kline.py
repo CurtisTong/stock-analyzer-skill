@@ -37,7 +37,12 @@ _bs_logged_in = False
 # 参考: https://zhuanlan.zhihu.com/p/2067944129309446823 第二节
 _IP_BAN_FAILURE_THRESHOLD = 3  # 连续失败 N 次判定疑似 IP 封禁
 _IP_BAN_BACKOFF_SECONDS = 60  # 主动退避秒数（避免持续冲击被封 IP）
+# review 3.1-P1-10：退避改为按时间节流——距上次退避不足 N 分钟不再 sleep。
+# 旧实现连续失败达阈值后每次失败都 sleep 60s（次数不封顶），全市场 3323 只
+# 可拖到数十小时并撞 screener 1800s watchdog。剩余失败交给 manager 熔断器收敛。
+_IP_BAN_BACKOFF_INTERVAL_SECONDS = 300  # 5 分钟内最多 sleep 一次
 _consecutive_failures = 0
+_last_backoff_ts = 0.0  # 上次实际退避的 monotonic 时间戳
 _failure_lock = threading.Lock()
 
 
@@ -149,23 +154,33 @@ class BaostockKlineFetcher(BaseFetcher):
 
 
 def _record_failure() -> None:
-    """记录 baostock 连续失败，达阈值时主动退避并提示 IP 封禁风险。
+    """记录 baostock 连续失败，按时间节流退避（review 3.1-P1-10）。
 
     baostock IP 封禁后旧 IP 几小时才恢复，持续请求只会加重封禁。
-    达 _IP_BAN_FAILURE_THRESHOLD 次后 sleep _IP_BAN_BACKOFF_SECONDS，
-    避免在 IP 封禁窗口内高频重试。
+    达阈值后 sleep _IP_BAN_BACKOFF_SECONDS，但 5 分钟内最多退避一次：
+    避免 fetch 热路径每次失败都阻塞 60s，其余失败由 manager 的熔断器收敛。
     """
-    global _consecutive_failures
+    global _consecutive_failures, _last_backoff_ts
     with _failure_lock:
         _consecutive_failures += 1
         count = _consecutive_failures
-    if count >= _IP_BAN_FAILURE_THRESHOLD:
+        now = time.monotonic()
+        should_backoff = (
+            count >= _IP_BAN_FAILURE_THRESHOLD
+            and now - _last_backoff_ts >= _IP_BAN_BACKOFF_INTERVAL_SECONDS
+        )
+        if should_backoff:
+            # 锁内更新时间戳，避免并发失败同时判定"该退避"而集体 sleep
+            _last_backoff_ts = now
+    if should_backoff:
         logger.warning(
             "baostock 连续失败 %d 次，疑似 IP 封禁，主动退避 %ds " "（换网络/热点可立即解封，旧 IP 几小时恢复）",
             count,
             _IP_BAN_BACKOFF_SECONDS,
         )
         time.sleep(_IP_BAN_BACKOFF_SECONDS)
+    elif count >= _IP_BAN_FAILURE_THRESHOLD:
+        logger.debug("baostock 连续失败 %d 次，退避窗口内跳过 sleep（时间节流）", count)
 
 
 def _record_success() -> None:

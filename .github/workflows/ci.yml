@@ -127,7 +127,8 @@ jobs:
       - name: 全仓覆盖率检查（.coveragerc 阈值）
         run: |
           # 主配置：全仓 scripts + omit 列表 + fail_under=48（见 .coveragerc）
-          pytest --cov=scripts --cov-report=term tests/unit/ | tail -5
+          # 不要管道到 tail：默认 bash -e 无 pipefail，tail 的 0 会吞掉 pytest 失败退出码
+          pytest --cov=scripts --cov-report=term tests/unit/
 
       - name: 核心目录覆盖率门禁（.coveragerc-core 阈值）
         env:
@@ -138,7 +139,7 @@ jobs:
           pytest --cov=scripts/common --cov=scripts/fetchers --cov=scripts/data \
             --cov=scripts/business --cov=scripts/technical --cov=scripts/portfolio \
             --cov=scripts/monitor --cov=scripts/backtest --cov=scripts/strategies \
-            --cov=scripts/config --cov-report=term tests/unit/ | tail -5
+            --cov=scripts/config --cov-report=term tests/unit/
 
   integration:
     name: 集成测试

@@ -132,6 +132,8 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 - `--full-market`：使用全市场股票池（~5000只），而非主题板块池（~280只）。需先运行 `python3 scripts/init_pool.py --full-market` 初始化
 - `--full-market --sector 创业板`：全市场模式下只筛选创业板
+- `--sector 消费` 的「消费」含养殖链（温氏/牧原/大北农等）：本仓库无「农林牧渔」板块，养殖归入大消费属**近似口径**，选股会带进养殖周期波动
+- `--sector 资源` 只含煤炭/有色/钢铁/贵金属，不含券商与农业（2026-11-19 语义复核后）
 - `--min-amount 5000`：主板最低成交额基准（万元）；创业板/科创板/北交所阈值以 `scripts/config/limits.yaml` 为准（3000/3000/1000 万），CLI 参数只覆盖主板基准
 - `--min-cap 40`：主板最低市值基准（亿元）；板块差异化阈值以 limits.yaml 为准（创业板/科创板 20 亿、北交所 10 亿）
 - `--exclude-loss`：剔除 EPS<=0 标的
@@ -202,6 +204,11 @@ python3 scripts/screener.py --full-market --sector 创业板 --strategy growth_m
 
 - `status != ok` 时 `conclusions_allowed=false`：禁止据此给仓位建议或"可以买/加仓"类结论，只保留事实与待确认项。
 - 文本模式首行固定输出数据完整性行（在任何标题之前）。
+- 行级计数（2026-11-20）：有行级事实的域，`missing`/`degraded` 的条目是
+  `{domain, missing_rows, total_rows}`（如 9 只持仓缺 2 只 → `degraded 7/9 只报价`），
+  首行按行级渲染；同时保留 `missing_domains`/`degraded_domains` 扁平列表供机器判断，
+  以及 `row_counts`（每域行级计数，正常时也在）。没有行级事实的域（kline/finance）
+  条目只有 `{domain}`，仍按域级描述。
 - `degraded_fields` 是"不可信字段路径"的扁平列表（旧键名兼容一版）；`missing` 为整域缺失、`degraded` 为走了降级源。下游以 `status` 判结论强度、以 `degraded_fields` 判字段可信度。
 
 > 免责：AI 辅助生成，仅供参考，不构成投资建议。

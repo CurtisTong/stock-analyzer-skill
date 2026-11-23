@@ -149,18 +149,29 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
     """执行 walk-forward 回测。
 
     流程：
-    1. 对每个窗口 w (0..n_windows-1)：
+    1. 先算覆盖全部窗口的 max_total_days = (n_windows-1)*step + train_days + test_days；
+       所有窗口的 IS/OOS 都传该值作 total_days（P0-1：bars 右对齐"今天"，
+       datalen 必须恒定，否则 eval 下标与真实日期错位、OOS 全部重叠）。
+    2. 对每个窗口 w (0..n_windows-1)：
        - train 段 = [w * step, w * step + train_days]
-       - test 段 = [train_end, train_end + test_days]
-    2. 在 train 段运行 simulate_strategy（IS）
-    3. 在 test 段运行 simulate_strategy（OOS）
-    4. 汇总所有窗口的 OOS 收益
+       - test 段 = [train_end, train_end + test_days]（eval_start/eval_end 仍逐窗推进）
+    3. 在 train 段运行 simulate_strategy（IS）
+    4. 在 test 段运行 simulate_strategy（OOS）
+    5. 汇总所有窗口的 OOS 收益
 
     Returns:
         WalkForwardResult 含 OOS 夏普/胜率/回撤 + IS 参考
     """
     result = WalkForwardResult(config=config)
     step = config.step_days or config.test_days
+
+    # P0-1 修复：get_kline 只返回最近 datalen 根（bars 永远右对齐"今天"），
+    # 引擎把 datalen 设为 MIN_HISTORY + total_days + 10，并把 eval_start/eval_end
+    # 当作 bars 下标。旧实现每个窗口同时递增 total_days 和下标，两者相消，
+    # 导致所有 OOS 窗口映射到同一段真实日期、IS 还覆盖自己的 OOS。
+    # 所有窗口统一传覆盖全部窗口所需的最大数据深度，datalen 恒定 → 下标与真实
+    # 日期的映射稳定；eval_start/eval_end 仍用本窗口的 train_end/test_end 偏移。
+    max_total_days = (config.n_windows - 1) * step + config.train_days + config.test_days
 
     for w in range(config.n_windows):
         train_start = w * step
@@ -182,7 +193,8 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             codes=config.codes,
             top_n=config.top_n,
             holding_days=config.holding_days,
-            total_days=train_end,
+            # P0-1：数据深度对所有窗口恒定，不能用 train_end 表达历史区间。
+            total_days=max_total_days,
             eval_start=0,
             eval_end=train_end,
             atr_stop_multiplier=config.atr_stop_multiplier,
@@ -202,7 +214,8 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
             codes=config.codes,
             top_n=config.top_n,
             holding_days=config.holding_days,
-            total_days=test_end,
+            # P0-1：同上，datalen 必须恒定；只有 eval 边界随窗口推进。
+            total_days=max_total_days,
             eval_start=train_end,
             eval_end=test_end,
             atr_stop_multiplier=config.atr_stop_multiplier,
@@ -243,6 +256,8 @@ def run_walk_forward(config: WalkForwardConfig) -> WalkForwardResult:
                     (sum(1 for r in oos_returns if r > 0) / len(oos_returns) * 100 if oos_returns else 0),
                     1,
                 ),
+                # P1-14：逐窗透传因子降维说明，供 walk-forward 报告披露
+                "factor_degradation": oos_result.get("factor_degradation", []),
             }
         )
 

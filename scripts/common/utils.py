@@ -25,7 +25,10 @@ def split_codes(arg: str) -> list[str]:
     """支持逗号分隔或文件路径（@file）。"""
     if arg.startswith("@"):
         file_path = Path(arg[1:]).resolve()
-        if not str(file_path).startswith(str(DATA_DIR.resolve())):
+        # P2 #6(4.1): 旧实现用 str.startswith 判前缀，兄弟目录 data_backup/ 也
+        # 以 data/ 开头，可绕过白名单读取任意文件。改用 Path.is_relative_to()
+        # 按路径分量判定，确保文件确实位于 DATA_DIR 之内。
+        if not file_path.is_relative_to(DATA_DIR.resolve()):
             raise ValueError(f"文件路径不在允许范围内: {arg[1:]}")
         if not file_path.exists():
             raise FileNotFoundError(f"文件不存在: {arg[1:]}")

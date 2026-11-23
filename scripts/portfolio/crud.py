@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING, Any, Optional
 
 from common.validators import normalize_code
@@ -38,6 +39,43 @@ def _initial_capital(manager: "PortfolioManager") -> Optional[float]:
         return None
 
 
+def _resolve_sell_price(
+    manager: "PortfolioManager", code: str, cost: float, sell_price: Optional[float]
+) -> tuple[float, str]:
+    """确定清仓卖价及其口径（review P1-25）。
+
+    优先级：用户显式卖价 > 当日现价 > 成本价估算 > 未知(0)。
+    无真实成交价时**必须**在记录里标注口径， profit 为 0（成本估算）
+    或无法计算（未知），绝不把"成本当成交价"的估算值伪装成真实盈亏。
+    """
+    if sell_price is not None:
+        try:
+            price = float(sell_price)
+            if math.isfinite(price) and price > 0:
+                return round(price, 3), "provided"
+        except (TypeError, ValueError, OverflowError):
+            pass
+    # 现价（取不到 / 非有限数则继续降级）
+    try:
+        from data import get_quotes
+
+        for q in get_quotes([code], use_cache=True) or []:
+            raw = getattr(q, "price", 0) or 0
+            price = float(raw)
+            if math.isfinite(price) and price > 0:
+                return round(price, 3), "current_quote"
+    except Exception as e:
+        logger.debug("清仓现价获取失败(%s): %s", code, e)
+    # 成本估算：盈亏按 0 记，标注口径，避免伪造亏损/盈利
+    try:
+        cost_value = float(cost)
+        if math.isfinite(cost_value) and cost_value > 0:
+            return round(cost_value, 3), "cost_estimate"
+    except (TypeError, ValueError, OverflowError):
+        pass
+    return 0.0, "unknown"
+
+
 def _record_trade_log(
     manager: "PortfolioManager",
     code: str,
@@ -46,6 +84,7 @@ def _record_trade_log(
     quantity: int,
     reason: str = "manual",
     sell_price: float = None,
+    sell_price_source: str = None,
 ) -> None:
     """记录交易日志（异常隔离，不影响持仓操作）。"""
     try:
@@ -59,6 +98,7 @@ def _record_trade_log(
             quantity=quantity,
             sell_price=sell_price or 0,
             reason=reason,
+            sell_price_source=sell_price_source or "unknown",
         )
         # 熔断状态同步（v1.25）：清仓落账是保护机制的天然写入点——
         # 连亏/回撤熔断只在真实成交发生时才可能触发。显式写在落账层
@@ -236,7 +276,10 @@ def reduce_position(
     pos = result_holder.get("pos")
     actual_qty = result_holder.get("actual_qty", 0)
     if pos is not None:
+        # review P1-25：清仓（含减仓归零）必须带卖价，否则 profit 恒 0、
+        # 连亏/回撤熔断永不触发。无显式价时按现价/成本估算并标注口径。
         if result_holder.get("cleared"):
+            resolved_price, price_source = _resolve_sell_price(manager, code, pos.get("cost", 0), sell_price)
             _record_trade_log(
                 manager,
                 code,
@@ -244,7 +287,8 @@ def reduce_position(
                 pos.get("cost", 0),
                 actual_qty,
                 reason="reduce_to_zero",
-                sell_price=sell_price,
+                sell_price=resolved_price,
+                sell_price_source=price_source,
             )
         elif sell_price:
             _record_trade_log(
@@ -255,12 +299,22 @@ def reduce_position(
                 actual_qty,
                 reason="partial_reduce",
                 sell_price=sell_price,
+                sell_price_source="provided",
             )
     return result_holder["r"]
 
 
-def remove_position(manager: "PortfolioManager", code: str, auto_save: bool = True) -> bool:
-    """清仓（移除持仓）并记录交易日志。"""
+def remove_position(
+    manager: "PortfolioManager",
+    code: str,
+    auto_save: bool = True,
+    sell_price: Optional[float] = None,
+) -> bool:
+    """清仓（移除持仓）并记录交易日志。
+
+    review P1-25：新增 sell_price（默认 None 保持向后兼容）。未传时按
+    现价 → 成本估算，记录 sell_price_source 标注口径，熔断才能据此触发。
+    """
     code = normalize_code(code)
     manager._push_oplog("remove_position", code=code)
     holder: dict[str, Any] = {"found": False, "pos": None}
@@ -282,6 +336,7 @@ def remove_position(manager: "PortfolioManager", code: str, auto_save: bool = Tr
 
     if holder["found"] and holder["pos"] is not None:
         p = holder["pos"]
+        resolved_price, price_source = _resolve_sell_price(manager, code, p.get("cost", 0), sell_price)
         _record_trade_log(
             manager,
             code,
@@ -289,6 +344,8 @@ def remove_position(manager: "PortfolioManager", code: str, auto_save: bool = Tr
             p.get("cost", 0),
             p.get("quantity", 0),
             reason="manual",
+            sell_price=resolved_price,
+            sell_price_source=price_source,
         )
     return holder["found"]
 

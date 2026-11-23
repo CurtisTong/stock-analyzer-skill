@@ -40,7 +40,12 @@ class DataConfig:
 
     # HTTP 超时（秒）
     http_timeout: int = 10  # 单次 HTTP 请求超时
+    # P2 #8(4.1): 独立配置键，不再误用 http.read_timeout（改单次读超时不应改批量预算）
     parallel_timeout: int = 30  # parallel_map 总超时
+
+    # 缓存容量治理（P2 #8）：让 YAML cache.max_size/max_age 不再是死配置
+    cache_max_size: int = 1000  # 最大缓存文件数（YAML cache.max_size）
+    cache_max_age: int = 604800  # 缓存文件最大存活秒数（YAML cache.max_age，7 天）
 
     # 熔断器
     circuit_failure_threshold: int = 5
@@ -66,7 +71,12 @@ class DataConfig:
         # YAML 默认值
         http_cfg = yaml_cfg.get("http", {})
         cfg.http_timeout = http_cfg.get("connect_timeout", cfg.http_timeout)
-        cfg.parallel_timeout = http_cfg.get("read_timeout", cfg.parallel_timeout)
+        # P2 #8(4.1): 并行超时独立键。旧实现把 http.read_timeout(30s) 当并行预算，
+        # 改单次读超时会意外改变批量任务的超时；默认仍为 30s（向后兼容默认值）。
+        cfg.parallel_timeout = http_cfg.get("parallel_timeout", cfg.parallel_timeout)
+        # P2 #8(4.1): YAML cache.max_size/max_age 由 common.cache 的周期清理消费
+        cfg.cache_max_size = cache_cfg.get("max_size", cfg.cache_max_size)
+        cfg.cache_max_age = cache_cfg.get("max_age", cfg.cache_max_age)
         cfg.quote_cache_ttl = cache_cfg.get("quote_ttl", cfg.quote_cache_ttl)
         cfg.intraday_quote_cache_ttl = cache_cfg.get("intraday_quote_ttl", cfg.intraday_quote_cache_ttl)
         cfg.kline_cache_ttl = cache_cfg.get("kline_ttl", cfg.kline_cache_ttl)
@@ -90,6 +100,9 @@ class DataConfig:
             os.getenv("DATA_PARALLEL_TIMEOUT", cfg.parallel_timeout),
             cfg.parallel_timeout,
         )
+        # P2 #8(4.1): 缓存容量也支持环境变量覆盖（优先级：环境变量 > YAML > 默认值）
+        cfg.cache_max_size = _safe_int(os.getenv("DATA_CACHE_MAX_SIZE", cfg.cache_max_size), cfg.cache_max_size)
+        cfg.cache_max_age = _safe_int(os.getenv("DATA_CACHE_MAX_AGE", cfg.cache_max_age), cfg.cache_max_age)
         cfg.quote_cache_ttl = _safe_int(os.getenv("DATA_QUOTE_TTL", cfg.quote_cache_ttl), cfg.quote_cache_ttl)
         cfg.intraday_quote_cache_ttl = _safe_int(
             os.getenv("DATA_INTRADAY_QUOTE_TTL", cfg.intraday_quote_cache_ttl),
@@ -150,6 +163,48 @@ def is_trading_hours() -> bool:
     morning = 9 * 60 + 30 <= current_minutes <= 11 * 60 + 30
     afternoon = 13 * 60 <= current_minutes <= 15 * 60
     return morning or afternoon
+
+
+def holiday_table_years() -> set[int]:
+    """返回节假日表覆盖的年份集合（表为空时返回空集）。"""
+    years = set()
+    for item in _load_holidays():
+        try:
+            years.add(int(str(item)[:4]))
+        except ValueError:
+            continue
+    return years
+
+
+def is_holiday_table_covering(d: "date") -> bool:
+    """节假日表是否覆盖指定年份。
+
+    表里的日期是「休市日」清单，某年没有任何休市日剩余不代表缺数据；但**整年缺失**
+    意味着该年节假日全被当成交易日——这条必须能被调度层发现并告警，而不是静默放行。
+    """
+    return d.year in holiday_table_years()
+
+
+def is_trading_day(d: "date | None" = None) -> bool:
+    """判断指定日期（默认今天）是否为 A 股交易日。
+
+    与 `is_trading_hours()` 的区别：后者判「此刻是否在盘中」，08:45 / 15:05 /
+    18:30 一律返回 False；拿它当调度前置会把盘前盘后任务静默跳过且不报错。
+    调度、跑批、盘前盘后任务请一律用本函数。
+
+    Args:
+        d: 目标日期，None 表示今天
+
+    Returns:
+        True 表示当天开市（非周末且不在节假日表里）
+    """
+    if d is None:
+        from dev.clock import now as _now
+
+        d = _now().date()
+    if d.weekday() >= 5:
+        return False
+    return not _is_holiday(d)
 
 
 # ═══════════════════════════════════════════════════════════════

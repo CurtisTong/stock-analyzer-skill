@@ -11,6 +11,8 @@
 
 **每日持仓体检** · **盘前盘后复盘** · **8 位活跃专家圆桌** · **37 个 fetcher 类故障转移**
 
+> ✅ **适合你吗？** 已在用 AI 编码代理、每天看盘 5–10 分钟、愿意复核数据来源 → 直接看下面的「30 秒上手」。❌ 想要点开即用的荐股 App 或保证收益 → [本包不适合你](#-这是什么)，别浪费时间。
+
 > 定位口径见 [`docs/positioning.md`](docs/positioning.md)：本包不荐股、不承诺收益，卖的是可复核的分析流水线与纪律约束。
 
 > "16 份人设"是历史合并底料（8 legacy + 8 active），`/stock debate` 实际跑 8 位 active 专家各 1 票（5 长线 + 3 短线）。详见 `experts/registry.py`。
@@ -53,7 +55,9 @@
 
 > 装进 Claude Code 后用 12 条 `/xxx` 斜杠命令做 A 股投资研究——**先看持仓体检与复盘，再按需做单股深度研究、选股、回测**。
 
-一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的 Claude Code 插件包。日常只用两条命令：`/portfolio health` 体检、`/market quick` 复盘。
+一个把 A 股分析能力封装成 12 条 `/xxx` 斜杠命令的插件包，支持 **Claude Code / Codex / DeepSeek Harness**。日常只用两条命令：`/portfolio health` 体检、`/market quick` 复盘。
+
+> DeepSeek Harness 用户无需额外安装：项目根 `.dsh/skills/` 随仓库追踪，打开本项目即在会话中发现 11 个模型可调用技能（`/backtest` 沿用 `disable-model-invocation: true`，需显式输入）。契约见 `tests/contracts/test_dsh_skill_support.py`。
 
 > `/stock <代码>` 跑 5 层分析。具体耗时取决于数据源响应；网络差或 watchdog 超时（默认 1800s）会延后，部分字段可能降级。
 
@@ -123,6 +127,8 @@
 
 ### 👥 16 份专家人设
 
+**一句话看懂**：专家圆桌 = 8 位不同流派的"虚拟投资人"各自独立打分投票，把一句模糊的"我觉得还行"变成可复核的多空对照；8 份 legacy 档案是他们的历史合体素材，不参与投票。
+
 **长线 5 人（active）**<br>
 林奇 · 索罗斯 · 价值机构锚<br>
 行业专家 · 风控
@@ -156,7 +162,7 @@ AkShare · efinance · yfinance<br>
 
 > ⚠️ **风险提示**：所有分析仅供参考，不构成投资建议。投资有风险，决策需谨慎。
 
-**先决条件**：需要先装 [Claude Code](https://claude.com/download)（约 2 分钟），终端输入 `claude --version` 看到版本号就 OK。
+**先决条件**：Claude Code 用户先装 [Claude Code](https://claude.com/download)（约 2 分钟），终端输入 `claude --version` 看到版本号就 OK；DeepSeek Harness 用户直接在 DSH 中打开本仓库即可（技能入口已随仓库提供，无需 `install.sh`）。
 
 ```bash
 # 1️⃣ 克隆项目并安装（约 30 秒）
@@ -203,7 +209,9 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 
 > 完整脚本：[`scripts/demo.sh`](scripts/demo.sh) · 9 个 GIF 演示：[docs/assets/](docs/assets/)
 
-## 🆕 v1.26.0 新增能力
+> 📌 以下按**引入版本**列出能力；当前版本为 **v1.33.1**，标题里的版本号不是当前版本。
+
+## 🆕 情绪与快照（v1.26.0 引入）
 
 | 新能力                              | 怎么用                                                                                       | 价值                                   |
 | ----------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------- |
@@ -213,7 +221,7 @@ $ python3 scripts/strategy_performance.py report              # 10. 月度报告
 
 > 📖 看不懂 **PE / PB / ROE / 夏普** 等术语？[`methodology.md`](methodology.md) 附录有术语速查表，或在 Claude Code 里用 `/learn` 随时提问。
 
-## 🆕 v1.8.0 新增能力
+## 🆕 模拟盘与统一输出模板（v1.8.0 引入）
 
 | 新能力                    | 怎么用                                                                         | 价值                                                 |
 | ------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------- |
@@ -265,7 +273,7 @@ python3 scripts/portfolio_web.py
 
 > 💡 以下为 LLM 合成演示输出（含估值/板块/风险收益比分层与目标价/止损）。
 > `scripts/stock.py` 实际渲染为 行业画像/技术面/财务/近 60 日回测/综合评分 结构；
-> 分层结论由模型按 [output-template](../skills/_shared/references/output-template.md) 合成。
+> 分层结论由模型按 [output-template](skills/_shared/references/output-template.md) 合成。
 
 ```text
 🎯 🟢 贵州茅台（sh600519）现价 1392.05（+2.81%）｜综合评分 42.1（中性）｜谨慎回避
@@ -309,6 +317,7 @@ python3 scripts/portfolio_web.py
 ─────────────────────────────────────
 🗳️ 最终投票：4 买入 · 3 观望 · 1 回避
 🎯 综合建议：长线优配 / 短线观望 → 见 decide.md 详解
+📜 本输出为量化研判参考，不构成投资建议，据此操作风险自负
 ```
 
 </details>
@@ -332,6 +341,7 @@ python3 scripts/portfolio_web.py
 【两融余额】1.62 万亿（环比 +1.2%）
 
 🎯 策略：进攻型仓位可提升至 70%，重点关注算力/半导体补涨
+📜 本输出为量化研判参考，不构成投资建议，据此操作风险自负
 ```
 
 </details>
@@ -431,6 +441,16 @@ ROE + 安全边际
 
 > 核心 8 命令不写代码也能用。`/screener init` 初始化股票池，`/stock sh600519 quick` 跑单股 5 层分析。耗时取决于数据源响应。
 
+**口语怎么转成命令**（拿不准时随时输入 `/stock-help`）：
+
+| 你心里想说的 | 直接输入 |
+| --- | --- |
+| "看看我的持仓 / 我的持仓怎么样" | `/portfolio health` |
+| "帮我调仓 / 给点调仓建议" | `/portfolio rebalance` |
+| "推荐几只股票 / 帮我选股" | `/screener` |
+| "今天大盘怎么样" | `/market quick` |
+| "这只股票能买吗" | `/stock sh600519 full` |
+
 ---
 
 ## 🗺️ 5 个典型场景
@@ -514,7 +534,7 @@ flowchart LR
 
 | 类别        | Skill                                                  | 命令                                             | 一句话价值                                   |
 | :---------- | :----------------------------------------------------- | :----------------------------------------------- | :------------------------------------------- |
-| 🎯 **决策** | [stock](skills/stock/SKILL.md)                         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 16 份专家圆桌辩论 · 纯技术面  |
+| 🎯 **决策** | [stock](skills/stock/SKILL.md)                         | `/stock <代码> [quick\|full\|debate\|technical]` | 单股五层分析 · 8 位活跃专家圆桌辩论 · 纯技术面 |
 | 🎯 **决策** | [stock-technical](skills/stock-technical/SKILL.md)     | `/stock-technical <代码>`                        | 纯技术面（均线/MACD/KDJ/BOLL/RSI/缠论/战法） |
 | ⭐ **日常** | [market](skills/market/SKILL.md)                       | `/market [full\|quick\|intraday]`                | 大盘快评 / 完整复盘 / 盘中分时               |
 | 🌐 **环境** | [sector](skills/sector/SKILL.md)                       | `/sector <板块> [overview\|compare\|stock]`      | 板块全景 / 标的对比 / 板块内筛选             |
@@ -551,7 +571,7 @@ git clone https://github.com/CurtisTong/stock-analyzer-skill.git && cd stock-ana
 ```
 
 ✅ 自动软链到 ~/.claude/skills/<br>
-✅ 支持 Claude Code + Codex
+✅ 支持 Claude Code + Codex + DeepSeek Harness（`.dsh/skills/`）
 
 </td>
 <td valign="top">
@@ -590,7 +610,10 @@ cd stock-analyzer-skill
 ```bash
 claude skills list | grep stock     # 看到 12 个 skill 即成功
 /stock-help                          # 在 Claude Code 内查看命令清单
+python3 -m unittest tests.contracts.test_dsh_skill_support -v  # DSH: 12 条入口 + frontmatter 契约
 ```
+
+DeepSeek Harness 无需命令验证：打开本仓库后 `/` 菜单出现 `stock` / `market` / `portfolio` 等即可；`/backtest` 也是有效命令，只是不进入模型自动选择的目录。
 
 ---
 
@@ -623,7 +646,7 @@ scripts/
 | 📊 **finance 域 ** | v1.16.0 重构：财报表 `Optional[float]=None` 化、`get_finance` 返 `(records, FinanceMeta)` tuple、主板/科创板/北交所差异化披露 |
 | ⚙️ **配置外部化**         | 行业阈值 / 评分权重 / 数据端点全部 YAML   |
 | 🔍 **可观测性提升**      | v1.16.0 silent_fallback：11 处 HIGH/MEDIUM 静默吞错加显式 WARNING 日志（共 18 处调用；另有 ~105 处 advisory 低危） |
-| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（1989 passed / 13 skipped，v1.23.1 实测离线）|
+| 🧪 **测试覆盖**           | 单元测试 + 元数据测试 + 端到端冒烟测试（全量 2800+ passed，v1.33.1；详见 CHANGELOG）|
 
 📖 详见 [开发者指南](docs/developer-guide.md) 和 [产品架构](docs/product-architecture.md)。
 
@@ -690,7 +713,17 @@ scripts/
 <details>
 <summary><b>Q：数据源挂了怎么办？</b></summary>
 
-内置熔断器 + 多源故障转移：腾讯 → 东财 → 新浪 → 雪球 → 同花顺 → AkShare → efinance → ……，单源失败不影响整体。
+```text
+【症状】某个 /stock 或 /market 命令长时间无输出；或某些字段显示 N/A、提示"数据缺失"。
+【根因】多为某个上游 API 临时限频或故障（约 30% 交易所限频，70% 本地网络/DNS）——这是工具侧的数据源问题，不是你操作错了。
+【下一步】
+ ① 等 60 秒再跑一次，熔断器会在这段时间恢复；
+ ② 仍缺数据时切到预置快照：python3 scripts/init_pool.py --default；
+ ③ 查看各数据源当前状态：python3 scripts/monitor.py --sources；
+ ④ 持续失败请带「命令 + 报错原文」到 GitHub issue 上报。
+```
+
+内置 37 个 fetcher 会自动按 腾讯 → 东财 → 新浪 → 雪球 → 同花顺 → AkShare → efinance 顺序故障转移，单源失败一般不影响整体。
 
 </details>
 
@@ -744,7 +777,7 @@ python3 scripts/monitor.py --cleanup
 <details>
 <summary><b>Q：想卸载怎么办？</b></summary>
 
-一条命令卸载全部（`~/.claude/skills` + `~/.codex/skills` + 项目级软链 + plugin 注册）：
+一条命令卸载全部（`~/.claude/skills` + `~/.codex/skills` + 项目级软链 + plugin 注册）。`.dsh/skills/` 随仓库追踪，不会删除：
 
 ```bash
 ./uninstall.sh          # 普通模式：清空全部 skill 软链
@@ -778,7 +811,7 @@ Issue / PR / 建议 → [GitHub Repo](https://github.com/CurtisTong/stock-analyz
 
 ```bash
 # 1. bump 版本
-python3 scripts/dev/sync_version.py --version 1.14.1
+python3 scripts/dev/sync_version.py --version 1.33.1
 
 # 2. 同步测试常量（关键！防止 release CI 阻塞）
 python3 scripts/dev/sync_skill_test_versions.py
@@ -788,8 +821,8 @@ python3 scripts/dev/sync_skill_test_versions.py --check
 
 # 4. 提交 + 打 tag + push
 git add -A
-git commit -m "release: v1.16.0 — finance 域 + 全栈 hardening + skill 验证"
-git tag -a v1.16.0 -m "Release v1.16.0"
+git commit -m "release: v1.33.1 — 定位收敛与可复核性加固"
+git tag -a v1.33.1 -m "Release v1.33.1"
 git push origin main --tags
 ```
 
@@ -806,7 +839,7 @@ MIT License © curtis
 
 ---
 
-**v1.33.1** · 2026-11-01 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
+**v1.33.1** · 2026-11-09 · 最后更新见 [CHANGELOG.md](CHANGELOG.md)
 
 ⭐ 觉得有用？Star 一下 [GitHub Repo](https://github.com/CurtisTong/stock-analyzer-skill) 是最好的支持！
 

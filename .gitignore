@@ -23,6 +23,8 @@ venv/
 
 # 用户自定义持仓（实际路径在 scripts/data/，修正历史规则路径错误）
 scripts/data/portfolio.json
+# 因子 IC 是 factor_ic.py 的生成物（v1.33：移出 tracked，缺失/全 0/过期由 load_ic 守卫判 stale）
+scripts/data/factor_ic.json
 scripts/data/portfolio_virtual.json
 # 同名 .bak.<timestamp> 备份（防止脚本原地备份时泄漏持仓数据）
 # .bak-<timestamp> 命名同属敏感快照，一并忽略（外部工具/手工备份会生成）
@@ -57,6 +59,10 @@ scripts/data/strategy_performance.json
 # 校准数据写入的 flock 锁文件（experts/calibration.py 落盘时生成，不自动清理）
 data/*.json.lock
 
+# portfolio 文件锁改 flock 后锁文件保留不删除，属运行时产物，不入版本控制
+scripts/data/*.lock
+.cache/*.lock
+
 # pytest 覆盖率报告
 .coverage
 .coverage.*
@@ -69,3 +75,6 @@ docs/superpowers/plans
 # 快照数据目录
 scripts/data/snapshots/
 .zcode/
+
+# 调度运行状态（幂等键/锁），不入库
+scripts/data/.run/

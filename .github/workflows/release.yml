@@ -81,8 +81,11 @@ jobs:
 
   github-release:
     name: 创建 GitHub Release
-    needs: [validate, publish]
-    if: always() && needs.validate.result == 'success'
+    needs: [validate, test, publish]
+    # 三个前置 job 必须全部成功；test 失败会导致 publish 被 skip，此时不得发 Release
+    if: >-
+      always() && needs.validate.result == 'success' &&
+      needs.test.result == 'success' && needs.publish.result == 'success'
     runs-on: ubuntu-latest
 
     steps:

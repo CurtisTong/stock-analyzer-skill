@@ -33,7 +33,7 @@ runs:
         # 测试 mock _get_session 无效，导致 DNS 解析失败（[Errno -3]）。
         pip install requests urllib3 httpx typing-extensions
         # 测试依赖
-        pip install pytest pyyaml pytest-xdist pytest-timeout pytest-cov hypothesis respx pandas numpy
+        pip install pytest pyyaml pytest-xdist pytest-timeout pytest-cov hypothesis respx pandas numpy jsonschema
 
     - name: 同步 SKILL.md 版本到测试文件
       shell: bash

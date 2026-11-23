@@ -4,6 +4,7 @@ import json
 import logging
 
 from common import BaseFetcher, http_get
+from common.exceptions import ParseError
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +28,11 @@ class EastmoneyFinanceFetcher(BaseFetcher):
         raw = http_get(URL.format(code=code), timeout=self.timeout, max_retries=self.retry)
         try:
             data = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.debug("东方财富财务 JSON 解析失败: %s", code)
-            return None
+        except json.JSONDecodeError as e:
+            # review 4.1-P2：解析失败抛 ParseError（记 error + 累计熔断），
+            # 仅"响应合法但确实无数据"才返回 None
+            logger.debug("东方财富财务 JSON 解析失败: %s, %s", code, e)
+            raise ParseError(str(raw), "eastmoney_finance", f"JSON 解析失败: {e}") from e
         if not data or "data" not in data or not data["data"]:
             logger.debug("东方财富财务无数据: %s", code)
             return None

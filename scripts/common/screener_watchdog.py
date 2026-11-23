@@ -7,18 +7,17 @@
     与 K 线预取、akshare_balance enrich 三处都缺乏任务级超时保护。
 
 设计:
-    用 threading.Timer 实现 watchdog: deadline 到时设 done_event, 主流程
-    检测到后抛 ScreenerTimeoutError 退出。**不强行终止子线程**(Python
-    GIL 限制 + 安全考虑), 只标记超时 + 放弃等待, 后续 fetcher 超时由
-    socket 15s + 熔断器兜底。
+    用 threading.Timer 实现 watchdog: deadline 到时由 _on_timeout 写 stderr
+    并调用 os._exit(2) 强制终止进程（真终止路径, 不是软降级）。原因:
+    run_screening 是阻塞调用, 在 fetcher 内部循环 / time.sleep 中 signal
+    handler 与 _thread.interrupt_main() 都无法可靠打断。Python 层的
+    ScreenerTimeoutError 仅作防御性兜底（当前无业务调用方抛它）。
 
 用法:
     with start_watchdog(deadline_sec=600) as wd:
         run_screening(args)
-        wd.mark_done()
-    if wd.timed_out:
-        # 已超时, 走部分结果分支
-        ...
+    # 正常退出时 with 会自动 cancel timer; 超时时进程已在 timer 内 os._exit(2)
+    # 手动模式用 wd.cancel()（没有 mark_done() 这个方法）
 
 也可通过环境变量 STOCK_SCREENER_DEADLINE 提供兜底值(秒)。
 """

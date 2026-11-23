@@ -19,7 +19,9 @@ class SinaNorthboundFlowFetcher(BaseFetcher):
     """新浪北向资金 fetcher（备份源）。"""
 
     def __init__(self):
-        super().__init__("northbound_flow", priority=8)  # 较低优先级（备份）
+        # review 3.1-P1-6：显式 provider=sina 对齐 flow_sources.sina；
+        # name 改为 _sina，避免与东财北向 fetcher 共享同名熔断器。
+        super().__init__("northbound_flow_sina", priority=8, provider="sina")  # 较低优先级（备份）
 
     def fetch(self, code: str = "", **kwargs) -> dict | None:
         days = kwargs.get("days", 10)

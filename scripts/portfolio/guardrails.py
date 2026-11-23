@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timedelta
 from typing import Optional
 from common.exceptions.silent_fallback import log_silent_fallback
@@ -74,6 +75,27 @@ def check_max_drawdown(
     }
 
 
+def _is_loss_trade(trade: dict) -> bool:
+    """判断一笔清仓是否为亏损（review P1-25）。
+
+    原实现只看 ``profit_pct``，而清仓未传卖价时 profit/profit_pct 恒为 0，
+    连亏熔断永不触发。这里绝对金额与百分比**任一为负**即算亏损，兼容
+    profit_pct 缺失的旧记录；NaN/Infinity 视为无效（不算亏损也不污染统计）。
+    """
+
+    def _negative(key: str) -> bool:
+        value = trade.get(key)
+        if value is None or isinstance(value, bool):
+            return False
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        return math.isfinite(number) and number < 0
+
+    return _negative("profit") or _negative("profit_pct")
+
+
 def check_consecutive_losses(
     trades: list[dict],
     n: int = DEFAULT_CONSECUTIVE_LOSSES,
@@ -83,7 +105,7 @@ def check_consecutive_losses(
         return None
     recent = 0
     for t in _sort_trades_newest_first(trades):
-        if t.get("profit_pct", 0) < 0:
+        if _is_loss_trade(t):
             recent += 1
         else:
             break
@@ -342,6 +364,9 @@ def sync_breakers(
         acc += t.get("profit", 0.0)
         equity.append((initial_capital + acc) if initial_capital else acc)
     dd = check_max_drawdown(equity) if equity else None
+    # review P1-25：连亏判定同时看绝对 profit 与 profit_pct——
+    # 清仓链路未喂卖价时两者恒 0 会让 sync_breakers 永不落盘熔断。
+    # check_consecutive_losses 内部已改为双信号判定，这里保持单一事实源。
     losses = check_consecutive_losses(trades)
 
     for kind, check in (("drawdown", dd), ("losses", losses)):

@@ -4,9 +4,12 @@
 - 同一根 K 同时产出看涨与看跌形态（锤子线 vs 吊颈线、射击之星 vs 倒锤头）
 - 孕线方向布尔颠倒（真正的反色孕线被漏判）
 - truncated 阈值与展示位上限不一致
+- review P2（docs/code-review-2026-11-21.md §4.2）：回测报告夏普/复利/回撤口径
 """
 
 from __future__ import annotations
+
+import pytest
 
 from strategies.patterns.classic import _trend, detect_classic_patterns
 
@@ -125,3 +128,92 @@ class TestTruncatedThreshold:
         result = detect_all_local_patterns(inp)
         assert result["detected_count"] <= 10
         assert result["truncated"] is False
+
+
+class TestBacktestReportMetrics:
+    """review 条目 P2：夏普年化 + 无 rf、复利收益、复利权益回撤。"""
+
+    @staticmethod
+    def _trades(*returns):
+        return [
+            {
+                "return_pct": r,
+                "buy_date": "2026-01-01",
+                "buy_price": 10.0,
+                "sell_date": "2026-01-08",
+                "sell_price": 10.0 * (1 + r / 100),
+                "signal": "测试信号",
+            }
+            for r in returns
+        ]
+
+    def test_total_return_is_compounded_not_summed(self):
+        # review P2：+10% 与 -10% 简单加总是 0，复利应为 -1%
+        from strategies.patterns.backtest_report import calculate_advanced_stats
+
+        stats = calculate_advanced_stats(self._trades(10.0, -10.0))
+        assert stats["total_return"] == -1.0
+
+    def test_max_drawdown_uses_compound_equity_curve(self):
+        # review P2：-20% 后 +30% 的线性累计回撤为 0，复利权益峰值回撤应为 20%
+        from strategies.patterns.backtest_report import calculate_advanced_stats
+
+        stats = calculate_advanced_stats(self._trades(-20.0, 30.0))
+        assert stats["max_drawdown"] == 20.0
+
+    def test_max_drawdown_differs_from_linear_cumulative(self):
+        # review P2：+20/-20/-20 线性口径 40%，复利口径 (1.2-0.768)/1.2 = 36%
+        from strategies.patterns.backtest_report import calculate_advanced_stats
+
+        stats = calculate_advanced_stats(self._trades(20.0, -20.0, -20.0))
+        assert stats["max_drawdown"] == pytest.approx(36.0, abs=0.01)
+
+    def test_sharpe_is_annualized_by_holding_days(self):
+        # review P2：sqrt(252/holding_days) 年化，持有 5 日应为持有 20 日的 2 倍
+        from strategies.patterns.backtest_report import calculate_advanced_stats
+
+        trades = self._trades(1.0, 2.0, -0.5, 1.5)
+        short = calculate_advanced_stats(trades, holding_days=5)["sharpe_ratio"]
+        long = calculate_advanced_stats(trades, holding_days=20)["sharpe_ratio"]
+        assert short == pytest.approx(long * 2, rel=0.02)
+
+    def test_sharpe_subtracts_risk_free_rate(self):
+        # review P2：无风险利率必须进入夏普分子，rf 越高夏普越低
+        from strategies.patterns.backtest_report import calculate_advanced_stats
+
+        trades = self._trades(1.0, 2.0, -0.5, 1.5)
+        raw = calculate_advanced_stats(trades, holding_days=5)["sharpe_ratio"]
+        with_rf = calculate_advanced_stats(trades, holding_days=5, risk_free_rate=0.05)["sharpe_ratio"]
+        assert with_rf < raw
+
+    def test_output_field_names_unchanged(self):
+        # review P2：口径修正不得改动任何输出字段名
+        from strategies.patterns.backtest_report import calculate_advanced_stats
+
+        stats = calculate_advanced_stats(self._trades(1.0, -0.5))
+        assert set(stats) == {
+            "total_trades",
+            "win_count",
+            "loss_count",
+            "win_rate",
+            "total_return",
+            "avg_return",
+            "avg_win",
+            "avg_loss",
+            "max_win",
+            "max_loss",
+            "profit_factor",
+            "max_consecutive_wins",
+            "max_consecutive_losses",
+            "sharpe_ratio",
+            "max_drawdown",
+        }
+
+    def test_report_shows_compound_curve(self, monkeypatch):
+        # review P2：报告正文的累计收益曲线也要用复利口径
+        from strategies.patterns import backtest_report as br
+
+        monkeypatch.setattr(br, "backtest_strategy", lambda *a, **kw: self._trades(10.0, -10.0))
+        report = br.generate_backtest_report([], "测试股")
+        assert "复利累计收益曲线" in report
+        assert "累计收益: -1.0%" in report

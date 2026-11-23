@@ -302,3 +302,29 @@ class TestLoadFiles:
     def test_load_current_pool_missing(self, monkeypatch, tmp_path):
         monkeypatch.setattr(pool, "POOL_FILE", str(tmp_path / "nope.json"))
         assert pool.load_current_pool() == {}
+
+
+class TestIsSt:
+    """ST / 退市标的判定。
+
+    回归：`is_st()` 原来只判 `"ST" in name.upper()`，退市整理期名称是「XX退」
+    （网力退、退市明科），不含 ST，因此退市股长期留在板块池里。
+    """
+
+    @pytest.mark.parametrize(
+        "name",
+        ["ST人福", "*ST闻泰", "st康美", "网力退", "退市明科", "退"],
+    )
+    def test_st_and_delisted_are_filtered(self, name):
+        assert pool.is_st(name) is True
+
+    @pytest.mark.parametrize("name", ["中国石油", "贵州茅台", "退一步科技不存在", "TCL中环"])
+    def test_normal_names_pass(self, name):
+        assert pool.is_st(name) is False
+
+    def test_empty_name_is_not_st(self):
+        assert pool.is_st("") is False
+
+    def test_none_name_is_not_st(self):
+        """None 不能抛异常（历史上有 fetcher 返回 name=None）。"""
+        assert pool.is_st(None) is False

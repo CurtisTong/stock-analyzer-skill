@@ -3,12 +3,12 @@
 > 🟢 **一句话**：docs/ 目录下分两层 —— **核心指南**（活跃维护）+ **archive/**（历史归档），按"你是谁 / 你想干啥"两条线分类。
 > 🟡 **只想看一份**？
 > 🆕 新用户 → [quick-start.md](quick-start.md) · 📈 投资者 → [product-architecture.md](product-architecture.md) · 🛠️ 开发者 → [developer-guide.md](developer-guide.md) · 🤝 贡献者 → [CONTRIBUTING.md](../CONTRIBUTING.md)
-> ⚫ **文档数**：9 份核心指南 + 1 份合规 + 31 份历史归档（designs/reviews/reports/releases） = 41 份
+> ⚫ **文档数（2026-11-22 实测）**：docs/ 共 81 份 Markdown —— 活跃 45 份（核心指南 + 审查视角 + positioning / scheduling / strategy-validation + ADR 5 份 + mdBook 源 `docs/src/` 21 份）+ 历史归档 36 份（designs 11 / reviews 20 / reports 2 / releases 3，只读）
 > 📦 投资方法论新版见 [../methodology.md](../methodology.md)（已从 docs/ 移到仓库根目录）
 
-> 适用文档：stock-analyzer-skill v1.30.0
+> 适用文档：stock-analyzer-skill v1.33.1
 > 索引目的：解决 docs/ 目录下"找不到入口"问题
-> 上次重构：2026-08-20（docs/methodology.md 重复清理 + 历史归档分层）
+> 上次核对：2026-11-22（产品专家视角：链接可达性脚本检查 133 条链接全部可达 + 版本注记 + 维护责任）
 
 ---
 
@@ -74,7 +74,7 @@
 | :--- | :--- | :--- |
 | 用户专家 | [user_expert.md](user_expert.md) | 12 项硬指标 + 三明治错误信息 |
 | 视觉专家 | [visual_expert.md](visual_expert.md) | 14 项硬指标 + 视觉三级层 |
-| 产品专家 | [persona.md](persona.md) | 3 类画像 + 设计启示 |
+| 产品专家 | [persona.md](persona.md) · [product-architecture.md](product-architecture.md) · [INDEX.md](INDEX.md) | 画像 / 架构事实自洽 / 导航与维护责任 |
 | 投资专家 | [../methodology.md](../methodology.md) · [../experts/README.md](../experts/README.md) | 投资逻辑 + 16 份专家人设 |
 
 ---
@@ -130,11 +130,15 @@
 | [user-guide.md](user-guide.md) | 精通 | 月度 |
 | [developer-guide.md](developer-guide.md) | 扩展 | 月度 |
 | [api-reference.md](api-reference.md) | 扩展 | 月度 |
+| [positioning.md](positioning.md) | 决策（定位单一事实源） | 发版时 |
 | [product-architecture.md](product-architecture.md) | 决策 | 月度 |
+| [strategy-validation.md](strategy-validation.md) | 决策（OOS 验证口径） | 发版时 |
 | [../methodology.md](../methodology.md) | 决策 | 季度 |
+| [scheduling.md](scheduling.md) | 维护（调度设计） | 季度 |
 | [persona.md](persona.md) | 审查 | 季度 |
 | [user_expert.md](user_expert.md) | 审查 | 季度 |
 | [visual_expert.md](visual_expert.md) | 审查 | 季度 |
+| [code-review-2026-11-21.md](code-review-2026-11-21.md) | 活跃审查报告 | 每轮 |
 
 ### 🛡 合规
 
@@ -172,16 +176,17 @@
 
 | 文档类型 | 主审 | 协审 | 频率 |
 | :--- | :--- | :--- | :--- |
+| 定位 / 产品架构 / 用户画像 / 本索引 | 产品专家 | 投资专家 | 发版时 + 月度 |
 | 上手指南 | 用户专家 | 产品专家 | 季度 |
 | 投资方法论 | 投资专家 | 产品专家 | 季度 |
-| 开发者文档 | 二次开发者 | 视觉专家 | 月度 |
-| API 参考 | 二次开发者 | — | 月度 |
-| 审查报告（活跃） | 审查者 | 产品专家 | 每轮 |
+| 开发者文档（developer-guide.md） | 产品专家 + 二次开发者 | 视觉专家 | 月度 |
+| API 参考 / 调度设计 | 产品专家 + 二次开发者 | — | 月度 / 季度 |
+| 活跃审查报告（code-review-*） | 审查者 | 产品专家 | 每轮 |
 | 历史归档（archive/） | — | — | 只读，git mv 不重写 |
 | 规划文档 | 产品专家 | 投资专家 | 季度 |
 | CHANGELOG | 贡献者 | — | 每次发版 |
 
-> **本文档版本**：v1.20.2 / 2026-08-20 / 与 [README.md](../README.md) §"文档导航"段配合使用
+> **本文档版本**：v1.33.1 / 2026-11-22 / 与 [README.md](../README.md) §"文档导航"段配合使用
 
 ---
 
@@ -206,7 +211,7 @@
 | [2026-06-05-improvement-roadmap.md](archive/designs/2026-06-05-improvement-roadmap.md) | 2026-06 | 早期改进路线图（多数项已完成） |
 | [2026-06-16-skill-workflow-optimization.md](archive/designs/2026-06-16-skill-workflow-optimization.md) | 2026-06 | Skill 工作流优化施工方案（Phase 1-6 已实施） |
 
-### 📊 reviews/ — 审查与回归报告（15 份）
+### 📊 reviews/ — 审查与回归报告（20 份）
 
 | 文档 | 时期 | 说明 |
 | :--- | :--- | :--- |

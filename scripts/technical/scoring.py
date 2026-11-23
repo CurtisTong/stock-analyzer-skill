@@ -790,100 +790,98 @@ def detect_market_environment(index_quote=None, recent_quotes=None, index_kline=
     confidence = "高" if base_state in ("冰点", "亢奋") else "中"
 
     # 3. 多日窗口均值 + 换手率补充信号
-    if True:
-        change_pct = to_float(index_quote.get("change_pct"))
-        turnover = to_float(index_quote.get("turnover"))
-        has_multi_day = bool(recent_quotes and len(recent_quotes) > 1)
+    # review §4.3-3（P3）：删除原恒真 if True: 与双重不可达 else
+    # （has_quote 为假已在上方 762-773 提前 return），仅保留原 True 分支。
+    change_pct = to_float(index_quote.get("change_pct"))
+    turnover = to_float(index_quote.get("turnover"))
+    has_multi_day = bool(recent_quotes and len(recent_quotes) > 1)
 
-        if has_multi_day:
-            recent_changes = [to_float(q.get("change_pct")) for q in recent_quotes]
-            # v1.27.0 修复：换手率只按**有值的样本**求均值。
-            # 原实现对全部样本（含无换手率的）求均值 → 有值时也被稀释到
-            # 阈值以下（0.57%/5 天 → 0.114%），"高换手率/极度缩量"永不触发。
-            # 无任何换手率样本时 avg_turnover 保持 0（不参与判定）。
-            _to_values = [to_float(q.get("turnover")) for q in recent_quotes]
-            _to_values = [v for v in _to_values if v > 0]
-            avg_change = sum(recent_changes) / len(recent_changes)
-            avg_turnover = sum(_to_values) / len(_to_values) if _to_values else 0.0
-            window_days = len(recent_quotes)
-            signals.append(f"近{window_days}日均涨跌{avg_change:.2f}%")
-            # v1.27.0 修复：多日窗口**不得覆盖** market_detector 的权威判定。
-            # market_detector 的判定层级是：市场宽度 > K线 MA20/量比 > 单日涨跌幅。
-            # 原实现无条件用多日均值改写 state——指数在 MA20 下方且量能萎缩
-            # （权威判定=熊市）时，仅因近 5 日均涨 0.6% 就被翻成"强势"，
-            # 权重随之从"弱势"调到"强势"，与判定完全相反；
-            # 同时 signals 里两条矛盾结论并存，报告只渲染最终 state，矛盾被隐藏。
-            # 现在只在**单日涨跌幅 fallback**（无 kline 数据）这一最弱路径下
-            # 用多日窗口修正状态——此时多日均值确实比单日噪声更可信。
-            if index_kline:
-                # 有 K 线数据：保持 market_detector 的权威判定，仅记录均值信号
-                if avg_change > 1.5:
-                    signals.append(f"持续上涨(均值{avg_change:.1f}%)")
-                elif avg_change < -1.5:
-                    signals.append(f"持续下跌(均值{avg_change:.1f}%)")
-                elif avg_change > 0.5:
-                    signals.append(f"温和上涨(均值{avg_change:.1f}%)")
-                elif avg_change < -0.5:
-                    signals.append(f"温和下跌(均值{avg_change:.1f}%)")
-                else:
-                    signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
-            elif avg_change > 1.5:
-                state = "强势"
-                confidence = "高" if avg_change > 2.5 else "中"
+    if has_multi_day:
+        recent_changes = [to_float(q.get("change_pct")) for q in recent_quotes]
+        # v1.27.0 修复：换手率只按**有值的样本**求均值。
+        # 原实现对全部样本（含无换手率的）求均值 → 有值时也被稀释到
+        # 阈值以下（0.57%/5 天 → 0.114%），"高换手率/极度缩量"永不触发。
+        # 无任何换手率样本时 avg_turnover 保持 0（不参与判定）。
+        _to_values = [to_float(q.get("turnover")) for q in recent_quotes]
+        _to_values = [v for v in _to_values if v > 0]
+        avg_change = sum(recent_changes) / len(recent_changes)
+        avg_turnover = sum(_to_values) / len(_to_values) if _to_values else 0.0
+        window_days = len(recent_quotes)
+        signals.append(f"近{window_days}日均涨跌{avg_change:.2f}%")
+        # v1.27.0 修复：多日窗口**不得覆盖** market_detector 的权威判定。
+        # market_detector 的判定层级是：市场宽度 > K线 MA20/量比 > 单日涨跌幅。
+        # 原实现无条件用多日均值改写 state——指数在 MA20 下方且量能萎缩
+        # （权威判定=熊市）时，仅因近 5 日均涨 0.6% 就被翻成"强势"，
+        # 权重随之从"弱势"调到"强势"，与判定完全相反；
+        # 同时 signals 里两条矛盾结论并存，报告只渲染最终 state，矛盾被隐藏。
+        # 现在只在**单日涨跌幅 fallback**（无 kline 数据）这一最弱路径下
+        # 用多日窗口修正状态——此时多日均值确实比单日噪声更可信。
+        if index_kline:
+            # 有 K 线数据：保持 market_detector 的权威判定，仅记录均值信号
+            if avg_change > 1.5:
                 signals.append(f"持续上涨(均值{avg_change:.1f}%)")
             elif avg_change < -1.5:
-                state = "弱势"
-                confidence = "高" if avg_change < -2.5 else "中"
                 signals.append(f"持续下跌(均值{avg_change:.1f}%)")
             elif avg_change > 0.5:
-                state = "强势"
-                confidence = "低"
                 signals.append(f"温和上涨(均值{avg_change:.1f}%)")
             elif avg_change < -0.5:
-                state = "弱势"
-                confidence = "低"
                 signals.append(f"温和下跌(均值{avg_change:.1f}%)")
             else:
                 signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
+        elif avg_change > 1.5:
+            state = "强势"
+            confidence = "高" if avg_change > 2.5 else "中"
+            signals.append(f"持续上涨(均值{avg_change:.1f}%)")
+        elif avg_change < -1.5:
+            state = "弱势"
+            confidence = "高" if avg_change < -2.5 else "中"
+            signals.append(f"持续下跌(均值{avg_change:.1f}%)")
+        elif avg_change > 0.5:
+            state = "强势"
+            confidence = "低"
+            signals.append(f"温和上涨(均值{avg_change:.1f}%)")
+        elif avg_change < -0.5:
+            state = "弱势"
+            confidence = "低"
+            signals.append(f"温和下跌(均值{avg_change:.1f}%)")
         else:
-            avg_turnover = turnover
-            if change_pct > 2.5:
-                signals.append(f"当日大涨{change_pct:.1f}%（趋势待确认）")
-                confidence = "中"
-            elif change_pct > 2:
-                signals.append(f"当日大涨{change_pct:.1f}%")
-                confidence = "中"
-            elif change_pct < -2.5:
-                signals.append(f"当日大跌{change_pct:.1f}%（趋势待确认）")
-                confidence = "中"
-            elif change_pct < -2:
-                signals.append(f"当日大跌{change_pct:.1f}%")
-                confidence = "中"
-            elif change_pct > 0.5:
-                signals.append(f"温和上涨(均值{change_pct:.1f}%)")
-                confidence = "低"
-            elif change_pct < -0.5:
-                signals.append(f"温和下跌(均值{change_pct:.1f}%)")
-                confidence = "低"
-            elif -0.5 <= change_pct <= 0.5:
-                signals.append(f"窄幅震荡(均值{change_pct:.1f}%)")
-                confidence = "低"
-
-        # 换手率信号：仅当有真实数据时判断（避免 0 值误触发冰点）
-        if avg_turnover > 0:
-            if avg_turnover > 5:
-                signals.append("高换手率")
-                if state == "强势":
-                    state = "亢奋"
-                    signals.append("亢奋信号")
-            elif avg_turnover < 0.5:
-                signals.append("极度缩量")
-                if state in ("弱势", "震荡"):
-                    state = "冰点"
-                    signals.append("冰点信号")
+            signals.append(f"窄幅震荡(均值{avg_change:.1f}%)")
     else:
-        signals.append("大盘数据缺失，默认震荡")
-        state = "震荡"
+        avg_turnover = turnover
+        if change_pct > 2.5:
+            signals.append(f"当日大涨{change_pct:.1f}%（趋势待确认）")
+            confidence = "中"
+        elif change_pct > 2:
+            signals.append(f"当日大涨{change_pct:.1f}%")
+            confidence = "中"
+        elif change_pct < -2.5:
+            signals.append(f"当日大跌{change_pct:.1f}%（趋势待确认）")
+            confidence = "中"
+        elif change_pct < -2:
+            signals.append(f"当日大跌{change_pct:.1f}%")
+            confidence = "中"
+        elif change_pct > 0.5:
+            signals.append(f"温和上涨(均值{change_pct:.1f}%)")
+            confidence = "低"
+        elif change_pct < -0.5:
+            signals.append(f"温和下跌(均值{change_pct:.1f}%)")
+            confidence = "低"
+        elif -0.5 <= change_pct <= 0.5:
+            signals.append(f"窄幅震荡(均值{change_pct:.1f}%)")
+            confidence = "低"
+
+    # 换手率信号：仅当有真实数据时判断（避免 0 值误触发冰点）
+    if avg_turnover > 0:
+        if avg_turnover > 5:
+            signals.append("高换手率")
+            if state == "强势":
+                state = "亢奋"
+                signals.append("亢奋信号")
+        elif avg_turnover < 0.5:
+            signals.append("极度缩量")
+            if state in ("弱势", "震荡"):
+                state = "冰点"
+                signals.append("冰点信号")
 
     # 市场 -> 信号权重调整
     adjustments = _market_weight_adjustments(state)

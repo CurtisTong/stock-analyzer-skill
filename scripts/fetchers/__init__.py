@@ -401,6 +401,23 @@ def get_fetchers_by_domain(domain: str) -> list:
 _manager_lock = threading.Lock()
 _managers: dict[str, DataFetcherManager] = {}
 
+# P2 (2026-11-21 review §4.1)：记录每个配置节是否成功加载，
+# 供 manager 暴露“配置是否生效”标记（失败时整条 failover 行为退回代码默认值）。
+_source_config_status: dict[str, bool] = {}
+_DOMAIN_SECTIONS = {
+    "quote": "quote_sources",
+    "kline": "kline_sources",
+    "finance": "finance_sources",
+    "flow": "flow_sources",
+    "lhb": "lhb_sources",
+    "event": "event_sources",
+    "chip": "chip_sources",
+    "block_trade": "block_trade_sources",
+    "limit_up": "limit_up_sources",
+    "ipo": "ipo_sources",
+    "cb": "cb_sources",
+}
+
 
 def _load_source_config(section: str) -> dict:
     """从 data_source.yaml 加载指定数据域的配置节。
@@ -414,13 +431,34 @@ def _load_source_config(section: str) -> dict:
     try:
         from config.loader import ConfigLoader
 
-        return ConfigLoader.load("data_source.yaml").get(section, {})
+        cfg = ConfigLoader.load("data_source.yaml").get(section, {})
+        _source_config_status[section] = True
+        return cfg
     except Exception as e:
+        # P2：此前只有 debug 级日志（默认不可见），静默退回默认优先级/超时/重试。
+        # 现至少 warning，并记录状态供 is_source_config_applied() 查询。
+        _source_config_status[section] = False
         log_silent_fallback("__init__._load_source_config", e)
-        import logging
-
-        logging.getLogger(__name__).debug("加载数据源配置 %s 失败: %s", section, e)
+        logger.warning(
+            "数据源配置 %s 加载失败：%s；已退回代码默认优先级/超时/重试，"
+            "可通过 is_source_config_applied() 查询配置是否生效",
+            section,
+            e,
+        )
         return {}
+
+
+def is_source_config_applied(domain: str) -> bool:
+    """该数据域的 data_source.yaml 配置是否成功生效（P2）。
+
+    True = 配置已加载并应用；False = 加载失败退回代码默认值；
+    尚未初始化的域按对应配置节的加载结果返回（未加载过则 False）。
+    """
+    mgr = _managers.get(domain)
+    if mgr is not None:
+        return bool(getattr(mgr, "source_config_applied", False))
+    section = _DOMAIN_SECTIONS.get(domain)
+    return bool(_source_config_status.get(section, False)) if section else False
 
 
 def _get_or_create(domain: str, factory, source_section: str | None = None) -> DataFetcherManager:
@@ -431,7 +469,12 @@ def _get_or_create(domain: str, factory, source_section: str | None = None) -> D
     with _manager_lock:
         if domain not in _managers:
             cfg = _load_source_config(source_section) if source_section else {}
-            _managers[domain] = DataFetcherManager(factory(), source_config=cfg)
+            manager = DataFetcherManager(factory(), source_config=cfg)
+            # P2：把配置是否生效直接挂在 manager 上，调用方可随时自查
+            manager.source_config_applied = (
+                bool(_source_config_status.get(source_section, False)) if source_section else True
+            )
+            _managers[domain] = manager
         return _managers[domain]
 
 

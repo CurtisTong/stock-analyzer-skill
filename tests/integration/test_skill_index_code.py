@@ -80,7 +80,8 @@ class TestStockIndexCode:
         """上证指数能拉到 name/price 字段。"""
         result = _run_script("stock", "sh000001", "--brief")
         if "_error" in result:
-            pytest.skip(f"指数行情拉取失败（网络/数据源限制）: {result['_error']}")
+            # review 修复（P2）：网络测试里把脚本失败伪装成 skip，会让 nightly 永远“成功”。
+            pytest.fail(f"指数行情拉取失败: {result['_error']}")
         # 至少有 name 或 code
         assert result.get("code") or result.get("name"), "无 code/name 字段"
 
@@ -99,7 +100,7 @@ class TestScreenerIndexCode:
         # 但必须不抛错。本测试验证可正常返回结构化结果。
         result = _run_script("screener", "--codes", "sh000300", "--top", "5", timeout=60)
         if "_error" in result:
-            pytest.skip(f"screener 跑指数代码失败: {result['_error']}")
+            pytest.fail(f"screener 跑指数代码失败: {result['_error']}")
         # 输出可能是 dict（JSON 模式）或 list（依赖 sub-command）
         # 关键是不抛错、returncode=0
         assert isinstance(result, (dict, list))
@@ -128,7 +129,7 @@ class TestBacktestIndexCode:
             timeout=120,
         )
         if "_error" in result:
-            pytest.skip(f"backtest 跑失败: {result['_error']}")
+            pytest.fail(f"backtest 跑失败: {result['_error']}")
         # 至少返回了一些指标（Sharpe 等）
         assert "metrics" in result or "error" not in result
 

@@ -8,6 +8,7 @@
   },
   "keywords": [
     "claude-code",
+    "deepseek-harness",
     "stock",
     "a-share",
     "analysis",
@@ -28,6 +29,7 @@
   "homepage": "https://github.com/CurtisTong/stock-analyzer-skill",
   "files": [
     ".claude-plugin/",
+    ".dsh/",
     "skills/",
     "scripts/",
     "data/",

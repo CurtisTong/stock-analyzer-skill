@@ -1,3 +1,28 @@
 # /backtest
 
-> 详见 [skills/backtest/SKILL.md](../../skills/backtest/SKILL.md)
+**策略历史回测（11 项指标 + 6 策略对比）。** 验证"这套策略过去表现如何"——不代表未来，也不承诺收益。
+
+## 什么时候用
+
+| 你的问题 | 直接输入 |
+| --- | --- |
+| 默认策略跑一次回测 | `/backtest` |
+| 对比全部 6 种策略 | `/backtest --all` |
+| 指定股票 + 周期 | `/backtest --codes sh600519 --strategy balanced --days 60` |
+
+## 输出长什么样
+
+项目 demo 的合成演示输出（结构稳定，数值随行情变化）：
+
+```text
+🎯 均衡策略近 60 日回测结果
+累计收益: +12.5% | 最大回撤: -8.3%
+胜率: 68.5% | 夏普比率: 1.85
+📊 数据时间戳: 2026-06-15 14:30 | 数据源: 新浪K线
+```
+
+> ⚠️ 历史回测**不代表未来表现**；多数策略外样本状态仍为 `in_sample`，详见 [strategy-validation.md](../strategy-validation.md)。仅供参考，不构成投资建议。
+
+**术语**：胜率 = 历史信号里盈利次数占比；夏普 = 每承担一份风险换来的超额回报；最大回撤 = 从高点到低点的最大跌幅。
+
+**更多**：[skills/backtest/SKILL.md](../../skills/backtest/SKILL.md) · [使用者指南](../user-guide.md)
