@@ -3,7 +3,7 @@
 2026-11-23 真实四笔交易重建验证：
   - 深100 清仓 54000@2.81、广合减 300@81.98、盛和减 800@13.8、取现 20000
   - 应重建出 9只 / 现金 196,387.92 / 市值 510,972 / 仓位 72.2% / 已实现 +3,162.20
-  - 派生字段全重算：float_pnl 陈旧值修正、day_pnl 置 null、back_to_80pct 归零
+  - 派生字段全重算：float_pnl 陈旧值修正、day_pnl 置 null、back_to_80pct 置 null（用null不用0）
 
 rebuild_check.py 位于仓库外共享目录 stock-team/monitor/，用 importlib 按路径加载。
 闸门验证走 check_holdings.check()（同一共享目录），用 tmp 文件、不碰生产账本。
@@ -87,7 +87,7 @@ class TestRealFourTrades:
         c = led["_meta"]["combined"]
         assert c["float_pnl"] == pytest.approx(-63658.70, abs=0.01)  # 旧值 -76801 已修正
         assert c["day_pnl"] is None  # 旧值陈旧，置 null
-        assert c["back_to_80pct_amount"] == 0  # 仓位已<80%，方向已反
+        assert c["back_to_80pct_amount"] is None  # 仓位已<80%，字段不适用；用null不用0（0会被读成"卖0股回80%"）
         for acct in led["_meta"]["accounts"].values():
             assert acct["day_pnl"] is None
 
