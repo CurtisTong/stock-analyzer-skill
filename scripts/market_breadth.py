@@ -100,10 +100,10 @@ def get_market_breadth() -> dict:
         if up_count + down_count == 0:
             print("涨跌家数字段不可用（接口返回 0/0），市场宽度按不可用处理", file=sys.stderr)
             result = {
-                "limit_up_count": limit_data.get("limit_up_count", 0),
-                "limit_down_count": limit_data.get("limit_down_count", 0),
-                "continuous_limit_height": limit_data.get("continuous_limit_height", 0),
-                "broken_limit_rate": limit_data.get("broken_limit_rate", 0),
+                "limit_up_count": limit_data.get("limit_up_count"),
+                "limit_down_count": limit_data.get("limit_down_count"),
+                "continuous_limit_height": limit_data.get("continuous_limit_height"),
+                "broken_limit_rate": limit_data.get("broken_limit_rate"),
                 "total_stocks": 0,
                 "up_count": None,
                 "down_count": None,
@@ -120,10 +120,10 @@ def get_market_breadth() -> dict:
             up_ratio = 99.0
 
         result = {
-            "limit_up_count": limit_data.get("limit_up_count", 0),
-            "limit_down_count": limit_data.get("limit_down_count", 0),
-            "continuous_limit_height": limit_data.get("continuous_limit_height", 0),
-            "broken_limit_rate": limit_data.get("broken_limit_rate", 0),
+            "limit_up_count": limit_data.get("limit_up_count"),
+            "limit_down_count": limit_data.get("limit_down_count"),
+            "continuous_limit_height": limit_data.get("continuous_limit_height"),
+            "broken_limit_rate": limit_data.get("broken_limit_rate"),
             "total_stocks": total_stocks,
             "up_count": up_count,
             "down_count": down_count,
@@ -161,10 +161,10 @@ def get_limit_data() -> dict:
         log_silent_fallback("market_breadth.get_limit_data", e)
         print(f"获取涨跌停数据失败: {e}", file=sys.stderr)
         return {
-            "limit_up_count": 0,
-            "limit_down_count": 0,
-            "continuous_limit_height": 0,
-            "broken_limit_rate": 0,
+            "limit_up_count": None,
+            "limit_down_count": None,
+            "continuous_limit_height": None,
+            "broken_limit_rate": None,
             "_degraded": True,
             "_degraded_reason": f"get_limit_data 异常: {e}",
         }
@@ -177,10 +177,10 @@ def _default_result() -> dict:
     （get_market_state / market_anchor）误读为"普跌"。
     """
     return {
-        "limit_up_count": 0,
-        "limit_down_count": 0,
-        "continuous_limit_height": 0,
-        "broken_limit_rate": 0,
+        "limit_up_count": None,
+        "limit_down_count": None,
+        "continuous_limit_height": None,
+        "broken_limit_rate": None,
         "total_stocks": 0,
         "up_count": None,
         "down_count": None,
@@ -205,13 +205,16 @@ def get_market_state(breadth: dict) -> dict:
         }
     """
     signals = []
-    limit_up = breadth.get("limit_up_count", 0)
-    limit_down = breadth.get("limit_down_count", 0)
-    continuous_height = breadth.get("continuous_limit_height", 0)
-    broken_rate = breadth.get("broken_limit_rate", 0)
+    limit_up = breadth.get("limit_up_count")
+    limit_down = breadth.get("limit_down_count")
+    continuous_height = breadth.get("continuous_limit_height")
+    broken_rate = breadth.get("broken_limit_rate")
     up_ratio = breadth.get("up_ratio")
     up_count = breadth.get("up_count") or 0
     down_count = breadth.get("down_count") or 0
+    # 涨跌停数据缺失（None）= 降级/不可用；合法的 0（真实跌停 0 家）不算缺失。
+    # 旧实现用 0 占位，下游会把"没取到"读成"今日零涨停"——这类冒充与 VIX 旧值同类。
+    limits_unavailable = limit_up is None or limit_down is None
 
     # 宽度是否真的可用：涨跌家数必须同时有值且非 0/0。上游接口在字段失效时
     # 返回 f104=f105=0（rc 仍为 0），此时 up_ratio 是哨兵而非真实涨跌比——
@@ -236,8 +239,13 @@ def get_market_state(breadth: dict) -> dict:
     # 宽度降级两种情形（v1.31.0 区分）：
     # a) 整体拉取失败（涨跌家数不可用）：已在上面短路返回，禁止定性"普跌/普涨"
     # b) 仅涨跌停降级（token 未配置，涨跌家数仍可得）：改用涨跌比定性
-    # 另：全零且无降级标记（非交易日空数据路径）同样视为降级，避免误报退潮
-    if breadth.get("_degraded") or (limit_up == 0 and limit_down == 0):
+    # 另：全零且无降级标记（非交易日空数据路径）同样视为降级，避免误报退潮。
+    # limits_unavailable（缺字段 None）也是降级，不能拿 None 去和 0 比。
+    if (
+        breadth.get("_degraded")
+        or limits_unavailable
+        or (limit_up == 0 and limit_down == 0)
+    ):
         reason = breadth.get("_degraded_reason", "涨跌停数据降级")
         signals.append(f"⚠️ {reason}，按涨跌比定性")
         if up_ratio > 2:
@@ -295,14 +303,14 @@ def get_market_state(breadth: dict) -> dict:
         if state == STATE_OSCILLATE:
             state = STATE_RETREAT
 
-    # 连板高度判断（赵老哥建议）
-    if continuous_height >= 5:
+    # 连板高度判断（赵老哥建议）；缺失（None）时跳过，不读成 0 板
+    if continuous_height is not None and continuous_height >= 5:
         signals.append(f"连板高度{continuous_height}板，短线情绪亢奋")
-    elif continuous_height <= 2:
+    elif continuous_height is not None and continuous_height <= 2:
         signals.append(f"连板高度仅{continuous_height}板，接力生态恶化")
 
-    # 炸板率判断
-    if broken_rate > 40:
+    # 炸板率判断；缺失（None）时跳过
+    if broken_rate is not None and broken_rate > 40:
         signals.append(f"炸板率{broken_rate:.0f}%，市场分歧大")
 
     # 涨跌比判断（此处必为非降级路径，up_ratio 为真实数值）
@@ -370,6 +378,16 @@ def _soft_validate_limits(limit_up: int, limit_down: int, total_stocks: int, up_
     return " | ".join(warnings) if warnings else ""
 
 
+def _fmt_limit(v) -> str:
+    """涨跌停/连板展示：缺失（None）显示"不可用"，不读成 0。"""
+    return "不可用" if v is None else str(v)
+
+
+def _fmt_broken(v) -> str:
+    """炸板率展示：缺失（None）显示"不可用"，不读成 0%。"""
+    return "不可用" if v is None else f"{v:.0f}%"
+
+
 def format_breadth(breadth: dict, market_state: dict) -> str:
     """格式化市场宽度输出。"""
     lines = [
@@ -377,10 +395,10 @@ def format_breadth(breadth: dict, market_state: dict) -> str:
         "",
         "## 涨跌停数据",
         "",
-        f"- 涨停家数：{breadth.get('limit_up_count', 0)} 家",
-        f"- 跌停家数：{breadth.get('limit_down_count', 0)} 家",
-        f"- 连板高度：{breadth.get('continuous_limit_height', 0)} 板",
-        f"- 炸板率：{breadth.get('broken_limit_rate', 0):.0f}%",
+        f"- 涨停家数：{_fmt_limit(breadth.get('limit_up_count'))} 家",
+        f"- 跌停家数：{_fmt_limit(breadth.get('limit_down_count'))} 家",
+        f"- 连板高度：{_fmt_limit(breadth.get('continuous_limit_height'))} 板",
+        f"- 炸板率：{_fmt_broken(breadth.get('broken_limit_rate'))}",
         "",
         "## 涨跌家数",
         "",

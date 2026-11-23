@@ -349,3 +349,79 @@ class TestZeroZeroWidthUnavailable:
             },
         )
         assert market_anchor._fetch_emotion_phase(market_anchor._fetch_breadth()) is None
+
+
+class TestLimitFieldsNoneNotZero:
+    """降级路径涨跌停/连板/炸板率必须是 None，不得 0 占位（研判 2026-11-23 实盘发现）。
+
+    盘后 market_breadth 脚本降级时返回涨停 0/跌停 0/连板 0，下游读成"今日零涨停"，
+    而当日实际涨停 147。这是"缺失字段用 0 冒充真实值"，与 VIX 旧值冒充新价同类。
+    """
+
+    def test_default_result_limit_fields_none(self):
+        r = mb._default_result()
+        for k in ("limit_up_count", "limit_down_count", "continuous_limit_height", "broken_limit_rate"):
+            assert r[k] is None, f"{k} 应为 None 而非 0"
+
+    def test_get_limit_data_exception_returns_none_fields(self, monkeypatch):
+        import builtins
+
+        original_import = builtins.__import__
+
+        def fake_import(name, *args, **kwargs):
+            if name == "technical.sentiment":
+                raise ImportError("blocked")
+            return original_import(name, *args, **kwargs)
+
+        monkeypatch.setattr(builtins, "__import__", fake_import)
+        r = mb.get_limit_data()
+        assert r["_degraded"] is True
+        for k in ("limit_up_count", "limit_down_count", "continuous_limit_height", "broken_limit_rate"):
+            assert r[k] is None, f"{k} 应为 None 而非 0"
+
+    def test_zero_zero_width_propagates_none_limits(self, monkeypatch):
+        payload = '{"rc":0,"data":{"total":2,"diff":[{"f104":0,"f105":0,"f106":0},{"f104":0,"f105":0,"f106":0}]}}'
+        monkeypatch.setattr(mb, "http_get", lambda *a, **k: payload)
+        monkeypatch.setattr(mb, "get_limit_data", mb._default_result)
+        r = mb.get_market_breadth()
+        assert r["limit_up_count"] is None
+        assert r["limit_down_count"] is None
+
+    def test_state_with_none_limits_no_crash_and_unavailable(self):
+        """缺字段直接传 get_market_state 不得 TypeError，也不得读成零涨停定性。"""
+        state = mb.get_market_state(
+            {
+                "limit_up_count": None,
+                "limit_down_count": None,
+                "continuous_limit_height": None,
+                "broken_limit_rate": None,
+                "up_count": 4344,
+                "down_count": 806,
+                "up_ratio": 5.39,
+                "_degraded": True,
+                "_degraded_reason": "涨跌停数据降级",
+            }
+        )
+        assert state["degraded"] is True
+        assert state["state"] in (mb.STATE_BIAS_STRONG, mb.STATE_BIAS_WEAK, mb.STATE_BIAS_NEUTRAL)
+        assert "零涨停" not in " ".join(state["signals"])
+
+    def test_format_breadth_none_shows_unavailable(self):
+        text = mb.format_breadth(
+            {
+                "limit_up_count": None,
+                "limit_down_count": None,
+                "continuous_limit_height": None,
+                "broken_limit_rate": None,
+                "up_count": None,
+                "down_count": None,
+                "up_ratio": None,
+                "total_stocks": 0,
+            },
+            {"state": mb.STATE_UNAVAILABLE, "signals": [], "confidence": mb.CONFIDENCE_LOW, "degraded": True},
+        )
+        assert "涨停家数：不可用" in text
+        assert "跌停家数：不可用" in text
+        assert "连板高度：不可用" in text
+        assert "炸板率：不可用" in text
+        assert "涨停家数：0 家" not in text
