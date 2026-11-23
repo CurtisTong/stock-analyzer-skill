@@ -10,18 +10,26 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-_MONITOR = Path(__file__).resolve().parents[3] / "monitor" / "check_holdings.py"
+_MONITOR = Path(os.environ.get("STOCK_TEAM_MONITOR_DIR", str(Path(__file__).resolve().parents[3] / "monitor")))
+_MONITOR_SCRIPT = _MONITOR / "check_holdings.py"
+if not _MONITOR_SCRIPT.is_file():
+    pytest.skip(
+        f"外部共享脚本不存在：{_MONITOR_SCRIPT}（可设置 STOCK_TEAM_MONITOR_DIR）",
+        allow_module_level=True,
+    )
+
 _NOW = datetime(2026, 11, 23, 23, 45)
 
 
 @pytest.fixture(scope="module")
 def ch():
-    spec = importlib.util.spec_from_file_location("check_holdings_under_test", _MONITOR)
+    spec = importlib.util.spec_from_file_location("check_holdings_under_test", _MONITOR_SCRIPT)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

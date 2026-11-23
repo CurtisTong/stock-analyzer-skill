@@ -9,12 +9,21 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-_MONITOR = Path(__file__).resolve().parents[3] / "monitor"
+_MONITOR = Path(os.environ.get("STOCK_TEAM_MONITOR_DIR", str(Path(__file__).resolve().parents[3] / "monitor")))
+
+# 这些脚本位于仓库外 stock-team/monitor/ 共享目录；本地/CI 无此目录时整模块跳过。
+_REQUIRED = ("monitor_holdings.py", "daily_card.py", "check_holdings.py")
+if any(not (_MONITOR / name).is_file() for name in _REQUIRED):
+    pytest.skip(
+        f"外部共享目录缺少 {', '.join(_REQUIRED)}（目录 {_MONITOR}）",
+        allow_module_level=True,
+    )
 
 
 def _load(name, filename):

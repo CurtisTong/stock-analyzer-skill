@@ -13,12 +13,22 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
 
 import pytest
 
-_MONITOR = Path(__file__).resolve().parents[3] / "monitor"
+_MONITOR = Path(os.environ.get("STOCK_TEAM_MONITOR_DIR", str(Path(__file__).resolve().parents[3] / "monitor")))
 _BASE_BAK = _MONITOR / "holdings_levels_20261120.json.bak"
+
+# 这些脚本位于仓库外 stock-team/monitor/ 共享目录；本地/CI 无此目录时整模块跳过，
+# 避免污染 pytest tests/ 收集与 CI 门禁。设置 STOCK_TEAM_MONITOR_DIR 可指定目录。
+_REQUIRED = ("rebuild_check.py", "check_holdings.py", "holdings_levels_20261120.json.bak")
+if any(not (_MONITOR / name).is_file() for name in _REQUIRED):
+    pytest.skip(
+        f"外部共享目录缺少 {', '.join(_REQUIRED)}（目录 {_MONITOR}）",
+        allow_module_level=True,
+    )
 
 _SPEC = importlib.util.spec_from_file_location("rebuild_check_under_test", _MONITOR / "rebuild_check.py")
 rc = importlib.util.module_from_spec(_SPEC)
