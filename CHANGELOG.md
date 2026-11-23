@@ -913,6 +913,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1545,6 +1546,10 @@
 - block outbound network in unit tests
 - **screener**: stub the event factor so unit tests stay offline
 - use relative dates and deterministic portfolio fixtures
+
+### Maintenance
+- **test**: 修正歧义变量名l以满足ruff E741
+- **data**: 因子 IC 移出 tracked 并加不可用守卫
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
