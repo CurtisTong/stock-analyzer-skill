@@ -912,6 +912,7 @@
 
 
 
+
 ## [1.20.1] - 2026-08-12（screener 整体任务 watchdog + sector_summary CLI + CI 黑块修复 + 板块授权 + 数据快照）
 
 ### Added
@@ -1532,6 +1533,18 @@
 - Merge branch 'feat/p0-4a-data-quality' into feat/p0-4c-strict-batching
 - v1.33.0 — positioning convergence and reviewable evidence
 - Merge CI auto CHANGELOG update (d12f65b)
+
+### Testing
+- **monitor**: back_to_80字段用null不用0，对齐权威账本
+- **monitor**: 账本重建流程封装回归测试
+- **monitor**: 持仓闸门账户级恒等校验回归测试
+- **monitor**: 盘前价格基准日假红回归测试
+- **portfolio**: 健康报告用例隔离 scripts/data，删除空断言分支
+- **data**: 全市场池主板归属用例改为纯打桩并锁定主板合计
+- **portfolio**: 健康报告用例隔离 scripts/data，删除空断言分支
+- block outbound network in unit tests
+- **screener**: stub the event factor so unit tests stay offline
+- use relative dates and deterministic portfolio fixtures
 
 ## [1.20.0] - 2026-08-08（screener 三段式漏斗 + regime RANGE_CHOPPY + akshare 行业补全 + market 时效/涨跌停软校验 + research 信号冲突检测强化 + stock 宝丰 v2 报告）
 
