@@ -23,7 +23,10 @@ HOLDINGS = {
     "sz159934": {"qty": 8200, "px": 7.726},    # 黄金
 }
 BETAS = {"sz159845": 2.2285, "sh588080": 2.7289, "sz159934": 0.6484}
-META = {"benchmark": "sh000001", "last_bar_date": "2026-11-23", "price_date": "2026-11-23"}
+META = {
+    "benchmark": "sh000001", "last_bar_date": "2026-11-23", "price_date": "2026-11-23",
+    "beta_method": "sina_60d_sh000001",
+}
 
 
 def _compute(**overrides):
@@ -53,6 +56,14 @@ class TestBaselineLocked:
         assert r["benchmark"] == "sh000001"
         assert r["last_bar_date"] == "2026-11-23"
         assert r["price_date"] == "2026-11-23"
+        assert r["beta_method"] == "sina_60d_sh000001"
+
+    def test_missing_beta_method_returns_none(self):
+        """Chief 11-23 补：beta_method 必填，缺了不给 E₀（不写算法名=没写口径）。"""
+        r = _compute(beta_method=None)
+        assert r["e0"] is None
+        assert r["available"] is False
+        assert "beta_method" in r["reason"]
 
 
 class TestDateAlignment:

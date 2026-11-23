@@ -37,9 +37,10 @@ def compute_exposure(
     benchmark: str | None,
     last_bar_date: str | None,
     price_date: str | None,
+    beta_method: str | None,
     sleeve: tuple[str, ...] = DEFAULT_SLEEVE,
 ) -> dict:
-    """计算 sleeve 敞口 E₀，强制附带四字段口径元数据。
+    """计算 sleeve 敞口 E₀，强制附带四字段口径元数据 + β 算法来源。
 
     Args:
         holdings: {code: {"qty": float, "px": float}}，至少覆盖 sleeve 全部标的。
@@ -48,6 +49,9 @@ def compute_exposure(
         benchmark: 基准指数代码（如 sh000001）——元数据字段 2。
         last_bar_date: K 线末根日期 YYYY-MM-DD——元数据字段 3。
         price_date: 账本价格基准日 YYYY-MM-DD——元数据字段 4。
+        beta_method: β 的算法+数据源标识（如 sina_60d_sh000001 / repo_compute_beta）。
+            必填——Chief 11-23 补：不写算法名就等于没写口径；同组 β 不同算法会给出
+            不同的 E₀（0.7621 vs 0.7625），缺此字段不给 E₀。
         sleeve: sleeve 成员代码元组——元数据字段 1 的一部分。
 
     Returns:
@@ -58,6 +62,7 @@ def compute_exposure(
           benchmark         —— 基准代码（元数据 2）
           last_bar_date     —— K 线末根日期（元数据 3）
           price_date        —— 账本价格基准日（元数据 4）
+          beta_method       —— β 算法+数据源标识（缺失不给 E₀）
           sleeve            —— sleeve 成员（元数据 1 的口径定义）
           date_aligned      —— last_bar_date == price_date（口径一致性，False 则禁止启用）
           reason            —— 不可用/口径不齐时的原因
@@ -70,6 +75,7 @@ def compute_exposure(
         "benchmark": benchmark,
         "last_bar_date": last_bar_date,
         "price_date": price_date,
+        "beta_method": beta_method,
         "sleeve": list(sleeve),
     }
 
@@ -81,6 +87,8 @@ def compute_exposure(
         return unavailable("总资产缺失或非正")
     if not benchmark or not last_bar_date or not price_date:
         return unavailable("四字段元数据不全（benchmark/last_bar_date/price_date）")
+    if not beta_method:
+        return unavailable("缺 beta_method（β 算法+数据源标识），不写算法名等于没写口径")
 
     date_aligned = last_bar_date == price_date
 
@@ -126,5 +134,6 @@ if __name__ == "__main__":
     r = compute_exposure(
         holdings, 707359.92, betas,
         benchmark="sh000001", last_bar_date="2026-11-23", price_date="2026-11-23",
+        beta_method="sina_60d_sh000001",
     )
     print(json.dumps(r, ensure_ascii=False, indent=1))
