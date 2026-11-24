@@ -186,6 +186,7 @@ def main():
             "volume",
             "patterns",
             "support_resistance",
+            "factions",
             "box",
             "breakout",
             "wave",

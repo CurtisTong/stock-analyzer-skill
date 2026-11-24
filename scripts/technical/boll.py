@@ -14,6 +14,29 @@ from common.exceptions.silent_fallback import log_silent_fallback
 # 低波动阈值：ATR/现价 < 2%（日均振幅）判为低波动，收窄变盘参考弱
 _LOW_VOL_ATR_PCT = 0.02
 
+# 首次触轨阈值（与下方 position_desc 的口径一致）
+_UPPER_TOUCH_THRESHOLD = 0.9
+_LOWER_TOUCH_THRESHOLD = 0.1
+
+
+def _position_at(closes, idx, period, multiplier):
+    """以 idx 为最新一根重算布林 position；idx 之前不足 period 根时返回 None。
+
+    "首次触轨"需要判断前一根 position，但 bollinger 是纯函数、入参只有 closes，
+    因此在函数内以 closes[:idx+1] 按同一 period/multiplier 重算前一根的
+    mid/sd/upper/lower 与 position，避免依赖调用方传入历史 position。
+    """
+    if idx < period - 1:
+        return None
+    window = closes[idx + 1 - period : idx + 1]
+    mid = sma(window, period)
+    sd = stddev(window)
+    upper = mid + multiplier * sd
+    lower = mid - multiplier * sd
+    if (upper - lower) <= 1e-6:
+        return 0.5
+    return (closes[idx] - lower) / (upper - lower)
+
 
 def bollinger(closes, period=20, multiplier=2.0, highs=None, lows=None):
     """布林带分析：上/中/下轨 + 带宽 + 价格位置。
@@ -75,6 +98,20 @@ def bollinger(closes, period=20, multiplier=2.0, highs=None, lows=None):
     else:
         pos_desc = "中轨附近"
 
+    # ── 首次触轨事件（本轮首次穿越，而非同一趋势重复触发）──
+    # 口径：当前 position 越过阈值，且前一根 position（以 closes[:-1] 为终点
+    # 按同一 period/multiplier 重算）未越过同一阈值 → True；
+    # 前一根也越过（同一趋势第二次触轨）或数据不足无法重算前一根 → False。
+    # 仅新增字段，既有返回键保持不变（向后兼容旧调用方与回测脚本）。
+    first_touch_upper = False
+    first_touch_lower = False
+    prev_position = _position_at(closes, len(closes) - 2, period, multiplier)
+    if prev_position is not None:
+        if position > _UPPER_TOUCH_THRESHOLD and prev_position <= _UPPER_TOUCH_THRESHOLD:
+            first_touch_upper = True
+        elif position < _LOWER_TOUCH_THRESHOLD and prev_position >= _LOWER_TOUCH_THRESHOLD:
+            first_touch_lower = True
+
     return {
         "upper": round(upper, 2),
         "mid": round(mid, 2),
@@ -86,4 +123,7 @@ def bollinger(closes, period=20, multiplier=2.0, highs=None, lows=None):
         # 变盘语义：带宽 < 0.05；low_vol_squeeze 表示因个股低波动而降级
         "squeeze": bandwidth < 0.05,
         "low_vol_squeeze": low_vol_squeeze,
+        # 首次触轨事件：本轮首次穿越上/下轨；重复触轨或数据不足为 False
+        "first_touch_upper": first_touch_upper,
+        "first_touch_lower": first_touch_lower,
     }

@@ -636,24 +636,33 @@ class TestTrend:
         assert "整数关口" in sources
 
     def test_support_resistance_low_price(self):
-        """last<50 → 整数关口阻力含最近关口（修复：原跳过 50 从 51 起）。"""
+        """last<50 → 整数关口双侧输出：下方支撑 48、上方阻力 50。
+
+        T3/P1：修复前若 last 恰在关口（含 49.0，step=1），下方支撑全消失，
+        期望 nearest_support is None 是过期断言；改为 floor/ceil 双侧生成后，
+        最近下方关口为 48.0（现价 49 本身作为"当前关口"不计入任一侧）。
+        """
         closes = [49.0] * 30
         highs = [50.0] * 30
         lows = [48.0] * 30
         out = support_resistance(closes, highs, lows, {"ma_supports": [], "ma_resistances": []})
         assert out["nearest_resistance"] == 50.0  # 修复前：51（跳过最近关口）
-        assert out["nearest_support"] is None
+        assert out["nearest_support"] == 48  # 修复前：None（下方关口单侧缺失）
 
     def test_box_detection_short(self):
         """closes < window → None（86 行）。"""
         assert box_detection([1.0] * 10, [1.0] * 10, [1.0] * 10) is None
 
     def test_box_detection_tiny_range(self):
-        """范围 < 3% → None（92-93 行）。"""
+        """2% 窄箱体应识别为箱体（T3/P1 阈值改为区间 [1%, 20%]）。
+
+        修复前 range_pct<0.03 → None，把 1.4% 窄幅箱体误拒；修复后 2% 在
+        允许区间内，下方旧断言 `is None` 属过期期望。
+        """
         closes = [10.0] * 25
         highs = [10.1] * 25
         lows = [9.9] * 25
-        assert box_detection(highs, lows, closes) is None
+        assert box_detection(highs, lows, closes)["range_pct"] == 2.0
 
     def test_box_detection_flat(self):
         """箱体震荡（96-108 行）。"""
@@ -760,10 +769,14 @@ class TestTrend:
         assert wave_state([1.0] * 30, [1.0] * 30, [1.0] * 30) == "数据不足"
 
     def test_wave_bottom_structure(self):
-        """低点抬高但高点不抬 → 底部结构（修复后数据修正：原序列低点实际降低）。"""
+        """高点降低+低点抬高 = 收敛三角形（T3/P1 四象限重新命名）。
+
+        修复前误标为"可能有底部结构(低点抬高)"——中性待突破形态不该当底部；
+        修复后该象限明确为"收敛三角形/中性待突破"。
+        """
         arr = _wave_series([(0, 100), (5, 115), (16, 102), (26, 110), (36, 104), (44, 106)])
         out = wave_state(arr, [c + 1 for c in arr], [c - 1 for c in arr])
-        assert out == "可能有底部结构(低点抬高)"
+        assert out == "收敛三角形/中性待突破(高点降低+低点抬高)"
 
     def test_wave_range(self):
         """无明确趋势 → 盘整（174 行）。"""

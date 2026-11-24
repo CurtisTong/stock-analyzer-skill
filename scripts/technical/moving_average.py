@@ -44,9 +44,12 @@ def ma_system(closes):
         if v is not None:
             mas.append(v)
     if len(mas) >= 4:
-        if all(mas[i] > mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]):
+        # 排列判断不对 MA 做真值过滤：mas 已由 is not None 过滤，A 股正常价格下
+        # MA 恒为正。原 `if mas[i] and mas[i+1]` 会在某条 MA 为 0 时跳过该比较，
+        # 使 [10,9,0,8,7] 被误判为多头排列——直接比较全序列即可。
+        if all(mas[i] > mas[i + 1] for i in range(len(mas) - 1)):
             result["alignment"] = "多头排列"
-        elif all(mas[i] < mas[i + 1] for i in range(len(mas) - 1) if mas[i] and mas[i + 1]):
+        elif all(mas[i] < mas[i + 1] for i in range(len(mas) - 1)):
             result["alignment"] = "空头排列"
         else:
             result["alignment"] = "交叉震荡"

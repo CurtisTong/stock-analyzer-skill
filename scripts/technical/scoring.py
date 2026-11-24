@@ -240,6 +240,11 @@ def _score_kdj(kdj: dict, type_w: dict, adj: dict, vol_signal: int = 0) -> float
     # 按关键词匹配评分（支持组合信号如"金叉+超卖"、"死叉+超买"等）
     if "金叉" in kdj_sig and "超卖" in kdj_sig:
         kdj_base = kdj_weight * trend_penalty * dunhua_penalty  # 下跌趋势中超卖金叉降权
+    elif "金叉" in kdj_sig and "超买" in kdj_sig:
+        # P1 修复：高位金叉（如"金叉+超买"）此前落入泛金叉分支按 0.8 正面计分，
+        # 比纯"超买"(0.3) 高出 5 分。超买区金叉按超买口径 0.3 计分，
+        # 避免"多两个字反而加分"。须置于泛金叉分支之前才能命中。
+        kdj_base = kdj_weight * 0.3 * dunhua_penalty
     elif "金叉" in kdj_sig:
         kdj_base = kdj_weight * 0.8
     elif "死叉" in kdj_sig and "超买" in kdj_sig:

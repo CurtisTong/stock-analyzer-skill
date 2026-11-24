@@ -29,6 +29,9 @@ from .volume import volume_analysis
 # K 线形态
 from .candlestick import detect_candle_patterns
 
+# 跳空缺口
+from .gap import detect_gaps, gap_support_resistance
+
 # 趋势结构
 from .trend import (
     support_resistance,
@@ -68,6 +71,9 @@ __all__ = [
     "volume_analysis",
     # candlestick
     "detect_candle_patterns",
+    # gap
+    "detect_gaps",
+    "gap_support_resistance",
     # trend
     "support_resistance",
     "box_detection",
