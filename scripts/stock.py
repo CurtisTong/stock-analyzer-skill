@@ -329,7 +329,9 @@ def _with_data_quality(result: dict, code: str) -> dict:
         required=("quote", "kline", "finance"),
         field_map={
             "quote": ("price", "change_pct"),
-            "kline": ("kline",),
+            # 业务层产出的是 kline_count（有效 K 线条数），不存在 kline 键；
+            # 映射成 kline 会让 _present() 恒判 K 线域缺失，进而清空 score 等结论字段。
+            "kline": ("kline_count",),
             "finance": ("finance",),
         },
         conclusion_keys=("score", "advice", "buy_signals", "sell_signals", "position_advice"),

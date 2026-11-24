@@ -55,6 +55,10 @@
 
 ## [Unreleased] - 2026-11-22（投资 / 用户 / 产品三专家视角文档深度优化）
 
+### Fixed
+
+- **`stock.py` 数据完整性信封误判 K 线域缺失**（`_with_data_quality`）：`field_map` 把 K 线域映射到不存在的 `kline` 键，而业务层实际产出 `kline_count`，导致 `_present()` 恒判缺失 → `status=partial` → `score` 等结论字段被按设计清空为 `null`（即使已取到 240 根 K 线）。映射改为 `kline_count` 后恢复正常：实测 CLI `status=ok`、`conclusions_allowed=true`、综合评分 45.2；补 4 项回归测试锁定"有值保留评分 / 真缺 K 线仍清空评分"，全量单测 2803 passed。
+
 ### Docs
 
 - **投资专家视角**（methodology.md / docs/strategy-validation.md / docs/positioning.md / experts/*.md）：用 `data/strategy_oos_validation.json` 真实数据替换过期的 OOS 数字与虚构 `oos_verified` 示例，明确"全部 in_sample、外样本双池全负、非收益承诺"；补齐宇宙指纹校验、双池运行入口与多池联合判定闸门；新增「证据等级与偏差防护」章节（回测过拟合 / 幸存者偏差 / 样本量不足 / 选择性披露）；修复不存在的 `experts/yaml/industry_thresholds.yaml` 与失效案例报告链接；纠正 debate 长线 5 / 短线 3 人数、legacy 子分机制口径与「五层框架含第 6 层」结构矛盾。
