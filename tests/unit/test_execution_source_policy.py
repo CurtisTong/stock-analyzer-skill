@@ -1,7 +1,12 @@
-"""执行口径断层修复单测（hermetic：monkeypatch 报价/K线，不连网、不读真实持仓取数）。
+"""执行口径断层修复单测（hermetic：fixture 账本注入 + monkeypatch 报价/K线，不连网、不读本机真实持仓）。
 
 操盘/Chief 2026-11-23 定案：唯一权威源是 holdings_levels.json，portfolio.json 只当历史。
 snapshot() 改读 LEVELS（第1/2条）、仓位估算与权威分开（第3条）、闸门2b降级为WARN（第4条）。
+
+2026-11-24 fixture 化（Chief/研判定口径）：原断言写死 72.2% / 9 只，账本每次成交都会
+把它变红——脆弱根因是「断言绑本机账本当前值」。改为内存 fixture 账本喂 snapshot()，
+断言派生关系（权威仓位 == fixture.combined.position_pct、持仓数 == fixture 非_带qty 条目数），
+并参数化仓位 60.1/55.0/90.0 证明测试不绑账本。禁止读本机 holdings_levels.json。
 
 共享脚本在仓库外 stock-team/monitor/，用 importlib 按路径加载。
 """
@@ -48,32 +53,61 @@ def ch():
     return _load("check_holdings_under_test", "check_holdings.py")
 
 
-def _isolate(mh, monkeypatch):
+def _levels_fixture(position_pct=60.1, codes=("sz159845", "sz159934", "sh600000")):
+    """内存账本 fixture：非 `_` 且带 qty 的条目 = 持仓；_meta.combined 权威字段可注入。"""
+    levels = {
+        "_meta": {
+            "updated": "2026-11-24T21:42:00", "price_date": "2026-11-24",
+            "combined": {
+                "total_assets": 100000.0, "market_value": position_pct * 1000.0,
+                "cash": (100.0 - position_pct) * 1000.0, "position_pct": position_pct,
+            },
+            "accounts": {},
+        },
+    }
+    for c in codes:
+        levels[c] = {"name": c, "qty": 100, "cost_avg": 2.0, "px": 2.5}
+    return levels
+
+
+def _isolate(mh, monkeypatch, levels=None):
+    """注入报价/K线/账本 fixture，完全隔离本机真实数据。"""
     def fake_quote(code):
         return {"price": 2.5, "change_pct": 1.0, "open": 2.5, "prev_close": 2.475}
 
     monkeypatch.setattr(mh, "quote", fake_quote)
-    monkeypatch.setattr(mh, "kline_last_day", lambda *a, **k: "2026-11-23")
+    monkeypatch.setattr(mh, "kline_last_day", lambda *a, **k: "2026-11-24")
+    monkeypatch.setattr(mh, "LEVELS", levels if levels is not None else _levels_fixture())
+
+
+# 仓位取 60.1（当前量级）/55.0/90.0（两端）——证明断言跟随 fixture、不绑任何账本当前值
+_POSITION_CASES = [60.1, 55.0, 90.0]
 
 
 class TestSnapshotReadsLevels:
-    def test_position_split_estimate_vs_book(self, mh, monkeypatch):
-        _isolate(mh, monkeypatch)
+    @pytest.mark.parametrize("pos", _POSITION_CASES)
+    def test_position_split_estimate_vs_book(self, mh, monkeypatch, pos):
+        levels = _levels_fixture(position_pct=pos)
+        _isolate(mh, monkeypatch, levels)
         s = mh.snapshot("盘前")
-        # 估算仓位（实时市值/实时总资产）与账本权威仓位分开
+        # 权威仓位派生自 fixture，不是硬编码；估算仓位（实时市值/实时总资产）单列
         assert s["position_pct"] is not None
-        assert s["position_pct_book"] == pytest.approx(72.2, abs=0.05)  # LEVELS combined
-        assert s["book_price_date"] == "2026-11-23"
+        assert s["position_pct_book"] == pytest.approx(
+            levels["_meta"]["combined"]["position_pct"], abs=1e-9
+        )
+        assert s["book_price_date"] == levels["_meta"]["price_date"]
         assert "price_date_source" in s
 
-    def test_holdings_from_levels_not_portfolio(self, mh, monkeypatch):
-        _isolate(mh, monkeypatch)
+    @pytest.mark.parametrize("pos", _POSITION_CASES)
+    def test_holdings_from_levels_not_portfolio(self, mh, monkeypatch, pos):
+        levels = _levels_fixture(position_pct=pos)
+        _isolate(mh, monkeypatch, levels)
         s = mh.snapshot("盘前")
         codes = {r["code"] for r in s["rows"]}
-        # 应来自 LEVELS 的 9 只（含广合 sz001389），不含已清仓深100 sz159901
-        assert "sz001389" in codes
-        assert "sz159901" not in codes
-        assert len(codes) == 9
+        expected = {c for c, v in levels.items() if not c.startswith("_") and isinstance(v, dict) and "qty" in v}
+        assert codes == expected
+        assert len(codes) == len(expected)  # 派生自 fixture 条目数，不写死 9/8 只
+        assert "PORTFOLIO" not in s  # 结果集不含 portfolio 来源字段
 
     def test_no_portfolio_dependency(self, mh):
         # snapshot() 源码不再出现 PORTFOLIO 取数
@@ -83,15 +117,18 @@ class TestSnapshotReadsLevels:
 
 
 class TestCardShowsBothPositions:
-    def test_card_labels_estimate_and_book(self, dc, mh, monkeypatch):
-        _isolate(mh, monkeypatch)
+    @pytest.mark.parametrize("pos", _POSITION_CASES)
+    def test_card_labels_estimate_and_book(self, dc, mh, monkeypatch, pos):
+        levels = _levels_fixture(position_pct=pos)
+        _isolate(mh, monkeypatch, levels)
         snap = mh.snapshot("盘前")
-        gate = {"ok": True, "problems": [], "price_date": "2026-11-23"}
+        gate = {"ok": True, "problems": [], "price_date": "2026-11-24"}
         card = dc.build("盘前", snap, gate)
         pos_line = [line for line in card.splitlines() if line.startswith("仓位")][0]
         assert "估算" in pos_line
         assert "账本权威" in pos_line
-        assert "72.2%" in pos_line
+        # 期望字符串派生自 fixture 权威仓位，卡片格式 `账本权威 {pos_book:.1f}%`
+        assert f"账本权威 {pos:.1f}%" in pos_line
 
 
 class TestGatePortfolioDowngraded:
