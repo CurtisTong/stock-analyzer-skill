@@ -159,7 +159,11 @@ class TestIndexDirectionVerdict:
 
 class TestIntegerLevelFloor:
     def test_55_floors_to_50_support(self):
-        """last=55：round(5.5)=6 会把 60 当阻力；向下取整应为 50 支撑。"""
+        """last=55：下方 floor 关口 50 为支撑，上方 ceil 关口 60/70/80 为阻力。
+
+        T3/P1 修复前只生成单侧关口，故旧断言 int_resistances == []；
+        修复 #1 改为 floor/ceil 双侧输出后，上方关口必然出现（与 50 支撑并存）。
+        """
         out = support_resistance(
             [55.0] * 30,
             [56.0] * 30,
@@ -169,4 +173,4 @@ class TestIntegerLevelFloor:
         int_supports = [s["level"] for s in out["supports"] if s["source"] == "整数关口"]
         int_resistances = [r["level"] for r in out["resistances"] if r["source"] == "整数关口"]
         assert 50.0 in int_supports
-        assert int_resistances == []
+        assert int_resistances == [60, 70, 80]

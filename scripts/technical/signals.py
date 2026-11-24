@@ -103,11 +103,20 @@ def _generate_signals(features, market_breadth=None):
     if divergence == "底背离(看涨)":
         buy.append("MACD底背离")
     # KDJ超卖金叉：下跌趋势中降级为"待确认"；钝化时信号暂停参考
-    if not kdj.get("钝化") and "金叉" in kdj.get("signal", "") and "超卖" in kdj.get("signal", ""):
+    kdj_signal = kdj.get("signal", "")
+    if not kdj.get("钝化") and "金叉" in kdj_signal and "超卖" in kdj_signal:
         if is_downtrend:
             buy.append("KDJ超卖区金叉(待确认-下跌趋势)")
         else:
             buy.append("KDJ超卖区金叉")
+    # T8-a(P2)：中性区金叉与结构化字段 kdj_golden_cross 语义对齐。
+    # 原实现 buy 只认"超卖金叉"，而结构化字段只要"金叉"就为 True，
+    # 导致 K 在中性区(20~80)金叉时 buy=[] 但 kdj_golden_cross=True，两层冲突。
+    # 保留字段名与返回结构不变，补一条弱参考买点使两层一致；
+    # "金叉+超买"不属于中性区，仍由卖出侧按超买口径处理。
+    if (not kdj.get("钝化") and "金叉" in kdj_signal
+            and "超卖" not in kdj_signal and "超买" not in kdj_signal):
+        buy.append("KDJ金叉(中性区,参考弱)")
     if boll.get("position", 0.5) < 0.2 and "收窄" in boll.get("bandwidth_desc", ""):
         # 回测落地：低波动股极度收窄无变盘放大（茅台/招行 3.4% vs 宁德 10.3%），
         # 低波动时降级标注，避免把低波动收窄当强变盘信号

@@ -232,6 +232,30 @@ def _render_support_resistance_section(sr):
     return lines
 
 
+def _render_factions_section(features):
+    """渲染派别状态段落（段子式"支撑位阵亡名单"的客观版）。"""
+    fac = features.get("factions") or {}
+    entries = fac.get("entries") or []
+    if not entries:
+        return []
+    lines = []
+    lines.append("\n## 派别支撑/阻力状态")
+    wave = fac.get("wave_structure")
+    if wave:
+        lines.append(f"  波浪结构: {wave}")
+    lines.append(f"  {'派别':<8} {'点位':<10} {'方向':<6} {'状态':<8} {'来源'}")
+    for e in entries:
+        kind = "支撑" if e.get("kind") == "support" else "阻力"
+        lines.append(
+            f"  {e['faction']:<8} {e['level']:<10} {kind:<6} {e['status']:<8} {e.get('source', '')}"
+        )
+    fallen = fac.get("fallen_count", 0)
+    if fallen:
+        lines.append(f"  已跌破支撑 {fallen} 档（段子口径：已阵亡）")
+    lines.append("  注: 客观点位与状态标注，不含买卖建议。")
+    return lines
+
+
 def _render_trend_section(features):
     """渲染趋势结构段落。"""
     wave = features.get("wave", "")
@@ -388,6 +412,7 @@ def render_report(features, score, signals, meta):
         lambda: _render_local_patterns_section(features),
         lambda: _render_market_env_section(features),
         lambda: _render_support_resistance_section(sr),
+        lambda: _render_factions_section(features),
         lambda: _render_trend_section(features),
         lambda: _render_limit_section(features),
         lambda: _render_chip_section(features),

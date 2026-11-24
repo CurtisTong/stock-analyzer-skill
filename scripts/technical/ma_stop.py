@@ -31,9 +31,12 @@ def ma_stop_buy(closes, highs, lows, mas):
         mas: ma_system() 返回的 dict（含 ma5/ma20）
 
     Returns:
-        dict: {"status": str, "signal": int, "desc": str, "type": str|None}
+        dict: {"status": str, "signal": int, "desc": str, "type": str|None,
+               "stop_price": float|None}
         signal: 1=止跌买点, 0=无信号
         type: "站上5日线"|"回踩20日线"|"双重止跌"|None
+        stop_price: 止损价 = min(MA20*0.98, 近10根最低 low)，信号未触发时为 None。
+            既有 4 个键保持不变（向后兼容），此处仅新增字段。
         数据不足时返回 None。
     """
     lookback = _MA_STOP_LOOKBACK
@@ -74,7 +77,15 @@ def ma_stop_buy(closes, highs, lows, mas):
     cond_a = False
     recent_lows = lows[-lookback:]
     min_val = min(recent_lows)
-    min_idx = recent_lows.index(min_val)  # 0 = 最老，lookback-1 = 最近
+    # P1 并列最低修复：.index() 取**首个**最小值，若窗口内并列最低（如
+    # [5,5,6,...]），首个落在 index 0（最老端）会被误判为"一路走高、无下探"
+    # 而漏报止跌。改取**最后一个**最小值索引：最近一次下探点在窗口内部即可
+    # 确认"曾下探、此后回升且未再创新低"。保留 0 < min_idx < len-1 的内部
+    # 约束，稳态上涨（最小值恒在最老端）仍不触发（避免 93% 恒真回归）。
+    min_idx = len(recent_lows) - 1 - recent_lows[::-1].index(min_val)
+    # T7: 止损价取 MA20 跌破阈值与近 10 根最低价的较小者；buy 信号才有意义，
+    # 无信号分支置 None。与 _MA20_BREACH 口径一致（跌破该价即止损）。
+    stop_price = min(ma20 * _MA20_BREACH, min_val)
     no_new_low = 0 < min_idx < len(recent_lows) - 1
     above_ma5 = today_close > ma5
     close_rebounding = today_close > prev_close
@@ -93,22 +104,35 @@ def ma_stop_buy(closes, highs, lows, mas):
         return {
             "status": "均线止跌(双重确认)",
             "signal": 1,
-            "desc": f"不再新低+收盘{today_close:.2f}站上MA5({ma5:.2f})，同时回踩MA20({ma20:.2f})不破，双重止跌买点",
+            "desc": (
+                f"不再新低+收盘{today_close:.2f}站上MA5({ma5:.2f})，"
+                f"同时回踩MA20({ma20:.2f})不破，双重止跌买点，"
+                f"止损价{stop_price:.2f}(MA20*0.98与近10根最低取小)"
+            ),
             "type": "双重止跌",
+            "stop_price": stop_price,
         }
     if cond_a:
         return {
             "status": "均线止跌(站上5日线)",
             "signal": 1,
-            "desc": f"股价不再新低，收盘{today_close:.2f}站上MA5({ma5:.2f})，止跌买点",
+            "desc": (
+                f"股价不再新低，收盘{today_close:.2f}站上MA5({ma5:.2f})，止跌买点，"
+                f"止损价{stop_price:.2f}(MA20*0.98与近10根最低取小)"
+            ),
             "type": "站上5日线",
+            "stop_price": stop_price,
         }
     if cond_b:
         return {
             "status": "均线止跌(回踩20日线)",
             "signal": 1,
-            "desc": f"股价回踩MA20({ma20:.2f})不破，前期上升趋势(MA5>MA20)，支撑买点",
+            "desc": (
+                f"股价回踩MA20({ma20:.2f})不破，前期上升趋势(MA5>MA20)，支撑买点，"
+                f"止损价{stop_price:.2f}(MA20*0.98与近10根最低取小)"
+            ),
             "type": "回踩20日线",
+            "stop_price": stop_price,
         }
 
     return {
@@ -116,4 +140,5 @@ def ma_stop_buy(closes, highs, lows, mas):
         "signal": 0,
         "desc": "未满足均线止跌条件",
         "type": None,
+        "stop_price": None,
     }

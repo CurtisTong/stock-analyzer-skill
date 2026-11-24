@@ -181,12 +181,12 @@ class TestBreakoutCheck:
         assert r["status"] == "突破确认(放量)"
 
     def test_integration_no_swing_high_below(self):
-        """无现价下方摆动高点（单调上涨）→ breakout_target 为 None，调用方跳过。"""
+        """无现价下方摆动高点（单调上涨）→ 回退近 21 根最高价（P2#5），调用方仍执行突破检测。"""
         closes = [10.0 + i * 0.1 for i in range(60)]
         highs = [c + 0.1 for c in closes]
         lows = [c - 0.1 for c in closes]
         sr = support_resistance(closes, highs, lows, {"ma_supports": [], "ma_resistances": []})
-        assert sr.get("breakout_target") is None
+        assert sr.get("breakout_target") == 15.9  # = max(highs[-21:-1])
 
 
 # ═══════════════════════════════════════════════════════════════

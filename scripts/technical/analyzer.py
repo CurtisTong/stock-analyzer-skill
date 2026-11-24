@@ -289,4 +289,15 @@ def _compute_all(inp: TechnicalInput):
             "weight_adjustments": _market_weight_adjustments("震荡"),
         }
 
+    # 派别状态聚合（段子式"支撑位阵亡名单"）——纯增量，不改变任何既有字段。
+    # 用 try 包裹：聚合依赖缺口/形态等可选计算，任何异常都不应影响主分析流程。
+    try:
+        from technical.factions import aggregate_factions
+
+        _price = to_float(quote.get("price")) or (closes[-1] if closes else 0.0)
+        features["factions"] = aggregate_factions(features, closes, inp.opens, highs, lows, _price)
+    except Exception as exc:
+        log_silent_fallback("analyzer._compute_all.factions", exc)
+        logger.debug("派别状态聚合失败", exc_info=True)
+
     return features

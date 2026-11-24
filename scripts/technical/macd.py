@@ -29,10 +29,13 @@ def macd_full(closes):
     # 实测 n=34 时随机序列有 33/400 报出无意义的金叉/死叉。
     # 现在：DEA 不足 2 个元素 → 无前值可比 → 不判定金叉死叉（signal=0）。
     has_prev_dea = len(dea_series) >= 2
-    prev_dea = dea_series[-2] if has_prev_dea else dif
+    # T8-b(P3)：无前值 DEA 时不再用当前 dif 冒充 prev_dea。
+    # 原回退使 prev_bar=(prev_dif-dif)*2 实际衡量 DIF 自身涨跌，
+    # 而非 DIF−DEA 柱变化，会输出伪造的"红柱放大/绿柱放大"。
+    prev_dea = dea_series[-2] if has_prev_dea else None
     macd_bar = (dif - dea) * 2
 
-    # 金叉死叉检测（使用 epsilon 避免浮点噪声）
+    # 金叉死叉检测（使用 epsilon 避免浮点噪声；前值门控保持不变）
     signal = 0
     if has_prev_dea:
         if prev_dif < prev_dea - _EPS and dif > dea + _EPS:
@@ -40,16 +43,19 @@ def macd_full(closes):
         elif prev_dif > prev_dea + _EPS and dif < dea - _EPS:
             signal = -1
 
-    # 柱状图趋势
-    prev_bar = (prev_dif - prev_dea) * 2
-    if macd_bar > 0 and macd_bar > prev_bar:
-        bar_trend = "红柱放大"
-    elif macd_bar > 0 and macd_bar <= prev_bar:
-        bar_trend = "红柱缩小"
-    elif macd_bar < 0 and macd_bar < prev_bar:
-        bar_trend = "绿柱放大"
+    # 柱状图趋势：无前值 DEA 时只降级描述字段，不伪造 prev_bar；返回键保持不变
+    if not has_prev_dea:
+        bar_trend = "数据不足"
     else:
-        bar_trend = "绿柱缩小"
+        prev_bar = (prev_dif - prev_dea) * 2
+        if macd_bar > 0 and macd_bar > prev_bar:
+            bar_trend = "红柱放大"
+        elif macd_bar > 0 and macd_bar <= prev_bar:
+            bar_trend = "红柱缩小"
+        elif macd_bar < 0 and macd_bar < prev_bar:
+            bar_trend = "绿柱放大"
+        else:
+            bar_trend = "绿柱缩小"
 
     # 背离检测
     divergence = _detect_macd_divergence(closes, dif_series, dea_series)
